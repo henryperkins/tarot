@@ -8,33 +8,33 @@ This document contains comprehensive Mermaid diagrams covering the current appli
 
 These diagrams are maintained as high-level references, not exact schema dumps. Validate route ownership, bindings, and database fields against `src/worker/index.js`, `wrangler.jsonc`, `functions/`, and `migrations/` when making implementation changes.
 
+Use the [provider inventory](../provider-reference.md) for feature-specific routing, optional owner subscription inference, model defaults and configuration.
+
 ## 1. High-Level System Architecture
 
 ```mermaid
 graph TB
     subgraph External["External Services"]
         ModalQwen["Modal Qwen<br/>Chat Completions"]
-        OpenAI["OpenAI native Responses<br/>azure-gpt5"]
-        AzureOpenAI["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
+        OpenAI["OpenAI native Responses<br/>openai-native"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
         ReaderTTS["User-selected narration<br/>ElevenLabs v4 / Sarah<br/>Deepgram Aura-2 / Cora"]
         Stripe["Stripe<br/>Checkout, Portal, Webhooks"]
-        EmailService["Email Service<br/>Quality Alerts"]
-        Sentry["Sentry<br/>Errors and sampled replay"]
+        EmailService["Cloudflare Email / Resend<br/>Auth, billing, quality alerts"]
+        Sentry["Sentry<br/>Errors and performance traces"]
     end
 
     subgraph Cloudflare["Cloudflare Infrastructure"]
         Worker["Cloudflare Worker<br/>src/worker/index.js"]
         ReadingJob["READING_JOBS Durable Object<br/>ReadingJob"]
-        WorkersAI["Workers AI<br/>Qwen evaluation; optional Llama vision"]
+        WorkersAI["Workers AI<br/>Questions, grading, embeddings,<br/>vision, narration, story art"]
         D1["D1 (DB)<br/>App data, eval_metrics, quality, usage, media metadata"]
         KV_Rate["KV RATELIMIT<br/>Rate limiting"]
         KV_Feedback["KV FEEDBACK_KV<br/>Feedback cache"]
-        KV_Metrics["KV METRICS_DB<br/>Media telemetry, media usage, card-video job metadata,<br/>ongoing compatibility archive input"]
+        KV_Metrics["KV METRICS_DB<br/>Media telemetry, media usage, legacy video-job metadata,<br/>ongoing compatibility archive input"]
         R2["R2 (R2_LOGS)<br/>Generated/user media, journal exports, archives"]
         Assets["ASSETS binding<br/>Static files"]
         Logpush["Logpush and observability"]
-        CronVideo["Cron */10 * * * *<br/>Card-video usage reconciliation"]
         CronDaily["Cron 0 3 * * *<br/>Quality analysis, ongoing KV compatibility archival, cleanup"]
     end
 
@@ -54,10 +54,9 @@ graph TB
     Worker --> Assets
     Worker --> Logpush
     Worker -->|"/api/tarot-reading/jobs/*"| ReadingJob
-    Worker -->|1. narrative| ModalQwen
-    Worker -->|2. azure-gpt5: native| OpenAI
-    Worker -->|2. azure-gpt5: Azure fallback| AzureOpenAI
-    Worker -->|3. fallback| Claude
+    Worker -->|1. narrative| Claude
+    Worker -->|2. narrative| ModalQwen
+    Worker -->|3. openai-native| OpenAI
     Worker -->|4. deterministic fallback| LocalComposer
     Worker -->|TTS| ReaderTTS
     Worker -->|Payments| Stripe
@@ -65,7 +64,6 @@ graph TB
     Worker -->|Diagnostics and replay| Sentry
     Worker --> CronVideo
     Worker --> CronDaily
-    CronVideo --> KV_Metrics
     CronDaily --> D1
     CronDaily --> KV_Metrics
     Shared -.->|"Used by"| Frontend
@@ -182,7 +180,6 @@ graph TB
 graph TB
     subgraph Router["Worker Router<br>src/worker/index.js"]
         Fetch["fetch() handler"]
-        CronVideo["scheduled(): */10 * * * *<br/>card-video usage reconciliation"]
         CronDaily["scheduled(): 0 3 * * *<br/>quality, compatibility archival, cleanup"]
         ShareOG["Share page OG injector"]
     end
@@ -276,7 +273,7 @@ graph TB
         Usage["GET /api/usage"]
         Memories["GET/POST/DELETE /api/memories"]
         Media["GET/POST/DELETE /api/media"]
-        CardVideo["POST/GET /api/generate-card-video"]
+        CardVideo["POST/GET /api/generate-card-video<br/>410 retired"]
         StoryArt["POST /api/generate-story-art"]
         KeysIndex["GET/POST /api/keys"]
         KeysID["GET/DELETE /api/keys/:id"]
@@ -314,7 +311,7 @@ graph TB
         narrativeSpine["narrativeSpine.js<br>Structure"]
         promptEng["promptEngineering.js<br>Prompt Construction"]
         promptVer["promptVersioning.js<br>Version Management"]
-        azureResp["azureResponses.js<br>API Handling"]
+        openaiResp["openaiResponses.js<br>API Handling"]
 
         subgraph NarrativeHelpers["Narrative Helpers"]
             nHelpers["helpers.js"]
@@ -538,7 +535,7 @@ sequenceDiagram
     Memory-->>ReadingAPI: Lower-precedence personalization context
     ReadingAPI->>GraphRAG: Retrieve eligible pattern passages
     GraphRAG-->>ReadingAPI: Optional passages and GraphRAG metadata
-    ReadingAPI->>Provider: Try claude-api → modal-qwen → azure-gpt5 → local-composer
+    ReadingAPI->>Provider: Try claude-api → modal-qwen → openai-native → local-composer
     Provider-->>ReadingAPI: Accepted narrative and provider metadata
     ReadingAPI->>Gate: Check coverage, hallucinations, spine, high-weight positions
     Gate-->>ReadingAPI: Pass or retry/fallback
@@ -670,7 +667,7 @@ sequenceDiagram
     participant JournalSearch as journalSearch.js
     participant FollowUpPrompt as followUpPrompt.js
     participant D1
-    participant Provider as Azure Responses follow-up provider
+    participant Provider as Claude API, Responses, or Modal follow-up provider
 
     User->>FollowUpSection: Request follow-up
     FollowUpSection->>FollowUpAPI: POST /api/reading-followup
@@ -733,21 +730,20 @@ The legacy reading tables are retained for compatibility; the current reading pa
 graph LR
     subgraph NarrativeProviders["Narrative Providers"]
         Modal["Modal Qwen<br/>Chat Completions"]
-        OpenAI["OpenAI native Responses<br/>azure-gpt5 when configured"]
-        Azure["Azure OpenAI Responses<br/>azure-gpt5 fallback"]
+        OpenAI["OpenAI native Responses<br/>openai-native when configured"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
         Local["Local composer<br/>Deterministic fallback"]
     end
 
     subgraph Worker["Cloudflare Worker"]
         API["API and scheduled handlers"]
-        AI["Workers AI<br/>Qwen evaluation; optional Llama vision"]
+        AI["Workers AI<br/>Questions, grading, embeddings,<br/>vision, narration, story art"]
         D1["D1 (DB)<br/>App, eval_metrics, quality, usage, media metadata"]
         KV["KV namespaces<br/>RATELIMIT, FEEDBACK_KV, METRICS_DB"]
         R2["R2_LOGS<br/>Generated/user media, exports, archives"]
         DO["READING_JOBS<br/>ReadingJob Durable Object"]
         Assets["ASSETS<br/>Static files"]
-        Sentry["Sentry<br/>Errors and sampled replay"]
+        Sentry["Sentry<br/>Errors and performance traces"]
     end
 
     subgraph OtherServices["Other Services"]
@@ -756,10 +752,9 @@ graph LR
         Email["Email provider<br/>Quality alerts"]
     end
 
-    API -->|1| Modal
-    API -->|2. native| OpenAI
-    API -->|2. Azure fallback| Azure
-    API -->|3| Claude
+    API -->|1| Claude
+    API -->|2| Modal
+    API -->|3. openai-native| OpenAI
     API -->|4| Local
     API --> AI
     API --> D1

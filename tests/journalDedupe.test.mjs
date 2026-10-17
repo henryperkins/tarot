@@ -16,6 +16,7 @@ const makeEntry = (overrides = {}) => ({
   spread: overrides.spread || 'Three Card Story',
   question: overrides.question || 'What should I focus on?',
   cards: overrides.cards || [baseCard('The Fool', 'Past'), baseCard('The Magician', 'Present')],
+  readingResultId: overrides.readingResultId || null,
   sessionSeed: overrides.sessionSeed || null
 });
 
@@ -60,4 +61,14 @@ test('keeps newest when fingerprints differ', () => {
   const result = dedupeEntries(entries);
   assert.equal(result.length, 3);
   assert.deepStrictEqual(result.map((e) => e.id), ['newer', 'mid', 'old']);
+});
+
+// Regeneration retains the spread seed but produces a separate immutable result.
+test('result identity preserves regeneration and collapses only retries of that result', () => {
+  const entries = [
+    makeEntry({ id: 'old', readingResultId: 'first-result', sessionSeed: 'same', ts: 1 }),
+    makeEntry({ id: 'retry', readingResultId: 'second-result', sessionSeed: 'same', ts: 2 }),
+    makeEntry({ id: 'latest', readingResultId: 'second-result', sessionSeed: 'same', ts: 3 })
+  ];
+  assert.deepEqual(dedupeEntries(entries).map(e => e.id), ['retry', 'old']);
 });

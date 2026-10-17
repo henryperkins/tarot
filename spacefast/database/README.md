@@ -24,6 +24,11 @@ identity/feature row. Narration triggers lock the monthly counter before testing
 and reserving quota. Settlement and refunds happen in the transaction updating
 the reservation. Ordinary updates count matched rows while holding row locks,
 because SQLite counts unchanged matches and MySQL affected-row mode varies.
+Visual writes and edits/deletions of their journal or user sources acquire one
+transaction-scoped lock before all other locks. This serializes global spending
+limits and final source/owner fences, with a deliberate write-throughput cost.
+Conditional visual upserts capture their old-row admission before changing
+version/attempt fields; JSON parent fences retain SQL NULL semantics.
 Bulk delete counts are retained. The real Spacefast broker still requires a
 runtime probe: the public Functions documentation does not specify transaction
 or metadata behavior. Local mysql2 tests demonstrate SQL/database semantics,
@@ -31,7 +36,9 @@ not the remote broker implementation.
 
 Run `node scripts/spacefast-database-migrations.mjs` in the Spacefast build hook.
 The isolated Wrangler profile points `migrations_dir` at `spacefast/migrations`.
-The first migration creates the final application schema, later migrations
+The unpublished bootstrap now includes source migrations 0036–0038. Do not
+rerun this bootstrap over an existing deployment; a deployed schema would need
+a separate additive migration. The first migration creates the final application schema, later migrations
 install the native triggers, and the build hook emits KV/job/canary tables. Publishing
 applies the native migrations to the Space's database; it does not copy the
 Cloudflare database. No application tables are initialized by a request.
@@ -66,16 +73,15 @@ with the checked-in native migrations. No production DSN or credentials are
 required or returned by the application. Without the test port, the SQL/source
 checks run and native integration cases are explicitly skipped.
 
-Verification on 2026-10-09 used disposable MySQL 8.4. All five native database
-tests passed, including concurrent quota admissions, follow-up turn allocation,
-idempotent settlement/refunds, webhook claims, batch rollback, foreign-key
-failures, exact string comparisons, and SQLite matched-row counts. The SQL
-inventory accounted for 241 prepared calls and EXPLAINed 254 collected
-statements with no unresolved calls or failures. Dynamic fragments use reviewed
-representative values; this is not coverage of every runtime filter combination.
-The generated artifact carries five migrations, 42 tables, and three triggers.
-Remote Spacefast engine, metadata, and transactional batch contracts remain
-unverified.
+Verification on 2026-10-17 uses disposable MySQL 8.4. The current inventory
+accounts for 312 prepared calls and EXPLAINs 344 SQL variants without unresolved
+calls or failures. Conditional templates keep repeated decisions consistent.
+Native tests cover quotas, idempotency, rollback, foreign keys, exact comparisons,
+matched-row counts, visual initial/replay reservations, source mutation fences,
+attachment/deletion and owner revocation. Dynamic fragments still use reviewed
+representative values; syntax coverage is separate from behavioral coverage.
+The artifact carries five native migrations. Remote Spacefast engine, metadata,
+and transactional batch contracts remain unverified.
 
 An administrator can test the published broker at
 `/api/health/runtime/database` only after setting

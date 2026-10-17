@@ -1,0 +1,32 @@
+{
+  "reviewedCommit": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "reportSha256": "601d9643baa07924bf4f5f1f46b2432f8c061cf13da618c36365dd4c4082b730",
+  "reportCopiedVerbatim": true,
+  "actualModel": "claude-opus-5-5",
+  "effort": "xhigh",
+  "completion": {
+    "subtype": "success",
+    "is_error": false,
+    "num_turns": 93,
+    "duration_ms": 777621
+  },
+  "receiptFieldClarification": "assistantTurns in receipt.json counts assistant stream events; terminal num_turns is the CLI reported turn count.",
+  "executionCounts": {
+    "node --test": {
+      "attempted": 4,
+      "completedWithoutToolError": 4
+    },
+    "node probe.mjs": {
+      "attempted": 7,
+      "completedWithoutToolError": 6
+    },
+    "node capture.mjs": {
+      "attempted": 13,
+      "completedWithoutToolError": 13
+    }
+  },
+  "captureFolders": 13,
+  "screenshots": 63,
+  "pathMapping": "Original /tmp/tableu-outside-judge-qmewvi77/observations paths refer to the corresponding files in this folder. snapshot paths refer to the reviewed repository revision.",
+  "excluded": "Raw session events, internal reasoning, account/authentication output, stderr and session identifiers are not included."
+}

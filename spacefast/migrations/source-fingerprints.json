@@ -37,5 +37,8 @@
   "0032_add_journal_source_usage.sql": "a082cbfd29855794f27e2491bebe853795326da8e51ea688b7e8100c2816f400",
   "0033_add_feature_usage.sql": "20ad932460f5a117e591eb973ffe7bd58079c295621fe3edab1ae43efd0f7ce4",
   "0034_add_narration_reservations.sql": "2d1923b3f78aa223d6f2fc03ed4c017c5aa48c516a0dfa814fa3a39003644d36",
-  "0035_add_inference_provenance.sql": "c54725271231d02d39bfdbb9a410a771bd934068e011adbb26af879186b28ed8"
+  "0035_add_inference_provenance.sql": "c54725271231d02d39bfdbb9a410a771bd934068e011adbb26af879186b28ed8",
+  "0036_reading_visual_results.sql": "019e65c63481885e8b68215634a296e181a5aad28e2fb9884d88189aa422c17b",
+  "0037_reading_visual_retry_state.sql": "d329293d56a2a98cf4314122f708b43697ab9411a6157d1760b9805379d8fe38",
+  "0038_reading_visual_initial_admission.sql": "cae938c6e065f97566c5f0492ab20a49f5b2c21dc13614084ab41eb5c1d2f65e"
 }

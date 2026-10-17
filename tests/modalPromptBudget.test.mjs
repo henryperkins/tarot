@@ -15,7 +15,7 @@ import { runNarrativeBackend } from '../functions/lib/narrativeBackends.js';
 const constrainedEnv = {
   ENABLE_PROMPT_SLIMMING: 'true',
   PROMPT_BUDGET_DEFAULT: '300',
-  PROMPT_BUDGET_AZURE: '400',
+  PROMPT_BUDGET_OPENAI: '400',
   PROMPT_BUDGET_CLAUDE: '500',
   GRAPHRAG_ENABLED: 'false'
 };
@@ -104,7 +104,7 @@ describe('Modal prompt budgeting', () => {
     assert.deepEqual(JSON.parse(JSON.stringify(built.promptMeta)), built.promptMeta);
   });
 
-  for (const [target, hardCap, softBudget] of [['azure', 20000, 400], ['claude', 25000, 500]]) {
+  for (const [target, hardCap, softBudget] of [['openai', 20000, 400], ['claude', 25000, 500]]) {
     it(`continues to enforce ${target} budgets for the same long context`, (t) => {
       t.mock.method(console, 'warn', () => {});
       const built = buildEnhancedClaudePrompt({

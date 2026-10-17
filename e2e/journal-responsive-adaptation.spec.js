@@ -166,7 +166,7 @@ test.describe('Journal saved Markdown themes', () => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       try {
         await startReading(page, fixture);
-        const save = page.getByRole('button', { name: /^Save reading|^Save to Journal$/ }).filter({ visible: true }).first();
+        const save = page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).first();
         await save.press('Enter');
         await expect(page.getByText('Saved to your journal.', { exact: true })).toBeVisible();
         const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_journal') || '[]'));
@@ -207,7 +207,9 @@ test.describe('Journal saved Markdown themes', () => {
           expect(measured.minimumContrast, `${measured.tag} ${measured.text} on its painted surface`).toBeGreaterThanOrEqual(4.5);
           expect(measured.contained, `${measured.tag} ${measured.text} should remain inside the narrative`).toBe(true);
         }
-        expect([...new Set(measurements.map(heading => heading.tag))]).toEqual(['H2', 'H3', 'H4', 'H5', 'H6']);
+        // Restored reading sections nest below the entry's H2; deeper source
+        // headings retain their hierarchy through H6.
+        expect(measurements.map(heading => heading.tag)).toEqual(['H3', 'H3', 'H4', 'H5', 'H6', 'H6', 'H3', 'H3', 'H3']);
         await testInfo.attach(`journal-heading-colors-${theme}`, { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' });
         await headings.first().screenshot({ path: testInfo.outputPath(`journal-heading-${theme}.png`), animations: 'disabled' });
       } finally {
@@ -227,7 +229,13 @@ test.describe('Spread carousel touch adaptation', () => {
       await openSetup(page);
       const carousel = page.getByRole('radiogroup', { name: 'Spread selection' });
       await page.evaluate(() => document.fonts.ready);
-      await carousel.evaluate(element => window.scrollBy(0, element.getBoundingClientRect().top - 180));
+      // Bring the carousel near the top while leaving page scroll for the
+      // vertical swipe, however much setup content follows it.
+      const placeCarousel = element => window.scrollTo(0, Math.min(
+        scrollY + element.getBoundingClientRect().top - 180,
+        document.scrollingElement.scrollHeight - innerHeight - 150
+      ));
+      await carousel.evaluate(placeCarousel);
       const box = await carousel.boundingBox();
       const start = { x: box.x + box.width - 20, y: box.y + 60, id: 1 };
       const cdp = await context.newCDPSession(page);
@@ -252,10 +260,8 @@ test.describe('Spread carousel touch adaptation', () => {
       await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(initialPageScroll + 50);
       expect(await carousel.getByRole('radio', { checked: true }).innerText()).toBe(selected);
 
-      await carousel.evaluate(element => {
-        element.scrollTo({ left: 0, behavior: 'instant' });
-        window.scrollBy(0, element.getBoundingClientRect().top - 180);
-      });
+      await carousel.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
+      await carousel.evaluate(placeCarousel);
       await expect.poll(() => carousel.evaluate(element => element.scrollLeft)).toBe(0);
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });

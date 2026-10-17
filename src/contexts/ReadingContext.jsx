@@ -1,3 +1,10 @@
+import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
+import { createGestureSource, advanceGestureSource } from '../lib/narrativeGestureSource.js';
+import { useReadingVisualJob } from '../hooks/useReadingVisualJob.js';
+import { sameVisualCueBinding } from '../../shared/contracts/visualCueBinding.js';
+import { useAuth } from './AuthContext';
+import { patchSavedVisualSnapshot, visualStorageNamespace, writeVisualResume, readVisualResume } from '../lib/readingVisualStorage.js';
+import { readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
@@ -12,10 +19,11 @@ import { buildPersonalizationRequestPayload } from '../utils/personalizationStor
 import { formatReading } from '../lib/formatting';
 import { createReadingError, formatReadingFailure } from '../lib/readingErrors.js';
 import { readReadingJobEvents } from '../lib/readingJobStream.js';
+import { buildReadingSnapshot, saveReadingSnapshot } from '../lib/readingSnapshot.js';
+import { GUEST_DRAFT_OWNER } from '../lib/questionDraft.js';
 import { buildReadingRequestCard } from '../../shared/contracts/readingRequestCards.js';
 import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 import { computeRelationships } from '../lib/deck';
-import { buildSymbolElementCue } from '../lib/symbolElementBridge';
 import {
     STREAM_NARRATION_MIN_WORDS,
     STREAM_NARRATION_MIN_CHARS,
@@ -29,6 +37,12 @@ import {
 const ReadingContext = createContext(null);
 
 export function ReadingProvider({ children }) {
+    const { user, loading: authLoading } = useAuth();
+    const visualRequestsEnabled = readingVisualRequestsEnabled();
+    const visualNamespace = visualStorageNamespace(user?.id);
+    const visualNamespaceRef = useRef(visualNamespace);
+    const [visualResume, setVisualResume] = useState(null);
+    useEffect(() => { visualNamespaceRef.current = visualNamespace; }, [visualNamespace]);
     // 1. Audio Controller
     const audioController = useAudioController();
     const {
@@ -55,7 +69,10 @@ export function ReadingProvider({ children }) {
         dealNext: baseDealNext,
         revealCard: baseRevealCard,
         revealAll: baseRevealAll,
-        sessionSeed
+        sessionSeed,
+        initialSnapshot,
+        restoreReady,
+        snapshotRevision
     } = tarotState;
     const {
         deckStyleId,
@@ -83,18 +100,30 @@ export function ReadingProvider({ children }) {
     }, [personalization, personalizationExplicitFields]);
 
     // 4. Reading Generation State
-    const [personalReading, setPersonalReading] = useState(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
-    const [narrativePhase, setNarrativePhase] = useState('idle');
-    const [spreadAnalysis, setSpreadAnalysis] = useState(null);
-    const [themes, setThemes] = useState(null);
-    const [emotionalTone, setEmotionalTone] = useState(null);
-    const [analysisContext, setAnalysisContext] = useState(null);
-    const [reasoningSummary, setReasoningSummary] = useState(null);
-    const [reasoning, setReasoning] = useState(null);
-    const [followUps, setFollowUps] = useState([]);
-    const [readingMeta, setReadingMeta] = useState({
+    // A finished reading restored after a reload (lib/readingSnapshot) starts
+    // complete, exactly as the stream's `done` event leaves it.
+    const restoredAnalysis = initialSnapshot?.narrative ? (initialSnapshot.analysis || {}) : null;
+    const [personalReading, setPersonalReading] = useState(() => {
+        const narrative = initialSnapshot?.narrative;
+        if (!narrative) return null;
+        const formatted = formatReading(narrative.raw);
+        formatted.isError = false;
+        formatted.isStreaming = false;
+        formatted.isServerStreamed = true;
+        formatted.provider = narrative.provider || 'local-composer';
+        formatted.requestId = narrative.requestId || null;
+        return formatted;
+    });
+    const [gestureSource, setGestureSource] = useState(() => {
+        if (!initialSnapshot?.narrative) return null;
+        const meta = restoredAnalysis?.readingMeta || {};
+        return createGestureSource({ runId: meta.readingResultId || crypto.randomUUID(),
+            raw: initialSnapshot.narrative.raw, status: 'complete',
+            sourceRevision: meta.visualBinding?.sourceRevision || 0,
+            visualBinding: meta.visualBinding, cueLedger: meta.visualSnapshot, visualJobStatus: meta.visualStatus });
+    });
+    const gestureSourceRef = useRef(gestureSource);
+    const [readingMeta, setReadingMeta] = useState(() => ({
         requestId: null,
         provider: null,
         spreadKey: null,
@@ -103,15 +132,219 @@ export function ReadingProvider({ children }) {
         userQuestion: null,
         graphContext: null,
         ephemeris: null,
-        sourceUsage: null
+        sourceUsage: null,
+        ...(restoredAnalysis?.readingMeta || {})
+    }));
+    const updateGestureSource = useCallback((runId, update) => {
+        if (!gestureSourceRef.current || gestureSourceRef.current.runId !== runId) return;
+        const previous = gestureSourceRef.current;
+        const replaced = typeof update.raw === 'string' && !update.raw.startsWith(previous.raw);
+        const nextBinding = replaced && previous.visualBinding
+            ? { ...previous.visualBinding, sourceRevision: previous.sourceRevision + 1 } : null;
+        const suppliedBinding = update.visualBinding?.sourceRevision >= previous.sourceRevision + (replaced ? 1 : 0)
+            ? update.visualBinding : null;
+        const { visualBinding: _incomingBinding, ...sourceUpdate } = update;
+        const authoritativeBinding = suppliedBinding || nextBinding;
+        // A controller-established replacement has a new visual epoch. Do not
+        // expose fallback turns while the new subscription is still mounting.
+        const replacingVisualJob = authoritativeBinding && previous.visualJobStatus
+            && !sameVisualCueBinding(authoritativeBinding, previous.visualBinding);
+        const next = advanceGestureSource(previous, { ...sourceUpdate,
+            ...(replacingVisualJob ? { visualJobStatus: 'pending' } : {}),
+            ...(authoritativeBinding ? { visualBinding: authoritativeBinding } : {}) });
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+        if (next.visualBinding && next.sourceRevision !== previous.sourceRevision) {
+            setVisualResume(current => current?.readingResultId === runId ? { ...current, visualBinding: next.visualBinding } : current);
+            setReadingMeta(current => ({ ...current, visualBinding: next.visualBinding, visualSnapshot: null }));
+        }
+    }, []);
+    const beginGestureSource = useCallback((runId = crypto.randomUUID(), options = {}) => {
+        const next = createGestureSource({ runId, ...options });
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+        return runId;
+    }, []);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
+    const [narrativePhase, setNarrativePhase] = useState(() => (initialSnapshot?.narrative ? 'complete' : 'idle'));
+    const [spreadAnalysis, setSpreadAnalysis] = useState(() => restoredAnalysis?.spreadAnalysis ?? null);
+    const [themes, setThemes] = useState(() => restoredAnalysis?.themes ?? null);
+    const [emotionalTone, setEmotionalTone] = useState(() => restoredAnalysis?.emotionalTone ?? null);
+    const [analysisContext, setAnalysisContext] = useState(() => restoredAnalysis?.analysisContext ?? null);
+    const [reasoningSummary, setReasoningSummary] = useState(null);
+    const [reasoning, setReasoning] = useState(null);
+    const [followUps, setFollowUps] = useState([]);
+    const acceptVisualStatus = useCallback(({ binding, status }) => {
+        const current = gestureSourceRef.current;
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { visualJobStatus: status });
+        setReadingMeta(previous => ({ ...previous, visualStatus: status }));
+    }, [updateGestureSource]);
+    const acceptVisualSnapshot = useCallback(({ binding, cueLedger, status }) => {
+        const current = gestureSourceRef.current;
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { cueLedger, visualJobStatus: status });
+        if (gestureSourceRef.current?.cueLedger !== cueLedger) return;
+        setReadingMeta(previous => ({ ...previous, readingResultId: binding.readingResultId,
+            visualBinding: binding, visualSnapshot: cueLedger, visualStatus: status }));
+        patchSavedVisualSnapshot({ namespace: visualNamespaceRef.current, binding, cueLedger, status });
+    }, [updateGestureSource]);
+    useReadingVisualJob({
+        readingResultId: visualResume?.readingResultId,
+        visualBinding: visualResume?.visualBinding,
+        visualJobToken: visualResume?.visualJobToken,
+        raw: gestureSource?.raw || '',
+        enabled: visualRequestsEnabled && !authLoading && visualResume?.namespace === visualNamespace,
+        onBatch: acceptVisualSnapshot,
+        onStatus: acceptVisualStatus
     });
 
     // 5. UI State
     const [journalStatus, setJournalStatus] = useState(null);
-    const [reflections, setReflections] = useState({});
-    const [lastCardsForFeedback, setLastCardsForFeedback] = useState([]);
+    useEffect(() => {
+        if (!visualResume || visualResume.namespace !== visualNamespace || authLoading) return;
+        writeVisualResume({ namespace: visualNamespace, binding: visualResume.visualBinding,
+            resumeHandle: visualResume });
+    }, [visualResume, visualNamespace, authLoading]);
+    const restoredVisualAttempt = useRef(false);
+    useEffect(() => {
+        if (restoredVisualAttempt.current || !restoreReady || authLoading || !initialSnapshot?.narrative) return;
+        restoredVisualAttempt.current = true;
+        const meta = initialSnapshot.analysis?.readingMeta;
+        const owner = initialSnapshot.owner === GUEST_DRAFT_OWNER ? 'anon' : initialSnapshot.owner;
+        if (owner !== visualNamespace || !meta?.visualBinding) return;
+        const handle = readVisualResume({ namespace: visualNamespace, readingResultId: meta.readingResultId,
+            binding: meta.visualBinding });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the private capability only after authentication validates the snapshot owner
+        if (handle) setVisualResume({ ...handle, namespace: visualNamespace });
+        else if (['pending', 'running'].includes(meta.visualStatus)) {
+            updateGestureSource(meta.readingResultId, { visualJobStatus: 'expired' });
+            setReadingMeta(current => ({ ...current, visualStatus: 'expired' }));
+        }
+    }, [restoreReady, authLoading, initialSnapshot, visualNamespace, updateGestureSource]);
+
+    const [reflections, setReflections] = useState(() => initialSnapshot?.reflections || {});
+    const [lastCardsForFeedback, setLastCardsForFeedback] = useState(() => (
+        Array.isArray(restoredAnalysis?.lastCardsForFeedback) ? restoredAnalysis.lastCardsForFeedback : []
+    ));
     const [showAllHighlights, setShowAllHighlights] = useState(false);
     const [srAnnouncement, setSrAnnouncement] = useState('');
+
+    // Keep the reading recoverable after a reload, a discarded background tab
+    // or a sign-in redirect (lib/readingSnapshot). A reading still being
+    // written resumes from its job checkpoint instead, so streamed text is not
+    // stored until it is complete.
+    const {
+        snapshotOwner,
+        hasUserSelectedSpread,
+        dealIndex,
+        hasConfirmedSpread,
+        hasKnocked,
+        knockCount,
+        hasCut,
+        cutIndex,
+        knockTimesRef
+    } = tarotState;
+
+    const [appliedSnapshotRevision, setAppliedSnapshotRevision] = useState(0);
+    useEffect(() => {
+        if (!snapshotRevision) return;
+        // The restored reading belonged to another account; drop all of it.
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- clears a snapshot rejected after auth settled
+        setPersonalReading(null);
+        setNarrativePhase('idle');
+        setReadingMeta({});
+        setVisualResume(null);
+        gestureSourceRef.current = null;
+        setGestureSource(null);
+        setThemes(null);
+        setEmotionalTone(null);
+        setSpreadAnalysis(null);
+        setAnalysisContext(null);
+        setReflections({});
+        setLastCardsForFeedback([]);
+        setFollowUps([]);
+        setReasoning(null);
+        setReasoningSummary(null);
+        setJournalStatus(null);
+        setAppliedSnapshotRevision(snapshotRevision);
+    }, [snapshotRevision]);
+
+    // While the reading is written, `finishedReading` stays null, so streamed
+    // chunks do not rewrite the snapshot; the cards, question and reflections
+    // are still saved, which is what reattaching to the job needs.
+    const finishedReading = narrativePhase === 'complete' && personalReading
+        && !personalReading.isError && !personalReading.isStreaming
+        ? personalReading
+        : null;
+    const pendingSnapshotRef = useRef(null);
+    // The account a reading was drawn under. Account changes clear owned
+    // readings; a guest's completed reading follows them into a sign-in.
+    const readingOwnerRef = useRef(initialSnapshot?.owner ?? null);
+    const ownedReadingRef = useRef(reading);
+    useEffect(() => {
+        if (reading === ownedReadingRef.current) return;
+        ownedReadingRef.current = reading;
+        readingOwnerRef.current = reading ? snapshotOwner : null;
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- the owner is captured when the cards change
+    }, [reading]);
+
+    useEffect(() => {
+        // Until auth settles, the stored snapshot is the one just restored.
+        if (!restoreReady) return undefined;
+        const save = () => {
+            pendingSnapshotRef.current = null;
+            const owner = readingOwnerRef.current;
+            if (owner && owner !== snapshotOwner && owner !== GUEST_DRAFT_OWNER) {
+                saveReadingSnapshot(null);
+                return;
+            }
+            if (owner === GUEST_DRAFT_OWNER) readingOwnerRef.current = snapshotOwner;
+            saveReadingSnapshot(buildReadingSnapshot({
+                owner: snapshotOwner,
+                spreadKey: selectedSpread,
+                hasUserSelectedSpread,
+                reading,
+                isSpreadDealt,
+                revealedCards,
+                dealIndex,
+                hasConfirmedSpread,
+                sessionSeed,
+                ritual: { hasKnocked, knockCount, hasCut, cutIndex, knockTimes: knockTimesRef.current },
+                question: userQuestion,
+                reflections,
+                narrative: finishedReading,
+                analysis: finishedReading
+                    ? { themes, emotionalTone, spreadAnalysis, analysisContext, readingMeta, lastCardsForFeedback }
+                    : null
+            }));
+        };
+        pendingSnapshotRef.current = save;
+        const timer = setTimeout(save, 250);
+        return () => clearTimeout(timer);
+    }, [
+        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, isSpreadDealt, revealedCards,
+        dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
+        userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
+        readingMeta, lastCardsForFeedback
+    ]);
+
+    // A reload, a discarded background tab or a sign-in redirect can come
+    // within the save delay; write the latest state as the page is hidden.
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        const flush = () => pendingSnapshotRef.current?.();
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') flush();
+        };
+        window.addEventListener('pagehide', flush);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.removeEventListener('pagehide', flush);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, []);
 
     const visionResearchEnabled = import.meta.env?.VITE_ENABLE_VISION_RESEARCH === 'true';
     const inFlightReadingRef = useRef(null);
@@ -234,6 +467,31 @@ export function ReadingProvider({ children }) {
         clearReadingJob();
     }, [clearReadingJob, resetNarrationStream]);
 
+    const lastVisualNamespace = useRef(null);
+    useEffect(() => {
+        if (authLoading) return;
+        const previous = lastVisualNamespace.current;
+        lastVisualNamespace.current = visualNamespace;
+        if (!previous || previous === visualNamespace) return;
+        cancelInFlightReading();
+        gestureSourceRef.current = null;
+        // An external account change retires the previous user's in-memory reading.
+        setVisualResume(null);
+        setGestureSource(null);
+        const keepGuestReading = previous === 'anon';
+        if (keepGuestReading) {
+            setPersonalReading(current => current?.isStreaming ? null : current);
+            setReadingMeta(current => ({ ...current, readingResultId: null, visualBinding: null,
+                visualSnapshot: null, visualStatus: 'idle' }));
+        } else {
+            setPersonalReading(null);
+            setReadingMeta({});
+        }
+        setIsGenerating(false);
+        setIsReadingStreamActive(false);
+        setNarrativePhase(current => keepGuestReading && current === 'complete' ? 'complete' : 'idle');
+    }, [authLoading, visualNamespace, cancelInFlightReading]);
+
     const resetStreamingNarration = useCallback(() => {
         narrationBufferRef.current = '';
         narrationSuppressedRef.current = false;
@@ -249,6 +507,8 @@ export function ReadingProvider({ children }) {
     // Reset analysis state when Shuffle is triggered
     const handleShuffle = useCallback(() => {
         cancelInFlightReading();
+        setVisualResume(null);
+        setReadingMeta(previous => ({ ...previous, readingResultId: null, visualBinding: null, visualSnapshot: null }));
         resetStreamingNarration();
         shuffle(() => {
             setPersonalReading(null);
@@ -275,13 +535,14 @@ export function ReadingProvider({ children }) {
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
+        updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
         setSrAnnouncement(message);
         if (preserveNarration) {
             pauseNarrationPlayback();
             return;
         }
         resetNarrationStream();
-    }, [pauseNarrationPlayback, resetNarrationStream]);
+    }, [pauseNarrationPlayback, resetNarrationStream, updateGestureSource]);
 
     const flushNarrationBuffer = useCallback((force = false) => {
         const {
@@ -444,6 +705,13 @@ export function ReadingProvider({ children }) {
         }
 
         const controller = new AbortController();
+        const runId = readingJobRef.current.runId || gestureSourceRef.current?.runId || crypto.randomUUID();
+        if (gestureSourceRef.current?.runId !== runId) beginGestureSource(runId, {
+            visualBinding: readingJobRef.current.visualBinding,
+            sourceRevision: readingJobRef.current.visualBinding?.sourceRevision || 0,
+            ...(visualRequestsEnabled && readingJobRef.current.visualBinding ? { visualJobStatus: 'pending' } : {})
+        });
+        updateGestureSource(runId, { status: 'streaming' });
         inFlightReadingRef.current = { controller, jobId };
 
         const isActiveRequest = () =>
@@ -473,9 +741,12 @@ export function ReadingProvider({ children }) {
         }
 
         let streamedText = resume
-            ? (personalReading?.raw || personalReading?.normalized || '')
+            ? (gestureSourceRef.current?.raw || personalReading?.raw || personalReading?.normalized || '')
             : '';
         let streamMeta = null;
+        let streamVisualBinding = readingJobRef.current?.visualBinding || gestureSourceRef.current?.visualBinding;
+        let sourceKind = 'append';
+        let flushTimer = null;
 
         try {
             let lastFlush = 0;
@@ -489,9 +760,22 @@ export function ReadingProvider({ children }) {
                 if (!isActiveRequest()) return;
                 const now = Date.now();
                 if (!force && now - lastFlush < 120) {
+                    if (flushTimer === null) {
+                        flushTimer = setTimeout(() => {
+                            flushTimer = null;
+                            flushStreamedText(true);
+                        }, 120 - (now - lastFlush));
+                    }
                     return;
                 }
+                if (flushTimer !== null) {
+                    clearTimeout(flushTimer);
+                    flushTimer = null;
+                }
                 lastFlush = now;
+                updateGestureSource(runId, { raw: streamedText, kind: sourceKind, status: 'streaming',
+                    ...(streamVisualBinding ? { visualBinding: streamVisualBinding } : {}) });
+                if (gestureSourceRef.current?.visualBinding) readingJobRef.current.visualBinding = gestureSourceRef.current.visualBinding;
                 const formatted = formatReading(streamedText);
                 formatted.isError = false;
                 formatted.isStreaming = true;
@@ -518,10 +802,19 @@ export function ReadingProvider({ children }) {
                 }
             })) {
                 if (!isActiveRequest()) return;
+                emitCueTiming('narrative-receipt', { runId,
+                    sourceRevision: data?.visualBinding?.sourceRevision ?? streamVisualBinding?.sourceRevision ?? 0,
+                    eventId: data?.eventId, eventType,
+                    start: eventType === 'delta' ? streamedText.length : 0,
+                    end: eventType === 'delta' ? streamedText.length + (data?.text?.length || 0)
+                        : typeof data?.fullText === 'string' ? data.fullText.length : streamedText.length,
+                    complete: eventType === 'done' });
                 updateCursor(data?.eventId);
+                if (data?.visualBinding) streamVisualBinding = data.visualBinding;
 
                 if (eventType === 'meta') {
                     streamMeta = data;
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { semanticDocument: data.semanticDocument });
                     if (data?.themes !== undefined) {
                         setThemes(data.themes || null);
                     }
@@ -539,7 +832,8 @@ export function ReadingProvider({ children }) {
                         setReasoning(data.reasoning || null);
                     }
                     if (isActiveRequest()) {
-                        setReadingMeta({
+                        setReadingMeta(previous => ({
+                            ...previous,
                             requestId: data.requestId || null,
                             provider: data.provider || 'local',
                             spreadKey: safeSpreadKey,
@@ -549,15 +843,19 @@ export function ReadingProvider({ children }) {
                             graphContext: data.themes?.knowledgeGraph || null,
                             ephemeris: data.ephemeris || null,
                             sourceUsage: data.provider === 'safe-fallback' ? null : (data.sourceUsage || null)
-                        });
+                        }));
                     }
                 } else if (eventType === 'snapshot') {
                     if (typeof data.fullText === 'string') {
                         streamedText = data.fullText;
+                        sourceKind = 'snapshot';
+                        if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                         flushStreamedText(true);
                     }
                 } else if (eventType === 'delta') {
+                    sourceKind = 'append';
                     streamedText += data.text || '';
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                     flushStreamedText();
                     appendNarrationBuffer(data.text || '');
                 } else if (eventType === 'reasoning') {
@@ -571,7 +869,8 @@ export function ReadingProvider({ children }) {
                         }
                     }
                 } else if (eventType === 'done') {
-                    const finalText = (data.fullText || streamedText || '').trim();
+                    const finalRaw = typeof data.fullText === 'string' ? data.fullText : streamedText;
+                    const finalText = finalRaw.trim();
                     if (!finalText) {
                         throw new Error('Empty reading returned');
                     }
@@ -614,15 +913,19 @@ export function ReadingProvider({ children }) {
                         narrationFallbackTextRef.current = '';
                     }
 
+                    updateGestureSource(runId, { raw: finalRaw, kind: 'complete', status: 'complete',
+                        ...(streamVisualBinding ? { visualBinding: streamVisualBinding } : {}),
+                        ...(Object.hasOwn(data, 'semanticDocument') ? { semanticDocument: data.semanticDocument } : {}) });
                     setNarrativePhase('polishing');
                     setSrAnnouncement('Your reading is ready.');
 
-                    const formatted = formatReading(finalText);
+                    const formatted = formatReading(finalRaw);
                     formatted.isError = false;
                     formatted.isStreaming = false;
                     formatted.isServerStreamed = true;
                     formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
                     formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                    if (gestureSourceRef.current?.semanticDocument) formatted.semanticDocument = gestureSourceRef.current.semanticDocument;
                     setPersonalReading(formatted);
                     setIsReadingStreamActive(false);
                     setNarrativePhase('complete');
@@ -664,6 +967,7 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
+            updateGestureSource(runId, { raw: streamedText, status: 'error' });
             settleNarrationAfterStreamFailure(streamedText);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -680,6 +984,7 @@ export function ReadingProvider({ children }) {
             setIsGenerating(false);
             clearReadingJob();
         } finally {
+            if (flushTimer !== null) clearTimeout(flushTimer);
             if (inFlightReadingRef.current?.controller === controller) {
                 inFlightReadingRef.current = null;
                 setIsReadingStreamActive(false);
@@ -691,6 +996,8 @@ export function ReadingProvider({ children }) {
         ttsProvider,
         ttsState?.status,
         clearReadingJob,
+        beginGestureSource,
+        updateGestureSource,
         deckStyleId,
         personalReading,
         pauseReadingStream,
@@ -702,7 +1009,8 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer,
         finalizeNarrationStream,
         isNarrationStreamActive,
-        settleNarrationAfterStreamFailure
+        settleNarrationAfterStreamFailure,
+        visualRequestsEnabled
     ]);
 
     const resumeReadingStreamIfEligible = useCallback(() => {
@@ -800,28 +1108,47 @@ export function ReadingProvider({ children }) {
             resumeReadingStreamIfEligible();
             return;
         }
+        // A checkpoint from before a reload belongs to the restored reading
+        // (lib/readingSnapshot); compare keys only once auth and preferences
+        // have settled, or a still-loading owner would discard it.
+        if (!restoreReady) return;
         const stored = safeSessionStorage.getItem(readingJobStorageKey);
         if (!stored) return;
         try {
             const parsed = JSON.parse(stored);
             if (!parsed?.jobId || !parsed?.jobToken) return;
+            if (parsed.namespace && parsed.namespace !== visualNamespaceRef.current) { clearReadingJob(); return; }
             if (parsed.readingKey && parsed.readingKey !== buildReadingKey()) {
                 clearReadingJob();
                 return;
             }
-            const parsedCursor = Number.parseInt(parsed.cursor, 10);
-            const cursor = Number.isFinite(parsedCursor) ? parsedCursor : 0;
+            // Streamed text is not kept across a reload, so replay the job from
+            // its first event rather than from the saved cursor.
+            const cursor = 0;
             readingJobRef.current = {
                 jobId: parsed.jobId,
                 jobToken: parsed.jobToken,
                 cursor,
+                runId: parsed.runId || crypto.randomUUID(),
+                readingResultId: parsed.readingResultId || null,
+                visualBinding: parsed.visualBinding || null,
+                visualJobToken: parsed.visualJobToken || null,
+                visualExpiresAt: parsed.visualExpiresAt || null,
+                namespace: parsed.namespace || visualNamespaceRef.current,
                 readingKey: parsed.readingKey || null
             };
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- restore the identity of the authenticated persisted job before replay
+            setReadingMeta(previous => ({ ...previous, readingResultId: parsed.readingResultId || null }));
+            if (visualRequestsEnabled && parsed.readingResultId && parsed.visualBinding) {
+                setVisualResume({ readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding,
+                    visualJobToken: parsed.visualJobToken, expiresAt: parsed.visualExpiresAt, namespace: visualNamespaceRef.current });
+                setReadingMeta(previous => ({ ...previous, readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding }));
+            }
             resumeReadingStreamIfEligible();
         } catch {
             clearReadingJob();
         }
-    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible]);
+    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible, visualRequestsEnabled, restoreReady]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -904,6 +1231,8 @@ export function ReadingProvider({ children }) {
 
         cancelInFlightReading();
         resetStreamingNarration();
+        let runId = beginGestureSource();
+        setVisualResume(null);
         const startController = new AbortController();
         inFlightReadingRef.current = { controller: startController, sessionSeed };
 
@@ -915,7 +1244,8 @@ export function ReadingProvider({ children }) {
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Preparing your personalized reading.');
-        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null }));
+        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null,
+            readingResultId: null, visualBinding: null, visualSnapshot: null, visualStatus: 'idle' }));
         setLastCardsForFeedback([]);
 
         try {
@@ -1003,7 +1333,7 @@ export function ReadingProvider({ children }) {
             // Validation is needed only when starting a narrative, not during setup.
             const { safeParseReadingRequest } = await import('../../shared/contracts/readingSchema.js').catch((error) => {
                 startController.signal.throwIfAborted();
-                throw new Error('Your reading could not start. Check your connection, then reload this page. Your question is saved; you can draw again.', { cause: error });
+                throw new Error('Your reading could not start. Check your connection, then reload this page. Your question and cards are saved.', { cause: error });
             });
             startController.signal.throwIfAborted();
             const normalizedPayload = safeParseReadingRequest(payload);
@@ -1025,7 +1355,8 @@ export function ReadingProvider({ children }) {
             const startResponse = await fetch('/api/tarot-reading/jobs', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...(visualRequestsEnabled ? { 'X-Reading-Cue-Display': '1' } : {})
                 },
                 body: JSON.stringify(normalizedPayload.data),
                 signal: startController.signal
@@ -1070,14 +1401,34 @@ export function ReadingProvider({ children }) {
             }
 
             const readingKey = buildReadingKey();
+            const readingResultId = startData?.readingResultId || null;
+            const visualBinding = startData?.visualBinding || null;
+            const visualExpiresAt = startData?.visualExpiresAt || null;
+            const visualJobToken = visualRequestsEnabled ? startData?.visualJobToken || null : null;
+            if (startController.signal.aborted || gestureSourceRef.current?.runId !== runId) return;
+            if (visualRequestsEnabled && readingResultId && visualBinding) {
+                runId = beginGestureSource(readingResultId, { visualBinding, sourceRevision: visualBinding.sourceRevision, visualJobStatus: 'pending' });
+                setVisualResume({ readingResultId, visualBinding, visualJobToken, expiresAt: visualExpiresAt, namespace: visualNamespaceRef.current });
+            }
 
             cardsInfoRef.current = cardsInfo;
             setReadingJob({
                 jobId,
                 jobToken,
+                readingResultId,
+                visualBinding,
+                visualJobToken,
+                visualExpiresAt,
+                namespace: visualNamespaceRef.current,
                 cursor: 0,
+                runId,
                 readingKey
             });
+            setReadingMeta((prev) => ({
+                ...prev,
+                readingResultId,
+                visualBinding
+            }));
 
             await streamReadingJob({ jobId, jobToken, cursor: 0, resume: false });
         } catch (error) {
@@ -1085,6 +1436,8 @@ export function ReadingProvider({ children }) {
                 console.debug('generatePersonalReading aborted');
                 return;
             }
+            if (gestureSourceRef.current?.runId !== runId) return;
+            updateGestureSource(runId, { status: 'error' });
             console.error('generatePersonalReading error:', error);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -1130,10 +1483,28 @@ export function ReadingProvider({ children }) {
         persistLocationToJournal,
         buildReadingKey,
         setReadingJob,
-        streamReadingJob
+        streamReadingJob,
+        beginGestureSource,
+        updateGestureSource,
+        visualRequestsEnabled
     ]);
 
     // --- Logic: Analysis Highlights ---
+
+    // Symbol annotations are only needed after cards have been drawn. Load
+    // them alongside the reading table, leaving setup and returning visits
+    // free of the full symbol catalogue.
+    const [buildSymbolElementCue, setBuildSymbolElementCue] = useState(null);
+    useEffect(() => {
+        if (!reading?.length || buildSymbolElementCue) return;
+        let active = true;
+        import('../lib/symbolElementBridge').then(module => {
+            if (active) setBuildSymbolElementCue(() => module.buildSymbolElementCue);
+        }).catch(() => {
+            // Optional analysis must not prevent the reading from rendering.
+        });
+        return () => { active = false; };
+    }, [reading, buildSymbolElementCue]);
 
     // Local fallback relationships
     const relationships = useMemo(() => {
@@ -1170,7 +1541,7 @@ export function ReadingProvider({ children }) {
                 if (themes.elementalBalance) {
                     notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });
                 }
-                const symbolCue = buildSymbolElementCue({ reading, themes });
+                const symbolCue = buildSymbolElementCue?.({ reading, themes });
                 if (symbolCue) {
                     notes.push({ key: 'symbol-cue', icon: '✦', title: 'Symbol Cue:', text: symbolCue.text });
                 }
@@ -1216,7 +1587,7 @@ export function ReadingProvider({ children }) {
             return notes;
         }
         return null;
-    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread]);
+    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread, buildSymbolElementCue]);
 
     const fallbackHighlights = useMemo(() => {
         if (!reading) return [];
@@ -1335,6 +1706,16 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread, isSpreadDealt]);
 
+    const cancelPersonalReading = useCallback(() => {
+        cancelInFlightReading();
+        setPersonalReading(null);
+        setIsGenerating(false);
+        setIsReadingStreamActive(false);
+        setNarrativePhase('idle');
+        updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
+        setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
+    }, [cancelInFlightReading, updateGestureSource]);
+
     const value = useMemo(() => ({
         ...audioController,
         ...tarotState,
@@ -1343,7 +1724,7 @@ export function ReadingProvider({ children }) {
         dealNext,
         revealCard,
         revealAll,
-        personalReading, setPersonalReading,
+        personalReading, setPersonalReading, gestureSource,
         isGenerating, setIsGenerating,
         isReadingStreamActive,
         narrativePhase, setNarrativePhase,
@@ -1353,13 +1734,14 @@ export function ReadingProvider({ children }) {
         analysisContext, setAnalysisContext,
         reasoningSummary, setReasoningSummary,
         reasoning, setReasoning,
-        readingMeta, setReadingMeta,
+        readingMeta, setReadingMeta, visualResume,
         journalStatus, setJournalStatus,
         reflections, setReflections,
         followUps, setFollowUps,
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
+        cancelPersonalReading,
         highlightItems,
         srAnnouncement, setSrAnnouncement
     }), [
@@ -1371,6 +1753,7 @@ export function ReadingProvider({ children }) {
         revealCard,
         revealAll,
         personalReading,
+        gestureSource,
         isGenerating,
         isReadingStreamActive,
         narrativePhase,
@@ -1381,19 +1764,23 @@ export function ReadingProvider({ children }) {
         reasoningSummary,
         reasoning,
         readingMeta,
+        visualResume,
         journalStatus,
         reflections,
         followUps,
         lastCardsForFeedback,
         showAllHighlights,
         generatePersonalReading,
+        cancelPersonalReading,
         highlightItems,
         srAnnouncement
     ]);
 
     return (
         <ReadingContext.Provider value={value}>
-            {children}
+            {initialSnapshot && (!restoreReady || appliedSnapshotRevision !== snapshotRevision)
+                ? <p role="status" className="p-6 text-main">Restoring your reading…</p>
+                : children}
         </ReadingContext.Provider>
     );
 }

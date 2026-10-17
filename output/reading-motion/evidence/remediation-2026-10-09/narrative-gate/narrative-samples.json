@@ -1,0 +1,1065 @@
+{
+  "generatedAt": "2026-10-09T12:40:58.896Z",
+  "referenceTime": "2026-09-23T14:04:00.000Z",
+  "model": "claude-code",
+  "backendLabel": "Claude Code (personal subscription)",
+  "config": {
+    "envProfile": "production",
+    "backend": "claude-code",
+    "provider": "claude-code",
+    "model": "claude-opus-5-5",
+    "authentication": "personal-subscription",
+    "transport": "local-cli",
+    "parityWith": "claude-api",
+    "reasoningEffort": "xhigh",
+    "maxTokens": 32000,
+    "graphRAGEnabled": true,
+    "semanticScoring": {
+      "requested": true,
+      "embeddingsAvailable": false,
+      "usedSampleCount": 0
+    },
+    "promptSlimming": null,
+    "subscriptionTiers": [
+      "pro"
+    ],
+    "personalizedSampleCount": 0,
+    "visionSampleCount": 0,
+    "servingPath": "direct-backend"
+  },
+  "sampleCount": 11,
+  "samples": [
+    {
+      "id": "single-new-role",
+      "spreadKey": "single",
+      "spreadName": "One-Card Insight",
+      "userQuestion": "What guiding energy should I bring into this new leadership role?",
+      "reflectionsText": "I want to stay curious yet grounded even when the stakes feel high.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "position": "Theme / Guidance of the Moment",
+          "card": "The Fool",
+          "orientation": "Upright",
+          "meaning": "New beginnings, innocence, spontaneity, free spirit",
+          "number": 0,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nStepping into leadership can feel like standing somewhere new while everyone watches to see what you do first. You might feel pulled between looking like you already know the terrain and actually learning it. For your question about what guiding energy to bring into this new role, the card is **The Fool**, upright, as the theme of the moment.\n\n### The Card\n\nIn the traditional image, the Fool stands at a cliff's edge with a white rose in hand, a small dog at his heels, and the sun rising behind him. It's a funny card for leadership, since leaders are supposed to know where the cliff is. But that's its gift. A new role is one of the rare times people expect basic questions, and asking them honestly often builds more trust than pretending you've mapped everything.\n\nYour hope to stay curious yet grounded matches the card's own balance. The open, sunlit stance is the curiosity. The little dog is the grounding: instinct, loyalty, the bark when something's off. The white rose points to clean intentions rather than recklessness. In practice, this might look like walking into a tense meeting and saying, \"Help me understand how we got here,\" instead of defending a position you formed in week one.\n\nThe Fool also opens the initiation stage of the Fool's Journey, where the work is learning your tools and naming your values. The aim is a stable starting point, not perfection.\n\n### Gentle Next Steps\n\n- Keep a running list of questions you're willing to ask out loud, and bring one into each team conversation this month.\n- Notice your \"dog\": the gut signal or trusted colleague that flags when you're near an edge. Check in with it before big calls.\n- Write down two or three values you want your leadership to be known for (your white rose), and reread them when the stakes feel high.\n- In tense moments, try asking yourself, \"What do I actually know, and what am I assuming?\"\n\n### Closing\n\nWith the moon waxing toward full, this is a good stretch for building momentum gradually rather than leaping all at once. The Fool offers an energy, not a script. The leader you become here is shaped by the choices you make, one honest question at a time.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 5773,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 2915,
+          "output_tokens_details": {
+            "thinking_tokens": 2251
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5773,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "none",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "three-card-transition",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "How can I navigate the transition after leaving my hometown?",
+      "reflectionsText": "Part of me is nostalgic while another part is ready for reinvention.",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "position": "Past — influences that led here",
+          "card": "Six of Cups",
+          "orientation": "Reversed",
+          "meaning": "Living in the past, rose-colored views, difficulty moving on",
+          "suit": "Cups",
+          "rank": "Six",
+          "rankValue": 6
+        },
+        {
+          "position": "Present — where you stand now",
+          "card": "The Tower",
+          "orientation": "Upright",
+          "meaning": "Sudden change, upheaval, chaos, revelation, awakening",
+          "number": 16,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Future — trajectory if nothing shifts",
+          "card": "The Star",
+          "orientation": "Upright",
+          "meaning": "Hope, faith, purpose, renewal, spirituality",
+          "number": 17,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nLeaving the place that raised you can be strangely disorienting. The streets you could walk half-asleep are suddenly somewhere else, and the new ones don't know your name yet. You've named the split yourself: one part of you keeps glancing back, and another is already sketching who you might become.\n\nThis spread, **Six of Cups** reversed, then **The Tower**, then **The Star**, reads like a map of that tug-of-war and how it might settle as you work out how to navigate the transition after leaving your hometown. The elements move from Water to Fire to Air: feeling, then disruption, then vision. The first handoff grinds a little, and the second flows.\n\n### The Past: Six of Cups (Reversed)\n\nUpright, this card shows a child offering a flower-filled cup to another in a sunlit courtyard. It's the sweetness of where you come from and the gifts that were simply handed to you. Reversed in the past position, it can point to nostalgia that had started to feel snug rather than sweet, like a place you love that was holding a version of you that kept getting smaller to fit.\n\nIt can also look like remembering home a little rosier than the day-to-day ever felt. That doesn't make the ache any less real, and it doesn't mean you chose wrong. The nostalgic part of you isn't a problem to solve. It's Water, which carries care, memory, and loyalty.\n\nThe question this card raises is practical: which parts of home do you want to carry like a cup, and which parts would only keep you standing in the old courtyard?\n\n### The Present: The Tower\n\nThis is where the friction shows up. Lightning strikes the crown, figures fall, and burning debris drops against a gray sky. In the present position, this doesn't have to mean disaster. It can describe what a move does to everything you had built up: your routines, the people who knew your history without being told, and the identity that came pre-assembled with your hometown. Those things may not hold the way they used to, and that can bring real vertigo even when leaving was your choice.\n\nThe Tower's Fire meeting the Water of the Six of Cups helps explain why this stretch can feel steamy and confusing, with grief and excitement sometimes showing up in the same afternoon. The card's gift is that it clears out what had grown too tight. In practice, you might notice old defaults that don't fit the new place, like waiting for people to reach out first because back home they always did. Letting one or two of those go on purpose is usually gentler than waiting for them to crack.\n\n### The Future: The Star\n\nIf things keep moving as they are, the trajectory leans toward The Star. A figure kneels by a pool, pouring water back into it and onto the land, under one large star and seven smaller ones, with a bird in the tree behind her. After the Tower's noise, this card is quiet. It suggests renewal that doesn't erase where you came from, because the water from the past shows up again here, poured deliberately this time.\n\nThe move from Fire to Air is well supported, like a spark that air fans into flame, so the part of you that's ready for reinvention has real momentum. The Star tends to describe hope that gets rebuilt one pour at a time, and the way forward may reveal itself in steps rather than all at once.\n\n### Synthesis\n\nRead together, these cards don't ask you to choose between nostalgia and reinvention. The Star's figure pours with both hands. Navigating this transition might be less about cutting ties and more about deciding what you carry forward and what you let the Tower take. The waxing gibbous moon is good symbolic weather for refining and adjusting rather than overhauling, though it's color, not a timeline.\n\n### Gentle Next Steps\n\n- **Transplant one ritual on purpose.** Pick something small from home, like a Sunday recipe or a morning walk, and recreate it in the new place, so the Six of Cups becomes something you bring along rather than something you mourn.\n- **Make a short \"Tower list.\"** Jot down three habits or assumptions from hometown life that feel off here, and choose one to experiment with releasing this week.\n- **Pour into one place regularly.** Go to the same café, class, or park on the same day each week, so the new place has a chance to learn your face, the way the Star's water slowly fills the pool.\n- **Check in with the nostalgic part.** When it flares, ask whether it's missing a person, a feeling, or an older version of yourself. Each one points to a different need.\n\n### Closing\n\nYou don't have to settle the split between looking back and looking ahead. Both parts of you get a place in this story. How this chapter unfolds rests on the choices you make, one ordinary day at a time.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 7367,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 4143,
+          "output_tokens_details": {
+            "thinking_tokens": 2667
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 7367,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "five-card-creative-project",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "userQuestion": "What should I know about launching my creative project this quarter?",
+      "reflectionsText": "I feel momentum but keep second-guessing the tone and timing.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "position": "Core of the matter",
+          "card": "Ace of Wands",
+          "orientation": "Upright",
+          "meaning": "Inspiration, new energy, creative spark, potential for bold action",
+          "suit": "Wands",
+          "rank": "Ace",
+          "rankValue": 1
+        },
+        {
+          "position": "Challenge or tension",
+          "card": "Seven of Swords",
+          "orientation": "Reversed",
+          "meaning": "Exposure, consequences, call for transparency and integrity",
+          "suit": "Swords",
+          "rank": "Seven",
+          "rankValue": 7
+        },
+        {
+          "position": "Hidden / subconscious influence",
+          "card": "Queen of Cups",
+          "orientation": "Upright",
+          "meaning": "Compassion, empathy, emotional intelligence, intuition in flow",
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13
+        },
+        {
+          "position": "Support / helpful energy",
+          "card": "Three of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Collaboration, skill development, building something of quality",
+          "suit": "Pentacles",
+          "rank": "Three",
+          "rankValue": 3
+        },
+        {
+          "position": "Likely direction on current path",
+          "card": "Wheel of Fortune",
+          "orientation": "Reversed",
+          "meaning": "Bad luck, resistance to change, breaking cycles",
+          "number": 10,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nThere's a particular kind of restlessness in having something nearly ready and still hovering over the launch button. You mentioned feeling momentum while second-guessing tone and timing, and this spread sits right inside that tension: a strong start, a few loose threads, and a real question about when the wheel actually turns.\n\nFor your question about launching your creative project this quarter, the cards lean practical. There are four Minor Arcana, one from each suit, with Fire leading. That spread of suits reads less like \"something's missing\" and more like \"all the pieces are on the table, and now it's about sequencing.\"\n\n### The Core: Ace of Wands\n\nAt the heart of this is the **Ace of Wands**, upright. It shows a hand reaching out of a cloud and holding a wand that's still sprouting leaves, with a castle off in the distant hills. That's the momentum you described, and the card doesn't argue with it. The idea is alive, and the energy behind it is real.\n\nWhat's useful here is that the wand is still green. An Ace is a seed, not a finished building, which is why the castle sits on the horizon rather than in the hand. It might feel freeing to let this launch be a beginning, like a first version or a first season, instead of asking it to prove everything at once.\n\n### The Challenge: Seven of Swords, reversed\n\nIn the tension position is the **Seven of Swords**, reversed. The traditional image shows a figure tiptoeing out of camp with five swords and glancing back at the two he left stuck in the ground. Through a delayed-timing lens, those two swords read like the parts of the plan that haven't been picked up yet. They might be where your tone doubts live.\n\nThis can look like a launch post that's slightly hedged, or a pitch that explains the project sideways because the direct version feels exposed. The reversal points toward transparency, and mostly with yourself first: what is this project, plainly, and who is it for? If that's hard to say in two sentences without flinching, it may be the condition worth tending before the date matters.\n\n### Beneath the Surface: Queen of Cups\n\nUnderneath all of that is the **Queen of Cups**, sitting on her throne at the water's edge and holding an ornate, covered cup with real care. She hints that some of the second-guessing might come from caring about how this lands with people, rather than from anything being wrong with the work.\n\nHer cup is closed, which is worth noticing. She knows what's inside without needing to display it. The tone question might settle if you write from what you actually feel about the project instead of guessing what an audience wants. One way to try that is to draft the announcement as if you were talking to a single person you trust, then see what survives.\n\n### What Supports You: Three of Pentacles\n\nThe practical side looks good. The **Three of Pentacles** shows a craftsman on a bench in a cathedral, going over the plans with a monk and a noble who hold the drawings. It's a picture of skill, feedback, and a shared blueprint working together.\n\nIn the support position, this points to collaboration as your resource: a few people whose judgment you trust. You don't have to settle the tone question alone in your head, where it tends to loop. Showing a rough version to a couple of people, with one specific question, is the kind of grounded, Earth-suit move that turns doubt into usable information.\n\n### Where It's Heading: Wheel of Fortune, reversed\n\nThe **Wheel of Fortune**, reversed, sits in the likely-direction spot. The great wheel, with the sphinx on top, the snake sliding down one side, and Anubis rising on the other, is about cycles turning and the slight vertigo that comes with them. Reversed and read for timing, it suggests the turn isn't quite ripe on the current path.\n\nAlongside your reflection, this might look like the second-guessing becoming its own cycle of tweaking, doubting, delaying, and tweaking again. The Wheel's traditional counsel is to notice what's shifting and use change to reset a pattern rather than repeat it. Waiting won't guarantee a perfect window. The circling itself may be the thing to interrupt.\n\n### Synthesis\n\nTaken together, the spark is real (Ace), the plan has a couple of unclaimed pieces (Seven), the doubts may be care in disguise (Queen), and help is within reach (Three). The Wheel suggests that what keeps things stuck is less the calendar and more the loop. The moon is in a waxing gibbous phase right now, traditionally a stretch for refining. That's symbolic weather, not a deadline, but it suits a final tone pass before you commit to a date.\n\n### Gentle Next Steps\n\n- **Name the two swords.** List the launch pieces you've been stepping around, like a landing page, a bio, or a trailer, and finish just one this week.\n- **Write a plain two-sentence description** of the project, and use it as the tuning fork for all your launch copy.\n- **Send a rough draft to two or three people** with a single question: \"Does this sound like me?\"\n- **Pick a launch date with a small buffer and write it down**, so the decision stops reopening itself every morning.\n\n### Closing\n\nYour momentum is worth trusting as a starting point, and your doubts are worth hearing without letting them drive. How this quarter unfolds depends on the choices you make about when and how to share your work, and nothing here is fixed.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 7825,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 5466,
+          "output_tokens_details": {
+            "thinking_tokens": 3757
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 7825,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "relationship-checkin",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "userQuestion": "What should I understand about the energetic exchange between me and Alex?",
+      "reflectionsText": "Communication feels uneven lately and I want to ground before reacting.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "position": "You / your energy",
+          "card": "Queen of Cups",
+          "orientation": "Reversed",
+          "meaning": "Emotional overwhelm, martyrdom, blurred boundaries",
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13
+        },
+        {
+          "position": "Them / their energy",
+          "card": "Knight of Swords",
+          "orientation": "Upright",
+          "meaning": "Decisive action, sharp focus, pursuing truth swiftly",
+          "suit": "Swords",
+          "rank": "Knight",
+          "rankValue": 12
+        },
+        {
+          "position": "The connection / shared lesson",
+          "card": "Two of Cups",
+          "orientation": "Upright",
+          "meaning": "Connection, partnership, mutual respect, heartfelt unity",
+          "suit": "Cups",
+          "rank": "Two",
+          "rankValue": 2
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nUneven communication often feels like this: one person's words arrive quickly and with edges, while the other is still sorting out what they feel, and the gap between those speeds starts to feel personal. You might recognize some of that in how things have gone with Alex lately. Wanting to ground before reacting suggests you already have some footing.\n\nOn the question of the energetic exchange between you and Alex, this spread is mostly Water, with two Cups cards, and one Swords card cutting through. That suggests a lot of feeling on one side of the table, speed and sharpness arriving from the other, and a shared lesson about meeting in the middle.\n\n### You: Queen of Cups Reversed\n\nThe **Queen of Cups Reversed** sits in your position. Here the reversal reads as care that has lost its banks. Upright, she sits on her throne at the sea's edge, holding that ornate covered cup with complete attention. Turned over, the water can spill past the rim. You may be absorbing more than is yours, or tuning into Alex's tone so closely that your own signal gets faint.\n\nThis might look like rereading a message several times to decode the mood, or softening what you need so it lands gently. That isn't a flaw. It's a real strength running without limits. The question it raises is how much of what you're carrying in this exchange is actually yours.\n\n### Them: Knight of Swords Upright\n\nInto that comes the **Knight of Swords Upright**: the rider charging forward, sword raised, trees bent by wind. This card shows how the dynamic with Alex may be landing for you. It doesn't reveal what Alex thinks or intends.\n\nNext to a saturated Queen, that speed can feel like a gust knocking things over, even when the words themselves are reasonable. You might notice quick replies that skip the feelings part, or a sense of pressure to resolve things before you've had time to register them. Air and Water aren't fighting here. They're running on different clocks, which may explain much of the unevenness you describe. The Knight also carries clarity, and there may be something in that directness worth borrowing rather than bracing against.\n\n### The Connection: Two of Cups Upright\n\nThe **Two of Cups Upright** names the bond's own lesson, and it's a generous one. Two figures face each other, each holding their own cup, with the caduceus and lion-headed emblem above them. Each holds their own cup and offers it at eye level.\n\nThat gently corrects the Queen's pattern. This connection asks for exchange, not absorption. Since it doubles the Water of your card, one risk is getting swamped by feeling. The invitation is to bring that feeling into an actual conversation where both cups are visible. The caduceus points toward balance, so any repair here may come more from rhythm and reciprocity than from intensity.\n\n### Gentle Next Steps\n\n- When a message from Alex stirs you up, give yourself a short buffer, maybe ten minutes or a walk around the block. Then jot one line about what you feel and one line about what you need.\n- Try meeting the Knight's directness with a clear sentence of your own: \"I want to answer this properly. Can we talk tonight?\" That honors your pace without going quiet.\n- Name the unevenness without blame: \"I've noticed we're moving at different speeds when we talk. How does it feel on your end?\" Then let Alex answer for themselves.\n- Notice one moment this week when you smooth something over instead of saying it, and consider saying it.\n\n### Closing\n\nThe exchange between you and Alex may be less a mismatch than two rhythms that haven't yet found a shared tempo. Your instinct to ground first is the Queen setting her cup upright again. Where this connection goes from here is shaped by your choices: how you ground, what you say, and what you ask for.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 6397,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 3621,
+          "output_tokens_details": {
+            "thinking_tokens": 2417
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6397,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "no-graph-patterns"
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": "2 Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.",
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "celtic-deep-shift",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "userQuestion": "How can I stay centered while everything at home and work restructures at once?",
+      "reflectionsText": "It feels like multiple towers at the same time; I want to stay compassionate without losing momentum.",
+      "context": "career",
+      "cardsInfo": [
+        {
+          "position": "Present — core situation",
+          "card": "The Hermit",
+          "orientation": "Upright",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Challenge — crossing / tension",
+          "card": "Five of Wands",
+          "orientation": "Reversed",
+          "meaning": "Avoidance of conflict, resentment, unproductive tension",
+          "suit": "Wands",
+          "rank": "Five",
+          "rankValue": 5
+        },
+        {
+          "position": "Past — what lies behind",
+          "card": "Death",
+          "orientation": "Upright",
+          "meaning": "Endings, change, transformation, transition",
+          "number": 13,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Near Future — what lies before",
+          "card": "Temperance",
+          "orientation": "Upright",
+          "meaning": "Balance, moderation, patience, purpose",
+          "number": 14,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Conscious — goals & focus",
+          "card": "The Emperor",
+          "orientation": "Upright",
+          "meaning": "Authority, establishment, structure, father figure",
+          "number": 4,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Subconscious — roots / hidden forces",
+          "card": "The Moon",
+          "orientation": "Reversed",
+          "meaning": "Release of fear, repressed emotion, inner confusion",
+          "number": 18,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Self / Advice — how to meet this",
+          "card": "Strength",
+          "orientation": "Upright",
+          "meaning": "Strength, courage, persuasion, influence, compassion",
+          "number": 8,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "External Influences — people & environment",
+          "card": "Eight of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Mastery through practice, craftsmanship, dedicated work",
+          "suit": "Pentacles",
+          "rank": "Eight",
+          "rankValue": 8
+        },
+        {
+          "position": "Hopes & Fears — deepest wishes & worries",
+          "card": "Nine of Swords",
+          "orientation": "Reversed",
+          "meaning": "Recovery from anxiety, gaining perspective, support arriving",
+          "suit": "Swords",
+          "rank": "Nine",
+          "rankValue": 9
+        },
+        {
+          "position": "Outcome — likely path if unchanged",
+          "card": "The Sun",
+          "orientation": "Upright",
+          "meaning": "Positivity, fun, warmth, success, vitality",
+          "number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nThis spread reads like trying to keep your footing while the floor plan keeps changing. Work is shifting, home is shifting, and you're in the middle trying to be decent to everyone, yourself included. You may recognize the pull between wanting to slow down and be kind, and worrying that slowing down means falling behind. You put it well: \"multiple towers at the same time,\" and the wish to stay compassionate without losing momentum.\n\nThe structure of the spread already answers part of your question. Seven of the ten cards are Major Arcana, and five lean toward Fire. That's a lot of heat and big-chapter energy, with only two earthy cards, **The Hermit** and the **Eight of Pentacles**, acting as ballast. You probably don't need more drive right now. The grounding is the part that needs protecting.\n\n### The Heart of It\n\nAt the center, The Hermit upright holds the Present. In the Rider-Waite-Smith image he stands on a cold peak with his lantern raised, and it lights only the next few feet of ground. For your question, centering may look less like seeing the whole restructured picture and more like lighting the next step. In career terms, this is a strategic retreat: you step back from the noise long enough to hear your own judgment, and you refine your craft before re-engaging. It isn't disappearing.\n\nCrossing him is the **Five of Wands** reversed. Upright, it shows five people clashing sticks in a messy, half-playful scramble. Read through a delayed-timing lens, the scramble may not have happened yet. This can look like a conversation about roles or priorities that everyone senses is coming but no one has started, such as a meeting that keeps getting pushed or a home decision filed under \"we'll talk later.\" The tension might come less from conflict itself and more from the waiting for it. So it's worth asking which of these debates are actually ripe, and which need more information before they're worth having.\n\n### How You Got Here, and Where It's Heading\n\n**Death** sits in the Past, which fits a sense that something has already ended: a role, a structure, a way of doing things. The skeleton rides forward on a white horse while the sun rises between two towers in the distance. Since you described this period as \"multiple towers,\" notice that the towers actually drawn in this spread, here and again behind **The Moon**, are gateposts the path runs between. They aren't buildings coming down. The clearing may be mostly behind you, and what you're feeling now could be the aftermath rather than the collapse.\n\nFrom Death the story moves into The Hermit's quiet and then toward **Temperance** upright in the Near Future. The angel pours water between two cups, one foot on land and one in the stream. Balance here means actively mixing things, not splitting the difference. In practice, this could mean blending the new structures at work and home a little at a time: try a new rhythm for two weeks, notice what spills, then adjust. Temperance favors patience as a process of small adjustments over patience as passive waiting.\n\n### What's Driving You\n\nAbove the center, **The Emperor** upright names the conscious aim: structure, steadiness, something solid to stand on. The ram-headed throne, the mountains behind, and the scepter in hand all point to the part of you that wants a plan, clear roles, and the authority to make decisions rather than react to them. That's a sensible thing to reach for when everything is being reshuffled.\n\nBelow, The Moon reversed tells a quieter story. Its winding path runs between the dog and the wolf toward those towers. Under the delayed-timing lens, it suggests clarity hasn't fully arrived yet: some fear or confusion may be starting to surface, but not all of it is readable. The tension is real. The Emperor wants the map drawn now, and The Moon suggests part of the terrain is still fogged. One way to honor both is to build structure that expects revision, more like drafts than decrees.\n\n### The Wider Field\n\nAs Advice, **Strength** upright speaks almost directly to your reflection. The figure rests a hand on the lion's jaw with no chain, and the infinity sign floats overhead. It's the blend you named: compassion that keeps its momentum, because the lion is still very much a lion. This might look like stating a firm boundary at work in a warm tone, or holding a family decision steady without hardening yourself to do it.\n\nAround you, the Eight of Pentacles upright suggests an environment that rewards steady craft. The apprentice sits at the bench carving one coin after another, with the town in the distance. Whatever is restructuring, the people and systems around you may respond better to consistent, visible work than to big gestures. This card is also your strongest earth anchor in a very fiery spread: one task, done well, repeated.\n\nThe **Nine of Swords** reversed in Hopes & Fears holds both sides at once. Upright, it's the figure sitting up in bed with hands over face. Reversed and read for timing, it suggests relief from that 3 a.m. spiraling may be starting but hasn't fully landed. You might be hoping for perspective and support while also fearing it won't come in time. If the worry starts sitting heavier than a few restless nights, talking it through with a counselor or someone you trust can help share the load.\n\nThen there's **The Sun** upright as the likely Outcome if things continue as they are. A barefoot child rides a white horse past sunflowers, with a wall behind. That wall matters, because the joy here sits inside a structure. It doesn't depend on structure being absent. The restructuring could settle into something warmer and more honest than what came before, though that's a direction of travel and not a promise.\n\n### Putting It Together\n\nThe cross-checks line up encouragingly. The Emperor as your goal and The Sun as the trajectory share Fire, so what you're consciously building and where things seem headed point the same way. Strength and Temperance both feed that Sun too. In other words, the compassionate, adjust-as-you-go approach is the momentum. You don't have to trade one for the other.\n\nThe caution is that doubled Fire can tip into burnout. The Hermit's lantern and the apprentice's workbench are your counterweights. Meanwhile, The Moon reversed and the Nine of Swords reversed move independently, so the fog underneath and the worry on top may clear at different speeds. One easing before the other doesn't mean something is wrong. With the Moon waxing gibbous, the symbolic weather favors refining what's already in motion over launching anything new.\n\nSo, to your question of how to stay centered: light one step (The Hermit), adjust in small pours (Temperance), and keep a warm hand on the lion (Strength).\n\n### Gentle Next Steps\n\n- **One lantern step a day:** Each morning, write down the single next action for work and the single next action for home, and treat those as the whole assignment.\n- **Sort the pending debates:** List the conversations you sense are coming, mark each \"ripe\" or \"needs more info,\" and pick one ripe one to schedule this week.\n- **Run a two-week Temperance trial:** Change one routine, such as when you check work messages at home, then review it and adjust instead of overhauling everything.\n- **Strength check before hard talks:** Jot down two lines: \"the firm part is…\" and \"the kind part is…\". Say both.\n\n### Closing\n\nYou don't have to choose between being gentle and getting things done. This spread suggests they're the same muscle, used patiently. The restructuring is real, and so is your ability to steer through it at a human pace. How this chapter unfolds will be shaped by the choices you make, one lit step at a time.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 11318,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 7091,
+          "output_tokens_details": {
+            "thinking_tokens": 4664
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 11318,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "decision-crossroads-long-reflections",
+      "spreadKey": "decision",
+      "spreadName": "Decision / Two-Path",
+      "userQuestion": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
+      "reflectionsText": "I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "position": "Heart of the decision",
+          "card": "The Lovers",
+          "orientation": "Upright",
+          "meaning": "Love, harmony, relationships, values alignment, choices",
+          "number": 6,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Path A — energy & likely outcome",
+          "card": "Two of Wands",
+          "orientation": "Upright",
+          "meaning": "Planning, looking ahead, making empowered choices, considering options",
+          "suit": "Wands",
+          "rank": "Two",
+          "rankValue": 2
+        },
+        {
+          "position": "Path B — energy & likely outcome",
+          "card": "Six of Swords",
+          "orientation": "Reversed",
+          "meaning": "Difficulty leaving, emotional baggage, stalled transition",
+          "suit": "Swords",
+          "rank": "Six",
+          "rankValue": 6
+        },
+        {
+          "position": "What clarifies the best path",
+          "card": "Justice",
+          "orientation": "Upright",
+          "meaning": "Justice, fairness, truth, cause and effect, law",
+          "number": 11,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "What to remember about your free will",
+          "card": "The Fool",
+          "orientation": "Reversed",
+          "meaning": "Recklessness, taken advantage of, inconsideration",
+          "number": 0,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nYou may know the feeling of standing in a hallway with two doors, opening one a crack, then the other, then going back to the first. When you say your mind loops between stability and growth, it can sound less like indecision and more like a mind doing laps because it hasn't been given a better question yet. This spread seems to offer one.\n\nFour of these five cards lean toward Air, the element of thinking, weighing and analyzing. That may be part of why the loop is so persistent. There's one Fire card and nothing from Earth or Water, so part of the work may be moving this decision out of your head and into your body and calendar.\n\nI'm reading Path A as relocating and Path B as staying, in the order you named them. If you assigned them the other way, swap them and notice what still fits.\n\n### The Heart of It\n\nIn **The Lovers**, two figures stand beneath an angel, with a tree of knowledge behind one and a tree of life behind the other. It's tempting to cast those trees as stability and growth. In this position, though, the card suggests the choice isn't really about geography. It's about values, and which version of your life feels like an honest match for who you're becoming.\n\nThat shift matters because \"stability versus growth\" makes the two rivals. The Lovers asks something different: what do you want to be true about your days a year from now, and which path lets that happen with less self-betrayal?\n\n### Path A — Relocating\n\nIn the **Two of Wands**, a figure stands on castle battlements holding a small globe, with two wands anchoring the space. It's the spread's only Fire card, so relocating, through this lens, looks like the path that may wake up your appetite and sense of direction.\n\nNotice, though, that he's still on the battlements. This is a planning card, not a sailing card. Its energy tends to reward deliberate scouting over a sudden exit. In practice, that might look like researching one specific city instead of \"somewhere else,\" or visiting with a real question in mind. Much of the growth on this path may come from becoming the person who plans the move well.\n\n### Path B — Staying\n\nThe **Six of Swords** usually shows a ferryman poling cloaked travelers across calm water, with swords standing in the bow. Reversed and read through timing, the crossing hasn't quite begun. That's an interesting twist for the path of staying. Staying can still involve a transition, from \"stuck here\" to \"choosing here,\" and that passage may not be ripe yet.\n\nThis might look like staying put while carrying the same restlessness, so stability turns into holding your breath. The card doesn't close this path. It points to conditions that may need attention first, such as a new project, a changed routine, or a postponed conversation. Tending those could change how staying feels, though it can't promise the result.\n\nIf your paths are swapped, read this as a move whose timing isn't ready yet, where the baggage might travel with you.\n\n### What Clarifies the Path\n\n**Justice** sits between two pillars with scales in one hand and an upright sword in the other. As the clarifier, it suggests your loop may ease through fairer, more concrete weighing: better evidence rather than more thinking. The scales aren't asking which path is \"good.\" They're asking what each one actually costs and gives, written down where you can compare them.\n\nThis pairs neatly with The Lovers, with values on one side and facts on the other. If money, leases or contracts are part of the weighing, a qualified advisor can help with those specifics.\n\n### Your Free Will\n\n**The Fool** stands at a cliff's edge with a white rose, a small dog at his heels and the sun rising behind him. Reversed in this position, it reads less like \"don't leap\" and more like \"the leap may need more preparation.\" The dog, your instinct, the friend who barks before you step off, gets a louder voice here.\n\nThe reminder is that timing is yours to shape. Readiness is something you can build, not just something you wait to feel. Preparing doesn't guarantee a particular outcome, but it changes how you meet whatever comes.\n\n### Synthesis\n\nThe spread doesn't name a winner. The Two of Wands brings the most forward motion, and the Six of Swords Reversed hints that staying may need its own transition before it feels like growth. Both paths carry a \"not yet\": one is still planning and the other hasn't pushed off from shore. The Fool Reversed echoes that.\n\nWith the Sun just entering Libra, Justice's weighing gets extra emphasis. That's symbolic weather, not fate.\n\nThe Lovers and The Fool together point to early-chapter work: defining your values and building a stable starting point. Seen that way, stability may be the launch pad for growth rather than its opposite. Expect clarity to arrive over a chapter rather than in one moment.\n\n### Gentle Next Steps\n\n- **Name your values first.** Write down three non-negotiable values, then score each path against them on paper, not in your head.\n- **Scout Path A.** This week, do one concrete task for relocating, like a cost comparison, a call with someone who lives there, or a short visit.\n- **Test Path B.** Name one change that would make staying a real choice, and try it for two weeks.\n- **Interrupt the loop.** When it starts, give yourself ten minutes of thinking, then take a walk to give this Air-heavy spread some ground.\n\n### Closing\n\nNeither door here is locked, and neither is a trap. Each one asks for a little more readiness before you walk through. Your choices, and how you prepare for them, are what shape the way this unfolds.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 8271,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 6598,
+          "output_tokens_details": {
+            "thinking_tokens": 4855
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 8271,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "What spiritual practice should I commit to this season to deepen my intuition?",
+      "reflectionsText": "I want a ritual that feels grounded, not performative.",
+      "context": "spiritual",
+      "cardsInfo": [
+        {
+          "position": "Past — influences that led here",
+          "card": "The Hierophant",
+          "orientation": "Upright",
+          "meaning": "Spiritual wisdom, tradition, conformity, institutions",
+          "number": 5,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Present — where you stand now",
+          "card": "The High Priestess",
+          "orientation": "Reversed",
+          "meaning": "Secrets, disconnected from intuition, withdrawal",
+          "number": 2,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Future — trajectory if nothing shifts",
+          "card": "The Star",
+          "orientation": "Upright",
+          "meaning": "Hope, faith, purpose, renewal, spirituality",
+          "number": 17,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "thoth-a1",
+      "reading": "### Opening\n\nYou might recognize this feeling: you've collected plenty of practices over the years, yet your own inner voice feels oddly quiet underneath them. Your question seems to be asking for something more honest than another set of instructions, a practice that actually listens back. Your reflection puts it well: grounded, not performative.\n\nThe cards answer \"what should I commit to this season?\" with a clear line, moving from **The Hierophant** through **The Priestess (RWS: The High Priestess)**, reversed, to **The Star**. Two of these sit in the initiation stretch of the archetypal journey. That stage is about learning your tools and building a steady starting point, not perfecting anything.\n\n### Past: The Hierophant\n\nIn the Thoth version, the Hierophant's window is fastened with nails, yet a small dancing child sits inside the pentagram at his heart. It's something alive held inside something fixed. That might be a fair picture of what shaped your path: teachers, books, traditions, and the comfort of doing things the \"right\" way.\n\nIts Taurus link points to steady devotion and embodiment, and those are worth keeping. What may be ready to go is any practice done mostly for an authority or an audience. That could look like keeping a meditation streak for the sake of the streak, or following a ritual line by line while part of you waited to be graded. So the question here is which habits still carry the child, and which are just nails.\n\n### Present: The Priestess, Reversed\n\nThe Thoth Priestess sits veiled in a web of light, a bow resting across her knees. She's a huntress who hasn't yet released her arrow. Reversed in this position, she may describe intuition that's present but muffled, possibly by the very structure the Hierophant left behind.\n\nThis might look like pulling a card and reaching for the guidebook before noticing your gut reaction. It might also look like having a hunch and immediately searching for what it \"means.\" The withdrawal side deserves an honest look too: the Priestess needs quiet, but quiet can slide into not listening at all. When did you last let a first impression stand without checking it against someone else's answer?\n\n### Future: The Star\n\nIf your current course holds, things lean toward The Star. In the Thoth deck she pours from two cups beneath a spiraling seven-pointed star. Notice what she isn't doing: performing. She's alone and unadorned, pouring out and receiving in the same gesture, which is about as close to \"grounded, not performative\" as this deck gets.\n\nThis is encouraging, though it's a direction rather than a promise. The Star's renewal seems to grow out of the Priestess's listening. Symbolically, the Hierophant's earth gives the Priestess's water banks to run between, and that water feeds the Star's airy Aquarian vision.\n\n### Guidance\n\nTaken together, the spread points toward one small, private, daily listening practice. It would borrow the Hierophant's regularity and leave out his audience. For example: a ten-minute morning sit, then writing down your first impression of the day before you touch your phone or open any book.\n\nThe point isn't to write beautifully. It's to build a record of your own inner signal so you can see when it turns out to be right. If a marker date helps, the New Moon in Libra in about two and a half weeks could be a quiet starting point. Treat it as symbolic timing, not a deadline.\n\n### Gentle Next Steps\n\n- **Keep a hunch log.** Each morning, jot down one impression, about a conversation, your energy, or a decision. At night, note what actually happened, just tracking without judging.\n- **Read cards blind first.** Draw one card and write three words about it before you open any reference.\n- **Borrow The Star's water.** Pour a glass, sit with it for a few breaths, notice your body, then drink. No candles or script required.\n- **Sort what you inherited.** List three practices from your past and mark each one keep, adapt, or release.\n\n### Closing\n\nThe answer may not be a bigger ritual. It may be one you'd keep doing even if nobody ever knew about it. Your own choices about what you practice, and how honestly, are what shape where this season goes.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 6946,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 6544,
+          "output_tokens_details": {
+            "thinking_tokens": 5228
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6946,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "userQuestion": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
+      "reflectionsText": "My body feels tired even when my mind is racing.",
+      "context": "wellbeing",
+      "cardsInfo": [
+        {
+          "position": "Core of the matter",
+          "card": "Four of Swords",
+          "orientation": "Upright",
+          "meaning": "Rest, retreat, mental recovery, intentional pause",
+          "suit": "Swords",
+          "rank": "Four",
+          "rankValue": 4
+        },
+        {
+          "position": "Challenge or tension",
+          "card": "Ten of Wands",
+          "orientation": "Reversed",
+          "meaning": "Overload, unsustainable pressure, needing to delegate or release",
+          "suit": "Wands",
+          "rank": "Ten",
+          "rankValue": 10
+        },
+        {
+          "position": "Hidden / subconscious influence",
+          "card": "Temperance",
+          "orientation": "Upright",
+          "meaning": "Balance, moderation, patience, purpose",
+          "number": 14,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Support / helpful energy",
+          "card": "Six of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Generosity, reciprocity, fair exchange, support in balance",
+          "suit": "Pentacles",
+          "rank": "Six",
+          "rankValue": 6
+        },
+        {
+          "position": "Likely direction on current path",
+          "card": "The Sun",
+          "orientation": "Reversed",
+          "meaning": "Inner child, feeling down, overly optimistic",
+          "number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "marseille-classic",
+      "reading": "### Opening\n\nYou might recognize this: a body running on empty while your mind keeps sprinting laps. Bedtime, which is supposed to fix that, can become one more place where the thinking won't switch off. Your question is what helps restore your wellbeing, and these five cards answer it fairly consistently: carry less, take in more support, and expect a slower rebuild than you'd probably like.\n\nThree of the five cards lean toward fire. There's one Sword, one Coin, and no Cups at all. That's a lot of drive and thinking and very little soft, unstructured downtime, which matches your \"tired body, racing mind\" split.\n\n### At the Core: Four of Epees\n\nThe **Four of Epees** at the center says plainly that you need rest, retreat, and a deliberate pause. In the Marseille pip, four blades cross into a steady lattice of quadrants, a structure that holds still instead of cutting. Swords are the suit of the mind, so for a racing mind it matters that here they form an enclosure rather than pointing anywhere.\n\nThe core issue may be less \"I need more sleep\" and more \"my thoughts have nowhere to put down their weapons.\" The rest this card describes has walls and edges, a clear line between doing and not doing. What would it look like to give your evenings a firm edge instead of letting the day leak into them?\n\n### The Challenge: Ten of Batons, reversed\n\nThe **Ten of Batons** sits in the friction position, with four pairs framing a central staff. It's a full bundle at the end of a cycle. Upright, it's the overloaded carrier. Reversed, read through the lens of timing, it suggests the moment to set some of this down may not have arrived yet. Maybe the conditions for handing things off aren't in place, or part of you hasn't decided which batons are actually yours.\n\nIn practice, this might look like a to-do list where everything feels equally urgent, so nothing gets dropped. The work here is preparation: sorting, naming, and getting the conditions ready. That improves the odds of relief, but it doesn't put relief on a guaranteed schedule.\n\n### Beneath the Surface: Temperance\n\n**Temperance** in the hidden position is a hopeful sign. The Marseille figure pours liquid between two vessels, one red and one blue, and the stream moves without spilling. Underneath the busy surface, some part of you may already know the fix isn't a dramatic overhaul. It's a steadier flow between effort and rest, and between body and head.\n\nIn a spread with no Cups, this is also the closest thing to water. You might notice it as an urge toward moderation that you keep overriding, like the instinct to stop at a reasonable hour that you talk yourself out of. Where are you pouring everything out of one vessel and nothing back in?\n\n### What Supports You: Six of Coins\n\nThe **Six of Coins** sets its coins in a balanced, hexagonal arrangement around a radiant center, with stems woven between them. It's the most grounded card here and the earthy counterweight to all that fire and air. For your wellbeing, it points to bodily basics: food, a steady sleep rhythm, and routines that bring you back into your body.\n\nIt's also a card about fair exchange. Burnout can come from a lopsided ledger, where time and energy flow out and little comes back. Support may already be available in practical form: a meal someone offers, a task a colleague could take, an hour you protect for yourself. The question is whether you let it in.\n\n### Where Things Are Heading: Le Soleil, reversed\n\n**Le Soleil** reversed doesn't say the light won't come. It says that, if things continue as they are, the light isn't in view yet. In the Marseille image, two figures stand under a broad sun in front of a low wall, a picture of warmth and ease and being looked after. Reversed, that vitality may still be gathering and waiting on the groundwork the earlier cards describe.\n\nThere's also a wry note of over-optimism in this reversal. It can look like hoping one good night's sleep will reset everything. Treat this card as feedback rather than a forecast. Resting, sorting, and accepting help tend to improve the odds of that warmth coming back, even though none of them can promise when.\n\n### Bringing It Together\n\nPut together, rest is the heart of this, overload is the knot, balance is already stirring beneath the surface, grounded support is within reach, and brightness comes back more easily once the foundations are tended. With the moon waxing toward full, symbolically (not as fate) it's a good time for gradual steps rather than one big fix.\n\n### Gentle Next Steps\n\n- **Park the swords before bed.** Spend five minutes writing down whatever is racing, whether tasks, worries, or half-formed thoughts, so it has somewhere to sit overnight.\n- **Name one baton.** Look at this week's commitments and pick one to delay, shrink, or hand off. You don't have to drop it yet. Just identify it.\n- **Pour between vessels.** Try a short transition between \"on\" and \"off,\" like a walk, a shower, or a screen-free stretch, so you aren't jumping from full speed straight into bed.\n- **Let something in.** Accept one offer of help this week without immediately evening the score. If the restless sleep continues, a doctor or sleep specialist can help you figure out what's going on.\n\n### Closing\n\nYour tired body and your fast mind aren't working against you. They're more like two vessels that need a better flow between them. What you choose to set down, and what you let yourself receive, will shape where this goes from here.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 6939,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 5934,
+          "output_tokens_details": {
+            "thinking_tokens": 4155
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6939,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "no-graph-patterns"
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "Moderate Major Arcana suggests important archetypal lessons woven through everyday matters."
+      }
+    },
+    {
+      "id": "relationship-hypothetical-collaborators",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "userQuestion": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
+      "reflectionsText": "This is a hypothetical scenario. Please do not guess at either person's hidden feelings or private behavior.",
+      "context": "career",
+      "cardsInfo": [
+        {
+          "position": "You / your energy",
+          "card": "Page of Swords",
+          "orientation": "Upright",
+          "meaning": "Curiosity, new ideas, vigilance, honest questions",
+          "suit": "Swords",
+          "rank": "Page",
+          "rankValue": 11
+        },
+        {
+          "position": "Them / their energy",
+          "card": "Five of Cups",
+          "orientation": "Reversed",
+          "meaning": "Acceptance, perspective returning, learning from sorrow",
+          "suit": "Cups",
+          "rank": "Five",
+          "rankValue": 5
+        },
+        {
+          "position": "The connection / shared lesson",
+          "card": "Two of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Balance, juggling priorities, adaptable resource management",
+          "suit": "Pentacles",
+          "rank": "Two",
+          "rankValue": 2
+        }
+      ],
+      "deckStyle": "marseille-classic",
+      "reading": "### Opening\n\nStarting a project with someone often brings a mix of momentum and caution: plenty of ideas on the table, some open questions about how the other person works, and a sense that early conversations will set the tone. That's the texture this spread points to for your two hypothetical collaborators and how they might communicate well. The cards don't reveal what either person privately feels. They sketch three energies that could shape the conversation and show where it might snag.\n\nAll three cards are Minor Arcana, with Air, Water, and Earth each appearing once. That keeps the reading grounded in day-to-day working habits rather than big destiny themes.\n\n### The First Collaborator: Valet of Epees (Page of Swords)\n\nThe **Valet of Epees** (Page of Swords), upright, brings curious-investigator energy: sharp questions, fresh ideas, and a habit of testing the plan to see where it gives. In the Marseille tradition the Valet holds his blade but is still a student of it, so this is early-stage clarity, not settled expertise. At a kickoff, this might look like someone asking \"wait, who's this actually for?\" five minutes in. That question is useful, because a vague scope tends to cost weeks later.\n\nThe risk is that rapid-fire questions can land like cross-examination. Whoever carries this energy can help by naming their intent: \"I'm asking so I understand, not because I think it's wrong.\"\n\n### The Second Collaborator: Five of Coupes (Five of Cups), Reversed\n\nThe **Five of Coupes** (Five of Cups) appears reversed. In the Marseille pip pattern, a fifth cup interrupts the symmetry of the other four, which pictures a pattern under strain. Reversed in this position, I read it as the recovery side of that strain: perspective returning, and setbacks becoming usable knowledge.\n\nIn a working dynamic, this could show up as someone saying, \"When a timeline gets this tight, here's what usually breaks.\" That's one way the card can appear, not a claim about anyone's history. It brings people-sense and an eye for where a team gets worn down. The Valet's fast Air energy may not track those things on its own.\n\nThese two elements run on separate tracks rather than clashing. So the communication task is translation: one person tracks ideas, and the other tracks how the work feels to do.\n\n### The Connection: Two of Coins (Two of Pentacles)\n\nThe **Two of Coins** (Two of Pentacles), upright, names the shared lesson, and it's a practical one. The Marseille card shows two coins linked by a looping band, two separate things kept in conversation through movement. In a project, that might mean balancing ambition and budget, speed and care, or two people's differing priorities, without forcing a single permanent answer.\n\nEarth sits comfortably with the Five reversed's Water, since care for people and care for resources reinforce each other. With the Valet's Air there's more friction, because ideas multiply faster than hours do. The connection asks both collaborators to keep things tangible: dates, owners, and what gets dropped when something new comes in.\n\n### Guidance\n\nGood communication here likely comes from pairing the Valet's questions with the Five reversed's hard-won perspective, then grounding both in the Two of Coins' steady juggling. Curiosity without grounding can turn into endless brainstorming, and reflection without grounding can turn into rehashing. The looping band on the Two suggests the real skill is renegotiating regularly rather than perfecting the plan up front.\n\n### Gentle Next Steps\n\n- **Question round first:** At kickoff, each person writes three questions about scope before anyone proposes a solution.\n- **A 15-minute pre-mortem:** Ask \"if this stalls in two months, what probably caused it?\" and look for lessons, not blame.\n- **Two-column priorities:** Keep a \"this week\" list and a \"can wait\" list, and review them in a short weekly check-in. Adding something to the first means moving something out.\n- **Label written feedback:** Tag comments as \"question,\" \"suggestion,\" or \"concern\" so the other person doesn't have to guess the tone.\n\n### Closing\n\nThis spread describes a promising pairing: one person brings sharpness, the other brings perspective, and together they keep things balanced. How these two collaborators choose to talk, plan, and adjust along the way is what shapes where their project goes.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 6495,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 4452,
+          "output_tokens_details": {
+            "thinking_tokens": 3053
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6495,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "no-graph-patterns"
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "celtic-general-focused-week",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "userQuestion": "What can help me have a focused week?",
+      "reflectionsText": "",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "position": "Present — core situation",
+          "card": "Eight of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Mastery through practice, craftsmanship, dedicated work",
+          "suit": "Pentacles",
+          "rank": "Eight",
+          "rankValue": 8
+        },
+        {
+          "position": "Challenge — crossing / tension",
+          "card": "Five of Cups",
+          "orientation": "Reversed",
+          "meaning": "Acceptance, perspective returning, learning from sorrow",
+          "suit": "Cups",
+          "rank": "Five",
+          "rankValue": 5
+        },
+        {
+          "position": "Past — what lies behind",
+          "card": "The Moon",
+          "orientation": "Upright",
+          "meaning": "Illusion, fear, anxiety, subconscious, intuition",
+          "number": 18,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Near Future — what lies before",
+          "card": "Six of Cups",
+          "orientation": "Upright",
+          "meaning": "Nostalgia, innocence, kind memories, simple affection",
+          "suit": "Cups",
+          "rank": "Six",
+          "rankValue": 6
+        },
+        {
+          "position": "Conscious — goals & focus",
+          "card": "Ace of Swords",
+          "orientation": "Upright",
+          "meaning": "Clarity, breakthrough, new idea, honest communication",
+          "suit": "Swords",
+          "rank": "Ace",
+          "rankValue": 1
+        },
+        {
+          "position": "Subconscious — roots / hidden forces",
+          "card": "Eight of Cups",
+          "orientation": "Upright",
+          "meaning": "Walking away, deeper search, leaving what no longer nourishes",
+          "suit": "Cups",
+          "rank": "Eight",
+          "rankValue": 8
+        },
+        {
+          "position": "Self / Advice — how to meet this",
+          "card": "The Hermit",
+          "orientation": "Upright",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "External Influences — people & environment",
+          "card": "Three of Wands",
+          "orientation": "Reversed",
+          "meaning": "Delays, limited foresight, frustration waiting for returns",
+          "suit": "Wands",
+          "rank": "Three",
+          "rankValue": 3
+        },
+        {
+          "position": "Hopes & Fears — deepest wishes & worries",
+          "card": "Nine of Swords",
+          "orientation": "Upright",
+          "meaning": "Anxiety, worry, sleepless thoughts, mental overwhelm",
+          "suit": "Swords",
+          "rank": "Nine",
+          "rankValue": 9
+        },
+        {
+          "position": "Outcome — likely path if unchanged",
+          "card": "Four of Wands",
+          "orientation": "Upright",
+          "meaning": "Celebration, stability, milestone reached, supportive community",
+          "suit": "Wands",
+          "rank": "Four",
+          "rankValue": 4
+        }
+      ],
+      "deckStyle": "thoth-a1",
+      "reading": "### Opening\n\nYou might recognize this: the work itself isn't the problem, since you probably know how to sit down and do it well. Attention keeps sliding elsewhere, though, toward something that didn't land the way you hoped, or into a late-night loop of \"what if.\" For \"What can help me have a focused week?\", this spread sits right in the gap between capable hands and a busy, slightly bruised mind. Water leads (four of ten cards), so the answer leans less on productivity hacks and more on clearing the emotional undertow that pulls focus away.\n\n### The Heart of It\n\nAt the center is **Prudence (Eight of Disks)**, the **Eight of Pentacles** in Rider–Waite terms. In the Thoth version, eight disks ripen like fruit on a carefully tended plant, sheltered under broad leaves. That's your answer in miniature. Focus here isn't intensity. It's cultivation: small, repeated, protected effort, with the unglamorous task done properly winning over the heroic sprint.\n\nCrossing it is **Disappointment (Five of Cups)**, reversed. With its drooping lotus and cups that won't fill, this card shows where things snag. A letdown, maybe a plan that fizzled or a reply that never came, may still be drawing on your attention.\n\nUnder the delayed-timing lens, acceptance is on its way but hasn't fully arrived. In daily life this might look like reopening the same thread or rehearsing what you'd say. Rather than forcing closure by Monday, you could give that disappointment a defined container so it stops leaking into work hours.\n\n### Where This Came From and Where It's Leaning\n\nBehind you sits **The Moon**: twin towers, an uncertain path, murky water. You may be coming out of a stretch where it was hard to tell real priorities from anxiety dressed up as priorities. The good news is that the flow from The Moon into Prudence is supportive. The fog seems to be settling into something you can actually put your hands on.\n\nAhead, **Pleasure (Six of Cups)** shows lotuses pouring water into golden cups. Focus may come back through enjoyment more than discipline. That could be a task that reminds you why you liked this work, a familiar rhythm, or an easy exchange with a colleague. In practice, one built-in pleasure might hold your attention better than willpower, such as good coffee before the hardest block or the playlist you associate with getting things done.\n\n### Above and Below\n\nYour conscious aim is **Root of Air (Ace of Swords)**, a single blade thrusting up through a crown of light. You may be hoping for one clean cut of clarity, one honest decision about what matters this week. That's a strong aim.\n\nUnderneath sits **Indolence (Eight of Cups)**: stagnant pools, wilted lotuses, cups that aren't refilling. Crowley's title points to an energy leak, the tiredness of tending something past its ripeness. This isn't a verdict on your life. It could be as small as a recurring meeting, a side project, or a habit that quietly drains more than it gives.\n\nThe mind above wants sharpness, while something below may be tired in a way sharpness alone won't fix. A useful question: is there one thing you're carrying mostly out of obligation that you could set down, even just for this week?\n\n### Around You and Ahead\n\n**The Hermit** in the advice seat is about as direct as tarot gets for a focus question: close the door and carry your own lamp. Both The Hermit and Prudence carry Virgo associations (symbolic context, not fate), and that shared thread points toward discernment and careful solo work. This could look like blocked time with notifications off, or a two-minute check-in with yourself before you check in with anyone else.\n\n**Virtue (Three of Wands)** reversed describes your surroundings. The Thoth card shows lotus-tipped wands radiating outward, the image of expansion and returns arriving. Reversed under the timing lens, other people's pieces may not be ripe yet: slow replies, decisions sitting on someone else's desk. Waiting won't guarantee those arrive the way you'd like. It's a cue to stop refreshing the inbox and put attention on what's in your own hands.\n\nIn hopes and fears sits **Cruelty (Nine of Swords)**, with its rusted, dripping blades. The fear might be that your mind turns on you this week, with the inner critic narrating every unfinished task. The hope folded inside it is to finally quiet that voice. Next to Indolence below, some of that mental noise could be the tired part of you objecting through worry. If the late-night spiraling ever feels heavier than an ordinary busy week, talking it through with someone you trust or a professional can help.\n\nThe outcome, if things continue as they are, is **Completion (Four of Wands)**: a circle of wands capped with ram and dove heads, something stable and finished. It's a hopeful trajectory, with steady focus building toward a real milestone that may be worth marking with other people.\n\n### Cross-Checks\n\nYour clarity goal and Completion support each other, Air feeding Fire, so an early decision about priorities seems to set up a solid finish. The Hermit and Completion sit a little apart. Solitude is the method, but the reward involves others, so the week may want a closed door for most of it and an open one at the end. There's also some friction between Pleasure and Completion. The soft comfort of the Six can tip into coasting, so it helps to let enjoyment serve the work rather than replace it.\n\n### Synthesis\n\nSo what can help you have a focused week? The cards point to four things: protected, Prudence-style work sessions, a deliberate container for the lingering disappointment, honest triage of whatever's quietly draining you, and letting other people's delays stay their business. With the Moon waxing toward full in Aries in a few days, the week may lend itself to finishing and releasing more than launching. Treat that as weather, not instruction.\n\n### Gentle Next Steps\n\n- Set one \"Prudence block\" a day: 60–90 minutes, one task, phone in another room. Guard it the way you would a meeting.\n- Write the Five of Cups letdown down once, in full. If it resurfaces, give it a set ten-minute window instead of letting it roam.\n- Name one Eight of Cups drain you could pause this week, like a meeting, a side project, or a habitual scroll, and notice what the freed-up space feels like.\n- Before bed, jot down tomorrow's single priority so the Nine of Swords loop has less to chew on.\n\n### Closing\n\nFocus in this spread looks less like grinding and more like tending, the way that Eight of Disks plant gets shelter and steady attention. Your choices about what to protect, what to set down, and what to stop waiting on are what shape how this week turns out.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 11811,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 8584,
+          "output_tokens_details": {
+            "thinking_tokens": 6390
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 11811,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "embeddings-not-configured"
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": "3 Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.",
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "non-english-spanish",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
+      "reflectionsText": "Quiero sentirme presente sin perder mi rumbo.",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "position": "Past — influences that led here",
+          "card": "The Hermit",
+          "orientation": "Upright",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        },
+        {
+          "position": "Present — where you stand now",
+          "card": "Eight of Cups",
+          "orientation": "Upright",
+          "meaning": "Walking away, deeper search, leaving what no longer nourishes",
+          "suit": "Cups",
+          "rank": "Eight",
+          "rankValue": 8
+        },
+        {
+          "position": "Future — trajectory if nothing shifts",
+          "card": "The Sun",
+          "orientation": "Reversed",
+          "meaning": "Inner child, feeling down, overly optimistic",
+          "number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Apertura\n\nQuizá reconozcas esa sensación de estar en todas partes a la vez: pendiente de tu familia, cumpliendo en el trabajo y, al final del día, sin saber muy bien dónde quedaste tú. Puede que no sea que te falte energía, sino que se te va en direcciones que ya no te devuelven nada. Tu pregunta sobre cómo sostener tu energía mientras apoyas a tu familia y tu trabajo, y tu deseo de \"sentirte presente sin perder tu rumbo\", se reflejan con mucha claridad en estas tres cartas.\n\nLa tirada va de **The Hermit** (Tierra) a **Eight of Cups** (Agua) y termina en **The Sun** invertida (Fuego). Las dos primeras se apoyan con naturalidad. El paso a la tercera tiene más fricción, y ahí está lo interesante.\n\n### El pasado: The Hermit\n\nDetrás de ti aparece el ermitaño en la cima de la montaña, con la linterna en alto y la estrella de seis puntas dentro. Esto puede hablar de una etapa en la que necesitaste mirar hacia dentro para entender qué te importaba, o quizá de una costumbre de resolver las cosas por tu cuenta. Esa linterna se parece mucho a tu rumbo: puede que ya sepas, en el fondo, qué valoras.\n\nEl matiz es que el ermitaño ilumina un solo paso a la vez, y lo hace solo. Si en algún momento sostuviste todo desde ese \"yo puedo con esto\", esa misma independencia podría estar costándote energía hoy. Una pregunta para llevarte: ¿a quién le pides ayuda de verdad?\n\n### El presente: Eight of Cups\n\nAquí una figura con capa se aleja de ocho copas apiladas bajo la luna, y en la fila queda un hueco. No lo leo como dejar a tu familia ni tu trabajo. Lo leo como algo más sutil: alejarte de ciertas maneras de dar que ya no te nutren. Esto podría verse como esa tarea que haces \"porque siempre la he hecho yo\", o como contestar mensajes del trabajo en plena cena.\n\nEl hueco entre las copas dice mucho: todo parece en su lugar y, aun así, algo falta. Como carta de Copas, habla de cómo das y recibes cuidado. Tal vez lo que te agota no es querer a los tuyos, sino cargar copas que nadie te pidió llenar. El viajero lleva un bastón, que es como la linterna del ermitaño ya en movimiento: se puede avanzar sin perder el rumbo.\n\n### El futuro: The Sun invertida\n\nSi nada cambia, The Sun invertida muestra una luz que no termina de llegarte. El niño descalzo sobre el caballo blanco, los girasoles, el estandarte rojo: toda esa alegría sigue ahí, pero podrías estar viéndola de lejos. Esto podría parecerse a estar en una comida familiar con la cabeza en los pendientes, o a decir \"todo bien\" con un optimismo que en realidad es cansancio.\n\nEs justo lo contrario de lo que pediste, que es sentirte presente. Aquí la inversión no apaga el sol. Señala que su calor no te alcanza mientras sigas cargando las copas de antes. La tensión entre Agua y Fuego sugiere que cuidar y disfrutar necesitan espacio los dos, y no uno a costa del otro.\n\n### Síntesis\n\nSobre cómo sostener tu energía, la historia es bastante clara. Aprendiste a guiarte con tu propia luz, ahora estás eligiendo qué dejar atrás, y la vitalidad vuelve cuando sueltas lo que pesa sin nutrir. Con la luna creciente casi llena en Acuario, el momento favorece ajustar y afinar más que romper con todo, así que los pequeños cambios sostenidos tienen más fuerza que un gran giro.\n\n### Pasos suaves\n\n- **Elige una copa para dejar esta semana:** una tarea, un compromiso o un estándar que puedas delegar, simplificar o hacer \"suficientemente bien\".\n- **Quince minutos de linterna al día:** un rato a solas sin producir nada, como caminar o tomar un café sin pantalla, para recordar tu rumbo.\n- **Un momento de sol sin gestionar:** algo sencillo con tu familia en lo que solo participes, sin organizar ni resolver nada.\n- **Una pregunta filtro:** antes de aceptar algo nuevo, pregúntate \"¿esto me nutre o solo me ocupa?\".\n\nSi el cansancio se vuelve constante, vale la pena hablarlo con un profesional de salud o con alguien de confianza.\n\n### Cierre\n\nSostener a otros no exige apagarte, porque la linterna y el sol pueden convivir. Lo que vayas eligiendo, una copa a la vez, es lo que da forma a lo que viene.",
+      "inference": {
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 2837,
+          "cache_read_input_tokens": 3674,
+          "output_tokens": 4741,
+          "output_tokens_details": {
+            "thinking_tokens": 3025
+          },
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 2837,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "global",
+          "iterations": [],
+          "speed": "standard",
+          "fallback_credit": null
+        }
+      },
+      "semanticScoring": {
+        "requested": true,
+        "used": false,
+        "attempted": false,
+        "fallback": true,
+        "fallbackReason": "no-graph-patterns"
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    }
+  ]
+}

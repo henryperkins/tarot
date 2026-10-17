@@ -2,16 +2,46 @@
  * Journal entry persistence shared by POST /api/journal (the app, API keys,
  * bearer sessions) and the ChatGPT MCP tools.
  *
- * App saves keep the journal contract: sessionSeed is the only
- * deduplication key. MCP reading saves (saveReadingJournalEntry) add an
+ * App saves deduplicate by reading result when provided, retaining seed-only
+ * deduplication for legacy clients. MCP reading saves (saveReadingJournalEntry) add an
  * atomic reading identity; see migration 0030.
  */
 
+import { appJournalResultKey } from '../../shared/journal/readingIdentity.js';
 import { scheduleCoachExtraction } from './coachSuggestion.js';
 import { insertFollowUps, sanitizeFollowUps } from './journalFollowups.js';
 import { normalizeJournalContext } from './journalContext.js';
 import { safeJsonParse } from './utils.js';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
+import { attachJournalVisualResult, loadJournalVisualResult, loadJournalVisualState, persistJournalVisualState } from './readingVisualResults.js';
+
+// Visual durability is optional: a failure must never roll back saved prose.
+async function savedVisualEnvelope({ env, userId, entryId, readingResultId }) {
+  let visual = null;
+  let visualState = null;
+  let attachmentFailed = false;
+  try {
+    if (readingResultId) await attachJournalVisualResult({ db: env.DB, userId, entryId, readingResultId });
+  } catch { attachmentFailed = true; }
+  // Cached cues and durable retry state have independent availability.
+  try { visual = await loadJournalVisualResult({ db: env.DB, userId, entryId }); } catch { /* Optional cache read. */ }
+  try {
+    if (attachmentFailed) await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
+    visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    if (visualState?.stateVersion === 0) {
+      await persistJournalVisualState({ db: env.DB, userId, entryId, sourceFingerprint: visualState.sourceFingerprint,
+        attachmentStatus: visualState.attachmentStatus,
+        reason: visualState.reason === 'configuration-unavailable' ? 'missing-result' : visualState.reason });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    }
+  } catch {
+    try {
+      await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    } catch { /* Prose remains saved when optional visual storage is unavailable. */ }
+  }
+  return { ...(visual ? { visual } : {}), ...(visualState ? { visualState } : {}) };
+}
 
 /**
  * Whether a D1/SQLite error is a unique-constraint failure on the given
@@ -60,6 +90,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     context,
     provider,
     sessionSeed,
+    readingResultId,
     // Optional: original timestamp in milliseconds (used for migrations)
     timestampMs,
     // User preferences snapshot at time of reading (Phase 5.2)
@@ -88,18 +119,25 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         requestId
       });
     }
+    const visuals = await savedVisualEnvelope({ env, userId: user.id, entryId: existing.id, readingResultId });
     return {
       status: 200,
       body: {
         success: true,
         entry: { id: existing.id, ts: existing.created_at * 1000 },
-        deduplicated: true
+        deduplicated: true,
+        ...visuals
       }
     };
   };
 
-  // Deduplicate by session_seed to prevent double-saves
-  if (sessionSeed) {
+  const resultKey = appJournalResultKey(readingResultId);
+  if (resultKey) {
+    const existing = await findEntryByIdempotencyKey(env.DB, user.id, resultKey);
+    if (existing) return returnExisting(existing);
+  }
+  // Legacy requests retain their original seed-only contract.
+  if (!resultKey && sessionSeed) {
     const existing = await findEntryBySeed(env.DB, user.id, sessionSeed);
     if (existing) return returnExisting(existing);
   }
@@ -133,8 +171,11 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
   const locationTimezone = shouldPersistLocation ? (location.timezone || null) : null;
   const locationConsent = shouldPersistLocation ? 1 : 0;
 
-  try {
-    const inserted = await env.DB.prepare(`
+  let storedSeed = sessionSeed || null;
+  if (resultKey && storedSeed && await findEntryBySeed(env.DB, user.id, storedSeed)) storedSeed = null;
+  const identityColumn = resultKey ? 'idempotency_key' : 'session_seed';
+  const identity = resultKey || storedSeed;
+  const insert = seed => env.DB.prepare(`
       INSERT INTO journal_entries (
         id,
         user_id,
@@ -157,11 +198,12 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         location_longitude,
         location_timezone,
         location_consent,
-        source_usage_json
+        source_usage_json,
+        idempotency_key
       )
-      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
       WHERE NOT EXISTS (
-        SELECT 1 FROM journal_entries WHERE user_id = ? AND session_seed = ?
+        SELECT 1 FROM journal_entries WHERE user_id = ? AND ${identityColumn} = ?
       )
     `)
       .bind(
@@ -178,7 +220,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         reflections ? JSON.stringify(reflections) : null,
         normalizedContext,
         provider || null,
-        sessionSeed || null,
+        seed,
         userPreferences ? JSON.stringify(userPreferences) : null,
         deckId || null,
         requestId || null,
@@ -187,21 +229,36 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         locationTimezone,
         locationConsent,
         JSON.stringify(provider === 'safe-fallback' ? null : sanitizeSourceUsage(sourceUsage)),
+        resultKey,
         user.id,
-        sessionSeed || null
+        identity
       )
       .run();
+  try {
+    let inserted;
+    try { inserted = await insert(storedSeed); }
+    catch (error) {
+      // A different result can share the ritual seed. The result identity
+      // still arbitrates retries when that seed is already stored.
+      if (!resultKey || !storedSeed || !isUniqueViolation(error, 'session_seed')) throw error;
+      inserted = await insert(null);
+    }
     // Preserve the app's atomic seed admission even on older databases that
     // lack the unique index. NULL seeds deliberately never match this query.
     if (inserted.meta.changes === 0) {
-      const existing = await findEntryBySeed(env.DB, user.id, sessionSeed);
+      const existing = resultKey ? await findEntryByIdempotencyKey(env.DB, user.id, resultKey)
+        : await findEntryBySeed(env.DB, user.id, sessionSeed);
       if (!existing) throw new Error('Seeded save could not be resolved');
       return returnExisting(existing);
     }
   } catch (error) {
     // A concurrent save of the same seed won the unique index; answer with
     // its entry, exactly as the pre-insert lookup would have.
-    if (sessionSeed && isUniqueViolation(error, 'session_seed')) {
+    if (resultKey && isUniqueViolation(error, 'idempotency_key')) {
+      const existing = await findEntryByIdempotencyKey(env.DB, user.id, resultKey);
+      if (existing) return returnExisting(existing);
+    }
+    if (!resultKey && sessionSeed && isUniqueViolation(error, 'session_seed')) {
       const existing = await findEntryBySeed(env.DB, user.id, sessionSeed);
       if (existing) return returnExisting(existing);
     }
@@ -224,11 +281,14 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     });
   }
 
+  const visuals = await savedVisualEnvelope({ env, userId: user.id, entryId, readingResultId });
+
   return {
     status: 201,
     body: {
       success: true,
-      entry: { id: entryId, ts: createdAt * 1000 }
+      entry: { id: entryId, ts: createdAt * 1000 },
+      ...visuals
     }
   };
 }

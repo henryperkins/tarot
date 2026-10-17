@@ -8,6 +8,7 @@ export function ReadingChrome({
   isHandset,
   isLandscape,
   isTableScene = false,
+  readingView = false,
   reading,
   shuffle,
   isShuffling,
@@ -22,7 +23,7 @@ export function ReadingChrome({
 }) {
   return (
     <>
-      {reading && (!isTableScene || displayName || readingMeta?.ephemeris) && (
+      {reading && !readingView && (!isTableScene || displayName || readingMeta?.ephemeris) && (
         <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
           <div className="flex items-center justify-between gap-3">
             {(!isTableScene || displayName) && (

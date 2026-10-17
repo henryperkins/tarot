@@ -1,4 +1,5 @@
 import { observeInferenceAttempt } from './inferenceAttempts.js';
+import { createDeadline } from './requestDeadline.js';
 /**
  * AI-Enhanced Coach Suggestion System
  *
@@ -20,7 +21,11 @@ const EXTRACTION_REASONING_EFFORT = 'low';
 const EXTRACTION_MAX_TOKENS = 1024;
 // Same model as GraphRAG (embeddings.js): multilingual and quick.
 const EMBEDDING_MODEL = '@cf/baai/bge-m3';
-const DEFAULT_TIMEOUT_MS = 8000;
+// Leave room for provider latency beyond the original eight-second cutoff,
+// embeddings and persistence within waitUntil's 30-second background window.
+const EXTRACTION_TIMEOUT_MS = 20000;
+const EMBEDDING_TIMEOUT_MS = 5000;
+export const COACH_EXTRACTION_BUDGET_MS = EXTRACTION_TIMEOUT_MS + EMBEDDING_TIMEOUT_MS + 1000;
 
 // Stored step embeddings only compare with vectors from the same model, so
 // bump the version whenever EMBEDDING_MODEL changes. Readers skip embeddings
@@ -85,8 +90,7 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
   }
 
   const startTime = Date.now();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const deadline = createDeadline({ timeoutMs: EXTRACTION_TIMEOUT_MS });
 
   try {
     // Truncate narrative if needed
@@ -96,7 +100,7 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
 
     const prompt = EXTRACT_STEPS_USER.replace('{{narrative}}', truncatedNarrative);
 
-    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-extraction', provider: 'workers-ai', requestedModel: EXTRACTION_MODEL, signal: controller.signal }, () => env.AI.run(
+    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-extraction', provider: 'workers-ai', requestedModel: EXTRACTION_MODEL, signal: deadline.signal }, () => deadline.run(() => env.AI.run(
       EXTRACTION_MODEL,
       {
         messages: [
@@ -107,8 +111,8 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
         temperature: 0.1,
         reasoning_effort: EXTRACTION_REASONING_EFFORT
       },
-      { signal: controller.signal }
-    ));
+      { signal: deadline.signal }
+    )));
 
     const provenance = { model: typeof response?.model === 'string' ? response.model : null, requestedModel: EXTRACTION_MODEL };
     const latencyMs = Date.now() - startTime;
@@ -150,20 +154,17 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
   } catch (err) {
     const latencyMs = Date.now() - startTime;
 
-    if (err.name === 'AbortError') {
-      console.warn(`[${requestId}] [coach] Extraction timeout after ${DEFAULT_TIMEOUT_MS}ms`);
+    if (deadline.signal.aborted) {
+      console.warn(`[${requestId}] [coach] Extraction timeout after ${EXTRACTION_TIMEOUT_MS}ms`);
       return { steps: [], status: 'timeout', error: err.message };
     }
 
     console.error(`[${requestId}] [coach] Extraction error (${latencyMs}ms): ${err.message}`);
     return { steps: [], status: 'error', error: err.message };
   } finally {
-    clearTimeout(timeoutId);
+    deadline.dispose();
   }
 }
-
-// Embedding timeout - shorter than extraction since embeddings are typically faster
-const EMBEDDING_TIMEOUT_MS = 5000;
 
 /**
  * Generate embeddings for a list of text strings using Workers AI.
@@ -184,15 +185,14 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
   }
 
   const startTime = Date.now();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
+  const deadline = createDeadline({ timeoutMs: EMBEDDING_TIMEOUT_MS });
 
   try {
-    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-embedding', provider: 'workers-ai', requestedModel: EMBEDDING_MODEL, signal: controller.signal }, () => env.AI.run(
+    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-embedding', provider: 'workers-ai', requestedModel: EMBEDDING_MODEL, signal: deadline.signal }, () => deadline.run(() => env.AI.run(
       EMBEDDING_MODEL,
       { text: texts, truncate_inputs: true },
-      { signal: controller.signal }
-    ));
+      { signal: deadline.signal }
+    )));
 
     const latencyMs = Date.now() - startTime;
     const embeddings = response?.data || [];
@@ -209,7 +209,7 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
   } catch (err) {
     const latencyMs = Date.now() - startTime;
 
-    if (err.name === 'AbortError') {
+    if (deadline.signal.aborted) {
       console.warn(`[${requestId}] [coach] Embedding timeout after ${EMBEDDING_TIMEOUT_MS}ms`);
       return [];
     }
@@ -217,7 +217,7 @@ export async function generateEmbeddings(env, texts, requestId = 'unknown') {
     console.error(`[${requestId}] [coach] Embedding error (${latencyMs}ms): ${err.message}`);
     return [];
   } finally {
-    clearTimeout(timeoutId);
+    deadline.dispose();
   }
 }
 

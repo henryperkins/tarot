@@ -101,7 +101,7 @@ describe('wrapReadingStreamWithMetadata - done fallback', () => {
   test('uses done.fullText when no delta events are emitted', async () => {
     let completedWithText = null;
 
-    // Simulate Azure emitting only a done event with fullText (no deltas)
+    // Simulate OpenAI emitting only a done event with fullText (no deltas)
     const mockEvents = [
       formatSSEEvent('done', { fullText: 'Response from done only' })
     ];

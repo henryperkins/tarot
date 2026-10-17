@@ -1,0 +1,12 @@
+{
+  "files": [
+    {
+      "name": "actions-contract.md",
+      "path": "references/actions-contract.md"
+    },
+    {
+      "name": "gpt-knowledge-base.md",
+      "path": "references/gpt-knowledge-base.md"
+    }
+  ]
+}

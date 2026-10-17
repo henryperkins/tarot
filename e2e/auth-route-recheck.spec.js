@@ -16,28 +16,8 @@ const HARNESS = `<!doctype html>
   window.$RefreshSig$ = () => type => type;
   window.__vite_plugin_react_preamble_installed__ = true;
 
-  const [{ default: React }, { default: ReactDOMClient }, { default: ReactDOM }, { AuthProvider, useAuth }] = await Promise.all([
-    import('/node_modules/.vite/deps/react.js'),
-    import('/node_modules/.vite/deps/react-dom_client.js'),
-    import('/node_modules/.vite/deps/react-dom.js'),
-    import('/src/contexts/AuthContext.jsx')
-  ]);
-  const { createRoot } = ReactDOMClient;
-  const { flushSync } = ReactDOM;
-  history.replaceState(null, '', new URLSearchParams(location.search).get('start') || '/account');
-  function Probe() {
-    const { user, loading } = useAuth();
-    return React.createElement('output', { 'data-testid': 'auth-state' }, JSON.stringify({ user, loading }));
-  }
-  const root = createRoot(document.getElementById('root'));
-  flushSync(() => root.render(React.createElement(React.StrictMode, null,
-    React.createElement(AuthProvider, null, React.createElement(Probe)))));
-  window.authRouteTest = {
-    navigate(pathname) {
-      history.replaceState(null, '', pathname);
-      flushSync(() => window.dispatchEvent(new CustomEvent('tableau:route-change', { detail: { pathname } })));
-    }
-  };
+  // Let Vite resolve imports and wait for optimization on a fresh server.
+  await import('/e2e/helpers/authRouteHarness.js');
 </script></body></html>`;
 
 async function prepare(page, startPath = '/account') {

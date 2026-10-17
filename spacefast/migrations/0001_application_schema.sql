@@ -273,6 +273,40 @@ CREATE TABLE IF NOT EXISTS `journal_followups` (
   KEY `idx_journal_followups_entry` (`entry_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
 
+CREATE TABLE IF NOT EXISTS `journal_visual_links` (
+  `journal_entry_id` VARCHAR(191) NOT NULL,
+  `reading_result_id` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `created_at` BIGINT NOT NULL,
+  `expected_raw_hash` LONGTEXT NOT NULL,
+  `archived_visual_json` LONGTEXT,
+  `source_revision` BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`journal_entry_id`),
+  KEY `idx_journal_visual_links_user` (`user_id`),
+  KEY `idx_journal_visual_links_result` (`reading_result_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `journal_visual_state` (
+  `journal_entry_id` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191) NOT NULL,
+  `source_fingerprint` LONGTEXT NOT NULL,
+  `reading_result_id` LONGTEXT,
+  `attachment_status` LONGTEXT NOT NULL,
+  `retry_status` LONGTEXT NOT NULL DEFAULT ('unavailable'),
+  `reason` LONGTEXT,
+  `validated_snapshot_json` LONGTEXT,
+  `state_version` BIGINT NOT NULL DEFAULT 1,
+  `claim_id` VARCHAR(191),
+  `attempt_id` LONGTEXT,
+  `created_at` BIGINT NOT NULL,
+  `updated_at` BIGINT NOT NULL,
+  PRIMARY KEY (`journal_entry_id`),
+  CHECK (attachment_status IN ('missing', 'pending', 'attached', 'failed', 'expired')),
+  CHECK (retry_status IN ('available', 'pending', 'complete', 'exhausted', 'unavailable', 'revoked')),
+  CHECK (state_version >= 1),
+  KEY `idx_journal_visual_state_owner` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
 CREATE TABLE IF NOT EXISTS `metrics_archive` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `request_id` VARCHAR(191) NOT NULL,
@@ -453,6 +487,28 @@ CREATE TABLE IF NOT EXISTS `reading_stats` (
   `updated_at` BIGINT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_reading_stats_period` (`period_start`, `period_type`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `reading_visual_results` (
+  `id` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191),
+  `created_at` BIGINT NOT NULL,
+  `updated_at` BIGINT NOT NULL,
+  `binding_json` LONGTEXT NOT NULL,
+  `source_revision` BIGINT NOT NULL DEFAULT 0,
+  `raw_hash` LONGTEXT NOT NULL,
+  `final_raw` LONGTEXT,
+  `observed_raw` LONGTEXT NOT NULL DEFAULT (''),
+  `expires_at` BIGINT,
+  `ledger_revision` BIGINT NOT NULL DEFAULT 0,
+  `ledger_json` LONGTEXT NOT NULL,
+  `status` LONGTEXT NOT NULL DEFAULT ('pending'),
+  `active_attempt_id` LONGTEXT,
+  `active_state_version` BIGINT,
+  `saved_source_fingerprint` LONGTEXT,
+  `saved_entry_id` LONGTEXT,
+  PRIMARY KEY (`id`),
+  KEY `idx_reading_visual_results_user` (`user_id`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
 
 CREATE TABLE IF NOT EXISTS `readings` (
@@ -653,6 +709,82 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `users_unique_5` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
 
+CREATE TABLE IF NOT EXISTS `visual_guest_principals` (
+  `token_hash` VARCHAR(191) NOT NULL,
+  `principal_id` VARCHAR(191) NOT NULL,
+  `aggregate_scope` LONGTEXT NOT NULL,
+  `expires_at` BIGINT NOT NULL,
+  PRIMARY KEY (`token_hash`),
+  UNIQUE KEY `visual_guest_principals_unique_0` (`principal_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `visual_initial_admissions` (
+  `reading_result_id` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191),
+  `aggregate_scope` LONGTEXT NOT NULL,
+  `binding_json` LONGTEXT NOT NULL,
+  `token_hash` LONGTEXT NOT NULL,
+  `expires_at` BIGINT NOT NULL,
+  `created_at` BIGINT NOT NULL,
+  PRIMARY KEY (`reading_result_id`),
+  KEY `idx_visual_initial_admissions_owner` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `visual_initial_reservations` (
+  `dispatch_id` VARCHAR(191) NOT NULL,
+  `reading_result_id` LONGTEXT,
+  `aggregate_scope` VARCHAR(191) NOT NULL,
+  `reserved_cost_microusd` BIGINT NOT NULL,
+  `reserved_at` BIGINT NOT NULL,
+  PRIMARY KEY (`dispatch_id`),
+  CHECK (reserved_cost_microusd > 0),
+  KEY `idx_visual_initial_reservations_scope` (`aggregate_scope`, `reserved_at`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `visual_owner_revocations` (
+  `user_id` VARCHAR(191) NOT NULL,
+  `revoked_at` BIGINT NOT NULL,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `visual_result_revocations` (
+  `reading_result_id` VARCHAR(191) NOT NULL,
+  `user_id` LONGTEXT,
+  `revoked_at` BIGINT NOT NULL,
+  PRIMARY KEY (`reading_result_id`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
+CREATE TABLE IF NOT EXISTS `visual_retry_claims` (
+  `id` VARCHAR(191) NOT NULL,
+  `admission_scope` VARCHAR(191) NOT NULL,
+  `source_fingerprint` VARCHAR(191) NOT NULL,
+  `user_id` VARCHAR(191),
+  `journal_entry_id` VARCHAR(191),
+  `reading_result_id` LONGTEXT,
+  `attempt_id` LONGTEXT,
+  `visual_job_id` LONGTEXT,
+  `state_version` BIGINT NOT NULL DEFAULT 1,
+  `dispatch_status` LONGTEXT NOT NULL DEFAULT ('prepared'),
+  `retry_status` LONGTEXT NOT NULL DEFAULT ('unavailable'),
+  `created_at` BIGINT NOT NULL,
+  `updated_at` BIGINT NOT NULL,
+  `aggregate_scope` VARCHAR(191),
+  `source_json` LONGTEXT,
+  `saved_fields_json` LONGTEXT,
+  `journal_state_version` BIGINT,
+  `binding_json` LONGTEXT,
+  `visual_token` LONGTEXT,
+  `expires_at` BIGINT,
+  `reserved_at` BIGINT,
+  PRIMARY KEY (`id`),
+  CHECK (state_version >= 1),
+  CHECK (dispatch_status IN ('prepared', 'reserved', 'settled', 'revoked')),
+  CHECK (retry_status IN ('available', 'pending', 'complete', 'exhausted', 'unavailable', 'revoked')),
+  KEY `idx_visual_retry_claims_admission` (`aggregate_scope`, `reserved_at`),
+  KEY `idx_visual_retry_claims_owner` (`user_id`),
+  UNIQUE KEY `visual_retry_claims_unique_2` (`admission_scope`, `source_fingerprint`)
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
+
 CREATE TABLE IF NOT EXISTS _request_rate_limits (bucket_key VARCHAR(255) NOT NULL PRIMARY KEY, request_count BIGINT NOT NULL, expires_at_ms BIGINT NOT NULL) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin;
 
 CREATE TABLE IF NOT EXISTS tableu_quota_locks (identity_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -673,6 +805,18 @@ ALTER TABLE `journal_followups` ADD CONSTRAINT `journal_followups_fk_0` FOREIGN 
 
 ALTER TABLE `journal_followups` ADD CONSTRAINT `journal_followups_fk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
+ALTER TABLE `journal_visual_links` ADD CONSTRAINT `journal_visual_links_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+ALTER TABLE `journal_visual_links` ADD CONSTRAINT `journal_visual_links_fk_1` FOREIGN KEY (`reading_result_id`) REFERENCES `reading_visual_results` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE `journal_visual_links` ADD CONSTRAINT `journal_visual_links_fk_2` FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE `journal_visual_state` ADD CONSTRAINT `journal_visual_state_fk_0` FOREIGN KEY (`claim_id`) REFERENCES `visual_retry_claims` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+ALTER TABLE `journal_visual_state` ADD CONSTRAINT `journal_visual_state_fk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+ALTER TABLE `journal_visual_state` ADD CONSTRAINT `journal_visual_state_fk_2` FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
 ALTER TABLE `narration_requests` ADD CONSTRAINT `narration_requests_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 ALTER TABLE `narration_requests` ADD CONSTRAINT `narration_requests_fk_1` FOREIGN KEY (`identity`, `month`) REFERENCES `narration_monthly_usage` (`identity`, `month`) ON DELETE NO ACTION ON UPDATE NO ACTION;
@@ -680,6 +824,8 @@ ALTER TABLE `narration_requests` ADD CONSTRAINT `narration_requests_fk_1` FOREIG
 ALTER TABLE `pattern_occurrences` ADD CONSTRAINT `pattern_occurrences_fk_0` FOREIGN KEY (`entry_id`) REFERENCES `journal_entries` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 ALTER TABLE `pattern_occurrences` ADD CONSTRAINT `pattern_occurrences_fk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE `reading_visual_results` ADD CONSTRAINT `reading_visual_results_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION;
 
 ALTER TABLE `sessions` ADD CONSTRAINT `sessions_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
@@ -704,3 +850,5 @@ ALTER TABLE `user_media` ADD CONSTRAINT `user_media_fk_0` FOREIGN KEY (`user_id`
 ALTER TABLE `user_memories` ADD CONSTRAINT `user_memories_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
 
 ALTER TABLE `user_tokens` ADD CONSTRAINT `user_tokens_fk_0` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE `visual_retry_claims` ADD CONSTRAINT `visual_retry_claims_fk_0` FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries` (`id`) ON DELETE SET NULL ON UPDATE NO ACTION;

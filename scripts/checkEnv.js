@@ -2,6 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureModalConfig, MODAL_DEFAULT_MODEL } from '../functions/lib/modalChatCompletions.js';
+import { ensureClaudeCodeConfig } from '../functions/lib/claudeCode.js';
+import { ensureCodexSubscriptionConfig } from '../functions/lib/codexSubscription.js';
+import { getPersonalTextProvider } from '../functions/lib/personalTextProvider.js';
 
 // NOTE: The app can run with local fallbacks when these are missing.
 // This script is intended to help you verify that AI-powered features and
@@ -34,13 +37,10 @@ const OPTIONAL_FOR_MODAL_READINGS = [
 const OPTIONAL_FOR_OPENAI_READINGS = [
   'OPENAI_MODEL',
   'OPENAI_BASE_URL',
+  'OPENAI_REASONING_EFFORT',
+  'OPENAI_VERBOSITY',
+  'OPENAI_RESPONSES_USER',
   'OPENAI_STREAMING_ENABLED'
-];
-
-const REQUIRED_FOR_AZURE_OPENAI_FALLBACK = [
-  'AZURE_OPENAI_ENDPOINT',
-  'AZURE_OPENAI_API_KEY',
-  'AZURE_OPENAI_GPT5_MODEL'
 ];
 
 const REQUIRED_FOR_CLAUDE_API = [
@@ -70,7 +70,7 @@ const OPTIONAL_FLAGS = [
   'ENABLE_PROMPT_SLIMMING',
   'DISABLE_QUALITY_FILTERING',
   'PERSIST_PROMPTS',
-  'PROMPT_BUDGET_AZURE',
+  'PROMPT_BUDGET_OPENAI',
   'PROMPT_BUDGET_CLAUDE',
   'PROMPT_BUDGET_DEFAULT'
 ];
@@ -255,6 +255,41 @@ function run() {
   const wranglerVars = parseWranglerVars(wranglerConfigPath);
   const results = {};
 
+  // Subscription mode is explicit: paid credentials cannot repair missing
+  // gateway/owner settings, and unused API providers have no prerequisites here.
+  let personalProvider;
+  try {
+    personalProvider = getPersonalTextProvider({ TEXT_PROVIDER: resolveValue('TEXT_PROVIDER', process.env, fileVars, wranglerVars) });
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+    return;
+  }
+  if (personalProvider) {
+    const prefix = personalProvider === 'claude-code' ? 'CLAUDE_CODE' : 'CODEX_SUBSCRIPTION';
+    const personalEnv = {};
+    for (const suffix of ['GATEWAY_URL', 'GATEWAY_TOKEN', 'OWNER_USER_ID', 'TIMEOUT_MS']) {
+      const key = `${prefix}_${suffix}`;
+      personalEnv[key] = resolveValue(key, process.env, fileVars, wranglerVars);
+    }
+    try {
+      const validate = personalProvider === 'claude-code' ? ensureClaudeCodeConfig : ensureCodexSubscriptionConfig;
+      validate(personalEnv);
+      if (!personalEnv[`${prefix}_OWNER_USER_ID`]?.trim()) throw new Error(`${prefix}_OWNER_USER_ID is required.`);
+      if (isTruthyFlag(resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars))
+        && !resolveValue('VISION_PROOF_SECRET', process.env, fileVars, wranglerVars)) {
+        throw new Error('Missing vision prerequisites: VISION_PROOF_SECRET');
+      }
+    } catch (error) {
+      console.error(`Personal inference configuration is incomplete: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`Personal inference settings are valid (${personalProvider}). Paid API backends are disabled for this selection.`);
+    console.log('Gateway availability and subscription login are not checked by this configuration-only command.');
+    return;
+  }
+
   const modalInputs = {};
   for (const key of [...REQUIRED_FOR_MODAL_READINGS, ...MODAL_CREDENTIALS, ...OPTIONAL_FOR_MODAL_READINGS]) {
     const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
@@ -294,14 +329,6 @@ function run() {
     if (!resolved) missingOpenAI.push(key);
   }
   const openAIConfigured = missingOpenAI.length === 0;
-
-  const missingAzureFallback = [];
-  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
-    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
-    results[key] = resolved;
-    if (!resolved) missingAzureFallback.push(key);
-  }
-  const azureFallbackConfigured = missingAzureFallback.length === 0;
 
   // Conditional: vision proof secret is only required when the vision UI is enabled.
   const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars);
@@ -362,13 +389,6 @@ function run() {
     else console.log(`• ${key} (not set)`);
   }
 
-  console.log('\nFallback: Azure OpenAI readings:');
-  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
-    const entry = results[key];
-    if (entry) console.log(`✔ ${key} (${entry.source})`);
-    else console.log(`• ${key} (not set)`);
-  }
-
   if (visionEnabled) {
     console.log('\nVision research mode is ENABLED (VITE_ENABLE_VISION_RESEARCH=true):');
     for (const key of OPTIONAL_FOR_VISION_RESEARCH) {
@@ -388,8 +408,8 @@ function run() {
     console.warn(`\nModal configuration unavailable: ${modalConfigurationError}`);
   }
 
-  if (!claudeConfigured && !modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
-    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_CLAUDE_API.join(', ')} (preferred), ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')}, ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
+  if (!claudeConfigured && !modalConfigured && !openAIConfigured) {
+    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_CLAUDE_API.join(', ')} (preferred), ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')}, or ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}.`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
@@ -428,7 +448,7 @@ function run() {
     ? 'Claude API'
     : modalConfigured
       ? 'Modal'
-      : (openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback');
+      : 'OpenAI native';
   console.log(`\nAll required environment variables for AI-generated readings are present (${activeProvider}). You are ready to run \`npm run dev\` 🙌`);
 }
 

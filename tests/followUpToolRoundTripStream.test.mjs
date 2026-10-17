@@ -3,12 +3,12 @@ import { afterEach, describe, test } from 'node:test';
 
 import { createToolRoundTripStream } from '../functions/api/reading-followup.js';
 
-function formatAzureEvent(event, data) {
+function formatOpenAIEvent(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`;
 }
 
-function createMockAzureStream(eventChunks) {
-  eventChunks = [...eventChunks, formatAzureEvent('response.completed', { response: { status: 'completed' } })];
+function createMockOpenAIStream(eventChunks) {
+  eventChunks = [...eventChunks, formatOpenAIEvent('response.completed', { response: { status: 'completed' } })];
   const encoder = new TextEncoder();
   let index = 0;
 
@@ -72,10 +72,9 @@ async function collectSseEvents(stream) {
 }
 
 const env = {
-  AZURE_OPENAI_ENDPOINT: 'https://example.test',
-  AZURE_OPENAI_API_KEY: 'test-key',
-  AZURE_OPENAI_GPT5_MODEL: 'test-model',
-  AZURE_OPENAI_RESPONSES_API_VERSION: 'v1'
+  OPENAI_BASE_URL: 'https://example.test',
+  OPENAI_API_KEY: 'test-key',
+  OPENAI_MODEL: 'test-model',
 };
 
 const tools = [
@@ -94,9 +93,9 @@ afterEach(() => {
 
 describe('createToolRoundTripStream', () => {
   test('streams deltas directly when no tool calls occur', async () => {
-    const azureEvents = [
-      formatAzureEvent('response.output_text.delta', { delta: 'Hello ' }),
-      formatAzureEvent('response.output_text.delta', { delta: 'world!' })
+    const openaiEvents = [
+      formatOpenAIEvent('response.output_text.delta', { delta: 'Hello ' }),
+      formatOpenAIEvent('response.output_text.delta', { delta: 'world!' })
     ];
 
     let callCount = 0;
@@ -105,7 +104,7 @@ describe('createToolRoundTripStream', () => {
       if (callCount !== 1) {
         throw new Error('Unexpected continuation request');
       }
-      return new Response(createMockAzureStream(azureEvents), { status: 200 });
+      return new Response(createMockOpenAIStream(openaiEvents), { status: 200 });
     };
 
     const stream = createToolRoundTripStream(env, {
@@ -135,20 +134,20 @@ describe('createToolRoundTripStream', () => {
       keywords: ['concise']
     };
 
-    const initialAzureEvents = [
-      formatAzureEvent('response.output_item.added', {
+    const initialOpenAIEvents = [
+      formatOpenAIEvent('response.output_item.added', {
         item: { type: 'function_call', call_id: 'call-1', name: 'save_memory_note' }
       }),
-      formatAzureEvent('response.function_call_arguments.delta', {
+      formatOpenAIEvent('response.function_call_arguments.delta', {
         call_id: 'call-1',
         delta: JSON.stringify(memoryArgs)
       }),
-      formatAzureEvent('response.function_call_arguments.done', { call_id: 'call-1' })
+      formatOpenAIEvent('response.function_call_arguments.done', { call_id: 'call-1' })
     ];
 
-    const continuationAzureEvents = [
-      formatAzureEvent('response.output_text.delta', { delta: 'Answer ' }),
-      formatAzureEvent('response.output_text.delta', { delta: 'text' })
+    const continuationOpenAIEvents = [
+      formatOpenAIEvent('response.output_text.delta', { delta: 'Answer ' }),
+      formatOpenAIEvent('response.output_text.delta', { delta: 'text' })
     ];
 
     const toolCalls = [];
@@ -159,12 +158,12 @@ describe('createToolRoundTripStream', () => {
 
       if (callCount === 1) {
         assert.equal(typeof body.input, 'string');
-        return new Response(createMockAzureStream(initialAzureEvents), { status: 200 });
+        return new Response(createMockOpenAIStream(initialOpenAIEvents), { status: 200 });
       }
 
       if (callCount === 2) {
         assert.ok(Array.isArray(body.input), 'Continuation should send conversation array');
-        return new Response(createMockAzureStream(continuationAzureEvents), { status: 200 });
+        return new Response(createMockOpenAIStream(continuationOpenAIEvents), { status: 200 });
       }
 
       throw new Error('Unexpected extra fetch call');
@@ -201,20 +200,20 @@ describe('createToolRoundTripStream', () => {
       keywords: ['concise']
     };
 
-    const initialAzureEvents = [
-      formatAzureEvent('response.output_text.delta', { delta: 'Preface ' }),
-      formatAzureEvent('response.output_item.added', {
+    const initialOpenAIEvents = [
+      formatOpenAIEvent('response.output_text.delta', { delta: 'Preface ' }),
+      formatOpenAIEvent('response.output_item.added', {
         item: { type: 'function_call', call_id: 'call-1', name: 'save_memory_note' }
       }),
-      formatAzureEvent('response.function_call_arguments.delta', {
+      formatOpenAIEvent('response.function_call_arguments.delta', {
         call_id: 'call-1',
         delta: JSON.stringify(memoryArgs)
       }),
-      formatAzureEvent('response.function_call_arguments.done', { call_id: 'call-1' })
+      formatOpenAIEvent('response.function_call_arguments.done', { call_id: 'call-1' })
     ];
 
-    const continuationAzureEvents = [
-      formatAzureEvent('response.output_text.delta', { delta: 'continued' })
+    const continuationOpenAIEvents = [
+      formatOpenAIEvent('response.output_text.delta', { delta: 'continued' })
     ];
 
     let callCount = 0;
@@ -223,7 +222,7 @@ describe('createToolRoundTripStream', () => {
       const body = JSON.parse(init?.body || '{}');
 
       if (callCount === 1) {
-        return new Response(createMockAzureStream(initialAzureEvents), { status: 200 });
+        return new Response(createMockOpenAIStream(initialOpenAIEvents), { status: 200 });
       }
 
       if (callCount === 2) {
@@ -231,7 +230,7 @@ describe('createToolRoundTripStream', () => {
         assert.equal(body.input[0]?.role, 'user');
         assert.equal(body.input[1]?.role, 'assistant');
         assert.equal(body.input[1]?.content, 'Preface ');
-        return new Response(createMockAzureStream(continuationAzureEvents), { status: 200 });
+        return new Response(createMockOpenAIStream(continuationOpenAIEvents), { status: 200 });
       }
 
       throw new Error('Unexpected extra fetch call');

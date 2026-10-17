@@ -1,26 +1,19 @@
-import { NarrativeSkeleton } from '../NarrativeSkeleton';
-import { useLandscape } from '../../hooks/useLandscape';
+import { ReadingPreparationScreen } from '../reading/ReadingPreparationScreen';
 import { getSceneModel } from './sceneModelUtils';
 
 export function InterludeScene({
-  title = 'Interlude',
-  message = 'Gathering insight...',
-  showTitle = true,
   className = '',
   sceneModels = {}
 }) {
-  const isLandscape = useLandscape();
   const interludeModel = getSceneModel(sceneModels, 'interludeModel');
   const {
     isGenerating,
     personalReading,
-    reasoningSummary,
-    narrativeAtmosphereClasses,
     spreadName,
-    displayName,
     userQuestion,
-    readingCount,
-    reasoning
+    spreadCards,
+    onSelectCard,
+    onCancel
   } = interludeModel;
 
   const isExiting = !isGenerating && Boolean(personalReading);
@@ -41,25 +34,9 @@ export function InterludeScene({
       className={`scene-shell scene-stage scene-stage--interlude relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
       data-scene="interlude"
     >
-      <div className="scene-stage__panel scene-stage__panel--interlude relative z-[2] max-w-5xl mx-auto text-center">
-        {showTitle ? (
-          <>
-            <h2 className="text-xl sm:text-2xl font-serif text-accent mb-2">{title}</h2>
-            <p className="text-sm sm:text-base text-muted mb-4">{message}</p>
-          </>
-        ) : null}
-        <NarrativeSkeleton
-          className={`bg-surface/95 backdrop-blur-xl rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto ${
-            isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'
-          }`}
-          hasQuestion={Boolean(userQuestion)}
-          displayName={displayName}
-          spreadName={spreadName}
-          cardCount={readingCount || 3}
-          reasoningSummary={reasoningSummary}
-          reasoning={reasoning}
-          atmosphereClassName={narrativeAtmosphereClasses}
-        />
+      <div className="relative z-[2] max-w-3xl mx-auto">
+        <ReadingPreparationScreen cards={spreadCards} spreadName={spreadName} question={userQuestion}
+          onSelectCard={onSelectCard} onCancel={onCancel} />
       </div>
     </section>
   );

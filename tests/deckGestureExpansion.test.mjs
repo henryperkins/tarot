@@ -1,0 +1,138 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import { getAllCards } from '../src/lib/cardLookup.js';
+import { getVectorGestureDetails, projectGestureFrame } from '../src/data/cardGestureArtwork.js';
+import { alignReadingPassages } from '../src/lib/narrativePassageAligner.js';
+import { MAJOR_EXAMPLES } from '../src/data/cardGestureDetails/majors.js';
+import { CUP_PENTACLE_EXAMPLES } from '../src/data/cardGestureDetails/cupsPentacles.js';
+
+import { WAND_SWORD_EXAMPLES } from '../src/data/cardGestureDetails/wandsSwords.js';
+
+const edition = 'rws-immanuelle-vector';
+const examples = [...MAJOR_EXAMPLES, ...CUP_PENTACLE_EXAMPLES, ...WAND_SWORD_EXAMPLES];
+
+test('each of the 78 vector faces has distinct, bounded authored details', () => {
+  for (const card of getAllCards()) {
+    const details = getVectorGestureDetails(card.name);
+    assert.ok(details.length, `${card.name} has a detail treatment`);
+    assert.equal(new Set(details.map(detail => detail.id)).size, details.length);
+    for (const detail of details) {
+      assert.ok(detail.maskSpots.length, `${card.name}/${detail.id} has localized light`);
+      for (const spot of detail.maskSpots) {
+        for (const field of ['x', 'y', 'rx', 'ry']) assert.ok(Number.isFinite(spot[field]));
+        assert.ok(spot.x >= 0 && spot.x <= 1 && spot.y >= 0 && spot.y <= 1);
+        assert.ok(spot.rx > 0 && spot.rx <= .5 && spot.ry > 0 && spot.ry <= .5);
+      }
+      assert.ok(detail.frame.x >= 0 && detail.frame.x <= 1 && detail.frame.y >= 0 && detail.frame.y <= 1);
+      assert.ok(detail.frame.zoom > 0 && detail.frame.zoom <= 3);
+      const restored = projectGestureFrame(projectGestureFrame(detail.frame, true), true);
+      assert.ok(Math.abs(restored.x - detail.frame.x) < 1e-12 && Math.abs(restored.y - detail.frame.y) < 1e-12);
+    }
+  }
+});
+
+test('authored visual probes produce their intended literal detail through the real aligner', () => {
+  for (const { card, detailId, text } of examples) {
+    const rawText = `### ${card}\n\n${text}`;
+    const result = alignReadingPassages({ rawText, cards: [{ index: 0, name: card }], artworkEdition: edition });
+    assert.deepEqual(result.errors, [], card);
+    assert.ok(result.associations.some(cue => cue.kind === 'literal' && cue.targets[0].detailIds.includes(detailId)), `${card}/${detailId}: ${text}`);
+    for (const cue of result.associations) assert.equal(rawText.slice(cue.passage.start, cue.passage.end), cue.passage.quote);
+  }
+});
+
+test('expanded treatments do not activate for explicitly figurative terms or a different edition', () => {
+  for (const { card, detailId, text } of examples) {
+    const detail = getVectorGestureDetails(card).find(detail => detail.id === detailId);
+    assert.ok(detail, `${card}/${detailId}`);
+    const cards = [{ index: 0, name: card }];
+    const figurative = alignReadingPassages({ rawText: `${card}. Consider ${detail.terms[0]} as a metaphor for an opportunity.`, cards, artworkEdition: edition });
+    assert.ok(figurative.associations.every(cue => !cue.targets.some(target => target.detailIds.length)), `${card}/${detailId} metaphor`);
+    const foreign = alignReadingPassages({ rawText: `${card}. ${text}`, cards, artworkEdition: 'rws-1909-scan' });
+    assert.ok(foreign.associations.every(cue => !cue.targets.some(target => target.detailIds.length)), `${card}/${detailId} edition`);
+  }
+});
+
+test('expanded details require a depicted physical clause rather than personal idioms or negation', () => {
+  for (const [card, prose] of [
+    ['Two of Swords', 'You wear a blindfold when you refuse to consider another viewpoint.'],
+    ['Eight of Pentacles', 'Your need to hammer out a plan can make even gentle creative work feel urgent.'],
+    ['Justice', 'You hold the scales of your own priorities in your hands.'],
+    ['The Moon', 'No crayfish emerges from the pool in this description.'],
+    ['The Moon', 'A crayfish does not emerge from the pool.'],
+    ['The Fool', 'Imagine a white dog leaping beside the traveler as a metaphor for companionship.'],
+    ['The Fool', 'Figuratively, a white dog leaps beside the traveler.']
+  ]) {
+    const result = alignReadingPassages({ rawText: `${card}. ${prose}`, cards: [{ index: 0, name: card }], artworkEdition: edition });
+    assert.ok(result.associations.some(cue => cue.kind === 'identity'), card);
+    assert.deepEqual(result.associations.flatMap(cue => cue.targets.flatMap(target => target.detailIds)), [], `${card}: ${prose}`);
+  }
+});
+
+test('physical detail and its following interpretation can share a sentence', () => {
+  for (const prose of [
+    'A white dog leaps beside the traveler as a metaphor for companionship.',
+    'A white dog leaps beside the traveler, reminding you that support can come quietly.',
+    'You may feel uncertain, but a white dog leaps beside the traveler in the picture.'
+  ]) {
+    const result = alignReadingPassages({ rawText: `The Fool. ${prose}`, cards: [{ index: 0, name: 'The Fool' }], artworkEdition: edition });
+    assert.ok(result.associations.some(cue => cue.targets[0].detailIds.includes('white-dog')), prose);
+  }
+});
+
+
+test('outside-review prose retains supported literal paraphrases without borrowing authored example sentences', () => {
+  const probes = JSON.parse(readFileSync(new URL('./fixtures/reading-gesture-review-probes.json', import.meta.url), 'utf8'));
+  assert.equal(probes.samples.length, 2);
+  for (const sample of probes.samples) {
+    const cards = sample.cards.map((name, index) => ({ name, index }));
+    const aligned = alignReadingPassages({ rawText: sample.rawText, cards, artworkEdition: edition });
+    assert.deepEqual(aligned.errors, [], sample.id);
+    const actual = aligned.associations.filter(cue => cue.kind === 'literal').flatMap(cue => cue.targets.flatMap(target => target.detailIds.map(id => `${target.spreadIndex}:${id}`)));
+    assert.deepEqual(new Set(actual), new Set(sample.expectedDetails.map(([index, id]) => `${index}:${id}`)), sample.id);
+    assert.ok(aligned.associations.every(cue => cue.kind !== 'interpretation' && cue.kind !== 'balance'), sample.id);
+    for (const cue of aligned.associations) assert.equal(sample.rawText.slice(cue.passage.start, cue.passage.end), cue.passage.quote);
+  }
+});
+
+test('supported paraphrases remain unlit when negated or addressed as personal metaphors', () => {
+  for (const [name, prose] of [
+    ['The Fool', 'No small dog leaps at the traveler’s heels.'],
+    ['The Magician', 'You raise a wand toward the sky when you imagine your power.'],
+    ['Four of Pentacles', 'He does not clutch a coin to his chest.'],
+    ['Six of Swords', 'There is no woman and child seated in the boat.'],
+    ['Temperance', 'You are pouring water between two cups as a metaphor for work.']
+  ]) {
+    const result = alignReadingPassages({ rawText: `${name}. ${prose}`, cards: [{ name, index: 0 }], artworkEdition: edition });
+    assert.deepEqual(result.associations.flatMap(cue => cue.targets.flatMap(target => target.detailIds)), [], `${name}: ${prose}`);
+  }
+});
+
+test('every registered detail declares an intentional bounded or static treatment', () => {
+  const counts = { static: 0, finite: 0, water: 0 };
+  const moving = [];
+  let total = 0;
+  for (const card of getAllCards()) for (const detail of getVectorGestureDetails(card.name)) {
+    total += 1;
+    assert.ok(Object.hasOwn(counts, detail.treatment), `${card.name}/${detail.id} declares its treatment`);
+    counts[detail.treatment] += 1;
+    if (detail.treatment === 'static') {
+      // Static illumination is an authored choice: no recipe, no trace paths.
+      assert.equal(detail.motionRecipe, undefined, `${card.name}/${detail.id}`);
+      assert.deepEqual(detail.traces, [], `${card.name}/${detail.id}`);
+    } else moving.push(`${card.name}/${detail.id}:${detail.treatment}`);
+    if (detail.treatment === 'finite') {
+      assert.deepEqual(detail.motionRecipe, { kind: 'finite', duration: 1800 });
+      assert.ok(detail.traces.length > 0 && detail.traces.every(path => typeof path === 'string' && path.startsWith('M')));
+    }
+    if (detail.treatment === 'water') {
+      assert.equal(detail.motionRecipe.kind, 'water');
+      assert.ok(detail.motionRecipe.clips.stream && detail.motionRecipe.streams.length);
+      assert.deepEqual(detail.traces, []);
+    }
+  }
+  assert.equal(total, 151);
+  assert.deepEqual(counts, { static: 146, finite: 3, water: 2 });
+  assert.deepEqual(moving.sort(), ['Ace of Wands/sprout:finite', 'Seven of Swords/two-swords:finite', 'The Star/land-pour:water', 'The Star/pool-pour:water', 'Wheel of Fortune/wheel:finite']);
+});

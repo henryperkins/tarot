@@ -103,12 +103,17 @@ export class SqliteD1 {
   }
 }
 
-export async function createD1() {
+export function applyD1Migration(db, file) {
+  if (!/^\d+_[a-z0-9_]+\.sql$/.test(file)) throw new Error('Invalid migration filename');
+  db.sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
+}
+
+export async function createD1({ throughMigration = null } = {}) {
   sqlModulePromise ??= initSqlJs();
   const SQL = await sqlModulePromise;
   const sqlite = new SQL.Database();
   sqlite.run('PRAGMA foreign_keys = ON');
-  const files = readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql')).sort();
+  const files = readdirSync(MIGRATIONS_DIR).filter((name) => name.endsWith('.sql') && (!throughMigration || name <= throughMigration)).sort();
   for (const file of files) {
     sqlite.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
   }

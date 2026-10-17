@@ -202,7 +202,7 @@ describe('wrapStreamWithMetadata', () => {
     const wrappedStream = wrapStreamWithMetadata(sourceStream, {
       turn: 3,
       journalContext: { patterns: ['test'] },
-      meta: { provider: 'azure', requestId: 'req-123' },
+      meta: { provider: 'openai-native', requestId: 'req-123' },
       onComplete: async () => {}
     });
 
@@ -210,7 +210,7 @@ describe('wrapStreamWithMetadata', () => {
 
     assert.ok(output.includes('event: meta'), 'Should start with meta event');
     assert.ok(output.includes('"turn":3'), 'Meta should include turn number');
-    assert.ok(output.includes('"provider":"azure"'), 'Meta should include provider');
+    assert.ok(output.includes('"provider":"openai-native"'), 'Meta should include provider');
     assert.ok(output.includes('"requestId":"req-123"'), 'Meta should include requestId');
   });
 
@@ -335,7 +335,7 @@ describe('wrapStreamWithMetadata', () => {
     let onCompleteCalled = false;
     let onErrorInfo = null;
 
-    // Simulate Azure returning an error event in the stream (not throwing)
+    // Simulate OpenAI returning an error event in the stream (not throwing)
     const mockEvents = [
       formatSSEEvent('error', { message: 'Rate limit exceeded' }),
       formatSSEEvent('done', { fullText: '', error: true })

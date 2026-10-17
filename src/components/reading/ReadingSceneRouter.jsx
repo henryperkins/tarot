@@ -2,10 +2,15 @@ import {
   SceneShell,
   IdleScene,
   InterludeScene,
-  NarrativeScene,
   CompleteScene
 } from '../scenes';
+import { useScene } from '../scenes/SceneContext';
 import { ReadingTableScene } from '../scenes/ReadingTableScene';
+
+function ReadingNarrativeScene({ sceneModels }) {
+  const { activeScene } = useScene();
+  return <CompleteScene sceneModels={sceneModels} isComplete={activeScene === 'complete'} />;
+}
 
 const SCENE_COMPONENTS = {
   idle: ({ children }) => (
@@ -22,12 +27,10 @@ const SCENE_COMPONENTS = {
       showTitle={false}
     />
   ),
-  narrative: (props) => (
-    <NarrativeScene {...props} />
-  ),
-  complete: (props) => (
-    <CompleteScene {...props} />
-  )
+  // Completion adds controls below the same mounted reading. Preserve held
+  // inspection, observed passages and animation ownership through narrative done.
+  narrative: ReadingNarrativeScene,
+  complete: ReadingNarrativeScene
 };
 
 export function ReadingSceneRouter({
@@ -40,7 +43,7 @@ export function ReadingSceneRouter({
   const activeScene = orchestrator?.activeScene;
   const isReadingScene = activeScene === 'narrative' || activeScene === 'complete';
   const isTableScene = activeScene === 'ritual' || activeScene === 'reveal';
-  const className = activeScene === 'interlude' ? '' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''} ${isTableScene ? 'scene-shell--table' : ''}`;
+  const className = activeScene === 'interlude' ? 'scene-shell--reading' : `scene-shell ${isReadingScene ? 'scene-shell--reading' : ''} ${isTableScene ? 'scene-shell--table' : ''}`;
 
   return (
     <SceneShell

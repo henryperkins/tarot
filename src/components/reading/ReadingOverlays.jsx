@@ -207,13 +207,33 @@ export function ReadingOverlays({
   const selectedCard = selectedCardData?.card;
   const { cardVideo: cardVideoEnabled } = useFeatureFlags();
   // Keep unrelated reading updates from restarting the modal's animation.
-  const modalCard = useMemo(() => getCardForDeck(selectedCard, deckStyleId), [selectedCard, deckStyleId]);
+  const modalCard = useMemo(() => {
+    const card = getCardForDeck(selectedCard, deckStyleId);
+    const artwork = selectedCardData?.inspection?.artworkByIndex?.[selectedCardData.index];
+    return artwork ? { ...card, ...artwork } : card;
+  }, [selectedCard, deckStyleId, selectedCardData]);
+  const returnFocusRef = useMemo(() => ({ current: selectedCardData?.inspection?.triggerElement || null }), [selectedCardData?.inspection?.triggerElement]);
+  const getFallbackFocus = useCallback(() => {
+    const gestureId = selectedCardData?.inspection?.gestureId;
+    const gesture = gestureId && Array.from(document.querySelectorAll('[data-gesture-id]'))
+      .find(element => element.dataset.gestureId === gestureId && element.getClientRects().length);
+    if (gesture) return gesture;
+    const key = selectedCardData?.inspection?.detailKey;
+    const replacement = key ? Array.from(document.querySelectorAll('[data-reading-detail-key]'))
+      .find(element => element.dataset.readingDetailKey === key) : null;
+    return replacement || Array.from(document.querySelectorAll(`.reading-card[data-spread-index="${selectedCardData?.index}"] button, .spread-companion__card[data-card-index="${selectedCardData?.index}"], .card-touch-plate[data-card-index="${selectedCardData?.index}"]`))
+      .find(element => element.getClientRects().length) || document.querySelector('[data-reading-focus-target]');
+  }, [selectedCardData?.index, selectedCardData?.inspection?.detailKey, selectedCardData?.inspection?.gestureId]);
 
   return (
     <>
       {selectedCardData ? (
         <CardModal
           card={modalCard}
+          artworkMode="full"
+          inspectionContext={selectedCardData.inspection}
+          returnFocusRef={returnFocusRef}
+          getFallbackFocus={getFallbackFocus}
           position={selectedCardData.position}
           question={resolvedQuestion}
           userTier={effectiveTier}

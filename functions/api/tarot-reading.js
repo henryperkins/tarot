@@ -7,7 +7,7 @@ import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
  * and spread-specific narrative construction.
  *
  * Delegates narrative synthesis to Claude through the Anthropic API, then falls
- * back through Qwen on Modal, the configured OpenAI/Azure provider, and the
+ * back through Qwen on Modal, the configured OpenAI provider, and the
  * local deterministic composer.
  */
 
@@ -49,13 +49,13 @@ import {
   isKnownPromptVariant,
   recordExperimentAssignment
 } from '../lib/abTesting.js';
-import { getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from '../lib/azureResponses.js';
+import { getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from '../lib/openaiResponses.js';
 import {
-  callAzureResponsesStream,
-  transformAzureStream,
+  callOpenAIResponsesStream,
+  transformOpenAIStream,
   createSSEResponse,
   createSSEErrorResponse
-} from '../lib/azureResponsesStream.js';
+} from '../lib/openaiResponsesStream.js';
 import {
   releaseReadingReservation,
   enforceReadingLimit
@@ -66,7 +66,7 @@ import {
   collectSSEStreamText
 } from '../lib/readingStream.js';
 import {
-  isAzureTokenStreamingEnabled,
+  isOpenAITokenStreamingEnabled,
   allowStreamingWithEvalGate,
   summarizeNarrativeEnhancements,
   maybeLogNarrativeEnhancements,
@@ -80,10 +80,13 @@ import {
   NARRATIVE_BACKENDS,
   getLocalComposerLanguageSupport,
   getAvailableNarrativeBackends,
-  buildAzureGPT5Prompts,
+  buildOpenAIResponsesPrompts,
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
-import { getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
+import { streamCodexSubscription } from '../lib/codexSubscription.js';
+import { createCodexReadingStream } from '../lib/codexReadingStream.js';
+import { createReadingPassageGuard } from '../lib/readingPassageGuard.js';
 import {
   getSpreadDefinition,
   getSpreadKey,
@@ -410,6 +413,7 @@ async function finalizeReading({
   backendErrors = [],
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
+  rejectGateBlocked = false,
   gateOverride = null,
   gateNotice = null,
   evalGateEnv = env,
@@ -515,6 +519,11 @@ async function finalizeReading({
   }
 
   if (!gateResult.passed) {
+    if (rejectGateBlocked) {
+      const error = new Error('Reading failed its final delivery check.');
+      error.code = 'reading_stream_rejected';
+      throw error;
+    }
     wasGateBlocked = true;
     if (allowGateBlocking) {
       const gateLabel = gateOverride?.blocked ? 'Safety scan' : 'Evaluation gate';
@@ -722,21 +731,11 @@ async function finalizeReading({
   };
 }
 
-function resolveResponsesNarrativeProvider(env) {
-  return env?.OPENAI_API_KEY ? 'openai-native' : 'azure-gpt5';
-}
-
-function resolveNarrativeProviderId(backendId, env) {
-  return backendId === 'azure-gpt5'
-    ? resolveResponsesNarrativeProvider(env)
-    : backendId;
-}
-
 export const onRequestGet = async ({ env }) => {
   const primaryBackend = getAvailableNarrativeBackends(env)[0] || NARRATIVE_BACKENDS['local-composer'];
   const provider = primaryBackend.id === 'local-composer'
     ? 'local'
-    : resolveNarrativeProviderId(primaryBackend.id, env);
+    : primaryBackend.id;
   // Health check endpoint
   return jsonResponse({
     status: 'ok',
@@ -770,6 +769,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
   const taskSignal = taskDeadline.signal;
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
+  let streamOwnsDeadline = false;
   const url = new URL(request.url);
   const acceptHeader = request.headers.get('accept') || '';
   const useStreaming = url.searchParams.get('stream') === 'true' || acceptHeader.includes('text/event-stream');
@@ -860,7 +860,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     if (unauthorized) {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
-    const personalAccessError = getClaudeCodeAccessError(env, user);
+    const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
@@ -1092,6 +1092,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.log(`[${requestId}] Reading limit exceeded: ${readingLimitResult.used}/${readingLimitResult.limit}`);
       return jsonResponse({
         error: readingLimitResult.message,
+        code: readingLimitResult.unavailable ? 'usage_tracking_unavailable' : 'reading_limit_reached',
         tierLimited: true,
         currentTier: subscriptionTier,
         accountTier: subscription.tier,
@@ -1195,7 +1196,89 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const backendErrors = [];
 
     narrativePayload.signal = taskSignal;
-    const tokenStreamingEnabled = !isClaudeCodeEnabled(env) && isAzureTokenStreamingEnabled(env);
+    const codexLiveEnabled = useStreaming
+      && getAvailableNarrativeBackends(env)[0]?.id === 'codex-subscription'
+      && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
+      && !evalGatePolicy.effectiveEvalGateEnabled;
+    if (codexLiveEnabled) {
+      const streamProvider = 'codex-subscription';
+      const { assignment: attemptAssignment, variantPromptOverrides } = resolveAttemptABAssignment(requestId, activeExperiments, {
+        spreadKey: analysis.spreadKey, provider: streamProvider
+      });
+      narrativePayload.abAssignment = attemptAssignment;
+      narrativePayload.variantPromptOverrides = variantPromptOverrides;
+      const { systemPrompt, userPrompt } = buildOpenAIResponsesPrompts(env, narrativePayload, requestId, {
+        backendId: streamProvider, providerLabel: NARRATIVE_BACKENDS[streamProvider].label, budgetTarget: 'openai'
+      });
+      applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
+      const capturedPrompts = { system: systemPrompt, user: userPrompt };
+      const streamPromptDebug = promptDebugAccess.allowed ? buildPromptDebugPayload({ capturedPrompts, provider: streamProvider, promptMeta: narrativePayload.promptMeta }) : null;
+      const streamMeta = {
+        requestId, provider: streamProvider, themes: analysis.themes,
+        reasoning: analysis.reasoning || null, emotionalTone: deriveEmotionalTone(analysis.themes),
+        ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext), context,
+        contextDiagnostics: narrativePayload.contextDiagnostics || contextDiagnostics,
+        graphRAG: narrativePayload.promptMeta?.graphRAG || null,
+        sourceUsage: narrativePayload.promptMeta?.sourceUsage || null,
+        spreadAnalysis: buildSpreadAnalysisPayload(analysis), gateBlocked: false, gateReason: null,
+        ...(streamPromptDebug ? { promptDebug: streamPromptDebug } : {})
+      };
+      const streamStartedAt = Date.now();
+      let streamResult = null;
+      let streamState = 'failed';
+      let streamReason = 'provider_error';
+      const stream = createCodexReadingStream({
+        signal: taskSignal, waitUntil, meta: streamMeta,
+        guard: createReadingPassageGuard({ cardsInfo, spreadKey: analysis.spreadKey, deckStyle }),
+        source: signal => streamCodexSubscription(env, { task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal }),
+        onComplete: async (result, signal) => {
+          streamResult = result;
+          const { qualityMetrics, qualityIssues } = evaluateQualityGate({ readingText: result.text, cardsInfo, deckStyle, analysis, requestId });
+          if (qualityIssues.length) {
+            const error = new Error('Reading failed final quality checks.');
+            error.code = 'reading_stream_rejected';
+            throw error;
+          }
+          narrativePayload.signal = signal;
+          narrativePayload.promptMeta.inference = { provider: streamProvider, model: result.model, modelSource: result.modelSource };
+          const { responsePayload } = await taskDeadline.run(() => finalizeReading({
+            env, requestId, startTime, reading: result.text, provider: streamProvider, deckStyle, analysis,
+            narrativePayload, contextDiagnostics, cardsInfo, userQuestion, reflectionsText: querentReflections,
+            context, visionMetrics, abAssignment: attemptAssignment, capturedPrompts, capturedUsage: result.usage,
+            waitUntil, personalization, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
+            allowGateBlocking: true, rejectGateBlocked: true, evalGateEnv, evalGatePolicy,
+            promptDebugAllowed: promptDebugAccess.allowed
+          }));
+          signal.throwIfAborted();
+          if (responsePayload.reading !== result.text) throw new Error('Reading source changed during finalization.');
+          if (attemptAssignment) await recordExperimentAssignment(env.DB, attemptAssignment.experimentId);
+          streamState = 'accepted';
+          streamReason = null;
+          return { requestId, model: result.model, modelSource: result.modelSource, usage: result.usage, gateBlocked: false, gateReason: null };
+        },
+        onError: async error => {
+          streamState = error?.code === 'reading_stream_rejected' ? 'rejected' : 'failed';
+          streamReason = error?.code === 'reading_stream_rejected' ? 'quality_rejected' : inferAttemptReason(error, taskSignal);
+          await releaseReadingReservation(env, readingReservation);
+        },
+        onFinally: async () => {
+          try {
+            await recordInferenceAttempt(env, {
+              requestId, task: 'reading', provider: streamProvider,
+              requestedModel: streamResult?.modelSource === 'configured' ? streamResult.model : null,
+              model: streamResult?.modelSource === 'reported' ? streamResult.model : null,
+              usage: streamResult?.usage || null, state: streamState, reason: streamReason,
+              startedAtMs: streamStartedAt, finishedAtMs: Date.now()
+            });
+          } finally {
+            taskDeadline.dispose();
+          }
+        }
+      });
+      streamOwnsDeadline = true;
+      return createSSEResponse(stream);
+    }
+    const tokenStreamingEnabled = !isPersonalTextProviderEnabled(env) && isOpenAITokenStreamingEnabled(env);
     const evalGateEnabled = evalGatePolicy.effectiveEvalGateEnabled;
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     const safetyScanExplicit = env?.STREAMING_SAFETY_SCAN_ENABLED !== undefined;
@@ -1208,23 +1291,23 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       ? normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED)
       : true;
     // Only the Responses API streams tokens, so stream only when it is the primary provider.
-    const azureStreamingAvailable = getAvailableNarrativeBackends(env)[0]?.id === 'azure-gpt5';
-    const wantsAzureStreaming = useStreaming && tokenStreamingEnabled && azureStreamingAvailable;
-    const canUseAzureStreaming = wantsAzureStreaming && allowStreamingGateBypass;
+    const openaiStreamingAvailable = getAvailableNarrativeBackends(env)[0]?.id === 'openai-native';
+    const wantsOpenAIStreaming = useStreaming && tokenStreamingEnabled && openaiStreamingAvailable;
+    const canUseOpenAIStreaming = wantsOpenAIStreaming && allowStreamingGateBypass;
     let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;
 
     if (useStreaming && !evalGateEnabled && !safetyScanStreamingEnabled && !qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] Streaming safety + quality gates are disabled; enabling safety scan to avoid unvetted output.`);
       safetyScanStreamingEnabled = true;
     }
-    if (canUseAzureStreaming && !qualityGateStreamingEnabled) {
+    if (canUseOpenAIStreaming && !qualityGateStreamingEnabled) {
       console.warn(`[${requestId}] STREAMING_QUALITY_GATE_ENABLED is false; overriding to enforce quality gate for consistency.`);
       qualityGateStreamingEnabled = true;
     }
-    const shouldGateStreaming = canUseAzureStreaming && evalGateEnabled;
-    const shouldSafetyScanStreaming = canUseAzureStreaming && !evalGateEnabled && safetyScanStreamingEnabled;
-    const shouldQualityGateStreaming = canUseAzureStreaming && qualityGateStreamingEnabled;
-    const shouldBufferStreaming = canUseAzureStreaming && (
+    const shouldGateStreaming = canUseOpenAIStreaming && evalGateEnabled;
+    const shouldSafetyScanStreaming = canUseOpenAIStreaming && !evalGateEnabled && safetyScanStreamingEnabled;
+    const shouldQualityGateStreaming = canUseOpenAIStreaming && qualityGateStreamingEnabled;
+    const shouldBufferStreaming = canUseOpenAIStreaming && (
       shouldGateStreaming || shouldSafetyScanStreaming || shouldQualityGateStreaming
     );
 
@@ -1241,15 +1324,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       console.warn(`[${requestId}] Token streaming enabled without eval gate; buffering output for quality checks.`);
     }
 
-    if (useStreaming && tokenStreamingEnabled && !azureStreamingAvailable) {
+    if (useStreaming && tokenStreamingEnabled && !openaiStreamingAvailable) {
       console.warn(`[${requestId}] Token streaming is unavailable for the primary narrative provider; falling back to buffered streaming.`);
     }
 
     let streamingFallback = false;
     let streamingGateNotice = null;
 
-    if (canUseAzureStreaming) {
-      const streamProvider = resolveNarrativeProviderId('azure-gpt5', env);
+    if (canUseOpenAIStreaming) {
+      const streamProvider = 'openai-native';
 
       // A/B Testing: assign per-provider so targeting is accurate
       const {
@@ -1269,7 +1352,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       let systemPrompt = null;
       let userPrompt = null;
       try {
-        ({ systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId));
+        ({ systemPrompt, userPrompt } = buildOpenAIResponsesPrompts(env, narrativePayload, requestId));
       } catch (promptError) {
         console.warn(`[${requestId}] Streaming prompt build failed: ${promptError.message}`);
         promptError.code = 'prompt_build_failed';
@@ -1280,9 +1363,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       if (!streamingFallback) {
         applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
 
-        const effectiveModel = env.OPENAI_API_KEY
-          ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL)
-          : env.AZURE_OPENAI_GPT5_MODEL;
+        const effectiveModel = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
         const reasoningEffort = getReasoningEffort(env, effectiveModel);
         const verbosity = getTextVerbosity(env, effectiveModel);
 
@@ -1307,7 +1388,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         let streamUsage = null;
         let streamReason = 'provider_error';
         try {
-        const azureStream = await callAzureResponsesStream(env, {
+        const openaiStream = await callOpenAIResponsesStream(env, {
           instructions: systemPrompt,
           input: userPrompt,
           maxTokens: null,
@@ -1317,7 +1398,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           verbosity
         });
 
-        const transformedStream = transformAzureStream(azureStream);
+        const transformedStream = transformOpenAIStream(openaiStream);
 
         if (shouldBufferStreaming) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
@@ -1424,7 +1505,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         if (streamingFallback) {
           // Skip live streaming when we need to fall back to buffered backends.
         } else if (!shouldBufferStreaming) {
-          // Use promptMeta.graphRAG directly (set by buildAzureGPT5Prompts)
+          // Use promptMeta.graphRAG directly (set by buildOpenAIResponsesPrompts)
           const graphRAGStats = narrativePayload.promptMeta?.graphRAG || null;
           const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
             ? narrativePayload.contextDiagnostics
@@ -1465,7 +1546,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               if (!finalText) {
                 console.warn(`[${requestId}] Streaming completed with empty reading text - releasing quota`);
                 // Release the reading reservation so user doesn't lose a quota slot for an empty response
-                // This can happen if Azure returns only tool calls, errors, or empty content
+                // This can happen if OpenAI returns only tool calls, errors, or empty content
                 await releaseReadingReservation(env, readingReservation);
                 return;
               }
@@ -1533,7 +1614,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let provider = 'local-composer';
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
     const candidateBackends = getAvailableNarrativeBackends(env)
-      .filter((backend) => !streamingFallback || backend.id !== 'azure-gpt5');
+      .filter((backend) => !streamingFallback || backend.id !== 'openai-native');
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
     // Track captured prompts for engineering persistence
@@ -1544,7 +1625,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     for (const backend of backendsToTry) {
       taskSignal.throwIfAborted();
       const attemptStart = Date.now();
-      const backendProvider = resolveNarrativeProviderId(backend.id, env);
+      const backendProvider = backend.id;
       if (backend.id === 'local-composer' && !localComposerLanguageSupport.supported) {
         backendErrors.push({
           backend: backendProvider,
@@ -1656,11 +1737,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         await recordInferenceAttempt(env, {
           requestId, task: 'reading', provider: backendProvider, state: attemptState,
           reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
-          model: backendResult?.model || attemptError?.model || null,
+          model: backendResult?.modelSource === 'configured' ? null : backendResult?.model || attemptError?.model || null,
           usage: backendResult?.usage || attemptError?.usage || null,
-          requestedModel: backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
+          requestedModel: backendResult?.modelSource === 'configured' ? backendResult.model
+            : backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
             : backend.id === 'modal-qwen' ? env.MODAL_MODEL || 'Qwen/Qwen3.8-Max-VL-Thinking'
-            : backend.id === 'azure-gpt5' ? env.OPENAI_API_KEY ? env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL : env.AZURE_OPENAI_GPT5_MODEL
+            : backend.id === 'openai-native' ? env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL
             : null,
           startedAtMs: attemptStart, finishedAtMs: Date.now()
         });
@@ -1794,7 +1876,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       { status: 500 }
     );
   } finally {
-    taskDeadline.dispose();
+    if (!streamOwnsDeadline) taskDeadline.dispose();
   }
 };
 

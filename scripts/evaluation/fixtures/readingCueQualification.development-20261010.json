@@ -1,0 +1,3855 @@
+{
+  "schemaVersion": 1,
+  "labelRevision": "independent-text-review-20261009-r2",
+  "reviewer": {
+    "id": "/root/qualification_labels",
+    "role": "independent agent textual opportunity reviewer",
+    "authoredVisualPrompt": false,
+    "accessedCandidateOutputs": false,
+    "humanUsabilityStudy": false
+  },
+  "createdAt": "2026-10-10T04:01:59.021Z",
+  "sourceHead": "f24487d089748c60716d61fe5f8b6c3056ca6eb9",
+  "status": "provisional-development-preparation-awaiting-independent-review-and-task-7-freeze",
+  "complete": true,
+  "completenessScope": "Only the original independently authored labels for these eight selected cases; no model qualification.",
+  "sourceDigests": [
+    {
+      "path": "data/evaluations/narrative-samples.json",
+      "sha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49"
+    },
+    {
+      "path": "e2e/helpers/narrativeFixtures.js",
+      "sha256": "d0300f67576c0901803f0942f1742c96010e327235e379def6d8f3bedc010404"
+    },
+    {
+      "path": "e2e/helpers/readingCueBrowserCollector.mjs",
+      "sha256": "4bf51747a2fc0c75383cac3001b4b3b48c11dfc3a3d4b06b04d1d407c01c904b"
+    },
+    {
+      "path": "e2e/helpers/readingCueBrowserScoring.mjs",
+      "sha256": "f943b8934d031ca3ae79eaa4f5ac7bbb9bd1be5ffbb1d15aaf02632a0d8e5f58"
+    },
+    {
+      "path": "e2e/helpers/readingCueBrowserSession.mjs",
+      "sha256": "27f555a5641c8d02ca0861f8885950f9d14a5de7614e9473de33fa9541f29886"
+    },
+    {
+      "path": "e2e/helpers/readingCueFrontend.mjs",
+      "sha256": "aafdd75ef4a4d8d90518f18984d3ba3d2dacdd1f8a4eb7bf890f19039e3aeea2"
+    },
+    {
+      "path": "functions/api/tarot-reading.js",
+      "sha256": "3fa982a812a356616ac5649e48137ab4f4aa70c86b5cd7e5a2987d7cdad6c871"
+    },
+    {
+      "path": "functions/lib/abTesting.js",
+      "sha256": "5efcc1e0f05107d0a9a67dcb1e830a24b827069bfb0b00cd39305372315c274b"
+    },
+    {
+      "path": "functions/lib/anthropicMessages.js",
+      "sha256": "0c8b35f659fa35c99fa3bb83d675b406574fa8cf33b59121b375b764002d1c15"
+    },
+    {
+      "path": "functions/lib/apiKeys.js",
+      "sha256": "8fe3c80d7405b3553789c83843d3fbca287e496ea72593c9d497543cdf86aeb0"
+    },
+    {
+      "path": "functions/lib/apiUsage.js",
+      "sha256": "c04cea83f0a395682b5364f05147d4d7e052d7c64b114f5422294dc382ef2549"
+    },
+    {
+      "path": "functions/lib/auth.js",
+      "sha256": "365e2f15aa110ad26311656c8adcf5d5685b1ce277386cf1484f8a43bfdac889"
+    },
+    {
+      "path": "functions/lib/azureResponses.js",
+      "sha256": "e10a87e4e97b570760eb05215293b7355d5358fd86eae957ea556be79a9e0c24"
+    },
+    {
+      "path": "functions/lib/azureResponsesStream.js",
+      "sha256": "5d3658815b0871c64079dd570a24340531a6adacbc5d53af8d8166a05a51b60e"
+    },
+    {
+      "path": "functions/lib/cardContextDetection.js",
+      "sha256": "9a26bf7c5853b92222425eed46bfc39b7a9bdd503f0573f8e1c941e2668ff536"
+    },
+    {
+      "path": "functions/lib/claudeCode.js",
+      "sha256": "540a71ff68470d8e17e3c0fd89418e60ab0b633db35ed4202f2fdc9ab85cce71"
+    },
+    {
+      "path": "functions/lib/clientId.js",
+      "sha256": "0083bf0ccc870741c9daae6c0a8ee09d672b285254dbab90f44a620f6c2df2c1"
+    },
+    {
+      "path": "functions/lib/codexReadingStream.js",
+      "sha256": "6f5070f0c7a4536b716edb0f948dab6bdfddec0db73e0bf94aa80795de7c436b"
+    },
+    {
+      "path": "functions/lib/codexSubscription.js",
+      "sha256": "cd07b9c3b49248544794e0ee315c63ae40b8a3239b400665fc595871a3ccbfa4"
+    },
+    {
+      "path": "functions/lib/contextDetection.js",
+      "sha256": "84234cb0976ecf5bd80ac88bc53d2d290667ee35892e7e6720d423e18c008a28"
+    },
+    {
+      "path": "functions/lib/crypto.js",
+      "sha256": "5ada6cd3619401497cee08001e8397238358473f43fe2db074740dafb3b936cd"
+    },
+    {
+      "path": "functions/lib/embeddings.js",
+      "sha256": "95f6590be349997e9be4212632e51ce41d58ed5b76e8594264dde253fde04621"
+    },
+    {
+      "path": "functions/lib/entitlements.js",
+      "sha256": "bb18e7c3b47350065c38435b749348cf7743b374b870461a8970b3a03d5084e8"
+    },
+    {
+      "path": "functions/lib/environment.js",
+      "sha256": "4a8fe66475fd558dae410149dbb978b2b9383d971b8e189d034af80b29f6b58f"
+    },
+    {
+      "path": "functions/lib/ephemerisIntegration.js",
+      "sha256": "615a5ff2ef271b71a827bba0984f2bcb5ccbc6115c43ac9c17321e737fb5bf81"
+    },
+    {
+      "path": "functions/lib/ephemerisWorkers.js",
+      "sha256": "e6655576df5c15604a54d5d1afeb427d6fd78b455d1ef9bd41eb80be2c08535d"
+    },
+    {
+      "path": "functions/lib/esotericMeta.js",
+      "sha256": "ab8bcdaccebefd8683bc345b2991bcf35d166100b30ecd3cdda1f228aa87db48"
+    },
+    {
+      "path": "functions/lib/evalGatePolicy.js",
+      "sha256": "6966b145ae816b91332fb5fc2a9b5f58b6a41a8d305d7d3b96fbcd14d2c75d15"
+    },
+    {
+      "path": "functions/lib/evaluation.js",
+      "sha256": "47fb01226b4bdd7b565c99a9ae9e2fc508c4db21b5a690ac2e8b9232c88eb543"
+    },
+    {
+      "path": "functions/lib/graphContext.js",
+      "sha256": "eafeeb9fb7c4c476dcd689b20330a95febc26bc28088eca4aaa299c4e115b30c"
+    },
+    {
+      "path": "functions/lib/graphRAG.js",
+      "sha256": "a8c8c9976f0c3a25f34285b2896d23ae3ad279fbc26caeba750e4b967b4702d0"
+    },
+    {
+      "path": "functions/lib/graphRAGAlerts.js",
+      "sha256": "463f7875af0a2654ce59d1a19d527ff44c703a10400eaec36dfc5bf76dd25cdc"
+    },
+    {
+      "path": "functions/lib/imageryHooks.js",
+      "sha256": "07b02948c1db2c3eaa9a1898a8bf9d0779e7312dc4799c323b8a1fc665055798"
+    },
+    {
+      "path": "functions/lib/inferenceAttempts.js",
+      "sha256": "677a16b91eaf2cd161d4a4c90fcab8627c7acc8381a74cda411f670f77654376"
+    },
+    {
+      "path": "functions/lib/knowledgeBase.js",
+      "sha256": "a9e13439bd36ccaf737fb8949a59e843345555c1ea4d5889d559c9a753bf7f58"
+    },
+    {
+      "path": "functions/lib/knowledgeGraph.js",
+      "sha256": "89aa750cc1471736f4e5097bad4998d7794fc98856c8efb7b51e7b5e4992fd07"
+    },
+    {
+      "path": "functions/lib/minorMeta.js",
+      "sha256": "a344692a13c7bd69a2ca610b703f241204e90bba5d612248edd45196e3afdf24"
+    },
+    {
+      "path": "functions/lib/modalChatCompletions.js",
+      "sha256": "93b285b8f3bb6a618d62369cdf578671ca1917b91e73b194536a81d7a54d1bee"
+    },
+    {
+      "path": "functions/lib/narrative/helpers.js",
+      "sha256": "28a88361cf5d28b8471bb8313929a9178714379fa47ba29ed585bd0d79222bec"
+    },
+    {
+      "path": "functions/lib/narrative/prompts.js",
+      "sha256": "98812273495b077c3b14c05e47f3bbcac5e3c38e7de33a605d6b6e4652331993"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/astro.js",
+      "sha256": "749d5024a28248f86dbd0071dacfdd9612ca730f00880cbd77dd3dcd1c3c48ce"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/budgeting.js",
+      "sha256": "dad0561aac08c822c18a05a07190da83f80ca6ce827bf4443d2dcab21b20ac6c"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js",
+      "sha256": "2aa72219f8195d8917e05c9c9d286d516803fd594a5743a171424834192865db"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/cardBuilders.js",
+      "sha256": "3e3b4bb5d0ae7f03f88ce07d5bc8058db6f0d623d26018da89349553f144670d"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/constants.js",
+      "sha256": "c5ab7bda569dbcbd000058a091be045e0c73d9439ad6e5890c6501025688d336"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/deckStyle.js",
+      "sha256": "ceebde73fccd51ee00c7139a8fbbda3c12bd465888e42322b6ab371238f59b16"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/graphRAGReferenceBlock.js",
+      "sha256": "b9a7a0d8eee3cbec9af6a6fb66ec0a470b4ea5fbebf26468a8f5e7dbc7105191"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/systemPrompt.js",
+      "sha256": "0f2ffe8328048de75b955234c410c43be936876cfcdebd8698dbc46c882e0171"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/truncation.js",
+      "sha256": "eb4e0ad9ab734804d7db51f6b8ff812943dbe67baec483ec82d83aa6060f3f2c"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/userContext.js",
+      "sha256": "2d945672e58a69d9cb6783c06cd9550c5974c12970f5f8fe23e42b689e70a23e"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/userPrompt.js",
+      "sha256": "8ce4fb0c4869ea5c11f8a56501d97ada861c54bf844ecff8dcee0cf59f9c9042"
+    },
+    {
+      "path": "functions/lib/narrative/prompts/visionValidation.js",
+      "sha256": "19f7ecd2e181109f53d349601022a19dd1ba19eed1e8b88474da02e9662b40cb"
+    },
+    {
+      "path": "functions/lib/narrative/reasoning.js",
+      "sha256": "63ae27e4f1715776a587a4e4f7e59222dc34e4725cbc6627eb6460f4e07d4b96"
+    },
+    {
+      "path": "functions/lib/narrative/reasoningIntegration.js",
+      "sha256": "3b51434d535bf051bb11b49a63be2e6829206d29d6b5107caa2bc8e495e48bd0"
+    },
+    {
+      "path": "functions/lib/narrative/sourceUsage.js",
+      "sha256": "067f3b95da884bd9ea0bc6a856f996ab2f70fa0f10fe3ffc4581ef8c50d9239a"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/base.js",
+      "sha256": "c330c159751ddbcb2662c1b633e7217ec2215e4f6d8c62f4d0a9dad267d155d7"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/celticCross.js",
+      "sha256": "f28744ac69322e26b5203f41af57a0aa7020b58c5fb66d792a96a5a377395eaa"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/decision.js",
+      "sha256": "0006eecd64e2668a99a6e781ad7c42531ae637ce93b7c5002434350891d9d57b"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/fiveCard.js",
+      "sha256": "cf2727a16a43649c3745caabd76f9662df1928ac76deab456744677e856b6892"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/relationship.js",
+      "sha256": "26a3e20cf6bbce6e677eb90ad4950b436adddcb4ab902861a53a2b812c3ca5db"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/singleCard.js",
+      "sha256": "daa0c0267e608b9d4800eca0a0ea8502d5c594e782ccc14a318a3104a343eb18"
+    },
+    {
+      "path": "functions/lib/narrative/spreads/threeCard.js",
+      "sha256": "c166da890425b9843a1821e37f3bb72da68494e33f5b002d8f6c6304e9517fc8"
+    },
+    {
+      "path": "functions/lib/narrative/styleHelpers.js",
+      "sha256": "f5564ff9fd3a744d12de930816e331031429531d9cf89eac2c58bfaf161cfd4b"
+    },
+    {
+      "path": "functions/lib/narrativeBackends.js",
+      "sha256": "616750b14c938abbd2703f6c5718600f90d886b915fd423401a13651f06530a6"
+    },
+    {
+      "path": "functions/lib/narrativeBuilder.js",
+      "sha256": "3262559813a661ab80619e2b2b38d02d548bb0c312d8c205d5fbf78c9f58e2de"
+    },
+    {
+      "path": "functions/lib/narrativeSpine.js",
+      "sha256": "ff8c2894300fc2f83d00338d03c3f3594787f395f44bd236c5673a35fe487866"
+    },
+    {
+      "path": "functions/lib/pacingHeuristics.js",
+      "sha256": "7454e574ddf0824b590a4d702d835f0220f06c76a3425b23e232bde88234015c"
+    },
+    {
+      "path": "functions/lib/personalTextProvider.js",
+      "sha256": "4a65634715af2ce9b097b023c41ff4fdf10bb5bad1f85c76f27dff8ab43ed5d7"
+    },
+    {
+      "path": "functions/lib/positionWeights.js",
+      "sha256": "876a9e4309139250051c7455be890f04dfa298dc8ac99b1b8929b975a6b052ce"
+    },
+    {
+      "path": "functions/lib/promptEngineering.js",
+      "sha256": "a7c30af3626cb12c15b8af5480cf60c3a1833a280bab581aa4d0d19db4c7f4f2"
+    },
+    {
+      "path": "functions/lib/promptInjectionDetector.js",
+      "sha256": "434d939be11525da332a9aa3a0f9e0916630ba811a46f8b4dbdb0208e2b1ab33"
+    },
+    {
+      "path": "functions/lib/promptVersioning.js",
+      "sha256": "a1e30ec36eaedc508e14d88d18bc8fb28e3e6d33889b99081e5efbde62617dcb"
+    },
+    {
+      "path": "functions/lib/querentReflections.js",
+      "sha256": "47a926f8281ac1437d26690743aefe307177091a16d90ebcf3678815272aecd3"
+    },
+    {
+      "path": "functions/lib/readingCardContext.js",
+      "sha256": "f688ac83aa6a6d9a059307c2b5ca737b42859d79b0fbb741a9855ff69ca83375"
+    },
+    {
+      "path": "functions/lib/readingCardResolution.js",
+      "sha256": "2da37180fe8c312de50b5796e2da87b7b7a5520a430203747342781429fe07ae"
+    },
+    {
+      "path": "functions/lib/readingLimits.js",
+      "sha256": "05d7669e4847efd01d18261ea26f38bafa7af9e99cc2d496c6f92b9de1fff269"
+    },
+    {
+      "path": "functions/lib/readingPassageGuard.js",
+      "sha256": "c9c4bb8f99c759bcc68ef3a8e2b6f674e0940aa2d124d353dc76b63b02542136"
+    },
+    {
+      "path": "functions/lib/readingQuality.js",
+      "sha256": "1930ae85e4d7bf81379e8cd78ac6bc7abff6a5794f9e6cfe530b5034717db1e2"
+    },
+    {
+      "path": "functions/lib/readingStream.js",
+      "sha256": "570119bdaa35e44a32dca8a3ac5d821fa9f9d69979516b02dc5bbf3b3531abd3"
+    },
+    {
+      "path": "functions/lib/readingSuitCounts.js",
+      "sha256": "9eb52c5c584ab0f3de8482baaccffe79dd77bd69785638387269de32bbba7025"
+    },
+    {
+      "path": "functions/lib/readingTelemetry.js",
+      "sha256": "c71d923473d199b575d18e9d843a1cad9c6ee80a476f6e3775dc92bf21626ec0"
+    },
+    {
+      "path": "functions/lib/readingVisualJobs.js",
+      "sha256": "d771122551a718d5e4b0d4120181b396d0417acfc0726a53da56b08fab2bb4dc"
+    },
+    {
+      "path": "functions/lib/readingVisualResults.js",
+      "sha256": "b7f5dbdce1854e008f90262d61077d48faacd40d022ece92b0fc2ff40ab62071"
+    },
+    {
+      "path": "functions/lib/requestDeadline.js",
+      "sha256": "e0d0e46aaa961c73f60fa91a43250a848fec0b05c142c1a808ec02453dc4a1a4"
+    },
+    {
+      "path": "functions/lib/responsesCompletion.js",
+      "sha256": "0e26d0b0693417746a6a767cf031c29747c1d9500899f4309b28909a63ed16ec"
+    },
+    {
+      "path": "functions/lib/retryWithBackoff.js",
+      "sha256": "37f54f0f01d30b4e0c9dc5de78e8d5f7e971536364ce158b2d8892f874f3e08d"
+    },
+    {
+      "path": "functions/lib/safetyChecks.js",
+      "sha256": "aa06019485fe2af43a117cd95f20831429ff91a69c267c3295503bf862c97539"
+    },
+    {
+      "path": "functions/lib/serviceAuth.js",
+      "sha256": "33e981c1917c03cf0788aa4295e7ba5369b3941b0121ded98c5906a19da6bffa"
+    },
+    {
+      "path": "functions/lib/spreadAnalysis.js",
+      "sha256": "c83329f9f33cff7fb962762863a6158fc7d71600cb1c293c9e7092ea09f128d6"
+    },
+    {
+      "path": "functions/lib/spreadAnalysisOrchestrator.js",
+      "sha256": "6f7f6d01da36ee36a3611ff9ecb9d9266d44fbb9f3a0094d3d4bc9e74cf05bf9"
+    },
+    {
+      "path": "functions/lib/spreadContracts.js",
+      "sha256": "a54f5135676b3749957d67913a75c97d8825208ee797df60bd7d2f5c285cd240"
+    },
+    {
+      "path": "functions/lib/symbolAnnotations.js",
+      "sha256": "c7f876b0d81159371c590887f7bcd20ba6f38c217b40d87a9d73198d92e6d208"
+    },
+    {
+      "path": "functions/lib/telemetrySchema.js",
+      "sha256": "c87ce73e3c8aa1c76b732411e7d93c9ed8c10b4d94da6297b58107318b72dc46"
+    },
+    {
+      "path": "functions/lib/tracingSpans.js",
+      "sha256": "08e932ceb48540a26d42efd2703294ee7434a5d83c2e8f74f3a02bc9edce830a"
+    },
+    {
+      "path": "functions/lib/usageTracking.js",
+      "sha256": "75bcd07774ab172d913ce4947ce369c16b7f50a0bdbfc6b1fa99ac4a9a0a7e5d"
+    },
+    {
+      "path": "functions/lib/userMemory.js",
+      "sha256": "fc05da97f0a5eceb27be96e723463f4e977d193761b98ac4154e6d9116432872"
+    },
+    {
+      "path": "functions/lib/userPersonalization.js",
+      "sha256": "395f232d54e88faed65b202036db2b82885dee4b060b9d6132478dec70350cb4"
+    },
+    {
+      "path": "functions/lib/utils.js",
+      "sha256": "53ab993ab0bce32cbe9a33666725cb5da7b01ceebed242444799c3199e6938cd"
+    },
+    {
+      "path": "functions/lib/visionEvidence.js",
+      "sha256": "a40facaac86573425ec95bad27e8e14b912ca26b022126a2747978a182a90eb2"
+    },
+    {
+      "path": "functions/lib/visionLabels.js",
+      "sha256": "99b9865e98488bf6d1437898aebf9d7e1dc60702b7e6a69c113676a6be77d964"
+    },
+    {
+      "path": "functions/lib/visionPromptProjection.js",
+      "sha256": "67bcf3b5876d64dcd46f44476aa7e6ea38b7628233bb15e494ea832be5b07e93"
+    },
+    {
+      "path": "functions/lib/visionProof.js",
+      "sha256": "7da75b6b7a7e85f69db839f7e2dc0489130967d7fedeea492fe3657c6393facc"
+    },
+    {
+      "path": "functions/lib/visualCueAdmission.js",
+      "sha256": "d05a27b9b14b229fa542060bc21423fa3c312283f8f43986f3bc15e0d2490e1b"
+    },
+    {
+      "path": "functions/lib/visualCueObserver.js",
+      "sha256": "2ce0aedff9622ce4a7b82e9e64b89b8a339c9d97a07609ab698f3bfd2a5ad8d6"
+    },
+    {
+      "path": "functions/lib/visualCueProvider.js",
+      "sha256": "1422d8d1119a97750fba11d3088a5f6a4d022ecc343f437aaf5be45e1d24b950"
+    },
+    {
+      "path": "migrations/0000_migration_tracking.sql",
+      "sha256": "1477a9a15a2d905612557a1dd52777ba23e08d345c96f47f81855309d939e680"
+    },
+    {
+      "path": "migrations/0001_initial_schema.sql",
+      "sha256": "dce4ab46f88ce19dbd3ae25dfd24587c3d798aa8a2e2f0958603acb9634f1ebc"
+    },
+    {
+      "path": "migrations/0002_add_auth_and_journals.sql",
+      "sha256": "ba3bfefe2cf313e2db1624fa723a6254b41db1f4edd9425bda4279562aaa21fe"
+    },
+    {
+      "path": "migrations/0003_add_share_tables.sql",
+      "sha256": "ea528b314d8a64c8b85f1722b3157df0dd13978ae6f71b0369d321e30a487bce"
+    },
+    {
+      "path": "migrations/0004_add_api_keys.sql",
+      "sha256": "5b1d1fb05f261623693434fa43add9964e8a914b1f4ecd66e61aec436dff5b39"
+    },
+    {
+      "path": "migrations/0005_add_archetype_journey.sql",
+      "sha256": "16de6b50b5d655e2028f8bffdad8918982f7dbb6105c8db63edb028e089e6f0a"
+    },
+    {
+      "path": "migrations/0006_add_user_preferences.sql",
+      "sha256": "f53392cac1fca2fd90f33ab5ba2db00971debb4ac07165ab62e254b3f1517812"
+    },
+    {
+      "path": "migrations/0007_add_request_id_and_dedup_index.sql",
+      "sha256": "e1b0d6a2390be936e2f530433c0b0bbd77b2a6f3fe4f83f89b289e7e511525f4"
+    },
+    {
+      "path": "migrations/0008_add_subscriptions.sql",
+      "sha256": "8b27e40f5845e43d9854de1001ada68290a8d965f7a416e90525560ef96aaf15"
+    },
+    {
+      "path": "migrations/0009_add_deck_id.sql",
+      "sha256": "3c777a961bd47e4dd8593f446163ee5f09ab942e1c7b62b9f678e4986e01b332"
+    },
+    {
+      "path": "migrations/0010_add_coach_extraction.sql",
+      "sha256": "352246788f8216a2f729e171b43161f57ada92863e41bc4fac2cf3ee81c3e251"
+    },
+    {
+      "path": "migrations/0010_add_user_tokens.sql",
+      "sha256": "6e55c3cb8e584f1266e94f0b674066c7ff5180b3aded4824197ed70ac6615e8b"
+    },
+    {
+      "path": "migrations/0011_add_usage_tracking.sql",
+      "sha256": "e330c65725ef49c749ab69cf2314234b1144f47c71d3358f3f81e0f3923f76f3"
+    },
+    {
+      "path": "migrations/0012_add_webhook_idempotency.sql",
+      "sha256": "d01006863af3f9cee58fae2e520ed22f38c076f8311d85d7d734caa34f41eb23"
+    },
+    {
+      "path": "migrations/0013_add_pattern_tracking.sql",
+      "sha256": "12bb983920808e02c70642e8a6b3da69e0f6766f07d470f97de0fd1f15cfa40c"
+    },
+    {
+      "path": "migrations/0014_add_archive_tables.sql",
+      "sha256": "16681c01436bc6f0ad92a3deb8729573106ffa0750b15ad279a17bc8d002b87a"
+    },
+    {
+      "path": "migrations/0015_add_quality_tracking.sql",
+      "sha256": "c0a4ed8860417db5902d465149f918278004f782e8541bdd3bcd07f79deffb87"
+    },
+    {
+      "path": "migrations/0015_eval_metrics.sql",
+      "sha256": "72005826f3750356b8d03a711c42968b9ceb87c76bc8f70f66e254d0a24c3927"
+    },
+    {
+      "path": "migrations/0016_add_journal_location.sql",
+      "sha256": "30c1633a4cdf1c89efe257c69ccb38d98dddcbdfd7dbb654e6b6395ce9851afa"
+    },
+    {
+      "path": "migrations/0016_eval_metrics_hallucinations.sql",
+      "sha256": "f145800212bb8b9023567527f169471056dd608218fb5707cb64d026449c15ab"
+    },
+    {
+      "path": "migrations/0017_add_follow_up_usage.sql",
+      "sha256": "feb76648f929d45ae0d357a144feab2f168712a709a7a7baa2768eb70d55d98e"
+    },
+    {
+      "path": "migrations/0018_add_journal_followups.sql",
+      "sha256": "5d807cc7c54d755d5583fb6d23448adb47f88fc79b8975e545e8634ac7997055"
+    },
+    {
+      "path": "migrations/0019_add_user_memories.sql",
+      "sha256": "0e47515ca321d9863f8f7a2ef725a2f9365b644c569f56ad1244cc03b7720684"
+    },
+    {
+      "path": "migrations/0020_add_user_preferences.sql",
+      "sha256": "2558a5a20ef3d157cf40bb03ac0abd096be23e131f72914b5f9f0593c13cd1d8"
+    },
+    {
+      "path": "migrations/0021_add_journal_followups_cleanup_trigger.sql",
+      "sha256": "b946f29f9bf6c7527774c41d71fceb28833c5018c62bd001ab4639aa84c6fa50"
+    },
+    {
+      "path": "migrations/0022_fix_quality_stats_null_uniqueness.sql",
+      "sha256": "37e74af7a77aa21e7c9fc4407d34ae72f1e355dbae2d571b55bb1e78fcbb7ed2"
+    },
+    {
+      "path": "migrations/0023_add_follow_up_reservation_updated_at.sql",
+      "sha256": "d6a6b2860861b4e0525a5f2733619e0b129e1a2202914115ab55e028c2825045"
+    },
+    {
+      "path": "migrations/0024_add_user_tokens.sql",
+      "sha256": "992d9865a295331c635976e06edf3c7bee332fca158839b93718409c3fef3b69"
+    },
+    {
+      "path": "migrations/0025_add_oauth_identities.sql",
+      "sha256": "cda6878a4a042e973f6f7e17c1ba2d11bc154ac9371cc8d728bef1bb0b2899f5"
+    },
+    {
+      "path": "migrations/0026_add_pattern_tracking_failures.sql",
+      "sha256": "159fe21ccd64dd4427df97a0697e44f7c182a55325ab2c5d4c6852078feb74cf"
+    },
+    {
+      "path": "migrations/0027_add_share_note_reports.sql",
+      "sha256": "4524ee65e0b6d628b7681425375a13de6ac5cbaa6f28b2850af0517bd262994b"
+    },
+    {
+      "path": "migrations/0028_add_user_media.sql",
+      "sha256": "b4d4a6c9d69fc8e0fe77f3583fb6b60473903c5ed36ef672e3e3f58045d0d819"
+    },
+    {
+      "path": "migrations/0029_add_journal_followups_canonical_answer.sql",
+      "sha256": "6e49edb45106dcb7ab44c9fa9ab80d1edd86f241af8727188f7ccacc36ee6ffc"
+    },
+    {
+      "path": "migrations/0030_add_journal_idempotency_key.sql",
+      "sha256": "34c8f80a893ccc34782bd4968ad795a3a975a7bebfb165b4f4c9561511a47a6b"
+    },
+    {
+      "path": "migrations/0031_add_oauth_registration_counters.sql",
+      "sha256": "8c6ea3f848a0009957811e691a04ff6c4f77cfa1b4ad33c62a305a859fb8e871"
+    },
+    {
+      "path": "migrations/0032_add_journal_source_usage.sql",
+      "sha256": "a082cbfd29855794f27e2491bebe853795326da8e51ea688b7e8100c2816f400"
+    },
+    {
+      "path": "migrations/0033_add_feature_usage.sql",
+      "sha256": "20ad932460f5a117e591eb973ffe7bd58079c295621fe3edab1ae43efd0f7ce4"
+    },
+    {
+      "path": "migrations/0034_add_narration_reservations.sql",
+      "sha256": "2d1923b3f78aa223d6f2fc03ed4c017c5aa48c516a0dfa814fa3a39003644d36"
+    },
+    {
+      "path": "migrations/0035_add_inference_provenance.sql",
+      "sha256": "c54725271231d02d39bfdbb9a410a771bd934068e011adbb26af879186b28ed8"
+    },
+    {
+      "path": "migrations/0036_reading_visual_results.sql",
+      "sha256": "019e65c63481885e8b68215634a296e181a5aad28e2fb9884d88189aa422c17b"
+    },
+    {
+      "path": "migrations/0037_reading_visual_retry_state.sql",
+      "sha256": "8dcb388d0c061544b2b2f42e0c7401b144e2c005dade2b4890b1998e278386e8"
+    },
+    {
+      "path": "output/reading-motion/fixtures/three-card-transition.json",
+      "sha256": "4bfece094adf66432ad2dec5210f8775dd261a666967e869fcc3333802f585eb"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "ab65b6ed5e8146bfbfabaac494e7d769b221a7bcc9251b09be1b961b7e27142c"
+    },
+    {
+      "path": "package.json",
+      "sha256": "bfa6620d4b0331eb53c176ce2cdba46d6c043c71a15b46ed7014be3c577a380b"
+    },
+    {
+      "path": "public/images/cards/rws-vector/cups-06.webp",
+      "sha256": "1b3cc37f826fd115eed7b8c74e036abec53f9e275f172fc607c6c0110f425fe2"
+    },
+    {
+      "path": "public/images/cards/rws-vector/cups-13.webp",
+      "sha256": "95667eccb76f0c91f408ac703d2ba3ac965e0c1db4f5982602c9df9778974852"
+    },
+    {
+      "path": "public/images/cards/rws-vector/major-01-magician.webp",
+      "sha256": "2425821ceeb86095bef2e12012c24a4a720323aba7f48453a35c5222b22db79c"
+    },
+    {
+      "path": "public/images/cards/rws-vector/major-10-wheel-of-fortune.webp",
+      "sha256": "e50fd66f483045e8ea955fc4729b05289baccbf7e3a6daa94562463eb2cf79f6"
+    },
+    {
+      "path": "public/images/cards/rws-vector/major-16-tower.webp",
+      "sha256": "902abc2c914e1faf7d4f17e333542a76557302ea504fe3b4dff9d6e23ec78d91"
+    },
+    {
+      "path": "public/images/cards/rws-vector/major-17-star.webp",
+      "sha256": "82bf4298ff7d260d17eaa54788963143b594f3202c663011abd9ab76170ea0b8"
+    },
+    {
+      "path": "public/images/cards/rws-vector/manifest.json",
+      "sha256": "6c836ac4429a7438db9296b1919573c5ec6535e784299e9126425fb67c71992c"
+    },
+    {
+      "path": "public/images/cards/rws-vector/pentacles-03.webp",
+      "sha256": "6f799a5bfb35ac83b0664a8580fc5494991c0c7b219c226dbca6da1ddf103b0d"
+    },
+    {
+      "path": "public/images/cards/rws-vector/swords-07.webp",
+      "sha256": "4d277729c20c40b0314493f585c1153ec9d79ca95bdf7f69788ff99e3a2a14f3"
+    },
+    {
+      "path": "public/images/cards/rws-vector/wands-01.webp",
+      "sha256": "b2ca0bc5ea74c789e9547022b9592fae791aedae986463e7290e4b168084af28"
+    },
+    {
+      "path": "scripts/evaluation/evaluateReadingCueModel.mjs",
+      "sha256": "97af96c10e338b7f4d55c6fc8ab17d97b9c2ff8224171c28616f15b1986d6d32"
+    },
+    {
+      "path": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+      "sha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a"
+    },
+    {
+      "path": "scripts/evaluation/fixtures/readingCuePricing.json",
+      "sha256": "65d4890c341ffcac95894c75c65c939e87a7c57646277a9191182d859c78ba52"
+    },
+    {
+      "path": "scripts/evaluation/fixtures/readingCueQualification.json",
+      "sha256": "8b58dae66cf3d43c2c58b75ebcd02723722809175a47c51d81d5060cfcf27126"
+    },
+    {
+      "path": "scripts/evaluation/lib/readingCueQualification.mjs",
+      "sha256": "638793584c65c8e528262bac1a54bdbd7e382c03d0ab59e66e12fea79ead21b1"
+    },
+    {
+      "path": "scripts/evaluation/lib/visualCueEvaluationBudget.mjs",
+      "sha256": "625245fab14dfa8376babdee63edbf305b3c45de36c263aa3499956dbbb70b5d"
+    },
+    {
+      "path": "scripts/evaluation/lib/visualCueEvaluationHarness.mjs",
+      "sha256": "88b308f106111cabfa37c180848d0f0a77502e366a2aace0bf164ffebbf5dd68"
+    },
+    {
+      "path": "scripts/evaluation/lib/visualCueEvaluationRelay.mjs",
+      "sha256": "93c85963d866d9b0e5fff1f59574e5217a1ba2431525f2c55b855cd3b4c0f092"
+    },
+    {
+      "path": "scripts/evaluation/runReadingCueQualificationRound.mjs",
+      "sha256": "bf38c1e9aa0f27a908bc919e96317e49541a6429e5a4da1e25d0ad45b9e44008"
+    },
+    {
+      "path": "scripts/lib/developmentServerSecurity.mjs",
+      "sha256": "cd81a000ed2fde73ba59b778ebec44b3002a385563dfe70b6f83781e29e5e646"
+    },
+    {
+      "path": "shared/contracts/generatedPassageAnnotations.js",
+      "sha256": "2cf163366c24f3295375fbbbf33ee22b040406a156e836cd9336d5fce6728b8f"
+    },
+    {
+      "path": "shared/contracts/personalizationConstants.js",
+      "sha256": "36edd223a7a687507f216062d019fd0b518677cad6064835f1c92ceac8a66224"
+    },
+    {
+      "path": "shared/contracts/readingPassageAssociations.js",
+      "sha256": "e32ab6868f5966b9750acc5a7b0aaf01b222089006b2b5a46d6e4733d66f41b5"
+    },
+    {
+      "path": "shared/contracts/readingRequestLimits.js",
+      "sha256": "586c8949b1be229aab9cd7274cfacbac0ad80e0ef731747f816cc8c9a81c5c6e"
+    },
+    {
+      "path": "shared/contracts/readingSchema.js",
+      "sha256": "a50e14aa600d813096043c21f8c281c41adb45be7bdb7b51f520ed7f222a09b0"
+    },
+    {
+      "path": "shared/contracts/spreadContracts.js",
+      "sha256": "9c9d0a4fbccaaf869df8747a0c1230549e40879490ebb333955b9db5ea3347aa"
+    },
+    {
+      "path": "shared/contracts/visualCueBatches.js",
+      "sha256": "829ac87f81ba4dbbcc4e4178610c9dbddbc65f1d4e608e826f19d98b49e1065a"
+    },
+    {
+      "path": "shared/generation/visualCuePrompt.js",
+      "sha256": "79abcb2a560b80187fc5624230f60d36a27be1b3633d57308d2d62cc6039a664"
+    },
+    {
+      "path": "shared/inference/claudeCode.js",
+      "sha256": "36e737e6af690638445e0951f9149ca1874ee30fdcf6014d7b219beef54c2d03"
+    },
+    {
+      "path": "shared/inference/codexSubscription.js",
+      "sha256": "e3e5b79d07b71824d20104622c9d41dd09b474010368a33c695b1fda275e4556"
+    },
+    {
+      "path": "shared/monetization/subscription.js",
+      "sha256": "a1395c1fec4aa07f4606b47cbf7e94e4c3c47701acacf0114fec9dcd68fa4538"
+    },
+    {
+      "path": "shared/passageSource.js",
+      "sha256": "45679d932e99542600e9cccbf3d46a8873b64a1d302233412598b32469ed462c"
+    },
+    {
+      "path": "shared/reading/visualCueLedger.js",
+      "sha256": "93d5c3efc88e9bb4a79a066220278bc0ae3ce75b9e4e7aae128164762c15405b"
+    },
+    {
+      "path": "shared/reading/visualSourceIdentity.js",
+      "sha256": "19200d02c643526bef7002c6f4e2390186d7082a47417ebc5fbea83a2d082f0c"
+    },
+    {
+      "path": "shared/symbols/symbolAnnotations.js",
+      "sha256": "2bbb40c2226b7b27eef2e0fe44231e1eb98c69acef19200de4cd068edcde1b40"
+    },
+    {
+      "path": "shared/utils.js",
+      "sha256": "b81bd3006fb296bdad59c08a0ff1c5e91370ed5bc8ac2b149695eada6a644974"
+    },
+    {
+      "path": "shared/vision/cardNameMapping.js",
+      "sha256": "6882af15c6768e67b10719d2e5a41612154177ffee0a1006a1ba8e10f76012b1"
+    },
+    {
+      "path": "shared/vision/deckAssets.js",
+      "sha256": "1d2d52bec1e767329c65c7229fc85ca1d5a8113c6ea85789f6e2dfe99274b10e"
+    },
+    {
+      "path": "shared/vision/deckCatalog.js",
+      "sha256": "6c331750db903f02147a8670555585d2a226e0fbbf296b91beef3f350b99b19f"
+    },
+    {
+      "path": "shared/vision/deckProfiles.js",
+      "sha256": "524f389f2299a144648da3a0acf1232a3f66a54d50d3ee8a6ebb572a99d4f34f"
+    },
+    {
+      "path": "shared/vision/minorSymbolLexicon.js",
+      "sha256": "3091c66bb8587c47fe449864ae15bb1289b7ef65dd3f6e7e160124b6d3c2e1d7"
+    },
+    {
+      "path": "shared/vision/rwsEvidenceOntology.js",
+      "sha256": "afb1f662d85454b798b4178134f004b2ebe82c549d86c321c6e8de809d3eb16c"
+    },
+    {
+      "path": "shared/vision/rwsHardNegatives.js",
+      "sha256": "8b6a92dd89e7e77f2bf5fa51aa2abb66347ad2f19aa5bef9125c7fa565e281ef"
+    },
+    {
+      "path": "shared/vision/thothMinorTitles.js",
+      "sha256": "44551ccb19300417a29f02f8715e21df3ec8801c1820e2bd0ea4b59b9076f793"
+    },
+    {
+      "path": "src/data/cardGestureArtwork.js",
+      "sha256": "f534fbd9c45374675516b4d4b0689d4b068b39a3e5541b71eb593cd8da9852b2"
+    },
+    {
+      "path": "src/data/cardGestureDetails/cupsPentacles.js",
+      "sha256": "06e7f467897bb9dff1cef1cef76ca4ba08562a21d37b5e62a094af8b3957e9d4"
+    },
+    {
+      "path": "src/data/cardGestureDetails/majors.js",
+      "sha256": "a128c1631088772d22f237b1d5df69d57e34932438063646428e194d1c7c7c4d"
+    },
+    {
+      "path": "src/data/cardGestureDetails/wandsSwords.js",
+      "sha256": "919e6210e5ebd9d078a3e1f31873dfcb93cfa3ca212e41b4198e7149d01ed5c2"
+    },
+    {
+      "path": "src/data/emotionMapping.js",
+      "sha256": "29fc7d688b2b9f143cd5b0d2f706d510cba24eb6eafca7a6b2442ec5f95448ff"
+    },
+    {
+      "path": "src/data/knowledgeGraphData.js",
+      "sha256": "8d8e4358fe0f170f29e3f66f38ecc8d46b8c976188b4efeccda594f3b739815c"
+    },
+    {
+      "path": "src/data/majorArcana.js",
+      "sha256": "d19d3925d258e3ad0405aaab377de1259c675cf7b3afdba83103612d3e42804f"
+    },
+    {
+      "path": "src/data/minorArcana.js",
+      "sha256": "0cf328ba3fd36cc3eeb512fa6a22d3c9ca009b17ea228c36658dc7732c04daf6"
+    },
+    {
+      "path": "src/data/symbolCoordinates.js",
+      "sha256": "c80d347c0df51dd9b0a6acd481843a23700ea82ecc822d2fb2697c8cd6a14547"
+    },
+    {
+      "path": "src/worker/readingJob.js",
+      "sha256": "6bb30f33e550fa727b2a17a2f16d8d414467f313d4d2a70f1985ec7f550ef177"
+    },
+    {
+      "path": "src/worker/readingVisualJob.js",
+      "sha256": "1c75a7bfc79d6474b95413f79713c6cdd35522368936778ad6f4a17bf630518b"
+    },
+    {
+      "path": "tests/helpers/d1Sqlite.mjs",
+      "sha256": "f70377dbeec64b50a7bf54b77bf04605f69e0068428ec00e3b3b0a2ef2233a4e"
+    },
+    {
+      "path": "tests/helpers/readingUsageFixtures.mjs",
+      "sha256": "4e2211ed56e572fa8ec80dc2eaab8a432cfa85506e7a4fd89bc568edd05507a8"
+    },
+    {
+      "path": "vite.config.js",
+      "sha256": "7be891d067b9ebd6635fe3cd2feec70304b8545588fbb8df35c29dc0c16e1b74"
+    }
+  ],
+  "excludedSources": [
+    "output/reading-motion/fixtures/generated-gesture-readings.json"
+  ],
+  "method": "Exact selection of eight prescribed historical cases for development use. All case bytes, family IDs, original partitions, context, provenance, opportunities and raw hashes preserved. Standalone-regression cases selected here are now development-used; not unseen validation. No reserved or outside-review samples used for tuning.",
+  "cases": [
+    {
+      "id": "star-2347-excerpt",
+      "familyId": "star-2347-excerpt",
+      "partition": "development",
+      "provenance": {
+        "sourcePath": "output/reading-motion/fixtures/three-card-transition.json",
+        "sourceFieldPath": "excerpt",
+        "sourceFileSha256": "4bfece094adf66432ad2dec5210f8775dd261a666967e869fcc3333802f585eb",
+        "kind": "local narrative evaluation fixture",
+        "sourceRun": "2026-10-07T23-47-19.908Z-5eqpUm",
+        "generatedAt": "2026-10-07T23:47:19.697Z",
+        "backendLabel": "Claude Code (personal subscription)",
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "sourceSampleCount": 11,
+        "sourceReadingSha256": "d2c8ed592272268ea107d0b5dac6a807c373e35b9a7a8e387d9ac25b2f3f86df",
+        "sourceKind": "recorded-excerpt"
+      },
+      "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+      "cards": [
+        {
+          "position": "Past — influences that led here",
+          "card": "Six of Cups",
+          "orientation": "Reversed",
+          "spreadIndex": 0,
+          "canonicalName": "Six of Cups",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Six of Cups",
+            "assetPath": "public/images/cards/rws-vector/cups-06.webp",
+            "assetSha256": "1b3cc37f826fd115eed7b8c74e036abec53f9e275f172fc607c6c0110f425fe2",
+            "sourceFilename": "cups-06.svg"
+          }
+        },
+        {
+          "position": "Present — where you stand now",
+          "card": "The Tower",
+          "orientation": "Upright",
+          "spreadIndex": 1,
+          "canonicalName": "The Tower",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Tower",
+            "assetPath": "public/images/cards/rws-vector/major-16-tower.webp",
+            "assetSha256": "902abc2c914e1faf7d4f17e333542a76557302ea504fe3b4dff9d6e23ec78d91",
+            "sourceFilename": "major-16-tower.svg"
+          }
+        },
+        {
+          "position": "Future — trajectory if nothing shifts",
+          "card": "The Star",
+          "orientation": "Upright",
+          "spreadIndex": 2,
+          "canonicalName": "The Star",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Star",
+            "assetPath": "public/images/cards/rws-vector/major-17-star.webp",
+            "assetSha256": "82bf4298ff7d260d17eaa54788963143b594f3202c663011abd9ab76170ea0b8",
+            "sourceFilename": "major-17-star.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": "How can I navigate the transition after leaving my hometown?",
+      "reflections": "Part of me is nostalgic while another part is ready for reinvention.",
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "star-2347-excerpt:arrival",
+          "caseId": "star-2347-excerpt",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 63,
+              "end": 71,
+              "quote": "The Star"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "star-2347-excerpt:pool",
+          "caseId": "star-2347-excerpt",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 117,
+              "end": 140,
+              "quote": "one pitcher into a pool"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "star-2347-excerpt:land",
+          "caseId": "star-2347-excerpt",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 145,
+              "end": 168,
+              "quote": "the other onto the land"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "star-2347-excerpt:memory",
+          "caseId": "star-2347-excerpt",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 224,
+              "end": 297,
+              "quote": "One hand tends the emotional reservoir of memory and the people back home"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt:pool"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "nostalgic"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "star-2347-excerpt:ground",
+          "caseId": "star-2347-excerpt",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 303,
+              "end": 330,
+              "quote": "the other waters new ground"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt:land"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "ready for reinvention"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "star-2347-excerpt:balance",
+          "caseId": "star-2347-excerpt",
+          "kind": "balance",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour",
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 332,
+              "end": 361,
+              "quote": "Neither pitcher gets dropped."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt:pool",
+            "star-2347-excerpt:land"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "Part of me is nostalgic while another part is ready for reinvention."
+          },
+          "required": true,
+          "rationale": "The passage holds both previously established aspects of the same image together."
+        }
+      ],
+      "reviewNotes": [
+        "Authored sidecar selected associations independently verified against raw prose and registry; offsets recalculated from raw UTF-16, not copied. Detail ownership and interpretive returns are textually supported."
+      ],
+      "unresolvedDecisions": [],
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 6,
+        "required": 6,
+        "context": 3,
+        "identity": 1,
+        "literal": 2,
+        "interpretation": 2,
+        "balance": 1
+      }
+    },
+    {
+      "id": "five-card-creative-project",
+      "familyId": "five-card-creative-project",
+      "partition": "development",
+      "provenance": {
+        "sourcePath": "data/evaluations/narrative-samples.json",
+        "sourceFieldPath": "samples[2].reading",
+        "sourceFileSha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+        "generatedAt": "2026-10-07T23:23:59.556Z",
+        "sourceKind": "recorded-reading"
+      },
+      "rawSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+      "cards": [
+        {
+          "position": "Core of the matter",
+          "card": "Ace of Wands",
+          "orientation": "Upright",
+          "meaning": "Inspiration, new energy, creative spark, potential for bold action",
+          "suit": "Wands",
+          "rank": "Ace",
+          "rankValue": 1,
+          "spreadIndex": 0,
+          "canonicalName": "Ace of Wands",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Ace of Wands",
+            "assetPath": "public/images/cards/rws-vector/wands-01.webp",
+            "assetSha256": "b2ca0bc5ea74c789e9547022b9592fae791aedae986463e7290e4b168084af28",
+            "sourceFilename": "wands-01.svg"
+          }
+        },
+        {
+          "position": "Challenge or tension",
+          "card": "Seven of Swords",
+          "orientation": "Reversed",
+          "meaning": "Exposure, consequences, call for transparency and integrity",
+          "suit": "Swords",
+          "rank": "Seven",
+          "rankValue": 7,
+          "spreadIndex": 1,
+          "canonicalName": "Seven of Swords",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Seven of Swords",
+            "assetPath": "public/images/cards/rws-vector/swords-07.webp",
+            "assetSha256": "4d277729c20c40b0314493f585c1153ec9d79ca95bdf7f69788ff99e3a2a14f3",
+            "sourceFilename": "swords-07.svg"
+          }
+        },
+        {
+          "position": "Hidden / subconscious influence",
+          "card": "Queen of Cups",
+          "orientation": "Upright",
+          "meaning": "Compassion, empathy, emotional intelligence, intuition in flow",
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13,
+          "spreadIndex": 2,
+          "canonicalName": "Queen of Cups",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Queen of Cups",
+            "assetPath": "public/images/cards/rws-vector/cups-13.webp",
+            "assetSha256": "95667eccb76f0c91f408ac703d2ba3ac965e0c1db4f5982602c9df9778974852",
+            "sourceFilename": "cups-13.svg"
+          }
+        },
+        {
+          "position": "Support / helpful energy",
+          "card": "Three of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Collaboration, skill development, building something of quality",
+          "suit": "Pentacles",
+          "rank": "Three",
+          "rankValue": 3,
+          "spreadIndex": 3,
+          "canonicalName": "Three of Pentacles",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Three of Pentacles",
+            "assetPath": "public/images/cards/rws-vector/pentacles-03.webp",
+            "assetSha256": "6f799a5bfb35ac83b0664a8580fc5494991c0c7b219c226dbca6da1ddf103b0d",
+            "sourceFilename": "pentacles-03.svg"
+          }
+        },
+        {
+          "position": "Likely direction on current path",
+          "card": "Wheel of Fortune",
+          "orientation": "Reversed",
+          "meaning": "Bad luck, resistance to change, breaking cycles",
+          "number": 10,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "spreadIndex": 4,
+          "canonicalName": "Wheel of Fortune",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Wheel of Fortune",
+            "assetPath": "public/images/cards/rws-vector/major-10-wheel-of-fortune.webp",
+            "assetSha256": "e50fd66f483045e8ea955fc4729b05289baccbf7e3a6daa94562463eb2cf79f6",
+            "sourceFilename": "major-10-wheel-of-fortune.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": "What should I know about launching my creative project this quarter?",
+      "reflections": "I feel momentum but keep second-guessing the tone and timing.",
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "five-card-creative-project:ace-arrival",
+          "caseId": "five-card-creative-project",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 653,
+              "end": 690,
+              "quote": "**Ace of Wands (Upright), the core.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project:ace-sprout",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 786,
+              "end": 851,
+              "quote": "a hand from a cloud offering a wand that's still sprouting leaves"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:ace-castle",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "castle"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 853,
+              "end": 909,
+              "quote": "with rolling hills and a castle far off in the distance."
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:ace-meaning",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout",
+                "castle"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 943,
+              "end": 1014,
+              "quote": "The spark is alive, but the finished \"castle\" is further down the road."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:ace-sprout",
+            "five-card-creative-project:ace-castle"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "I feel momentum"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:swords-arrival",
+          "caseId": "five-card-creative-project",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1169,
+              "end": 1215,
+              "quote": "**Seven of Swords (Reversed), the challenge.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project:swords-carried",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "carried"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1244,
+              "end": 1291,
+              "quote": "a figure tiptoeing out of camp with five swords"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:swords-left",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1292,
+              "end": 1314,
+              "quote": "and leaving two behind"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:swords-meaning",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1661,
+              "end": 1731,
+              "quote": "those two missing swords: the decisions you haven't made explicit yet."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:swords-left"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:queen-arrival",
+          "caseId": "five-card-creative-project",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1733,
+              "end": 1783,
+              "quote": "**Queen of Cups (Upright), the hidden influence.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project:queen-cup",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1895,
+              "end": 1944,
+              "quote": "holding an ornate, covered cup with real devotion"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:queen-tone",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1993,
+              "end": 2033,
+              "quote": "Your worry about tone could be her voice"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:queen-cup"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "second-guessing the tone and timing"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:queen-question",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2287,
+              "end": 2334,
+              "quote": "does the cup just feel too precious to uncover?"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:queen-cup"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "second-guessing the tone and timing"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:pentacles-arrival",
+          "caseId": "five-card-creative-project",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2336,
+              "end": 2382,
+              "quote": "**Three of Pentacles (Upright), the support.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project:pentacles-group",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2456,
+              "end": 2532,
+              "quote": "A craftsman stands in a cathedral talking plans over with a monk and a noble"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:pentacles-meaning",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2651,
+              "end": 2714,
+              "quote": "someone who knows the craft and someone closer to the audience."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:pentacles-group"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:wheel-arrival",
+          "caseId": "five-card-creative-project",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2810,
+              "end": 2864,
+              "quote": "**Wheel of Fortune (Reversed), the likely direction.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project:wheel-image",
+          "caseId": "five-card-creative-project",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3037,
+              "end": 3134,
+              "quote": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other."
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project:wheel-loop",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3220,
+              "end": 3286,
+              "quote": "a loop of draft, doubt, and redraft is holding the wheel in place."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:wheel-image"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "timing"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:drive-and-sensitivity",
+          "caseId": "five-card-creative-project",
+          "kind": "relationship",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            },
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3745,
+              "end": 3844,
+              "quote": "The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:ace-sprout",
+            "five-card-creative-project:queen-cup"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "I feel momentum"
+          },
+          "required": true,
+          "rationale": "The passage explicitly connects these previously established card occurrences and their indicated aspects."
+        },
+        {
+          "id": "five-card-creative-project:readiness",
+          "caseId": "five-card-creative-project",
+          "kind": "relationship",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": []
+            },
+            {
+              "spreadIndex": 4,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3845,
+              "end": 3899,
+              "quote": "The two reversals point toward structure and readiness"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage explicitly connects these previously established card occurrences and their indicated aspects."
+        },
+        {
+          "id": "five-card-creative-project:collaboration-return",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3905,
+              "end": 3981,
+              "quote": "the Three of Pentacles points toward other people as the way to get unstuck."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:pentacles-group"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:missing-swords-return",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4293,
+              "end": 4331,
+              "quote": "**Write down the two missing swords.**"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:swords-left"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:tone-check-return",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4489,
+              "end": 4636,
+              "quote": "**Ask for a tone check only.** Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:pentacles-group"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "second-guessing the tone and timing"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:momentum-return",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4818,
+              "end": 4920,
+              "quote": "A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:wheel-image"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project:closing-spark",
+          "caseId": "five-card-creative-project",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4935,
+              "end": 4976,
+              "quote": "The spark in this spread is clearly yours"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project:ace-sprout"
+          ],
+          "personalContext": {
+            "type": "querent-reflection",
+            "quote": "I feel momentum"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        }
+      ],
+      "reviewNotes": [
+        "Authored sidecar selected associations independently verified against raw prose and registry; offsets recalculated from raw UTF-16, not copied. Detail ownership and interpretive returns are textually supported."
+      ],
+      "unresolvedDecisions": [],
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 25,
+        "required": 25,
+        "context": 7,
+        "identity": 5,
+        "literal": 7,
+        "interpretation": 11,
+        "relationship": 2
+      }
+    },
+    {
+      "id": "star-2347-excerpt-question-only",
+      "familyId": "star-2347-excerpt",
+      "partition": "development",
+      "provenance": {
+        "sourcePath": "output/reading-motion/fixtures/three-card-transition.json",
+        "sourceFieldPath": "excerpt",
+        "sourceFileSha256": "4bfece094adf66432ad2dec5210f8775dd261a666967e869fcc3333802f585eb",
+        "kind": "local narrative evaluation fixture",
+        "sourceRun": "2026-10-07T23-47-19.908Z-5eqpUm",
+        "generatedAt": "2026-10-07T23:47:19.697Z",
+        "backendLabel": "Claude Code (personal subscription)",
+        "provider": "claude-code",
+        "model": "claude-opus-5-5",
+        "sourceSampleCount": 11,
+        "sourceReadingSha256": "d2c8ed592272268ea107d0b5dac6a807c373e35b9a7a8e387d9ac25b2f3f86df",
+        "sourceKind": "derived-context-variant",
+        "derivedFromCaseId": "star-2347-excerpt",
+        "derivation": {
+          "reflectionsText": null
+        }
+      },
+      "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+      "cards": [
+        {
+          "position": "Past — influences that led here",
+          "card": "Six of Cups",
+          "orientation": "Reversed",
+          "spreadIndex": 0,
+          "canonicalName": "Six of Cups",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Six of Cups",
+            "assetPath": "public/images/cards/rws-vector/cups-06.webp",
+            "assetSha256": "1b3cc37f826fd115eed7b8c74e036abec53f9e275f172fc607c6c0110f425fe2",
+            "sourceFilename": "cups-06.svg"
+          }
+        },
+        {
+          "position": "Present — where you stand now",
+          "card": "The Tower",
+          "orientation": "Upright",
+          "spreadIndex": 1,
+          "canonicalName": "The Tower",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Tower",
+            "assetPath": "public/images/cards/rws-vector/major-16-tower.webp",
+            "assetSha256": "902abc2c914e1faf7d4f17e333542a76557302ea504fe3b4dff9d6e23ec78d91",
+            "sourceFilename": "major-16-tower.svg"
+          }
+        },
+        {
+          "position": "Future — trajectory if nothing shifts",
+          "card": "The Star",
+          "orientation": "Upright",
+          "spreadIndex": 2,
+          "canonicalName": "The Star",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Star",
+            "assetPath": "public/images/cards/rws-vector/major-17-star.webp",
+            "assetSha256": "82bf4298ff7d260d17eaa54788963143b594f3202c663011abd9ab76170ea0b8",
+            "sourceFilename": "major-17-star.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": "How can I navigate the transition after leaving my hometown?",
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "star-2347-excerpt-question-only:arrival",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 63,
+              "end": 71,
+              "quote": "The Star"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "star-2347-excerpt-question-only:pool",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 117,
+              "end": 140,
+              "quote": "one pitcher into a pool"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "star-2347-excerpt-question-only:land",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 145,
+              "end": 168,
+              "quote": "the other onto the land"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "star-2347-excerpt-question-only:memory",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 224,
+              "end": 297,
+              "quote": "One hand tends the emotional reservoir of memory and the people back home"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt-question-only:pool"
+          ],
+          "personalContext": {
+            "type": "question",
+            "quote": "leaving my hometown"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "star-2347-excerpt-question-only:ground",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 303,
+              "end": 330,
+              "quote": "the other waters new ground"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt-question-only:land"
+          ],
+          "personalContext": {
+            "type": "question",
+            "quote": "transition after leaving my hometown"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "star-2347-excerpt-question-only:balance",
+          "caseId": "star-2347-excerpt-question-only",
+          "kind": "balance",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "pool-pour",
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 332,
+              "end": 361,
+              "quote": "Neither pitcher gets dropped."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "star-2347-excerpt-question-only:pool",
+            "star-2347-excerpt-question-only:land"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage holds both previously established aspects of the same image together. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        }
+      ],
+      "reviewNotes": [
+        "Authored sidecar selected associations independently verified against raw prose and registry; offsets recalculated from raw UTF-16, not copied. Detail ownership and interpretive returns are textually supported.",
+        "Question-only variant: exact prose/question preserved. Prose mentions reflection but supplies no external reflection source. Tone/nostalgia claims do not authorize fabricated reflection quotations. Balance and tone-specific interpretation can stand with personalContext null."
+      ],
+      "unresolvedDecisions": [],
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "contextVariant": "question-only",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 6,
+        "required": 6,
+        "context": 2,
+        "identity": 1,
+        "literal": 2,
+        "interpretation": 2,
+        "balance": 1
+      }
+    },
+    {
+      "id": "five-card-creative-project-question-only",
+      "familyId": "five-card-creative-project",
+      "partition": "development",
+      "provenance": {
+        "sourcePath": "data/evaluations/narrative-samples.json",
+        "sourceFieldPath": "samples[2].reading",
+        "sourceFileSha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49",
+        "generatedAt": "2026-10-07T23:23:59.556Z",
+        "sourceKind": "derived-context-variant",
+        "derivedFromCaseId": "five-card-creative-project",
+        "derivation": {
+          "reflectionsText": null
+        }
+      },
+      "rawSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+      "cards": [
+        {
+          "position": "Core of the matter",
+          "card": "Ace of Wands",
+          "orientation": "Upright",
+          "meaning": "Inspiration, new energy, creative spark, potential for bold action",
+          "suit": "Wands",
+          "rank": "Ace",
+          "rankValue": 1,
+          "spreadIndex": 0,
+          "canonicalName": "Ace of Wands",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Ace of Wands",
+            "assetPath": "public/images/cards/rws-vector/wands-01.webp",
+            "assetSha256": "b2ca0bc5ea74c789e9547022b9592fae791aedae986463e7290e4b168084af28",
+            "sourceFilename": "wands-01.svg"
+          }
+        },
+        {
+          "position": "Challenge or tension",
+          "card": "Seven of Swords",
+          "orientation": "Reversed",
+          "meaning": "Exposure, consequences, call for transparency and integrity",
+          "suit": "Swords",
+          "rank": "Seven",
+          "rankValue": 7,
+          "spreadIndex": 1,
+          "canonicalName": "Seven of Swords",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Seven of Swords",
+            "assetPath": "public/images/cards/rws-vector/swords-07.webp",
+            "assetSha256": "4d277729c20c40b0314493f585c1153ec9d79ca95bdf7f69788ff99e3a2a14f3",
+            "sourceFilename": "swords-07.svg"
+          }
+        },
+        {
+          "position": "Hidden / subconscious influence",
+          "card": "Queen of Cups",
+          "orientation": "Upright",
+          "meaning": "Compassion, empathy, emotional intelligence, intuition in flow",
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13,
+          "spreadIndex": 2,
+          "canonicalName": "Queen of Cups",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Queen of Cups",
+            "assetPath": "public/images/cards/rws-vector/cups-13.webp",
+            "assetSha256": "95667eccb76f0c91f408ac703d2ba3ac965e0c1db4f5982602c9df9778974852",
+            "sourceFilename": "cups-13.svg"
+          }
+        },
+        {
+          "position": "Support / helpful energy",
+          "card": "Three of Pentacles",
+          "orientation": "Upright",
+          "meaning": "Collaboration, skill development, building something of quality",
+          "suit": "Pentacles",
+          "rank": "Three",
+          "rankValue": 3,
+          "spreadIndex": 3,
+          "canonicalName": "Three of Pentacles",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Three of Pentacles",
+            "assetPath": "public/images/cards/rws-vector/pentacles-03.webp",
+            "assetSha256": "6f799a5bfb35ac83b0664a8580fc5494991c0c7b219c226dbca6da1ddf103b0d",
+            "sourceFilename": "pentacles-03.svg"
+          }
+        },
+        {
+          "position": "Likely direction on current path",
+          "card": "Wheel of Fortune",
+          "orientation": "Reversed",
+          "meaning": "Bad luck, resistance to change, breaking cycles",
+          "number": 10,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "spreadIndex": 4,
+          "canonicalName": "Wheel of Fortune",
+          "reversed": true,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Wheel of Fortune",
+            "assetPath": "public/images/cards/rws-vector/major-10-wheel-of-fortune.webp",
+            "assetSha256": "e50fd66f483045e8ea955fc4729b05289baccbf7e3a6daa94562463eb2cf79f6",
+            "sourceFilename": "major-10-wheel-of-fortune.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": "What should I know about launching my creative project this quarter?",
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "five-card-creative-project-question-only:ace-arrival",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 653,
+              "end": 690,
+              "quote": "**Ace of Wands (Upright), the core.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project-question-only:ace-sprout",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 786,
+              "end": 851,
+              "quote": "a hand from a cloud offering a wand that's still sprouting leaves"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:ace-castle",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "castle"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 853,
+              "end": 909,
+              "quote": "with rolling hills and a castle far off in the distance."
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:ace-meaning",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout",
+                "castle"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 943,
+              "end": 1014,
+              "quote": "The spark is alive, but the finished \"castle\" is further down the road."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:ace-sprout",
+            "five-card-creative-project-question-only:ace-castle"
+          ],
+          "personalContext": {
+            "type": "question",
+            "quote": "launching my creative project"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:swords-arrival",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1169,
+              "end": 1215,
+              "quote": "**Seven of Swords (Reversed), the challenge.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project-question-only:swords-carried",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "carried"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1244,
+              "end": 1291,
+              "quote": "a figure tiptoeing out of camp with five swords"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:swords-left",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1292,
+              "end": 1314,
+              "quote": "and leaving two behind"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:swords-meaning",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1661,
+              "end": 1731,
+              "quote": "those two missing swords: the decisions you haven't made explicit yet."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:swords-left"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project-question-only:queen-arrival",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1733,
+              "end": 1783,
+              "quote": "**Queen of Cups (Upright), the hidden influence.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project-question-only:queen-cup",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1895,
+              "end": 1944,
+              "quote": "holding an ornate, covered cup with real devotion"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:queen-tone",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 1993,
+              "end": 2033,
+              "quote": "Your worry about tone could be her voice"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:queen-cup"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:queen-question",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2287,
+              "end": 2334,
+              "quote": "does the cup just feel too precious to uncover?"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:queen-cup"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:pentacles-arrival",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2336,
+              "end": 2382,
+              "quote": "**Three of Pentacles (Upright), the support.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project-question-only:pentacles-group",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2456,
+              "end": 2532,
+              "quote": "A craftsman stands in a cathedral talking plans over with a monk and a noble"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:pentacles-meaning",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2651,
+              "end": 2714,
+              "quote": "someone who knows the craft and someone closer to the audience."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:pentacles-group"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project-question-only:wheel-arrival",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 2810,
+              "end": 2864,
+              "quote": "**Wheel of Fortune (Reversed), the likely direction.**"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "five-card-creative-project-question-only:wheel-image",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3037,
+              "end": 3134,
+              "quote": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other."
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        },
+        {
+          "id": "five-card-creative-project-question-only:wheel-loop",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3220,
+              "end": 3286,
+              "quote": "a loop of draft, doubt, and redraft is holding the wheel in place."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:wheel-image"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:drive-and-sensitivity",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "relationship",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            },
+            {
+              "spreadIndex": 2,
+              "detailIds": [
+                "cup"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3745,
+              "end": 3844,
+              "quote": "The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:ace-sprout",
+            "five-card-creative-project-question-only:queen-cup"
+          ],
+          "personalContext": {
+            "type": "question",
+            "quote": "launching my creative project"
+          },
+          "required": true,
+          "rationale": "The passage explicitly connects these previously established card occurrences and their indicated aspects. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:readiness",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "relationship",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": []
+            },
+            {
+              "spreadIndex": 4,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3845,
+              "end": 3899,
+              "quote": "The two reversals point toward structure and readiness"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage explicitly connects these previously established card occurrences and their indicated aspects."
+        },
+        {
+          "id": "five-card-creative-project-question-only:collaboration-return",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 3905,
+              "end": 3981,
+              "quote": "the Three of Pentacles points toward other people as the way to get unstuck."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:pentacles-group"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project-question-only:missing-swords-return",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 1,
+              "detailIds": [
+                "two-swords"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4293,
+              "end": 4331,
+              "quote": "**Write down the two missing swords.**"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:swords-left"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project-question-only:tone-check-return",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 3,
+              "detailIds": [
+                "collaborators"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4489,
+              "end": 4636,
+              "quote": "**Ask for a tone check only.** Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:pentacles-group"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        },
+        {
+          "id": "five-card-creative-project-question-only:momentum-return",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 4,
+              "detailIds": [
+                "wheel"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4818,
+              "end": 4920,
+              "quote": "A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal."
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:wheel-image"
+          ],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning."
+        },
+        {
+          "id": "five-card-creative-project-question-only:closing-spark",
+          "caseId": "five-card-creative-project-question-only",
+          "kind": "interpretation",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "sprout"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 4935,
+              "end": 4976,
+              "quote": "The spark in this spread is clearly yours"
+            }
+          ],
+          "establishedByOpportunityIds": [
+            "five-card-creative-project-question-only:ace-sprout"
+          ],
+          "personalContext": {
+            "type": "question",
+            "quote": "launching my creative project"
+          },
+          "required": true,
+          "rationale": "The passage returns to the previously described detail to develop its meaning. Reflection intentionally absent; only supplied question context, where semantically supported, may be cited."
+        }
+      ],
+      "reviewNotes": [
+        "Authored sidecar selected associations independently verified against raw prose and registry; offsets recalculated from raw UTF-16, not copied. Detail ownership and interpretive returns are textually supported.",
+        "Question-only variant: exact prose/question preserved. Prose mentions reflection but supplies no external reflection source. Tone/nostalgia claims do not authorize fabricated reflection quotations. Balance and tone-specific interpretation can stand with personalContext null."
+      ],
+      "unresolvedDecisions": [],
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "contextVariant": "question-only",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 25,
+        "required": 25,
+        "context": 3,
+        "identity": 5,
+        "literal": 7,
+        "interpretation": 11,
+        "relationship": 2
+      }
+    },
+    {
+      "id": "star-land-observation",
+      "familyId": "star-land-observation",
+      "partition": "standalone-regression",
+      "provenance": {
+        "sourcePath": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+        "sourceFieldPath": "independent[1].text",
+        "sourceFileSha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a",
+        "sourceKind": "synthetic-regression",
+        "orientationSource": "unspecified fixture orientation; Upright harness convention"
+      },
+      "rawSha256": "c7537a2d113a1c4e709a2497109e119935d593df1f8d071bf15a6238d52fff7e",
+      "cards": [
+        {
+          "card": "The Star",
+          "orientation": "Upright",
+          "spreadIndex": 0,
+          "canonicalName": "The Star",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Star",
+            "assetPath": "public/images/cards/rws-vector/major-17-star.webp",
+            "assetSha256": "82bf4298ff7d260d17eaa54788963143b594f3202c663011abd9ab76170ea0b8",
+            "sourceFilename": "major-17-star.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": null,
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "star-land-observation:identity",
+          "caseId": "star-land-observation",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 0,
+              "end": 8,
+              "quote": "The Star"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": false,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "star-land-observation:literal-land-pour",
+          "caseId": "star-land-observation",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "land-pour"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 23,
+              "end": 91,
+              "quote": "Water runs from the second vessel onto the land beside her bent knee"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        }
+      ],
+      "reviewNotes": [
+        "Manually reviewed actual scene against card-owned detail IDs; supplied selected expectations checked rather than treated as exhaustive."
+      ],
+      "unresolvedDecisions": [],
+      "regressionPolarity": "positive",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 2,
+        "required": 1,
+        "context": 0,
+        "identity": 1,
+        "literal": 1
+      }
+    },
+    {
+      "id": "magician-wand-observation",
+      "familyId": "magician-wand-observation",
+      "partition": "standalone-regression",
+      "provenance": {
+        "sourcePath": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+        "sourceFieldPath": "independent[10].text",
+        "sourceFileSha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a",
+        "sourceKind": "synthetic-regression",
+        "orientationSource": "unspecified fixture orientation; Upright harness convention"
+      },
+      "rawSha256": "62270be974f19207c304589862075c3b3f7126cd7b32591ee0c16a3ca9b24bc3",
+      "cards": [
+        {
+          "card": "The Magician",
+          "orientation": "Upright",
+          "spreadIndex": 0,
+          "canonicalName": "The Magician",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Magician",
+            "assetPath": "public/images/cards/rws-vector/major-01-magician.webp",
+            "assetSha256": "2425821ceeb86095bef2e12012c24a4a720323aba7f48453a35c5222b22db79c",
+            "sourceFilename": "major-01-magician.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": null,
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "magician-wand-observation:identity",
+          "caseId": "magician-wand-observation",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 0,
+              "end": 12,
+              "quote": "The Magician"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": false,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        },
+        {
+          "id": "magician-wand-observation:literal-raised-wand",
+          "caseId": "magician-wand-observation",
+          "kind": "literal",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": [
+                "raised-wand"
+              ]
+            }
+          ],
+          "anchors": [
+            {
+              "start": 13,
+              "end": 90,
+              "quote": "lifts a short white wand high above his head while his other hand points down"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": true,
+          "rationale": "The exact passage describes this registered painted detail on the identified card."
+        }
+      ],
+      "reviewNotes": [
+        "Manually reviewed actual scene against card-owned detail IDs; supplied selected expectations checked rather than treated as exhaustive."
+      ],
+      "unresolvedDecisions": [],
+      "regressionPolarity": "positive",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 2,
+        "required": 1,
+        "context": 0,
+        "identity": 1,
+        "literal": 1
+      }
+    },
+    {
+      "id": "star-reader-pour",
+      "familyId": "star-reader-pour",
+      "partition": "standalone-regression",
+      "provenance": {
+        "sourcePath": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+        "sourceFieldPath": "independent[25].text",
+        "sourceFileSha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a",
+        "sourceKind": "synthetic-regression",
+        "orientationSource": "unspecified fixture orientation; Upright harness convention"
+      },
+      "rawSha256": "094c8cb040dca081f83c57159d88d83ba73c484aaf19b45a8fb723898f4e6af3",
+      "cards": [
+        {
+          "card": "The Star",
+          "orientation": "Upright",
+          "spreadIndex": 0,
+          "canonicalName": "The Star",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Star",
+            "assetPath": "public/images/cards/rws-vector/major-17-star.webp",
+            "assetSha256": "82bf4298ff7d260d17eaa54788963143b594f3202c663011abd9ab76170ea0b8",
+            "sourceFilename": "major-17-star.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": null,
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "star-reader-pour:identity",
+          "caseId": "star-reader-pour",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 0,
+              "end": 8,
+              "quote": "The Star"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": false,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        }
+      ],
+      "reviewNotes": [
+        "Zero literal-detail opportunities: negation, hypothetical imagery, or reader-directed metaphor does not establish a painted scene. Whole-card identity is permitted and optional."
+      ],
+      "unresolvedDecisions": [],
+      "regressionPolarity": "negative",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 1,
+        "required": 0,
+        "context": 0,
+        "identity": 1
+      }
+    },
+    {
+      "id": "magician-reader-metaphor",
+      "familyId": "magician-reader-metaphor",
+      "partition": "standalone-regression",
+      "provenance": {
+        "sourcePath": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+        "sourceFieldPath": "independent[36].text",
+        "sourceFileSha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a",
+        "sourceKind": "synthetic-regression",
+        "orientationSource": "unspecified fixture orientation; Upright harness convention"
+      },
+      "rawSha256": "c2a4319a8d7cd89d5679b48695e2b190e7d1ad68497464299d3da5f0832fbe1d",
+      "cards": [
+        {
+          "card": "The Magician",
+          "orientation": "Upright",
+          "spreadIndex": 0,
+          "canonicalName": "The Magician",
+          "reversed": false,
+          "artwork": {
+            "edition": "rws-immanuelle-vector",
+            "registryName": "Magician",
+            "assetPath": "public/images/cards/rws-vector/major-01-magician.webp",
+            "assetSha256": "2425821ceeb86095bef2e12012c24a4a720323aba7f48453a35c5222b22db79c",
+            "sourceFilename": "major-01-magician.svg"
+          }
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "artworkEdition": "rws-immanuelle-vector",
+      "question": null,
+      "reflections": null,
+      "language": "en",
+      "opportunities": [
+        {
+          "id": "magician-reader-metaphor:identity",
+          "caseId": "magician-reader-metaphor",
+          "kind": "identity",
+          "targets": [
+            {
+              "spreadIndex": 0,
+              "detailIds": []
+            }
+          ],
+          "anchors": [
+            {
+              "start": 0,
+              "end": 12,
+              "quote": "The Magician"
+            }
+          ],
+          "establishedByOpportunityIds": [],
+          "personalContext": null,
+          "required": false,
+          "rationale": "Names this exact spread occurrence; whole-card identity only."
+        }
+      ],
+      "reviewNotes": [
+        "Zero literal-detail opportunities: negation, hypothetical imagery, or reader-directed metaphor does not establish a painted scene. Whole-card identity is permitted and optional."
+      ],
+      "unresolvedDecisions": [],
+      "regressionPolarity": "negative",
+      "independentReading": false,
+      "reviewStatus": "independently-reviewed",
+      "reviewComplete": true,
+      "opportunityCounts": {
+        "total": 1,
+        "required": 0,
+        "context": 0,
+        "identity": 1
+      }
+    }
+  ],
+  "candidateOrder": [
+    "glm-5.3-flash-low",
+    "glm-5.3-flash-high",
+    "glm-5.3-high"
+  ],
+  "qualificationGates": {
+    "version": 1,
+    "integrity": {
+      "maximumFailures": 0,
+      "categories": [
+        "prose-mutation",
+        "source-ownership-crossing",
+        "wrong-card",
+        "unsupported-detail",
+        "non-rws-detail-leakage",
+        "fabricated-context",
+        "fabricated-context-relevance"
+      ],
+      "incorrectTargetErrorCategories": [
+        "wrong-card",
+        "wrong-detail"
+      ],
+      "unclassifiedIncorrectTargets": "incomplete"
+    },
+    "traps": {
+      "negativePassages": 22,
+      "maximumInventedLiteralAssociations": 0
+    },
+    "semantic": {
+      "minimumCuePrecision": 0.95,
+      "minimumTargetPrecision": 0.95,
+      "minimumRequiredRecall": 0.8,
+      "scopes": [
+        "overall",
+        "reserved-rws-english"
+      ]
+    },
+    "central": {
+      "requiredCaseIds": [
+        "star-2347-excerpt",
+        "five-card-creative-project"
+      ],
+      "minimumRequiredRecall": 1,
+      "starDistinctOpportunities": 6
+    },
+    "contextAndLanguage": {
+      "requiredQuestionOnlyVariants": 2,
+      "minimumSpanishCuePrecision": 0.95,
+      "minimumSpanishTargetPrecision": 0.95,
+      "minimumSpanishRequiredRecall": 0.8,
+      "otherwise": "identity-only",
+      "minimumQuestionOnlyCuePrecision": 0.95,
+      "minimumQuestionOnlyTargetPrecision": 0.95,
+      "minimumQuestionOnlyRequiredRecall": 0.8,
+      "questionOnlyScopes": "each variant in each planned trial"
+    },
+    "continuity": {
+      "crossBatchReferencesValid": true,
+      "duplicateReconnectMotionRestarts": 0,
+      "heldFocusChangesWhileProseContinues": 0
+    },
+    "associationAvailability": {
+      "scenarios": [
+        "paced",
+        "burst",
+        "final-only"
+      ],
+      "minimumOnTimeRequiredOpportunityFraction": 0.8,
+      "maximumReceiptLagP95Ms": 10000,
+      "missesRemainInDenominator": true
+    },
+    "meaningfulAutomaticAccompaniment": {
+      "minimumExposureMs": 600,
+      "pacedStar": [
+        "both-distinct-literal-pours",
+        "one-established-interpretive-pour",
+        "both-at-balance"
+      ],
+      "pacedFiveCard": [
+        "three-introduced-cards",
+        "ace-queen-pair",
+        "one-thematic-return"
+      ],
+      "burstFinalOnly": "report actual limited accompaniment; backlog playback not required"
+    },
+    "accounting": {
+      "everyDispatchedAttemptHasOutcome": true,
+      "knownUsageAndPricingRequiredForCostQualification": true
+    },
+    "ranking": [
+      "requiredRecall:descending",
+      "cuePrecision:descending",
+      "targetPrecision:descending",
+      "receiptLagP95Ms:ascending",
+      "estimatedCost:ascending",
+      "manifestCandidateOrder"
+    ]
+  },
+  "developmentUsedCaseIds": [
+    "star-2347-excerpt",
+    "five-card-creative-project",
+    "star-2347-excerpt-question-only",
+    "five-card-creative-project-question-only",
+    "star-land-observation",
+    "magician-wand-observation",
+    "star-reader-pour",
+    "magician-reader-metaphor"
+  ],
+  "historicalProvenance": {
+    "path": "scripts/evaluation/fixtures/readingCueQualification.json",
+    "fileSha256": "8b58dae66cf3d43c2c58b75ebcd02723722809175a47c51d81d5060cfcf27126",
+    "manifestSha256": "42071738c05223979622457bbc918215ba7e455d3d06bac170d969ae5ad799c3",
+    "labelContentSha256": "efd4f3b705d2bc913a875d7dde5936b76bf33ad4edf501ae32788c8d3c9d9ca0",
+    "independentArtifactSha256": "b9b9f17d3d5fdee9e82886dfa3257506aace1a5b632f4af9adf86ba24d6f53ab",
+    "status": "frozen-before-inference",
+    "complete": true,
+    "sourceHead": "99e7a4bca8bbf71e91040f699d0053d8901bf9c8",
+    "sourceDigests": [
+      {
+        "path": "data/evaluations/narrative-samples.json",
+        "sha256": "b30c506a81f7cb360fb457fc2bd4825059d558b3a1f8862d5f0ab23f383fbe49"
+      },
+      {
+        "path": "output/reading-motion/fixtures/three-card-transition.json",
+        "sha256": "4bfece094adf66432ad2dec5210f8775dd261a666967e869fcc3333802f585eb"
+      },
+      {
+        "path": "scripts/evaluation/fixtures/gestureAlignmentCases.json",
+        "sha256": "c63101da50e5afa7b1f9dd51d338bef863acb81c5f4d512b27135a970c5d3d6a"
+      },
+      {
+        "path": "tests/fixtures/reading-gesture-review-probes.json",
+        "sha256": "d67f406f653fce0536e12630ed832c1ed7d216acaf79235ec67efd5367e85297"
+      },
+      {
+        "path": "output/reading-motion/fixtures/gesture-sidecars.json",
+        "sha256": "169ae8872d53a4a1b9cafdad93cba4b68674f59eb5e9a63e67e80da041168e62"
+      },
+      {
+        "path": "src/data/cardGestureArtwork.js",
+        "sha256": "f534fbd9c45374675516b4d4b0689d4b068b39a3e5541b71eb593cd8da9852b2"
+      },
+      {
+        "path": "src/data/cardGestureDetails/majors.js",
+        "sha256": "a128c1631088772d22f237b1d5df69d57e34932438063646428e194d1c7c7c4d"
+      },
+      {
+        "path": "src/data/cardGestureDetails/cupsPentacles.js",
+        "sha256": "06e7f467897bb9dff1cef1cef76ca4ba08562a21d37b5e62a094af8b3957e9d4"
+      },
+      {
+        "path": "src/data/cardGestureDetails/wandsSwords.js",
+        "sha256": "919e6210e5ebd9d078a3e1f31873dfcb93cfa3ca212e41b4198e7149d01ed5c2"
+      },
+      {
+        "path": "public/images/cards/rws-vector/manifest.json",
+        "sha256": "6c836ac4429a7438db9296b1919573c5ec6535e784299e9126425fb67c71992c"
+      },
+      {
+        "path": "docs/superpowers/specs/2026-10-08-reading-imagery-motion.md",
+        "sha256": "5494ce2d36c962a907491493d2dcfb1e5f9ca1d4f449a420bcb79f5991377399"
+      },
+      {
+        "path": "docs/superpowers/plans/2026-10-09-reading-cue-model-qualification.md",
+        "sha256": "afa38e2bd5731df57a30d2c9254e503f545d7885e670a86f1ad4b727e033add8"
+      }
+    ],
+    "method": "Full manual source-prose review against current registered detail ownership; authored Star/five-card sidecars independently checked, selected regression expectations expanded where actual text establishes additional detail. Anchors are exact unnormalized JS UTF-16 ranges. Complete means predeclared meaningful opportunities reviewed, not every conceivable valid cue enumerated; every actual accepted output must receive independent blinded adjudication and supported extras remain extras.",
+    "documentaryProvenanceIsRuntimePin": false
+  },
+  "preparedRevision": {
+    "provisional": true,
+    "independentReview": "NOT_RUN",
+    "finalTask7Freeze": "PENDING",
+    "bindingPinsSha256": "860bbbe8f146c66021a554875d9f5d16f3ccf85b3d66e939fdcf11a9c98bf137",
+    "promptBuilderSha256": "79abcb2a560b80187fc5624230f60d36a27be1b3633d57308d2d62cc6039a664",
+    "responseFormatSha256": "f3f519cf9644f4da768adceb6094bb907a87dce4db6f165dfc5262b993d73be7",
+    "responseEnvelopeSchemaSha256": "5cf7f0bab7df80a0408e70bf4f5a51212b150d2e73914a0318a34cacf18b7cbe",
+    "configurationSha256": "f76eeb9d0f76cc268f9ff45bb7bd43d53f8a650167968f7f8302dbe1dab0f470",
+    "configuration": {
+      "candidates": [
+        {
+          "id": "glm-5.3-flash-low",
+          "model": "@cf/zai-org/glm-5.3-flash",
+          "effort": "low"
+        },
+        {
+          "id": "glm-5.3-flash-high",
+          "model": "@cf/zai-org/glm-5.3-flash",
+          "effort": "high"
+        },
+        {
+          "id": "glm-5.3-high",
+          "model": "@cf/zai-org/glm-5.3",
+          "effort": "high"
+        }
+      ],
+      "candidateOrder": [
+        "glm-5.3-flash-low",
+        "glm-5.3-flash-high",
+        "glm-5.3-high"
+      ],
+      "temperature": 0,
+      "max_completion_tokens": 8192,
+      "deadlineMs": 60000,
+      "stream": false,
+      "responseFormat": {
+        "type": "json_schema",
+        "json_schema": {
+          "name": "visual_cues",
+          "schema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "proposals": {
+                "maxItems": 240,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "identity",
+                        "literal",
+                        "interpretation",
+                        "balance",
+                        "relationship"
+                      ]
+                    },
+                    "quote": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1500
+                    },
+                    "occurrence": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "targets": {
+                      "minItems": 1,
+                      "maxItems": 2,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "spreadIndex": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "detailIds": {
+                            "maxItems": 2,
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        },
+                        "required": [
+                          "spreadIndex",
+                          "detailIds"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "personalContext": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "question",
+                            "card-reflection",
+                            "querent-reflection",
+                            "recorded-fixture-context"
+                          ]
+                        },
+                        "spreadIndex": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "quote": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "localAlias": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "establishedBy": {
+                      "maxItems": 8,
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "acceptedCueId": {
+                                "type": "string",
+                                "pattern": "^vc:[a-f0-9]{64}$"
+                              }
+                            },
+                            "required": [
+                              "acceptedCueId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "localAlias": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              }
+                            },
+                            "required": [
+                              "localAlias"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "quote",
+                    "targets",
+                    "localAlias"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "proposals"
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
+        }
+      },
+      "caching": {
+        "enabled": false,
+        "variant": null,
+        "verifiedSupport": false,
+        "latencyPrediction": null
+      },
+      "languagePolicy": {
+        "english": "detail-capable-pending-qualification",
+        "spanish": "identity-only-pending-independent-native-detail-evidence"
+      },
+      "schedules": {
+        "pacedWordsPerSecond": 25,
+        "independentReaderWordsPerMinute": 180,
+        "windows": "full-uncensored",
+        "serverBrowserClocks": "separate",
+        "minimumAutomaticExposureMs": 600
+      },
+      "gates": {
+        "version": 1,
+        "integrity": {
+          "maximumFailures": 0,
+          "categories": [
+            "prose-mutation",
+            "source-ownership-crossing",
+            "wrong-card",
+            "unsupported-detail",
+            "non-rws-detail-leakage",
+            "fabricated-context",
+            "fabricated-context-relevance"
+          ],
+          "incorrectTargetErrorCategories": [
+            "wrong-card",
+            "wrong-detail"
+          ],
+          "unclassifiedIncorrectTargets": "incomplete"
+        },
+        "traps": {
+          "negativePassages": 22,
+          "maximumInventedLiteralAssociations": 0
+        },
+        "semantic": {
+          "minimumCuePrecision": 0.95,
+          "minimumTargetPrecision": 0.95,
+          "minimumRequiredRecall": 0.8,
+          "scopes": [
+            "overall",
+            "reserved-rws-english"
+          ]
+        },
+        "central": {
+          "requiredCaseIds": [
+            "star-2347-excerpt",
+            "five-card-creative-project"
+          ],
+          "minimumRequiredRecall": 1,
+          "starDistinctOpportunities": 6
+        },
+        "contextAndLanguage": {
+          "requiredQuestionOnlyVariants": 2,
+          "minimumSpanishCuePrecision": 0.95,
+          "minimumSpanishTargetPrecision": 0.95,
+          "minimumSpanishRequiredRecall": 0.8,
+          "otherwise": "identity-only",
+          "minimumQuestionOnlyCuePrecision": 0.95,
+          "minimumQuestionOnlyTargetPrecision": 0.95,
+          "minimumQuestionOnlyRequiredRecall": 0.8,
+          "questionOnlyScopes": "each variant in each planned trial"
+        },
+        "continuity": {
+          "crossBatchReferencesValid": true,
+          "duplicateReconnectMotionRestarts": 0,
+          "heldFocusChangesWhileProseContinues": 0
+        },
+        "associationAvailability": {
+          "scenarios": [
+            "paced",
+            "burst",
+            "final-only"
+          ],
+          "minimumOnTimeRequiredOpportunityFraction": 0.8,
+          "maximumReceiptLagP95Ms": 10000,
+          "missesRemainInDenominator": true
+        },
+        "meaningfulAutomaticAccompaniment": {
+          "minimumExposureMs": 600,
+          "pacedStar": [
+            "both-distinct-literal-pours",
+            "one-established-interpretive-pour",
+            "both-at-balance"
+          ],
+          "pacedFiveCard": [
+            "three-introduced-cards",
+            "ace-queen-pair",
+            "one-thematic-return"
+          ],
+          "burstFinalOnly": "report actual limited accompaniment; backlog playback not required"
+        },
+        "accounting": {
+          "everyDispatchedAttemptHasOutcome": true,
+          "knownUsageAndPricingRequiredForCostQualification": true
+        },
+        "ranking": [
+          "requiredRecall:descending",
+          "cuePrecision:descending",
+          "targetPrecision:descending",
+          "receiptLagP95Ms:ascending",
+          "estimatedCost:ascending",
+          "manifestCandidateOrder"
+        ]
+      },
+      "liveDispatchAuthorized": false,
+      "attemptsDispatched": 0,
+      "budgetAuthorized": false,
+      "qualification": "NOT_RUN",
+      "qualified": false
+    },
+    "catalogPins": {
+      "public/images/cards/rws-vector/manifest.json": "6c836ac4429a7438db9296b1919573c5ec6535e784299e9126425fb67c71992c",
+      "src/data/cardGestureArtwork.js": "f534fbd9c45374675516b4d4b0689d4b068b39a3e5541b71eb593cd8da9852b2",
+      "src/data/cardGestureDetails/cupsPentacles.js": "06e7f467897bb9dff1cef1cef76ca4ba08562a21d37b5e62a094af8b3957e9d4",
+      "src/data/cardGestureDetails/majors.js": "a128c1631088772d22f237b1d5df69d57e34932438063646428e194d1c7c7c4d",
+      "src/data/cardGestureDetails/wandsSwords.js": "919e6210e5ebd9d078a3e1f31873dfcb93cfa3ca212e41b4198e7149d01ed5c2"
+    },
+    "initialPrompts": {
+      "star-2347-excerpt": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "51cad26e846f6eae9c4ea6e1388f3e2b7c0311f5bebc1a70d2795e80052db3ef",
+        "promptSha256": "160a21c7e94ee57c6a98154d96ae6f1f0eefebb66a691ebb808539fc67aa0a01"
+      },
+      "five-card-creative-project": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "13f0f362e39a61b301238f25c3d281ced6e81f48976f3b6958e44da85292abde",
+        "promptSha256": "4a6c034f3f8a42848ccf9097d7dbe956e2cec69d498af7c1729c5bdf9348410a"
+      },
+      "star-2347-excerpt-question-only": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "dbed19fcc1dbebe5ebb3eedc13fff804dac92b8678254e0e65bac94e6179b4f5",
+        "promptSha256": "47e6040be8df4f3460bd38c37f2875a06c028084a7f8d61b7868123545d95669"
+      },
+      "five-card-creative-project-question-only": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "c87e0ffcedc376e6c0b7c06aa55457a48803b3e80adda45f7daec64e640293bd",
+        "promptSha256": "df788fe1471abad9e12f1b8a3427f8030da3717dca18431ccc30e9a10ce58336"
+      },
+      "star-land-observation": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "27beabeb92b29d9e20047d84740de4c8967f81c6762e45130c0274849f38933d",
+        "promptSha256": "167bcb4febaa54f20e1a7ecc38cdd4d260235e96526ec8d169bbc75c6d70dde5"
+      },
+      "magician-wand-observation": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "793bfe1cfca2ae43b024f40510e77bc1ff37d3e5dd8af8497490d16059914bbd",
+        "promptSha256": "602fc582f02679a44bd91ec18f8eefaa3ddb5201a4d2990ac9963a4e7fd87d84"
+      },
+      "star-reader-pour": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "7fbfd49ff1a62004b4f782cb2ec469d079df876dc336de288850d36a9f365289",
+        "promptSha256": "02c46fa0f43f98a047d784822aa79efa71fb353a4fa5ecfb7812f96f9ddf3858"
+      },
+      "magician-reader-metaphor": {
+        "systemPromptSha256": "68cdbb150e061aaf1ec18b5d905943e7c20ac3b53686a9e7fe50dfcf8227f9f1",
+        "userPromptSha256": "81200bd5138bc613646d5b4694bcc39e1724902c6741ebb0f719339659bdb7b2",
+        "promptSha256": "7063ba4f5281453d22e3d241c0434462f26f23302b8fdf5b15f2e610fea10e4e"
+      }
+    },
+    "sourceResolution": {
+      "star-2347-excerpt": {
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "rawUtf16Length": 555,
+        "caseSha256": "89d0b239dd15eaea8ea92391d70d3384d356ea3bbc549adbe45a2b0e601b6efa",
+        "cardsSha256": "2b5ff01da2e0eebf31ea9efe9d3e8d96c71ec73d94b52a05714d41b19f9595e5",
+        "harnessContextSha256": "97e71c751995eb69f5ce60a80fcc2d7455f81cb125498d5a54cdda7d0cb1cd50",
+        "fullSuppliedContextSha256": "c1a382907094d0acc280d5ca71936c31ed4cdd89819193bd6b8b7a60e9085a31",
+        "opportunitiesSha256": "48edb5d2e7be791d65e0b08e049a56f85906e0637e7f6c0bf23723e28c87fd9d"
+      },
+      "five-card-creative-project": {
+        "rawSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+        "rawUtf16Length": 5163,
+        "caseSha256": "f7acd44a7e3181e967ed94a96bd027cfbf231bb040c61c8ae16912b064137e98",
+        "cardsSha256": "6821d30511f13e552bd994edf99cd331c661555bb69523a1b8466e4fbcffb239",
+        "harnessContextSha256": "a34d7e12cebd4e4c0d19b2e897127a867b24c056671470bbd9f9816838cfc28c",
+        "fullSuppliedContextSha256": "b1e84c712853cb68329b8772077d130079e1b3bc02d4f6cb00d16397ac7044dc",
+        "opportunitiesSha256": "fcba8dac744bb9b642af76dabe4b9fe3c10443779c89ec90067140da1f352e8e"
+      },
+      "star-2347-excerpt-question-only": {
+        "rawSha256": "1b3ec02d1af7a4ed04c522ae44c512152e38a5524e51187542064ffb4e683265",
+        "rawUtf16Length": 555,
+        "caseSha256": "632ab5f6dcbcfcd57e0ded85b29c36750482dba7ad8a77366196efd6844d2e56",
+        "cardsSha256": "2b5ff01da2e0eebf31ea9efe9d3e8d96c71ec73d94b52a05714d41b19f9595e5",
+        "harnessContextSha256": "d9a05154329ab3d5008076fa5a3888ae73fa80899996aa252a80436f41e4f6fc",
+        "fullSuppliedContextSha256": "7b8dad673c551e1e59ddb5149eb287f4b3a72cc6e13b959058dc2726284c98ec",
+        "opportunitiesSha256": "75ecbec0fdab59e6849b8ebe7a05904348f27380829d7bbc64587078cb14b9f6"
+      },
+      "five-card-creative-project-question-only": {
+        "rawSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+        "rawUtf16Length": 5163,
+        "caseSha256": "f0609b453d388848ceafe696dddde37b8fac4c4e93363a57da763959d1a89f63",
+        "cardsSha256": "6821d30511f13e552bd994edf99cd331c661555bb69523a1b8466e4fbcffb239",
+        "harnessContextSha256": "a8a63edfbbc9c0df6cfeafc51205c2108a78096b1a778559ea8c48d620eb00a1",
+        "fullSuppliedContextSha256": "f80fd7affb38c8f90a3d78d85bf575ebcffbf9450d8449669b8e15782767a085",
+        "opportunitiesSha256": "6e9f107ec75258441a5d2b9d35be62afca711fe5f8761cefef4855c66d821be3"
+      },
+      "star-land-observation": {
+        "rawSha256": "c7537a2d113a1c4e709a2497109e119935d593df1f8d071bf15a6238d52fff7e",
+        "rawUtf16Length": 92,
+        "caseSha256": "5ce62234ed2a9c1cfc1b8db162142a4976a222cebd11efbf034743658dfa9d8c",
+        "cardsSha256": "996a59ca781d0bf90b0ca07919909da0fae9203d2405792fedf9655f8abbdd03",
+        "harnessContextSha256": "56a96dd3025512c5e12bea450c442f124611d9cc1b0a51680fdf1bd5880ef72c",
+        "fullSuppliedContextSha256": "129650b3eee270957ecea8be3ad5648e1eb8f4de0710a89def122628f8e9689f",
+        "opportunitiesSha256": "41708f7f2fbd2474196b262dc948d8e67e44d8f9e2c16aa089acc3431b368f1f"
+      },
+      "magician-wand-observation": {
+        "rawSha256": "62270be974f19207c304589862075c3b3f7126cd7b32591ee0c16a3ca9b24bc3",
+        "rawUtf16Length": 91,
+        "caseSha256": "22c899df89aeb0e95a13605be5fb2af62448c05ff729512433f0a7f9cbe678be",
+        "cardsSha256": "2ee3ab85dd79bd9865ba88491c0b0f7a03c06f406293797d19f936a38ca8edf2",
+        "harnessContextSha256": "56a96dd3025512c5e12bea450c442f124611d9cc1b0a51680fdf1bd5880ef72c",
+        "fullSuppliedContextSha256": "129650b3eee270957ecea8be3ad5648e1eb8f4de0710a89def122628f8e9689f",
+        "opportunitiesSha256": "5cfcd961af9da96d07945443b1a9de378dfbeba956baa1ac92b1569630d5daf2"
+      },
+      "star-reader-pour": {
+        "rawSha256": "094c8cb040dca081f83c57159d88d83ba73c484aaf19b45a8fb723898f4e6af3",
+        "rawUtf16Length": 88,
+        "caseSha256": "ac5d1fe3c25b150512167c38991e94f4ebc3adbfe4c409f788584f25fe82dd6a",
+        "cardsSha256": "996a59ca781d0bf90b0ca07919909da0fae9203d2405792fedf9655f8abbdd03",
+        "harnessContextSha256": "56a96dd3025512c5e12bea450c442f124611d9cc1b0a51680fdf1bd5880ef72c",
+        "fullSuppliedContextSha256": "129650b3eee270957ecea8be3ad5648e1eb8f4de0710a89def122628f8e9689f",
+        "opportunitiesSha256": "1570ed04e6cab59d077cfd48c177ef7da69d50977f7ddca114e0a37f1b279de5"
+      },
+      "magician-reader-metaphor": {
+        "rawSha256": "c2a4319a8d7cd89d5679b48695e2b190e7d1ad68497464299d3da5f0832fbe1d",
+        "rawUtf16Length": 59,
+        "caseSha256": "e92fabe18f8743696f6fef9547c4e58195819afcccac375771ad412c6464b201",
+        "cardsSha256": "2ee3ab85dd79bd9865ba88491c0b0f7a03c06f406293797d19f936a38ca8edf2",
+        "harnessContextSha256": "56a96dd3025512c5e12bea450c442f124611d9cc1b0a51680fdf1bd5880ef72c",
+        "fullSuppliedContextSha256": "129650b3eee270957ecea8be3ad5648e1eb8f4de0710a89def122628f8e9689f",
+        "opportunitiesSha256": "6aa3767d4782a7b913a6c2a524cbc4375213fb1616bbb8b2fdd5f099c8b5cfc5"
+      }
+    },
+    "initialPromptScope": "Exact full raw source and current context with empty priorAcceptedCues; prefix/prior inputs remain dynamic and builder/runtime bytes are pinned.",
+    "refreshRequiredAfter": [
+      "artwork/catalog/assets changes",
+      "recovery/runtime changes",
+      "accessibility/render timing changes",
+      "prompt/schema/configuration changes"
+    ],
+    "requirement": "Independent reviewer must verify these exact bytes; refresh relevant binding pins and freeze a new Task 7 run identity before any separately authorized live dispatch."
+  },
+  "manifestSha256": "8190891a4e27c7b7e0b9cb292a7bfc8f79ba9b29bdb38834ee7aff630ea8618f"
+}

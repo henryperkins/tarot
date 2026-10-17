@@ -1,8 +1,10 @@
 # Sora 2: Prompting Guide
 
 Type: guide
-Status: active reference
+Status: historical reference
 Last reviewed: 2026-04-23
+
+Historical prompting guidance for the retired video feature. `/api/generate-card-video` returns HTTP 410; no replacement video provider is configured.
 
 # Crafting a successful video prompt
 

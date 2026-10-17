@@ -603,8 +603,8 @@ body {
 
 .skip-link {
   position: absolute;
-  left: 0;
-  top: 0.35rem;
+  left: max(0px, var(--safe-pad-left, 0px));
+  top: calc(0.35rem + var(--safe-pad-top, 0px));
   transform: translateY(-150%);
   opacity: 0;
   padding: 0.7rem 1rem;
@@ -644,8 +644,13 @@ body {
   transition: transform 260ms ease, opacity 200ms ease;
 }
 
+.header-sticky:has([data-reading-app-options][open]) {
+  z-index: var(--z-tooltip-portal);
+}
+
 .header-sticky--compact {
-  padding-top: 0.35rem !important;
+  /* Keep clear of the status bar in the installed app (viewport-fit=cover). */
+  padding-top: max(0.35rem, var(--safe-pad-top, 0px)) !important;
   padding-bottom: 0.35rem !important;
   box-shadow: 0 10px 20px var(--main-45, rgba(15, 14, 19, 0.45));
 }
@@ -799,6 +804,11 @@ body {
   contain: layout style;
 }
 
+.mobile-action-bar[data-reading-flow='true'] {
+  position: static;
+  transform: none !important;
+}
+
 /* Reduce motion preference - disable smooth transitions */
 @media (prefers-reduced-motion: reduce) {
   .mobile-action-bar {
@@ -828,7 +838,7 @@ body {
 
   /* Compact header in cramped landscape */
   .header-sticky {
-    padding-top: 0.25rem !important;
+    padding-top: max(0.25rem, var(--safe-pad-top, 0px)) !important;
     padding-bottom: 0.25rem !important;
   }
 
@@ -3066,7 +3076,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
 
@@ -3342,6 +3352,31 @@ input[type="range"]:focus::-webkit-slider-thumb {
   --narrative-beat-overlay: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0), transparent 60%);
 }
 
+.narrative-atmosphere-host {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Streaming prose grows independently of this bounded decorative layer. Keep
+   the opening wash and dust at viewport scale instead of rerastering eight
+   gradients across the full reading after every arriving paragraph. */
+.narrative-atmosphere-host > .narrative-atmosphere__decoration {
+  position: absolute;
+  inset: 0 0 auto;
+  height: min(48rem, 100vh);
+  height: min(48rem, 100svh);
+  contain: strict;
+  transform: translateZ(0);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+.narrative-atmosphere-host > :not(.narrative-atmosphere__decoration) {
+  position: relative;
+  z-index: var(--z-content);
+}
+
 .narrative-atmosphere::before,
 .narrative-atmosphere::after {
   z-index: var(--z-base);
@@ -3578,7 +3613,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 /* The prose has no card around it, so fade its wash out before the edges
    rather than letting the tint end in a faint rectangle. */
-.narrative-stream__text.narrative-atmosphere::after {
+.narrative-atmosphere__decoration::after {
   -webkit-mask-image: radial-gradient(closest-side, black 70%, transparent);
   mask-image: radial-gradient(closest-side, black 70%, transparent);
 }

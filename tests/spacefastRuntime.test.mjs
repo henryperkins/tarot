@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
-import { Miniflare } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { createMySqlD1 } from './spacefastDatabaseHarness.mjs';
 
 // Exercise the complete Worker graph in workerd. The test broker uses a real
@@ -41,7 +41,7 @@ async function runtime(t, native) {
       }));
     } }],
   });
-  const mf = new Miniflare({
+  const mf = new Miniflare(convertV4MiniflareOptions({
     modules: true, script: result.outputFiles[0].text,
     compatibilityDate: '2026-07-01', compatibilityFlags: ['nodejs_compat'],
     bindings: { ADMIN_API_KEY: 'test-admin-key', TABLEU_CRON_SECRET: 'test_cron_secret_that_is_at_least_32_chars' },
@@ -52,7 +52,7 @@ async function runtime(t, native) {
         return Response.json(body.batch ? await native.batch(statements) : await statements[0].all());
       } catch (error) { return Response.json({ error: error.message }, { status: 500 }); }
     } },
-  });
+  }));
   t.after(() => mf.dispose());
   return (path, options) => mf.dispatchFetch(`https://tableu.example.invalid${path}`, options);
 }
@@ -80,6 +80,9 @@ test('Spacefast entry preserves route precedence and rejects spoofed cron authen
   assert.equal(cron.status, 401);
   const method = await fetch('/api/maintenance/spacefast/video', { method: 'POST', headers: { Authorization: 'Bearer test-admin-key' } });
   assert.equal(method.status, 405);
+  const retired = await fetch('/api/maintenance/spacefast/video', { headers: { Authorization: 'Bearer test-admin-key' } });
+  assert.equal(retired.status, 410);
+  assert.equal((await retired.json()).status, 'retired');
 });
 
 test('Spacefast full runtime registers, authenticates and isolates journals on MySQL', { skip: !process.env.TABLEU_TEST_MYSQL_PORT }, async t => {

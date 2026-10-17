@@ -27,8 +27,8 @@ async function runReading(t, { stream = false, providerStream = false, question 
     return Response.json({ status: 'completed', output_text: reading(advice), usage: { input_tokens: 10, output_tokens: 20 } });
   });
   const env = {
-    AZURE_OPENAI_API_KEY: 'synthetic-test-key', AZURE_OPENAI_ENDPOINT: 'https://example.com', AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-    AZURE_OPENAI_STREAMING_ENABLED: String(providerStream), ALLOW_STREAMING_WITH_EVAL_GATE: 'true', EVAL_ENABLED: evalDisabled ? 'false' : 'true', EVAL_GATE_ENABLED: 'false', EVAL_GATE_FAILURE_MODE: 'closed', EVAL_GATE_TIMEOUT_MS: '5',
+    OPENAI_API_KEY: 'synthetic-test-key', OPENAI_BASE_URL: 'https://example.com', OPENAI_MODEL: 'gpt-5',
+    OPENAI_STREAMING_ENABLED: String(providerStream), ALLOW_STREAMING_WITH_EVAL_GATE: 'true', EVAL_ENABLED: evalDisabled ? 'false' : 'true', EVAL_GATE_ENABLED: 'false', EVAL_GATE_FAILURE_MODE: 'closed', EVAL_GATE_TIMEOUT_MS: '5',
     STREAMING_SAFETY_SCAN_ENABLED: 'false', STREAMING_QUALITY_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false',
     RATELIMIT: { get: async (key) => counters.get(key) || null, put: async (key, value) => { counters.set(key, value); writes.push(value); } },
     AI: { run: async (...args) => {
@@ -133,7 +133,7 @@ for (const failure of [new Error('synthetic unavailable'), { safety_flag: false 
 test('non-English benign reading is delivered after a complete passing model check', async (t) => {
   const result = await runReading(t, { question: '¿Cómo puedo avanzar?', advice: 'Considera un paso pequeño para explorar tus opciones.' });
   assert.equal(result.status, 200);
-  assert.equal(result.payload.provider, 'azure-gpt5');
+  assert.equal(result.payload.provider, 'openai-native');
   assert.match(result.payload.reading, /Considera un paso/);
   assert.deepEqual(result.writes, ['1']);
 });
@@ -155,7 +155,7 @@ for (const [question, advice] of [
 test('benign French reflection is delivered after a complete passing assessment', async (t) => {
   const result = await runReading(t, { question: 'Comment puis-je avancer dans cette situation ?', advice: 'Tu peux explorer cette situation avec curiosité.' });
   assert.equal(result.status, 200);
-  assert.equal(result.payload.provider, 'azure-gpt5');
+  assert.equal(result.payload.provider, 'openai-native');
   assert.deepEqual(result.writes, ['1']);
 });
 

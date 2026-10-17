@@ -325,7 +325,7 @@ Scene Orchestrator              Implemented                    Canonical IDLE â†
 Motion                          Implemented                    motion adapter plus CSS keyframes
 Scene particles                 Implemented                    Shared @tsparticles layer; mobile stable mode gates some scenes
 Slot reveal burst               Implemented                    CSS spark burst; no per-slot canvas
-Sora card video                 Implemented, feature-gated     Plus/Pro media path with polling and cache
+Card-video generation           Retired                        Compatibility route returns HTTP 410
 AtmosphericInterlude             Prototype, unused              Component exists but is not mounted by the live route
 Enhanced text streaming          Prototype, unused              Hook exists but is not used by StreamingNarrative
 ```

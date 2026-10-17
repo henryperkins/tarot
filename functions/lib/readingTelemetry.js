@@ -53,16 +53,10 @@ export function isEvalGateEnabled(env) {
  * @param {Object} env - Cloudflare environment bindings
  * @returns {boolean} Whether Responses API streaming is enabled
  */
-export function isAzureTokenStreamingEnabled(env) {
+export function isOpenAITokenStreamingEnabled(env) {
   if (!env) return false;
   if (env.OPENAI_STREAMING_ENABLED !== undefined) {
     return normalizeBooleanFlag(env.OPENAI_STREAMING_ENABLED);
-  }
-  if (env.AZURE_OPENAI_STREAMING_ENABLED !== undefined) {
-    return normalizeBooleanFlag(env.AZURE_OPENAI_STREAMING_ENABLED);
-  }
-  if (env.ENABLE_AZURE_TOKEN_STREAMING !== undefined) {
-    return normalizeBooleanFlag(env.ENABLE_AZURE_TOKEN_STREAMING);
   }
   return false;
 }

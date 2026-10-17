@@ -1,0 +1,37 @@
+{
+  "head": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "incrementalBase": "ad8c97ce1962329b263a79d792e3acc66978287c",
+  "bridgeBase": "4c433b926d72fa75de0ad9294ad390850aaf2847",
+  "snapshotPaths": [
+    "src",
+    "shared",
+    "functions",
+    "services",
+    "tests",
+    "e2e",
+    "data",
+    "package.json",
+    "package-lock.json",
+    "vite.config.js",
+    "playwright.config.js",
+    "tailwind.config.js",
+    "PRODUCT.md",
+    "DESIGN.md",
+    "docs/design-contract.md",
+    "output/reading-motion/fixtures",
+    "output/reading-motion/assets/rws-immanuelle",
+    "output/reading-motion/react-bridge.playwright.config.mjs"
+  ],
+  "withheld": [
+    "conversation history",
+    "previous critiques and scores",
+    "verification summaries",
+    "coverage conclusions",
+    "implementation plan",
+    "selected prior screenshots"
+  ],
+  "modelRequested": "claude-opus-5-5",
+  "effort": "xhigh",
+  "authentication": "existing personal Claude subscription; no API fallback",
+  "readOnlyApplicationReview": true
+}

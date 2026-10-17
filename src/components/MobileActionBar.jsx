@@ -1,5 +1,6 @@
+import { ReadingCompletionActions } from './reading/complete/ReadingCompletionActions';
 import { useMemo, useEffect, useRef } from 'react';
-import { Gear, Sparkle, ArrowsClockwise, ChatCircle } from '@phosphor-icons/react';
+import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
@@ -129,7 +130,13 @@ function MobileActionContents({
   onDealNext,
   onGenerateNarrative,
   onSaveReading,
+  saveController,
+  isSaving = false,
+  savedEntryId = null,
+  onViewSavedEntry,
+  onCancelGeneration,
   onNewReading,
+  onUpgrade,
   variant = 'fixed',
   showUtilityButtons = true,
   isSettingsOpen = false,
@@ -207,7 +214,14 @@ function MobileActionContents({
     tableAction,
     onGenerateNarrative,
     onSaveReading,
-    onNewReading
+    saveController,
+    isSaving,
+    savedEntryId,
+    onViewSavedEntry,
+    onCancelGeneration,
+    onNewReading,
+    onUpgrade,
+    isLimitError: personalReading?.errorCode === 'reading_limit_reached'
   });
 
   if (variant === 'inline') return <div className={layoutClass}>{actions}</div>;
@@ -242,7 +256,14 @@ function renderActions(mode, options) {
     tableAction,
     onGenerateNarrative,
     onSaveReading,
-    onNewReading
+    saveController,
+    isSaving,
+    savedEntryId,
+    onViewSavedEntry,
+    onCancelGeneration,
+    onNewReading,
+    onUpgrade,
+    isLimitError
   } = options;
 
   // Landscape keeps labels on one line and scrolls actions that do not fit.
@@ -337,47 +358,46 @@ function renderActions(mode, options) {
     }
 
     case 'generating': {
-      const generatingLabel = 'Interpreting…';
       return (
-        <>
           <ActionButton
-            variant="primary"
-            disabled
-            ariaLabel={withStepContext('Interpreting cards', stepIndicatorLabel)}
+            variant="secondary"
+            onClick={onCancelGeneration}
+            disabled={!onCancelGeneration}
+            ariaLabel="Cancel generation"
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            <span className="flex items-center gap-1.5">
-              <ArrowsClockwise className={isLandscape ? 'w-3.5 h-3.5 animate-spin' : 'w-4 h-4 animate-spin'} aria-hidden="true" />
-              {generatingLabel}
-            </span>
+            Cancel generation
           </ActionButton>
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            New reading
-          </ActionButton>
-        </>
       );
     }
 
     case 'error':
       return (
         <>
-          <ActionButton
-            variant="primary"
-            onClick={onGenerateNarrative}
-            icon={ArrowsClockwise}
-            ariaLabel={withStepContext('Retry interpretation', stepIndicatorLabel)}
-            className={`${widthClasses.primary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            Retry interpretation
-          </ActionButton>
+          {/* Retrying cannot clear a monthly limit; lead with the plans instead. */}
+          {isLimitError && onUpgrade ? (
+            <ActionButton
+              variant="primary"
+              onClick={onUpgrade}
+              ariaLabel="See plans"
+              className={`${widthClasses.primary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              See plans
+            </ActionButton>
+          ) : (
+            <ActionButton
+              variant="primary"
+              onClick={onGenerateNarrative}
+              icon={ArrowsClockwise}
+              ariaLabel={withStepContext('Retry interpretation', stepIndicatorLabel)}
+              className={`${widthClasses.primary} ${px}`}
+              isLandscape={isLandscape}
+            >
+              Retry interpretation
+            </ActionButton>
+          )}
           <ActionButton
             variant="secondary"
             onClick={onNewReading}
@@ -405,42 +425,35 @@ function renderActions(mode, options) {
       );
 
     case 'completed':
+      if (saveController && hasNarrative) return <ReadingCompletionActions saveController={saveController}
+        onViewJournalEntry={onViewSavedEntry} onOpenFollowUp={showFollowUp ? onOpenFollowUp : null} followUpOpen={isFollowUpOpen} />;
       return (
         <>
           {hasNarrative && (
             <ActionButton
               variant="primary"
-              onClick={onSaveReading}
-              ariaLabel={withStepContext('Save reading to journal', stepIndicatorLabel)}
+              onClick={savedEntryId ? onViewSavedEntry : onSaveReading}
+              disabled={isSaving}
+              ariaLabel={savedEntryId ? 'View saved entry' : 'Save to journal'}
             className={`${widthClasses.primary} ${px}`}
             isLandscape={isLandscape}
           >
-            Save reading
+            {savedEntryId ? 'View saved entry' : isSaving ? 'Saving…' : 'Save to journal'}
           </ActionButton>
           )}
           {showFollowUp && (
             <ActionButton
-              variant="tertiary"
-              icon={ChatCircle}
+              variant="secondary"
               onClick={onOpenFollowUp}
-              ariaLabel="Open follow-up chat"
+              ariaLabel="Ask about this reading"
               ariaControls={MOBILE_FOLLOWUP_DIALOG_ID}
               ariaExpanded={isFollowUpOpen}
-              className={`${widthClasses.tertiary} ${px}`}
+              className={`${widthClasses.secondary} ${px} min-h-cta`}
               isLandscape={isLandscape}
             >
-              Chat
+              Ask about this reading
             </ActionButton>
           )}
-          <ActionButton
-            variant="secondary"
-            onClick={onNewReading}
-            ariaLabel="Start a new reading (resets the current spread)"
-            className={`${widthClasses.secondary} ${px}`}
-            isLandscape={isLandscape}
-          >
-            New reading
-          </ActionButton>
         </>
       );
 
@@ -451,6 +464,7 @@ function renderActions(mode, options) {
 
 export function MobileActionBar({ isOverlayActive = false, ...props }) {
   const barRef = useRef(null);
+  const readingHasText = Boolean(props.personalReading?.raw && !props.personalReading?.isError);
   const viewportOffset = useKeyboardOffset();
   const effectiveOffset = Math.max(0, viewportOffset);
 
@@ -471,37 +485,62 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
 
   useEffect(() => {
     if (typeof window === 'undefined' || !barRef.current) return undefined;
+    const bar = barRef.current;
+    const viewport = window.visualViewport;
+    let active = true;
+    let frame = null;
 
     const updateHeight = () => {
-      const height = barRef.current?.offsetHeight || 0;
-      document.documentElement.style.setProperty('--mobile-action-bar-height', `${height}px`);
+      if (!active) return;
+      const height = bar.offsetHeight;
+      const viewportHeight = viewport?.height || window.innerHeight;
+      // Enlarged controls can cover the entire readable strip below the sticky
+      // card companion. Keep every action accessible in page flow in that case.
+      const inFlow = readingHasText && height > viewportHeight / 4;
+      if (inFlow) {
+        if (bar.dataset.readingFlow !== 'true') bar.dataset.readingFlow = 'true';
+      } else if (bar.hasAttribute('data-reading-flow')) delete bar.dataset.readingFlow;
+      const reservation = `${inFlow ? 0 : height}px`;
+      const rootStyle = document.documentElement.style;
+      if (rootStyle.getPropertyValue('--mobile-action-bar-height') !== reservation) {
+        rootStyle.setProperty('--mobile-action-bar-height', reservation);
+      }
+    };
+    const scheduleHeight = () => {
+      if (!active || frame !== null) return;
+      // Switching the observed dock into page flow changes its own border box.
+      // Apply that layout change outside ResizeObserver's delivery cycle.
+      frame = window.requestAnimationFrame(() => { frame = null; updateHeight(); });
     };
 
     updateHeight();
 
     let observer;
     if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(updateHeight);
+      observer = new ResizeObserver(scheduleHeight);
       // Safe-area changes can resize only the padding, leaving the content box
       // unchanged. Reserve the full dock height after those changes as well.
-      observer.observe(barRef.current, { box: 'border-box' });
-    } else {
-      window.addEventListener('resize', updateHeight);
+      observer.observe(bar, { box: 'border-box' });
     }
+    window.addEventListener('resize', scheduleHeight);
+    viewport?.addEventListener('resize', scheduleHeight);
 
     return () => {
+      active = false;
+      if (frame !== null) window.cancelAnimationFrame(frame);
       if (observer) {
         observer.disconnect();
-      } else {
-        window.removeEventListener('resize', updateHeight);
       }
+      window.removeEventListener('resize', scheduleHeight);
+      viewport?.removeEventListener('resize', scheduleHeight);
     };
-  }, []);
+  }, [readingHasText]);
 
   return (
     <nav
       ref={barRef}
-      className={`mobile-action-bar ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`mobile-action-bar reading-dock ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      hidden={props.isGenerating && !props.personalReading}
       aria-label="Primary mobile actions"
       tabIndex={-1}
       style={barStyle}

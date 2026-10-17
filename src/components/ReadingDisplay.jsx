@@ -4,7 +4,6 @@ import { getSpreadInfo, normalizeSpreadKey } from '../data/spreads';
 import { useReading } from '../contexts/ReadingContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
-import { useSaveReading } from '../hooks/useSaveReading';
 import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext.jsx';
@@ -16,7 +15,7 @@ import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
 import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
-import { getCardImage } from '../lib/cardLookup';
+import { readingGestureEdition, readingGesturesEnabled } from '../lib/readingGestureSettings';
 import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
@@ -33,15 +32,24 @@ function inferElementFromSuit(suit) {
     return 'spirit';
 }
 export function ReadingDisplay({
+    saveController,
     sectionRef,
     followUpOpen,
     onFollowUpOpenChange,
+    onOpenFollowUp,
+    onSaveReading: saveReading,
+    isSaving = false,
+    savedEntryId = null,
     followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
-    isMobileStableMode = false
+    isMobileStableMode = false,
+    gestureSource: gestureSourceOverride = null,
+    gestureStudyEnabled = readingGesturesEnabled(),
+    gestureSidecar = null,
+    manualInspectionStatus = null,
+    artworkEdition = null
 }) {
-    const { saveReading, isSaving } = useSaveReading();
     const { publish: publishToast } = useToast();
     const { effectiveTier } = useSubscription();
     const navigate = useNavigate();
@@ -95,7 +103,9 @@ export function ReadingDisplay({
 
         // Reading Generation & UI
         personalReading,
+        gestureSource,
         isGenerating,
+        cancelPersonalReading,
         isReadingStreamActive,
         narrativePhase,
         themes,
@@ -154,7 +164,12 @@ export function ReadingDisplay({
         // A user who moved elsewhere while waiting keeps their chosen focus.
         const activeElement = document.activeElement;
         if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
-        sectionRef.current?.querySelector('[data-reading-focus-target]')?.focus({ preventScroll: true });
+        const target = sectionRef.current?.querySelector('[data-reading-focus-target]');
+        if (!target) return;
+        target.focus({ preventScroll: true });
+        // A failed reading replaces the narrative in place; bring its title out
+        // from under the pinned header (the page's scroll-padding reserves it).
+        if (personalReading?.isError) target.scrollIntoView({ block: 'nearest' });
     }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
 
     useEffect(() => {
@@ -233,6 +248,7 @@ export function ReadingDisplay({
 
     const {
         selectedCardData,
+        manualInspectionStatus: selectionInspectionStatus,
         narrativeMentionPulse,
         activeFocusedCardData,
         recentlyClosedIndex,
@@ -253,13 +269,19 @@ export function ReadingDisplay({
         notifyCardMention
     });
 
-    const handleSelectInsightCard = useCallback((index) => {
+    const handleSelectInsightCard = useCallback((index, inspection = null) => {
         if (!Number.isInteger(index) || index < 0 || index >= visibleCount || !revealedCards.has(index)) return;
         handleOpenModalFromPanel({
             card: reading[index],
             position: spreadInfo?.positions?.[index] || `Position ${index + 1}`,
             index,
-            readingKey: readingIdentity
+            readingKey: readingIdentity,
+            inspection: inspection ? {
+                ...inspection,
+                // Gesture associations already validate details against the
+                // edition registry inside the optional runtime.
+                touchIds: (inspection.touchIds || []).filter(id => typeof id === 'string')
+            } : null
         });
     }, [handleOpenModalFromPanel, reading, readingIdentity, revealedCards, spreadInfo?.positions, visibleCount]);
 
@@ -269,39 +291,6 @@ export function ReadingDisplay({
         onCardModalChange?.(isCardModalOpen);
         return () => onCardModalChange?.(false);
     }, [isCardModalOpen, onCardModalChange]);
-
-    useEffect(() => {
-        if (!Array.isArray(reading) || visibleCount === 0 || typeof document === 'undefined') return undefined;
-        const head = document.head;
-        const created = [];
-        const sources = new Set(
-            reading
-                .slice(0, visibleCount)
-                .map((card) => getCardImage(card))
-                .filter((src) => typeof src === 'string' && src.length > 0)
-        );
-
-        sources.forEach((src) => {
-            const escapedSrc = CSS.escape(src);
-            const existing = head.querySelector(`link[rel="preload"][as="image"][href="${escapedSrc}"]`);
-            if (existing) return;
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.as = 'image';
-            link.href = src;
-            link.setAttribute('data-reading-preload', 'true');
-            head.appendChild(link);
-            created.push(link);
-        });
-
-        return () => {
-            created.forEach((node) => {
-                if (node?.parentNode) {
-                    node.parentNode.removeChild(node);
-                }
-            });
-        };
-    }, [reading, visibleCount]);
 
     const revealStage = useMemo(() => {
         if (!isHandset || !newDeckInterface || !reading || visibleCount === 0) return 'action';
@@ -348,7 +337,14 @@ export function ReadingDisplay({
         narrativeAtmosphereClasses,
         narrativeModel
     } = useNarrativeReadingController({
+        gestureSource: gestureSourceOverride || gestureSource,
+        gestureStudyEnabled,
+        gestureSidecar,
+        manualInspectionStatus: manualInspectionStatus || selectionInspectionStatus,
+        artworkEdition: readingGestureEdition({ enabled: gestureStudyEnabled, deckStyleId,
+            artworkEdition: artworkEdition || (gestureStudyEnabled ? (gestureSourceOverride || gestureSource)?.visualBinding?.artworkEdition : null) }),
         reading,
+        reflections,
         deckStyleId,
         onSelectInsightCard: handleSelectInsightCard,
         visibleCount,
@@ -361,6 +357,7 @@ export function ReadingDisplay({
         emotionalTone,
         displayName,
         userQuestion,
+        saveController,
         highlightItems,
         isGenerating,
         voiceOn,
@@ -384,6 +381,9 @@ export function ReadingDisplay({
         saveReading,
         onRetryNarrative: generatePersonalReading,
         isSaving,
+        savedEntryId,
+        onOpenFollowUp,
+        spreadName: spreadInfo?.name,
         hasHeroStoryArt,
         handleNarrationStop,
         notifyCompletion,
@@ -395,6 +395,7 @@ export function ReadingDisplay({
         handleNarrationButtonClick,
         handleVoicePromptEnable,
         readingIdentity,
+        inspectionOpen: isCardModalOpen,
         persistMediaRecord,
         setHasHeroStoryArt,
         canShowVisionPanel,
@@ -636,10 +637,15 @@ export function ReadingDisplay({
         displayName,
         userQuestion,
         readingCount: reading?.length || 0,
-        reasoning
+        reasoning,
+        spreadCards: narrativeModel.spreadCards,
+        onSelectCard: handleSelectInsightCard,
+        onCancel: cancelPersonalReading
     };
 
     const completionModel = {
+        saveController,
+        onViewJournalEntry: handleOpenJournalEntry,
         personalReading,
         isNarrativeFocus,
         isPersonalReadingError,
@@ -676,13 +682,14 @@ export function ReadingDisplay({
     };
 
     return (
-        <section ref={sectionRef} id="step-reading" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]" aria-label="Draw and explore your reading">
+        <section ref={sectionRef} id="step-reading" tabIndex={-1} aria-label="Draw and explore your reading">
             <ReadingChrome
                 displayName={displayName}
                 readingMeta={readingMeta}
                 isHandset={isHandset}
                 isLandscape={isLandscape}
                 isTableScene={sceneOrchestrator.activeScene === 'ritual' || sceneOrchestrator.activeScene === 'reveal'}
+                readingView={['interlude', 'narrative', 'complete'].includes(sceneOrchestrator.activeScene)}
                 reading={reading}
                 shuffle={shuffle}
                 isShuffling={isShuffling}

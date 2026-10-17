@@ -147,3 +147,68 @@ test('formatEntryAsText labels reflections by card and whole reading', () => {
   assert.match(text, /## Personal Reflections\nWhole reading: gentle overall\nPresent · Three of Cups: friends around me/);
   assert.doesNotMatch(text, /Position 1:/);
 });
+
+// Task 11: saved visual recovery state, replay claims and capabilities live in
+// private tables/storage. Exports and client share/export builders project
+// explicit reading fields only, while user prose resembling field names stays exact.
+const PRIVATE_VALUES = ['secret-visual-token-1', 'secret-visual-job-1', 'secret-attempt-1', 'secret-claim-1', 'secret-resume-token-1'];
+const PROSE = 'The Star pours into a pool.\n\nA reflection on "visualJobToken", attemptId and resumeHandle is kept verbatim.';
+
+test('server JSON and text exports never include visual retry state, replay claims or capabilities', async (t) => {
+  const { createD1 } = await import('./helpers/d1Sqlite.mjs');
+  const { seedUser, seedSession, seedEntry } = await import('./helpers/journalFixtures.mjs');
+  const db = await createD1();
+  t.after(() => db.sqlite.close());
+  await seedUser(db, { id: 'user-1', tier: 'plus' });
+  await seedSession(db, { id: 'session-1', userId: 'user-1' });
+  await seedEntry(db, { id: 'entry-1', narrative: PROSE, reflections: { Overall: 'mentions attemptId too' },
+    cards: [{ name: 'The Star', position: 'Present', orientation: 'Upright' }], deckId: 'rws-1909' });
+  const now = Date.now();
+  await db.prepare(`INSERT INTO visual_retry_claims (id, admission_scope, source_fingerprint, user_id, journal_entry_id,
+    reading_result_id, attempt_id, visual_job_id, state_version, dispatch_status, retry_status, created_at, updated_at,
+    visual_token, expires_at) VALUES (?, 'user:user-1', ?, 'user-1', 'entry-1', 'result-1', ?, ?, 1, 'reserved', 'pending', ?, ?, ?, ?)`)
+    .bind(PRIVATE_VALUES[3], 'a'.repeat(64), PRIVATE_VALUES[2], PRIVATE_VALUES[1], now, now, PRIVATE_VALUES[0], now + 60000).run();
+  await db.prepare(`INSERT INTO journal_visual_state (journal_entry_id, user_id, source_fingerprint, reading_result_id,
+    attachment_status, retry_status, reason, validated_snapshot_json, state_version, claim_id, attempt_id, created_at, updated_at)
+    VALUES ('entry-1', 'user-1', ?, 'result-1', 'pending', 'pending', NULL, ?, 2, ?, ?, ?, ?)`)
+    .bind('a'.repeat(64), JSON.stringify({ visualJobToken: PRIVATE_VALUES[4] }), PRIVATE_VALUES[3], PRIVATE_VALUES[2], now, now).run();
+  for (const format of ['json', 'txt']) {
+    const response = await onRequestGet({
+      request: new Request(`https://example.com/api/journal-export?format=${format}`, { headers: { Cookie: 'session=session-1' } }),
+      env: { DB: db },
+      params: {}
+    });
+    assert.strictEqual(response.status, 200);
+    const body = await response.text();
+    for (const value of PRIVATE_VALUES) assert.strictEqual(body.includes(value), false, `${format} export leaked ${value}`);
+    if (format === 'json') {
+      const [entry] = JSON.parse(body).entries;
+      assert.strictEqual(entry.personalReading, PROSE);
+      assert.deepStrictEqual(Object.keys(entry).sort(), ['cards', 'context', 'followUps', 'id', 'personalReading', 'provider',
+        'question', 'reflections', 'spread', 'spreadKey', 'themes', 'ts'].sort());
+    } else {
+      assert.ok(body.includes('A reflection on "visualJobToken", attemptId and resumeHandle is kept verbatim.'));
+    }
+  }
+});
+
+test('client CSV, Markdown and summary builders never serialize visual retry or capability fields', async () => {
+  const { buildJournalCsv, buildEntryMarkdown, buildJournalMarkdown } = await import('../src/lib/journalInsights.js');
+  const { projectJournalEntryVisuals } = await import('../src/lib/readingVisualStorage.js');
+  const leaked = {
+    id: 'entry-1', ts: Date.UTC(2026, 9, 10), spread: 'One card', spreadKey: 'single', question: 'What renews me?',
+    cards: [{ position: 'Present', name: 'The Star', orientation: 'Upright' }], personalReading: PROSE,
+    reflections: { Overall: 'mentions attemptId too' }, deckId: 'rws-1909',
+    visualJobToken: PRIVATE_VALUES[0], visualJobId: PRIVATE_VALUES[1], attemptId: PRIVATE_VALUES[2],
+    resumeHandle: { visualJobToken: PRIVATE_VALUES[4] },
+    visualState: { attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: 'a'.repeat(64), stateVersion: 2,
+      reason: null, attemptId: PRIVATE_VALUES[2], visualSnapshot: { visualJobToken: PRIVATE_VALUES[0] } }
+  };
+  // The journal hook projects server/cache entries before they reach React state.
+  const projected = projectJournalEntryVisuals(leaked);
+  for (const output of [JSON.stringify(projected), buildJournalCsv([leaked]), buildEntryMarkdown(leaked), buildJournalMarkdown([leaked])]) {
+    for (const value of PRIVATE_VALUES) assert.strictEqual(output.includes(value), false);
+  }
+  assert.strictEqual(projected.personalReading, PROSE);
+  assert.ok(buildEntryMarkdown(projected).includes('A reflection on "visualJobToken", attemptId and resumeHandle is kept verbatim.'));
+});

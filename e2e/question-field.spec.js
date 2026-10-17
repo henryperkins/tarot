@@ -265,9 +265,12 @@ test.describe('Question card hardening @mobile', () => {
     await page.evaluate(() => document.fonts.ready);
 
     const field = page.getByRole('textbox', { name: PROMPT });
+    // Phones show the question first, so return to it from further down the
+    // page, where the sticky header has compacted.
+    await page.evaluate(() => window.scrollTo(0, document.scrollingElement.scrollHeight));
+    await expect(page.locator('.header-sticky')).toHaveClass(/header-sticky--compact/);
     await page.getByRole('button', { name: 'Step 2: Question', exact: true }).click();
     await field.fill('What can I learn from this change at work?');
-    await expect(page.locator('.header-sticky')).toHaveClass(/header-sticky--compact/);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
     const promptOffset = () => page.evaluate(() => {

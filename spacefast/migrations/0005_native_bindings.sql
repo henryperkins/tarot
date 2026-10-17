@@ -19,3 +19,13 @@ CREATE TABLE IF NOT EXISTS tableu_reading_jobs (
   updated_at BIGINT NOT NULL,
   INDEX tableu_reading_jobs_delete_at (delete_at)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE TABLE IF NOT EXISTS tableu_runtime_canaries (
+  id VARCHAR(36) COLLATE utf8mb4_bin PRIMARY KEY,
+  revision VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  delay_ms BIGINT NOT NULL,
+  started_at BIGINT NOT NULL,
+  completed_at BIGINT NULL,
+  expires_at BIGINT NOT NULL,
+  INDEX tableu_runtime_canaries_expiry (expires_at)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;

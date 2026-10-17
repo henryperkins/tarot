@@ -1,3 +1,5 @@
+import { appJournalResultId } from '../../shared/journal/readingIdentity.js';
+import { loadJournalVisualResults, loadJournalVisualStates } from '../lib/readingVisualResults.js';
 /**
  * Journal API Endpoints
  * GET /api/journal - List all journal entries for authenticated user
@@ -84,6 +86,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         source_usage_json,
         deck_id,
@@ -115,6 +118,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         deck_id,
         request_id
@@ -210,6 +214,7 @@ export async function onRequestGet(context) {
           context: entry.context,
           provider: entry.provider,
           sessionSeed: entry.session_seed,
+      readingResultId: appJournalResultId(entry.idempotency_key),
           userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
           sourceUsage: entry.provider === 'safe-fallback' ? null : sanitizeSourceUsage(safeJsonParse(entry.source_usage_json, null)),
           deckId: entry.deck_id,
@@ -239,6 +244,7 @@ export async function onRequestGet(context) {
           context: entry.context,
           provider: entry.provider,
           sessionSeed: entry.session_seed,
+      readingResultId: appJournalResultId(entry.idempotency_key),
           userPreferences: null,
           sourceUsage: null,
           deckId: entry.deck_id,
@@ -252,6 +258,24 @@ export async function onRequestGet(context) {
     });
 
     const dedupedEntries = dedupeEntries(parsedEntries);
+    // Cached cues and durable retry state have independent availability.
+    let visuals;
+    try {
+      visuals = await loadJournalVisualResults({ db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id) });
+      for (const entry of dedupedEntries) {
+        if (visuals.get(entry.id)) entry.visual = visuals.get(entry.id);
+      }
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual snapshots unavailable`);
+    }
+    try {
+      const visualStates = await loadJournalVisualStates({ env, db: env.DB, userId: user.id, entryIds: dedupedEntries.map(entry => entry.id), visualResults: visuals });
+      for (const entry of dedupedEntries) {
+        if (visualStates.get(entry.id)) entry.visualState = visualStates.get(entry.id);
+      }
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual state unavailable`);
+    }
 
     // Optionally attach follow-up conversations
     if (includeFollowups && dedupedEntries.length > 0) {

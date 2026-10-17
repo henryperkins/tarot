@@ -1,10 +1,12 @@
 # Narrative Builder And Prompt Engineering Remediation Plan
 
 Type: plan
-Status: active background document
+Status: historical reference
 Last reviewed: 2026-04-23
 
 Date: 2026-03-05
+
+This plan records the March 2026 provider and module names. Azure OpenAI is retired; use the [provider reference](../provider-reference.md) for current routing and configuration.
 
 **Goal:** Remediate all review findings in the narrative builder and prompt-engineering paths, starting with privacy leaks and user-visible output defects, then fixing telemetry drift and missing backend coverage.
 

@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { clearAllNarrativeCaches, safeStorage } from '../lib/safeStorage';
 import { clearJournalInsightsCache } from '../lib/journalInsights';
+import { clearVisualResumes, visualStorageNamespace } from '../lib/readingVisualStorage.js';
 import {
   getCurrentPathname,
   normalizeRoutePath,
@@ -47,6 +48,15 @@ export function AuthProvider({ children }) {
   const [routePathname, setRoutePathname] = useState(() => getCurrentPathname());
   const hasCompletedInitialCheckRef = useRef(false);
   const previousSkipAuthRef = useRef(shouldSkipAuthCheckForPath(routePathname));
+  const visualOwnerRef = useRef(null);
+  useEffect(() => {
+    const owner = user?.id || null;
+    if (visualOwnerRef.current !== owner) {
+      clearVisualResumes(visualStorageNamespace(visualOwnerRef.current));
+      visualOwnerRef.current = owner;
+    }
+  }, [user?.id]);
+
   const [settledRoute, setSettledRoute] = useState(routePathname);
 
   if (settledRoute !== routePathname) {
@@ -346,8 +356,8 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
-    loading,
-    error,
+    loading: shouldSkipAuthCheckForPath(routePathname) ? false : loading,
+    error: shouldSkipAuthCheckForPath(routePathname) ? null : error,
     isAuthenticated: !!user,
     register,
     login,

@@ -1,0 +1,429 @@
+{
+  "experiment": "Fresh reading and annotation generation; no regex fixtures or prior reading prose supplied",
+  "provider": "claude-code",
+  "model": "claude-opus-5-5",
+  "effort": "xhigh",
+  "authentication": "Existing subscription verified by runClaudeCode; paid API fallback unavailable",
+  "promptVersion": "reading-gestures-1",
+  "startedAt": "2026-10-09T12:21:37.977Z",
+  "plannedCases": 15,
+  "languageScope": [
+    "en",
+    "es"
+  ],
+  "limitations": "Structural acceptance does not establish semantic accuracy, psychological truth, all-card recall, or production integration. Synthetic questions only; no user PII.",
+  "status": "complete",
+  "lastEvaluatedAt": "2026-10-09T12:32:55.756Z",
+  "completedCases": 15,
+  "responseSchemaDraft": "draft-7",
+  "responseSchemaSha256": "ae51296c0a9c4538391e8f11210a41a6c08752b1f06a25d65a3ffdd6e6bca547",
+  "compilerSha256": "2cf163366c24f3295375fbbbf33ee22b040406a156e836cd9336d5fce6728b8f",
+  "promptModuleSha256": "af2f42d3d95f884d9858a8f9eb4b2aae73baaceacf7ed1db3b95f4a9768d99c4",
+  "samples": [
+    {
+      "id": "new-home-rhythm",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 12,
+      "acceptedAnnotations": 12,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 4,
+        "interpretation": 3,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 5,
+        "literal": 4,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 4,
+      "fallbackLiteralMatches": 3,
+      "rawSha256": "0b62ecc242909657d01d6beed313664ab8c407d739533276f8696a7fcdd92929",
+      "wordCount": 255
+    },
+    {
+      "id": "creative-boundaries",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 15,
+      "acceptedAnnotations": 15,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 5,
+        "interpretation": 5,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 4,
+        "literal": 3,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 5,
+      "fallbackLiteralMatches": 3,
+      "rawSha256": "0b1b80d977f588ed6cb2d126552c7c5b40689059d8e3cf21d8c875fe3c730983",
+      "wordCount": 255
+    },
+    {
+      "id": "fair-leadership",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 15,
+      "acceptedAnnotations": 15,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 5,
+        "balance": 0,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 1
+      },
+      "personalContextCount": 3,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 6,
+      "rawSha256": "a7ebba2dc1a49a19e8ccd3ca4fadacf6802030e34c56436a1cc940314473b161",
+      "wordCount": 245
+    },
+    {
+      "id": "first-small-step",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 18,
+      "acceptedAnnotations": 18,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 7,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 5,
+        "literal": 4,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 4,
+      "rawSha256": "eb6543c39955dc3d99e07297505fd4e6b2ac64d7d209aeaf021d363f9a92f23a",
+      "wordCount": 251
+    },
+    {
+      "id": "community-project",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 21,
+      "acceptedAnnotations": 21,
+      "compiledCounts": {
+        "identity": 5,
+        "literal": 8,
+        "interpretation": 6,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 5,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 1
+      },
+      "personalContextCount": 4,
+      "introducedCards": 5,
+      "modelLiteralReferences": 8,
+      "fallbackLiteralMatches": 6,
+      "rawSha256": "6b08d7bec17e436dd3fa75bb5f6393a27f003a458e78c5b7c8dc4133a0fc7825",
+      "wordCount": 252
+    },
+    {
+      "id": "gentle-departure",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 5,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 6,
+      "rawSha256": "6c5f4ba99b6cbd4c1e70b8c906a36b869f23848d9f927ce15ba085760a6727e1",
+      "wordCount": 259
+    },
+    {
+      "id": "uncertain-choice",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 6,
+        "balance": 0,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 4,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 1,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 6,
+      "rawSha256": "f9accf4a4b42aabb81b41d0b28c3208e862763a074be8186b4e0f2413105ec71",
+      "wordCount": 279
+    },
+    {
+      "id": "friendship-repair",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 13,
+      "acceptedAnnotations": 13,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 5,
+        "interpretation": 3,
+        "balance": 0,
+        "relationship": 2
+      },
+      "fallbackCounts": {
+        "identity": 5,
+        "literal": 3,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 3,
+      "rawSha256": "07923d202e2fa5a4c30102b860a5e73daef42ad8083612dbd736d2d8a7b10ca8",
+      "wordCount": 256
+    },
+    {
+      "id": "rest-and-courage",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 5,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 3,
+        "literal": 1,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 1,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 1,
+      "rawSha256": "7682891f0a8c89c5a11ecbf6078fdb4f321aeb0ae76141bcaeeb06f40d697d99",
+      "wordCount": 233
+    },
+    {
+      "id": "changing-routine",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 25,
+      "acceptedAnnotations": 25,
+      "compiledCounts": {
+        "identity": 5,
+        "literal": 9,
+        "interpretation": 9,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 6,
+        "literal": 7,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 1
+      },
+      "personalContextCount": 2,
+      "introducedCards": 5,
+      "modelLiteralReferences": 10,
+      "fallbackLiteralMatches": 7,
+      "rawSha256": "8865ab63b5d196b11001fd8cfb64cb7ddb0f8e1e916eacb6b643bc1b2935ed58",
+      "wordCount": 261
+    },
+    {
+      "id": "shared-resources",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 17,
+      "acceptedAnnotations": 17,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 6,
+        "balance": 0,
+        "relationship": 2
+      },
+      "fallbackCounts": {
+        "identity": 4,
+        "literal": 4,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 1
+      },
+      "personalContextCount": 1,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 4,
+      "rawSha256": "f5ee5d9cee390520fdf5b4827a0027e0717b790ddd31784ceb47248f9205d231",
+      "wordCount": 255
+    },
+    {
+      "id": "speaking-clearly",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 15,
+      "acceptedAnnotations": 15,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 5,
+        "balance": 0,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 6,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 5,
+      "rawSha256": "28df08409ee746c61f4ae097d049c5616b850173ea3fedba045719a22525e8b1",
+      "wordCount": 231
+    },
+    {
+      "id": "slow-recognition",
+      "language": "en",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 6,
+        "balance": 0,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 1,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 6,
+      "rawSha256": "41cc704098cadb5d2ecb6f3a78b5c69e8d5e14079c8a38221e819aec24780a6c",
+      "wordCount": 258
+    },
+    {
+      "id": "ritmo-compartido",
+      "language": "es",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 5,
+        "interpretation": 6,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 0,
+        "literal": 0,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 4,
+      "introducedCards": 3,
+      "modelLiteralReferences": 5,
+      "fallbackLiteralMatches": 0,
+      "rawSha256": "ea23537347d8d0301f419c9a70e933b5475222b14778cc52d677829ce1b71e48",
+      "wordCount": 251
+    },
+    {
+      "id": "voz-creativa",
+      "language": "es",
+      "errors": [],
+      "suppliedAnnotations": 16,
+      "acceptedAnnotations": 16,
+      "compiledCounts": {
+        "identity": 3,
+        "literal": 6,
+        "interpretation": 5,
+        "balance": 1,
+        "relationship": 1
+      },
+      "fallbackCounts": {
+        "identity": 0,
+        "literal": 0,
+        "interpretation": 0,
+        "balance": 0,
+        "relationship": 0
+      },
+      "personalContextCount": 2,
+      "introducedCards": 3,
+      "modelLiteralReferences": 6,
+      "fallbackLiteralMatches": 0,
+      "rawSha256": "61bd688c21a5979ca523d366cac40f838f2696e49764b4289db0d7c6fb31d31f",
+      "wordCount": 261
+    }
+  ]
+}

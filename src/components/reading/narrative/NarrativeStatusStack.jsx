@@ -10,11 +10,11 @@ function VoicePrompt({
   if (!show) return null;
 
   return (
-    <div className="text-xs text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">
+    <div className="text-sm text-muted bg-surface/70 border border-accent/30 rounded-lg px-3 py-2 text-center space-y-2" aria-live="polite">
       <p>Voice narration is disabled. Turn it on?</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <button type="button" onClick={onEnableVoice} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
-        <button type="button" onClick={onDismiss} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
+        <button type="button" onClick={onEnableVoice} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full bg-primary/15 border border-primary/40 text-primary hover:bg-primary/30 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Enable voice & play</button>
+        <button type="button" onClick={onDismiss} className="min-h-touch min-w-touch px-3 py-1.5 rounded-full border border-accent/50 text-muted hover:text-main text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">Maybe later</button>
       </div>
     </div>
   );
@@ -27,7 +27,7 @@ function JournalStatusNotice({
   if (!journalStatus) return null;
 
   return (
-    <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-center gap-2 text-xs text-center max-w-sm">
+    <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-center gap-2 text-sm text-center max-w-sm">
       <span className={journalStatus.type === 'success' ? 'text-success' : 'text-error'}>
         {journalStatus.message}
       </span>
@@ -35,7 +35,7 @@ function JournalStatusNotice({
         <button
           type="button"
           onClick={() => onViewEntry?.(journalStatus.action.entryId)}
-          className="min-h-touch min-w-touch inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-2xs font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="min-h-touch min-w-touch inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 text-sm font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           {journalStatus.action.label || 'View entry'}
         </button>
@@ -54,6 +54,7 @@ export function NarrativeStatusStack({
   onViewEntry,
   onSaveFromNudge,
   onDismissNudge,
+  section = 'audio',
   controls = null
 }) {
   const {
@@ -67,17 +68,17 @@ export function NarrativeStatusStack({
 
   return (
     <>
-      {showNarrationStatus ? (
+      {section === 'audio' && showNarrationStatus ? (
         <NarrationStatus ttsState={ttsState} showLabel showMessage={ttsState?.status === 'error'} />
       ) : null}
 
       {controls}
 
-      {showNarrationProgress ? (
+      {section === 'audio' && showNarrationProgress ? (
         <NarrationProgress ttsState={ttsState} className="w-full max-w-md" />
       ) : null}
 
-      {showNarrationTierLimit ? (
+      {section === 'audio' && showNarrationTierLimit ? (
         <NarrationError
           ttsState={ttsState}
           onUpgrade={onUpgradeTier}
@@ -86,17 +87,17 @@ export function NarrativeStatusStack({
       ) : null}
 
       <VoicePrompt
-        show={showVoicePrompt}
+        show={section === 'audio' && showVoicePrompt}
         onEnableVoice={onEnableVoice}
         onDismiss={onDismissVoicePrompt}
       />
 
       <JournalStatusNotice
-        journalStatus={showJournalStatus ? journalStatus : null}
+        journalStatus={section === 'journal' && showJournalStatus ? journalStatus : null}
         onViewEntry={onViewEntry}
       />
 
-      {showJournalNudge ? (
+      {section === 'journal' && showJournalNudge ? (
         <div className="mt-4 max-w-md mx-auto">
           <JournalNudge
             onSave={onSaveFromNudge}

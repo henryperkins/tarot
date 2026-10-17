@@ -81,7 +81,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await openSetup(page);
       const field = page.locator('#quick-intention');
       if (!await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)) {
-        await page.locator('.page-transition').evaluate(element => {
+        await page.locator('.page-transition main').evaluate(element => {
           element.style.animation = 'none';
           void element.offsetHeight;
           element.style.animation = 'page-enter 280ms ease-out';

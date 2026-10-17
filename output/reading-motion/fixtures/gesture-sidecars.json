@@ -1,0 +1,945 @@
+{
+  "star": {
+    "id": "three-card-transition",
+    "artworkEdition": "rws-immanuelle-vector",
+    "provenance": {
+      "kind": "local narrative evaluation fixture",
+      "sourceRun": "2026-10-07T23-47-19.908Z-5eqpUm",
+      "generatedAt": "2026-10-07T23:47:19.697Z",
+      "backendLabel": "Claude Code (personal subscription)",
+      "provider": "claude-code",
+      "model": "claude-opus-5-5",
+      "sourceSampleCount": 11,
+      "sourceReadingSha256": "d2c8ed592272268ea107d0b5dac6a807c373e35b9a7a8e387d9ac25b2f3f86df"
+    },
+    "expectedRaw": "If things keep moving as they are, the trajectory leans toward The Star. A figure kneels under a large star, pouring one pitcher into a pool and the other onto the land. That image speaks almost directly to your reflection. One hand tends the emotional reservoir of memory and the people back home, and the other waters new ground. Neither pitcher gets dropped. The figure is also unadorned, which suggests the reinvention ahead may be quieter than a dramatic makeover. It's less \"new me\" and more \"me, without the parts I was only holding up for others.\"",
+    "recordedContext": {
+      "type": "recorded-fixture-context",
+      "reflectionsText": "Part of me is nostalgic while another part is ready for reinvention.",
+      "userQuestion": "How can I navigate the transition after leaving my hometown?"
+    },
+    "associations": [
+      {
+        "id": "arrival",
+        "label": "The Star",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 63,
+          "end": 71,
+          "quote": "The Star"
+        }
+      },
+      {
+        "id": "pool",
+        "label": "The pitcher and the pool",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": [
+              "pool-pour"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 117,
+          "end": 140,
+          "quote": "one pitcher into a pool"
+        }
+      },
+      {
+        "id": "land",
+        "label": "The pitcher and the land",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": [
+              "land-pour"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 145,
+          "end": 168,
+          "quote": "the other onto the land"
+        }
+      },
+      {
+        "id": "memory",
+        "label": "Memory and home",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": [
+              "pool-pour"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 224,
+          "end": 297,
+          "quote": "One hand tends the emotional reservoir of memory and the people back home"
+        },
+        "meaningRange": {
+          "start": 224,
+          "end": 297,
+          "quote": "One hand tends the emotional reservoir of memory and the people back home"
+        },
+        "personalContext": {
+          "type": "recorded-fixture-context",
+          "quote": "nostalgic"
+        }
+      },
+      {
+        "id": "ground",
+        "label": "Beginning again",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": [
+              "land-pour"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 303,
+          "end": 330,
+          "quote": "the other waters new ground"
+        },
+        "meaningRange": {
+          "start": 303,
+          "end": 330,
+          "quote": "the other waters new ground"
+        },
+        "personalContext": {
+          "type": "recorded-fixture-context",
+          "quote": "ready for reinvention"
+        }
+      },
+      {
+        "id": "balance",
+        "label": "Both pitchers belong",
+        "kind": "balance",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "The Star",
+            "detailIds": [
+              "pool-pour",
+              "land-pour"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 332,
+          "end": 361,
+          "quote": "Neither pitcher gets dropped."
+        },
+        "meaningRange": {
+          "start": 332,
+          "end": 361,
+          "quote": "Neither pitcher gets dropped."
+        },
+        "personalContext": {
+          "type": "recorded-fixture-context",
+          "quote": "Part of me is nostalgic while another part is ready for reinvention."
+        }
+      }
+    ],
+    "introductions": [
+      {
+        "spreadIndex": 2,
+        "canonicalName": "The Star",
+        "start": 63,
+        "namedEnd": 71,
+        "descriptionStart": 73,
+        "midpoint": 128,
+        "end": 169
+      }
+    ]
+  },
+  "related": {
+    "id": "celtic-deep-shift",
+    "artworkEdition": "rws-immanuelle-vector",
+    "provenance": {
+      "generatedAt": "2026-10-07T23:23:59.556Z",
+      "sourceFile": "data/evaluations/narrative-samples.json",
+      "sourceReadingSha256": "dc2700674033d8aeacdcf121a91d42c6b8ece140bac35059e8f2284d94a8babd"
+    },
+    "expectedRaw": "**The Hermit** at the center is a useful answer to \"how do I stay centered.\" In the Rider-Waite-Smith image, his lantern is held close and lights only the next few steps, not the whole mountain. In career terms, this can look like a strategic retreat, though not necessarily a literal one. It might be twenty minutes before the inbox opens, where you decide for yourself what matters today before everyone else's restructuring tells you.\n\nCrossing him is **Five of Wands** reversed. On the card, five people swing staffs in a chaotic scrum. Read through Delayed Timing, the friction here may not have fully surfaced yet. Disagreements could still be circling: unclear roles, quiet resentment, conversations everyone is putting off.\n\nThat doesn't make avoidance the right move forever, and waiting won't necessarily make the tension resolve. It does raise a fair question: what needs to be in place before this friction can be named usefully? That could be clearer information, or your own read from the Hermit's lantern first. Knowing where you stand before stepping into the scrum is part of the work here.",
+    "recordedContext": {
+      "type": "recorded-fixture-context",
+      "reflectionsText": "It feels like multiple towers at the same time; I want to stay compassionate without losing momentum.",
+      "userQuestion": "How can I stay centered while everything at home and work restructures at once?"
+    },
+    "associations": [
+      {
+        "id": "hermit",
+        "label": "The Hermit at the center",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "The Hermit",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 0,
+          "end": 14,
+          "quote": "**The Hermit**"
+        }
+      },
+      {
+        "id": "lantern",
+        "label": "The lantern’s small reach",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "The Hermit",
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 109,
+          "end": 193,
+          "quote": "his lantern is held close and lights only the next few steps, not the whole mountain"
+        }
+      },
+      {
+        "id": "crossing",
+        "label": "The crossing card",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Five of Wands",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 455,
+          "end": 472,
+          "quote": "**Five of Wands**"
+        }
+      },
+      {
+        "id": "staffs",
+        "label": "The scrum",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Five of Wands",
+            "detailIds": [
+              "staffs"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 496,
+          "end": 539,
+          "quote": "five people swing staffs in a chaotic scrum"
+        }
+      },
+      {
+        "id": "return",
+        "label": "Return to the lantern",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "The Hermit",
+            "detailIds": [
+              "lantern"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 980,
+          "end": 1025,
+          "quote": "your own read from the Hermit's lantern first"
+        },
+        "meaningRange": {
+          "start": 980,
+          "end": 1025,
+          "quote": "your own read from the Hermit's lantern first"
+        }
+      },
+      {
+        "id": "relationship",
+        "label": "Lantern, then the scrum",
+        "kind": "relationship",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "The Hermit",
+            "detailIds": [
+              "lantern"
+            ]
+          },
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Five of Wands",
+            "detailIds": [
+              "staffs"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1027,
+          "end": 1107,
+          "quote": "Knowing where you stand before stepping into the scrum is part of the work here."
+        },
+        "meaningRange": {
+          "start": 1027,
+          "end": 1107,
+          "quote": "Knowing where you stand before stepping into the scrum is part of the work here."
+        }
+      }
+    ],
+    "introductions": [
+      {
+        "spreadIndex": 0,
+        "canonicalName": "The Hermit",
+        "start": 0,
+        "namedEnd": 14,
+        "descriptionStart": 77,
+        "midpoint": 145,
+        "end": 194
+      },
+      {
+        "spreadIndex": 1,
+        "canonicalName": "Five of Wands",
+        "start": 455,
+        "namedEnd": 472,
+        "descriptionStart": 483,
+        "midpoint": 513,
+        "end": 540
+      }
+    ]
+  },
+  "fiveCard": {
+    "id": "five-card-creative-project",
+    "artworkEdition": "rws-immanuelle-vector",
+    "provenance": {
+      "generatedAt": "2026-10-07T23:23:59.556Z",
+      "sourceFile": "data/evaluations/narrative-samples.json",
+      "sourceReadingSha256": "d3c52d35597669deb2bd4770d532934c47f775ba894c9b7a60974231b0eab91b",
+      "provenanceNote": "The checked-in source identifies this timestamp as generatedAt. It does not identify this sample as a qualification run."
+    },
+    "expectedRaw": "### Opening\n\nYou may know this feeling: something is ready to move, you can feel the pull forward, and an inner editor keeps asking whether the voice is right and whether now is really the moment. That's the tension this spread seems to circle as you ask about launching your creative project this quarter. It reads less like a stop sign and more like a sorting process.\n\nThe spread is neatly balanced, with one card from each suit (spark, mind, heart, and hands) and a single Major in the \"where this is heading\" seat. Two cards arrive reversed. I'm reading those as timing that may not be ripe yet: conditions to tend, not doors shut.\n\n### The Story\n\n**Ace of Wands (Upright), the core.** At the center is a clear yes to the creative impulse itself. The Rider-Waite-Smith image shows a hand from a cloud offering a wand that's still sprouting leaves, with rolling hills and a castle far off in the distance. That distance is worth noticing. The spark is alive, but the finished \"castle\" is further down the road. The momentum you named seems real. The live question may be how to carry a still-growing idea into public without waiting for it to look finished first.\n\n**Seven of Swords (Reversed), the challenge.** The traditional image shows a figure tiptoeing out of camp with five swords and leaving two behind, a plan carried off half-assembled. Reversed, through the timing lens, it can point to strategy that isn't quite ready for daylight. This might look like a launch plan that lives mostly in your head, or a description of the project you keep rewriting because you haven't said plainly what it is. The friction may sit less in the work and more in those two missing swords: the decisions you haven't made explicit yet.\n\n**Queen of Cups (Upright), the hidden influence.** Underneath the second-guessing there may be something more tender than doubt. The Queen sits at the sea's edge holding an ornate, covered cup with real devotion, attuned to what's inside and protective of it. Your worry about tone could be her voice: a sensitivity to how the work will feel to the people who receive it. That's a gift when it shapes the work and a drag when it turns into endless polishing. One question to sit with: when you hesitate over tone, does something feel emotionally off, or does the cup just feel too precious to uncover?\n\n**Three of Pentacles (Upright), the support.** If you're settling tone questions alone, this card offers another route. A craftsman stands in a cathedral talking plans over with a monk and a noble, and nobody in that scene is working solo or guessing at the design. Your help here looks like skilled collaboration: someone who knows the craft and someone closer to the audience. A quick review with two trusted people might settle more than another round of solo revision.\n\n**Wheel of Fortune (Reversed), the likely direction.** If things continue as they are, the Wheel reversed hints at a turn that's slow to come, with cycles that repeat instead of moving forward. Its classic image is all motion: a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other. Reversed, it can suggest the quarter's conditions aren't fully lined up yet, or that a loop of draft, doubt, and redraft is holding the wheel in place. The traditional wisdom here is to notice what's shifting and use it to reset a pattern rather than repeat it. Waiting alone won't guarantee a better moment, but changing the loop may shift the odds.\n\n### Putting It Together\n\nRead together, the spread's answer to your question about launching this quarter sounds something like this: the spark looks sound, the plan around it may be underbuilt, and the timing worry could partly be a tone worry in disguise. The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting. The two reversals point toward structure and readiness, and the Three of Pentacles points toward other people as the way to get unstuck. \"This quarter\" might mean a soft launch or a public date rather than everything at once.\n\nIf you enjoy astrological weather, the New Moon in Libra about two and a half weeks out makes a tidy symbolic checkpoint for naming a launch intention. Think of it as atmosphere, not a deadline.\n\n### Gentle Next Steps\n\n- **Write down the two missing swords.** List the two or three launch decisions still living in your head (date, platform, how you'll describe the project) and pick a placeholder answer for each.\n- **Ask for a tone check only.** Share a sample with one person who knows the craft and one who's closer to your audience, and ask just how it lands.\n- **Cap your revisions.** Give the piece you keep reworking a fixed number of passes. After that, it goes to feedback or it ships.\n- **Pick one small public step for the quarter.** A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.\n\n### Closing\n\nThe spark in this spread is clearly yours, and nothing here closes the window. It only suggests the timing may reward some groundwork first. How and when you launch is your call, and those choices are what shape where this goes.",
+    "recordedContext": {
+      "type": "recorded-fixture-context",
+      "reflectionsText": "I feel momentum but keep second-guessing the tone and timing.",
+      "userQuestion": "What should I know about launching my creative project this quarter?"
+    },
+    "associations": [
+      {
+        "id": "ace-arrival",
+        "label": "Ace of Wands (Upright), the core.",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 653,
+          "end": 690,
+          "quote": "**Ace of Wands (Upright), the core.**"
+        }
+      },
+      {
+        "id": "ace-sprout",
+        "label": "a hand from a cloud offering a wand that's still sprouting leaves",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": [
+              "sprout"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 786,
+          "end": 851,
+          "quote": "a hand from a cloud offering a wand that's still sprouting leaves"
+        }
+      },
+      {
+        "id": "ace-castle",
+        "label": "with rolling hills and a castle far off in the distance.",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": [
+              "castle"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 853,
+          "end": 909,
+          "quote": "with rolling hills and a castle far off in the distance."
+        }
+      },
+      {
+        "id": "ace-meaning",
+        "label": "The spark is alive, but the finished \"castle\" is further down the road.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": [
+              "sprout",
+              "castle"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 943,
+          "end": 1014,
+          "quote": "The spark is alive, but the finished \"castle\" is further down the road."
+        },
+        "meaningRange": {
+          "start": 943,
+          "end": 1014,
+          "quote": "The spark is alive, but the finished \"castle\" is further down the road."
+        }
+      },
+      {
+        "id": "swords-arrival",
+        "label": "Seven of Swords (Reversed), the challenge.",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 1169,
+          "end": 1215,
+          "quote": "**Seven of Swords (Reversed), the challenge.**"
+        }
+      },
+      {
+        "id": "swords-carried",
+        "label": "a figure tiptoeing out of camp with five swords",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": [
+              "carried"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1244,
+          "end": 1291,
+          "quote": "a figure tiptoeing out of camp with five swords"
+        }
+      },
+      {
+        "id": "swords-left",
+        "label": "and leaving two behind",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": [
+              "two-swords"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1292,
+          "end": 1314,
+          "quote": "and leaving two behind"
+        }
+      },
+      {
+        "id": "swords-meaning",
+        "label": "those two missing swords: the decisions you haven't made explicit yet.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": [
+              "two-swords"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1661,
+          "end": 1731,
+          "quote": "those two missing swords: the decisions you haven't made explicit yet."
+        },
+        "meaningRange": {
+          "start": 1661,
+          "end": 1731,
+          "quote": "those two missing swords: the decisions you haven't made explicit yet."
+        }
+      },
+      {
+        "id": "queen-arrival",
+        "label": "Queen of Cups (Upright), the hidden influence.",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Queen of Cups",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 1733,
+          "end": 1783,
+          "quote": "**Queen of Cups (Upright), the hidden influence.**"
+        }
+      },
+      {
+        "id": "queen-cup",
+        "label": "holding an ornate, covered cup with real devotion",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Queen of Cups",
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1895,
+          "end": 1944,
+          "quote": "holding an ornate, covered cup with real devotion"
+        }
+      },
+      {
+        "id": "queen-tone",
+        "label": "Your worry about tone could be her voice",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Queen of Cups",
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 1993,
+          "end": 2033,
+          "quote": "Your worry about tone could be her voice"
+        },
+        "meaningRange": {
+          "start": 1993,
+          "end": 2033,
+          "quote": "Your worry about tone could be her voice"
+        }
+      },
+      {
+        "id": "queen-question",
+        "label": "does the cup just feel too precious to uncover?",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Queen of Cups",
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 2287,
+          "end": 2334,
+          "quote": "does the cup just feel too precious to uncover?"
+        },
+        "meaningRange": {
+          "start": 2287,
+          "end": 2334,
+          "quote": "does the cup just feel too precious to uncover?"
+        }
+      },
+      {
+        "id": "pentacles-arrival",
+        "label": "Three of Pentacles (Upright), the support.",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "canonicalName": "Three of Pentacles",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 2336,
+          "end": 2382,
+          "quote": "**Three of Pentacles (Upright), the support.**"
+        }
+      },
+      {
+        "id": "pentacles-group",
+        "label": "A craftsman stands in a cathedral talking plans over with a monk and a noble",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "canonicalName": "Three of Pentacles",
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 2456,
+          "end": 2532,
+          "quote": "A craftsman stands in a cathedral talking plans over with a monk and a noble"
+        }
+      },
+      {
+        "id": "pentacles-meaning",
+        "label": "someone who knows the craft and someone closer to the audience.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "canonicalName": "Three of Pentacles",
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 2651,
+          "end": 2714,
+          "quote": "someone who knows the craft and someone closer to the audience."
+        },
+        "meaningRange": {
+          "start": 2651,
+          "end": 2714,
+          "quote": "someone who knows the craft and someone closer to the audience."
+        }
+      },
+      {
+        "id": "wheel-arrival",
+        "label": "Wheel of Fortune (Reversed), the likely direction.",
+        "kind": "identity",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "canonicalName": "Wheel of Fortune",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 2810,
+          "end": 2864,
+          "quote": "**Wheel of Fortune (Reversed), the likely direction.**"
+        }
+      },
+      {
+        "id": "wheel-image",
+        "label": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other.",
+        "kind": "literal",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "canonicalName": "Wheel of Fortune",
+            "detailIds": [
+              "wheel"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3037,
+          "end": 3134,
+          "quote": "a great wheel with a sphinx on top, a snake sliding down one side and Anubis rising on the other."
+        }
+      },
+      {
+        "id": "wheel-loop",
+        "label": "a loop of draft, doubt, and redraft is holding the wheel in place.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "canonicalName": "Wheel of Fortune",
+            "detailIds": [
+              "wheel"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3220,
+          "end": 3286,
+          "quote": "a loop of draft, doubt, and redraft is holding the wheel in place."
+        },
+        "meaningRange": {
+          "start": 3220,
+          "end": 3286,
+          "quote": "a loop of draft, doubt, and redraft is holding the wheel in place."
+        }
+      },
+      {
+        "id": "drive-and-sensitivity",
+        "label": "The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting.",
+        "kind": "relationship",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": [
+              "sprout"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "canonicalName": "Queen of Cups",
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3745,
+          "end": 3844,
+          "quote": "The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting."
+        },
+        "meaningRange": {
+          "start": 3745,
+          "end": 3844,
+          "quote": "The Ace of Wands and Queen of Cups suggest both your drive and your sensitivity are worth trusting."
+        }
+      },
+      {
+        "id": "readiness",
+        "label": "The two reversals point toward structure and readiness",
+        "kind": "relationship",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": []
+          },
+          {
+            "spreadIndex": 4,
+            "canonicalName": "Wheel of Fortune",
+            "detailIds": []
+          }
+        ],
+        "passage": {
+          "start": 3845,
+          "end": 3899,
+          "quote": "The two reversals point toward structure and readiness"
+        },
+        "meaningRange": {
+          "start": 3845,
+          "end": 3899,
+          "quote": "The two reversals point toward structure and readiness"
+        }
+      },
+      {
+        "id": "collaboration-return",
+        "label": "the Three of Pentacles points toward other people as the way to get unstuck.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "canonicalName": "Three of Pentacles",
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 3905,
+          "end": 3981,
+          "quote": "the Three of Pentacles points toward other people as the way to get unstuck."
+        },
+        "meaningRange": {
+          "start": 3905,
+          "end": 3981,
+          "quote": "the Three of Pentacles points toward other people as the way to get unstuck."
+        }
+      },
+      {
+        "id": "missing-swords-return",
+        "label": "Write down the two missing swords.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "canonicalName": "Seven of Swords",
+            "detailIds": [
+              "two-swords"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 4293,
+          "end": 4331,
+          "quote": "**Write down the two missing swords.**"
+        },
+        "meaningRange": {
+          "start": 4293,
+          "end": 4331,
+          "quote": "**Write down the two missing swords.**"
+        }
+      },
+      {
+        "id": "tone-check-return",
+        "label": "Ask for a tone check only.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 3,
+            "canonicalName": "Three of Pentacles",
+            "detailIds": [
+              "collaborators"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 4489,
+          "end": 4519,
+          "quote": "**Ask for a tone check only.**"
+        },
+        "meaningRange": {
+          "start": 4489,
+          "end": 4519,
+          "quote": "**Ask for a tone check only.**"
+        }
+      },
+      {
+        "id": "momentum-return",
+        "label": "A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal.",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 4,
+            "canonicalName": "Wheel of Fortune",
+            "detailIds": [
+              "wheel"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 4818,
+          "end": 4920,
+          "quote": "A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal."
+        },
+        "meaningRange": {
+          "start": 4818,
+          "end": 4920,
+          "quote": "A preview, an announcement, or a waitlist gives the wheel something to turn on before the full reveal."
+        }
+      },
+      {
+        "id": "closing-spark",
+        "label": "The spark in this spread is clearly yours",
+        "kind": "interpretation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "canonicalName": "Ace of Wands",
+            "detailIds": [
+              "sprout"
+            ]
+          }
+        ],
+        "passage": {
+          "start": 4935,
+          "end": 4976,
+          "quote": "The spark in this spread is clearly yours"
+        },
+        "meaningRange": {
+          "start": 4935,
+          "end": 4976,
+          "quote": "The spark in this spread is clearly yours"
+        }
+      }
+    ],
+    "introductions": [
+      {
+        "spreadIndex": 0,
+        "canonicalName": "Ace of Wands",
+        "start": 653,
+        "namedEnd": 690,
+        "descriptionStart": 786,
+        "midpoint": 847,
+        "end": 909
+      },
+      {
+        "spreadIndex": 1,
+        "canonicalName": "Seven of Swords",
+        "start": 1169,
+        "namedEnd": 1215,
+        "descriptionStart": 1244,
+        "midpoint": 1279,
+        "end": 1314
+      },
+      {
+        "spreadIndex": 2,
+        "canonicalName": "Queen of Cups",
+        "start": 1733,
+        "namedEnd": 1783,
+        "descriptionStart": 1895,
+        "midpoint": 1919,
+        "end": 1944
+      },
+      {
+        "spreadIndex": 3,
+        "canonicalName": "Three of Pentacles",
+        "start": 2336,
+        "namedEnd": 2382,
+        "descriptionStart": 2456,
+        "midpoint": 2494,
+        "end": 2532
+      },
+      {
+        "spreadIndex": 4,
+        "canonicalName": "Wheel of Fortune",
+        "start": 2810,
+        "namedEnd": 2864,
+        "descriptionStart": 3037,
+        "midpoint": 3085,
+        "end": 3134
+      }
+    ]
+  }
+}

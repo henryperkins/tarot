@@ -1,7 +1,6 @@
 import { timingSafeEqual } from './crypto.js';
 import { runQualityAnalysis } from './qualityAnalysis.js';
 import { dispatchAlerts } from './qualityAlerts.js';
-import { reconcilePendingVideoUsage } from '../api/generate-card-video.js';
 
 /**
  * Scheduled Tasks Handler
@@ -19,7 +18,6 @@ import { reconcilePendingVideoUsage } from '../api/generate-card-video.js';
 const ARCHIVE_BATCH_SIZE = 100;
 const METRICS_PREFIX = 'reading:';
 const FEEDBACK_PREFIX = 'feedback:';
-const CARD_VIDEO_RECONCILE_CRON = '*/10 * * * *';
 
 /**
  * Archive KV data to D1 database with full pagination support
@@ -433,7 +431,11 @@ async function storeArchivalSummary(db, results, onFailure = () => {}) {
 export async function handleScheduled(controller, env, _ctx, { reportFailures = false } = {}) {
   const startTime = Date.now();
   const cron = controller.cron;
-  const isCardVideoOnlyCron = cron === CARD_VIDEO_RECONCILE_CRON;
+
+  // Ignore the retired video schedule while an older trigger is still configured.
+  if (cron === '*/10 * * * *') {
+    return reportFailures ? { success: true, skipped: 'retired-video-schedule', results: {}, failedTasks: [] } : undefined;
+  }
 
   const analysisDateStr = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString().split('T')[0];
 
@@ -441,7 +443,6 @@ export async function handleScheduled(controller, env, _ctx, { reportFailures = 
   console.log(`Cron pattern: ${cron}`);
 
   const results = {
-    cardVideo: null,
     metrics: null,
     feedback: null,
     sessions: null,
@@ -458,16 +459,6 @@ export async function handleScheduled(controller, env, _ctx, { reportFailures = 
     ? { success: failedTasks.size === 0, results, failedTasks: [...failedTasks] } : undefined;
 
   try {
-    results.cardVideo = await reconcilePendingVideoUsage(env);
-    if (!env?.METRICS_DB?.list || results.cardVideo.errors > 0) failedTasks.add('cardVideo');
-
-    if (isCardVideoOnlyCron) {
-      const duration = Date.now() - startTime;
-      console.log(`Card video reconciliation cron completed in ${duration}ms`);
-      console.log('Results:', JSON.stringify(results));
-      return outcome();
-    }
-
     // Run archival tasks in parallel (KV -> D1)
     // Note: Metrics now go directly to eval_metrics table; this archives any legacy KV keys
     const [metricsResult, feedbackResult] = await Promise.all([
@@ -552,7 +543,6 @@ export async function onRequestPost(context) {
   const startTime = Date.now();
 
   try {
-    const cardVideoResult = await reconcilePendingVideoUsage(env);
     const [metricsResult, feedbackResult] = await Promise.all([
       archiveKVToD1(env.METRICS_DB, env.DB, METRICS_PREFIX, 'metrics'),
       archiveKVToD1(env.FEEDBACK_KV, env.DB, FEEDBACK_PREFIX, 'feedback')
@@ -569,7 +559,6 @@ export async function onRequestPost(context) {
     const dateStr = new Date().toISOString().split('T')[0];
 
     const results = {
-      cardVideo: cardVideoResult,
       metrics: metricsResult,
       feedback: feedbackResult,
       sessions: { deleted: sessionsDeleted },

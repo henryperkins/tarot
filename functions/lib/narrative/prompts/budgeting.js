@@ -91,14 +91,14 @@ export function estimateTokenCount(text = '', options = {}) {
 // Default token budgets per provider - used if no env var is set
 // These are conservative estimates based on typical context windows
 const DEFAULT_BUDGETS = {
-  azure: 12000,   // GPT-5 has ~128k context, but we keep prompts reasonable
+  openai: 12000,   // GPT-5 has ~128k context, but we keep prompts reasonable
   claude: 16000,  // Claude has ~200k context, allow slightly larger prompts
   default: 8000   // Fallback for unknown providers
 };
 
 // Hard caps - prompts will be truncated if they exceed these after all slimming
 const HARD_CAP_BUDGETS = {
-  azure: 20000,
+  openai: 20000,
   claude: 25000,
   default: 15000
 };
@@ -112,8 +112,8 @@ export function getPromptBudgetForTarget(target = 'default', options = {}) {
   if (normalizedTarget === 'modal') return null;
 
   let raw = null;
-  if (normalizedTarget === 'azure') {
-    raw = env.PROMPT_BUDGET_AZURE ?? env.PROMPT_BUDGET_DEFAULT;
+  if (normalizedTarget === 'openai') {
+    raw = env.PROMPT_BUDGET_OPENAI ?? env.PROMPT_BUDGET_DEFAULT;
   } else if (normalizedTarget === 'claude') {
     raw = env.PROMPT_BUDGET_CLAUDE ?? env.PROMPT_BUDGET_DEFAULT;
   } else {

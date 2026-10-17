@@ -283,7 +283,7 @@ async function generateNarrative(page) {
 async function waitForNarrativeComplete(page) {
   // Wait for loading skeleton to disappear and text to appear
   await expect(async () => {
-    const skeleton = page.locator('[aria-label="Preparing your interpretation"]');
+    const skeleton = page.getByRole('heading', { name: 'Preparing your reading', exact: true });
     const isSkeletonVisible = await skeleton.isVisible().catch(() => false);
     expect(isSkeletonVisible).toBe(false);
   }).toPass({ timeout: 30000 }); // Narrative generation can take a while

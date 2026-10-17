@@ -1,0 +1,627 @@
+/* The querent's cards beside their reading. When the text speaks about a
+   card, a reader's hand finds it: the card lifts toward the reader, takes a
+   candlelit rim, and the spot the words describe catches the light while the
+   rest of the artwork settles back. */
+
+:root {
+  --card-touch-light: 255 236 205;
+  --card-touch-veil: 12 9 18;
+  --card-touch-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --spread-rail-width: 8.5rem;
+}
+
+/* --- Card artwork ------------------------------------------------------- */
+
+/* WebKit crashes when one element transitions transform and filter together,
+   so the lift stays here and the desaturation of receding cards sits on the
+   image inside. */
+.card-touch {
+  position: relative;
+  display: block;
+  width: 100%;
+  transition:
+    transform 560ms var(--card-touch-ease),
+    opacity 360ms ease-out;
+}
+
+.card-touch__art {
+  position: relative;
+  display: block;
+  aspect-ratio: 100 / 172;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bg-surface-muted);
+  box-shadow:
+    0 0 0 1px var(--border-warm),
+    0 10px 22px -14px rgb(0 0 0 / 0.75);
+  transition: box-shadow 560ms var(--card-touch-ease);
+}
+
+.card-touch__art--reversed {
+  transform: rotate(180deg);
+}
+
+.card-touch__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Plates sit inside prose, which spaces images as figures. */
+  margin: 0;
+  transition: filter 360ms ease-out;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.card-touch__light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.card-touch__veil {
+  fill: rgb(var(--card-touch-veil));
+  opacity: 0;
+  transition: opacity 480ms ease-out;
+}
+
+.card-touch[data-lit] .card-touch__veil {
+  opacity: 0.5;
+}
+
+.card-touch__glow {
+  mix-blend-mode: screen;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: card-touch-light 720ms var(--card-touch-ease) both;
+}
+
+/* The moment of contact: candlelight flares where the hand lands, then
+   settles. */
+.card-touch__bloom {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--touch-x, 50%) var(--touch-y, 50%),
+    rgb(var(--card-touch-light) / 0.6) 0%,
+    rgb(var(--card-touch-light) / 0.18) 24%,
+    rgb(var(--card-touch-light) / 0) 52%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: card-touch-bloom 1200ms ease-out both;
+}
+
+@keyframes card-touch-light {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes card-touch-bloom {
+  0% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes card-touch-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Spread companion: rail (wide) and row (narrow) --------------------- */
+
+.spread-companion__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spread-companion__item {
+  min-width: 0;
+}
+
+.spread-companion__card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.spread-companion__label {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-align: center;
+  text-transform: uppercase;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  transition: color 360ms ease-out;
+}
+
+.spread-companion__orientation {
+  display: block;
+  margin-top: 0.125rem;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.spread-companion__item[data-state] .spread-companion__label {
+  color: rgb(var(--brand-primary-rgb));
+}
+
+/* The cards the reading isn't speaking about step back into the dark. */
+.spread-companion[data-focus] .spread-companion__card:not([data-state]) .card-touch {
+  opacity: 0.5;
+}
+
+.spread-companion[data-focus] .spread-companion__card:not([data-state]) .card-touch__image {
+  filter: saturate(0.6) brightness(0.82);
+}
+
+.spread-companion__card[data-state='warm'] .card-touch__art,
+.card-touch-plate[data-state='warm'] .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.55),
+    0 10px 22px -14px rgb(0 0 0 / 0.75);
+}
+
+.spread-companion__card[data-state='touched'] .card-touch {
+  transform: translateY(-6px);
+}
+
+.spread-companion__card[data-state='touched'] .card-touch__art,
+.card-touch-plate[data-state='touched'] .card-touch__art {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-primary-rgb) / 0.9),
+    0 18px 30px -16px rgb(var(--brand-primary-rgb) / 0.5),
+    0 8px 16px -8px rgb(0 0 0 / 0.7);
+}
+
+@media (hover: hover) {
+  .spread-companion__card:not([data-state='touched']):hover .card-touch {
+    transform: translateY(-3px);
+  }
+}
+
+/* Rail: the whole spread stays beside the text while it is read. */
+.spread-companion--rail {
+  display: none;
+}
+
+.spread-companion--rail .spread-companion__list {
+  display: grid;
+  grid-template-columns: repeat(var(--rail-cols, 1), minmax(0, 1fr));
+  gap: 1.125rem 0.75rem;
+  justify-items: center;
+}
+
+.spread-companion--rail .spread-companion__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.spread-companion--rail .spread-companion__card {
+  /* Fit the spread inside the viewport whatever its height; each row also
+     holds a label and a gap. Labels keep the full column width. */
+  width: clamp(2.25rem, calc(((100dvh - 8rem) / var(--rail-rows, 3) - var(--rail-label-room, 3.25rem)) / var(--card-ratio, 1.72)), 100%);
+}
+
+/* Two columns (four cards or more): tighter rows and quieter, sentence-case
+   labels so a ten-card spread still fits beside the text. */
+.spread-companion--rail[data-cols='2'] {
+  --rail-label-room: 3.75rem;
+}
+
+.spread-companion--rail[data-cols='2'] .spread-companion__list {
+  row-gap: 0.75rem;
+}
+
+.spread-companion--rail[data-cols='2'] .spread-companion__label {
+  margin-top: 0.375rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/* Row: the spread opens the reading on narrower screens. */
+.spread-companion--row {
+  margin-top: 1.5rem;
+}
+
+.spread-companion--row .spread-companion__list {
+  display: flex;
+  gap: 0.875rem;
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: 0.5rem 0.25rem 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.spread-companion--row .spread-companion__item {
+  flex: 0 0 auto;
+  width: clamp(3.25rem, calc((100vw - 4rem) / var(--row-count, 3) - 0.875rem), 4.75rem);
+  scroll-snap-align: center;
+}
+
+.spread-companion--row .spread-companion__card[data-state='touched'] .card-touch {
+  transform: translateY(-4px);
+}
+
+/* Plate: the card set into the paragraph that opens its passage. */
+.card-touch-plate {
+  float: left;
+  width: 4.75rem;
+  margin: 0.35em 1rem 0.5rem 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-touch-plate[data-state='touched'] .card-touch {
+  transform: translateY(-3px);
+}
+
+.reading-plate-paragraph {
+  display: flow-root;
+}
+
+@media (min-width: 640px) {
+  .card-touch-plate {
+    width: 6rem;
+    margin-right: 1.25rem;
+  }
+}
+
+/* The scene clips its backdrop; clip (unlike hidden) creates no scroll
+   container, so the rail can stay in view. Older browsers keep hidden. */
+.scene-shell.scene-shell--reading {
+  overflow: hidden;
+  overflow: clip;
+}
+
+/* Wide screens: cards beside the text, the pair centered as one composition. */
+@media (min-width: 1180px) {
+  .narrative-panel__layout--wide-rail {
+    --spread-rail-width: 11.5rem;
+  }
+
+  .narrative-panel__layout--with-spread {
+    display: grid;
+    grid-template-columns: var(--spread-rail-width) minmax(0, 65ch);
+    column-gap: clamp(1.75rem, 3vw, 3rem);
+    justify-content: center;
+    align-items: start;
+  }
+
+  .narrative-panel__layout--with-spread > .narrative-panel__column {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .narrative-panel__layout--with-spread > .narrative-panel__after {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .spread-companion--rail {
+    display: block;
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 5.5rem;
+    padding-top: 0.5rem;
+  }
+
+  .spread-companion--row,
+  .card-touch-plate {
+    display: none;
+  }
+}
+
+/* --- Linked text -------------------------------------------------------- */
+
+/* Described details are marked only in the passage being read. */
+.reading-imagery {
+  border-radius: 0.25rem;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.3em;
+  transition:
+    text-decoration-color 420ms ease-out,
+    background-color 260ms ease-out,
+    color 260ms ease-out;
+}
+
+[data-reading-active] .reading-imagery {
+  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.7);
+}
+
+.reading-imagery[data-touch-hover] {
+  color: var(--text-main);
+  background-color: rgb(var(--brand-primary-rgb) / 0.14);
+  text-decoration-style: solid;
+  text-decoration-color: rgb(var(--brand-primary-rgb) / 0.95);
+}
+
+.reading-card-ref {
+  transition: background-color 260ms ease-out, box-shadow 260ms ease-out;
+}
+
+/* Hovering a card in the spread shows where the text speaks about it. */
+[data-spread-hover='0'] .reading-card-ref[data-card-index='0'],
+[data-spread-hover='1'] .reading-card-ref[data-card-index='1'],
+[data-spread-hover='2'] .reading-card-ref[data-card-index='2'],
+[data-spread-hover='3'] .reading-card-ref[data-card-index='3'],
+[data-spread-hover='4'] .reading-card-ref[data-card-index='4'],
+[data-spread-hover='5'] .reading-card-ref[data-card-index='5'],
+[data-spread-hover='6'] .reading-card-ref[data-card-index='6'],
+[data-spread-hover='7'] .reading-card-ref[data-card-index='7'],
+[data-spread-hover='8'] .reading-card-ref[data-card-index='8'],
+[data-spread-hover='9'] .reading-card-ref[data-card-index='9'],
+.reading-card-ref[data-touch-hover] {
+  background-color: rgb(var(--brand-primary-rgb) / 0.2);
+  box-shadow: 0 0 0 1px rgb(var(--brand-primary-rgb) / 0.45);
+}
+
+/* --- Calm and reduced motion -------------------------------------------- */
+
+[data-calm] .card-touch__glow,
+[data-calm] .card-touch__bloom {
+  mix-blend-mode: normal;
+}
+
+.spread-companion[data-calm][data-focus] .spread-companion__card:not([data-state]) .card-touch__image {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-touch,
+  .card-touch__art,
+  .card-touch__image,
+  .card-touch__veil {
+    transition-duration: 160ms;
+  }
+
+  .spread-companion__card[data-state='touched'] .card-touch,
+  .spread-companion--row .spread-companion__card[data-state='touched'] .card-touch,
+  .card-touch-plate[data-state='touched'] .card-touch,
+  .spread-companion__card:hover .card-touch {
+    transform: none;
+  }
+
+  .card-touch__glow {
+    animation: card-touch-fade 200ms ease-out both;
+  }
+
+  .card-touch__bloom {
+    display: none;
+  }
+}
+/* The opt-in reading companion keeps a stable stage as prose arrives. */
+/* Header publishes its measured sticky height; fixture pages inherit zero. */
+.gesture-companion { position: sticky; top: calc(var(--sticky-header-height, 0px) + 1rem); align-self: start; width: 100%; color: var(--text-main); }
+.gesture-shelf { display: grid; grid-template-columns: repeat(var(--shelf-columns), minmax(44px, 1fr)); gap: 8px; list-style: none; margin: 0 0 18px; padding: 8px 6px 6px; overflow-x: auto; overscroll-behavior-x: contain; }
+.gesture-shelf li { min-width: 0; text-align: center; }
+.gesture-shelf-card { display: block; width: 100%; max-width: 108px; margin-inline: auto; aspect-ratio: 3/5; min-height: 44px; background: none; border: 0; padding: 0; border-radius: 4px; cursor: pointer; }
+.gesture-shelf-card:disabled { cursor: default; }
+.gesture-shelf-label { display: block; min-height: 18px; max-width: 100%; overflow-wrap: anywhere; font: .6875rem/1.5 Inter, sans-serif; margin-top: 5px; color: var(--text-muted); }
+.gesture-window { position: relative; width: 100%; height: 360px; overflow: hidden; isolation: isolate; }
+.gesture-focus-layer { position: absolute; inset: 0; display: flex; justify-content: center; gap: 12px; animation: gesture-arrive 550ms cubic-bezier(.16, 1, .3, 1) both; }
+.gesture-focus-layer--departing { animation: gesture-depart 300ms ease-out both; pointer-events: none; z-index: -1; }
+.gesture-focus-card { display: flex; gap: 6px; flex: 1 1 0; min-width: 0; max-width: 216px; border: 0; padding: 0; background: none; cursor: pointer; overflow: hidden; border-radius: 5px; }
+.gesture-focus-layer[data-pair] .gesture-focus-card { max-width: 50%; }
+.gesture-context { min-height: 44px; max-height: min(20vh, 6rem); margin-top: 12px; overflow: auto; overflow-wrap: anywhere; overscroll-behavior: contain; scrollbar-gutter: stable; font-size: .75rem; line-height: 1.5; color: var(--text-muted); text-wrap: balance; }
+.gesture-context:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.gesture-art { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 4px; opacity: var(--presence, 1); }
+.gesture-art[data-dynamic='true'] { transition: opacity 550ms cubic-bezier(.16, 1, .3, 1); }
+.gesture-art[data-dynamic='true'][data-calm] { transition: none; }
+.gesture-art__plane { position: absolute; inset: 0; transition: transform 550ms cubic-bezier(.16, 1, .3, 1); }
+.gesture-art__upright { display: block; position: relative; width: 100%; height: 100%; }
+.gesture-art__upright[data-reversed] { transform: rotate(180deg); }
+.gesture-art__image { display: block; width: 100%; height: 100%; opacity: .74; filter: brightness(.88); transition: opacity 140ms ease-out, filter 140ms ease-out; }
+.gesture-art[data-held] .gesture-art__image, button:hover .gesture-art__image, button:focus-visible .gesture-art__image, .gesture-art[data-calm][data-active] .gesture-art__image { opacity: 1; filter: brightness(1); }
+.gesture-art__light, .gesture-art__water { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gesture-art__light { opacity: .9; }
+.gesture-art__surround { fill: var(--bg-main); opacity: .52; }
+.gesture-art__water { opacity: var(--gesture-water-opacity, 0); mix-blend-mode: screen; }
+.gesture-art__trace { fill: none; stroke: #f8e6ad; stroke-width: 5; stroke-linecap: round; opacity: .32; }
+.gesture-art__flow, .gesture-art__rivulet { fill: none; stroke: #d2efff; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 28 18; animation: gesture-flow 1s linear infinite paused; }
+.gesture-art__rivulet { stroke-width: 6; stroke-dasharray: 32 22; animation-duration: 1.3s; }
+.gesture-art__ripple { fill: none; stroke: #c4eaff; stroke-width: 3.5; opacity: 0; transform-origin: 285px 1455px; animation: gesture-ripple 3s cubic-bezier(.2, .7, .3, 1) infinite paused; }
+.gesture-shelf-card, .gesture-focus-card { transition: transform 140ms ease-out, box-shadow 140ms ease-out; }
+.gesture-shelf-card:enabled:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: translate3d(0, -3px, 0); box-shadow: 0 16px 32px rgb(0 0 0 / .26); }
+.gesture-shelf-card:focus-visible, .gesture-focus-card:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 3px; }
+.reading-gesture-association { display: inline; border: 0; border-radius: 3px; margin: 0; padding: 10px 0; background: none; color: inherit; font: inherit; line-height: inherit; text-align: inherit; cursor: pointer; text-decoration: underline dotted; text-decoration-color: rgb(var(--brand-primary-rgb) / .32); text-underline-offset: .2em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.reading-gesture-association[data-associated] { background: rgb(var(--brand-primary-rgb) / .08); text-decoration-color: var(--brand-primary); }
+.reading-gesture-association:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+@keyframes gesture-arrive { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@keyframes gesture-depart { to { opacity: 0; } }
+@keyframes gesture-flow { to { stroke-dashoffset: -92; } }
+@keyframes gesture-ripple { 0% { transform: scale(.03); opacity: 0; } 15% { opacity: .7; } 85% { opacity: .1; } 100% { transform: scale(1); opacity: 0; } }
+@media (max-width: 1023px) {
+  .narrative-panel__layout:has(.gesture-companion) { display: flex; flex-direction: column; }
+  /* Auto margins disable flex cross-axis stretch; bound prose at text zoom. */
+  .narrative-panel__layout:has(.gesture-companion) > .narrative-panel__column { width: 100%; max-width: 100%; overflow-wrap: anywhere; }
+  /* On a phone, the cards share the page instead of covering the reading. */
+  .gesture-companion { position: static; padding: 10px 4px 0; background: var(--bg-surface); }
+  .gesture-shelf { max-width: 440px; margin: 0 auto 10px; gap: 8px; grid-template-columns: repeat(var(--shelf-count), minmax(44px, 1fr)); overflow-x: auto; overscroll-behavior-x: contain; }
+  .gesture-shelf-card { height: 64px; width: 44px; margin: auto; }
+  .gesture-shelf-card > .gesture-art { width: 40px; margin-inline: auto; }
+  .gesture-window { height: 106px; }
+  .gesture-focus-card { max-width: 232px; }
+  .gesture-focus-layer { gap: 10px; }
+  .gesture-art[data-crop] .gesture-art__plane { width: 160px; height: 266.667px; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) scale(min(var(--crop-zoom), var(--crop-fit-zoom, var(--crop-zoom)))) translate(var(--crop-x), var(--crop-y)); }
+  .gesture-context { min-height: 26px; margin-top: 5px; text-align: center; }
+}
+@media (max-width: 359px) { .gesture-window { height: 96px; } .gesture-shelf { gap: 4px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-window { height: 72px; } .gesture-shelf-card { height: 48px; } .gesture-shelf-card > .gesture-art { width: 29px; } .gesture-art[data-crop] .gesture-art__plane { transform: translate(-50%, -50%) scale(min(var(--crop-zoom-short), var(--crop-fit-zoom, var(--crop-zoom-short)))) translate(var(--crop-x), var(--crop-y)); } }
+@media (prefers-reduced-motion: reduce) {
+  .gesture-focus-layer, .gesture-art [data-gesture-water] { animation: none !important; }
+  .reading-gesture-association { transition: none !important; animation: none !important; }
+  .gesture-companion, .gesture-companion * { transition: none !important; }
+  .gesture-art[data-dynamic='true'], .gesture-art__plane, .gesture-art__image, .gesture-shelf-card, .gesture-focus-card { transition: none; }
+  .gesture-shelf-card:hover, .gesture-shelf-card:focus-visible, .gesture-focus-card:hover, .gesture-focus-card:focus-visible { transform: none; }
+  .gesture-art__water { opacity: 0; }
+}
+
+.narrative-panel__layout:has(.gesture-companion) { display: grid; grid-template-columns: minmax(250px, 340px) minmax(0, 68ch); gap: 40px; max-width: 1120px; margin-inline: auto; }
+/* Native focus/scroll must expose reading actions above the measured fixed bar. */
+.narrative-panel__layout:has(.gesture-companion) .narrative-panel__after :is(button, a) {
+  scroll-margin-bottom: calc(var(--mobile-action-bar-height, 0px) + var(--keyboard-offset, 0px) + 16px);
+}
+/* Native focus keeps saved phrases and shelf cards clear of journal shortcuts. */
+.journal-page .reading-gesture-association,
+.journal-page .gesture-shelf-card {
+  scroll-margin-bottom: calc(var(--journal-controls-inset, 0px) + 16px);
+}
+.journal-page .gesture-shelf-card {
+  scroll-margin-top: calc(var(--sticky-header-height, 0px) + 16px);
+}
+.gesture-focus-card { align-items: center; }
+.gesture-focus-card > .gesture-art { height: auto; aspect-ratio: 3/5; }
+@media (max-width: 1023px) { .narrative-panel__layout:has(.gesture-companion) { display: flex; gap: 18px; } .gesture-focus-card > .gesture-art { height: 100%; aspect-ratio: auto; } }
+
+.gesture-inspection-placeholder { height: 106px; }
+.gesture-inspection-dialog .gesture-window { height: min(55dvh, 360px); min-height: 106px; }
+.gesture-inspection-dialog .gesture-focus-layer { animation: none; }
+.gesture-inspection-dialog .gesture-focus-card { height: 100%; max-width: 100%; justify-content: center; }
+.gesture-inspection-dialog .gesture-focus-layer[data-pair] .gesture-focus-card { max-width: calc(50% - 6px); }
+.gesture-inspection-dialog .gesture-focus-card > .gesture-art { height: 100%; width: auto; max-width: 100%; aspect-ratio: 3/5; margin-inline: auto; }
+.gesture-inspection-context { margin: 12px 0 0; max-height: 15dvh; overflow: auto; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 359px) { .gesture-inspection-placeholder { height: 96px; } }
+@media (max-height: 600px) and (max-width: 1023px) { .gesture-inspection-placeholder { height: 72px; } }
+
+.gesture-lab { min-inline-size: 0; }
+.gesture-lab > label, .gesture-lab > legend, .gesture-lab > output { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.gesture-lab select, .gesture-lab button { min-height: 44px; max-width: 100%; border: 1px solid var(--border-warm); border-radius: 6px; background: var(--bg-surface-muted); color: var(--text-main); padding: 8px 12px; }
+
+/* Exact original context has its own disclosure, separate from cue quotations. */
+.reading-personal-context__trigger {
+  display: block;
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-warm);
+  border-radius: 8px;
+  background: var(--bg-surface-muted);
+  color: var(--text-main);
+  font-size: .8125rem;
+  line-height: 1.5;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.reading-personal-context__trigger:focus-visible,
+.reading-personal-context__close:focus-visible,
+.reading-personal-context__scroll:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+.reading-personal-context__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgb(0 0 0 / .65);
+}
+.reading-personal-context__dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 40rem);
+  max-height: calc(100dvh - 24px);
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-warm);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  color: var(--text-main);
+  box-shadow: 0 20px 64px rgb(0 0 0 / .4);
+}
+.reading-personal-context__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+.reading-personal-context__header h2 {
+  min-width: 0;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.reading-personal-context__close {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--border-warm);
+  border-radius: 6px;
+  background: var(--bg-surface-muted);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.reading-personal-context__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 4px;
+}
+.reading-personal-context__entry + .reading-personal-context__entry { margin-top: 20px; }
+.reading-personal-context__entry h3 { margin: 0 0 8px; font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.reading-personal-context__entry p { margin: 0; font-size: 1rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.gesture-lab :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+/* Saved readings retain associations and manual revisit without arrival replay. */
+.restored-reading-gestures .gesture-focus-layer,
+.restored-reading-gestures .gesture-art [data-gesture-water],
+.restored-reading-gestures .reading-gesture-association { animation: none !important; }
+.restored-reading-gestures .gesture-art,
+.restored-reading-gestures .gesture-art__plane,
+.restored-reading-gestures .gesture-art__image,
+.restored-reading-gestures .gesture-shelf-card,
+.restored-reading-gestures .gesture-focus-card { transition: none !important; }
+.restored-reading-gestures .gesture-art__water { opacity: 0; }

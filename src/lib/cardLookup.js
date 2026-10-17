@@ -10,7 +10,7 @@ import { MINOR_ARCANA } from '../data/minorArcana.js';
 import { getDeckAlias, getDeckImagePath } from '../../shared/vision/deckAssets.js';
 
 // Fallback image for missing cards
-export const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
+export const FALLBACK_IMAGE = '/images/card-back.png';
 
 // Build lookup table from all cards
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
@@ -40,6 +40,22 @@ export function getCardImage(card) {
   if (canonical?.image) return canonical.image;
   
   return FALLBACK_IMAGE;
+}
+
+const RWS_SCAN = /^\/images\/cards\/(RWS1909_-_[^/]+)\.jpe?g$/i;
+
+/**
+ * srcset for a card shown small (spreads, reading rows): the 360 px WebP
+ * thumbnail beside the full scan, so phones skip ~220 KB per card. Only the
+ * Rider-Waite-Smith scans have thumbnails (scripts/assets/generate-card-thumbnails.mjs);
+ * other decks' images are already small and return undefined.
+ * @param {string} src - Card image path (getCardImage)
+ * @returns {string|undefined}
+ */
+export function getCardThumbnailSrcSet(src) {
+  const match = typeof src === 'string' ? RWS_SCAN.exec(src) : null;
+  if (!match) return undefined;
+  return `/images/cards/w360/${match[1]}.webp 360w, ${src} 825w`;
 }
 
 /**
@@ -87,7 +103,7 @@ export function getCardForDeck(card, deckStyle = 'rws-1909') {
     ...card,
     canonicalName: canonical.name,
     name: getDeckAlias(canonical, deckStyle),
-    image: getDeckImagePath(canonical, deckStyle) || card.image || canonical.image
+    image: getDeckImagePath(canonical, deckStyle) || card.image || canonical.image || FALLBACK_IMAGE
   };
 }
 

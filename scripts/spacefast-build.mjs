@@ -16,7 +16,7 @@ const sqlAudit = await auditApplicationSql();
 if (sqlAudit.unresolved.length || sqlAudit.failures.length) throw new Error('Spacefast application SQL inventory needs review; run scripts/spacefast-database-audit.mjs');
 const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 
-await viteBuild({ root });
+await viteBuild({ root, define: { 'import.meta.env.VITE_READING_MODEL_ANNOTATIONS': JSON.stringify('false') } });
 await rm(output, { recursive: true, force: true });
 await cp(resolve(root, 'dist'), output, { recursive: true });
 await mkdir(resolve(output, '.server'), { recursive: true });
@@ -54,7 +54,6 @@ await writeFile(resolve(output, 'sf.jsonc'), `${JSON.stringify({
   cleanUrls: false,
   listing: false,
   ...(process.env.TABLEU_CRONS_ENABLED === 'true' ? { crons: [
-    { path: '/api/maintenance/spacefast/video/{{ vars.TABLEU_CRON_SECRET }}', schedule: '*/10 * * * *' },
     { path: '/api/maintenance/spacefast/daily/{{ vars.TABLEU_CRON_SECRET }}', schedule: '0 3 * * *' },
   ] } : {}),
 }, null, 2)}\n`);

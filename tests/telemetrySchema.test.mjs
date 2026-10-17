@@ -46,7 +46,7 @@ describe('telemetrySchema', () => {
           total: 3000,
           budget: 8000,
           hardCap: 16000,
-          budgetTarget: 'azure',
+          budgetTarget: 'openai',
           overBudget: false
           // Note: truncated removed - use prompt.truncation !== null instead
         }
@@ -58,7 +58,7 @@ describe('telemetrySchema', () => {
         total: 3000,
         budget: 8000,
         hardCap: 16000,
-        budgetTarget: 'azure',
+        budgetTarget: 'openai',
         overBudget: false
       });
     });
@@ -343,7 +343,7 @@ describe('telemetrySchema', () => {
       const result = buildMetricsPayload({
         requestId: 'test-123',
         timestamp: '2024-01-01T00:00:00Z',
-        provider: 'azure-gpt5',
+        provider: 'openai-native',
         spreadKey: 'celtic',
         deckStyle: 'rws-1909',
         context: 'relationships',
@@ -361,7 +361,7 @@ describe('telemetrySchema', () => {
       });
 
       assert.strictEqual(result.requestId, 'test-123');
-      assert.strictEqual(result.provider, 'azure-gpt5');
+      assert.strictEqual(result.provider, 'openai-native');
       assert.strictEqual(result.experiment.promptVersion, '1.0.0');
       assert.strictEqual(result.experiment.variantId, 'v1');
       assert.strictEqual(result.graphRAG.includedInPrompt, true);
@@ -470,7 +470,7 @@ describe('telemetrySchema', () => {
       const v1 = {
         requestId: 'test-123',
         timestamp: '2024-01-01T00:00:00Z',
-        provider: 'azure-gpt5',
+        provider: 'openai-native',
         spreadKey: 'threeCard',
         deckStyle: 'rws-1909',
         context: 'career',

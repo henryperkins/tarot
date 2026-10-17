@@ -15,8 +15,8 @@ import { jsonResponse, sanitizeText } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
-import { callAzureResponses } from '../lib/azureResponses.js';
-import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { callOpenAIResponses } from '../lib/openaiResponses.js';
+import { callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
 import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 
@@ -172,8 +172,8 @@ async function generateLLMSummary(env, entries, signal, requestId) {
     reasoningEffort: 'medium',
     verbosity: 'medium'
   };
-  if (isClaudeCodeEnabled(env)) {
-    return callClaudeCode(env, { task: 'journal-summary', systemPrompt: options.instructions,
+  if (isPersonalTextProviderEnabled(env)) {
+    return callPersonalTextProvider(env, { task: 'journal-summary', systemPrompt: options.instructions,
       messages: [{ role: 'user', content: input }], signal });
   }
   if (isAnthropicConfigured(env)) {
@@ -193,8 +193,8 @@ async function generateLLMSummary(env, entries, signal, requestId) {
       console.warn('[journal] Claude API summary failed, trying the Responses API:', error.message);
     }
   }
-  const result = await callAzureResponses(env, { ...options, returnFullResponse: true });
-  return { text: result.text, provider: 'azure-responses', model: result.model };
+  const result = await callOpenAIResponses(env, { ...options, returnFullResponse: true });
+  return { text: result.text, provider: 'openai-native', model: result.model };
 }
 
 export async function onRequestPost(context) {
@@ -215,7 +215,7 @@ export async function onRequestPost(context) {
         { status: 401 }
       );
     }
-    const personalAccessError = getClaudeCodeAccessError(env, user);
+    const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
 
     if (!isEntitled(user, 'plus')) {
@@ -294,12 +294,14 @@ export async function onRequestPost(context) {
     let summary = '';
     let provider = 'heuristic';
     let model = null;
+    let modelSource = null;
 
     try {
       const result = await generateLLMSummary(env, entries, deadline.signal, requestId);
       summary = result.text;
       provider = result.provider;
       model = result.model;
+      modelSource = result.modelSource || null;
     } catch (error) {
       deadline.signal.throwIfAborted();
       console.warn(`[${requestId}] [journal] LLM summary failed, falling back to heuristic:`, error?.message || error);
@@ -309,6 +311,7 @@ export async function onRequestPost(context) {
       summary = buildHeuristicJourneySummary(entries, stats);
       provider = 'heuristic';
       model = null;
+      modelSource = null;
     }
 
     completed = provider !== 'heuristic';
@@ -317,7 +320,8 @@ export async function onRequestPost(context) {
       meta: {
         provider,
         totalEntries: entries.length,
-        model
+        model,
+        ...(modelSource ? { modelSource } : {})
       }
     });
   } catch (error) {

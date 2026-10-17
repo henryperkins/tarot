@@ -80,3 +80,26 @@ test('a note on every card of a full spread lands even when all are sent at once
   const stored = Object.values(JSON.parse(row.reflections_json)).join('\n\n');
   for (const index of targets.keys()) assert.match(stored, new RegExp(`\\bnote ${index}\\b`));
 });
+
+test('concurrent regenerated results share a spread but round-trip as separate owner-scoped entries', async () => {
+  const bodies = ['result-a', 'result-b'].map(readingResultId => ({ ...SAVED_READING,
+    sessionSeed: 'regenerated-spread', readingResultId, personalReading: `Prose for ${readingResultId}`,
+    reflections: { Overall: `Note for ${readingResultId}` } }));
+  const responses = await Promise.all(bodies.flatMap(body => [saveReading(body), saveReading(body)]));
+  assert.deepEqual(responses.map(r => r.status).sort(), [200, 200, 201, 201]);
+  const payloads = await Promise.all(responses.map(r => r.json()));
+  assert.equal(payloads[0].entry.id, payloads[1].entry.id);
+  assert.equal(payloads[2].entry.id, payloads[3].entry.id);
+  assert.notEqual(payloads[0].entry.id, payloads[2].entry.id);
+  for (let i = 0; i < 2; i++) {
+    const id = payloads[i * 2].entry.id;
+    const response = await read({ request: apiRequest(`/api/journal/${id}`), env: env(), params: { id } });
+    assert.equal(response.status, 200);
+    const { entry } = await response.json();
+    for (const key of ['readingResultId', 'personalReading', 'reflections', 'cards', 'userPreferences']) {
+      assert.deepEqual(entry[key], bodies[i][key], key);
+    }
+  }
+  const other = await (await saveReading(bodies[0], OTHER_KEY)).json();
+  assert.notEqual(other.entry.id, payloads[0].entry.id);
+});

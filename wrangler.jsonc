@@ -59,9 +59,10 @@
   // Environment Variables (Non-Secret)
   // ============================================================================
   "vars": {
-    // Set claude-code in .dev.vars to use the owner's personal subscription.
+    // Set claude-code or codex-subscription in .dev.vars for personal inference.
     // Configure CLAUDE_CODE_GATEWAY_URL, CLAUDE_CODE_GATEWAY_TOKEN (secret), and
     // CLAUDE_CODE_OWNER_USER_ID together. See docs/claude-subscription.md.
+    // Codex uses matching CODEX_SUBSCRIPTION_* keys; see docs/codex-subscription.md.
     // Workers AI inference is independent of this text-provider setting.
     "TEXT_PROVIDER": "legacy",
     // Claude through the Anthropic API is the first provider for readings,
@@ -84,21 +85,13 @@
     "MODAL_TOP_P": "0.95",
     // Full readings omit max_tokens; only explicit per-call caps are supported.
     "MODAL_TIMEOUT_MS": "300000",
-    "AZURE_OPENAI_API_VERSION": "preview",
-    "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
     "OPENAI_STREAMING_ENABLED": "true",
-    "AZURE_OPENAI_STREAMING_ENABLED": "true",
-    // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for the Azure
-    // fallback path. Valid values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'
-    "AZURE_OPENAI_REASONING_EFFORT": "xhigh",
     // ---------------------------------------------------------------------
-    // OpenAI native Responses API (takes priority when OPENAI_API_KEY secret is set)
+    // OpenAI native Responses API (requires OPENAI_API_KEY)
     // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
     // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.6-sol").
-    // OPENAI_REASONING_EFFORT overrides reasoning depth on the native path
-    // (falls back to AZURE_OPENAI_REASONING_EFFORT, then the model default).
+    // OPENAI_REASONING_EFFORT overrides the model's default reasoning depth.
     // OPENAI_VERBOSITY optionally overrides text verbosity on the native path.
-    // Azure config remains as fallback when OPENAI_API_KEY is absent.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
     "OPENAI_MODEL": "gpt-5.6-sol",
@@ -118,6 +111,10 @@
     // Suggested questions run on Workers AI; failures use the local templates.
     "QUESTION_MODEL": "@cf/zai-org/glm-5.3",
     "QUESTION_REASONING_EFFORT": "high",
+    // Visual cue generation is disabled unless BOTH are explicitly configured:
+    // VISUAL_CUE_PROVIDER=workers-ai and VISUAL_CUE_MODEL=<chosen Workers AI model>.
+    // This is independent of the reading model. VISUAL_CUE_TIMEOUT_MS defaults
+    // to 30000 (maximum 60000); no visual provider/model fallback is selected.
     // EVAL_TIMEOUT_MS bounds the async evaluation, which runs in waitUntil()
     // (30s budget after the response, shared with other background work);
     // 28s leaves room for the D1 write. EVAL_GATE_TIMEOUT_MS bounds the sync
@@ -179,6 +176,10 @@
     "GPT_SERVICE_TIER": "plus",
     // Canonical OAuth resource for the ChatGPT MCP endpoint.
     "MCP_RESOURCE_URL": "https://tarot.lakefrontdev.com/mcp",
+    // Who can link ChatGPT: public (any active personal account), allowlist
+    // (only MCP_ALLOWED_USER_IDS) or off (kill switch: existing tokens stop
+    // working too). Unrecognized values count as off.
+    "MCP_ACCESS_MODE": "public",
     // -------------------------------------------------------------------------
     // Vision validation backend settings (server-side only; UI still pins clip-default)
     // -------------------------------------------------------------------------
@@ -216,16 +217,7 @@
     // -------------------------------------------------------------------------
     // Media Generation Feature Flags
     // -------------------------------------------------------------------------
-    // Card video still runs on Azure OpenAI (gpt-image keyframes + Sora); off
-    // until that path moves to a working provider.
-    "FEATURE_CARD_VIDEO": "false",
     "FEATURE_STORY_ART": "true",
-    // Card video burst controls (short-window, per user+client bucket)
-    "CARD_VIDEO_POST_RATE_LIMIT_MAX": "3",
-    "CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS": "60",
-    "CARD_VIDEO_STATUS_RATE_LIMIT_MAX": "45",
-    "CARD_VIDEO_STATUS_RATE_LIMIT_WINDOW_SECONDS": "60",
-    "CARD_VIDEO_RATE_LIMIT_BACKEND": "d1",
     // Keep debug routes disabled unless explicitly needed for admin-only diagnostics.
     "ENABLE_DEBUG_ROUTES": "false",
     // -------------------------------------------------------------------------
@@ -288,6 +280,10 @@
       {
         "name": "READING_JOBS",
         "class_name": "ReadingJob"
+      },
+      {
+        "name": "READING_VISUAL_JOBS",
+        "class_name": "ReadingVisualJob"
       }
     ]
   },
@@ -296,6 +292,12 @@
       "tag": "reading-jobs-v1",
       "new_sqlite_classes": [
         "ReadingJob"
+      ]
+    },
+    {
+      "tag": "reading-visual-jobs-v1",
+      "new_sqlite_classes": [
+        "ReadingVisualJob"
       ]
     }
   ],
@@ -323,11 +325,9 @@
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================
-  // - Every 10 minutes: reconcile pending card-video usage settlements
   // - Daily at 03:00 UTC: archive metrics/feedback from KV to D1 + cleanup tasks
   "triggers": {
     "crons": [
-      "*/10 * * * *",
       "0 3 * * *"
     ]
   }
@@ -343,13 +343,8 @@
   // Legacy alternative, only when both token-pair fields are absent:
   // wrangler secret put MODAL_PROXY_TOKEN
   //
-  // OpenAI native Responses API (preferred when set; overrides Azure below)
+  // OpenAI native Responses API
   // wrangler secret put OPENAI_API_KEY
-  //
-  // Azure OpenAI Responses API (fallback when OPENAI_API_KEY is not set)
-  // wrangler secret put AZURE_OPENAI_ENDPOINT
-  // wrangler secret put AZURE_OPENAI_API_KEY
-  // wrangler secret put AZURE_OPENAI_GPT5_MODEL
   //
   // ElevenLabs narration option (/api/tts, provider: elevenlabs):
   // wrangler secret put ELEVENLABS_API_KEY --config wrangler.jsonc

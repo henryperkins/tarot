@@ -8,6 +8,8 @@ Azure narration has been retired. The application now provides user-selectable
 ElevenLabs and Deepgram narration; see [narration safeguards](narration-safeguards.md)
 for the current setup. This reference remains as historical provider documentation.
 
+This retained vendor reference is historical. Azure Speech and Word Sync are retired; `/api/speech-token` returns HTTP 410. Use [narration safeguards](narration-safeguards.md) for current audio setup.
+
 Compiled from Microsoft Azure documentation (January 2026).
 
 **Sources:**

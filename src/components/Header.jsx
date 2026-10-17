@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowCounterClockwise } from '@phosphor-icons/react';
+import { ArrowCounterClockwise, Gear } from '@phosphor-icons/react';
 import { TableuLogo } from './TableuLogo';
 import { TABLEU_MARK_SIZE, TABLEU_LOGO_WIDTH } from '../../shared/brand/tableuMark';
 import { GlobalNav } from './GlobalNav';
@@ -20,10 +20,13 @@ export function Header({
   activeStep,
   onStepSelect,
   isShuffling,
-  minimalNav = false
+  minimalNav = false,
+  readingView = false,
+  installInMenu = false,
+  onOpenReadingSettings
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const stickyRef = useResponsiveSticky();
+  const stickyRef = useResponsiveSticky(true, { rootVar: '--pinned-header-height' });
   const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
@@ -114,9 +117,9 @@ export function Header({
 
   return (
     <>
-      {minimalNav && <h1 id="tableau-heading" className="sr-only">Tableu</h1>}
+      {(minimalNav || readingView) && <h1 id="tableau-heading" className="sr-only">Tableu</h1>}
       {/* Main Header */}
-      {!minimalNav && (
+      {!minimalNav && !readingView && (
         <header aria-labelledby="tableau-heading" className={isCompact ? 'header-condensed' : ''}>
           <div className="text-center mb-2 sm:mb-6 md:mb-8 mystic-heading-wrap flex flex-col items-center">
             <div
@@ -159,13 +162,13 @@ export function Header({
       <div
         ref={stickyRef}
         className={`
-          full-bleed sticky top-0 z-sticky-nav ${minimalNav ? 'mb-3' : 'mb-5'}
+          full-bleed sticky top-0 z-sticky-nav has-[[aria-haspopup=menu][aria-expanded=true]]:z-modal ${minimalNav ? 'mb-3' : 'mb-5'}
           bg-surface/95 backdrop-blur
           border-y border-accent/20
           ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-[var(--safe-pad-top)]'}
-          px-4 sm:px-5 md:px-6
-          pr-[max(1rem,var(--safe-pad-right))]
-          pl-[max(1rem,var(--safe-pad-left))]
+          pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]
+          sm:pl-[max(1.25rem,var(--safe-pad-left))] sm:pr-[max(1.25rem,var(--safe-pad-right))]
+          md:pl-[max(1.5rem,var(--safe-pad-left))] md:pr-[max(1.5rem,var(--safe-pad-right))]
           shadow-lg shadow-primary/20
           header-sticky
           ${minimalNav ? 'header-sticky--scene' : ''}
@@ -176,7 +179,7 @@ export function Header({
           transition: 'transform 200ms ease',
         }}
       >
-        {!minimalNav && (
+        {!minimalNav && !readingView && (
           <div className="header-sticky__row flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
             <div className="header-sticky__nav flex-1 w-full sm:w-auto">
               <GlobalNav condensed={isCompact} withUserChip />
@@ -184,13 +187,13 @@ export function Header({
             {/* Desktop actions reserve their own space alongside the destinations. */}
             <div className="hidden max-w-full sm:block">
               <div className="header-sticky__user">
-                <UserMenu condensed={isCompact} />
+                <UserMenu condensed={isCompact} installInMenu={installInMenu} />
               </div>
             </div>
           </div>
         )}
-        <div className={minimalNav ? '' : 'mt-2 sm:mt-1'}>
-          {displayName && !minimalNav && (
+        <div className={readingView ? 'reading-step-nav' : minimalNav ? '' : 'mt-2 sm:mt-1'}>
+          {displayName && !minimalNav && !readingView && (
             <p className="text-[0.75rem] sm:text-xs text-muted mb-1">
               Welcome back, {displayName}.
             </p>
@@ -200,7 +203,11 @@ export function Header({
             activeStep={activeStep}
             onSelect={onStepSelect}
             condensed={isCompact}
+            readingView={readingView}
           />
+          {readingView && <button type="button" className="reading-settings" aria-label="Reading settings" onClick={onOpenReadingSettings}>
+            <Gear size={23} aria-hidden="true" />
+          </button>}
         </div>
         {isShuffling && (
           <div

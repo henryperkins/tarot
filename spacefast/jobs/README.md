@@ -43,3 +43,9 @@ and `INSERT IGNORE` for testing. Run the same suite against disposable MySQL wit
 `SPACEFAST_JOBS_TEST_MYSQL_DRIVER` set to an installed `mysql2/promise` module.
 Use an isolated test database: the maintenance test intentionally deletes expired
 reading-job rows. This does not verify Spacefast's remote DB or runtime itself.
+
+Persisted state also retains `readingResultId`, `visualBinding`, `visualJobToken`,
+and `visualInit`; SSE exposes only the source binding and result ID, never the
+private transport credentials. MCP snapshots retain `errorCode`. These fields
+keep the shared prose-job contract current; the Spacefast feature profile still
+disables model annotation dispatch and has no distributed visual-job runner.

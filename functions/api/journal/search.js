@@ -1,3 +1,4 @@
+import { appJournalResultId } from '../../../shared/journal/readingIdentity.js';
 /**
  * Journal Search Endpoint
  * GET /api/journal/search?q=... - Search journal entries for authenticated user
@@ -40,6 +41,7 @@ function buildEntryFromRow(entry, { hasCoachColumns = true } = {}) {
     context: entry.context,
     provider: entry.provider,
     sessionSeed: entry.session_seed,
+      readingResultId: appJournalResultId(entry.idempotency_key),
     userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
     deckId: entry.deck_id,
     requestId: entry.request_id,
@@ -174,6 +176,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         deck_id,
         request_id,
@@ -202,6 +205,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         deck_id,
         request_id
@@ -261,6 +265,7 @@ export async function onRequestGet(context) {
           context,
           provider,
           session_seed,
+        idempotency_key,
           user_preferences_json,
           deck_id,
           request_id,
@@ -288,6 +293,7 @@ export async function onRequestGet(context) {
           context,
           provider,
           session_seed,
+        idempotency_key,
           user_preferences_json,
           deck_id,
           request_id

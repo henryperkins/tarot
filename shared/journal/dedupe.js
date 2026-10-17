@@ -3,8 +3,9 @@ import { getTimestamp, safeJsonParse } from './utils.js';
 /**
  * Deduplicate journal entries by stable keys.
  * Priority:
- * 1) sessionSeed (server-side dedupe constraint)
- * 2) Composite fingerprint of timestamp + spreadKey + question + cards signature
+ * 1) readingResultId (regenerated readings retain their own identity)
+ * 2) sessionSeed for legacy readings
+ * 3) Composite fingerprint of timestamp + spreadKey + question + cards signature
  *
  * Returns a new array sorted by descending timestamp.
  */
@@ -37,7 +38,7 @@ export function dedupeEntries(entries) {
     const cardsSig = buildCardsSignature(cards);
     const question = (entry.question || entry.prompt || '').trim().toLowerCase();
     const spreadKey = (entry.spreadKey || entry.spread_key || '').toLowerCase();
-    const fingerprint = sessionSeed
+    const fingerprint = entry.readingResultId ? `result:${entry.readingResultId}` : sessionSeed
       ? `seed:${sessionSeed}`
       : `ts:${ts || 'none'}|spread:${spreadKey}|q:${question}|cards:${cardsSig}`;
 

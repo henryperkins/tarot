@@ -1,19 +1,15 @@
 # Spacefast integration status
 
-Preserved on 2026-10-17 as an unfinished development branch. The 46-file prototype is commit `5ef57c1316756d31de68551803f2cc44d961ed3e`, based on `b5ba16fa9915a77752297e1a3f283b8af9cf7eba`. It has not been merged into master or deployed.
+Updated 2026-10-17 on `codex/spacefast-current-20261017`, integrating current master with the preserved prototype at `1150983b`. The original prototype remains recoverable. This branch has not been deployed.
 
-Independent source review against master `c6d043fe27cf06b29b1b6dd6f0f237bd3d9dfa08` found these integration blockers:
+The current port resolves the three source blockers found during reconciliation:
 
-1. **Schema and SQL drift.** Master adds migrations 0036–0038 after the prototype's fingerprint inventory. An offline compiler audit against current-master source found 319 SQL statements, 14 compiler failures and 6 unresolved expressions. Port the visual results, retry and initial-admission schemas and review their SQL semantics before updating fingerprints or allowlists. The audit does not establish MySQL execution correctness.
-2. **Scheduler conflict.** Master retired video maintenance. Reconcile the structured scheduler outcome without restoring the removed video import or obsolete 10-minute schedule.
-3. **Job contracts.** The prototype lacks `READING_VISUAL_JOBS` and drops newer reading-result, visual-binding and token fields from its persisted job state. Update restart/replay contracts and the MCP error-code field, or explicitly define and test a reduced feature profile.
+1. **Schema and SQL drift.** The native bootstrap includes Cloudflare migrations 0036–0038, retaining visual source records, claims, tombstones, foreign keys, and admission checks. The audit accounts for 312 prepared calls and 344 SQL variants, including consistent optional projections/joins. All compile and EXPLAIN on isolated MySQL 8.4. Native behavioral checks cover exact source matching, nullable JSON fields, journal attachment/deletion, owner revocation, concurrent initial reservations, one-dispatch replay, and stale-result rejection after a source edit.
+2. **Scheduler.** Only the daily maintenance schedule is emitted. The authenticated historical video endpoint returns 410 without invoking maintenance or a provider. Cloudflare's retired cron remains a no-op; opt-in HTTP callers receive a structured skip.
+3. **Job contracts and explicit feature scope.** Persisted prose jobs retain reading-result identity, visual binding, private initialization/token fields, and MCP error codes across restart/replay. The Spacefast feature profile supports prose and saved ledgers; model annotation dispatch and retry are explicitly disabled even if deployment variables opt in. The frontend uses the local prose/card aligner. A distributed `READING_VISUAL_JOBS` runner is outside this profile and has not been implemented.
 
-Reading jobs remain disabled by default. A functioning release still needs real background-lifetime, database and provider verification described in [the runtime README](README.md). Do not bypass existing schema or SQL guards to make a rebase build.
+Visual/source mutations share a transaction-scoped database lock, including journal edits and owner deletion. This deliberately favors correctness over concurrent write throughput. The same-connection transaction and result metadata contracts must be verified against the real Spacefast broker before release.
 
-Local checks on the preserved prototype:
+Local verification is recorded separately from remote readiness. A fresh native schema initializes successfully, the application artifact builds, and current native runtime tests cover registration, authentication, journal ownership/persistence, cancellation and restart. Controlled provider responses in tests do not establish live provider delivery.
 
-- `npm test`: 3,043 passed, 7 skipped, 0 failed.
-- `node --test tests/spacefast*.test.mjs`: 50 passed, 7 skipped, 0 failed.
-- `git diff --check`: passed.
-
-No remote database execution, provider request, deployment, browser acceptance or physical-device verification was performed for this preservation review.
+Reading jobs remain disabled by default. Remote database metadata/rollback, trusted guest identity, provider credentials, background lifetime, and an exact ready preview remain release gates in [the runtime README](README.md). No Cloudflare deployment configuration or provider rollout is changed by this port.

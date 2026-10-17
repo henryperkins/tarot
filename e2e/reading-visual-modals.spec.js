@@ -181,7 +181,7 @@ async function generateNarrative(page) {
 
 async function waitForNarrativeComplete(page) {
   await expect(async () => {
-    const skeleton = page.locator('[aria-label="Preparing your interpretation"]');
+    const skeleton = page.getByRole('heading', { name: 'Preparing your reading', exact: true });
     expect(await skeleton.isVisible().catch(() => false)).toBe(false);
   }).toPass({ timeout: 30000 });
 
@@ -202,6 +202,7 @@ async function completeReading(page) {
   await mockTarotReading(page);
   await generateNarrative(page);
   await waitForNarrativeComplete(page);
+  await page.getByText('Explore this reading', { exact: true }).click();
 }
 
 test.describe('Reading visual modals @desktop', () => {
@@ -216,7 +217,7 @@ test.describe('Reading visual modals @desktop', () => {
     await waitForAppReady(page);
     await completeReading(page);
 
-    const trigger = page.getByRole('button', { name: /open visual studio/i });
+    const trigger = page.getByRole('button', { name: /create images or video/i });
     await expect(trigger).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -247,7 +248,7 @@ test.describe('Reading visual modals @desktop', () => {
     await completeReading(page);
 
     const dialog = page.locator('[role="dialog"][aria-labelledby="visual-companion-modal-title"]');
-    await page.getByRole('button', { name: /open visual studio/i }).click();
+    await page.getByRole('button', { name: /create images or video/i }).click();
     await expect(dialog).toBeVisible();
 
     // Free tier: the illustration module renders a tier upsell whose button
@@ -267,7 +268,7 @@ test.describe('Reading visual modals @desktop', () => {
     await expect(dialog).toBeHidden();
 
     // Reopening must not come back degraded.
-    await page.getByRole('button', { name: /open visual studio/i }).click();
+    await page.getByRole('button', { name: /create images or video/i }).click();
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
     await page.keyboard.press('Escape');

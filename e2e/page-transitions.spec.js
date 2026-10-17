@@ -35,7 +35,7 @@ async function interruptNextPageEntrance(page, method) {
     if (document.querySelector('#hold-route-entrances')) return;
     const style = document.createElement('style');
     style.id = 'hold-route-entrances';
-    style.textContent = '.page-transition, .min-h-screen.animate-fade-in { animation-play-state: paused !important; }';
+    style.textContent = '.page-transition, .page-transition main, .min-h-screen.animate-fade-in { animation-play-state: paused !important; }';
     document.head.append(style);
   });
   return () => page.waitForFunction(action => {

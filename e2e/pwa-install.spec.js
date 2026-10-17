@@ -38,6 +38,18 @@ async function expectInstallHitTarget(install, { scrollToEnd = true } = {}) {
   }, scrollToEnd), { message: 'All five points must activate the visible install button' }).toEqual([true, true, true, true, true]);
 }
 
+async function readingInstall(page, name) {
+  const utilities = page.locator('[data-reading-app-options]');
+  await utilities.locator('summary').click();
+  return utilities.getByRole('button', { name, exact: true });
+}
+
+async function expectAppOptionsFocus(page) {
+  const summary = page.locator('[data-reading-app-options] summary');
+  await expect(summary).toBeFocused();
+  await expect(summary).toBeInViewport();
+}
+
 function installErrorToast(page) {
   return page.locator('[data-toast]').filter({ hasText: 'browser' });
 }
@@ -258,14 +270,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expectPageFocusInView(page);
       });
 
-      test('completed readings keep installation at page end and preserve journal actions', async ({ page }) => {
+      test('completed readings expose installation in app options and preserve journal actions', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 568 });
         await startReading(page, fixture);
         const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-        await expect(dock.getByRole('button', { name: /^Save reading to journal/ })).toBeVisible();
+        await expect(dock.getByRole('button', { name: 'Save to journal', exact: true })).toBeVisible();
         await expect(dock.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
-        const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
-        await expectInstallHitTarget(install);
+        const install = await readingInstall(page, 'Add to Home Screen');
+        await expectInstallHitTarget(install, { scrollToEnd: false });
         await expect(install).toBeInViewport({ ratio: 1 });
         expect((await install.boundingBox()).y + (await install.boundingBox()).height).toBeLessThanOrEqual((await dock.boundingBox()).y);
       });
@@ -317,21 +329,21 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         });
 
         for (const textPercent of [100, 200]) {
-          test(`the page-end reading action stays clickable as landscape bottom padding grows (${textPercent}% text)`, async ({ page }) => {
+          test(`the reading utility stays clickable as landscape bottom padding grows (${textPercent}% text)`, async ({ page }) => {
             await page.setViewportSize({ width: 320, height: 568 });
             await startReading(page, fixture);
             await page.setViewportSize({ width: 844, height: 390 });
             await page.addStyleTag({ content: `html { font-size: ${textPercent}% !important; }` });
             const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-            const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
+            const install = await readingInstall(page, 'Add to Home Screen');
             await expect(dock).toBeVisible();
-            await expectInstallHitTarget(install);
+            await expectInstallHitTarget(install, { scrollToEnd: false });
 
             // Browser chrome can update the safe area after the orientation
             // reflow. This changes dock padding without changing its content.
             for (const safeBottom of [34, 64]) {
               await page.evaluate(value => document.documentElement.style.setProperty('--safe-pad-bottom', `${value}px`), safeBottom);
-              await expectInstallHitTarget(install);
+              await expectInstallHitTarget(install, { scrollToEnd: false });
               const bounds = await install.boundingBox();
               expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
             }
@@ -538,29 +550,28 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await expect(draw).toBeInViewport({ ratio: 0.99 });
         });
 
-        test('page-end prompt dismissal leaves the landscape reading actions available', async ({ page }) => {
+        test('app-options prompt dismissal leaves wrapped landscape reading actions available', async ({ page }) => {
           await page.setViewportSize({ width: 320, height: 568 });
           await startReading(page, fixture);
           await page.setViewportSize({ width: 844, height: 390 });
           const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-          const save = dock.getByRole('button', { name: /^Save reading to journal/ });
-          const next = dock.getByRole('button', { name: /^Start a new reading/ });
+          const save = dock.getByRole('button', { name: 'Save to journal', exact: true });
+          const ask = dock.getByRole('button', { name: 'Ask about this reading', exact: true });
           await offerInstall(page);
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
           await save.locator('span').evaluate(element => { element.textContent = 'Save this reading in your personal journal'; });
-          await next.locator('span').evaluate(element => { element.textContent = 'Start a new reading for your next reflection'; });
+          await ask.locator('span').evaluate(element => { element.textContent = 'Ask a follow-up about this reading and your next reflection'; });
           const tasks = save.locator('..');
           await page.evaluate(() => document.fonts.ready);
-          await expect.poll(() => tasks.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
-          await tasks.evaluate(element => { element.scrollLeft = element.scrollWidth; });
-          expect(await tasks.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
-          expect((await save.boundingBox()).x).toBeLessThan((await tasks.boundingBox()).x);
-          const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Install Tableu', exact: true });
-          await expectInstallHitTarget(install);
+          expect(await tasks.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+          await expect(save).toBeInViewport({ ratio: 1 });
+          await expect(ask).toBeInViewport({ ratio: 1 });
+          const install = await readingInstall(page, 'Install Tableu');
+          await expectInstallHitTarget(install, { scrollToEnd: false });
           await install.focus();
           await install.press('Enter');
           await expect(install).toHaveCount(0);
-          await expectPageFocusInView(page);
+          await expectAppOptionsFocus(page);
           await save.focus();
           await expect(save).toBeFocused();
           await expect(save).toBeInViewport({ ratio: 1 });
@@ -732,26 +743,30 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expect(toast).toHaveCount(0);
       });
 
-      test('page-end installation preserves pending interpretation and local focus', async ({ page }) => {
+      test('app-options installation preserves pending interpretation and local focus', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 568 });
         await startReading(page, fixture, { complete: false });
         const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-        await expect(dock.getByRole('button', { name: /^Interpreting cards/ })).toBeDisabled();
+        await expect(dock).toBeHidden();
+        const cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
+        await expect(cancel).toBeEnabled();
         await offerInstall(page, 'dismissed', true);
-        const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Install Tableu', exact: true });
-        await expectInstallHitTarget(install);
+        const install = await readingInstall(page, 'Install Tableu');
+        await expectInstallHitTarget(install, { scrollToEnd: false });
         await expect(install).toBeInViewport({ ratio: 1 });
         await install.focus();
         await install.press('Enter');
         await expect(install).toHaveCount(0);
         await expectPageFocusInView(page);
-        await expect(dock.getByRole('button', { name: 'Start a new reading (resets the current spread)', exact: true })).toBeEnabled();
+        await expect(cancel).toBeEnabled();
+        await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
+        expect(fixture.requests.reading).toHaveLength(1);
         const status = installErrorToast(page);
         await expect(status).toBeVisible();
         const bounds = await status.boundingBox();
         expect(bounds.x).toBeGreaterThanOrEqual(0);
         expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
-        expect(bounds.y + bounds.height).toBeLessThanOrEqual((await dock.boundingBox()).y);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize().height);
       });
 
       test('a deferred prompt survives route navigation and runs once', async ({ page }) => {

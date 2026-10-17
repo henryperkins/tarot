@@ -7,7 +7,8 @@
  * This is a redesigned version of the original 1345-line component,
  * now decomposed into ~150 lines using extracted hooks and sub-components.
  */
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { readingGesturesEnabled } from '../../../lib/readingGestureSettings';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../../../hooks/useSmallScreen';
 import { InlineStatus } from '../../InlineStatus.jsx';
 import { useInlineStatus } from '../../../hooks/useInlineStatus';
@@ -43,11 +44,19 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   onDelete,
   onDeleteShareLink,
   defaultExpanded = false,
+  openRequestKey = null,
   compact = false,
-  cardClass
+  cardClass,
+  gestureStudyEnabled = readingGesturesEnabled(),
+  onRetryVisuals = null
 }) {
   // Initialize expanded state - never expand if compact mode is on
-  const [isExpanded, setIsExpanded] = useState(() => defaultExpanded && !compact);
+  const [isExpanded, setIsExpanded] = useState(() => Boolean(openRequestKey) || (defaultExpanded && !compact));
+  const [handledOpenRequest, setHandledOpenRequest] = useState(openRequestKey);
+  if (openRequestKey && openRequestKey !== handledOpenRequest) {
+    setHandledOpenRequest(openRequestKey);
+    setIsExpanded(true);
+  }
   
   // Hooks
   const isSmallScreen = useSmallScreen(SMALL_SCREEN_MAX);
@@ -94,6 +103,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const actionMenuId = `${entryIdPrefix}-actions-menu`;
 
   const wasExpandedRef = useRef(isExpanded);
+  // Explicit saved-visual retry for this entry only (the journal hook's action).
+  const retryVisuals = useCallback(() => onRetryVisuals(entry.id), [onRetryVisuals, entry.id]);
 
   // Close the menu when a user collapses an expanded card.
   useEffect(() => {
@@ -195,10 +206,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
           {hasNarrative && (
             <NarrativeSection
+              key={handledOpenRequest || 'default'}
               narrativeText={narrativeText}
               narrativeId={narrativeId}
               collapsible
-              defaultExpanded={!isSmallScreen}
+              defaultExpanded={Boolean(handledOpenRequest) || !isSmallScreen}
+              entry={entry}
+              gestureStudyEnabled={gestureStudyEnabled}
+              onRetryVisuals={onRetryVisuals ? retryVisuals : null}
             />
           )}
 

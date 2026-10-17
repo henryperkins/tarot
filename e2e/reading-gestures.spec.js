@@ -1,0 +1,298 @@
+import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+import { createNarrativeFixture, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
+
+const sidecars = JSON.parse(fs.readFileSync(new URL('../output/reading-motion/fixtures/gesture-sidecars.json', import.meta.url)));
+const star = sidecars.star;
+const reading = page => page.locator('.narrative-stream');
+const windowArt = page => page.locator('[data-gesture-window]');
+const currentCards = page => windowArt(page).locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
+const phrase = (page, id) => page.locator(`[data-gesture-id="${id}"]`);
+async function open(page, query = '') {
+  await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
+  await page.goto(`/__e2e/reading-gestures?${query}`);
+  await expect(page.getByTestId('reading-gestures-fixture')).toBeVisible();
+  await expect(windowArt(page)).toBeVisible();
+}
+
+test('completed Star is static and every connection can be revisited without changing prose', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1100, height: 1000 });
+  await open(page, 'arrival=complete');
+  await expect(reading(page)).toHaveText(new RegExp('Neither pitcher gets dropped'));
+  const raw = await reading(page).locator('.narrative-stream__markdown p').last().textContent();
+  expect(raw).toBe(star.expectedRaw);
+  await expect(windowArt(page)).toHaveAttribute('data-phase', 'static');
+  await expect(phrase(page, 'arrival')).not.toHaveAttribute('role', 'button');
+  await page.locator('[data-gesture-shelf] button').nth(2).click();
+  await expect(currentCards(page).first()).toHaveAttribute('data-details', '');
+  await page.keyboard.press('Escape');
+  for (const [id, detail] of [['pool', 'pool-pour'], ['land', 'land-pour'], ['memory', 'pool-pour'], ['ground', 'land-pour'], ['balance', 'pool-pour land-pour']]) {
+    await phrase(page, id).click();
+    await expect(windowArt(page)).toHaveAttribute('data-association', id);
+    await expect(currentCards(page).first()).toHaveAttribute('data-details', detail);
+    await expect(phrase(page, id)).toHaveAttribute('aria-pressed', 'true');
+    await page.keyboard.press('Escape');
+    await expect(phrase(page, id)).toHaveAttribute('aria-pressed', 'false');
+  }
+  expect(await reading(page).locator('.narrative-stream__markdown p').last().textContent()).toBe(star.expectedRaw);
+  await expect(page.getByRole('button', { name: /play|hold|look closer/i })).toHaveCount(0);
+});
+
+test('each phrase control is named by its visible words, never a separate card or detail label', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1100, height: 1000 });
+  const nameMatchesText = () => page.locator('[data-gesture-id][role="button"]').evaluateAll(controls => controls.map(control => ({
+    id: control.dataset.gestureId, label: control.getAttribute('aria-label'), text: control.textContent.replace(/\s+/g, ' ').trim()
+  })).filter(({ label, text }) => label !== null && !label.replace(/\s+/g, ' ').includes(text)));
+  // Authored labels such as "The pitcher and the pool" differ from the prose.
+  await open(page, 'arrival=complete');
+  for (const association of star.associations.filter(item => item.kind !== 'identity')) {
+    const control = page.getByRole('button', { name: association.passage.quote.replace(/[*_]/g, ''), exact: true });
+    await expect(control).toHaveCount(1);
+    await expect(control).toHaveAttribute('data-gesture-id', association.id);
+    expect(association.label).not.toBe(association.passage.quote);
+    await expect(page.getByRole('button', { name: association.label, exact: true })).toHaveCount(0);
+  }
+  expect(await nameMatchesText()).toEqual([]);
+  // The dynamic aligner labels relationships with bare card names.
+  await page.goto('/__e2e/reading-gestures?study=five-card&arrival=complete&associations=dynamic');
+  await expect(page.locator('[data-gesture-id][role="button"]').first()).toBeVisible();
+  expect(await nameMatchesText()).toEqual([]);
+});
+
+test('keyboard focus explores without holding; Enter and Space toggle and Escape releases', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1100, height: 1000 });
+  await open(page, 'arrival=complete');
+  const pool = phrase(page, 'pool');
+  await pool.focus();
+  await expect(pool).toBeFocused();
+  await expect(pool).toHaveAttribute('aria-pressed', 'false');
+  await expect(windowArt(page)).not.toHaveAttribute('data-held', 'true');
+  await page.keyboard.press('Enter');
+  await expect(pool).toHaveAttribute('aria-pressed', 'true');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'pool');
+  await page.keyboard.press('Space');
+  await expect(pool).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Space');
+  await expect(pool).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(pool).toHaveAttribute('aria-pressed', 'false');
+  await expect(pool).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(windowArt(page)).not.toHaveAttribute('data-held', 'true');
+  expect(await reading(page).locator('.narrative-stream__markdown p').last().textContent()).toBe(star.expectedRaw);
+});
+
+test('a motion preference change keeps the held phrase, focus and prose while stopping motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 1100, height: 1000 });
+  await open(page, 'arrival=complete');
+  const companionAnimations = () => page.evaluate(() => (document.querySelector('.gesture-companion')?.getAnimations({ subtree: true }) || [])
+    .filter(animation => animation.playState === 'running').length);
+  const pool = phrase(page, 'pool');
+  await pool.focus();
+  await page.keyboard.press('Enter');
+  await expect(windowArt(page)).toHaveAttribute('data-held', 'true');
+  const prose = await reading(page).textContent();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(companionAnimations).toBe(0);
+  await expect(windowArt(page)).toHaveAttribute('data-held', 'true');
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'pool');
+  await expect(pool).toBeFocused();
+  await expect(pool).toHaveAttribute('aria-pressed', 'true');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(windowArt(page)).toHaveAttribute('data-association', 'pool');
+  await expect(pool).toHaveAttribute('aria-pressed', 'true');
+  expect(await reading(page).textContent()).toBe(prose);
+});
+
+test('compact landscape and doubled page zoom keep phrase controls and labels reachable without overflow', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // 844x390 is a landscape phone; 550x500 is the 1100x1000 desktop at 200% page zoom.
+  for (const viewport of [{ width: 844, height: 390 }, { width: 550, height: 500 }]) {
+    await page.setViewportSize(viewport);
+    await open(page, 'study=five-card&arrival=complete');
+    for (const id of ['ace-meaning', 'drive-and-sensitivity']) {
+      const control = phrase(page, id);
+      await control.scrollIntoViewIfNeeded();
+      await control.focus();
+      await page.keyboard.press('Enter');
+      await expect(control).toHaveAttribute('aria-pressed', 'true');
+      await expect(control).toBeInViewport();
+      await page.keyboard.press('Escape');
+      await expect(control).toHaveAttribute('aria-pressed', 'false');
+    }
+    await expectNoHorizontalOverflow(page);
+    const clipped = await page.locator('.gesture-shelf-label').evaluateAll(labels => labels
+      .filter(label => label.scrollWidth > label.clientWidth + 1).map(label => label.textContent));
+    expect(clipped, `${viewport.width}x${viewport.height} shelf labels`).toEqual([]);
+  }
+});
+
+test('actual SSE advances raw/rendered text while a held pool remains and release resumes each unplayed visible connection', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const fixture = await createNarrativeFixture(page, { narrative: star.expectedRaw, question: 'How can I navigate the transition after leaving my hometown?' });
+  try {
+    await open(page, 'sourceMode=job-sse');
+    const pool = star.associations.find(item => item.id === 'pool');
+    await fixture.emit('reading', 'delta', { text: star.expectedRaw.slice(0, pool.passage.end) });
+    await expect(phrase(page, 'pool')).toBeVisible();
+    await phrase(page, 'pool').click();
+    await fixture.emit('reading', 'delta', { text: star.expectedRaw.slice(pool.passage.end) });
+    await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-raw-length', String(star.expectedRaw.length));
+    await expect(reading(page)).toContainText('Neither pitcher gets dropped');
+    await expect(windowArt(page)).toHaveAttribute('data-association', 'pool');
+    // A delivered cue becomes eligible only after its passage is actually visible.
+    await phrase(page, 'balance').scrollIntoViewIfNeeded();
+    await windowArt(page).evaluate(stage => {
+      window.__stageSequence = [];
+      new MutationObserver(() => { if (window.__stageSequence.at(-1) !== stage.dataset.association) window.__stageSequence.push(stage.dataset.association); })
+        .observe(stage, { attributes: true, attributeFilter: ['data-association'] });
+    });
+    await page.keyboard.press('Escape');
+    // Skipped highlights are not acceptable: release never jumps to the latest
+    // cue; each unplayed visible connection takes its turn in source order.
+    await expect(windowArt(page)).toHaveAttribute('data-association', 'balance', { timeout: 15000 });
+    // The identity may still be unplayed if the hold began before its own turn.
+    const sequence = await page.evaluate(() => window.__stageSequence);
+    expect(sequence[0] === 'arrival' ? sequence.slice(1) : sequence).toEqual(['land', 'memory', 'ground', 'balance']);
+    await fixture.completeReading();
+    expect(fixture.requests.reading).toHaveLength(1);
+  } finally { await fixture.close(); }
+});
+
+test('five-card relationships and identity shelf preserve distinct targets', async ({ page }) => {
+  await open(page, 'study=five-card&arrival=complete');
+  await expect(page.locator('[data-gesture-shelf] button')).toHaveCount(5);
+  for (const association of sidecars.fiveCard.associations.filter(cue => cue.kind !== 'identity')) {
+    const id = association.id;
+    await phrase(page, id).click();
+    await expect(windowArt(page)).toHaveAttribute('data-association', id);
+    for (let index = 0; index < association.targets.length; index++) {
+      await expect(currentCards(page).nth(index)).toHaveAttribute('data-details', association.targets[index].detailIds.join(' '));
+    }
+  }
+  await phrase(page, 'drive-and-sensitivity').click();
+  await expect(currentCards(page)).toHaveCount(2);
+  await expect(currentCards(page).nth(0)).toHaveAttribute('data-details', 'sprout');
+  await expect(currentCards(page).nth(1)).toHaveAttribute('data-details', 'cup');
+  const shelf = page.locator('[data-gesture-shelf] button');
+  await shelf.first().focus();
+  await page.keyboard.press('End');
+  await expect(shelf.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await expect(currentCards(page)).toHaveAttribute('data-details', '');
+  await expect(reading(page).locator('li')).toHaveCount(4);
+});
+
+test('Hermit and reversed Wands retain their relationship across a return', async ({ page }) => {
+  await open(page, 'study=celtic&arrival=complete');
+  await expect(reading(page).locator('.narrative-stream__markdown p')).toHaveCount(3);
+  for (const association of sidecars.related.associations.filter(cue => cue.kind !== 'identity')) {
+    await phrase(page, association.id).click();
+    await expect(windowArt(page)).toHaveAttribute('data-association', association.id);
+    for (let index = 0; index < association.targets.length; index++) {
+      await expect(currentCards(page).nth(index)).toHaveAttribute('data-details', association.targets[index].detailIds.join(' '));
+    }
+  }
+  await expect(currentCards(page)).toHaveCount(2);
+  await expect(currentCards(page).nth(1).locator('[data-reversed]')).toHaveAttribute('data-reversed', 'true');
+});
+
+test('five actual streamed introductions retain the same shelf nodes and prose position', async ({ page }) => {
+  const source = sidecars.fiveCard;
+  const fixture = await createNarrativeFixture(page, { narrative: source.expectedRaw, question: source.recordedContext.userQuestion });
+  try {
+    await open(page, 'study=five-card&sourceMode=job-sse');
+    const shelf = page.locator('[data-gesture-shelf] li');
+    await shelf.evaluateAll(nodes => nodes.forEach((node, index) => { node.dataset.persistenceProbe = String(index); }));
+    let end = 0;
+    for (let index = 0; index < source.introductions.length; index++) {
+      const intro = source.introductions[index];
+      const scroll = await page.evaluate(() => scrollY);
+      const focused = await page.evaluate(() => document.activeElement?.tagName);
+      await fixture.emit('reading', 'delta', { text: source.expectedRaw.slice(end, intro.end) });
+      end = intro.end;
+      await expect(shelf.nth(index)).toHaveAttribute('data-introduced', 'true');
+      for (let earlier = 0; earlier <= index; earlier++) {
+        await expect(shelf.nth(earlier)).toHaveAttribute('data-persistence-probe', String(earlier));
+        await expect(shelf.nth(earlier).locator('button')).toBeEnabled();
+      }
+      expect(await page.evaluate(() => scrollY)).toBe(scroll);
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(focused);
+      await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-selection-calls', '0');
+    }
+    await fixture.completeReading();
+    await expect(reading(page).locator('h3')).toHaveCount(5);
+    await expect(reading(page).locator('li')).toHaveCount(4);
+  } finally { await fixture.close(); }
+});
+
+test('missing WAAPI preserves static crop and accessible prose', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => { Element.prototype.animate = undefined; Element.prototype.getAnimations = undefined; });
+  await open(page, 'study=five-card&arrival=complete');
+  await phrase(page, 'ace-sprout').click();
+  await expect(currentCards(page)).toHaveAttribute('data-details', 'sprout');
+  await expect(phrase(page, 'ace-sprout')).toHaveAttribute('aria-pressed', 'true');
+  await expect(reading(page)).toContainText('The spark in this spread is clearly yours');
+});
+
+test('compact relationship and reduced-motion meaning @mobile', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await open(page, 'study=five-card&arrival=complete&reflection=off');
+  await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
+  const tapPhrase = async target => {
+    // Tap an actual visible text line on touch devices; the full multiline
+    // bounding box can include space occupied by the sticky companion. Center
+    // the phrase on every attempt and tap only a point that stayed put across two
+    // frames: WebKit has no scroll anchoring and can apply a late reflow (such as
+    // the 200% root font size below) after a single scroll or measurement.
+    let point = null;
+    await expect.poll(async () => (point = await target.evaluate(async element => {
+      const measure = () => {
+        element.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const shelfBottom = document.querySelector('.gesture-companion').getBoundingClientRect().bottom;
+        return [...element.getClientRects()].map(rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }))
+          .find(({ x, y }) => y > shelfBottom && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
+      };
+      const first = measure();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const second = measure();
+      return first && second && Math.abs(first.x - second.x) < 1 && Math.abs(first.y - second.y) < 1 ? second : null;
+    }))).not.toBeNull();
+    await page.touchscreen.tap(point.x, point.y);
+  };
+  for (const width of [390, 375, 320]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 667 });
+    await expect(windowArt(page)).toBeVisible();
+    // WebKit can briefly return no protocol quad after a viewport resize even
+    // though the visible stage has a valid DOM layout. Compare layout heights.
+    // Wait for the resized breakpoint, not merely the stage's visibility.
+    // WebKit may report the previous 106px layout once after moving to 320px.
+    const expectedHeight = width < 359 ? 96 : 106;
+    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(expectedHeight);
+    const beforeHeight = expectedHeight;
+    await tapPhrase(phrase(page, 'drive-and-sensitivity'));
+    await expect(windowArt(page)).toBeVisible();
+    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(beforeHeight);
+    await expect(currentCards(page)).toHaveCount(2);
+    await tapPhrase(phrase(page, 'ace-meaning'));
+    await expect(windowArt(page).locator('[data-gesture-art]')).toHaveCount(2);
+    await expectNoHorizontalOverflow(page);
+    expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running' && animation.effect?.target?.closest('[data-gesture-window]')).length)).toBe(0);
+  }
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const zoomedPhrase = phrase(page, 'drive-and-sensitivity');
+  await tapPhrase(zoomedPhrase);
+  await expect(currentCards(page)).toHaveCount(2);
+  await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'true');
+  await zoomedPhrase.focus();
+  await page.keyboard.press('Enter');
+  await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'false');
+  await expectNoHorizontalOverflow(page);
+  await expect(reading(page)).toContainText('both your drive and your sensitivity');
+});

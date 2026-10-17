@@ -37,24 +37,14 @@ echo ""
 echo "✅ OPENAI_API_KEY set"
 
 echo ""
-echo "📝 Setting up Azure OpenAI TTS secrets..."
+echo "📝 Setting up optional ElevenLabs reader voice..."
 echo ""
-
-read -p "Enter your Azure TTS Endpoint (e.g., https://your-tts-resource.openai.azure.com): " tts_endpoint
-put_worker_secret AZURE_OPENAI_TTS_ENDPOINT "$tts_endpoint"
-echo "✅ AZURE_OPENAI_TTS_ENDPOINT set"
-
+read -sp "Enter your ElevenLabs API key, or press Enter to use Workers AI narration: " elevenlabs_api_key
 echo ""
-echo "Enter your Azure TTS API Key (input will be hidden):"
-read -s tts_api_key
-put_worker_secret AZURE_OPENAI_TTS_API_KEY "$tts_api_key"
-echo ""
-echo "✅ AZURE_OPENAI_TTS_API_KEY set"
-
-echo ""
-read -p "Enter your TTS deployment name (e.g., gpt-audio-mini): " tts_deployment
-put_worker_secret AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT "$tts_deployment"
-echo "✅ AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set"
+if [[ -n "$elevenlabs_api_key" ]]; then
+  put_worker_secret ELEVENLABS_API_KEY "$elevenlabs_api_key"
+  echo "✅ ELEVENLABS_API_KEY set"
+fi
 
 echo ""
 read -sp "Enter a random vision proof signing secret (32+ chars): " vision_secret

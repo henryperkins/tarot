@@ -12,6 +12,7 @@ let NarrativeBody;
 let NarrativePanelHeader;
 let SpreadPatterns;
 let FeedbackPanel;
+let CardTouchArt;
 
 before(async () => {
   server = await createServer({
@@ -27,6 +28,17 @@ before(async () => {
   ({ NarrativePanelHeader } = await server.ssrLoadModule('/src/components/reading/narrative/NarrativePanelHeader.jsx'));
   ({ SpreadPatterns } = await server.ssrLoadModule('/src/components/SpreadPatterns.jsx'));
   ({ FeedbackPanel } = await server.ssrLoadModule('/src/components/FeedbackPanel.jsx'));
+  ({ CardTouchArt } = await server.ssrLoadModule('/src/components/reading/narrative/CardTouchArt.jsx'));
+});
+
+test('unsupported artwork editions retain whole-card context without vector details', () => {
+  const markup = render(CardTouchArt, {
+    card: { canonicalName: 'The Star', image: '/images/star.webp', artworkEdition: 'unknown', isReversed: true },
+    gesture: { detailIds: ['pool-pour'], phase: 'held' }, crop: true, motionOwner: false
+  });
+  assert.match(markup, /src="\/images\/star.webp"/);
+  assert.match(markup, /data-reversed="true"/);
+  assert.doesNotMatch(markup, /<svg|data-water-detail|<mask/);
 });
 
 after(async () => {
@@ -121,7 +133,7 @@ test('narrative body opts into h3 sections without changing the shared renderer 
 
 test('narrative title exposes the stable h2 focus destination', () => {
   const markup = render(NarrativePanelHeader);
-  assert.deepEqual(headings(markup), [{ level: 2, text: 'Your Personalized Narrative' }]);
+  assert.deepEqual(headings(markup), [{ level: 2, text: 'Your reading' }]);
   assert.match(markup, /<h2\b[^>]*id="personalized-narrative-title"/);
   assert.match(markup, /<h2\b[^>]*tabindex="-1"/);
   assert.match(markup, /<h2\b[^>]*data-reading-focus-target/);

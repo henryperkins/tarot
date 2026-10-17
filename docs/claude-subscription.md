@@ -41,6 +41,10 @@ See the [authentication reference](https://code.claude.com/docs/en/authenticatio
 
 ## Connect local Tableu
 
+For ChatGPT-backed Codex inference instead, see the separate
+[Codex subscription provider](codex-subscription.md). Choose one text provider
+per Worker; Claude remains available with the settings below.
+
 Add these settings to this checkout's untracked `.dev.vars`:
 
 ```dotenv
@@ -56,8 +60,7 @@ Claude account ID. Existing Tableu tier, ownership and usage checks still apply.
 Log into that account in Tableu, then start the normal `npm run dev` stack.
 
 The default `TEXT_PROVIDER=legacy` in Wrangler keeps an unconfigured deployment
-working. Switching to `claude-code` takes priority over configured Modal, OpenAI
-and Azure credentials. Invalid provider names are configuration errors. A missing
+working. Switching to `claude-code` takes priority over configured Anthropic, Modal and OpenAI credentials. Invalid provider names are configuration errors. A missing
 owner denies access. A missing or unavailable gateway permits only existing local
 reading/summary fallbacks; follow-ups return their existing retry error.
 

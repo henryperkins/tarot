@@ -5,6 +5,7 @@ import { X, Eye, EyeSlash } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import {
   FOCUS_RING_ACCENT_SOFT,
   FOCUS_RING_DEFAULT,
@@ -13,6 +14,15 @@ import {
 } from '../styles/focusClasses';
 
 const PRIMARY_60_RING_WITH_SURFACE_OFFSET = `${FOCUS_RING_PRIMARY_60} ${FOCUS_RING_OFFSET_SURFACE}`;
+
+// Social sign-in leaves the page. Return to where the person was, so a reading
+// in progress comes back (lib/readingSnapshot) instead of landing on /account.
+function getReturnPath() {
+  if (typeof window === 'undefined') return '/account';
+  const { pathname, search } = window.location;
+  if (!pathname || pathname.startsWith('/auth/')) return '/account';
+  return `${pathname}${search}`;
+}
 
 function normalizeMode(mode) {
   return ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
@@ -36,6 +46,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
   const [success, setSuccess] = useState('');
   const modalRef = useRef(null);
   const firstInputRef = useRef(null);
+  const passwordRef = useRef(null);
+  const submittedRef = useRef(false);
 
   const sessionRef = useRef(0);
   const timersRef = useRef(new Set());
@@ -67,6 +79,26 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     returnFocusRef,
   });
 
+  // On phones, Back closes the dialog instead of leaving the page (and any
+  // reading in progress) behind it.
+  useAndroidBackGuard(isOpen, {
+    onBack: onClose,
+    enabled: isSmallScreen,
+    guardId: 'authModal'
+  });
+
+  // A failed attempt keeps the person in the form. The fields stay focusable
+  // while loading (read-only rather than disabled), and focus returns to the
+  // field to correct, so the keyboard and screen-reader focus stay in the dialog.
+  useEffect(() => {
+    if (!error || loading || !submittedRef.current) return;
+    submittedRef.current = false;
+    const field = mode === 'forgot' ? firstInputRef.current : (passwordRef.current || firstInputRef.current);
+    if (!field || field === document.activeElement) return;
+    field.focus({ preventScroll: true });
+    field.scrollIntoView?.({ block: 'nearest' });
+  }, [error, loading, mode]);
+
   // Adjust this component before committing an opened modal with stale mode or feedback.
   if (previousOpening.isOpen !== isOpen || previousOpening.initialMode !== initialMode) {
     setPreviousOpening({ isOpen, initialMode });
@@ -97,7 +129,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     const session = sessionRef.current;
     setLoading(true);
     try {
-      const result = await startOAuth('/account', provider);
+      const result = await startOAuth(getReturnPath(), provider);
       if (session !== sessionRef.current) return;
       if (!result.success) {
         setError(result.error || 'Unable to start social login');
@@ -113,6 +145,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    submittedRef.current = true;
     setError('');
     setSuccess('');
     const session = sessionRef.current;
@@ -194,6 +227,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
   };
 
   const handleResendVerification = async () => {
+    submittedRef.current = true;
     setError('');
     setSuccess('');
 
@@ -363,8 +397,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                     className={inputBaseClasses}
                     placeholder="you@example.com"
                     required
-                    disabled={loading}
+                    readOnly={loading}
+                    aria-disabled={loading || undefined}
                     aria-invalid={Boolean(error)}
+                    aria-describedby={errorId}
                   />
                 </div>
 
@@ -384,7 +420,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                       className={inputBaseClasses}
                       placeholder="Choose a username"
                       required
-                      disabled={loading}
+                      readOnly={loading}
+                      aria-disabled={loading || undefined}
                       pattern="[a-zA-Z0-9_]{3,30}"
                       title="3-30 characters, letters, numbers, and underscores only"
                       aria-describedby="username-hint"
@@ -409,6 +446,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                     </label>
                     <div className="relative">
                       <input
+                        ref={passwordRef}
                         type={showPassword ? 'text' : 'password'}
                         id="auth-password"
                         name="password"
@@ -418,10 +456,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                         className={`${inputBaseClasses} pr-12`}
                         placeholder={mode === 'register' ? 'At least 8 characters' : 'Enter your password'}
                         required
-                        disabled={loading}
+                        readOnly={loading}
+                        aria-disabled={loading || undefined}
                         minLength={8}
                         aria-invalid={Boolean(error)}
-                        aria-describedby={mode === 'register' ? 'password-hint' : undefined}
+                        aria-describedby={[mode === 'register' ? 'password-hint' : null, errorId].filter(Boolean).join(' ') || undefined}
                       />
                       <button
                         type="button"
@@ -471,7 +510,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                         className={`${inputBaseClasses} pr-12`}
                         placeholder="Confirm your password"
                         required
-                        disabled={loading}
+                        readOnly={loading}
+                        aria-disabled={loading || undefined}
                         minLength={8}
                         aria-invalid={Boolean(error && error.includes('match'))}
                       />
@@ -615,6 +655,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
                 </button>
               )}
             </div>
+
+            {/* The corner close button is out of thumb reach on large phones. */}
+            {isSmallScreen && (
+              <button
+                type="button"
+                onClick={onClose}
+                className={`mt-2 w-full min-h-touch rounded-lg text-sm text-muted hover:text-main touch-manipulation ${FOCUS_RING_DEFAULT}`}
+              >
+                Not now
+              </button>
+            )}
           </form>
 
           {/* Footer */}

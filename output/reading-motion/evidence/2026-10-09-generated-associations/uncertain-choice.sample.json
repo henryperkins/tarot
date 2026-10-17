@@ -1,0 +1,318 @@
+{
+  "id": "uncertain-choice",
+  "language": "en",
+  "userQuestion": "How can I approach a decision when neither option feels fully clear?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "Two of Swords",
+      "position": "Situation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "The High Priestess",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Page of Pentacles",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou're weighing two paths, and neither one is fully clear. This spread suggests ways to keep moving while things are still uncertain.\n\n## The Story\n\nIn the Situation, the Two of Swords appears reversed. A figure sits with a blindfold over her eyes, holding crossed swords against her chest. Reversed, the card may hint that the standoff is loosening. Holding both options rigidly might be getting harder, and that strain could tell you something useful.\n\nThe High Priestess, upright, offers the Invitation. She sits between black and white pillars and holds a scroll, partly tucked from view. You don't have to treat each pillar as an option you must pick. You might notice what lies in the space between them instead. The scroll suggests that some of what you know can't be fully read yet, and that's allowed.\n\nThe Page of Pentacles, upright, points the Direction. He holds a raised pentacle and studies it closely, with distant mountains behind him.\n\n## Putting It Together\n\nThe blindfold and the raised pentacle sit in quiet contrast. One shuts out sight, and the other brings something close enough to examine. Clarity may come less from settling everything at once and more from looking carefully at one concrete piece.\n\n## Gentle Next Steps\n\n- Write down what you know about each option, and also what remains unreadable, like the scroll.\n- Try one small step you can undo, such as a conversation or a short trial, and study it as the Page studies his pentacle.\n- Let the distant mountains stay distant for now.\n\n## Closing\n\nYou may not need to see the whole path to take one honest next step.",
+    "annotations": [
+      {
+        "id": "id-two-swords",
+        "kind": "identity",
+        "quote": "Two of Swords appears reversed",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-blindfold",
+        "kind": "literal",
+        "quote": "blindfold over her eyes",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "blindfold"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-crossed-swords",
+        "kind": "literal",
+        "quote": "holding crossed swords against her chest",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "crossed-swords"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-crossed-swords",
+        "kind": "interpretation",
+        "quote": "Holding both options rigidly might be getting harder",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "crossed-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-crossed-swords"
+        ]
+      },
+      {
+        "id": "id-high-priestess",
+        "kind": "identity",
+        "quote": "The High Priestess, upright",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-pillars",
+        "kind": "literal",
+        "quote": "black and white pillars",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "pillars"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-scroll",
+        "kind": "literal",
+        "quote": "a scroll, partly tucked from view",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scroll"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-pillars",
+        "kind": "interpretation",
+        "quote": "You don't have to treat each pillar as an option you must pick",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "pillars"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-pillars"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "neither option feels fully clear"
+        }
+      },
+      {
+        "id": "int-scroll",
+        "kind": "interpretation",
+        "quote": "some of what you know can't be fully read yet",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scroll"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-scroll"
+        ]
+      },
+      {
+        "id": "id-page-pentacles",
+        "kind": "identity",
+        "quote": "The Page of Pentacles, upright",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-raised-pentacle",
+        "kind": "literal",
+        "quote": "holds a raised pentacle",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "raised-pentacle"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-distant-mountains",
+        "kind": "literal",
+        "quote": "distant mountains behind him",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "distant-mountains"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "rel-blindfold-pentacle",
+        "kind": "relationship",
+        "quote": "The blindfold and the raised pentacle sit in quiet contrast",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "blindfold"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "raised-pentacle"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-blindfold",
+          "lit-raised-pentacle"
+        ]
+      },
+      {
+        "id": "int-scroll-steps",
+        "kind": "interpretation",
+        "quote": "what remains unreadable, like the scroll",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scroll"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-scroll"
+        ]
+      },
+      {
+        "id": "int-pentacle-steps",
+        "kind": "interpretation",
+        "quote": "study it as the Page studies his pentacle",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "raised-pentacle"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-raised-pentacle"
+        ]
+      },
+      {
+        "id": "int-mountains-steps",
+        "kind": "interpretation",
+        "quote": "Let the distant mountains stay distant for now",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "distant-mountains"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-distant-mountains"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:26:04.872Z",
+    "completedAt": "2026-10-09T12:27:04.623Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 986,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 5651,
+      "output_tokens_details": {
+        "thinking_tokens": 3714
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 986,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "ac75e1619ceab5b18f2b1278fa2522d89d6ce5297b4564d38bb16d2fd444d30d",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou're weighing two paths, and neither one is fully clear. This spread suggests ways to keep moving while things are still uncertain.\\n\\n## The Story\\n\\nIn the Situation, the Two of Swords appears reversed. A figure sits with a blindfold over her eyes, holding crossed swords against her chest. Reversed, the card may hint that the standoff is loosening. Holding both options rigidly might be getting harder, and that strain could tell you something useful.\\n\\nThe High Priestess, upright, offers the Invitation. She sits between black and white pillars and holds a scroll, partly tucked from view. You don't have to treat each pillar as an option you must pick. You might notice what lies in the space between them instead. The scroll suggests that some of what you know can't be fully read yet, and that's allowed.\\n\\nThe Page of Pentacles, upright, points the Direction. He holds a raised pentacle and studies it closely, with distant mountains behind him.\\n\\n## Putting It Together\\n\\nThe blindfold and the raised pentacle sit in quiet contrast. One shuts out sight, and the other brings something close enough to examine. Clarity may come less from settling everything at once and more from looking carefully at one concrete piece.\\n\\n## Gentle Next Steps\\n\\n- Write down what you know about each option, and also what remains unreadable, like the scroll.\\n- Try one small step you can undo, such as a conversation or a short trial, and study it as the Page studies his pentacle.\\n- Let the distant mountains stay distant for now.\\n\\n## Closing\\n\\nYou may not need to see the whole path to take one honest next step.\",\"annotations\":[{\"id\":\"id-two-swords\",\"kind\":\"identity\",\"quote\":\"Two of Swords appears reversed\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-blindfold\",\"kind\":\"literal\",\"quote\":\"blindfold over her eyes\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"blindfold\"]}]},{\"id\":\"lit-crossed-swords\",\"kind\":\"literal\",\"quote\":\"holding crossed swords against her chest\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"crossed-swords\"]}]},{\"id\":\"int-crossed-swords\",\"kind\":\"interpretation\",\"quote\":\"Holding both options rigidly might be getting harder\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"crossed-swords\"]}],\"establishedBy\":[\"lit-crossed-swords\"]},{\"id\":\"id-high-priestess\",\"kind\":\"identity\",\"quote\":\"The High Priestess, upright\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-pillars\",\"kind\":\"literal\",\"quote\":\"black and white pillars\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"pillars\"]}]},{\"id\":\"lit-scroll\",\"kind\":\"literal\",\"quote\":\"a scroll, partly tucked from view\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scroll\"]}]},{\"id\":\"int-pillars\",\"kind\":\"interpretation\",\"quote\":\"You don't have to treat each pillar as an option you must pick\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"pillars\"]}],\"establishedBy\":[\"lit-pillars\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"neither option feels fully clear\"}},{\"id\":\"int-scroll\",\"kind\":\"interpretation\",\"quote\":\"some of what you know can't be fully read yet\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scroll\"]}],\"establishedBy\":[\"lit-scroll\"]},{\"id\":\"id-page-pentacles\",\"kind\":\"identity\",\"quote\":\"The Page of Pentacles, upright\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-raised-pentacle\",\"kind\":\"literal\",\"quote\":\"holds a raised pentacle\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"raised-pentacle\"]}]},{\"id\":\"lit-distant-mountains\",\"kind\":\"literal\",\"quote\":\"distant mountains behind him\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"distant-mountains\"]}]},{\"id\":\"rel-blindfold-pentacle\",\"kind\":\"relationship\",\"quote\":\"The blindfold and the raised pentacle sit in quiet contrast\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"blindfold\"]},{\"spreadIndex\":2,\"detailIds\":[\"raised-pentacle\"]}],\"establishedBy\":[\"lit-blindfold\",\"lit-raised-pentacle\"]},{\"id\":\"int-scroll-steps\",\"kind\":\"interpretation\",\"quote\":\"what remains unreadable, like the scroll\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scroll\"]}],\"establishedBy\":[\"lit-scroll\"]},{\"id\":\"int-pentacle-steps\",\"kind\":\"interpretation\",\"quote\":\"study it as the Page studies his pentacle\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"raised-pentacle\"]}],\"establishedBy\":[\"lit-raised-pentacle\"]},{\"id\":\"int-mountains-steps\",\"kind\":\"interpretation\",\"quote\":\"Let the distant mountains stay distant for now\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"distant-mountains\"]}],\"establishedBy\":[\"lit-distant-mountains\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 6,
+      "balance": 0,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 4,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 1,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 6,
+    "rawSha256": "f9accf4a4b42aabb81b41d0b28c3208e862763a074be8186b4e0f2413105ec71",
+    "wordCount": 279
+  }
+}

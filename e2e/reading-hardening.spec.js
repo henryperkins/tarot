@@ -124,7 +124,7 @@ for (const width of [320, 390, 1440]) {
     try {
       await prepareNarrative(page);
       await generate(page);
-      await expect(page.getByLabel('Preparing your interpretation')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
       await jobs.emit('delta', { text: '## Opening\n\nA pause can help you notice what matters.' });
       await expect(page.locator('.narrative-stream')).toContainText('A pause can help');
       await expect(page.locator('.narrative-stream [role="status"]')).not.toContainText('Narrative ready');
@@ -133,7 +133,7 @@ for (const width of [320, 390, 1440]) {
       await jobs.emit('done', { fullText: FINAL_TEXT, requestId: 'hardening-reading', provider: 'fixture' });
       await expect(page.locator('.narrative-stream')).toContainText('Keep one small commitment');
       await expect(page.locator('.narrative-stream [role="status"]')).toHaveText('Narrative ready.');
-      await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeFocused();
+      await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeFocused();
       await expect.poll(() => effectiveOpacity(page.locator('.narrative-stream'))).toBe(1);
     } finally {
       await jobs.close();

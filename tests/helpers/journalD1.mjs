@@ -1,4 +1,4 @@
-import { Miniflare } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { hashApiKey } from '../../functions/lib/apiKeys.js';
 import { readFile } from 'node:fs/promises';
 
@@ -7,13 +7,15 @@ export const OTHER_KEY = `sk_${'b'.repeat(64)}`;
 
 // A real local D1 database: exercise SQL constraints, atomic writes and auth joins.
 export async function journalFixture() {
-  const mf = new Miniflare({
+  // Miniflare 5 accepts compiled worker configs; its converter preserves this
+  // fixture's inline module and real local D1 binding.
+  const mf = new Miniflare(convertV4MiniflareOptions({
     modules: true,
     script: 'export default { fetch() { return new Response("fixture"); } };',
     // Production's date (wrangler.jsonc). Newer runtimes reject future dates.
     compatibilityDate: '2025-11-24',
     d1Databases: ['DB']
-  });
+  }));
   // A failed setup must still stop workerd, or the test process never exits.
   try {
     return await seedJournalDb(mf);
@@ -30,7 +32,15 @@ CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, expires_at INTEGER, la
 CREATE TABLE journal_followups (entry_id TEXT, user_id TEXT, turn_number INTEGER, question TEXT, answer TEXT, canonical_answer TEXT, journal_context_json TEXT, created_at INTEGER);
 CREATE TABLE api_keys (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), key_hash TEXT, key_prefix TEXT, is_active INTEGER, expires_at INTEGER, last_used_at INTEGER);
 CREATE TABLE journal_entries (id TEXT PRIMARY KEY, user_id TEXT REFERENCES users(id), created_at INTEGER, updated_at INTEGER, spread_key TEXT, spread_name TEXT, question TEXT, cards_json TEXT, narrative TEXT, themes_json TEXT, reflections_json TEXT, context TEXT, provider TEXT, session_seed TEXT, user_preferences_json TEXT, deck_id TEXT, request_id TEXT, location_latitude REAL, location_longitude REAL, location_timezone TEXT, location_consent INTEGER, extracted_steps TEXT, step_embeddings TEXT, extraction_version TEXT, extraction_model TEXT, embedding_model TEXT);`);
+  const identitySchema = await readFile(new URL('../../migrations/0030_add_journal_idempotency_key.sql', import.meta.url), 'utf8');
+  for (const statement of identitySchema.split(';').map(sql => sql.trim()).filter(Boolean)) {
+    await db.prepare(statement).run();
+  }
   await db.prepare(await readFile(new URL('../../migrations/0032_add_journal_source_usage.sql', import.meta.url), 'utf8')).run();
+  const visualSchema = await readFile(new URL('../../migrations/0036_reading_visual_results.sql', import.meta.url), 'utf8');
+  for (const statement of visualSchema.split(';').map(sql => sql.trim()).filter(Boolean)) {
+    await db.prepare(statement).run();
+  }
   for (const [id, key] of [['owner', OWNER_KEY], ['other', OTHER_KEY]]) {
     await db.prepare("INSERT INTO users (id, email, username, is_active, subscription_tier, subscription_status, subscription_provider, email_verified, auth_provider) VALUES (?, ?, ?, 1, 'pro', 'active', 'stripe', 1, 'password')")
       .bind(id, `${id}@example.test`, id).run();

@@ -35,37 +35,18 @@ echo "$API_KEY" | wrangler secret put OPENAI_API_KEY --name "$WORKER_NAME"
 echo "   ✅ OPENAI_API_KEY set"
 echo ""
 
-echo "📝 Setting up Azure OpenAI TTS secrets (optional)..."
+echo "📝 Setting up ElevenLabs reader voice (optional)..."
 echo ""
 read -p "Do you want to set up TTS secrets now? (y/n): " SETUP_TTS
 
 if [[ "$SETUP_TTS" == "y" || "$SETUP_TTS" == "Y" ]]; then
-    # AZURE_OPENAI_TTS_ENDPOINT
-    echo "4️⃣  Azure OpenAI TTS Endpoint"
-    echo "   (Can be the same as GPT-5.1 endpoint if using same resource)"
-    read -p "   Enter your TTS endpoint: " TTS_ENDPOINT
-    echo "$TTS_ENDPOINT" | wrangler secret put AZURE_OPENAI_TTS_ENDPOINT --name "$WORKER_NAME"
-    echo "   ✅ AZURE_OPENAI_TTS_ENDPOINT set"
+    read -sp "   Enter your ElevenLabs API key: " ELEVENLABS_KEY
     echo ""
-
-    # AZURE_OPENAI_TTS_API_KEY
-    echo "5️⃣  Azure OpenAI TTS API Key"
-    echo "   (Can be the same as GPT-5.1 API key if using same resource)"
-    read -sp "   Enter your TTS API key: " TTS_API_KEY
-    echo ""
-    echo "$TTS_API_KEY" | wrangler secret put AZURE_OPENAI_TTS_API_KEY --name "$WORKER_NAME"
-    echo "   ✅ AZURE_OPENAI_TTS_API_KEY set"
-    echo ""
-
-    # AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT
-    echo "6️⃣  TTS Deployment Name"
-    echo "   Example: tts, tts-1-hd, gpt-4o-mini-tts, etc."
-    read -p "   Enter your TTS deployment name: " TTS_DEPLOYMENT
-    echo "$TTS_DEPLOYMENT" | wrangler secret put AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT --name "$WORKER_NAME"
-    echo "   ✅ AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT set"
+    printf '%s' "$ELEVENLABS_KEY" | wrangler secret put ELEVENLABS_API_KEY --name "$WORKER_NAME"
+    echo "   ✅ ELEVENLABS_API_KEY set"
     echo ""
 else
-    echo "   ⏭️  Skipping TTS setup"
+    echo "   Workers AI narration needs no additional provider secret."
     echo ""
 fi
 

@@ -1,0 +1,611 @@
+{
+  "revision": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "parameters": {
+    "study": "star",
+    "arrival": "complete",
+    "width": "390",
+    "height": "844",
+    "phrase": "land",
+    "hold-at": "1000",
+    "times": "500,1200,2500"
+  },
+  "errors": [],
+  "records": [
+    {
+      "observedMs": 656,
+      "requestedMs": 500,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547072201-star-390/0-500ms.png",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "555",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "balance-2-332",
+        "phase": "static",
+        "pending": "",
+        "rect": {
+          "x": 37,
+          "y": 537,
+          "width": 316,
+          "height": 106,
+          "top": 537,
+          "right": 353,
+          "bottom": 643,
+          "left": 37
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204:2",
+          "details": "pool-pour land-pour",
+          "label": "Future: The Star, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "The Star",
+          "id": "identity-2-63",
+          "pressed": "false",
+          "rect": {
+            "x": 189.375,
+            "y": 1092.984375,
+            "width": 62.28125,
+            "height": 39,
+            "top": 1092.984375,
+            "right": 251.65625,
+            "bottom": 1131.984375,
+            "left": 189.375
+          }
+        },
+        {
+          "text": "pool",
+          "id": "literal-2-136",
+          "pressed": "false",
+          "rect": {
+            "x": 134.40625,
+            "y": 1144.171875,
+            "width": 31.640625,
+            "height": 39,
+            "top": 1144.171875,
+            "right": 166.046875,
+            "bottom": 1183.171875,
+            "left": 134.40625
+          }
+        },
+        {
+          "text": "land",
+          "id": "literal-2-164",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 1169.765625,
+            "width": 31.640625,
+            "height": 39,
+            "top": 1169.765625,
+            "right": 64.640625,
+            "bottom": 1208.765625,
+            "left": 33
+          }
+        },
+        {
+          "text": "emotional reservoir of memory",
+          "id": "interpretation-2-243",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 1195.359375,
+            "width": 305.25,
+            "height": 64.59375,
+            "top": 1195.359375,
+            "right": 338.25,
+            "bottom": 1259.953125,
+            "left": 33
+          }
+        },
+        {
+          "text": "people back home",
+          "id": "interpretation-2-281",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 1220.953125,
+            "width": 311.59375,
+            "height": 64.59375,
+            "top": 1220.953125,
+            "right": 344.59375,
+            "bottom": 1285.546875,
+            "left": 33
+          }
+        },
+        {
+          "text": "the other waters new ground",
+          "id": "interpretation-2-303",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 1246.546875,
+            "width": 279.625,
+            "height": 64.59375,
+            "top": 1246.546875,
+            "right": 312.625,
+            "bottom": 1311.140625,
+            "left": 33
+          }
+        },
+        {
+          "text": "Neither pitcher gets dropped",
+          "id": "balance-2-332",
+          "pressed": "false",
+          "associated": "true",
+          "rect": {
+            "x": 94.296875,
+            "y": 1272.140625,
+            "width": 213.484375,
+            "height": 39,
+            "top": 1272.140625,
+            "right": 307.78125,
+            "bottom": 1311.140625,
+            "left": 94.296875
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Past: Six of Cups, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 65,
+            "y": 440,
+            "width": 44,
+            "height": 64,
+            "top": 440,
+            "right": 109,
+            "bottom": 504,
+            "left": 65
+          }
+        },
+        {
+          "label": "Present: The Tower, upright",
+          "disabled": true,
+          "rect": {
+            "x": 173,
+            "y": 440,
+            "width": 44,
+            "height": 64,
+            "top": 440,
+            "right": 217,
+            "bottom": 504,
+            "left": 173
+          }
+        },
+        {
+          "label": "Future: The Star, upright",
+          "disabled": false,
+          "rect": {
+            "x": 281,
+            "y": 440,
+            "width": 44,
+            "height": 64,
+            "top": 440,
+            "right": 325,
+            "bottom": 504,
+            "left": 281
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nIf things keep moving as they are, the trajectory leans toward The Star. A figure kneels under a large star, pouring one pitcher into a pool and the other onto the land. That image speaks almost directly to your reflection. One hand tends the emotional reservoir of memory and the people back home, and the other waters new ground. Neither pitcher gets dropped. The figure is also unadorned, which suggests the reinvention ahead may be quieter than a dramatic makeover. It's less \"new me\" and more \"me, without the parts I was only holding up for others.\"",
+      "runningAnimations": 2
+    },
+    {
+      "observedMs": 1473,
+      "requestedMs": 1200,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547072201-star-390/1-1200ms.png",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "scrollY": 764
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "555",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-2-164",
+        "phase": "held",
+        "pending": "",
+        "held": "true",
+        "rect": {
+          "x": 37,
+          "y": 107,
+          "width": 316,
+          "height": 106,
+          "top": 107,
+          "right": 353,
+          "bottom": 213,
+          "left": 37
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204:2",
+          "details": "land-pour",
+          "label": "Future: The Star, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "The Star",
+          "id": "identity-2-63",
+          "pressed": "false",
+          "rect": {
+            "x": 189.375,
+            "y": 328.984375,
+            "width": 62.28125,
+            "height": 39,
+            "top": 328.984375,
+            "right": 251.65625,
+            "bottom": 367.984375,
+            "left": 189.375
+          }
+        },
+        {
+          "text": "pool",
+          "id": "literal-2-136",
+          "pressed": "false",
+          "rect": {
+            "x": 134.40625,
+            "y": 380.171875,
+            "width": 31.640625,
+            "height": 39,
+            "top": 380.171875,
+            "right": 166.046875,
+            "bottom": 419.171875,
+            "left": 134.40625
+          }
+        },
+        {
+          "text": "land",
+          "id": "literal-2-164",
+          "pressed": "true",
+          "associated": "true",
+          "rect": {
+            "x": 33,
+            "y": 405.765625,
+            "width": 31.640625,
+            "height": 39,
+            "top": 405.765625,
+            "right": 64.640625,
+            "bottom": 444.765625,
+            "left": 33
+          }
+        },
+        {
+          "text": "emotional reservoir of memory",
+          "id": "interpretation-2-243",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 431.359375,
+            "width": 305.25,
+            "height": 64.59375,
+            "top": 431.359375,
+            "right": 338.25,
+            "bottom": 495.953125,
+            "left": 33
+          }
+        },
+        {
+          "text": "people back home",
+          "id": "interpretation-2-281",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 456.953125,
+            "width": 311.59375,
+            "height": 64.59375,
+            "top": 456.953125,
+            "right": 344.59375,
+            "bottom": 521.546875,
+            "left": 33
+          }
+        },
+        {
+          "text": "the other waters new ground",
+          "id": "interpretation-2-303",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 482.546875,
+            "width": 279.625,
+            "height": 64.59375,
+            "top": 482.546875,
+            "right": 312.625,
+            "bottom": 547.140625,
+            "left": 33
+          }
+        },
+        {
+          "text": "Neither pitcher gets dropped",
+          "id": "balance-2-332",
+          "pressed": "false",
+          "rect": {
+            "x": 94.296875,
+            "y": 508.140625,
+            "width": 213.484375,
+            "height": 39,
+            "top": 508.140625,
+            "right": 307.78125,
+            "bottom": 547.140625,
+            "left": 94.296875
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Past: Six of Cups, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 65,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 109,
+            "bottom": 74,
+            "left": 65
+          }
+        },
+        {
+          "label": "Present: The Tower, upright",
+          "disabled": true,
+          "rect": {
+            "x": 173,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 217,
+            "bottom": 74,
+            "left": 173
+          }
+        },
+        {
+          "label": "Future: The Star, upright",
+          "disabled": false,
+          "rect": {
+            "x": 281,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 325,
+            "bottom": 74,
+            "left": 281
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nIf things keep moving as they are, the trajectory leans toward The Star. A figure kneels under a large star, pouring one pitcher into a pool and the other onto the land. That image speaks almost directly to your reflection. One hand tends the emotional reservoir of memory and the people back home, and the other waters new ground. Neither pitcher gets dropped. The figure is also unadorned, which suggests the reinvention ahead may be quieter than a dramatic makeover. It's less \"new me\" and more \"me, without the parts I was only holding up for others.\"",
+      "runningAnimations": 11
+    },
+    {
+      "observedMs": 2657,
+      "requestedMs": 2500,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547072201-star-390/2-2500ms.png",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "scrollWidth": 390,
+        "scrollY": 764
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "555",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-2-164",
+        "phase": "held",
+        "pending": "",
+        "held": "true",
+        "rect": {
+          "x": 37,
+          "y": 107,
+          "width": 316,
+          "height": 106,
+          "top": 107,
+          "right": 353,
+          "bottom": 213,
+          "left": 37
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "866f7396-6bb8-4f9c-ad42-ee7ccff71204:2",
+          "details": "land-pour",
+          "label": "Future: The Star, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "The Star",
+          "id": "identity-2-63",
+          "pressed": "false",
+          "rect": {
+            "x": 189.375,
+            "y": 328.984375,
+            "width": 62.28125,
+            "height": 39,
+            "top": 328.984375,
+            "right": 251.65625,
+            "bottom": 367.984375,
+            "left": 189.375
+          }
+        },
+        {
+          "text": "pool",
+          "id": "literal-2-136",
+          "pressed": "false",
+          "rect": {
+            "x": 134.40625,
+            "y": 380.171875,
+            "width": 31.640625,
+            "height": 39,
+            "top": 380.171875,
+            "right": 166.046875,
+            "bottom": 419.171875,
+            "left": 134.40625
+          }
+        },
+        {
+          "text": "land",
+          "id": "literal-2-164",
+          "pressed": "true",
+          "associated": "true",
+          "rect": {
+            "x": 33,
+            "y": 405.765625,
+            "width": 31.640625,
+            "height": 39,
+            "top": 405.765625,
+            "right": 64.640625,
+            "bottom": 444.765625,
+            "left": 33
+          }
+        },
+        {
+          "text": "emotional reservoir of memory",
+          "id": "interpretation-2-243",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 431.359375,
+            "width": 305.25,
+            "height": 64.59375,
+            "top": 431.359375,
+            "right": 338.25,
+            "bottom": 495.953125,
+            "left": 33
+          }
+        },
+        {
+          "text": "people back home",
+          "id": "interpretation-2-281",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 456.953125,
+            "width": 311.59375,
+            "height": 64.59375,
+            "top": 456.953125,
+            "right": 344.59375,
+            "bottom": 521.546875,
+            "left": 33
+          }
+        },
+        {
+          "text": "the other waters new ground",
+          "id": "interpretation-2-303",
+          "pressed": "false",
+          "rect": {
+            "x": 33,
+            "y": 482.546875,
+            "width": 279.625,
+            "height": 64.59375,
+            "top": 482.546875,
+            "right": 312.625,
+            "bottom": 547.140625,
+            "left": 33
+          }
+        },
+        {
+          "text": "Neither pitcher gets dropped",
+          "id": "balance-2-332",
+          "pressed": "false",
+          "rect": {
+            "x": 94.296875,
+            "y": 508.140625,
+            "width": 213.484375,
+            "height": 39,
+            "top": 508.140625,
+            "right": 307.78125,
+            "bottom": 547.140625,
+            "left": 94.296875
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Past: Six of Cups, reversed",
+          "disabled": true,
+          "rect": {
+            "x": 65,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 109,
+            "bottom": 74,
+            "left": 65
+          }
+        },
+        {
+          "label": "Present: The Tower, upright",
+          "disabled": true,
+          "rect": {
+            "x": 173,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 217,
+            "bottom": 74,
+            "left": 173
+          }
+        },
+        {
+          "label": "Future: The Star, upright",
+          "disabled": false,
+          "rect": {
+            "x": 281,
+            "y": 10,
+            "width": 44,
+            "height": 64,
+            "top": 10,
+            "right": 325,
+            "bottom": 74,
+            "left": 281
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nIf things keep moving as they are, the trajectory leans toward The Star. A figure kneels under a large star, pouring one pitcher into a pool and the other onto the land. That image speaks almost directly to your reflection. One hand tends the emotional reservoir of memory and the people back home, and the other waters new ground. Neither pitcher gets dropped. The figure is also unadorned, which suggests the reinvention ahead may be quieter than a dramatic makeover. It's less \"new me\" and more \"me, without the parts I was only holding up for others.\"",
+      "runningAnimations": 9
+    }
+  ]
+}

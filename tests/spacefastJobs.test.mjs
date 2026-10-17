@@ -381,3 +381,36 @@ test('failure to persist completion stops the runner and becomes an interruption
   assert.match(status.error, /Reading interrupted/);
   assert.equal(status.result, null);
 });
+
+test('restart and SSE replay retain visual source identity while keeping transport capabilities private', async t => {
+  const f = fixture(t, readingRunner({ reading: 'The Star offers hope.' }));
+  const jobId = crypto.randomUUID();
+  ownedIds.add(jobId);
+  const started = { jobId, jobToken: 'offline-reading-token' };
+  const visualBinding = { readingResultId: crypto.randomUUID(), sourceRevision: 0,
+    spreadHash: 'a'.repeat(64), contextHash: 'b'.repeat(64), artworkEdition: 'rws-immanuelle-vector', catalogVersion: 'v1' };
+  const visualInit = { binding: visualBinding, visualToken: 'private-initial-token', ownerUserId: null };
+  const response = await call(f.env.READING_JOBS, started, '/start', { method: 'POST', body: JSON.stringify({
+    jobId, payload: PAYLOAD, readingResultId: visualBinding.readingResultId, visualBinding,
+    visualJobToken: 'private-visual-token', visualInit
+  }) });
+  assert.equal(response.status, 200);
+  await f.settle();
+  const row = await f.namespace().store.read(jobId);
+  assert.deepEqual(row.state.visualBinding, visualBinding);
+  assert.equal(row.state.readingResultId, visualBinding.readingResultId);
+  assert.equal(row.state.visualJobToken, 'private-visual-token');
+  assert.deepEqual(row.state.visualInit, visualInit);
+  const replay = await (await call(f.namespace(), started, '/stream')).text();
+  assert.ok(replay.includes(visualBinding.readingResultId));
+  assert.doesNotMatch(replay, /private-visual-token|private-initial-token|offline-reading-token/);
+});
+
+test('MCP error codes survive persistence and a new namespace', async t => {
+  const f = fixture(t, async () => Response.json({ error: 'Account inactive.', code: 'account_inactive' }, { status: 403 }));
+  const started = await f.start({ principal: { userId: 'owner-error' } });
+  await f.settle();
+  const result = await getMcpJobSnapshot({ env: { ...f.env, READING_JOBS: f.namespace() }, jobId: started.jobId, userId: 'owner-error' });
+  assert.equal(result.data.status, 'error');
+  assert.equal(result.data.errorCode, 'account_inactive');
+});

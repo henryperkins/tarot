@@ -12,9 +12,14 @@ export function InstallFooter() {
     if (!main) return null;
     // The last available action is adjacent to this page-end control. Resolve it
     // by document order: WebKit may still be applying scroll restored on close.
-    const actions = [...main.querySelectorAll('button, a[href], input, select, textarea')]
+    const closedDetails = [...main.querySelectorAll('details:not([open])')];
+    const actions = [...main.querySelectorAll('button, a[href], input, select, textarea, summary')]
       .filter(element => !footer.contains(element) && !element.matches(':disabled')
         && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+        // Closed disclosures can retain layout rectangles. Only their summary
+        // is a usable focus destination until the reader opens the content.
+        && closedDetails.every(detail => !detail.contains(element)
+          || detail.querySelector(':scope > summary')?.contains(element))
         && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden')
       .reverse();
     return actions[0] || main;

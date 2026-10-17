@@ -10,8 +10,9 @@
     "dev:frontend": "vite --port 5173",
     "dev:workers": "wrangler dev --config wrangler.jsonc --live-reload",
     "dev:claude": "node --env-file-if-exists=services/claude-code/.env.local services/claude-code/server.mjs",
+    "dev:codex": "node --env-file-if-exists=services/codex-subscription/.env.local services/codex-subscription/server.mjs",
+    "dev:reading-gestures": "node scripts/dev-reading-gestures.mjs",
     "build": "vite build",
-    "build:spacefast": "node scripts/spacefast-build.mjs",
     "build:all": "vite build",
     "build:frontend": "vite build",
     "build:functions": "echo 'Functions are now part of the worker build'",
@@ -82,7 +83,8 @@
     "prompts:export": "node scripts/viewPrompts.js --export",
     "ci:release-check": "node scripts/evaluation/runReleaseChecks.js",
     "test:e2e:regressions": "playwright test --config playwright.regressions.config.js",
-    "test:e2e:production": "playwright test --config playwright.production.config.js"
+    "test:e2e:production": "playwright test --config playwright.production.config.js",
+    "build:spacefast": "node scripts/spacefast-build.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -113,6 +115,8 @@
     "recharts": "^3.5.1",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
     "zod": "^4.1.12"
   },
   "overrides": {
@@ -122,34 +126,35 @@
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.980.0",
+    "@aws-sdk/client-s3": "^3.1147.0",
     "@axe-core/playwright": "^4.11.0",
-    "@babel/parser": "7.29.8",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.15",
     "@vitejs/plugin-react": "^5.1.3",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^5.0.3",
     "autoprefixer": "^10.4.20",
-    "baseline-browser-mapping": "^2.9.14",
-    "esbuild": "0.28.1",
+    "baseline-browser-mapping": "^2.11.27",
     "eslint": "^9.39.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^17.3.0",
     "js-yaml": "^4.3.2",
-    "jsonc-parser": "3.3.1",
     "lamejs": "^1.2.1",
-    "miniflare": "5.20260730.0-alpha",
+    "miniflare": "5.20260926.0-alpha",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.5",
+    "sharp": "0.32.6",
     "sql.js": "^1.14.2",
     "tailwindcss": "^3.4.10",
     "vite": "^7.2.4",
-    "vitest": "^4.0.18",
+    "vitest": "^5.0.3",
     "weave": "^0.11.0",
-    "wrangler": "^4.61.1"
+    "wrangler": "^4.142.0",
+    "@babel/parser": "7.29.8",
+    "esbuild": "0.28.1",
+    "jsonc-parser": "3.3.1"
   }
 }

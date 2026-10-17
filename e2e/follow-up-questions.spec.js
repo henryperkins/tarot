@@ -1,4 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
+import { openReadingSupport } from './helpers/narrativeFixtures.js';
 
 test.use({ serviceWorkers: 'block' });
 test.beforeEach(async ({ page }) => {
@@ -183,13 +184,13 @@ async function completeReading(page, question = 'What should I focus on?') {
   await expect(generateButton).toBeVisible({ timeout: 8000 });
   await generateButton.click();
 
-  await expect(page.getByRole('heading', { name: 'Your Personalized Narrative' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
   await expect(page.locator('.narrative-stream')).toContainText(MOCK_READING_RESPONSE.reading);
-  await expect(page.getByRole('button', { name: /open (follow-up )?chat/i })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true })).toBeVisible({ timeout: 10000 });
 }
 
 async function openFollowUpModal(page) {
-  const openButton = page.getByRole('button', { name: /open chat/i });
+  const openButton = page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true });
   await expect(openButton).toBeVisible({ timeout: 5000 });
   await openButton.click();
   await expect(page.getByRole('dialog', { name: /follow-up chat/i })).toBeVisible();
@@ -605,6 +606,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await input.press('Enter');
     await expect.poll(() => page.evaluate(() => typeof window.__finishOldFollowup)).toBe('function');
     await page.getByRole('button', { name: 'Close follow-up chat' }).click();
+    await openReadingSupport(page);
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
     await page.getByRole('button', { name: /^Deal spread/ }).click();
     await page.getByRole('button', { name: /^Reveal next:/ }).click();

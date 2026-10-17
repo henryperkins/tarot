@@ -38,7 +38,7 @@ function finishState(row, message, now) {
   state.events.push({ id: state.nextEventId++, event: 'error', data: { message }, timestamp: now });
   pruneEvents(state);
   Object.assign(state.job, {
-    status: 'error', error: message, updatedAt: now, expiresAt: now + state.job.retentionMs
+    status: 'error', error: message, errorCode: null, updatedAt: now, expiresAt: now + state.job.retentionMs
   });
   return state;
 }
@@ -70,7 +70,9 @@ class PersistentRunner extends ReadingJob {
   snapshot() {
     return structuredClone({
       job: this.job, events: this.events, nextEventId: this.nextEventId,
-      textSoFar: this.textSoFar, truncatedBeforeId: this.truncatedBeforeId
+      textSoFar: this.textSoFar, truncatedBeforeId: this.truncatedBeforeId,
+      readingResultId: this.readingResultId, visualBinding: this.visualBinding,
+      visualJobToken: this.visualJobToken, visualInit: this.visualInit
     });
   }
 
@@ -244,7 +246,7 @@ class ReadingJobsNamespace {
       if (url.pathname === '/mcp/snapshot') {
         return jsonResponse({
           jobId: job.jobId, status: job.status, snapshot: job.snapshot ?? null,
-          result: job.result, error: job.error, meta: { themes: job.meta?.themes ?? null }
+          result: job.result, error: job.error, errorCode: job.errorCode ?? null, meta: { themes: job.meta?.themes ?? null }
         });
       }
       return jsonResponse({ jobId: job.jobId, status: job.status, meta: job.meta, result: job.result, error: job.error });
@@ -279,11 +281,14 @@ class ReadingJobsNamespace {
     const state = {
       job: {
         status: 'running', jobId: id, token, createdAt: now, updatedAt: now,
-        expiresAt: null, meta: null, result: null, error: null, startedAt: now,
+        expiresAt: null, meta: null, result: null, error: null, errorCode: null, startedAt: now,
         principalUserId, snapshot: principalUserId ? (body.snapshot ?? null) : null,
         retentionMs: principalUserId ? MCP_JOB_TTL_MS : JOB_TTL_MS
       },
-      events: [], nextEventId: 1, textSoFar: '', truncatedBeforeId: 0
+      events: [], nextEventId: 1, textSoFar: '', truncatedBeforeId: 0,
+      readingResultId: body.readingResultId || body.visualBinding?.readingResultId || null,
+      visualBinding: body.visualBinding || null, visualJobToken: body.visualJobToken || null,
+      visualInit: body.visualInit || null
     };
     const owner = crypto.randomUUID();
     const admitted = await this.store.insert(id, state, owner, now + this.options.leaseMs, deletionTime(state), now);
@@ -330,7 +335,8 @@ class ReadingJobsNamespace {
     const send = (row, replayMetadata) => {
       const state = row.state;
       if (state.truncatedBeforeId > 0 && cursor <= state.truncatedBeforeId && state.textSoFar) {
-        enqueue('snapshot', { fullText: state.textSoFar, eventId: state.truncatedBeforeId, truncated: true });
+        enqueue('snapshot', { fullText: state.textSoFar, eventId: state.truncatedBeforeId, truncated: true,
+          ...(state.visualBinding ? { visualBinding: state.visualBinding, readingResultId: state.readingResultId } : {}) });
       }
       const metadata = state.events.findLast((event) => event.event === 'meta');
       if (replayMetadata && metadata && metadata.id <= cursor) {

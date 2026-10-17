@@ -3,7 +3,8 @@ import { SPREADS } from '../../data/spreads';
 import { MAJOR_ARCANA } from '../../data/majorArcana';
 import { MINOR_ARCANA } from '../../data/minorArcana';
 
-const FALLBACK_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
+// A neutral card back, never another card's art.
+const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
 const GENERAL_POSITION_KEY = 'general';
 const AVATAR_COLOR_CLASSES = [
   'bg-secondary/30 text-secondary',

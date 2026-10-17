@@ -137,12 +137,23 @@ const CONFLICT_TARGETS = {
   user_analytics_prefs: ['user_id'],
   _request_rate_limits: ['bucket_key'],
   narration_request_limits: ['identity,scope,window_key'],
-  oauth_registration_counters: ['client_key,window_start_hour']
+  oauth_registration_counters: ['client_key,window_start_hour'],
+  reading_visual_results: ['id'], journal_visual_links: ['journal_entry_id'],
+  journal_visual_state: ['journal_entry_id'], visual_retry_claims: ['admission_scope,source_fingerprint'],
+  visual_owner_revocations: ['user_id'], visual_result_revocations: ['reading_result_id'],
+  visual_initial_admissions: ['reading_result_id'], visual_initial_reservations: ['dispatch_id']
 };
 const IGNORE_KEYS = {
   processed_webhook_events: 'event_id', users: 'id', user_memories: 'id',
-  journal_followups: 'id', narration_monthly_usage: 'identity', inference_attempts: 'id'
+  journal_followups: 'id', narration_monthly_usage: 'identity', inference_attempts: 'id',
+  reading_visual_results: 'id', journal_visual_links: 'journal_entry_id',
+  visual_retry_claims: 'id', visual_owner_revocations: 'user_id', visual_result_revocations: 'reading_result_id',
+  visual_initial_admissions: 'reading_result_id', visual_initial_reservations: 'dispatch_id'
 };
+
+const VISUAL_TABLES = new Set(['reading_visual_results', 'journal_visual_links', 'journal_visual_state',
+  'visual_retry_claims', 'visual_owner_revocations', 'visual_result_revocations', 'visual_guest_principals',
+  'visual_initial_admissions', 'visual_initial_reservations']);
 
 function compileInsert(input) {
   const tokens = [...input];
@@ -158,7 +169,9 @@ function compileInsert(input) {
   const columnsEnd = closeParen(tokens, into + 2);
   const columns = splitExpressions(tokens.slice(into + 3, columnsEnd)).map(c => c[0]?.value);
   const values = topLevel(tokens, 'VALUES', columnsEnd + 1);
-  const conflict = topLevel(tokens, 'ON', columnsEnd + 1);
+  // JOIN ... ON is part of an INSERT SELECT, not the UPSERT clause.
+  let conflict = topLevel(tokens, 'ON', columnsEnd + 1);
+  while (conflict >= 0 && !word(tokens[conflict + 1], 'CONFLICT')) conflict = topLevel(tokens, 'ON', conflict + 1);
   const returning = topLevel(tokens, 'RETURNING', columnsEnd + 1);
   let returnColumn = null;
   if (returning >= 0) {
@@ -169,6 +182,7 @@ function compileInsert(input) {
   let assignments = [];
   let condition = null;
   let admissionColumn = null;
+  let visualCondition = false;
   if (conflict >= 0) {
     if (!word(tokens[conflict + 1], 'CONFLICT') || tokens[conflict + 2]?.value !== '(') throw new UnsupportedSpacefastSql('ON clause');
     const targetEnd = closeParen(tokens, conflict + 2);
@@ -183,20 +197,32 @@ function compileInsert(input) {
       assignments = splitExpressions(tokens.slice(targetEnd + 4, where >= 0 ? where : end));
       if (where >= 0) {
         condition = tokens.slice(where + 1, end);
-        // Conditional quotas are a single positive counter compared to a cap.
-        if (condition.length !== 3 || condition[1].value !== '<' || condition[2].value !== '?') throw new UnsupportedSpacefastSql('conditional UPSERT predicate');
-        admissionColumn = condition[0].value;
-        const first = assignments[0];
-        if (first.length !== 5 || first[0].value !== admissionColumn || first[1].value !== '=' || first[2].value !== admissionColumn || first[3].value !== '+' || first[4].value !== '1') throw new UnsupportedSpacefastSql('conditional UPSERT counter');
+        visualCondition = table === 'journal_visual_state' || table === 'reading_visual_results';
+        if (!visualCondition) {
+          // Conditional quotas are a single positive counter compared to a cap.
+          if (condition.length !== 3 || condition[1].value !== '<' || condition[2].value !== '?') throw new UnsupportedSpacefastSql('conditional UPSERT predicate');
+          admissionColumn = condition[0].value;
+          const first = assignments[0];
+          if (first.length !== 5 || first[0].value !== admissionColumn || first[1].value !== '=' || first[2].value !== admissionColumn || first[3].value !== '+' || first[4].value !== '1') throw new UnsupportedSpacefastSql('conditional UPSERT counter');
+        }
       }
     }
   }
   if (ignore) {
     const key = IGNORE_KEYS[table];
-    if (!key || values < 0) throw new UnsupportedSpacefastSql(`unreviewed INSERT IGNORE for ${table}`);
-    assignments = [pieces(token(key), token('='), token('IF ( LAST_INSERT_ID ( 0 ) = 0 ,'), token(key), token(','), token(key), token(')'))];
+    if (!key || (values < 0 && !VISUAL_TABLES.has(table))) throw new UnsupportedSpacefastSql(`unreviewed INSERT IGNORE for ${table}`);
+    assignments = [pieces(token(key), token('='), token('IF ( LAST_INSERT_ID ( 0 ) = 0 ,'), token(`${table}.${key}`), token(','), token(`${table}.${key}`), token(')'))];
   }
-  if (returnColumn || admissionColumn || ignore) {
+  if (values < 0 && (ignore || visualCondition)) {
+    const select = topLevel(tokens, 'SELECT', columnsEnd + 1);
+    if (select < 0) throw new UnsupportedSpacefastSql('visual INSERT SELECT projection');
+    const end = [topLevel(tokens, 'FROM', select + 1), topLevel(tokens, 'WHERE', select + 1), baseEnd].filter(n => n >= 0).sort((a, b) => a - b)[0];
+    const projections = splitExpressions(tokens.slice(select + 1, end));
+    projections[0] = pieces(token('IF ( LAST_INSERT_ID ( 1 ) ,'), projections[0], token(','), projections[0], token(')'));
+    const rewritten = projections.flatMap((p, i) => i ? [token(','), ...p] : p);
+    tokens.splice(select + 1, end - select - 1, ...rewritten);
+    baseEnd += rewritten.length - (end - select - 1);
+  } else if (returnColumn || admissionColumn || ignore) {
     if (values < 0 || tokens[values + 1]?.value !== '(') throw new UnsupportedSpacefastSql('counter/ignore INSERT requires VALUES');
     const valuesEnd = closeParen(tokens, values + 1);
     if (valuesEnd !== baseEnd - 1) throw new UnsupportedSpacefastSql('multiple VALUES rows');
@@ -216,7 +242,12 @@ function compileInsert(input) {
     output.push(token('ON DUPLICATE KEY UPDATE'));
     assignments.forEach((assignment, i) => {
       if (i) output.push(token(','));
-      if (condition && i === 0) output.push(...pieces(assignment.slice(0, 2), token('IF ('), condition, token(', LAST_INSERT_ID ('), assignment.slice(2), token(') ,'), token(admissionColumn), token('+ LAST_INSERT_ID ( 0 ) * 0 )')));
+      if (visualCondition) {
+        // MySQL evaluates assignments left-to-right. Capture the old-row fence
+        // once, before state_version/attempt fields can change under it.
+        const admitted = i === 0 ? pieces(token('LAST_INSERT_ID ( IF ('), condition, token(', 1, 0 ) )')) : [token('LAST_INSERT_ID ( )')];
+        output.push(...pieces(assignment.slice(0, 2), token('IF ('), admitted, token('> 0 ,'), assignment.slice(2), token(','), assignment[0], token(')')));
+      } else if (condition && i === 0) output.push(...pieces(assignment.slice(0, 2), token('IF ('), condition, token(', LAST_INSERT_ID ('), assignment.slice(2), token(') ,'), token(admissionColumn), token('+ LAST_INSERT_ID ( 0 ) * 0 )')));
       else if (condition) output.push(...pieces(assignment.slice(0, 2), token('IF ( LAST_INSERT_ID ( ) > 0 ,'), assignment.slice(2), token(','), assignment[0], token(')')));
       else if (returnColumn && assignment[0].value === returnColumn) output.push(...pieces(assignment.slice(0, 2), token('LAST_INSERT_ID ('), assignment.slice(2), token(')')));
       else output.push(...assignment);
@@ -230,6 +261,11 @@ function compileInsert(input) {
 export function compileSpacefastSql(sql) {
   let tokens = tokenize(sql);
   if (!tokens.length) throw new UnsupportedSpacefastSql('empty statement');
+  if (tokens.some(t => word(t, 'SQLITE_MASTER'))) {
+    const prefix = tokens.slice(0, 10).map(t => t.value.toLowerCase()).join(' ');
+    if (prefix !== "select name from sqlite_master where type = 'table' and name") throw new UnsupportedSpacefastSql('schema inspection');
+    tokens.splice(0, 10, ...tokenize("SELECT TABLE_NAME AS name FROM information_schema.tables WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME"));
+  }
   let plan = { tokens, mutation: ['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'CREATE'].some(w => word(tokens[0], w)) };
   if (word(tokens[0], 'CREATE')) {
     const canonical = tokens.map(t => t.value.toLowerCase()).join(' ');
@@ -248,13 +284,17 @@ export function compileSpacefastSql(sql) {
   if (word(tokens[0], 'INSERT') || word(tokens[0], 'REPLACE')) plan = compileInsert(tokens);
   else plan.tokens = tokens;
   tokens = expression(plan.tokens);
-  // The one SQLite JSON table function used by experiment analytics.
+  // JSON arrays retain JSON values for exact saved-parent comparisons.
   for (let i = 0; i < tokens.length; i++) {
     if (!word(tokens[i], 'JSON_EACH') || tokens[i + 1]?.value !== '(') continue;
     const end = closeParen(tokens, i + 1);
     const arg = tokens.slice(i + 2, end).map(t => t.value).join('');
-    if (arg !== 'ab_experiments.treatment_variants') throw new UnsupportedSpacefastSql('json_each source');
-    tokens.splice(i, end - i + 1, token("JSON_TABLE ( ab_experiments.treatment_variants , '$[*]' COLUMNS ( value VARCHAR(255) PATH '$' ) ) AS json_each"));
+    if (arg === '?') {
+      tokens.splice(i, end - i + 1, token('JSON_TABLE ( CAST ('), tokens[i + 2], token("AS JSON ) , '$[*]' COLUMNS ( value JSON PATH '$' ) )"));
+    } else {
+      if (arg !== 'ab_experiments.treatment_variants') throw new UnsupportedSpacefastSql('json_each source');
+      tokens.splice(i, end - i + 1, token("JSON_TABLE ( ab_experiments.treatment_variants , '$[*]' COLUMNS ( value VARCHAR(255) PATH '$' ) ) AS json_each"));
+    }
   }
   // MySQL disallows selecting directly from a DELETE target in a subquery.
   if (word(tokens[0], 'DELETE')) {
@@ -266,7 +306,27 @@ export function compileSpacefastSql(sql) {
     }
   }
   // rank is a column in the historical cards table and a reserved MySQL word.
-  tokens = tokens.map((t, index) => word(t, 'IS') && tokens[index + 1]?.value === '?' ? { ...t, value: '<=>' } : ['RANK', 'YEAR_MONTH'].some(w => word(t, w)) && t.type === 'word' ? { ...t, value: '`' + t.value + '`' } : t);
+  tokens = tokens.map((t, index) => word(t, 'IS') && !['NULL', 'NOT', 'TRUE', 'FALSE', 'UNKNOWN'].some(w => word(tokens[index + 1], w)) ? { ...t, value: '<=>' } : ['RANK', 'YEAR_MONTH'].some(w => word(t, w)) && t.type === 'word' ? { ...t, value: '`' + t.value + '`' } : t);
+  const targetTable = word(tokens[0], 'UPDATE') ? tokens[1]?.value : word(tokens[0], 'DELETE') ? tokens[2]?.value : null;
+  let depth = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i].value === '(') depth++;
+    if (tokens[i].value === ')') depth--;
+    if (depth > 0 && (word(tokens[i], 'FROM') || word(tokens[i], 'JOIN')) && targetTable && tokens[i + 1]?.value === targetTable) {
+      const after = tokens[i + 2];
+      const hasAlias = word(after, 'AS') || (after?.type === 'word' && !['WHERE', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'GROUP', 'ORDER', 'LIMIT', 'UNION'].some(w => word(after, w)));
+      // LIMIT prevents derived-table merging, which otherwise reintroduces
+      // MySQL's target-table restriction for source/claim fences.
+      tokens.splice(i + 1, 1, token(`( SELECT * FROM ${targetTable} LIMIT 18446744073709551615 )${hasAlias ? '' : ` AS ${targetTable}`}`));
+    }
+    if (word(tokens[i], 'FROM') && tokens[i + 1]?.value === '(' && word(tokens[i + 2], 'SELECT')) {
+      const end = closeParen(tokens, i + 1);
+      const after = tokens[end + 1];
+      if (!after || after.value === ')' || ['WHERE', 'GROUP', 'ORDER', 'LIMIT', 'UNION'].some(w => word(after, w))) {
+        tokens.splice(end + 1, 0, token(`AS tableu_derived_${i}`));
+      }
+    }
+  }
   if (tokens.some(t => t.type === 'word' && ['PRAGMA', 'AUTOINCREMENT', 'RETURNING', 'EXCLUDED', 'STRFTIME', 'JULIANDAY', 'DATETIME', 'WITHOUT'].includes(t.value.toUpperCase()))) throw new UnsupportedSpacefastSql('untranslated SQLite syntax');
   const parameters = tokens.filter(t => t.parameter !== undefined).map(t => t.parameter);
   if (word(tokens[0], 'UPDATE')) {
@@ -277,9 +337,11 @@ export function compileSpacefastSql(sql) {
     // same transaction/row locks rather than guessing from changed rows.
     plan.lock = {
       kind: 'matched-update',
-      sql: pieces(token('SELECT COUNT ( * ) AS tableu_matched FROM'), tokens[1], predicate, token('FOR UPDATE')).map(t => t.value).join(' '),
+      sql: pieces(token('SELECT COUNT ( * ) AS tableu_matched FROM'), tokens.slice(1, topLevel(tokens, 'SET')), predicate, token('FOR UPDATE')).map(t => t.value).join(' '),
       parameters: predicate.filter(t => t.parameter !== undefined).map(t => t.parameter)
     };
   }
-  return { sql: tokens.map(t => t.value).join(' '), parameters, mutation: plan.mutation, marker: plan.marker, normalizeChanges: plan.normalizeChanges, returnColumn: plan.returnColumn, lock: plan.lock };
+  const target = word(tokens[0], 'UPDATE') ? tokens[1]?.value : word(tokens[0], 'DELETE') ? tokens[2]?.value : tokens[tokens.findIndex(t => word(t, 'INTO')) + 1]?.value;
+  const visualFence = plan.mutation && (VISUAL_TABLES.has(target?.toLowerCase()) || ['users', 'journal_entries'].includes(target?.toLowerCase()));
+  return { sql: tokens.map(t => t.value).join(' '), parameters, mutation: plan.mutation, marker: plan.marker, normalizeChanges: plan.normalizeChanges, returnColumn: plan.returnColumn, lock: plan.lock, visualFence };
 }

@@ -1,14 +1,14 @@
 # Tableu tools contract
 
-Updated 2026-09-29 for plugin 0.28.2 against henryperkins/tarot master commit 1cfed0ad5f249b60b9767e87fb5ef4e328112756. Live tool schemas and responses take precedence. The packaged `capabilities-audit.md` records the earlier 0.28.1 inventory and its evidence limits; the job, safety-result, meaning, and save contracts below supersede those older sections. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
+Updated 2026-10-09 for instructions 0.29.0 (upload packages 1.0.2 and 1.0.3), the public release of the Tableu app in ChatGPT. Live tool schemas and responses take precedence. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
 
-The attached Tableu app supplies these tools. The four former GPT Actions in `migration-source/` are historical contracts, not callable operations. Only invoke a tool actually exposed in the current conversation.
+The attached Tableu app supplies these tools. Only invoke a tool actually exposed in the current conversation. Each person connects their own Tableu account.
 
 ## Account and capability boundaries
 
-`get_profile({})` is read-only and returns the linked Tableu account's opaque stable `id`, plus optional `name`, `nickname`, and `email`. Prefer the nickname or name when identifying the account; do not invent a display name when absent. Saves target the connected account. A profile response confirms access to that account, not a full ownership or authorization-isolation test.
+`get_profile({})` is read-only and returns an opaque, stable `id` for the connected account (not its internal account number), plus optional `name` and `nickname`. Prefer the nickname or name when identifying the account; do not invent a display name when absent, and don't show the id. Saves target the connected account. A profile response confirms access to that account, not a full ownership or authorization-isolation test.
 
-There are no journal read, list, search, edit, delete, export, sharing, voice, image-upload, or archetype-tracking tools in this inventory. Interpreting visible user-supplied cards is conversational assistance; the backend start tool receives structured cards, not an image. The manifest's Read/Write labels do not promise general journal access. Point to the app for history; verify current app features, tiers, prices, and quotas before promising them.
+There are no journal read, list, search, edit, delete, export, sharing, voice, image-upload, or archetype-tracking tools in this inventory. Interpreting visible user-supplied cards is conversational assistance; the backend start tool receives structured cards, not an image. The manifest's Read/Write labels do not promise general journal access. Point to the app for history and account details. Don't mention plans, prices, or upgrades.
 
 ## Reading inputs
 
@@ -26,7 +26,7 @@ There are no journal read, list, search, edit, delete, export, sharing, voice, i
 
 ## Jobs and results
 
-Both creation tools return `jobId` and `status: running`. Draw also returns `cardsInfo`, `spreadInfo`, `seed`, and `deckStyle`; start does not return cards at creation. The server may still return deprecated `jobToken` for compatibility. It is optional and ignored on MCP status, wait, cancellation, and save calls; send only jobId. Access is enforced using the OAuth account that started the job. Retain original inputs and returned metadata in this conversation. Keep job handles private.
+Both creation tools return `jobId` and `status: running`. Draw also returns `cardsInfo`, `spreadInfo`, `seed`, and `deckStyle`; start does not return cards at creation. Status, wait, cancellation, and save calls take only `jobId`; the connected account that started the job is what authorizes access to it. Retain original inputs and returned metadata in this conversation. Keep job handles private.
 
 | Tool | Input | Result |
 |---|---|---|
@@ -34,14 +34,14 @@ Both creation tools return `jobId` and `status: running`. Draw also returns `car
 | `get_tarot_reading_status` | `jobId` | One status check; use wait when waiting for completion |
 | `cancel_tarot_reading` | `jobId` | `jobId`, `status: cancelled / complete / error` |
 
-Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, and nullable `spreadInfo`. Optional fields are `reading`, `supportMessage`, `error`, `seed`, `timedOut`, `gateBlocked`, `gateReason`, `requestId`, and `themes`; gateReason and requestId may be null. The backend provider is no longer exposed. themes is limited to dominantSuit, dominantElement, majorCount, reversalCount, and reversalFramework. Returned card fields are position, card, orientation (Upright/Reversed), meaning, number, suit, rank, and rankValue; meaning and identity metadata can be null. Preserve actual values and do not fill absent result fields by invention.
+Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, and nullable `spreadInfo`. Optional fields are `reading`, `supportMessage`, `error`, `seed`, `timedOut`, `gateBlocked`, `gateReason` (`crisis_gate` or `withheld`), and `themes`. themes is limited to dominantSuit, dominantElement, majorCount, reversalCount, and reversalFramework. Returned card fields are position, card, orientation (Upright/Reversed), meaning, number, suit, rank, and rankValue; meaning and identity metadata can be null. Preserve actual values and do not fill absent result fields by invention.
 
 - Running, including `timedOut: true`: wait again on the same job. A wait timeout is not job failure and never authorizes a second reading.
-- Complete with a nonempty reading: present the returned narrative. The server classifies a vetted replacement after quality_gate_streaming as a reading and omits the first draft's blocked flag from the public result. For older responses only, this exact reason with a nonempty reading is an eligible exception to gateBlocked, provided no crisis_gate, safety-gate provider, or safe-fallback provider is present. Those safety markers take precedence; unknown blocked reasons remain withheld.
+- Complete with a nonempty reading: present the returned narrative. A reading that Tableu vetted after a failed first draft comes back as an ordinary reading.
 - supportMessage with gateReason crisis_gate: no tarot reading was produced. Set the cards aside, respond with care, and share the support information. Do not interpret or offer to save it.
-- gateBlocked without reading: explain that Tableu withheld the reading. Do not present or save it, invent a replacement, or restart without a new user request.
+- gateBlocked with gateReason withheld: explain that Tableu held the reading back. Do not present or save it, invent a replacement, or restart without a new user request.
 - Complete without reading or supportMessage: report that the reading could not be confirmed; do not invent a narrative or start another job. The current server reports an empty finished result as error.
-- Error: explain that generation failed. Cards already returned by the draw remain valid evidence of a draw; distinguish them from a failed narrative.
+- Error: explain that generation failed, using the returned error text. Cards already returned by the draw remain valid evidence of a draw; distinguish them from a failed narrative. When the error says the account has used its readings for the month, or that a spread or option isn't included with the account, relay it plainly and stop: don't retry, suggest upgrading, or name plans or prices.
 - Cancel only on the user's request. Report cancelled only when returned. Complete/error means the job had already finished.
 - The wait limit is not an end-to-end latency guarantee for every tool or the whole reading.
 
@@ -49,11 +49,11 @@ Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, 
 
 Require the user's explicit save request or an unambiguous yes immediately after an offer. A reading request alone is not save consent.
 
-Required input: `{ jobId, context? }`. The server copies the completed reading from the connected account's own job; the model never supplies the narrative, cards, provider, requestId, or personalization. Context is love/career/self/spiritual/wellbeing/decision/general; include it only when clearly supported. jobToken is optional, deprecated, and ignored.
+Required input: `{ jobId, context? }`. The server copies the completed reading from the connected account's own job; the model never supplies the narrative, cards, or personalization. Context is love/career/self/spiritual/wellbeing/decision/general; include it only when clearly supported.
 
 A ChatGPT job is retained for 24 hours after finishing. After expiry, report the returned rejection and stop: there is no payload-mode or expired-job fallback. Empty input, reading-text payloads, another account's job, unfinished jobs, failed or empty results, support messages, and withheld readings cannot be saved. Never manufacture an identifier or recreate a reading to bypass these checks. A successful quality_gate_streaming replacement is an ordinary saveable reading.
 
-Successful responses contain `entry { id, ts }`, `deduplicated`, `outcome: saved / already_saved`, and optional boolean `seedShared`.
+Successful responses contain `entry { id }`, `deduplicated`, `outcome: saved / already_saved`, and optional boolean `seedShared`. When saving isn't included with the account, the result says so; relay it without naming plans or suggesting an upgrade.
 - Saved: a new entry was created.
 - Already_saved: use the existing entry id; do not claim another entry was created.
 - seedShared is a separate flag, not a third outcome or a failed save.
@@ -70,7 +70,7 @@ Input: `{ entryId, text, scope, card?, position? }`.
 - For the whole spread, use scope `reading`.
 - For scope `card`, send the card's label as the reading showed it. Include its position to disambiguate repeated names. Clarify ambiguity instead of choosing a card.
 - Notes append rather than replace. The same note on the same target returns `already_present`; otherwise `added`.
-- Results contain entryId, key, outcome, text, and target (scope, with optional card, cardIndex, position). When present, `target.card` uses the deck label and can be reused with a non-null target.position. Returned target.card and target.position may be null; omit null values from new requests because the input fields accept strings, not null. An unclear-write retry keeps the original request payload rather than rebuilding it from result fields.
+- Results contain entryId, outcome, text, and target (scope, with optional card, cardIndex, position). When present, `target.card` uses the deck label and can be reused with a non-null target.position. Returned target.card and target.position may be null; omit null values from new requests because the input fields accept strings, not null. An unclear-write retry keeps the original request payload rather than rebuilding it from result fields.
 
 ## Retries and errors
 
@@ -78,4 +78,4 @@ The live descriptions permit one retry after an unclear failure for either write
 
 After the retry remains unclear, say the save or note could not be confirmed and suggest checking the app. Do not claim failure as certain when the result is unknown. For explicit validation rejections, fix only the stated problem once; do not bypass permission, ownership, tier, quota, or authentication errors. For draw/start, a corrective retry requires an explicit validation rejection indicating the reading did not start. Never create a replacement job after a network error.
 
-Report saved/added only from a successful tool result. Explain explicit Not saved/Not added rejections. Tier or quota errors stop the operation; do not invent quota numbers or promise an upgrade will resolve an unspecified problem.
+Report saved/added only from a successful tool result. Explain explicit Not saved/Not added rejections. Plan or limit messages stop the operation; relay them without inventing numbers, suggesting an upgrade, naming plans, or quoting prices.

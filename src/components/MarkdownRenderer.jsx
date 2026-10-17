@@ -1,12 +1,85 @@
-import { Children, cloneElement, isValidElement } from 'react';
+import { Children, cloneElement, isValidElement, createContext, useContext, memo, createElement, Component, createRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { hasNarrativeSelection, captureNarrativeSelection, restoreNarrativeSelection } from '../lib/narrativeReadingDom.js';
+import { useNarrativeCardFocus } from './reading/narrative/narrativeFocusContext.js';
 import {
   normalizeHighlightPhrases,
   passesWordBoundary
 } from '../lib/highlightUtils';
 
+// Keep renderer identities stable while a streamed prefix grows. A fresh
+// inline component type would remount its paragraph and discard keyboard focus.
+const MarkdownComponentsContext = createContext(null);
+const STABLE_COMPONENTS = Object.fromEntries(
+  ['span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'strong', 'em', 'ul', 'ol', 'li', 'blockquote', 'a', 'code', 'pre', 'hr', 'table', 'thead', 'th', 'td'].map(tag => [tag, function MarkdownElement(props) {
+    const renderers = useContext(MarkdownComponentsContext);
+    if (renderers[tag]) return renderers[tag](props);
+    const { node: _node, ...nativeProps } = props;
+    return createElement(tag, nativeProps);
+  }])
+);
+
+// A late annotation must not replace a text node the reader is selecting.
+// Keep the committed optional plugins until selection clears; prose continues
+// streaming. Snapshot before React's mutation phase also preserves selection
+// offsets when a selected plain text node grows during that stream.
+class MarkdownDocument extends Component {
+  container = createRef();
+  appliedPlugins = null;
+  appliedContent = '';
+  renderedPlugins = null;
+
+  handleSelectionChange = () => {
+    if (this.appliedPlugins !== this.props.extraRemarkPlugins && !hasNarrativeSelection(this.container.current)) {
+      this.forceUpdate();
+    }
+  };
+
+  componentDidMount() {
+    this.selectionDocument = this.container.current.ownerDocument;
+    this.selectionDocument.addEventListener('selectionchange', this.handleSelectionChange);
+    this.appliedPlugins = this.renderedPlugins;
+    this.appliedContent = this.props.content;
+  }
+
+  getSnapshotBeforeUpdate(previousProps) {
+    return this.props.content.startsWith(previousProps.content)
+      ? captureNarrativeSelection(this.container.current) : null;
+  }
+
+  componentDidUpdate(_previousProps, _previousState, selection) {
+    this.appliedPlugins = this.renderedPlugins;
+    this.appliedContent = this.props.content;
+    restoreNarrativeSelection(this.container.current, selection);
+  }
+
+  componentWillUnmount() {
+    this.selectionDocument.removeEventListener('selectionchange', this.handleSelectionChange);
+  }
+
+  render() {
+    const { content, className, components, remarkPlugins, extraRemarkPlugins } = this.props;
+    const held = content.startsWith(this.appliedContent) && hasNarrativeSelection(this.container.current);
+    this.renderedPlugins = held ? this.appliedPlugins : extraRemarkPlugins;
+    return <div ref={this.container} className={className}>
+      <MarkdownComponentsContext.Provider value={components}>
+        <ReactMarkdown remarkPlugins={[...remarkPlugins, ...(this.renderedPlugins || [])]}
+          skipHtml components={STABLE_COMPONENTS}>{content}</ReactMarkdown>
+      </MarkdownComponentsContext.Provider>
+    </div>;
+  }
+}
+
 const BLOCK_SEPARATOR = '\n\n';
+
+function MarkdownSpan({ node: _node, children, ...props }) {
+  const focus = useNarrativeCardFocus();
+  const Phrase = focus?.PhraseRenderer;
+  return Phrase && props['data-gesture-id']
+    ? <Phrase {...props}>{children}</Phrase>
+    : <span {...props}>{children}</span>;
+}
 
 const STYLE_VARIANTS = {
   default: {
@@ -205,13 +278,17 @@ function highlightChildren(children, phrases, textCursor, ttsRange, nextKey) {
   });
 }
 
-export function MarkdownRenderer({
+export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   highlightPhrases = [],
   wordBoundary = null,
   variant = 'default',
   headingBaseLevel = null,
-  className = ''
+  className = '',
+  getHeadingProps = null,
+  renderHeadingLead = null,
+  extraRemarkPlugins = null,
+  renderParagraphLead = null
 }) {
   if (!content || typeof content !== 'string') {
     return null;
@@ -257,51 +334,51 @@ export function MarkdownRenderer({
     blockCounter.current += 1;
   };
 
-  const renderHeading = (Tag, props, className, showDivider) => (
-    showDivider && styles.showSectionDivider ? (
+  const renderHeading = (Tag, props, className, showDivider, lead) => {
+    const heading = <Tag {...props} className={className}>
+      {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
+    </Tag>;
+    const content = lead && isValidElement(lead) ? cloneElement(lead, {}, heading) : heading;
+    return showDivider && styles.showSectionDivider ? (
       <div className="narrative-section animate-section-enter">
         <div className="narrative-section__divider animate-divider-enter" aria-hidden="true"><span>✦</span></div>
-        <Tag {...props} className={className}>
-          {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-        </Tag>
+        {content}
       </div>
-    ) : (
-      <Tag {...props} className={className}>
-        {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
-      </Tag>
-    )
-  );
+    ) : content;
+  };
 
   const headingComponents = Object.fromEntries(
     (hasHeadingContext ? [1, 2, 3, 4, 5, 6] : [1, 2, 3]).map((level) => [
       `h${level}`,
-      ({ node: _node, ...props }) => {
+      ({ node, ...props }) => {
         bumpBlockCursor();
         const renderedLevel = hasHeadingContext
           ? Math.min(6, headingBaseLevel + level - headingContext.sourceBaseLevel)
           : level;
         const size = styles.headingSizes[`h${level}`] || styles.headingSizes.h3;
-        return renderHeading(`h${renderedLevel}`, props, `${styles.heading} ${size}`, level === 2 || level === 3);
+        const attributes = getHeadingProps?.(node) || {};
+        const lead = renderHeadingLead?.(node) || null;
+        return renderHeading(`h${renderedLevel}`, { ...props, ...attributes }, `${styles.heading} ${size}`, level === 2 || level === 3, lead);
       }
     ])
   );
 
   const wrapperClassName = [styles.wrapper, className].filter(Boolean).join(' ');
+  const remarkPlugins = [
+    remarkGfm,
+    ...(hasHeadingContext ? [readHeadingContext] : [])
+  ];
 
-  return (
-    // max-w-prose ensures 65-75 character line length for optimal readability
-    // Using calc for very small screens to prevent text touching edges
-    <div className={wrapperClassName}>
-      <div className={styles.inner}>
-        <ReactMarkdown
-          remarkPlugins={hasHeadingContext ? [remarkGfm, readHeadingContext] : [remarkGfm]}
-          skipHtml
-          components={{
+  const components = {
+          span: MarkdownSpan,
           ...headingComponents,
           p: ({ node: _node, ...props }) => {
             bumpBlockCursor();
+            // A caller may set something into the paragraph ahead of its text.
+            const lead = renderParagraphLead ? renderParagraphLead(props) : null;
             return (
-              <p {...props} className={styles.paragraph}>
+              <p {...props} className={lead ? `${styles.paragraph} reading-plate-paragraph` : styles.paragraph}>
+                {lead}
                 {highlightChildren(props.children, normalizedPhrases, textCursor, ttsRange, nextKey)}
               </p>
             );
@@ -406,11 +483,14 @@ export function MarkdownRenderer({
           td: ({ node: _node, ...props }) => (
             <td {...props} className={styles.td} />
           )
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </div>
+  };
+
+  return (
+    // max-w-prose ensures 65-75 character line length for optimal readability
+    // Using calc for very small screens to prevent text touching edges
+    <div className={wrapperClassName}>
+      <MarkdownDocument className={styles.inner} components={components} content={content}
+        remarkPlugins={remarkPlugins} extraRemarkPlugins={Array.isArray(extraRemarkPlugins) ? extraRemarkPlugins : null} />
     </div>
   );
-}
+});

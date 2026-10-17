@@ -1,0 +1,12 @@
+✔ hasValidDebugAdminKey requires matching x-admin-key and ADMIN_API_KEY (0.201038ms)
+✔ handleDebugSentryRoute returns 404 when debug routes are disabled (22.025437ms)
+✔ handleDebugSentryRoute returns 404 when admin key is missing or invalid (0.460094ms)
+✔ handleDebugSentryRoute emits capture message and returns success when enabled + authorized (1.061226ms)
+ℹ tests 3086
+ℹ suites 515
+ℹ pass 3086
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17313.85038

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { callAzureResponses } from '../functions/lib/azureResponses.js';
-import { callAzureResponsesStream, callAzureResponsesStreamWithConversation, transformAzureStream } from '../functions/lib/azureResponsesStream.js';
+import { callOpenAIResponses } from '../functions/lib/openaiResponses.js';
+import { callOpenAIResponsesStream, callOpenAIResponsesStreamWithConversation, transformOpenAIStream } from '../functions/lib/openaiResponsesStream.js';
 import { fetchWithRetry } from '../functions/lib/retryWithBackoff.js';
 import { createToolRoundTripStream } from '../functions/api/reading-followup.js';
 import { createDeadline, runWithSignal } from '../functions/lib/requestDeadline.js';
@@ -13,7 +13,7 @@ const event = (type, data = {}) => `event: ${type}\ndata: ${JSON.stringify({ typ
 
 test('buffered Responses reject incomplete text instead of presenting a cut-off answer', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output_text: 'Partial answer' }));
-  await assert.rejects(callAzureResponses(env, options), /incomplete|cut off/i);
+  await assert.rejects(callOpenAIResponses(env, options), /incomplete|cut off/i);
 });
 
 test('buffered Responses disable storage and retain the actual model', async (t) => {
@@ -22,7 +22,7 @@ test('buffered Responses disable storage and retain the actual model', async (t)
     body = JSON.parse(init.body);
     return Response.json({ status: 'completed', model: 'actual-model', output_text: 'Complete answer', usage: { output_tokens: 2 } });
   });
-  const result = await callAzureResponses(env, { ...options, returnFullResponse: true });
+  const result = await callOpenAIResponses(env, { ...options, returnFullResponse: true });
   assert.equal(body.store, false);
   assert.equal(result.model, 'actual-model');
 });
@@ -34,7 +34,7 @@ test('a caller deadline covers a stalled buffered response body', async (t) => {
     sentSignal = init.signal;
     return { ok: true, status: 200, json: () => new Promise(() => {}) };
   });
-  const pending = callAzureResponses(env, { ...options, signal: controller.signal, timeoutMs: 40 });
+  const pending = callOpenAIResponses(env, { ...options, signal: controller.signal, timeoutMs: 40 });
   setTimeout(() => controller.abort(new Error('caller cancelled')), 5);
   await assert.rejects(Promise.race([pending, new Promise((_, reject) => setTimeout(() => reject(new Error('body remained unbounded')), 150))]), /caller cancelled|cancelled|aborted/i);
   assert.equal(sentSignal.aborted, true);
@@ -56,7 +56,7 @@ test('Retry-After cannot keep a cancelled task asleep or start another attempt',
 for (const terminal of ['response.incomplete', 'response.failed', null]) {
   test(`streaming Responses refuse a successful done event after ${terminal || 'premature EOF'}`, async () => {
     const raw = new Response(event('response.output_text.delta', { delta: 'Partial' }) + (terminal ? event(terminal) : '')).body;
-    const text = await new Response(transformAzureStream(raw)).text();
+    const text = await new Response(transformOpenAIStream(raw)).text();
     assert.match(text, /event: error/);
     assert.doesNotMatch(text, /event: done/);
   });
@@ -71,7 +71,7 @@ for (const continuation of [false, true]) {
       signal = init.signal;
       return new Response(new ReadableStream({ pull() { return new Promise(() => {}); } }));
     });
-    const call = continuation ? callAzureResponsesStreamWithConversation : callAzureResponsesStream;
+    const call = continuation ? callOpenAIResponsesStreamWithConversation : callOpenAIResponsesStream;
     const stream = await call(env, { ...options, conversation: [], timeoutMs: 20 });
     assert.equal(body.store, false);
     await assert.rejects(new Response(stream).text(), /timed out|deadline/i);
@@ -116,8 +116,8 @@ test('buffered short tasks record returned model and rejected usage separately f
     usage: { input_tokens: 10, output_tokens: 5 }
   }));
   const telemetry = { task: 'question', requestId: 'test-question' };
-  await callAzureResponses({ ...env, DB }, { ...options, telemetry });
-  await assert.rejects(callAzureResponses({ ...env, DB }, { ...options, telemetry }), /incomplete/);
+  await callOpenAIResponses({ ...env, DB }, { ...options, telemetry });
+  await assert.rejects(callOpenAIResponses({ ...env, DB }, { ...options, telemetry }), /incomplete/);
   const rows = DB.rows('SELECT * FROM inference_attempts ORDER BY rowid');
   assert.equal(rows.length, 2);
   assert.equal(rows[0].model, 'returned-model');
@@ -133,8 +133,8 @@ test('completed stream records actual model and usage once and carries it to the
     event('response.output_text.delta', { delta: 'Complete answer' }) +
     event('response.completed', { response: { status: 'completed', model: 'returned-stream-model', usage: { input_tokens: 8, output_tokens: 4 } } })
   ));
-  const stream = await callAzureResponsesStream({ ...env, DB }, { ...options, telemetry: { task: 'followup', requestId: 'test-followup' } });
-  const output = await new Response(transformAzureStream(stream)).text();
+  const stream = await callOpenAIResponsesStream({ ...env, DB }, { ...options, telemetry: { task: 'followup', requestId: 'test-followup' } });
+  const output = await new Response(transformOpenAIStream(stream)).text();
   assert.match(output, /"model":"returned-stream-model"/);
   const rows = DB.rows('SELECT * FROM inference_attempts');
   assert.equal(rows.length, 1);

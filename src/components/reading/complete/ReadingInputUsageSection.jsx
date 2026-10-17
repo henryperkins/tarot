@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { CaretDown, CheckCircle, MinusCircle, WarningCircle } from '@phosphor-icons/react';
 import { formatUsageSummary, USAGE_BADGE_CLASSES } from './sourceUsageSummary';
 import {
-  READING_PANEL_CLASS, READING_PANEL_COLUMN_CLASS, READING_PANEL_DISCLOSURE_CLASS, READING_PANEL_TITLE_CLASS
+  READING_PANEL_COLUMN_CLASS, READING_PANEL_DISCLOSURE_CLASS, READING_PANEL_TITLE_CLASS
 } from '../../../styles/panelClasses';
 
 const USAGE_ICONS = {
@@ -36,7 +36,7 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
 
   return (
     <section className={`${READING_PANEL_COLUMN_CLASS} mt-6`} aria-labelledby={headingId}>
-      <div className={READING_PANEL_CLASS}>
+      <div className="border-t border-secondary/30 py-4">
         <h2 className={READING_PANEL_TITLE_CLASS}>
           <button
             id={headingId}

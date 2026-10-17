@@ -7,6 +7,7 @@ p0_count: 2
 p1_count: 2
 timestamp: 2026-08-26T06-03-36Z
 slug: src-components-scenes-revealscene-jsx
+closed: true
 ---
 Method: dual-agent (A: 01a03c9b-4999-7a93-8434-9ac445805a02 · B: 01a03c9b-499c-7da2-a52b-20780ea7adaa)
 

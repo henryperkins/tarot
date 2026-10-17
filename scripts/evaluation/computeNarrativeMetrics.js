@@ -126,6 +126,18 @@ function containsPattern(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
+function hasAffirmativeDecisionAgency(text) {
+  // Recognize explicit influence without treating any mention of decisions as agency.
+  const direct = /^your\s+decisions\s+(?:(?:are\s+what|can|will)\s+)?(?:shape|steer|guide|influence|affect)\b/iu;
+  const about = /^your\s+decisions\s+about\s+(?:when|how)(?:\s+and\s+(?:when|how))?\s+to\s+[\p{L}'’-]+\s+(?:this|the|your|our|my|a|an)\s+[\p{L}'’-]+\s+are\s+what\s+(?:shape|steer|guide|influence|affect)\b/iu;
+  const negativeContext = /\b(?:not|never|no|none|nothing|nobody|cannot|powerless|irrelevant|inevitable|predetermined|destined|fated|destiny|fate|fixed|false|illusion|myth)\b|\b(?:can['’]t|won['’]t|(?:do|does|did|is|are|was|were|has|have|had|should|could|would|must)n['’]t)\b/iu;
+
+  return text.split(/[.!?\n]+/u).some((part) => {
+    const sentence = part.trim();
+    return (direct.test(sentence) || about.test(sentence)) && !negativeContext.test(sentence);
+  });
+}
+
 function findDeterministicLanguage(text) {
   if (!text) return [];
   const withoutNegatedClaims = NEGATED_DETERMINISTIC_PATTERNS.reduce(
@@ -243,7 +255,7 @@ function summarizeSample(sample) {
   };
   const deterministicLanguageMatches = findDeterministicLanguage(plainReading);
   const deterministicLanguage = deterministicLanguageMatches.length > 0;
-  const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS);
+  const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS) || hasAffirmativeDecisionAgency(plainReading);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
   const suitCountMismatches = runtimeMetrics.suitCountMismatches || [];
   const tone = analyzeToneSignals(plainReading);

@@ -13,6 +13,7 @@ import {
   loadQuestionDraft,
   saveQuestionDraft
 } from '../lib/questionDraft';
+import { clearReadingSnapshot, loadReadingSnapshot, snapshotBelongsTo } from '../lib/readingSnapshot';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
 
@@ -27,8 +28,12 @@ export function useTarotState(speak) {
   const { user, loading: authLoading } = useAuth();
   const { vibrate } = useHaptic();
   const questionDraftOwner = getQuestionDraftOwner(user?.id || null);
-  const [selectedSpreadState, setSelectedSpreadState] = useState(DEFAULT_SPREAD_KEY);
-  const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(false);
+  // A reading interrupted by a reload, a discarded tab or a sign-in redirect
+  // resumes where it was (see lib/readingSnapshot). The owner is checked once
+  // auth settles; restoring first avoids flashing the setup screen.
+  const [initialSnapshot] = useState(() => loadReadingSnapshot());
+  const [selectedSpreadState, setSelectedSpreadState] = useState(() => initialSnapshot?.spreadKey || DEFAULT_SPREAD_KEY);
+  const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(() => Boolean(initialSnapshot));
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
     ? getSpreadFromDepth(personalization.preferredSpreadDepth)
     : null;
@@ -36,28 +41,33 @@ export function useTarotState(speak) {
   const setSelectedSpread = useCallback((nextKey) => {
     setSelectedSpreadState(normalizeSpreadKey(nextKey));
   }, []);
-  const [reading, setReading] = useState(null);
+  const [reading, setReading] = useState(() => initialSnapshot?.reading ?? null);
   const [isShuffling, setIsShuffling] = useState(false);
-  const [revealedCards, setRevealedCards] = useState(new Set());
-  const [isSpreadDealt, setIsSpreadDealt] = useState(false);
-  const [dealIndex, setDealIndex] = useState(0);
+  const [revealedCards, setRevealedCards] = useState(() => new Set(initialSnapshot?.revealed || []));
+  const [isSpreadDealt, setIsSpreadDealt] = useState(() => Boolean(initialSnapshot?.isSpreadDealt));
+  const [dealIndex, setDealIndex] = useState(() => initialSnapshot?.dealIndex ?? 0);
 
-  const [hasKnocked, setHasKnocked] = useState(false);
-  const [knockCount, setKnockCount] = useState(0);
-  const [hasCut, setHasCut] = useState(false);
-  const [cutIndex, setCutIndex] = useState(Math.floor(deckSize / 2));
-  const [hasConfirmedSpread, setHasConfirmedSpread] = useState(false);
-  const [sessionSeed, setSessionSeed] = useState(null);
-  const [userQuestion, setUserQuestion] = useState('');
+  const [hasKnocked, setHasKnocked] = useState(() => Boolean(initialSnapshot?.ritual?.hasKnocked));
+  const [knockCount, setKnockCount] = useState(() => initialSnapshot?.ritual?.knockCount ?? 0);
+  const [hasCut, setHasCut] = useState(() => Boolean(initialSnapshot?.ritual?.hasCut));
+  const [cutIndex, setCutIndex] = useState(() => (
+    Number.isInteger(initialSnapshot?.ritual?.cutIndex) ? initialSnapshot.ritual.cutIndex : Math.floor(deckSize / 2)
+  ));
+  const [hasConfirmedSpread, setHasConfirmedSpread] = useState(() => Boolean(initialSnapshot?.hasConfirmedSpread));
+  const [sessionSeed, setSessionSeed] = useState(() => initialSnapshot?.sessionSeed ?? null);
+  const [userQuestion, setUserQuestion] = useState(() => initialSnapshot?.question || '');
   const [deckAnnouncement, setDeckAnnouncement] = useState('');
-  const [knockCadenceResetAt, setKnockCadenceResetAt] = useState(0);
+  // Knocks have no time limit; the value stays 0 for the ritual controls that read it.
+  const knockCadenceResetAt = 0;
   const questionDraftSyncRef = useRef({ restored: false, owner: null });
+  const [restoreReady, setRestoreReady] = useState(false);
+  const [snapshotRevision, setSnapshotRevision] = useState(0);
 
-  const knockTimesRef = useRef([]);
-  const knockResetTimeoutRef = useRef(null);
+  const knockTimesRef = useRef(initialSnapshot?.ritual?.knockTimes || []);
   const shuffleTimeoutRef = useRef(null);
   const deckAnnouncementTimeoutRef = useRef(null);
   const deckSizeInitializedRef = useRef(false);
+  const restoredCutIndexRef = useRef(Number.isInteger(initialSnapshot?.ritual?.cutIndex));
   const shouldSkipRitual = personalization?.showRitualSteps === false;
 
   // Keep the question someone is writing through a reload, for this tab only
@@ -69,12 +79,25 @@ export function useTarotState(speak) {
     if (!sync.restored) {
       sync.restored = true;
       sync.owner = questionDraftOwner;
+      if (initialSnapshot && !snapshotBelongsTo(initialSnapshot, questionDraftOwner)) {
+        // Another account's reading must never stay on screen.
+        clearReadingSnapshot();
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- drops a restored reading once auth settles
+        setReading(null);
+        setIsSpreadDealt(false);
+        setRevealedCards(new Set());
+        setDealIndex(0);
+        setSessionSeed(null);
+        setUserQuestion('');
+        knockTimesRef.current = [];
+        setSnapshotRevision(revision => revision + 1);
+      }
       const draft = loadQuestionDraft(questionDraftOwner);
       if (draft) {
         // A question set meanwhile (a journal suggestion, a typed word) wins.
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- restores sessionStorage once auth settles
         setUserQuestion(current => current || draft);
       }
+      setRestoreReady(true);
       return;
     }
     if (sync.owner === questionDraftOwner) return;
@@ -83,9 +106,21 @@ export function useTarotState(speak) {
     // Signing in keeps the question; signing out or switching accounts forgets it.
     if (previousOwner !== GUEST_DRAFT_OWNER) {
       clearQuestionDraft();
+      clearReadingSnapshot();
       setUserQuestion('');
+      setReading(null);
+      setIsSpreadDealt(false);
+      setRevealedCards(new Set());
+      setDealIndex(0);
+      setSessionSeed(null);
+      setHasConfirmedSpread(false);
+      setHasKnocked(false);
+      setKnockCount(0);
+      setHasCut(false);
+      knockTimesRef.current = [];
+      setSnapshotRevision(revision => revision + 1);
     }
-  }, [authLoading, questionDraftOwner]);
+  }, [authLoading, questionDraftOwner, initialSnapshot]);
 
   useEffect(() => {
     if (!questionDraftSyncRef.current.restored) return;
@@ -96,21 +131,19 @@ export function useTarotState(speak) {
   useEffect(() => {
     const scheduleReset = () => {
       const nextCutIndex = Math.floor(deckSize / 2);
-      setCutIndex(nextCutIndex);
 
       if (!deckSizeInitializedRef.current) {
         deckSizeInitializedRef.current = true;
+        // A restored cut is part of that reading's seed; keep it.
+        if (!restoredCutIndexRef.current) setCutIndex(nextCutIndex);
         return;
       }
 
+      setCutIndex(nextCutIndex);
       setHasCut(false);
       setHasKnocked(false);
       setKnockCount(0);
       knockTimesRef.current = [];
-      if (knockResetTimeoutRef.current) {
-        clearTimeout(knockResetTimeoutRef.current);
-        knockResetTimeoutRef.current = null;
-      }
       const announcement = `Deck now ${deckSize} cards. Cut index reset to ${nextCutIndex}.`;
       setDeckAnnouncement(announcement);
       if (deckAnnouncementTimeoutRef.current) {
@@ -138,42 +171,20 @@ export function useTarotState(speak) {
       if (shuffleTimeoutRef.current) {
         clearTimeout(shuffleTimeoutRef.current);
       }
-      if (knockResetTimeoutRef.current) {
-        clearTimeout(knockResetTimeoutRef.current);
-      }
     };
   }, []);
 
+  // Three knocks at the person's own pace. The times still seed the draw, but
+  // there is no deadline: a slow tapper, VoiceOver or Switch Control user
+  // completes the ritual the same way as anyone else.
   const handleKnock = useCallback(() => {
     if (hasKnocked) return;
     if (typeof performance === 'undefined') return;
-    const now = performance.now();
-    const recent = knockTimesRef.current.filter(timestamp => now - timestamp < 2000);
-    recent.push(now);
-    knockTimesRef.current = recent;
-    const nextCount = Math.min(recent.length, 3);
-    setKnockCount(nextCount);
-
-    if (knockResetTimeoutRef.current) {
-      clearTimeout(knockResetTimeoutRef.current);
-      knockResetTimeoutRef.current = null;
-    }
-
-    if (nextCount < 3) {
-      knockResetTimeoutRef.current = setTimeout(() => {
-        knockTimesRef.current = [];
-        setKnockCount(0);
-        setHasKnocked(false);
-        setKnockCadenceResetAt(Date.now());
-        knockResetTimeoutRef.current = null;
-      }, 2000);
-    }
-    if (recent.length >= 3) {
+    const knocks = [...knockTimesRef.current, performance.now()].slice(-3);
+    knockTimesRef.current = knocks;
+    setKnockCount(knocks.length);
+    if (knocks.length >= 3) {
       setHasKnocked(true);
-      if (knockResetTimeoutRef.current) {
-        clearTimeout(knockResetTimeoutRef.current);
-        knockResetTimeoutRef.current = null;
-      }
       vibrate([18, 40, 18]);
     }
   }, [hasKnocked, vibrate]);
@@ -202,11 +213,6 @@ export function useTarotState(speak) {
     setHasCut(false);
     setSessionSeed(null);
     knockTimesRef.current = [];
-    if (knockResetTimeoutRef.current) {
-      clearTimeout(knockResetTimeoutRef.current);
-      knockResetTimeoutRef.current = null;
-    }
-    setKnockCadenceResetAt(0);
     if (resetQuestion) {
       setUserQuestion('');
     }
@@ -247,11 +253,6 @@ export function useTarotState(speak) {
 
     resetReadingState(false);
     if (onShuffleComplete) onShuffleComplete(); // Callback to clear external state like vision/analysis
-
-    if (typeof performance !== 'undefined') {
-      const now = performance.now();
-      knockTimesRef.current = knockTimesRef.current.filter(timestamp => now - timestamp < 2000);
-    }
 
     let effectiveKnockTimes = knockTimesRef.current;
     let effectiveCutIndex = cutIndex;
@@ -411,6 +412,12 @@ export function useTarotState(speak) {
     onSpreadConfirm,
     resetReadingState,
     knockTimesRef,
-    shouldSkipRitual
+    shouldSkipRitual,
+    // Reading snapshot plumbing for ReadingContext (lib/readingSnapshot).
+    initialSnapshot,
+    snapshotOwner: questionDraftOwner,
+    hasUserSelectedSpread,
+    restoreReady,
+    snapshotRevision
   };
 }

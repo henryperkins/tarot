@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import yaml from 'js-yaml';
@@ -110,3 +110,83 @@ for (const variant of ['modified', 'extra', 'symlink', 'different output']) {
     if (variant === 'different output') assert.equal(readFileSync(output, 'utf8'), 'existing output');
   });
 }
+
+for (const version of ['1.0.2', '1.0.3']) test(`public ${version} package rebuilds from its lock without internal fields or plan language`, (t) => {
+  const v2Path = join(root, 'docs/integrations/openai/submission', version);
+  const v2Lock = JSON.parse(readFileSync(join(v2Path, 'package-lock.json'), 'utf8'));
+  const output = join(scratch(t), `plugin-${version}.zip`);
+  const result = JSON.parse(execFileSync('python3', [script, '--version', version, '--output', output], { encoding: 'utf8' }));
+  assert.equal(result.files, Object.keys(v2Lock.files).length);
+  assert.equal(sha256(readFileSync(output)), v2Lock.archive.sha256);
+
+  const v2Source = resolve(v2Path, v2Lock.sourceDirectory);
+  const manifest = JSON.parse(readFileSync(join(v2Source, '.codex-plugin/plugin.json'), 'utf8'));
+  assert.equal(manifest.version, version);
+  assert.equal(manifest.name, lock.name, 'the plugin identity is unchanged');
+  const review = manifest.extensions['com.openai'].review;
+  assert.equal(review.commerce, false);
+  assert.deepEqual(manifest.extensions['com.openai'].publication.countries, [], 'available in every country');
+  assert.equal(review.test_cases.positive.length, 5);
+  assert.equal(review.test_cases.negative.length, 3);
+  assert.deepEqual(JSON.parse(readFileSync(join(v2Source, '.mcp.json'), 'utf8')).mcpServers.tableu.url, 'https://tarot.lakefrontdev.com/mcp');
+
+  const textMembers = Object.keys(v2Lock.files).filter((name) => /\.(md|json|yaml)$/.test(name));
+  for (const name of textMembers) {
+    const text = readFileSync(join(v2Source, name), 'utf8');
+    assert.doesNotMatch(text, /jobToken|requestId/, name);
+    if (name !== '.codex-plugin/plugin.json') {
+      assert.doesNotMatch(text, /\b(Seeker|Enlightened|Mystic)\b|\$\d|readings\/month/, `${name} carries no plan or pricing details`);
+    }
+  }
+  const index = JSON.parse(readFileSync(join(v2Source, 'skills/instructions/lookup/knowledge-index.json'), 'utf8'));
+  assert.deepEqual(index.files.map((file) => file.name).sort(), ['actions-contract.md', 'gpt-knowledge-base.md']);
+  for (const file of index.files) {
+    assert.ok(v2Lock.files[`skills/instructions/${file.path}`], `${file.path} is packaged`);
+  }
+  assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit|AI Training|Quick Reference and/.test(name)), false);
+});
+
+test('1.0.3 cancels in one message and ships the maintained plugin instructions', () => {
+  const v3Source = join(root, 'docs/integrations/openai/submission/1.0.3/source', lock.name);
+  const manifest = JSON.parse(readFileSync(join(v3Source, '.codex-plugin/plugin.json'), 'utf8'));
+  const cancel = manifest.extensions['com.openai'].review.test_cases.positive.find((testCase) => /cancel_tarot_reading/.test(testCase.tools_triggered));
+  assert.match(cancel.prompt, /Celtic Cross[\s\S]*check its status[\s\S]*cancel it/);
+  assert.doesNotMatch(cancel.description, /setup prompt/i, 'no separate setup message');
+  assert.equal(cancel.tools_triggered, 'draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading');
+  assert.match(cancel.expected_behavior, /status to return running and the cancellation to return cancelled/);
+  assert.match(cancel.expected_behavior, /inconclusive/);
+  for (const [maintained, packaged] of [['SKILL.md', 'skills/instructions/SKILL.md'], ['references/actions-contract.md', 'skills/instructions/references/actions-contract.md']]) {
+    assert.equal(readFileSync(join(root, 'docs/integrations/openai/plugin', maintained), 'utf8'), readFileSync(join(v3Source, packaged), 'utf8'), maintained);
+  }
+});
+
+test('ignore rules leave no locked package file out of a commit', (t) => {
+  const members = [];
+  const submissions = join(root, 'docs/integrations/openai/submission');
+  for (const version of readdirSync(submissions).filter((name) => existsSync(join(submissions, name, 'package-lock.json')))) {
+    const path = join(submissions, version);
+    const versionLock = JSON.parse(readFileSync(join(path, 'package-lock.json'), 'utf8'));
+    const sourceDir = relative(root, resolve(path, versionLock.sourceDirectory));
+    for (const name of Object.keys(versionLock.files)) members.push(`${sourceDir}/${name}`);
+  }
+  const ignored = spawnSync('git', ['check-ignore', '--no-index', '--stdin'], { cwd: root, input: members.join('\n'), encoding: 'utf8' });
+  if (ignored.error || ignored.status === 128) {
+    t.skip('not a git checkout');
+    return;
+  }
+  assert.equal(ignored.stdout, '', 'these package files are ignored by git');
+});
+
+test('refuses to lock a version whose manifest names another version', (t) => {
+  const dir = scratch(t);
+  const scriptCopy = join(dir, 'scripts/integrations/package_tableu_plugin.py');
+  mkdirSync(dirname(scriptCopy), { recursive: true });
+  cpSync(script, scriptCopy);
+  const pkg = join(dir, 'docs/integrations/openai/submission/9.9.9');
+  cpSync(source, join(pkg, 'source', lock.name), { recursive: true });
+
+  const result = spawnSync('python3', [scriptCopy, '--version', '9.9.9', '--write-lock', lock.name, '--timestamp', '2026-10-10'], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /must name app-\S+ 9\.9\.9/);
+  assert.equal(existsSync(join(pkg, 'package-lock.json')), false);
+});

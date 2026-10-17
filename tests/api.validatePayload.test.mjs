@@ -151,6 +151,6 @@ describe('initial tarot-reading boundary', () => {
     assert.equal(source.includes('findSimilarJournalEntries'), false);
     assert.equal(source.includes('getRecurringCardPatterns'), false);
     assert.equal(source.includes('handleMemoryToolCall'), false);
-    assert.equal(source.includes('MEMORY_TOOL_AZURE_RESPONSES_FORMAT'), false);
+    assert.equal(source.includes('MEMORY_TOOL_OPENAI_RESPONSES_FORMAT'), false);
   });
 });

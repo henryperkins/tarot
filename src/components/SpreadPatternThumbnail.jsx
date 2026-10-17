@@ -7,8 +7,9 @@ import { ResponsiveSpreadArt } from './ResponsiveSpreadArt';
  * @param {string} className - Additional CSS classes
  * @param {object} preview - Optional preview artwork { src, width, height, alt }
  * @param {string} spreadName - Name used for accessible alt text
+ * @param {boolean} priority - Load the artwork eagerly at high priority (first view)
  */
-export function SpreadPatternThumbnail({ spreadKey, className = '', preview = null, spreadName = '' }) {
+export function SpreadPatternThumbnail({ spreadKey, className = '', preview = null, spreadName = '', priority = false }) {
   // If we have custom artwork, prefer that over the vector fallback
   if (preview?.src) {
     const aspectRatio = preview.aspectRatio || (preview.width && preview.height ? `${preview.width} / ${preview.height}` : '2 / 1');
@@ -41,6 +42,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
             fallbackWidth={preview.width}
             fallbackHeight={preview.height}
             sizes={sizes}
+            priority={priority}
           />
         ) : (
           <img
@@ -50,7 +52,8 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
             sizes={sizes}
             alt={altText}
             className="w-full h-full object-cover"
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : undefined}
             decoding="async"
             onError={(e) => {
               // Hide broken image and show fallback background

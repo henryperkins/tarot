@@ -1,0 +1,319 @@
+{
+  "id": "creative-boundaries",
+  "language": "en",
+  "userQuestion": "What would help me share my creative work without losing my own voice?",
+  "reflectionsText": "Feedback helps until I start trying to please everyone.",
+  "cards": [
+    {
+      "card": "Ace of Wands",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Queen of Cups",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Seven of Swords",
+      "position": "Direction",
+      "orientation": "Reversed"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou asked what would help you share your creative work without losing your own voice. Here is one way to sit with it.\n\n## The Story\n\nThe Ace of Wands, upright, sits in the Situation. A hand from a cloud holds out a wand with small leaves sprouting along it, and a castle rests on a distant hill. Your voice may be like that new growth, nearer to you than any far-off castle of approval.\n\nThe Queen of Cups, upright, offers the Invitation. She gazes at an ornate lidded cup held before her. Perhaps, like that cup, your work can keep its meaning close for a while before you open it to others.\n\nThe Seven of Swords, reversed, points the Direction. A figure tiptoes off with five swords carried in his arms, leaving two swords planted behind him. Reversed, the card may ask what you're carrying that was never yours, and which expectations could be left standing behind.\n\n## Putting It Together\n\nYou noted that feedback helps until you start trying to please everyone. The Queen's quiet gaze into her cup and that armful of carried swords suggest choosing what to take in. A new sprout can welcome some care without being buried.\n\n## Gentle Next Steps\n\n- Before sharing, name one thing in the piece that is unmistakably yours.\n- Choose a few readers whose perspective you trust.\n- After feedback, notice which notes you're keeping only to please.\n\n## Closing\n\nYour voice can grow in company and still remain your own.",
+    "annotations": [
+      {
+        "id": "id-ace-wands",
+        "kind": "identity",
+        "quote": "The Ace of Wands, upright, sits in the Situation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-sprout",
+        "kind": "literal",
+        "quote": "a wand with small leaves sprouting along it",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "sprout"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-castle",
+        "kind": "literal",
+        "quote": "a castle rests on a distant hill",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "castle"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-sprout-voice",
+        "kind": "interpretation",
+        "quote": "Your voice may be like that new growth",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "sprout"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-sprout"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "without losing my own voice",
+          "spreadIndex": 0
+        }
+      },
+      {
+        "id": "bal-sprout-castle",
+        "kind": "balance",
+        "quote": "nearer to you than any far-off castle of approval",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "sprout",
+              "castle"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-sprout",
+          "lit-castle"
+        ]
+      },
+      {
+        "id": "id-queen-cups",
+        "kind": "identity",
+        "quote": "The Queen of Cups, upright, offers the Invitation",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-cup",
+        "kind": "literal",
+        "quote": "an ornate lidded cup held before her",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-cup-meaning",
+        "kind": "interpretation",
+        "quote": "like that cup, your work can keep its meaning close",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "cup"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-cup"
+        ]
+      },
+      {
+        "id": "id-seven-swords",
+        "kind": "identity",
+        "quote": "The Seven of Swords, reversed, points the Direction",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-carried",
+        "kind": "literal",
+        "quote": "five swords carried in his arms",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "carried"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-two-swords",
+        "kind": "literal",
+        "quote": "leaving two swords planted behind him",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "two-swords"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-carried-not-yours",
+        "kind": "interpretation",
+        "quote": "what you're carrying that was never yours",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "carried"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-carried"
+        ]
+      },
+      {
+        "id": "int-two-swords-left",
+        "kind": "interpretation",
+        "quote": "which expectations could be left standing behind",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "two-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-two-swords"
+        ]
+      },
+      {
+        "id": "rel-cup-carried",
+        "kind": "relationship",
+        "quote": "The Queen's quiet gaze into her cup and that armful of carried swords",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "cup"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "carried"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-cup",
+          "lit-carried"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "trying to please everyone"
+        }
+      },
+      {
+        "id": "int-sprout-care",
+        "kind": "interpretation",
+        "quote": "A new sprout can welcome some care without being buried",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "sprout"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-sprout"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:22:49.296Z",
+    "completedAt": "2026-10-09T12:23:48.572Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 2983,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 6969,
+      "output_tokens_details": {
+        "thinking_tokens": 5123
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 2983,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "a4f0da5653e0d0fdaf06d34c9538f8c99943958d47ceffb033e9dae289243b83",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou asked what would help you share your creative work without losing your own voice. Here is one way to sit with it.\\n\\n## The Story\\n\\nThe Ace of Wands, upright, sits in the Situation. A hand from a cloud holds out a wand with small leaves sprouting along it, and a castle rests on a distant hill. Your voice may be like that new growth, nearer to you than any far-off castle of approval.\\n\\nThe Queen of Cups, upright, offers the Invitation. She gazes at an ornate lidded cup held before her. Perhaps, like that cup, your work can keep its meaning close for a while before you open it to others.\\n\\nThe Seven of Swords, reversed, points the Direction. A figure tiptoes off with five swords carried in his arms, leaving two swords planted behind him. Reversed, the card may ask what you're carrying that was never yours, and which expectations could be left standing behind.\\n\\n## Putting It Together\\n\\nYou noted that feedback helps until you start trying to please everyone. The Queen's quiet gaze into her cup and that armful of carried swords suggest choosing what to take in. A new sprout can welcome some care without being buried.\\n\\n## Gentle Next Steps\\n\\n- Before sharing, name one thing in the piece that is unmistakably yours.\\n- Choose a few readers whose perspective you trust.\\n- After feedback, notice which notes you're keeping only to please.\\n\\n## Closing\\n\\nYour voice can grow in company and still remain your own.\",\"annotations\":[{\"id\":\"id-ace-wands\",\"kind\":\"identity\",\"quote\":\"The Ace of Wands, upright, sits in the Situation\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-sprout\",\"kind\":\"literal\",\"quote\":\"a wand with small leaves sprouting along it\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"sprout\"]}]},{\"id\":\"lit-castle\",\"kind\":\"literal\",\"quote\":\"a castle rests on a distant hill\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"castle\"]}]},{\"id\":\"int-sprout-voice\",\"kind\":\"interpretation\",\"quote\":\"Your voice may be like that new growth\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"sprout\"]}],\"establishedBy\":[\"lit-sprout\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"without losing my own voice\",\"spreadIndex\":0}},{\"id\":\"bal-sprout-castle\",\"kind\":\"balance\",\"quote\":\"nearer to you than any far-off castle of approval\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"sprout\",\"castle\"]}],\"establishedBy\":[\"lit-sprout\",\"lit-castle\"]},{\"id\":\"id-queen-cups\",\"kind\":\"identity\",\"quote\":\"The Queen of Cups, upright, offers the Invitation\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-cup\",\"kind\":\"literal\",\"quote\":\"an ornate lidded cup held before her\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"cup\"]}]},{\"id\":\"int-cup-meaning\",\"kind\":\"interpretation\",\"quote\":\"like that cup, your work can keep its meaning close\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"cup\"]}],\"establishedBy\":[\"lit-cup\"]},{\"id\":\"id-seven-swords\",\"kind\":\"identity\",\"quote\":\"The Seven of Swords, reversed, points the Direction\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-carried\",\"kind\":\"literal\",\"quote\":\"five swords carried in his arms\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"carried\"]}]},{\"id\":\"lit-two-swords\",\"kind\":\"literal\",\"quote\":\"leaving two swords planted behind him\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"two-swords\"]}]},{\"id\":\"int-carried-not-yours\",\"kind\":\"interpretation\",\"quote\":\"what you're carrying that was never yours\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"carried\"]}],\"establishedBy\":[\"lit-carried\"]},{\"id\":\"int-two-swords-left\",\"kind\":\"interpretation\",\"quote\":\"which expectations could be left standing behind\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"two-swords\"]}],\"establishedBy\":[\"lit-two-swords\"]},{\"id\":\"rel-cup-carried\",\"kind\":\"relationship\",\"quote\":\"The Queen's quiet gaze into her cup and that armful of carried swords\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"cup\"]},{\"spreadIndex\":2,\"detailIds\":[\"carried\"]}],\"establishedBy\":[\"lit-cup\",\"lit-carried\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"trying to please everyone\"}},{\"id\":\"int-sprout-care\",\"kind\":\"interpretation\",\"quote\":\"A new sprout can welcome some care without being buried\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"sprout\"]}],\"establishedBy\":[\"lit-sprout\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 15,
+    "acceptedAnnotations": 15,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 5,
+      "interpretation": 5,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 4,
+      "literal": 3,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "rawSha256": "0b1b80d977f588ed6cb2d126552c7c5b40689059d8e3cf21d8c875fe3c730983",
+    "wordCount": 255
+  },
+  "priorAttempts": [
+    {
+      "generationError": "Claude Code request failed. Check subscription login and usage limits.",
+      "generation": {
+        "startedAt": "2026-10-09T12:21:38.305Z",
+        "completedAt": "2026-10-09T12:21:38.948Z"
+      }
+    }
+  ]
+}

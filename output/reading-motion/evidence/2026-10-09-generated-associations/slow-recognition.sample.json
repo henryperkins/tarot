@@ -1,0 +1,320 @@
+{
+  "id": "slow-recognition",
+  "language": "en",
+  "userQuestion": "What can help me notice progress when a long project moves slowly?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "Seven of Pentacles",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Six of Wands",
+      "position": "Invitation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Nine of Cups",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou asked what can help you notice progress when a long project moves slowly. These cards suggest progress may already be present, waiting for a pause long enough to see it.\n\n## The Story\n\nThe Seven of Pentacles, upright, describes your Situation. A figure leans on a hoe, gazing at a pentacle-bearing vine. Perhaps the pause itself is part of the work: stopping to look is how the harvest becomes visible.\n\nThe Six of Wands, reversed, comes as your Invitation. A rider sits on a white horse, with a laurel wreath on the staff. Reversed, it may ask whether you are waiting for outside recognition before you let yourself count anything as progress. That wreath could become something you quietly offer yourself.\n\nThe Nine of Cups, upright, points your Direction. A figure with folded arms sits in front of a row of cups. This suggests the contentment of looking at what has already gathered.\n\n## Putting It Together\n\nThe pentacles on the vine and the nine cups both show accumulation you can count. Progress on a slow project might be easier to notice when it is laid out where you can see it.\n\n## Gentle Next Steps\n\n- Schedule a regular pause, like that resting hoe, to note what has grown.\n- Keep a visible list of finished pieces, your own row of cups.\n- Mark small milestones with a private wreath rather than waiting for others to notice.\n\n## Closing\n\nSlow growth is still growth. It may simply ask you to stand back and look.",
+    "annotations": [
+      {
+        "id": "id-seven-pentacles",
+        "kind": "identity",
+        "quote": "Seven of Pentacles",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-hoe",
+        "kind": "literal",
+        "quote": "leans on a hoe",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "resting-hoe"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-vine",
+        "kind": "literal",
+        "quote": "pentacle-bearing vine",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pentacle-vine"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-pause",
+        "kind": "interpretation",
+        "quote": "Perhaps the pause itself is part of the work",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "resting-hoe"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-hoe"
+        ]
+      },
+      {
+        "id": "id-six-wands",
+        "kind": "identity",
+        "quote": "Six of Wands",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-horse",
+        "kind": "literal",
+        "quote": "white horse",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "white-horse"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-wreath",
+        "kind": "literal",
+        "quote": "laurel wreath on the staff",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "laurel-wreath"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-wreath-self",
+        "kind": "interpretation",
+        "quote": "That wreath could become something you quietly offer yourself",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "laurel-wreath"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wreath"
+        ]
+      },
+      {
+        "id": "id-nine-cups",
+        "kind": "identity",
+        "quote": "Nine of Cups",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-arms",
+        "kind": "literal",
+        "quote": "folded arms",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "folded-arms"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-cups",
+        "kind": "literal",
+        "quote": "a row of cups",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-row"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-contentment",
+        "kind": "interpretation",
+        "quote": "This suggests the contentment of looking at what has already gathered",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "folded-arms",
+              "cup-row"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-arms",
+          "lit-cups"
+        ]
+      },
+      {
+        "id": "rel-accumulation",
+        "kind": "relationship",
+        "quote": "The pentacles on the vine and the nine cups both show accumulation you can count",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "pentacle-vine"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-row"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-vine",
+          "lit-cups"
+        ]
+      },
+      {
+        "id": "int-hoe-step",
+        "kind": "interpretation",
+        "quote": "like that resting hoe",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "resting-hoe"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-hoe"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "notice progress"
+        }
+      },
+      {
+        "id": "int-cups-step",
+        "kind": "interpretation",
+        "quote": "your own row of cups",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "cup-row"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-cups"
+        ]
+      },
+      {
+        "id": "int-wreath-step",
+        "kind": "interpretation",
+        "quote": "a private wreath",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "laurel-wreath"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wreath"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:30:13.949Z",
+    "completedAt": "2026-10-09T12:31:08.638Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 1006,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 6531,
+      "output_tokens_details": {
+        "thinking_tokens": 4696
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 1006,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "2b85ffa0274eaf26f104c18b7addb9abb928f5267784c5c6dc57bf77895d2423",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou asked what can help you notice progress when a long project moves slowly. These cards suggest progress may already be present, waiting for a pause long enough to see it.\\n\\n## The Story\\n\\nThe Seven of Pentacles, upright, describes your Situation. A figure leans on a hoe, gazing at a pentacle-bearing vine. Perhaps the pause itself is part of the work: stopping to look is how the harvest becomes visible.\\n\\nThe Six of Wands, reversed, comes as your Invitation. A rider sits on a white horse, with a laurel wreath on the staff. Reversed, it may ask whether you are waiting for outside recognition before you let yourself count anything as progress. That wreath could become something you quietly offer yourself.\\n\\nThe Nine of Cups, upright, points your Direction. A figure with folded arms sits in front of a row of cups. This suggests the contentment of looking at what has already gathered.\\n\\n## Putting It Together\\n\\nThe pentacles on the vine and the nine cups both show accumulation you can count. Progress on a slow project might be easier to notice when it is laid out where you can see it.\\n\\n## Gentle Next Steps\\n\\n- Schedule a regular pause, like that resting hoe, to note what has grown.\\n- Keep a visible list of finished pieces, your own row of cups.\\n- Mark small milestones with a private wreath rather than waiting for others to notice.\\n\\n## Closing\\n\\nSlow growth is still growth. It may simply ask you to stand back and look.\",\"annotations\":[{\"id\":\"id-seven-pentacles\",\"kind\":\"identity\",\"quote\":\"Seven of Pentacles\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-hoe\",\"kind\":\"literal\",\"quote\":\"leans on a hoe\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"resting-hoe\"]}]},{\"id\":\"lit-vine\",\"kind\":\"literal\",\"quote\":\"pentacle-bearing vine\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pentacle-vine\"]}]},{\"id\":\"int-pause\",\"kind\":\"interpretation\",\"quote\":\"Perhaps the pause itself is part of the work\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"resting-hoe\"]}],\"establishedBy\":[\"lit-hoe\"]},{\"id\":\"id-six-wands\",\"kind\":\"identity\",\"quote\":\"Six of Wands\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-horse\",\"kind\":\"literal\",\"quote\":\"white horse\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"white-horse\"]}]},{\"id\":\"lit-wreath\",\"kind\":\"literal\",\"quote\":\"laurel wreath on the staff\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"laurel-wreath\"]}]},{\"id\":\"int-wreath-self\",\"kind\":\"interpretation\",\"quote\":\"That wreath could become something you quietly offer yourself\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"laurel-wreath\"]}],\"establishedBy\":[\"lit-wreath\"]},{\"id\":\"id-nine-cups\",\"kind\":\"identity\",\"quote\":\"Nine of Cups\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-arms\",\"kind\":\"literal\",\"quote\":\"folded arms\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"folded-arms\"]}]},{\"id\":\"lit-cups\",\"kind\":\"literal\",\"quote\":\"a row of cups\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"cup-row\"]}]},{\"id\":\"int-contentment\",\"kind\":\"interpretation\",\"quote\":\"This suggests the contentment of looking at what has already gathered\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"folded-arms\",\"cup-row\"]}],\"establishedBy\":[\"lit-arms\",\"lit-cups\"]},{\"id\":\"rel-accumulation\",\"kind\":\"relationship\",\"quote\":\"The pentacles on the vine and the nine cups both show accumulation you can count\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"pentacle-vine\"]},{\"spreadIndex\":2,\"detailIds\":[\"cup-row\"]}],\"establishedBy\":[\"lit-vine\",\"lit-cups\"]},{\"id\":\"int-hoe-step\",\"kind\":\"interpretation\",\"quote\":\"like that resting hoe\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"resting-hoe\"]}],\"establishedBy\":[\"lit-hoe\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"notice progress\"}},{\"id\":\"int-cups-step\",\"kind\":\"interpretation\",\"quote\":\"your own row of cups\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"cup-row\"]}],\"establishedBy\":[\"lit-cups\"]},{\"id\":\"int-wreath-step\",\"kind\":\"interpretation\",\"quote\":\"a private wreath\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"laurel-wreath\"]}],\"establishedBy\":[\"lit-wreath\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 6,
+      "balance": 0,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 1,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 6,
+    "rawSha256": "41cc704098cadb5d2ecb6f3a78b5c69e8d5e14079c8a38221e819aec24780a6c",
+    "wordCount": 258
+  }
+}

@@ -36,7 +36,6 @@ const PERSONALIZATION_REQUEST_FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS
 const DEFAULT_NUDGE_STATE = {
   hasSeenRitualNudge: false,
   hasSeenJournalNudge: false,
-  hasSeenGestureCoach: false,
   hasDismissedAccountNudge: false,
   readingCount: 0,
   journalSaveCount: 0,
@@ -138,7 +137,7 @@ export function PreferencesProvider({ children }) {
   // Expose validated state value (alias for clarity)
   const ttsProvider = ttsProviderState;
 
-  // Persist TTS provider setting
+  // Persist the selected provider, including migrated saved engine values.
   useEffect(() => {
     safeStorage.setItem('tarot-tts-provider', ttsProviderState);
   }, [ttsProviderState]);
@@ -418,10 +417,6 @@ export function PreferencesProvider({ children }) {
     setNudgeStateInternal(prev => ({ ...prev, hasSeenJournalNudge: true }));
   };
 
-  const markGestureCoachSeen = () => {
-    setNudgeStateInternal(prev => ({ ...prev, hasSeenGestureCoach: true }));
-  };
-
   const dismissAccountNudge = () => {
     setNudgeStateInternal(prev => ({ ...prev, hasDismissedAccountNudge: true }));
   };
@@ -453,8 +448,6 @@ export function PreferencesProvider({ children }) {
   // readingCount increments on completion, so first completion => readingCount === 1.
   const shouldShowJournalNudge = nudgeState.readingCount === 1 && !nudgeState.hasSeenJournalNudge;
   const shouldShowAccountNudge = nudgeState.journalSaveCount >= 3 && !nudgeState.hasDismissedAccountNudge;
-  // Gesture coach is shown on first reading attempt (before any readings completed)
-  const shouldShowGestureCoach = nudgeState.readingCount === 0 && !nudgeState.hasSeenGestureCoach;
 
   // --- Location Preferences ---
   // locationEnabled: session-level toggle for location-aware readings (not persisted)
@@ -529,10 +522,8 @@ export function PreferencesProvider({ children }) {
     shouldShowRitualNudge,
     shouldShowJournalNudge,
     shouldShowAccountNudge,
-    shouldShowGestureCoach,
     markRitualNudgeSeen,
     markJournalNudgeSeen,
-    markGestureCoachSeen,
     dismissAccountNudge,
     incrementReadingCount,
     incrementJournalSaveCount,

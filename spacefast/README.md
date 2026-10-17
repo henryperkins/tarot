@@ -49,6 +49,7 @@ Spacefast database; it does not migrate existing Cloudflare users or data.
 | --- | --- | --- |
 | `DB` | Reviewed SQLite-to-MySQL statement adapter | Native `DB` binding from the supported profile |
 | `RATELIMIT`, `FEEDBACK_KV`, `METRICS_DB`, `OAUTH_KV` | Namespaced MySQL KV with exact keys, TTL, metadata, and pagination | Native database |
+| `READING_VISUAL_JOBS` | Unavailable in this profile; model annotation dispatch/retry disabled, saved ledgers remain readable | Environment overrides cannot enable it |
 | `READING_JOBS` | Persisted jobs, leases, cancellation, owner isolation, and SSE replay | Disabled until background and provider lifetime verification |
 | `AI` | Cloudflare Workers AI HTTP adapter | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` |
 | `EMAIL` | Existing Resend fallback | `RESEND_API_KEY` and the existing sender settings |
@@ -65,14 +66,14 @@ Spacefast's trusted client-IP header contract before relying on the existing
 ## Maintenance and background verification
 
 Native maintenance routes are GETs at
-`/api/maintenance/spacefast/video` and `/api/maintenance/spacefast/daily`.
+`/api/maintenance/spacefast/daily`. The authenticated historical video route returns 410 without work.
 Manual requests require the existing `ADMIN_API_KEY` bearer credential.
 Scheduled requests use a secret path suffix; header presence alone is rejected.
 Maintenance returns 503 when its opt-in task report identifies a failure,
 including failures the existing best-effort Cloudflare scheduler logs.
 
 Configure a random `TABLEU_CRON_SECRET` of 32 to 128 URL-safe characters, then
-build with `TABLEU_CRONS_ENABLED=true` to emit the two schedules. Their paths
+build with `TABLEU_CRONS_ENABLED=true` to emit the daily schedule. Their paths
 use `{{ vars.TABLEU_CRON_SECRET }}` substitution at publish time. Schedules are
 disabled in the default preview artifact. Expired KV and job rows are cleaned
 by the daily route; unread expired data remains stored until cleanup runs.
@@ -97,6 +98,11 @@ delay establishes only that probe's lifetime bound on the exact build; pending
 is inconclusive. It makes no provider calls and never enables reading jobs.
 Verify the real provider's longest supported operation before setting
 `TABLEU_READING_JOBS_ENABLED=true`. See [job behavior](jobs/README.md).
+
+The frontend keeps the local prose/card aligner and forces model annotations off.
+Prose job persistence retains the current visual identity and private transport
+fields for contract compatibility; this does not provide a distributed visual
+runner or authorize model dispatch.
 
 ## Verification and remaining release gates
 

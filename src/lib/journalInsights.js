@@ -2,6 +2,7 @@ import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stat
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
+import { filterDeletedJournalEntries, canPersistJournalDerivation } from './deletedJournalEntryStorage.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
@@ -74,6 +75,7 @@ export function persistJournalInsights(entries, userId = null) {
     return { payload: null, error: new Error('localStorage not available') };
   }
   const storageKey = getScopedKey(JOURNAL_INSIGHTS_STORAGE_KEY_PREFIX, userId);
+  entries = filterDeletedJournalEntries(userId ? `user:${encodeURIComponent(userId)}` : 'anon', entries);
   const stats = computeJournalStats(entries);
   if (!stats) {
     safeStorage.removeItem(storageKey);
@@ -81,6 +83,7 @@ export function persistJournalInsights(entries, userId = null) {
   }
   const payload = {
     stats,
+    sourceEntryIds: entries.map(entry => entry?.id).filter(Boolean),
     userId: userId || null,
     updatedAt: Date.now()
   };
@@ -184,7 +187,7 @@ export function loadCoachStatsSnapshot(userId = null) {
  * @param {string|null} userId - User ID for scoping (null for anonymous)
  */
 export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
-  if (!safeStorage.isAvailable) return;
+  if (!safeStorage.isAvailable || !canPersistJournalDerivation(userId ? `user:${encodeURIComponent(userId)}` : 'anon', meta.sourceEntryIds)) return;
   try {
     const storageKey = getScopedKey(COACH_STATS_SNAPSHOT_KEY_PREFIX, userId);
     if (!stats) {
@@ -193,6 +196,7 @@ export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
     }
     const payload = {
       stats,
+      ...(Array.isArray(meta.sourceEntryIds) ? { sourceEntryIds: meta.sourceEntryIds } : {}),
       userId: userId || null,
       meta: {
         filtersActive: Boolean(meta.filtersActive),
@@ -285,8 +289,8 @@ ${rows.join('\n')}`;
  * @param {Object} recommendation - Recommendation to save
  * @param {string|null} userId - User ID for scoping (null for anonymous)
  */
-export function saveCoachRecommendation(recommendation, userId = null) {
-  if (!safeStorage.isAvailable) return;
+export function saveCoachRecommendation(recommendation, userId = null, sourceEntryIds) {
+  if (!safeStorage.isAvailable || !canPersistJournalDerivation(userId ? `user:${encodeURIComponent(userId)}` : 'anon', sourceEntryIds)) return;
   try {
     const storageKey = getScopedKey(COACH_RECOMMENDATION_KEY_PREFIX, userId);
     if (!recommendation) {
@@ -296,6 +300,7 @@ export function saveCoachRecommendation(recommendation, userId = null) {
     const normalized = normalizeCoachRecommendation(recommendation);
     const payload = {
       ...normalized,
+      ...(Array.isArray(sourceEntryIds) ? { sourceEntryIds } : {}),
       userId: userId || null,
       updatedAt: Date.now()
     };

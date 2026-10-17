@@ -4,6 +4,7 @@ import { createShellAssets } from './assets.js';
 import { createSpacefastDatabase } from './database/index.js';
 import { createSpacefastBindings, cleanupExpiredKV } from './bindings/index.js';
 import { createReadingJobsNamespace } from './jobs/index.js';
+import { applySpacefastFeatureProfile } from './featureProfile.js';
 import { timingSafeEqual } from '../functions/lib/crypto.js';
 import { handleRuntimeCanary, RUNTIME_CANARY_PATH } from './canary.js';
 import { handleDatabaseProbe, DATABASE_PROBE_PATH } from './database/probe.js';
@@ -42,7 +43,7 @@ export default {
       return runtimeHealth(nativeEnv.DB, ctx);
     }
     const origin = new URL(request.url).origin;
-    const env = {
+    const env = applySpacefastFeatureProfile({
       ...defaults,
       ...nativeEnv,
       APP_URL: nativeEnv.APP_URL || origin,
@@ -51,7 +52,7 @@ export default {
       DB: createSpacefastDatabase(nativeEnv.DB),
       ASSETS: createShellAssets(html),
       CF_VERSION_METADATA: { id: revision },
-    };
+    });
     Object.assign(env, createSpacefastBindings(env));
     if (pathname === DATABASE_PROBE_PATH) return handleDatabaseProbe({ request, env, revision });
     if (pathname === RUNTIME_CANARY_PATH || pathname.startsWith(`${RUNTIME_CANARY_PATH}/`)) {
@@ -72,8 +73,9 @@ export default {
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
       if (request.method !== 'GET') return new Response(null, { status: 405, headers: { Allow: 'GET' } });
+      if (maintenance[1] === 'video') return Response.json({ status: 'retired' }, { status: 410, headers: { 'Cache-Control': 'no-store' } });
       try {
-        const outcome = await handleScheduled({ cron: maintenance[1] === 'video' ? '*/10 * * * *' : '0 3 * * *', scheduledTime: Date.now() }, env, ctx, { reportFailures: true });
+        const outcome = await handleScheduled({ cron: '0 3 * * *', scheduledTime: Date.now() }, env, ctx, { reportFailures: true });
         if (!outcome.success) return Response.json({ status: 'error', failedTasks: outcome.failedTasks }, { status: 503 });
         if (maintenance[1] === 'daily') {
           await cleanupExpiredKV(nativeEnv.DB);

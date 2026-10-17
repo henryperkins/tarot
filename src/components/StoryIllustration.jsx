@@ -556,7 +556,7 @@ export default function StoryIllustration({
   // Feature not available for tier
   if (!config.enabled && !generatedImage) {
     return (
-      <div className={`${embedded ? 'p-4 sm:p-5 bg-surface/70' : 'p-6 bg-surface/95 backdrop-blur-xl'} rounded-xl border border-secondary/40 ${className}`}>
+      <div className={`w-full min-w-0 [overflow-wrap:anywhere] ${embedded ? 'p-[min(1rem,16px)] sm:p-[min(1.25rem,20px)] bg-surface/70' : 'p-6 bg-surface/95 backdrop-blur-xl'} rounded-xl border border-secondary/40 ${className}`}>
         <div className="text-center">
           <h3 className="text-lg font-serif text-accent mb-2">
             Visual Companion
@@ -566,7 +566,7 @@ export default function StoryIllustration({
           </p>
           <button
             onClick={() => setShowUpgrade(true)}
-            className="px-6 py-2 bg-gradient-to-r from-primary to-accent 
+            className="min-h-[44px] max-w-full whitespace-normal px-[min(1.5rem,24px)] py-[min(0.5rem,8px)] bg-gradient-to-r from-primary to-accent
                        text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
                        transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >

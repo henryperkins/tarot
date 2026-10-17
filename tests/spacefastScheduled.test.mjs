@@ -41,14 +41,14 @@ function silence(t) {
   for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
 }
 
-test('Spacefast video scheduling reports a swallowed reconciliation failure', async (t) => {
+test('retired video scheduling reports a skip without touching bindings', async (t) => {
   silence(t);
   const f = environment();
   f.env.METRICS_DB.list = async () => { throw new Error('KV unavailable.'); };
   const result = await handleScheduled({ cron: '*/10 * * * *' }, f.env, {}, { reportFailures: true });
-  assert.equal(result.success, false);
-  assert.deepEqual(result.failedTasks, ['cardVideo']);
-  assert.equal(result.results.cardVideo.errors, 1);
+  assert.equal(result.success, true);
+  assert.equal(result.skipped, 'retired-video-schedule');
+  assert.deepEqual(result.failedTasks, []);
   assert.equal(f.statements.length, 0, 'video-only scheduling must keep its early return');
 });
 

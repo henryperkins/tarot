@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { Sparkle, Check, Star, CaretRight, Lock } from './icons';
 import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
@@ -15,6 +15,9 @@ import { getSpreadArt } from '../utils/spreadArt';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 
 const STAR_TOTAL = 3;
+// Handset cards have a 14rem minimum, then occupy 70% of the padded carousel.
+// Account for the panel/card padding instead of requesting nearly a full viewport.
+const SPREAD_PREVIEW_SIZES = '(max-width: 374px) 196px, (max-width: 639px) calc(70vw - 80px), (max-width: 1023px) 46vw, 340px';
 
 function hexToRgb(hex) {
   if (!hex || typeof hex !== 'string') return null;
@@ -178,6 +181,21 @@ export function SpreadSelector({
       resizeObserver?.disconnect();
     };
   }, [spreadKeys.length, updateEdgeFades]);
+
+  // A spread selected outside the carousel (a reading restored after a reload,
+  // a journal suggestion) can sit entirely off screen; bring it into view.
+  // A partly visible card is left alone: the carousel keeps its starting
+  // position, and a tapped card already centres itself (scrollToIndex).
+  useLayoutEffect(() => {
+    const el = carouselRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth) return;
+    const card = el.children[spreadKeys.indexOf(selectedSpread)];
+    if (!card) return;
+    const left = card.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
+    if (left + card.offsetWidth > el.scrollLeft && left < el.scrollLeft + el.clientWidth) return;
+    el.scrollTo({ left: Math.max(0, left + card.offsetWidth / 2 - el.clientWidth / 2), behavior: 'instant' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- follow the selection, not the list identity
+  }, [selectedSpread]);
 
   const scrollToIndex = (index) => {
     const clamped = Math.min(spreadKeys.length - 1, Math.max(0, index));
@@ -437,9 +455,10 @@ export function SpreadSelector({
 
                 <SpreadPatternThumbnail
                   spreadKey={key}
-                  preview={previewArt}
+                  preview={previewArt ? { ...previewArt, sizes: SPREAD_PREVIEW_SIZES } : null}
                   spreadName={spread.name}
                   className="spread-card__preview w-full"
+                  priority={isFirstSpread || isActive}
                 />
 
                 <div className="spread-card__body">
@@ -489,7 +508,7 @@ export function SpreadSelector({
             totalItems={spreadKeys.length}
             onSelectItem={scrollToIndex}
             labels={spreadKeys.map(key => SPREADS[key]?.name || key)}
-            ariaLabel="Spread selection"
+            ariaLabel="Browse spreads"
             variant="compact"
           />
         </div>

@@ -259,7 +259,7 @@ export async function withRetry(fn, endpoint, requestId, config = {}) {
 }
 
 /**
- * Fetch with retry logic for Azure/Claude APIs
+ * Fetch with retry logic for inference APIs
  *
  * @param {string} url - API URL
  * @param {Object} options - Fetch options

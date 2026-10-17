@@ -90,12 +90,11 @@ not substitute a successful chime for failed narration.
 
 FLUX story art gets one 35-second attempt. An uncancellable stalled inference is
 not retried while it may still be running; existing failed-generation usage refund
-is retained. The capability query `/api/generate-card-video?capabilities=true`
-returns only whether video is enabled and its database/endpoints/keys are configured.
-It returns no secrets and makes no model calls. Both paid-tier UI entry points
-require this server capability; loading or discovery failures hide video. This
-configuration check does not prove provider health or model quality.
+is retained. Card-video generation is retired: `/api/generate-card-video`, including
+capability/status requests, returns HTTP 410 without provider calls or new usage
+charges. The frontend does not offer new video generation. Existing saved media
+remains available through the media library. No replacement video vendor is configured.
 
 Offline tests and local browser fixtures validate these contracts. They do not
-qualify live voice quality, provider billing, production migration state, or video
-output. No production secrets need deletion for the retired Hume endpoint.
+qualify live voice quality, provider billing, or production migration state. Retiring
+configuration and routes locally does not delete any previously stored remote secrets.

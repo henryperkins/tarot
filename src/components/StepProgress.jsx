@@ -21,7 +21,7 @@ const STEP_SHORT_LABELS = {
 // Steps that are optional (shown with indicator)
 const OPTIONAL_STEPS = new Set(['ritual']);
 
-export function StepProgress({ steps = [], activeStep, onSelect, condensed = false }) {
+export function StepProgress({ steps = [], activeStep, onSelect, condensed = false, readingView = false }) {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipTimeoutRef = useRef(null);
   const buttonRefs = useRef({});
@@ -149,6 +149,13 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
     const frameId = window.requestAnimationFrame(() => setActiveTooltip(null));
     return () => window.cancelAnimationFrame(frameId);
   }, [showTooltips]);
+
+  if (readingView) return <nav aria-label="Tarot reading progress"><ol>
+    {steps.map((step, index) => <li key={step.id}><button type="button" onClick={() => onSelect?.(step.id)}
+      aria-current={step.id === activeStep ? 'step' : undefined} aria-label={`Step ${index + 1}: ${step.label}`}>
+      {STEP_SHORT_LABELS[step.id] || step.label}
+    </button></li>)}
+  </ol></nav>;
 
   return (
     <nav

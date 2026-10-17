@@ -74,7 +74,7 @@ export function useFeatureFlags() {
 
     // Auto-generate visuals (ops-only: cost-impacting media automation)
     autoGenerateVisuals: getFlag('auto_generate_visuals', 'VITE_AUTO_GENERATE_VISUALS', false, false),
-    // Server configuration decides whether cinematic generation is available.
+    // New cinematic generation is retired; saved media remains accessible.
     cardVideo,
   }), [cardVideo]);
 

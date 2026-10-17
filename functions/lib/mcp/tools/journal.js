@@ -17,13 +17,12 @@ import { WRITE, fail, ok, toolMeta } from './common.js';
 // and eligibility never come from the model.
 const saveInput = z.object({
   jobId: z.string().min(1),
-  jobToken: z.string().min(1).optional().describe('Deprecated and ignored; send only jobId.'),
   context: journalContextSchema.optional()
 }).strict();
 
 const saveOutput = z.object({
   outcome: z.enum(['saved', 'already_saved']),
-  entry: z.object({ id: z.string(), ts: z.number() }),
+  entry: z.object({ id: z.string() }),
   deduplicated: z.boolean(),
   seedShared: z.boolean().optional()
 });
@@ -44,7 +43,6 @@ const reflectInput = z.object({
 const reflectOutput = z.object({
   outcome: z.enum(['added', 'already_present']),
   entryId: z.string(),
-  key: z.string(),
   target: z.object({
     scope: z.enum(['reading', 'card']),
     // Reusable deck label from addJournalReflection, not the stored canonical name.
@@ -54,6 +52,13 @@ const reflectOutput = z.object({
   }),
   text: z.string()
 });
+
+// Explains a plan-gated feature without naming or promoting plans.
+const JOURNAL_NOT_INCLUDED = "saving readings to the Tableu journal isn't included with this account.";
+
+function journalDenial(denied) {
+  return denied.body?.code === 'service_account_journal_forbidden' ? denied.body.error : JOURNAL_NOT_INCLUDED;
+}
 
 const EXPIRED_JOB =
   'Not saved: this reading can no longer be saved. Readings started in ChatGPT are kept for 24 hours after they are written.';
@@ -89,7 +94,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
     },
     async (input) => {
       const denied = checkJournalAccess(user);
-      if (denied) return fail(`Not saved: ${denied.body.error}`);
+      if (denied) return fail(`Not saved: ${journalDenial(denied)}`);
 
       let entry;
       try {
@@ -105,18 +110,18 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
       switch (result.outcome) {
         case 'saved':
           return ok(
-            { outcome: 'saved', entry: result.entry, deduplicated: false, ...(result.seedShared ? { seedShared: true } : {}) },
+            { outcome: 'saved', entry: { id: result.entry.id }, deduplicated: false, ...(result.seedShared ? { seedShared: true } : {}) },
             `Saved to the Tableu journal (entry ${result.entry.id}). Keep this entry id for reflections.${
               result.seedShared ? ' Another saved reading already uses this seed, so this entry was stored without it.' : ''
             }`
           );
         case 'already_saved':
           return ok(
-            { outcome: 'already_saved', entry: result.entry, deduplicated: true },
+            { outcome: 'already_saved', entry: { id: result.entry.id }, deduplicated: true },
             `This reading was already in the Tableu journal (entry ${result.entry.id}); nothing was changed.`
           );
         case 'conflict':
-          return fail('Not saved: your journal already holds a different reading under this request ID.');
+          return fail('Not saved: your journal already holds a different reading for this request.');
         case 'not_saved':
           return fail('Not saved: the journal write failed. Retrying once is safe.');
         default:
@@ -138,7 +143,7 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
     },
     async (input) => {
       const denied = checkJournalAccess(user);
-      if (denied) return fail(`Not added: ${denied.body.error}`);
+      if (denied) return fail(`Not added: ${journalDenial(denied)}`);
       if (input.scope === 'card' && !input.card) {
         return fail('Not added: name the card, as the reading showed it, when scope is card.');
       }
@@ -152,13 +157,13 @@ export function registerJournalTools(server, { env, user, waitUntil }) {
       });
 
       if (result.status === 200) {
-        const { entryId, key, reflection, alreadyPresent } = result.body;
+        const { entryId, reflection, alreadyPresent } = result.body;
         // Task 6 returns the deck label, which this tool accepts on retries.
         const target = reflection.scope === 'card'
           ? { scope: 'card', card: reflection.card, position: reflection.position, cardIndex: reflection.cardIndex }
           : { scope: 'reading' };
         return ok(
-          { outcome: alreadyPresent ? 'already_present' : 'added', entryId, key, target, text: reflection.text },
+          { outcome: alreadyPresent ? 'already_present' : 'added', entryId, target, text: reflection.text },
           alreadyPresent
             ? 'That note is already attached to this reading; nothing was added.'
             : 'Reflection added to the journal entry.'

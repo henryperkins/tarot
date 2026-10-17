@@ -69,7 +69,7 @@ async function withMockedFetch(mockFetch, fn) {
   }
 }
 
-function mockAzureFetch() {
+function mockOpenAIFetch() {
   return async () => new Response(
     JSON.stringify({
       output_text: MOCK_READING,
@@ -80,8 +80,8 @@ function mockAzureFetch() {
 }
 
 // Build a mock narrative that names the given cards, so a backend-drawn hand
-// clears the card-coverage quality gate and the azure-gpt5 backend is accepted.
-function mockAzureFetchCovering(cardNames) {
+// clears the card-coverage quality gate and the openai-native backend is accepted.
+function mockOpenAIFetchCovering(cardNames) {
   const body = [
     '### Opening',
     '',
@@ -104,10 +104,10 @@ function mockAzureFetchCovering(cardNames) {
   );
 }
 
-const AZURE_ENV = {
-  AZURE_OPENAI_API_KEY: 'test-key',
-  AZURE_OPENAI_ENDPOINT: 'https://example.com',
-  AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+const OPENAI_ENV = {
+  OPENAI_API_KEY: 'test-key',
+  OPENAI_BASE_URL: 'https://example.com',
+  OPENAI_MODEL: 'gpt-5',
   EVAL_ENABLED: 'false',
   EVAL_GATE_ENABLED: 'false',
   GRAPHRAG_ENABLED: 'false'
@@ -185,11 +185,11 @@ describe('buildPromptDebugPayload', () => {
   it('returns raw prompts verbatim with provider and version', () => {
     const payload = buildPromptDebugPayload({
       capturedPrompts: { system: 'SYS-PROMPT', user: 'USER-PROMPT' },
-      provider: 'azure-gpt5'
+      provider: 'openai-native'
     });
     assert.equal(payload.systemPrompt, 'SYS-PROMPT');
     assert.equal(payload.userPrompt, 'USER-PROMPT');
-    assert.equal(payload.provider, 'azure-gpt5');
+    assert.equal(payload.provider, 'openai-native');
     assert.equal(payload.templateVersion, READING_PROMPT_VERSION);
   });
 
@@ -240,20 +240,20 @@ describe('tarot-reading promptDebug response', () => {
       { authorization: `Bearer ${OWNER_TOKEN}` }
     );
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
       GPT_SERVICE_TOKEN: SERVICE_TOKEN,
       GPT_OWNER_TOKEN: OWNER_TOKEN
     };
 
-    await withMockedFetch(mockAzureFetch(), async () => {
+    await withMockedFetch(mockOpenAIFetch(), async () => {
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
 
       const payload = await response.json();
-      assert.equal(payload.provider, 'azure-gpt5');
+      assert.equal(payload.provider, 'openai-native');
       assert.ok(payload.promptDebug, 'promptDebug should be present');
-      assert.equal(payload.promptDebug.provider, 'azure-gpt5');
+      assert.equal(payload.promptDebug.provider, 'openai-native');
       assert.equal(payload.promptDebug.templateVersion, READING_PROMPT_VERSION);
       assert.ok(
         typeof payload.promptDebug.systemPrompt === 'string' && payload.promptDebug.systemPrompt.length > 0,
@@ -272,16 +272,16 @@ describe('tarot-reading promptDebug response', () => {
       { authorization: `Bearer ${SERVICE_TOKEN}` }
     );
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
       GPT_SERVICE_TOKEN: SERVICE_TOKEN
     };
 
-    await withMockedFetch(mockAzureFetch(), async () => {
+    await withMockedFetch(mockOpenAIFetch(), async () => {
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
-      assert.equal(payload.provider, 'azure-gpt5');
+      assert.equal(payload.provider, 'openai-native');
       assert.equal(payload.promptDebug, undefined);
     });
   });
@@ -292,12 +292,12 @@ describe('tarot-reading promptDebug response', () => {
       { authorization: `Bearer ${SERVICE_TOKEN}` }
     );
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       GPT_SERVICE_TOKEN: SERVICE_TOKEN
       // PROMPT_DEBUG_ENABLED intentionally unset
     };
 
-    await withMockedFetch(mockAzureFetch(), async () => {
+    await withMockedFetch(mockOpenAIFetch(), async () => {
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
@@ -314,13 +314,13 @@ describe('tarot-reading promptDebug response', () => {
       { authorization: `Bearer ${SERVICE_TOKEN}` }
     );
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
       GPT_SERVICE_TOKEN: SERVICE_TOKEN,
       GPT_OWNER_TOKEN: OWNER_TOKEN
     };
 
-    await withMockedFetch(mockAzureFetch(), async () => {
+    await withMockedFetch(mockOpenAIFetch(), async () => {
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
@@ -335,12 +335,12 @@ describe('tarot-reading promptDebug response', () => {
       includePromptDebug: true
     });
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       PROMPT_DEBUG_ENABLED: 'true'
       // No GPT_SERVICE_TOKEN and no auth header -> anonymous caller.
     };
 
-    await withMockedFetch(mockAzureFetch(), async () => {
+    await withMockedFetch(mockOpenAIFetch(), async () => {
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
@@ -388,20 +388,20 @@ describe('drawTarotReading promptDebug passthrough', () => {
       { authorization: `Bearer ${OWNER_TOKEN}` }
     );
     const env = {
-      ...AZURE_ENV,
+      ...OPENAI_ENV,
       PROMPT_DEBUG_ENABLED: 'true',
       GPT_SERVICE_TOKEN: SERVICE_TOKEN,
       GPT_OWNER_TOKEN: OWNER_TOKEN
     };
 
-    await withMockedFetch(mockAzureFetchCovering(cardNames), async () => {
+    await withMockedFetch(mockOpenAIFetchCovering(cardNames), async () => {
       const response = await drawTarotReading({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
       assert.ok(Array.isArray(payload.cardsInfo) && payload.cardsInfo.length === 1);
-      assert.equal(payload.provider, 'azure-gpt5');
+      assert.equal(payload.provider, 'openai-native');
       assert.ok(payload.promptDebug, 'draw response should carry promptDebug');
-      assert.equal(payload.promptDebug.provider, 'azure-gpt5');
+      assert.equal(payload.promptDebug.provider, 'openai-native');
       assert.match(payload.promptDebug.userPrompt, /Zephyrina/);
     });
   });
@@ -419,13 +419,13 @@ describe('drawTarotReading promptDebug passthrough', () => {
       seed: seedStr,
       includePromptDebug: true
     });
-    const env = { ...AZURE_ENV, PROMPT_DEBUG_ENABLED: 'true' }; // no service token
+    const env = { ...OPENAI_ENV, PROMPT_DEBUG_ENABLED: 'true' }; // no service token
 
-    await withMockedFetch(mockAzureFetchCovering(cardNames), async () => {
+    await withMockedFetch(mockOpenAIFetchCovering(cardNames), async () => {
       const response = await drawTarotReading({ request, env });
       assert.equal(response.status, 200);
       const payload = await response.json();
-      assert.equal(payload.provider, 'azure-gpt5');
+      assert.equal(payload.provider, 'openai-native');
       assert.equal(payload.promptDebug, undefined);
     });
   });

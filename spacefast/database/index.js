@@ -50,7 +50,7 @@ class Statement {
     return this.database.native.prepare(this.plan.sql).bind(...values);
   }
   async all() {
-    if (this.plan.lock) return (await this.database.batch([this]))[0];
+    if (this.plan.lock || this.plan.visualFence) return (await this.database.batch([this]))[0];
     try { return normalizeResult(await this.native().all(), this.plan); }
     catch (error) { throw normalizeError(error); }
   }
@@ -83,6 +83,13 @@ export function createSpacefastDatabase(native) {
       if (statements.some(statement => statement.database !== database)) throw new Error('Spacefast database batch mixes bindings');
       const operations = [];
       const slots = [];
+      if (statements.some(statement => statement.plan.visualFence)) {
+        // One transaction-scoped lock serializes global visual budgets with
+        // source edits, owner deletion and replay CAS. Always acquire it first.
+        const key = 'tableu-visual-source-and-admission';
+        operations.push(native.prepare('INSERT IGNORE INTO tableu_quota_locks (identity_key) VALUES (?)').bind(key));
+        operations.push(native.prepare('SELECT identity_key FROM tableu_quota_locks WHERE identity_key = ? FOR UPDATE').bind(key));
+      }
       for (const statement of statements) {
         const lock = statement.plan.lock;
         let countSlot = null;
