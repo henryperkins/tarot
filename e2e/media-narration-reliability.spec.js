@@ -9,6 +9,11 @@ for (const width of [1440, 390]) {
     const savedProvider = width === 1440 ? (theme === 'dark' ? 'hume' : 'azure') : (theme === 'dark' ? 'azure-sdk' : 'deepgram');
     const selectedProvider = theme === 'dark' ? 'deepgram' : 'elevenlabs';
     test(`voice choice, migration and enable/play quota recovery at ${width}px ${theme}`, async ({ page }, testInfo) => {
+      const retiredRequests = [];
+      page.on('request', request => {
+        const path = new URL(request.url()).pathname;
+        if (path === '/api/speech-token' || path === '/api/generate-card-video') retiredRequests.push(path);
+      });
       await page.setViewportSize({ width, height: 1000 });
       await page.addInitScript(({ theme, savedProvider }) => {
         if (sessionStorage.getItem('narration-test-initialized')) return;
@@ -102,7 +107,7 @@ for (const width of [1440, 390]) {
         await expect(plans).toBeFocused();
         await plans.press('Enter');
         await expect(page).toHaveURL(/\/pricing$/);
-
+        expect(retiredRequests).toEqual([]);
       } finally { await fixture.close(); }
     });
   }

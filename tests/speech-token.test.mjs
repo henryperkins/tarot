@@ -11,6 +11,7 @@ for (const [method, handler] of [['GET', onRequestGet], ['POST', onRequestPost]]
     const request = new Proxy({}, { get() { throw new Error('Retired speech tokens must never resolve authentication'); } });
     const response = await handler({ request, env });
     assert.equal(response.status, 410);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.match(response.headers.get('content-type'), /application\/json/);
     const payload = await response.json();
     assert.equal(payload.errorCode, 'SPEECH_PROVIDER_RETIRED');

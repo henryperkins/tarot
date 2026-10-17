@@ -62,7 +62,6 @@ graph TB
     Worker -->|Payments| Stripe
     Worker -->|Alerts| EmailService
     Worker -->|Diagnostics and replay| Sentry
-    Worker --> CronVideo
     Worker --> CronDaily
     CronDaily --> D1
     CronDaily --> KV_Metrics
