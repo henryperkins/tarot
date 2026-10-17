@@ -201,8 +201,8 @@ export function NarrativeCardFocusProvider({
       if (Number.isInteger(index)) container.dataset.spreadHover = String(index);
       else delete container.dataset.spreadHover;
     },
-    selectCard(index) {
-      onSelectCardRef.current?.(index);
+    selectCard(index, inspection = null) {
+      onSelectCardRef.current?.(index, inspection);
     }
   }), []);
 

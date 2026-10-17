@@ -71,7 +71,11 @@ export async function createNarrativeFixture(page, options = {}) {
   const clients = { reading: new Set(), followup: new Set(), visual: new Set() };
   const connectionGenerations = { reading: 0, followup: 0, visual: 0 };
   const connectionIds = new WeakMap();
-  const requests = { reading: [], followup: [], feedback: [], visual: [] };
+  const requests = { reading: [], followup: [], feedback: [], visual: [], journal: [] };
+  const entries = [];
+  let journalStatus = 200;
+  let journalGate = null;
+  let journalRelease;
   let eventId = 0;
   let successfulFollowupStreams = 0;
   let feedbackStatus = options.feedbackStatus || 200;
@@ -133,7 +137,7 @@ export async function createNarrativeFixture(page, options = {}) {
       status: authMode === 'guest' ? 401 : 200,
       json: { user: authMode === 'guest' ? null : {
         id: 'fixture-pro-user', email: 'fixture@example.invalid', username: 'fixture',
-        subscription_tier: 'pro', subscription_status: 'active', subscription_provider: 'stripe'
+        subscription_tier: options.tier || 'pro', subscription_status: 'active', subscription_provider: 'stripe'
       } }
     });
     if (options.relayOrigin && (pathname === '/api/tarot-reading/jobs' || pathname.startsWith('/api/tarot-reading/jobs/') || pathname.startsWith('/api/tarot-reading/visuals/'))) {
@@ -170,7 +174,7 @@ export async function createNarrativeFixture(page, options = {}) {
     }
     if (route.request().method() === 'GET') {
       const defaults = {
-        '/api/subscription': { subscription: { tier: 'pro', status: 'active', provider: 'stripe' } },
+        '/api/subscription': { subscription: { tier: options.tier || 'pro', status: 'active', provider: 'stripe' } },
         '/api/memories': { memories: [] },
         '/api/share': { shares: [] },
         '/api/journal/pattern-alerts': { alerts: [] }
@@ -180,7 +184,20 @@ export async function createNarrativeFixture(page, options = {}) {
     if (pathname === '/api/archetype-journey/track' && route.request().method() === 'POST') {
       return route.fulfill({ json: { success: true } });
     }
-    if (pathname === '/api/journal') return route.fulfill({ json: { entries: [] } });
+    if (pathname === '/api/journal' && route.request().method() === 'POST') {
+      const entry = { ...route.request().postDataJSON(), id: 'reading-purpose-entry', ts: Math.floor(Date.now() / 1000) };
+      requests.journal.push(entry);
+      if (journalGate) await journalGate;
+      if (journalStatus !== 200) return route.fulfill({ status: journalStatus, json: { error: 'Save unavailable' } });
+      const deduplicated = entries.some(item => item.id === entry.id);
+      if (!deduplicated) entries.push(entry);
+      return route.fulfill({ json: { entry, deduplicated } });
+    }
+    if (pathname === '/api/journal') {
+      const id = requestUrl.searchParams.get('entryId');
+      return route.fulfill({ json: id ? { entry: entries.find(entry => entry.id === id) } : { entries, pagination: { hasMore: false, total: entries.length } } });
+    }
+    if (pathname === '/api/journal/reading-purpose-entry') return route.fulfill({ json: { entry: entries[0] } });
     if (pathname === '/api/media') return route.fulfill({ json: { media: [], items: [] } });
     if (pathname === '/api/archetype-journey/preferences') {
       return route.fulfill({ json: { preferences: { archetype_journey_enabled: false } } });
@@ -202,6 +219,10 @@ export async function createNarrativeFixture(page, options = {}) {
     connectionGeneration(kind) { return connectionGenerations[kind] || 0; },
     setVisualSnapshot(value) { visualSnapshot = value; },
     disconnect(kind) { for (const response of clients[kind]) response.end(); },
+    entries,
+    setJournalStatus(status) { journalStatus = status; },
+    holdJournal() { journalGate = new Promise(resolve => { journalRelease = resolve; }); },
+    releaseJournal() { journalRelease?.(); journalGate = null; },
     setFeedbackStatus(status) { feedbackStatus = status; },
     setFollowupStatus(status) { followupStatus = status; },
     holdFeedback() { feedbackGate = new Promise(resolve => { feedbackRelease = resolve; }); },
@@ -225,6 +246,7 @@ export async function createNarrativeFixture(page, options = {}) {
       expect(requests.reading).toHaveLength(1);
     },
     async close() {
+      journalRelease?.();
       feedbackRelease?.();
       for (const group of Object.values(clients)) for (const response of group) response.end();
       server.closeAllConnections();
@@ -245,12 +267,14 @@ export async function openSetup(page, { url = '/' } = {}) {
   await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
 }
 
-export async function startReading(page, fixture, { complete = true, setup = true } = {}) {
+export async function startReading(page, fixture, { complete = true, setup = true, question = QUESTION, spreadName = null, reflection = null } = {}) {
   if (setup) await openSetup(page);
-  await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(fixture.question || QUESTION);
+  if (spreadName) await page.getByRole('radio', { name: new RegExp(spreadName) }).click();
+  await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(question || fixture.question || QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+  if (reflection !== null) await page.getByPlaceholder('Your reflection (optional)').fill(reflection);
   await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
   if (complete) await fixture.completeReading();
 }
@@ -367,5 +391,14 @@ export async function badgeContrast(locator) {
     }).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
     const values = [luminance(renderedText), luminance(background)].sort((a, b) => b - a);
     return { ratio: (values[0] + 0.05) / (values[1] + 0.05), foreground, background, opacity };
+  });
+}
+
+export async function settleReadingLayout(page) {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const animations = document.querySelector('.header-sticky')?.getAnimations({ subtree: true }) || [];
+    await Promise.allSettled(animations.filter(animation => animation.effect.getComputedTiming().iterations !== Infinity).map(animation => animation.finished));
   });
 }

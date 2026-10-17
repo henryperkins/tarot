@@ -88,7 +88,7 @@ for (const width of [1440, 390]) {
         const cardDialog = page.getByRole('dialog');
         await expect(cardDialog).toBeVisible();
         await expect(cardDialog.getByRole('button', { name: 'Cinematic reveal' })).toHaveCount(0);
-        await page.getByRole('button', { name: 'Close modal' }).press('Enter');
+        await page.getByRole('button', { name: 'Back to reading' }).press('Enter');
         await expect(cardDialog).toHaveCount(0);
         await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
         await fixture.completeReading();
@@ -176,9 +176,11 @@ test('stream duration stays indeterminate until a finite length is available', a
   await page.route('**/api/**', route => route.fulfill({ json: {} }));
   await page.goto('/');
   const results = await page.evaluate(async () => {
-    const reactModule = await import('/node_modules/.vite/deps/react.js');
+    const dependencyUrl = name => performance.getEntriesByType('resource').map(entry => entry.name)
+      .find(url => new URL(url).pathname.endsWith(`/deps/${name}.js`));
+    const reactModule = await import(dependencyUrl('react'));
     const React = reactModule.default || reactModule;
-    const clientModule = await import('/node_modules/.vite/deps/react-dom_client.js');
+    const clientModule = await import(dependencyUrl('react-dom_client'));
     const { createRoot } = clientModule.default || clientModule;
     const { NarrationProgress } = await import('/src/components/NarrationProgress.jsx');
     const container = document.createElement('div');

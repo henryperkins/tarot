@@ -160,7 +160,8 @@ export function useReadingSelection({
 
         const card = reading[nextIndex];
         const position = spreadPositions?.[nextIndex] || `Position ${nextIndex + 1}`;
-        const payload = { card, position, index: nextIndex, readingKey: readingIdentity };
+        const payload = { card, position, index: nextIndex, readingKey: readingIdentity,
+            inspection: selectedCardData?.inspection ? { ...selectedCardData.inspection, phrase: null, touchIds: [] } : null };
 
         if (activeFocusedCardData) {
             setFocusedCardData(payload);

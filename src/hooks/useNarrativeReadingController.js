@@ -25,6 +25,7 @@ import {
 
 export function useNarrativeReadingController({
   reading,
+  reflections = null,
   deckStyleId,
   onSelectInsightCard,
   visibleCount,
@@ -51,7 +52,6 @@ export function useNarrativeReadingController({
   autoGenerateVisualsEnabled,
   cardVideoEnabled,
   userQuestion,
-  reflections,
   displayName,
   isHandset,
   isLandscape,
@@ -64,6 +64,7 @@ export function useNarrativeReadingController({
   shouldShowJournalNudge,
   markJournalNudgeSeen,
   saveReading,
+  saveController,
   onRetryNarrative,
   isSaving,
   savedEntryId = null,
@@ -80,6 +81,7 @@ export function useNarrativeReadingController({
   handleNarrationButtonClick,
   handleVoicePromptEnable,
   readingIdentity,
+  inspectionOpen = false,
   persistMediaRecord,
   setHasHeroStoryArt,
   canShowVisionPanel,
@@ -195,6 +197,7 @@ export function useNarrativeReadingController({
   const shouldStreamNarrative = Boolean(
     personalReading
     && !personalReading.isError
+    && !personalReading.isRestored
     && !isReadingStreaming
     && !isServerStreamed
   );
@@ -204,7 +207,7 @@ export function useNarrativeReadingController({
     handleVoicePrompt
   } = useNarrationAutomation({
     voiceOn,
-    autoNarrate,
+    autoNarrate: autoNarrate && !personalReading?.isRestored,
     narrativePhase,
     isReadingStreaming,
     isPersonalReadingError,
@@ -316,7 +319,8 @@ export function useNarrativeReadingController({
     isMobileStableMode,
     spreadCards,
     cardLinkCatalog
-  }), originalContext, displayCards, savedEntryId, spreadName }), [
+  }), originalContext, displayCards, savedEntryId, spreadName, saveController }), [
+    saveController,
     originalContext,
     displayCards,
     savedEntryId,
@@ -344,6 +348,9 @@ export function useNarrativeReadingController({
     narrativePhase,
     narrativeText,
     personalReading,
+    readingIdentity,
+    inspectionOpen,
+    reflections,
     shouldShowJournalNudge,
     shouldStreamNarrative,
     showVoicePrompt,

@@ -157,8 +157,9 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     };
     const handleOver = (event) => {
       if (event.pointerType === 'touch') return;
+      if (!event.movementX && !event.movementY) return;
       const found = pointerFocusFor(event.target, container);
-      if (!found) return;
+      if (!found) { mark(null); api.clearPointerFocus(); return; }
       mark(found.element);
       api.setPointerFocus(found.focus);
     };
@@ -173,6 +174,7 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
     };
     // Touch has no hover: a tap lights the card for a moment instead.
     const handleClick = (event) => {
+      if (window.getSelection()?.toString().trim()) return;
       const found = pointerFocusFor(event.target, container);
       if (!found) return;
       mark(found.element);
@@ -183,11 +185,11 @@ export function useNarrativeReadingLine(containerRef, { enabled = false, isLive 
       }, PIN_MS);
     };
 
-    container.addEventListener('pointerover', handleOver);
+    container.addEventListener('pointermove', handleOver);
     container.addEventListener('pointerout', handleOut);
     container.addEventListener('click', handleClick);
     return () => {
-      container.removeEventListener('pointerover', handleOver);
+      container.removeEventListener('pointermove', handleOver);
       container.removeEventListener('pointerout', handleOut);
       container.removeEventListener('click', handleClick);
       mark(null);

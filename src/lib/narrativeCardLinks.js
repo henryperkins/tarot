@@ -664,6 +664,7 @@ function annotateAuthoredRanges(tree, associations) {
         if (before === null || after === null) continue;
         const wrapper = { type: 'gestureAssociation', data: { hName: 'span', hProperties: {
           className: [range.association.kind === 'identity' ? 'reading-gesture-identity' : 'reading-gesture-association'], dataGestureId: range.association.id,
+          dataGestureHeading: node.type === 'heading' ? 'true' : undefined,
           dataSourceStart: String(range.start), dataSourceEnd: String(range.end)
         } }, children: middle.filter(Boolean), position: { start: { offset: range.start }, end: { offset: range.end } } };
         node.children.splice(node.children.indexOf(selected[0]), selected.length, ...[before, wrapper, after].filter(Boolean));

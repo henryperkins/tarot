@@ -1,3 +1,4 @@
+import { ReadingCompletionActions } from './reading/complete/ReadingCompletionActions';
 import { useMemo, useEffect, useRef } from 'react';
 import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
@@ -129,6 +130,7 @@ function MobileActionContents({
   onDealNext,
   onGenerateNarrative,
   onSaveReading,
+  saveController,
   isSaving = false,
   savedEntryId = null,
   onViewSavedEntry,
@@ -211,6 +213,7 @@ function MobileActionContents({
     tableAction,
     onGenerateNarrative,
     onSaveReading,
+    saveController,
     isSaving,
     savedEntryId,
     onViewSavedEntry,
@@ -250,6 +253,7 @@ function renderActions(mode, options) {
     tableAction,
     onGenerateNarrative,
     onSaveReading,
+    saveController,
     isSaving,
     savedEntryId,
     onViewSavedEntry,
@@ -403,6 +407,8 @@ function renderActions(mode, options) {
       );
 
     case 'completed':
+      if (saveController && hasNarrative) return <ReadingCompletionActions saveController={saveController}
+        onViewJournalEntry={onViewSavedEntry} onOpenFollowUp={showFollowUp ? onOpenFollowUp : null} followUpOpen={isFollowUpOpen} />;
       return (
         <>
           {hasNarrative && (

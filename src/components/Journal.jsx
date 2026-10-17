@@ -716,6 +716,7 @@ export default function Journal() {
             >
               <JournalEntryCard
                 entry={entry}
+                openRequestKey={isHighlighted ? highlightNavigationKey : null}
                 isAuthenticated={isAuthenticated}
                 onCreateShareLink={isAuthenticated ? createShareLink : null}
                 shareLinks={shareLinks}

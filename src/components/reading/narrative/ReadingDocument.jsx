@@ -4,6 +4,7 @@ import { NarrativeSafetyNotice } from '../../NarrativeSafetyNotice';
 import { NarrativePanelHeader } from './NarrativePanelHeader';
 import { ReadingSpread, ReadingCardFigure, ReadingChapterCards } from './ReadingSpread';
 import { ReadingContents } from './ReadingContents';
+import { ReadingCompletionActions } from '../complete/ReadingCompletionActions';
 import { getReadingSections, getSectionKeyFromHeading, getReadingChapterCards } from '../../../lib/narrativeSections';
 
 const EMPTY_CARDS = [];
@@ -65,11 +66,14 @@ export function ReadingDocument({ model, callbacks }) {
         gestureSource={model.gestureSource} getHeadingProps={headingProps} renderHeadingLead={headingLead} />
     </div>
     {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions">
+      {model.saveController ? <ReadingCompletionActions saveController={model.saveController}
+        onViewJournalEntry={callbacks.onViewJournalEntry} onOpenFollowUp={callbacks.onOpenFollowUp} /> : <>
       <button type="button" className="reading-screen__primary" disabled={model.controlsModel?.isSaving}
         onClick={() => model.savedEntryId ? callbacks.onViewJournalEntry?.(model.savedEntryId) : callbacks.onSaveReading?.()}>
         {model.savedEntryId ? 'View saved entry' : model.controlsModel?.isSaving ? 'Saving…' : 'Save to journal'}
       </button>
       {callbacks.onOpenFollowUp && <button type="button" className="reading-screen__secondary" onClick={callbacks.onOpenFollowUp}>Ask about this reading</button>}
+      </>}
     </div>}
     <details className="reading-about"><summary>About this reading</summary><NarrativeSafetyNotice compact />
       {model.focusToggleAvailable && <button type="button" className="min-h-touch text-sm" aria-pressed={model.isNarrativeFocus}

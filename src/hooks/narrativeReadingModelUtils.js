@@ -235,6 +235,7 @@ export function deriveNarrativeVisibility({
 }
 
 export function buildNarrativePanelModel({
+  reflections = null,
   personalReading,
   isPersonalReadingError,
   isReadingStreaming,
@@ -285,7 +286,7 @@ export function buildNarrativePanelModel({
     && !journalStatus
   );
   const panelClassName = `narrative-panel bg-surface/95 ${isMobileStableMode ? 'narrative-panel--stable' : 'backdrop-blur-xl'} rounded-2xl border border-secondary/40 shadow-2xl shadow-secondary/40 max-w-full sm:max-w-5xl mx-auto min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] ${isLandscape ? 'p-3' : 'px-3 xxs:px-4 py-4 xs:px-5 sm:p-6 md:p-8'}`;
-  const question = typeof userQuestion === 'string' ? userQuestion.trim() : '';
+  const question = typeof userQuestion === 'string' ? userQuestion : '';
   const { full: narrationLabel, compact: narrationLabelCompact } = getNarrationLabels(narrationState);
 
   return {
@@ -296,6 +297,7 @@ export function buildNarrativePanelModel({
     personalContext,
     manualInspectionStatus,
     question,
+    reflections,
     isHandset,
     personalReading,
     shouldStreamNarrative,

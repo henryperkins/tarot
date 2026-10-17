@@ -22,6 +22,7 @@ export function Header({
   isShuffling,
   minimalNav = false,
   readingView = false,
+  installInMenu = false,
   onOpenReadingSettings
 }) {
   const prefersReducedMotion = useReducedMotion();
@@ -186,7 +187,7 @@ export function Header({
             {/* Desktop actions reserve their own space alongside the destinations. */}
             <div className="hidden max-w-full sm:block">
               <div className="header-sticky__user">
-                <UserMenu condensed={isCompact} />
+                <UserMenu condensed={isCompact} installInMenu={installInMenu} />
               </div>
             </div>
           </div>

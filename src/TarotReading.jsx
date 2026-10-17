@@ -423,7 +423,7 @@ export default function TarotReading() {
     setUserQuestion(question || '');
     setThemes(entryThemes || null);
     setAnalysisContext(entryContext || null);
-    setPersonalReading(formatReading(entryNarrative || ''));
+    setPersonalReading({ ...formatReading(entryNarrative || ''), isRestored: true });
     setNarrativePhase('complete');
     setIsGenerating(false);
     setJournalStatus(null);
@@ -763,7 +763,8 @@ export default function TarotReading() {
 
   // --- Logic: Journal Saving ---
 
-  const { saveReading, isSaving, savedEntryId } = useSaveReading();
+  const saveController = useSaveReading();
+  const { saveReading, isSaving, savedEntryId } = saveController;
 
   // --- Logic: UI State Builders ---
 
@@ -970,6 +971,7 @@ export default function TarotReading() {
             if (isHandset) setIsMobileSettingsOpen(true);
             else navigate('/account');
           }}
+          installInMenu={Boolean(personalReading) || isGenerating}
         />
 
         {apiHealthBanner && showSetupSection && !suppressFocusInterruptions && (
@@ -1125,6 +1127,7 @@ export default function TarotReading() {
             </section>
           }>
             <ReadingDisplay
+              saveController={saveController}
               onCardModalChange={setIsCardModalOpen}
               sectionRef={readingSectionRef}
               onOpenFollowUp={canShowFollowUp ? handleOpenFollowUp : null}
@@ -1149,7 +1152,7 @@ export default function TarotReading() {
             />
           </section>
         ))}
-        <InstallFooter />
+        {!personalReading && !isGenerating ? <InstallFooter /> : null}
       </main>
 
       {canShowFollowUp && (
@@ -1195,6 +1198,8 @@ export default function TarotReading() {
               onDealNext={dealNext}
               onRevealAll={handleRevealAll}
               onGenerateNarrative={handleGeneratePersonalReading}
+              saveController={saveController}
+              onViewJournalEntry={(entryId) => navigate('/journal', { state: entryId ? { highlightEntryId: entryId, fromReading: true } : null })}
               onSaveReading={saveReading}
               isSaving={isSaving}
               savedEntryId={savedEntryId}
@@ -1247,6 +1252,7 @@ export default function TarotReading() {
                 onDealNext={dealNext}
                 onRevealAll={handleRevealAll}
                 onGenerateNarrative={handleGeneratePersonalReading}
+                saveController={saveController}
                 onSaveReading={saveReading}
                 isSaving={isSaving}
                 savedEntryId={savedEntryId}

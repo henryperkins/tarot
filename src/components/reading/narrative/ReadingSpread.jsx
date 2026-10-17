@@ -1,11 +1,12 @@
 import { useState } from 'react';
 
 export function ReadingCardFigure({ card, onSelectCard, compact = false, numbered = false, children }) {
-  const inspect = () => {
-    onSelectCard?.(card.index);
+  const inspect = event => {
+    onSelectCard?.(card.index, { triggerElement: event.currentTarget });
   };
   return <figure className={`reading-card${compact ? ' reading-card--compact' : ''}`} data-spread-index={card.index}>
     <button type="button" className="reading-card__art"
+      aria-haspopup="dialog"
       aria-label={`${card.fullPositionLabel || card.positionLabel}: ${card.name}, ${card.isReversed ? 'reversed' : 'upright'}. Open card`}
       onClick={inspect} style={{ '--reading-card-ratio': (!compact && card.overviewFrame) || card.frame || '100 / 172' }}>
       <img src={(!compact && card.overviewImage) || card.image} alt={card.name} className={card.isReversed ? 'reading-card__image--reversed' : ''}
@@ -37,6 +38,7 @@ export function ReadingSpread({ cards = [], onSelectCard, spreadName, showSummar
       {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} numbered={celtic && !list} />)}
     </div>
     {celtic && !list && <p className="reading-spread__hint">Tap a card to explore its position</p>}
+    {cards.length > 3 && !celtic && <p className="reading-spread__hint">Scroll to see every card. Tap a card to explore it.</p>}
     {showSummary && <p className="reading-spread__summary">{cards.length} cards · {reversed} reversed · {majors} Major Arcana</p>}
   </section>;
 }
