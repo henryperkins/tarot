@@ -146,6 +146,62 @@ test('narrative metrics recognize choosing and trajectory as explicit agency cue
   assert.ok(!metrics.perSample[0].issueFlags.includes('missing-agency-language'));
 });
 
+test('narrative metrics recognize affirmative decisions shaping the outcome', async () => {
+  const readings = [
+    'Your decisions about when and how to share this work are what shape where it goes from here.',
+    'Your decisions shape the path ahead.',
+    'Your decisions influence the direction of this project.',
+    'Your decisions can influence the direction.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `affirmative-decisions-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+
+  assert.equal(metrics.missingAgencyCount, 0);
+  for (const [index, sample] of metrics.perSample.entries()) {
+    assert.equal(sample.hasAgencyLanguage, true, readings[index]);
+    assert.ok(!sample.issueFlags.includes('missing-agency-language'), readings[index]);
+  }
+});
+
+test('decision agency detection rejects bare mentions, negation and fatalistic contexts', async () => {
+  const readings = [
+    'Decisions are difficult.',
+    'Your decisions cannot shape what happens.',
+    "Your decisions can't shape what happens.",
+    'Your decisions can’t shape what happens.',
+    'Your decisions are not what shape what follows.',
+    'Your decisions about timing never are what shape the outcome.',
+    'Your decisions shape nothing; destiny determines the outcome.',
+    'Nobody believes your decisions shape what comes next.',
+    'Your decisions. Fate shapes your future.',
+    'Fate, not your decisions, is what shapes the outcome.',
+    'Your decisions about timing are powerless to shape the outcome.',
+    'It is a myth that your decisions shape the future.',
+    'Your decisions about timing are what shape nothing.',
+    "Your decisions about timing aren't what shape what follows.",
+    'Your decisions about timing guide nobody.',
+    "Your decisions about timing can't shape what happens.",
+    'Your decisions about timing can’t shape what happens.',
+    "Your decisions about timing won't shape what happens.",
+    'Your decisions about timing won’t shape what happens.',
+    'Your decisions about timing are meaningless because the cards shape what happens.',
+    'Your decisions about sharing the work are unimportant because outside forces guide the outcome.',
+    'Your decisions about when to share this work are meaningless because the cards shape what happens.',
+    'Your decisions about when to share this work are unimportant because outside forces are what shape the outcome.',
+    'Your decisions about how to share this work are not what shape the outcome.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `non-agency-decisions-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+
+  assert.equal(metrics.missingAgencyCount, readings.length);
+  for (const [index, sample] of metrics.perSample.entries()) {
+    assert.equal(sample.hasAgencyLanguage, false, readings[index]);
+    assert.ok(sample.issueFlags.includes('missing-agency-language'), readings[index]);
+  }
+});
+
 test('narrative metrics distinguish negated guarantees from deterministic claims', async () => {
   const metrics = await computeMetrics([
     {
