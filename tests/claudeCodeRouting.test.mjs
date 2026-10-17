@@ -34,7 +34,7 @@ test('subscription narrative order excludes paid backends even when their keys e
 });
 
 test('explicit paid narrative backend cannot override personal subscription mode', async () => {
-  for (const backend of ['azure-gpt5', 'claude-api', 'modal-qwen']) {
+  for (const backend of ['openai-native', 'claude-api', 'modal-qwen']) {
     await assert.rejects(runNarrativeBackend(backend, env, {}, 'test'), /subscription mode/i);
   }
 });
@@ -112,7 +112,7 @@ test('questions retain local fallback when Workers AI is missing even in persona
 });
 
 for (const stream of [false, true]) {
-  test(`subscription readings honor Claude selection with Azure streaming enabled (${stream ? 'SSE' : 'JSON'})`, async t => {
+  test(`subscription readings honor Claude selection with OpenAI streaming enabled (${stream ? 'SSE' : 'JSON'})`, async t => {
     const configured = await setup();
     Object.assign(configured, { OPENAI_STREAMING_ENABLED: 'true', ALLOW_STREAMING_WITH_EVAL_GATE: 'true', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
     const urls = [];

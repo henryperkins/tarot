@@ -11,7 +11,7 @@ const question = 'I am preparing for a job interview. ' + 'I have been consideri
 const reflections = 'I am considering the sunlit path in the picture. '.repeat(15) + 'I cannot travel because I am caring for my father.';
 const reflection = 'The golden colors remind me of a quiet afternoon at home. '.repeat(3) + 'The horse represents my daughter rather than a romantic partner.';
 const card = { card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.', userReflection: reflection };
-const fixture = (overrides = {}) => ({ spreadInfo: { name: 'One-Card Insight', key: 'single' }, cardsInfo: [card], userQuestion: question, reflectionsText: reflections, context: 'general', budgetTarget: 'azure', ...overrides });
+const fixture = (overrides = {}) => ({ spreadInfo: { name: 'One-Card Insight', key: 'single' }, cardsInfo: [card], userQuestion: question, reflectionsText: reflections, context: 'general', budgetTarget: 'openai', ...overrides });
 
 it('preserves accepted tail constraints in the real reading API request to Modal', async (t) => {
   const requests = [];

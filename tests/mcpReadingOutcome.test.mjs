@@ -6,7 +6,7 @@ import { classifyReadingResult, READING_OUTCOME } from '../functions/lib/mcp/rea
 describe('classifyReadingResult', () => {
   const cases = [
     ['a narrative', { reading: 'The Star returns.', provider: 'modal-qwen' }, READING_OUTCOME.READING],
-    ['a reading after a failed streamed draft', { reading: 'Vetted.', provider: 'azure-gpt5', gateBlocked: true, gateReason: 'quality_gate_streaming' }, READING_OUTCOME.READING],
+    ['a reading after a failed streamed draft', { reading: 'Vetted.', provider: 'openai-native', gateBlocked: true, gateReason: 'quality_gate_streaming' }, READING_OUTCOME.READING],
     ['a crisis response by provider', { reading: 'Please reach out.', provider: 'safety-gate' }, READING_OUTCOME.SUPPORT],
     ['a crisis response by reason', { reading: 'Please reach out.', provider: 'x', gateBlocked: true, gateReason: 'crisis_gate' }, READING_OUTCOME.SUPPORT],
     ['an eval-gate fallback', { reading: 'A pause.', provider: 'safe-fallback', gateBlocked: true, gateReason: 'tone_lt_2' }, READING_OUTCOME.WITHHELD],

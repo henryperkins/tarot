@@ -56,13 +56,3 @@ test('unavailable accounting fails closed before paid inference', async () => {
   assert.equal(result.allowed, false);
   assert.equal(result.status, 503);
 });
-
-test('speech-token abuse limiting never increments narration usage', async () => {
-  const DB = await createD1();
-  assert.equal(typeof limits.enforceSpeechTokenLimit, 'function');
-  for (let i = 0; i < 6; i++) {
-    assert.equal((await limits.enforceSpeechTokenLimit({ DB }, request(), { id: 'narrator' })).allowed, true);
-  }
-  assert.equal((await limits.enforceSpeechTokenLimit({ DB }, request(), { id: 'narrator' })).status, 429);
-  assert.equal(DB.rows('SELECT * FROM narration_monthly_usage').length, 0);
-});

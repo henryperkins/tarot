@@ -4,7 +4,7 @@
  * Manages the fallback chain of narrative generation backends:
  * 1. claude-api - Claude (Opus 5.5 by default) via the Anthropic Messages API
  * 2. modal-qwen - Qwen via Modal Chat Completions
- * 3. azure-gpt5 - OpenAI native or Azure OpenAI via Responses API
+ * 3. openai-native - native OpenAI via Responses API
  * 4. local-composer - Deterministic local narrative builder
  *
  * Extracted from tarot-reading.js to maintain <900 line limit.
@@ -25,7 +25,7 @@ import {
   computeRemedyRotationIndex
 } from './narrativeBuilder.js';
 import { enhanceSection } from './narrativeSpine.js';
-import { callAzureResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './azureResponses.js';
+import { callOpenAIResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './openaiResponses.js';
 import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
 import { callClaudeCode, isClaudeCodeEnabled } from './claudeCode.js';
 import { callClaudeMessages, isAnthropicConfigured } from './anthropicMessages.js';
@@ -65,7 +65,7 @@ import { collectQuerentReflections } from './querentReflections.js';
  * Ordered list of backend IDs to try (first available wins).
  * Frozen to prevent accidental mutation.
  */
-export const NARRATIVE_BACKEND_ORDER = Object.freeze(['claude-api', 'modal-qwen', 'azure-gpt5', 'local-composer']);
+export const NARRATIVE_BACKEND_ORDER = Object.freeze(['claude-api', 'modal-qwen', 'openai-native', 'local-composer']);
 export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
 
 // Thinking counts toward max_tokens, so a reading needs room for both.
@@ -91,12 +91,11 @@ export const NARRATIVE_BACKENDS = Object.freeze({
     label: 'Qwen 3.8 Max VL Thinking via Modal Chat Completions',
     isAvailable: isModalConfigured
   }),
-  'azure-gpt5': Object.freeze({
-    id: 'azure-gpt5',
-    label: 'Responses API (OpenAI native or Azure)',
+  'openai-native': Object.freeze({
+    id: 'openai-native',
+    label: 'OpenAI Responses API',
     isAvailable: (env) => {
-      if (env?.OPENAI_API_KEY) return true;
-      return Boolean(env?.AZURE_OPENAI_API_KEY && env?.AZURE_OPENAI_ENDPOINT && env?.AZURE_OPENAI_GPT5_MODEL);
+      return Boolean(typeof env?.OPENAI_API_KEY === 'string' && env.OPENAI_API_KEY.trim());
     }
   }),
   'local-composer': Object.freeze({
@@ -673,7 +672,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
  * @param {string} requestId - Request ID for logging
  * @returns {Object} { systemPrompt, userPrompt, promptMeta }
  */
-export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', options = {}) {
+export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown', options = {}) {
   const {
     spreadInfo,
     cardsInfo,
@@ -689,8 +688,8 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
 
   const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
 
-  const promptProvider = options.providerLabel || (env?.OPENAI_API_KEY ? 'OpenAI Responses' : 'Azure OpenAI Responses');
-  const backendId = options.backendId || 'azure-gpt5';
+  const promptProvider = options.providerLabel || 'OpenAI Responses';
+  const backendId = options.backendId || 'openai-native';
   console.log(`[${requestId}] Building ${promptProvider} prompts...`);
 
   // Resolve semantic scoring: env override takes priority, then graphRAG payload setting
@@ -723,7 +722,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
     ephemerisContext: analysis.ephemerisContext,
     ephemerisForecast: analysis.ephemerisForecast,
     transitResonances: analysis.transitResonances,
-    budgetTarget: options.budgetTarget || 'azure',
+    budgetTarget: options.budgetTarget || 'openai',
     contextDiagnostics,
     promptBudgetEnv: env,
     personalization: payload.personalization,
@@ -778,7 +777,7 @@ export function buildAzureGPT5Prompts(env, payload, requestId = 'unknown', optio
  */
 export async function generateWithModalQwen(env, payload, requestId = 'unknown') {
   const { model, reasoningEffort, stream } = ensureModalConfig(env);
-  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(
+  const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(
     env,
     payload,
     requestId,
@@ -820,33 +819,30 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
 }
 
 /**
- * Generate reading using Azure OpenAI GPT-5 via Responses API.
+ * Generate reading using native OpenAI via Responses API.
  *
  * @param {Object} env - Environment bindings
  * @param {Object} payload - Reading payload
  * @param {string} requestId - Request ID for logging
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
-export async function generateWithAzureGPT5Responses(env, payload, requestId = 'unknown') {
-  const isNative = Boolean(env?.OPENAI_API_KEY);
-  const effectiveModel = isNative
-    ? (env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL)
-    : env.AZURE_OPENAI_GPT5_MODEL;
-  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId);
+export async function generateWithOpenAIResponses(env, payload, requestId = 'unknown') {
+  const effectiveModel = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
+  const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(env, payload, requestId);
 
   const reasoningEffort = getReasoningEffort(env, effectiveModel);
   const verbosity = getTextVerbosity(env, effectiveModel);
 
   console.log(`[${requestId}] Request config:`, {
-    provider: isNative ? 'openai-native' : 'azure',
+    provider: 'openai-native',
     model: effectiveModel,
     max_output_tokens: 'unlimited',
     reasoning_effort: reasoningEffort,
     verbosity
   });
 
-  // Call Azure Responses API using consolidated helper
-  const result = await callAzureResponses(env, {
+  // Call OpenAI Responses API using consolidated helper
+  const result = await callOpenAIResponses(env, {
     instructions: systemPrompt,
     input: userPrompt,
     maxTokens: null,          // No limit for full readings
@@ -859,7 +855,7 @@ export async function generateWithAzureGPT5Responses(env, payload, requestId = '
   });
 
   console.log(`[${requestId}] Generated reading length: ${result.text.length} characters`);
-  promptMeta.inference = { provider: isNative ? 'openai-native' : 'azure-gpt5', model: result.model };
+  promptMeta.inference = { provider: 'openai-native', model: result.model };
   if (result.usage) {
     console.log(`[${requestId}] Token usage:`, {
       input_tokens: result.usage.input_tokens,
@@ -908,7 +904,7 @@ export async function generateWithClaudeApi(env, payload, requestId = 'unknown',
   send = callClaudeMessages,
   provider = 'claude-api'
 } = {}) {
-  const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId, {
+  const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(env, payload, requestId, {
     backendId: 'claude-api',
     providerLabel: 'Claude Messages API',
     budgetTarget: 'claude'
@@ -1474,7 +1470,7 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
     let result;
     switch (backendId) {
       case 'claude-code': {
-        const { systemPrompt, userPrompt, promptMeta } = buildAzureGPT5Prompts(env, payload, requestId, {
+        const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(env, payload, requestId, {
           backendId: 'claude-code', providerLabel: 'Claude Code subscription', budgetTarget: 'claude'
         });
         const completion = await callClaudeCode(env, {
@@ -1491,8 +1487,8 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
       case 'modal-qwen':
         result = await generateWithModalQwen(env, payload, requestId);
         break;
-      case 'azure-gpt5':
-        result = await generateWithAzureGPT5Responses(env, payload, requestId);
+      case 'openai-native':
+        result = await generateWithOpenAIResponses(env, payload, requestId);
         break;
       case 'local-composer':
       default:

@@ -15,7 +15,7 @@ import { jsonResponse, sanitizeText } from '../lib/utils.js';
 import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
-import { callAzureResponses } from '../lib/azureResponses.js';
+import { callOpenAIResponses } from '../lib/openaiResponses.js';
 import { callClaudeCode, getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
 import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
@@ -193,8 +193,8 @@ async function generateLLMSummary(env, entries, signal, requestId) {
       console.warn('[journal] Claude API summary failed, trying the Responses API:', error.message);
     }
   }
-  const result = await callAzureResponses(env, { ...options, returnFullResponse: true });
-  return { text: result.text, provider: 'azure-responses', model: result.model };
+  const result = await callOpenAIResponses(env, { ...options, returnFullResponse: true });
+  return { text: result.text, provider: 'openai-native', model: result.model };
 }
 
 export async function onRequestPost(context) {

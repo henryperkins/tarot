@@ -9,7 +9,7 @@
 import { saveMemory } from './userMemory.js';
 
 /**
- * Tool definition for Claude/Azure API
+ * Tool definition for Claude API
  * Compatible with Anthropic tool_use format
  */
 export const MEMORY_TOOL_DEFINITION = {
@@ -82,9 +82,9 @@ export const MEMORY_TOOL_OPENAI_FORMAT = {
 };
 
 /**
- * Tool definition for Azure Responses API (requires name at root level)
+ * Tool definition for OpenAI Responses API (requires name at root level)
  */
-export const MEMORY_TOOL_AZURE_RESPONSES_FORMAT = {
+export const MEMORY_TOOL_OPENAI_RESPONSES_FORMAT = {
   type: 'function',
   name: MEMORY_TOOL_DEFINITION.name,
   description: MEMORY_TOOL_DEFINITION.description,

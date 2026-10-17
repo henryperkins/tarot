@@ -13,7 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
  * - Runs integration-specific test files (*.integration.spec.js)
  *
  * Requirements:
- * - .dev.vars file with API credentials (AZURE_*, etc.)
+ * - .dev.vars file with credentials for enabled integrations (OPENAI_API_KEY, etc.)
  * - All Cloudflare bindings available locally
  *
  * Usage:

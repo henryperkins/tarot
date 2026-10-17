@@ -69,9 +69,9 @@ describe('local-composer language fallback', () => {
       userQuestion: '¿Cómo puedo avanzar en esta relación?'
     });
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
       EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'false',
       AI: { run: async () => ({ response: JSON.stringify({ personalization: 4, tarot_coherence: 4, tone: 4, safety: 4, overall: 4, safety_flag: false }) }) },
@@ -110,7 +110,7 @@ describe('local-composer language fallback', () => {
         assert.equal(response.status, 200);
 
         const payload = await response.json();
-        assert.equal(payload.provider, 'azure-gpt5');
+        assert.equal(payload.provider, 'openai-native');
         assert.match(payload.reading, /### Apertura/);
       }
     );

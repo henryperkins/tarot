@@ -333,7 +333,7 @@ describe('what a finished job delivered', () => {
   });
 
   it('presents a reading whose first streamed draft failed the quality gate', async () => {
-    const waited = await finish(readingRunner({ reading: 'A vetted reading.', provider: 'azure-gpt5', gateReason: 'quality_gate_streaming' }));
+    const waited = await finish(readingRunner({ reading: 'A vetted reading.', provider: 'openai-native', gateReason: 'quality_gate_streaming' }));
     assert.equal(waited.structuredContent.reading, 'A vetted reading.');
     assert.equal(waited.structuredContent.gateBlocked, undefined);
     assert.match(waited.content[0].text, /Present the narrative/);

@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE,
-  buildAzureGPT5Prompts,
+  buildOpenAIResponsesPrompts,
   composeReadingEnhanced,
   generateWithClaudeApi,
   getAvailableNarrativeBackends,
@@ -468,7 +468,7 @@ describe('getLocalComposerLanguageSupport', () => {
   });
 });
 
-describe('buildAzureGPT5Prompts vision evidence threading', () => {
+describe('buildOpenAIResponsesPrompts vision evidence threading', () => {
   it('threads narrativePayload.visionEvidence through to the user prompt and source usage', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
@@ -507,7 +507,7 @@ describe('buildAzureGPT5Prompts vision evidence threading', () => {
       memories: []
     };
 
-    const { userPrompt, promptMeta } = buildAzureGPT5Prompts({}, payload, 'req-vision-evidence');
+    const { userPrompt, promptMeta } = buildOpenAIResponsesPrompts({}, payload, 'req-vision-evidence');
 
     assert.match(userPrompt, /\*\*Uploaded Visible Evidence\*\*/);
     assert.match(userPrompt, /Literal: The figure is near a precipice\./);
@@ -517,7 +517,7 @@ describe('buildAzureGPT5Prompts vision evidence threading', () => {
   });
 });
 
-describe('buildAzureGPT5Prompts', () => {
+describe('buildOpenAIResponsesPrompts', () => {
   it('passes derived redaction hints into prompt logging', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'Past — influences that led here', 'Upright'),
@@ -557,7 +557,7 @@ describe('buildAzureGPT5Prompts', () => {
     };
 
     try {
-      buildAzureGPT5Prompts(
+      buildOpenAIResponsesPrompts(
         { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
         payload,
         'req-redaction'
@@ -668,7 +668,7 @@ describe('Claude backend + dispatch coverage', () => {
     });
     assert.deepEqual(
       backends.map((backend) => backend.id),
-      ['claude-api', 'modal-qwen', 'azure-gpt5', 'local-composer']
+      ['claude-api', 'modal-qwen', 'openai-native', 'local-composer']
     );
   });
 
@@ -682,7 +682,7 @@ describe('Claude backend + dispatch coverage', () => {
 
     assert.deepEqual(
       backends.map((backend) => backend.id),
-      ['modal-qwen', 'azure-gpt5', 'local-composer']
+      ['modal-qwen', 'openai-native', 'local-composer']
     );
   });
 
@@ -693,7 +693,7 @@ describe('Claude backend + dispatch coverage', () => {
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
       OPENAI_API_KEY: 'openai-test-key'
     });
-    assert.deepEqual(backends.map((backend) => backend.id), ['modal-qwen', 'azure-gpt5', 'local-composer']);
+    assert.deepEqual(backends.map((backend) => backend.id), ['modal-qwen', 'openai-native', 'local-composer']);
   });
 
   it('excludes an incomplete Modal credential pair even when a legacy token exists', () => {
@@ -704,7 +704,7 @@ describe('Claude backend + dispatch coverage', () => {
       MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
       OPENAI_API_KEY: 'openai-test-key'
     });
-    assert.deepEqual(backends.map((backend) => backend.id), ['azure-gpt5', 'local-composer']);
+    assert.deepEqual(backends.map((backend) => backend.id), ['openai-native', 'local-composer']);
   });
 
   it('dispatches Modal Chat Completions with thinking enabled and no application output cap', async () => {
@@ -982,7 +982,7 @@ describe('Claude backend + dispatch coverage', () => {
     });
   });
 
-  it('dispatches azure-gpt5, claude-api, local-composer, and unknown ids deterministically', async () => {
+  it('dispatches openai-native, claude-api, local-composer, and unknown ids deterministically', async () => {
     const cardsInfo = [
       major('The Fool', 0, 'One-Card Insight', 'Upright')
     ];
@@ -1006,13 +1006,13 @@ describe('Claude backend + dispatch coverage', () => {
       }
 
       return new Response(JSON.stringify({
-        id: 'azure-dispatch',
+        id: 'openai-dispatch',
         model: 'gpt-5-test',
         output: [
           {
             type: 'message',
             content: [
-              { type: 'output_text', text: 'Azure dispatch reading.' }
+              { type: 'output_text', text: 'OpenAI dispatch reading.' }
             ]
           }
         ],
@@ -1022,13 +1022,13 @@ describe('Claude backend + dispatch coverage', () => {
         headers: { 'content-type': 'application/json' }
       });
     }, async () => {
-      const azureResult = await runNarrativeBackend('azure-gpt5', {
-        AZURE_OPENAI_ENDPOINT: 'https://example.openai.azure.com',
-        AZURE_OPENAI_API_KEY: 'azure-key',
-        AZURE_OPENAI_GPT5_MODEL: 'gpt-5-test'
-      }, structuredClone(basePayload), 'req-azure-dispatch');
-      assert.equal(azureResult.reading, 'Azure dispatch reading.');
-      assert.ok(azureResult.promptMeta, 'Azure dispatch should return promptMeta');
+      const openaiResult = await runNarrativeBackend('openai-native', {
+        OPENAI_BASE_URL: 'https://example.test',
+        OPENAI_API_KEY: 'openai-key',
+        OPENAI_MODEL: 'gpt-5-test'
+      }, structuredClone(basePayload), 'req-openai-dispatch');
+      assert.equal(openaiResult.reading, 'OpenAI dispatch reading.');
+      assert.ok(openaiResult.promptMeta, 'OpenAI dispatch should return promptMeta');
 
       const claudeResult = await runNarrativeBackend('claude-api', {
         ANTHROPIC_API_KEY: 'claude-key'

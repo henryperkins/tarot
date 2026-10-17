@@ -308,7 +308,7 @@ components:
           examples:
             - local-composer
             - openai-native
-            - azure-gpt5
+            - openai-native
         requestId:
           type: string
           description: Unique request identifier.
@@ -531,7 +531,7 @@ components:
           examples:
             - local-composer
             - openai-native
-            - azure-gpt5
+            - openai-native
         requestId:
           type: string
           description: Unique request identifier.
@@ -594,7 +594,7 @@ components:
           description: Narrative backend that assembled the prompt.
           examples:
             - openai-native
-            - azure-gpt5
+            - openai-native
         systemPrompt:
           type: string
           description: Verbatim system prompt sent to the narrative model.

@@ -289,7 +289,7 @@ describe('follow-up reservation tracking', () => {
       journalContextUsed: true,
       patternsFound: 2,
       latencyMs: 320,
-      provider: 'azure-test'
+      provider: 'openai-test'
     });
 
     assert.equal(finalizeResult.updated, true);

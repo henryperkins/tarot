@@ -16,21 +16,18 @@ set -e
 
 WORKER_NAME="tableau"
 
-# List of required secrets (must have values)
-REQUIRED_SECRETS=(
-  "AZURE_OPENAI_ENDPOINT"
-  "AZURE_OPENAI_API_KEY"
-  "AZURE_OPENAI_GPT5_MODEL"
-)
+# Providers are optional; migrate only the integrations configured by the owner.
+REQUIRED_SECRETS=()
 
 # List of optional secrets (may be empty)
 OPTIONAL_SECRETS=(
-  "AZURE_OPENAI_TTS_ENDPOINT"
-  "AZURE_OPENAI_TTS_API_KEY"
-  "AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT"
+  "OPENAI_API_KEY"
   "ANTHROPIC_API_KEY"
+  "MODAL_PROXY_TOKEN_ID"
+  "MODAL_PROXY_TOKEN_SECRET"
+  "MODAL_PROXY_TOKEN"
+  "ELEVENLABS_API_KEY"
   "VISION_PROOF_SECRET"
-  "HUME_API_KEY"
 )
 
 echo "========================================"

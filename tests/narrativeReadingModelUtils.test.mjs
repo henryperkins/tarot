@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
+  buildNarrativePanelModel,
   buildNarrativeText,
   buildStoryArtCards,
   deriveNarrativeVisibility,
@@ -134,5 +135,26 @@ describe('deriveNarrativeVisibility', () => {
     });
     assert.equal(state.shouldShowSpreadInsights, false);
     assert.equal(state.focusToggleAvailable, true);
+  });
+});
+
+describe('reader voice narration progress', () => {
+  test('keeps playback and pause progress visible after migrating the engine ID', () => {
+    for (const status of ['playing', 'paused']) {
+      const model = buildNarrativePanelModel({
+        personalReading: { raw: 'A completed reading.' },
+        fullReadingText: 'A completed reading.',
+        ttsProvider: 'reader-voice',
+        ttsState: { status, currentTime: 10, duration: 50 }
+      });
+      assert.equal(model.statusModel.showNarrationProgress, true);
+      assert.equal(model.controlsModel.showNarrationStop, true);
+    }
+    const completed = buildNarrativePanelModel({
+      personalReading: { raw: 'A completed reading.' },
+      ttsProvider: 'reader-voice',
+      ttsState: { status: 'completed' }
+    });
+    assert.equal(completed.statusModel.showNarrationProgress, false);
   });
 });

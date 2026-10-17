@@ -5,48 +5,20 @@ import {
   getCanAutoNarrate,
   getAutoNarrationReadingKey
 } from '../src/hooks/useNarrationAutomation.js';
+import { normalizeTtsProvider } from '../src/lib/audio.js';
 
 describe('getCanAutoNarrate', () => {
-  test('allows auto narration only for completed non-streaming non-azure readings', () => {
-    const result = getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: false,
-      autoNarrationTriggered: false,
-      ttsProvider: 'azure-sdk'
-    });
-
-    assert.equal(result, true);
-  });
-
-  test('blocks auto narration while streaming, after trigger, or for azure provider', () => {
-    assert.equal(getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: true,
-      autoNarrationTriggered: false,
-      ttsProvider: 'azure-sdk'
-    }), false);
-
-    assert.equal(getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: false,
-      autoNarrationTriggered: true,
-      ttsProvider: 'azure-sdk'
-    }), false);
-
-    assert.equal(getCanAutoNarrate({
-      voiceOn: true,
-      autoNarrate: true,
-      narrativePhase: 'complete',
-      isReadingStreaming: false,
-      autoNarrationTriggered: false,
-      ttsProvider: 'azure'
-    }), false);
+  test('reader voice completion stays owned by ReadingContext after preference migration', () => {
+    for (const savedProvider of ['azure', 'azure-sdk', 'hume', 'reader-voice', null]) {
+      assert.equal(getCanAutoNarrate({
+        voiceOn: true,
+        autoNarrate: true,
+        narrativePhase: 'complete',
+        isReadingStreaming: false,
+        autoNarrationTriggered: false,
+        ttsProvider: normalizeTtsProvider(savedProvider)
+      }), false, 'Do not start a second narration from the narrative display');
+    }
   });
 });
 

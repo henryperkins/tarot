@@ -210,7 +210,7 @@ describe('follow-up falls back to the reading provider', () => {
     const response = await onRequestPost({ env: { ...ENV, DB: db }, request: followUpRequest({ stream: true }) });
 
     const events = await readEvents(response);
-    assert.equal(events.find(e => e.event === 'meta').data.provider, 'azure-responses-stream-buffered');
+    assert.equal(events.find(e => e.event === 'meta').data.provider, 'openai-native');
     assert.equal(events.find(e => e.event === 'done').data.fullText, OPENAI_TEXT);
     assert.equal(calls.modal.length, 0);
   });
@@ -312,7 +312,7 @@ describe('follow-up answers come from the Claude API first', () => {
     const response = await onRequestPost({ env: { ...CLAUDE_ENV, DB: db }, request: followUpRequest({ stream: true }) });
 
     const events = await readEvents(response);
-    assert.equal(events.find(e => e.event === 'meta').data.provider, 'azure-responses-stream-buffered');
+    assert.equal(events.find(e => e.event === 'meta').data.provider, 'openai-native');
     assert.equal(events.find(e => e.event === 'done').data.fullText, OPENAI_TEXT);
     assert.equal(calls.claude.length, 1);
     assert.equal(calls.modal.length, 0);

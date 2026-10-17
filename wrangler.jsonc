@@ -84,21 +84,13 @@
     "MODAL_TOP_P": "0.95",
     // Full readings omit max_tokens; only explicit per-call caps are supported.
     "MODAL_TIMEOUT_MS": "300000",
-    "AZURE_OPENAI_API_VERSION": "preview",
-    "AZURE_OPENAI_RESPONSES_API_VERSION": "v1",
     "OPENAI_STREAMING_ENABLED": "true",
-    "AZURE_OPENAI_STREAMING_ENABLED": "true",
-    // AZURE_OPENAI_REASONING_EFFORT: Controls reasoning depth for the Azure
-    // fallback path. Valid values: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'
-    "AZURE_OPENAI_REASONING_EFFORT": "xhigh",
     // ---------------------------------------------------------------------
-    // OpenAI native Responses API (takes priority when OPENAI_API_KEY secret is set)
+    // OpenAI native Responses API (requires OPENAI_API_KEY)
     // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
     // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.6-sol").
-    // OPENAI_REASONING_EFFORT overrides reasoning depth on the native path
-    // (falls back to AZURE_OPENAI_REASONING_EFFORT, then the model default).
+    // OPENAI_REASONING_EFFORT overrides the model's default reasoning depth.
     // OPENAI_VERBOSITY optionally overrides text verbosity on the native path.
-    // Azure config remains as fallback when OPENAI_API_KEY is absent.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
     "OPENAI_MODEL": "gpt-5.6-sol",
@@ -157,7 +149,6 @@
     // promptDebug. GPT_OWNER_TOKEN is never shared, so ownership fails closed
     // when it is unset — which is the default.
     "PROMPT_DEBUG_ENABLED": "true",
-    "ENABLE_SPEECH_TOKEN_DEBUG": "false",
     // -------------------------------------------------------------------------
     // Service-account auth for the Tableu Custom GPT / ChatGPT App.
     // When the GPT_SERVICE_TOKEN secret is set, requests bearing it
@@ -217,16 +208,7 @@
     // -------------------------------------------------------------------------
     // Media Generation Feature Flags
     // -------------------------------------------------------------------------
-    // Card video still runs on Azure OpenAI (gpt-image keyframes + Sora); off
-    // until that path moves to a working provider.
-    "FEATURE_CARD_VIDEO": "false",
     "FEATURE_STORY_ART": "true",
-    // Card video burst controls (short-window, per user+client bucket)
-    "CARD_VIDEO_POST_RATE_LIMIT_MAX": "3",
-    "CARD_VIDEO_POST_RATE_LIMIT_WINDOW_SECONDS": "60",
-    "CARD_VIDEO_STATUS_RATE_LIMIT_MAX": "45",
-    "CARD_VIDEO_STATUS_RATE_LIMIT_WINDOW_SECONDS": "60",
-    "CARD_VIDEO_RATE_LIMIT_BACKEND": "d1",
     // Keep debug routes disabled unless explicitly needed for admin-only diagnostics.
     "ENABLE_DEBUG_ROUTES": "false",
     // -------------------------------------------------------------------------
@@ -324,11 +306,9 @@
   // ============================================================================
   // Cron Triggers (Scheduled Tasks)
   // ============================================================================
-  // - Every 10 minutes: reconcile pending card-video usage settlements
   // - Daily at 03:00 UTC: archive metrics/feedback from KV to D1 + cleanup tasks
   "triggers": {
     "crons": [
-      "*/10 * * * *",
       "0 3 * * *"
     ]
   }
@@ -344,23 +324,15 @@
   // Legacy alternative, only when both token-pair fields are absent:
   // wrangler secret put MODAL_PROXY_TOKEN
   //
-  // OpenAI native Responses API (preferred when set; overrides Azure below)
+  // OpenAI native Responses API
   // wrangler secret put OPENAI_API_KEY
   //
-  // Azure OpenAI Responses API (fallback when OPENAI_API_KEY is not set)
-  // wrangler secret put AZURE_OPENAI_ENDPOINT
-  // wrangler secret put AZURE_OPENAI_API_KEY
-  // wrangler secret put AZURE_OPENAI_GPT5_MODEL
-  //
-  // Narration (/api/tts) and story art use Workers AI through the AI binding
-  // and need no secrets.
-  //
-  // Azure Speech Service (Neural TTS via Speech SDK - separate from OpenAI TTS)
-  // wrangler secret put AZURE_SPEECH_ENDPOINT  (e.g., https://fifteenmodels.cognitiveservices.azure.com/)
-  // wrangler secret put AZURE_SPEECH_KEY
-  //
-  // Azure Speech SDK (client-side token auth)
-  // wrangler secret put AZURE_SPEECH_REGION  (optional, defaults to eastus2)
+  // ElevenLabs reader voice (/api/tts), preferred when configured:
+  // wrangler secret put ELEVENLABS_API_KEY --config wrangler.jsonc
+  // Optional non-secret settings: ELEVENLABS_VOICE_ID (default Sarah),
+  // ELEVENLABS_MODEL_ID (default eleven_v4).
+  // Without this key, narration uses Workers AI Deepgram Aura-2.
+  // Story art uses Workers AI through the AI binding and needs no secret.
   //
   // Other
   // wrangler secret put VISION_PROOF_SECRET

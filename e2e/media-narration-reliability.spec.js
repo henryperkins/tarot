@@ -10,28 +10,27 @@ for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.addInitScript(value => {
         localStorage.setItem('tarot-theme', value);
-        localStorage.setItem('tarot-tts-provider', 'hume');
+        localStorage.setItem('tarot-tts-provider', 'azure-sdk');
         localStorage.setItem('tarot-voice-enabled', 'false');
         localStorage.setItem('tarot-auto-narrate', 'false');
       }, theme);
       await page.route(/^https?:\/\/(?!localhost(?::|\/)|127\.0\.0\.1(?::|\/))/, route => route.abort());
       const fixture = await createNarrativeFixture(page);
       let narrationRequests = 0;
-      await page.route('**/api/generate-card-video?capabilities=true', route => route.fulfill({ json: { cardVideo: false } }));
+      let retiredProviderRequests = 0;
+      await page.route(/\/api\/(speech-token|generate-card-video)/, route => {
+        retiredProviderRequests++;
+        return route.fulfill({ status: 410, json: { cardVideo: false } });
+      });
       await page.route('**/api/tts?stream=true', route => {
         narrationRequests++;
         return route.fulfill({ status: 429, json: { errorCode: 'TIER_LIMIT', tierLimited: true, used: 3, limit: 3 } });
       });
       try {
         await page.goto('/account');
-        const engines = page.getByRole('radiogroup', { name: 'Select voice engine' });
-        const clear = engines.getByRole('radio', { name: 'Clear Deepgram' });
-        await expect(clear).toHaveAttribute('aria-checked', 'true');
-        await expect(engines.getByRole('radio')).toHaveCount(2);
-        await clear.focus();
-        await clear.press('Enter');
-        await page.keyboard.press('Tab');
-        await expect(engines.getByRole('radio', { name: 'Word-Sync Azure SDK' })).toBeFocused();
+        await expect(page.getByRole('radiogroup', { name: 'Select voice engine' })).toHaveCount(0);
+        await expect(page.getByText(/Word.Sync|Azure SDK/i)).toHaveCount(0);
+        await expect.poll(() => page.evaluate(() => localStorage.getItem('tarot-tts-provider'))).toBe('reader-voice');
         await openSetup(page);
         await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
         await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
@@ -57,6 +56,7 @@ for (const width of [1440, 390]) {
         await expect(plans).toBeFocused();
         await plans.press('Enter');
         await expect(page).toHaveURL(/\/pricing$/);
+        expect(retiredProviderRequests).toBe(0);
       } finally { await fixture.close(); }
     });
   }

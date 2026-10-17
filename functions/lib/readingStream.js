@@ -3,7 +3,7 @@
  *
  * Server-Sent Events (SSE) streaming helpers for tarot reading responses.
  * Provides both buffered streaming (for non-streaming backends) and
- * real-time stream wrapping (for Azure token streaming).
+ * real-time stream wrapping (for OpenAI token streaming).
  *
  * Extracted from tarot-reading.js to maintain <900 line limit.
  */
@@ -222,13 +222,13 @@ export async function collectSSEStreamText(stream) {
 /**
  * Wrap an upstream SSE stream with custom metadata and completion handling.
  *
- * Used for Azure token streaming to:
+ * Used for OpenAI token streaming to:
  * 1. Inject our own meta event (replacing upstream meta)
  * 2. Collect full text from delta events
  * 3. Trigger completion callback for metrics/tracking
  * 4. Handle SSE events split across network chunks
  *
- * @param {ReadableStream} stream - Upstream SSE stream from Azure
+ * @param {ReadableStream} stream - Upstream SSE stream from OpenAI
  * @param {Object} options - Wrapping options
  * @param {Object} options.meta - Metadata to inject as first event
  * @param {Object} options.ctx - Context with waitUntil for background tasks
