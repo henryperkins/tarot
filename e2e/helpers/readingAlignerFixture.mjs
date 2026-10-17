@@ -305,7 +305,7 @@ export async function scrollMobileWebKitDocument(page, { deltaY, pointer, measur
       card: card ? { rect: card.getBoundingClientRect().toJSON(), hovered: card.matches(':hover'), transform: cardStyle.transform, transition: cardStyle.transition, className: card.className } : null,
       active: document.activeElement?.tagName, stage: stage ? { association: stage.dataset.association, held: stage.dataset.held, phase: stage.dataset.phase } : null,
       raw: document.querySelector('.narrative-stream__text')?.textContent,
-      internal: [...document.querySelectorAll('#history, [data-gesture-shelf], .narrative-stream, .narrative-stream__text, .narrative-panel__column')].map(element => ({ tag: element.tagName, id: element.id, className: element.className, x: element.scrollLeft, y: element.scrollTop })) };
+      internal: [...document.querySelectorAll('#history, [data-gesture-shelf], .narrative-stream, .narrative-stream__text, .reading-screen__column, .narrative-panel__column')].map(element => ({ tag: element.tagName, id: element.id, className: element.className, x: element.scrollLeft, y: element.scrollTop })) };
   });
   let validate = null; let previousRoot; receipt.rootTravel = 0;
   const settle = async () => {

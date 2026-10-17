@@ -267,7 +267,7 @@ export async function openSetup(page, { url = '/' } = {}) {
   await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
 }
 
-export async function startReading(page, fixture, { complete = true, setup = true, question = QUESTION, spreadName = null, reflection = null } = {}) {
+export async function startReading(page, fixture, { complete = true, setup = true, question = null, spreadName = null, reflection = null } = {}) {
   if (setup) await openSetup(page);
   if (spreadName) await page.getByRole('radio', { name: new RegExp(spreadName) }).click();
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(question || fixture.question || QUESTION);

@@ -21,7 +21,7 @@ test('deck study exposes all 78 vector faces and keeps synthetic prose distinct 
   await openDeck(page, 'The Fool', '&sourceMode=job-sse&associations=authored');
   await expect(page.getByRole('combobox', { name: 'Card', exact: true }).locator('option')).toHaveCount(78);
   await expect(page.getByText('Synthetic descriptions of painted details; this is not a recorded or personalized reading.', { exact: true })).toBeVisible();
-  await expect(page.getByText('Your Personalized Narrative', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
   await expect(page.locator('[data-gesture-shelf] img')).toHaveAttribute('src', /major-00-fool\.webp$/);
   await expect.poll(() => page.locator('[data-gesture-shelf] img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
@@ -71,6 +71,8 @@ test('reversed deck details remain usable and still on a reduced-motion phone @m
   await expect(current(page)).toHaveAttribute('aria-label', /Eight of Swords, reversed/);
   await expectNoHorizontalOverflow(page);
   expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running' && animation.effect?.target?.closest('[data-gesture-window]')).length)).toBe(0);
+  await page.getByRole('dialog', { name: 'Card detail', exact: true }).getByRole('button', { name: 'Back to reading' }).click();
+  await expect(bindings).toBeFocused();
   await page.getByRole('combobox', { name: 'Orientation', exact: true }).selectOption('upright');
   await phrase(page, /Bindings/).click();
   await expect(current(page).locator('.gesture-art__upright')).toHaveCSS('transform', 'none');
@@ -105,12 +107,14 @@ test('controlled deck arrival introduces a new detail and preserves inspection w
   await expect(diagnostics).toHaveAttribute('data-source-status', 'complete');
   expect(Number(await diagnostics.getAttribute('data-raw-length'))).toBeGreaterThan(heldLength);
   await expect(diagnostics).toHaveAttribute('data-run-id', runId);
-  await expect(diagnostics).toHaveAttribute('data-selection-calls', '0');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(stage(page)).toHaveAttribute('data-association', heldId);
   await expect(firstDetail).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.narrative-stream')).toContainText('the angel across both surfaces');
   await page.keyboard.press('Escape');
   await expect(stage(page)).not.toHaveAttribute('data-held', 'true');
+  // Released work resumes only when its actual source is exposed.
+  await phrase(page, /One foot in water/i).scrollIntoViewIfNeeded();
   await expect(current(page)).toHaveAttribute('data-details', 'two-feet');
 });
 

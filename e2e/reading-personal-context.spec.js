@@ -27,12 +27,20 @@ async function openSaved(page, fixture) {
   expect(fixture.annotationRequests).toEqual([]);
 }
 
-test('question-only live reading has exact context before any authored cue', async ({ page }) => {
+test('question-only live reading has exact context before any authored cue', async ({ page }, testInfo) => {
   const fixture = await createAlignerFixture(page, { question, narrative: prose });
   try {
     await startReading(page, fixture, { complete: false });
     await fixture.emit('reading', 'delta', { text: 'A quiet invitation without a card cue.' });
     await expect(dialog(page)).toHaveCount(0);
+    if (testInfo.project.name.includes('-phone-')) {
+      const inlineQuestion = page.locator('.reading-question p');
+      await expect(inlineQuestion).toBeVisible();
+      expect(await inlineQuestion.textContent()).toBe(question);
+      await expect(page.locator('.reading-options')).toHaveCount(0);
+      expect(fixture.annotationRequests).toEqual([]);
+      return;
+    }
     await opener(page).click();
     await expect(dialog(page)).toBeVisible();
     expect(await dialog(page).locator('[data-personal-context-question]').textContent()).toBe(question);
@@ -143,11 +151,29 @@ test('bounded long context preserves Unicode at 320px and 200 percent text with 
   } finally { await fixture.close(); }
 });
 
-test('question disclosure yields visual inspection while a held card and incoming prose survive Escape', async ({ page }, testInfo) => {
+test('original context and explicit card inspection survive incoming prose and Escape', async ({ page }, testInfo) => {
   const fixture = await createAlignerFixture(page, { narrative: prose });
   try {
     await startReading(page, fixture, { complete: false });
     await fixture.emit('reading', 'delta', { text: 'A patient pause. ' });
+    if (testInfo.project.name.includes('-phone-')) {
+      const originalQuestion = await page.locator('.reading-question p').textContent();
+      const card = page.locator('[data-reading-overview]').getByRole('button', { name: /Open card/ }).first();
+      const selectedName = fixture.requests.reading[0].cardsInfo[0].card;
+      await card.click();
+      const inspection = page.getByRole('dialog').filter({ visible: true });
+      await expect(inspection).toHaveCount(1);
+      await expect(inspection.getByRole('heading', { level: 2 })).toContainText(selectedName);
+      await fixture.emit('reading', 'delta', { text: 'The next paragraph keeps arriving during card inspection.' });
+      await expect(page.locator('.narrative-stream')).toContainText('keeps arriving');
+      await expect(inspection.getByRole('heading', { level: 2 })).toContainText(selectedName);
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(card).toBeFocused();
+      expect(await page.locator('.reading-question p').textContent()).toBe(originalQuestion);
+      expect(fixture.annotationRequests).toEqual([]);
+      return;
+    }
     const shelf = page.locator('[data-gesture-shelf] button:not(:disabled)').first();
     await expect(shelf).toBeVisible();
     await shelf.click();
@@ -169,12 +195,13 @@ test('question disclosure yields visual inspection while a held card and incomin
   } finally { await fixture.close(); }
 });
 
-test('source replacement closes stale personal context before showing replacement prose', async ({ page }) => {
+test('source replacement refreshes prose and closes any open personal context', async ({ page }, testInfo) => {
   const fixture = await createAlignerFixture(page, { narrative: prose });
   try {
     await startReading(page, fixture, { complete: false });
     await fixture.emit('reading', 'delta', { text: 'The first source arrives.' });
-    await opener(page).click();
+    if (testInfo.project.name.includes('-phone-')) await expect(page.locator('.reading-question p')).toBeVisible();
+    else await opener(page).click();
     await fixture.emit('reading', 'snapshot', { fullText: 'Replacement source arrives without borrowing prior cues.' });
     await expect(page.locator('.narrative-stream')).toContainText('Replacement source');
     await expect(dialog(page)).toHaveCount(0);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Controlled server acceptance only. No live model, network, or database calls. */
+/** Controlled server acceptance only. Uses in-memory SQLite; no live services. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -7,7 +7,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fingerprintVisualSource } from '../../shared/reading/visualSourceIdentity.js';
-import { startReadingJob } from '../../functions/lib/readingJobs.js';
+import { startReadingJob } from '../../tests/helpers/webVisualAdmissionFixtures.mjs';
+import { createD1 } from '../../tests/helpers/d1Sqlite.mjs';
+import { withInitialVisualAdmission } from '../../tests/helpers/visualInitialAdmissionFixtures.mjs';
+import { prepareVisualInitialAdmission } from '../../functions/lib/readingVisualAdmission.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { ReadingJob } from '../../src/worker/readingJob.js';
 import { ReadingVisualJob } from '../../src/worker/readingVisualJob.js';
@@ -22,7 +25,7 @@ const sha256 = value => createHash('sha256').update(value).digest('hex');
 const edition = 'rws-immanuelle-vector';
 const controlledVisualConfig = {
   VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: '@cf/controlled/visual',
-  AI: { run: async () => ({ response: { proposals: [] } }) }
+  AI: { run: () => assert.fail('Controlled adapter must handle every annotation; no provider calls allowed') }
 };
 const cards = fixture.cards.map((card, index) => ({ ...card, index,
   canonicalName: card.card, artworkEdition: edition,
@@ -115,14 +118,32 @@ function controlledAdapter() {
 async function visualHarness({ initialize = true } = {}) {
   const state = fakeState();
   const adapter = controlledAdapter();
-  const job = new ReadingVisualJob(state, {}, { runAnnotation: adapter.runAnnotation });
-  await job.initialized;
-  if (initialize) await job.handleInit({ json: async () => ({ binding, visualToken: 'controlled-only', validationContext: context }) });
-  return { state, adapter, job,
+  const env = withInitialVisualAdmission({ ...controlledVisualConfig, DB: await createD1() });
+  const job = new ReadingVisualJob(state, env, { runAnnotation: adapter.runAnnotation });
+  let closed = false;
+  const close = async () => {
+    if (closed) return;
+    closed = true;
+    adapter.release();
+    try { await state.settle(); }
+    finally { env.DB.sqlite.close(); }
+  };
+  try {
+    await job.initialized;
+    if (initialize) {
+      const initialAdmission = await prepareVisualInitialAdmission({ env });
+      const result = await job.handleInit({ json: async () => ({ binding, visualToken: 'controlled-only', validationContext: context, initialAdmission }) });
+      assert.equal(result.status, 200, 'Controlled visual initialization must be admitted');
+    }
+  } catch (error) {
+    await close();
+    throw error;
+  }
+  return { state, adapter, job, env,
     observe: (source, deliveredEventId, complete = false, sourceBinding = binding) => job.fetch(new Request('https://visual.test/observe', {
       method: 'POST', body: JSON.stringify({ binding: sourceBinding, raw: source, deliveredEventId, complete, availableAt: deliveredEventId })
     })),
-    async close() { adapter.release(); await state.settle(); }
+    close
   };
 }
 
@@ -176,7 +197,7 @@ await check('real_request_preserves_spread_and_context', async () => {
   try {
     const request = realRequest();
     const result = await startReadingJob({ payload: request, waitUntil: promise => background.push(promise), env: {
-      ...controlledVisualConfig,
+      ...harness.env,
       READING_JOBS: { idFromName: value => value, get: () => ({ fetch: async (_url, options) => {
         startBody = JSON.parse(options.body);
         return Response.json({ ok: true });
@@ -199,13 +220,14 @@ await check('real_request_preserves_spread_and_context', async () => {
 });
 
 await check('held_visual_initialization_does_not_gate_narrative_start', async () => {
+  const harness = await visualHarness({ initialize: false });
   const gate = deferred();
   const background = [];
   let narrativeStarted = false;
   let visualInitialized = false;
   try {
     const result = await bounded(startReadingJob({ payload: realRequest(), waitUntil: promise => background.push(promise), env: {
-      ...controlledVisualConfig,
+      ...harness.env,
       READING_JOBS: { idFromName: value => value, get: () => ({ fetch: async () => {
         narrativeStarted = true;
         return Response.json({ ok: true });
@@ -216,16 +238,20 @@ await check('held_visual_initialization_does_not_gate_narrative_start', async ()
         return Response.json({ ok: true });
       } }) }
     } }), 'narrative startup independent of held visual init');
-    return { expected: { started: true, narrativeStarted: true, visualInitialized: false },
-      actual: { started: result.ok, narrativeStarted, visualInitialized } };
-  } finally { gate.resolve(); await Promise.all(background); }
+    return { expected: { started: true, narrativeStarted: true, visualInitialized: false, pendingInitializations: 1, hasVisualBinding: true },
+      actual: { started: result.ok, narrativeStarted, visualInitialized, pendingInitializations: background.length, hasVisualBinding: !!result.visualBinding } };
+  } finally {
+    gate.resolve();
+    try { await Promise.all(background); }
+    finally { await harness.close(); }
+  }
 });
 
 for (const mode of ['paced-sse', 'burst-sse', 'final-json']) {
   await check(`${mode}_completes_while_annotation_is_held`, async () => {
     const harness = await visualHarness();
     const state = fakeState();
-    const reading = new ReadingJob(state, { READING_VISUAL_JOBS: {
+    const reading = new ReadingJob(state, { ...harness.env, READING_VISUAL_JOBS: {
       idFromName: value => value, get: () => ({ fetch: (url, options) => harness.job.fetch(new Request(url, options)) })
     } });
     try {
@@ -253,27 +279,34 @@ for (const mode of ['paced-sse', 'burst-sse', 'final-json']) {
       await until(() => harness.adapter.calls.length > 0, 'annotation dispatch');
       return { expected: { narrativeStatus: 'complete', rawSha256: sha256(raw), annotationUnresolved: true },
         actual: { narrativeStatus: reading.job.status, rawSha256: sha256(reading.textSoFar), annotationUnresolved: harness.job.ledger.receipts.length === 0 } };
-    } finally { await harness.close(); await state.settle(); reading.closeSubscribers(); }
+    } finally {
+      // Narrative observations can still be entering the visual object. Drain
+      // those senders before releasing its adapter and closing the shared DB.
+      try { await state.settle(); }
+      finally {
+        try { await harness.close(); }
+        finally { reading.closeSubscribers(); }
+      }
+    }
   });
 }
 
 await check('simultaneous_observation_single_flight_and_retained_commits', async () => {
   const harness = await visualHarness();
-  const barrier = pauseDigests();
   try {
+    // Hold the adapter, not global hashing: current admission and source
+    // persistence also hash inputs before an observation can be accepted.
     await Promise.all(prefixes.map((prefix, index) => harness.observe(prefix, index + 1, index === 2)));
-    await barrier.release();
     await until(() => harness.adapter.calls.length > 0, 'burst annotation dispatch');
     const startedBeforeRelease = harness.adapter.calls.length;
     const latestPending = harness.job.pendingSnapshot?.raw === raw;
-    barrier.restore();
     await harness.close();
     return { expected: { startedBeforeRelease: 1, latestPending: true, maximumActive: 1, allRequestReceiptsRetained: true,
       acceptedCueCount: proposals.length, rawSha256: sha256(raw) },
     actual: { startedBeforeRelease, latestPending, maximumActive: harness.adapter.maximumActive,
       allRequestReceiptsRetained: harness.job.ledger.receipts.length === harness.adapter.calls.length,
       acceptedCueCount: harness.job.ledger.cues.length, rawSha256: sha256(harness.job.ledger.raw) } };
-  } finally { barrier.restore(); await harness.close(); }
+  } finally { await harness.close(); }
 });
 
 async function issuedRequest(source, sourceBinding = binding) {
@@ -347,6 +380,9 @@ for (let index = 0; index < args.length; index++) {
 const implementationFiles = [
   'functions/lib/readingJobs.js', 'functions/lib/visualCueObserver.js', 'src/worker/readingJob.js',
   'src/worker/readingVisualJob.js', 'shared/reading/visualCueLedger.js', 'shared/generation/visualCuePrompt.js',
+  'functions/lib/readingVisualAdmission.js', 'functions/lib/readingVisualWebAdmission.js',
+  'tests/helpers/d1Sqlite.mjs', 'tests/helpers/visualInitialAdmissionFixtures.mjs',
+  'tests/helpers/webVisualAdmissionFixtures.mjs',
   'scripts/evaluation/evaluateVisualCueHandoff.mjs'
 ];
 const report = {
@@ -358,7 +394,8 @@ const report = {
   source: { path: fixturePath, id: fixture.id, rawSha256: sha256(raw), fileSha256: sha256(readFileSync(resolve(root, fixturePath))),
     wordCount: fixture.excerptWordCount, provenance: fixture.provenance,
     note: 'Unchanged reading-only 97-word excerpt. Request-only meaning/userReflection values satisfy the schema; they are not recorded narrative output.' },
-  limitations: ['In-memory Durable Object state and controlled scheduling; no deployed runtime, D1, network, or provider calls.',
+  limitations: ['In-memory Durable Object state, SQLite-backed D1 fixture and controlled scheduling; no deployed runtime, remote D1, network, or provider calls.',
+    'Paid-web capability and initial spending admission use explicit offline fixtures; no live account or provider qualification.',
     'Direct job cases inject a normalized fixture context; the separate real-request case verifies start-context normalization.',
     'Paced SSE is a controlled transport test, not live generation or model latency evidence.',
     'No browser visibility/adoption timing, semantic corpus qualification, saved-entry recovery, or device evidence is established here.'],
