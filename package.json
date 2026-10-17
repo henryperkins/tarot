@@ -83,7 +83,8 @@
     "prompts:export": "node scripts/viewPrompts.js --export",
     "ci:release-check": "node scripts/evaluation/runReleaseChecks.js",
     "test:e2e:regressions": "playwright test --config playwright.regressions.config.js",
-    "test:e2e:production": "playwright test --config playwright.production.config.js"
+    "test:e2e:production": "playwright test --config playwright.production.config.js",
+    "build:spacefast": "node scripts/spacefast-build.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -151,6 +152,9 @@
     "vite": "^7.2.4",
     "vitest": "^5.0.3",
     "weave": "^0.11.0",
-    "wrangler": "^4.142.0"
+    "wrangler": "^4.142.0",
+    "@babel/parser": "7.29.8",
+    "esbuild": "0.28.1",
+    "jsonc-parser": "3.3.1"
   }
 }

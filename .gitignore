@@ -46,6 +46,7 @@ coverage.xml
 
 # Build output
 dist/
+dist-spacefast/
 
 # Environment variables
 .env.local
@@ -143,3 +144,8 @@ gha-creds-*.json
 # Narrative capture helpers (e2e/helpers/captureNarrative*.mjs) and image generation
 /output/narrative-remediation/
 /output/imagegen/
+/output/spacefast/
+.spacefast/state.json
+/.spacefast-*
+.spacefast/.spacefast-*
+.spacefast/.space-link-*.tmp

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://spacefast.com/schemas/sf.json",
+  "build": {
+    "rootDirectory": "spacefast/project",
+    "installDirectory": ".",
+    "installCommand": "npm ci",
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
+    "frameworkPreset": "vite"
+  }
+}
