@@ -11,7 +11,7 @@ const COOLDOWN_MS = 5000; // 5 second cooldown between requests
 
 /**
  * @typedef {Object} SummaryMeta
- * @property {'azure-responses'|'heuristic'} provider - Summary generation provider
+ * @property {'claude-api'|'claude-code'|'openai-native'|'heuristic'} provider - Summary generation provider
  * @property {number} totalEntries - Number of entries summarized
  * @property {string|null} model - Model used (for AI summaries)
  */

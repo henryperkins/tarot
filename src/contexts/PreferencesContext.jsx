@@ -138,7 +138,7 @@ export function PreferencesProvider({ children }) {
   // Expose validated state value (alias for clarity)
   const ttsProvider = ttsProviderState;
 
-  // Persist TTS provider setting
+  // Persist the selected provider, including migrated saved engine values.
   useEffect(() => {
     safeStorage.setItem('tarot-tts-provider', ttsProviderState);
   }, [ttsProviderState]);

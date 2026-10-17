@@ -1,5 +1,5 @@
 /**
- * Azure OpenAI Responses API - Streaming Support
+ * OpenAI Responses API - Streaming Support
  *
  * Provides SSE streaming for the Responses API.
  * Events follow the OpenAI Responses API format:
@@ -15,7 +15,7 @@
  * - response.error
  */
 
-import { ensureAzureConfig, resolveResponsesUser } from './azureResponses.js';
+import { ensureOpenAIConfig, resolveResponsesUser } from './openaiResponses.js';
 import { createDeadline, streamWithDeadline } from './requestDeadline.js';
 import { validateResponsesStream } from './responsesCompletion.js';
 import { recordInferenceAttempt, inferAttemptReason } from './inferenceAttempts.js';
@@ -49,7 +49,7 @@ async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, 
 }
 
 /**
- * Call Azure Responses API with streaming enabled
+ * Call OpenAI Responses API with streaming enabled
  * Returns a ReadableStream that emits SSE-formatted events
  *
  * @param {Object} env - Environment bindings
@@ -64,7 +64,7 @@ async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, 
  * @param {Array} options.tools - Optional array of tool definitions
  * @returns {ReadableStream} SSE event stream
  */
-export async function callAzureResponsesStream(env, {
+export async function callOpenAIResponsesStream(env, {
   instructions,
   input,
   maxTokens = 400,
@@ -77,7 +77,7 @@ export async function callAzureResponsesStream(env, {
   timeoutMs = 120000,
   telemetry
 }) {
-  const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
+  const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   const body = {
@@ -112,11 +112,10 @@ export async function callAzureResponsesStream(env, {
     body.tools = tools;
   }
 
-  console.log('[azureResponsesStream] Starting streaming request', {
+  console.log('[openaiResponsesStream] Starting streaming request', {
     url,
     provider,
     model,
-    apiVersion,
     maxTokens: maxTokens ?? 'unlimited',
     reasoningEffort: reasoningEffort ?? 'omitted',
     reasoningSummary: reasoningSummary ?? 'omitted',
@@ -135,9 +134,9 @@ export async function callAzureResponsesStream(env, {
 }
 
 /**
- * Transform Azure SSE stream to a simplified SSE format for the frontend
+ * Transform OpenAI SSE stream to a simplified SSE format for the frontend
  *
- * Azure emits events like:
+ * OpenAI emits events like:
  *   event: response.output_text.delta
  *   data: {"type":"response.output_text.delta","delta":"Hello","output_index":0,...}
  *
@@ -151,11 +150,11 @@ export async function callAzureResponsesStream(env, {
  *   event: error
  *   data: {"message":"Error description"}
  *
- * @param {ReadableStream} azureStream - Raw SSE stream from Azure
+ * @param {ReadableStream} openaiStream - Raw SSE stream from OpenAI
  * @returns {ReadableStream} Transformed SSE stream
  */
-export function transformAzureStream(azureStream) {
-  azureStream = validateResponsesStream(azureStream);
+export function transformOpenAIStream(openaiStream) {
+  openaiStream = validateResponsesStream(openaiStream);
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
@@ -241,7 +240,7 @@ export function transformAzureStream(azureStream) {
       } else if (dataType === 'response.completed') {
         model = parsed.response?.model || null;
         usage = parsed.response?.usage || null;
-        console.log('[azureResponsesStream] Response completed event received');
+        console.log('[openaiResponsesStream] Response completed event received');
       } else if (dataType === 'response.error' || dataType === 'error') {
         const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
         const errorEvent = formatSSE('error', { message: errorMsg });
@@ -249,7 +248,7 @@ export function transformAzureStream(azureStream) {
       }
       // Ignore other event types (response.created, response.in_progress, etc.)
     } catch (parseError) {
-      console.warn('[azureResponsesStream] Failed to parse event:', {
+      console.warn('[openaiResponsesStream] Failed to parse event:', {
         event: eventData?.slice(0, 200),
         error: parseError?.message
       });
@@ -258,7 +257,7 @@ export function transformAzureStream(azureStream) {
 
   return new ReadableStream({
     async start(controller) {
-      reader = azureStream.getReader();
+      reader = openaiStream.getReader();
 
       try {
         while (true) {
@@ -294,7 +293,7 @@ export function transformAzureStream(azureStream) {
           }
         }
       } catch (error) {
-        console.error('[azureResponsesStream] Stream processing error:', error.message);
+        console.error('[openaiResponsesStream] Stream processing error:', error.message);
         const errorEvent = formatSSE('error', { message: error.message, code: error.code || null, model: error.model || model, usage: error.usage || usage });
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
@@ -369,9 +368,9 @@ export function createSSEErrorResponse(message, status = 500) {
 }
 
 /**
- * Transform Azure SSE stream with tool call support
+ * Transform OpenAI SSE stream with tool call support
  *
- * Similar to transformAzureStream but also handles:
+ * Similar to transformOpenAIStream but also handles:
  * - response.function_call_arguments.delta (accumulates tool call args)
  * - response.function_call_arguments.done (signals tool call complete)
  * - response.output_item.added (new output item, including function calls)
@@ -380,13 +379,13 @@ export function createSSEErrorResponse(message, status = 500) {
  * - stream: ReadableStream for text deltas
  * - toolCallPromise: Promise that resolves with tool call info if one occurs
  *
- * @param {ReadableStream} azureStream - Raw SSE stream from Azure
+ * @param {ReadableStream} openaiStream - Raw SSE stream from OpenAI
  * @param {Object} options
  * @param {Function} options.onToolCall - Callback when tool call detected: (callId, name, args) => result
  * @returns {{ stream: ReadableStream, getToolCalls: () => Array }}
  */
-export function transformAzureStreamWithTools(azureStream, { onToolCall = null } = {}) {
-  azureStream = validateResponsesStream(azureStream);
+export function transformOpenAIStreamWithTools(openaiStream, { onToolCall = null } = {}) {
+  openaiStream = validateResponsesStream(openaiStream);
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
@@ -402,7 +401,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
 
   const stream = new ReadableStream({
     async start(controller) {
-      reader = azureStream.getReader();
+      reader = openaiStream.getReader();
 
       try {
         while (true) {
@@ -516,14 +515,14 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                   });
                   controller.enqueue(encoder.encode(codeStatusEvent));
                 } else if (dataType === 'response.completed') {
-                  console.log('[azureResponsesStream] Response completed');
+                  console.log('[openaiResponsesStream] Response completed');
                 } else if (dataType === 'response.error' || dataType === 'error') {
                   const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
                   const errorEvent = formatSSE('error', { message: errorMsg });
                   controller.enqueue(encoder.encode(errorEvent));
                 }
               } catch (parseError) {
-                console.warn('[azureResponsesStream] Failed to parse event:', {
+                console.warn('[openaiResponsesStream] Failed to parse event:', {
                   event: eventData?.slice(0, 200),
                   error: parseError?.message
                 });
@@ -543,7 +542,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                   });
                   controller.enqueue(encoder.encode(toolResultEvent));
                 } catch (err) {
-                  console.warn('[azureResponsesStream] Tool call error:', err.message);
+                  console.warn('[openaiResponsesStream] Tool call error:', err.message);
                 }
               }
             }
@@ -680,7 +679,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
               }
               // Handle completion
               else if (dataType === 'response.completed') {
-                console.log('[azureResponsesStream] Response completed');
+                console.log('[openaiResponsesStream] Response completed');
               }
               // Handle errors
               else if (dataType === 'response.error' || dataType === 'error') {
@@ -689,7 +688,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
                 controller.enqueue(encoder.encode(errorEvent));
               }
             } catch (parseError) {
-              console.warn('[azureResponsesStream] Failed to parse event:', {
+              console.warn('[openaiResponsesStream] Failed to parse event:', {
                 event: eventData?.slice(0, 200),
                 error: parseError?.message
               });
@@ -697,7 +696,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
           }
         }
       } catch (error) {
-        console.error('[azureResponsesStream] Stream processing error:', error.message);
+        console.error('[openaiResponsesStream] Stream processing error:', error.message);
         const errorEvent = formatSSE('error', { message: error.message });
         controller.enqueue(encoder.encode(errorEvent));
         controller.close();
@@ -723,7 +722,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
 }
 
 /**
- * Call Azure Responses API with conversation history (for tool continuations)
+ * Call OpenAI Responses API with conversation history (for tool continuations)
  *
  * After a tool call, we need to continue the conversation by sending:
  * 1. The original user input
@@ -739,7 +738,7 @@ export function transformAzureStreamWithTools(azureStream, { onToolCall = null }
  * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
  * @returns {ReadableStream} SSE event stream
  */
-export async function callAzureResponsesStreamWithConversation(env, {
+export async function callOpenAIResponsesStreamWithConversation(env, {
   instructions,
   conversation,
   maxTokens = 400,
@@ -749,7 +748,7 @@ export async function callAzureResponsesStreamWithConversation(env, {
   timeoutMs = 120000,
   telemetry
 }) {
-  const { model, url, authHeaders, provider } = ensureAzureConfig(env);
+  const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   const body = {
@@ -769,7 +768,7 @@ export async function callAzureResponsesStreamWithConversation(env, {
     body.user = resolvedUser;
   }
 
-  console.log('[azureResponsesStream] Starting continuation request', {
+  console.log('[openaiResponsesStream] Starting continuation request', {
     url,
     provider,
     model,
@@ -796,7 +795,7 @@ export async function callAzureResponsesStreamWithConversation(env, {
  * @param {Array} toolCalls - Tool calls from assistant [{ callId, name, arguments }]
  * @param {Array} toolResults - Tool results [{ callId, result }]
  * @param {string} [initialAssistantText] - Assistant text emitted before tool calls
- * @returns {Array} Conversation array for Azure Responses API
+ * @returns {Array} Conversation array for OpenAI Responses API
  */
 export function buildToolContinuationConversation(userInput, toolCalls, toolResults, initialAssistantText = '') {
   const conversation = [
@@ -832,11 +831,11 @@ export function buildToolContinuationConversation(userInput, toolCalls, toolResu
 }
 
 export default {
-  callAzureResponsesStream,
-  callAzureResponsesStreamWithConversation,
+  callOpenAIResponsesStream,
+  callOpenAIResponsesStreamWithConversation,
   buildToolContinuationConversation,
-  transformAzureStream,
-  transformAzureStreamWithTools,
+  transformOpenAIStream,
+  transformOpenAIStreamWithTools,
   createSSEResponse,
   createSSEErrorResponse
 };

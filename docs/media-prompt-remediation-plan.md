@@ -1,8 +1,10 @@
 # Media Prompt Remediation Plan
 
 Type: plan
-Status: active background document
+Status: historical background document
 Last reviewed: 2026-04-23
+
+Historical plan for media paths that included Azure-generated video. Card-video generation is retired and returns HTTP 410; current story art uses Workers AI. This plan does not authorize or describe a current Azure setup.
 
 ## Scope
 

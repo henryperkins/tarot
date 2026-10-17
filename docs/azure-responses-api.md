@@ -1,8 +1,10 @@
 # Azure OpenAI in Microsoft Foundry Models REST API v1 Preview Reference
 
 Type: reference
-Status: active reference
+Status: historical reference
 Last reviewed: 2026-04-23
+
+This retained vendor reference is historical. Tableu no longer supports Azure OpenAI. Use [the provider reference](provider-reference.md) for current setup.
 Source: `https://learn.microsoft.com/en-us/azure/ai-foundry/openai/reference-preview-latest?view=foundry-classic#video-generation-jobs---create`
 
 ## Azure OpenAI in Microsoft Foundry Models REST API v1 preview reference

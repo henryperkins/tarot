@@ -102,6 +102,7 @@ for (const width of [1440, 390]) {
         await expect(plans).toBeFocused();
         await plans.press('Enter');
         await expect(page).toHaveURL(/\/pricing$/);
+        expect(retiredProviderRequests).toBe(0);
       } finally { await fixture.close(); }
     });
   }

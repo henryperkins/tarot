@@ -617,11 +617,11 @@ describe('persistReadingMetrics', () => {
       requestId: 'metrics-test',
       spreadKey: 'threeCard',
       deckStyle: 'rws-1909',
-      provider: 'azure-gpt5',
+      provider: 'openai-native',
       narrative: { cardCoverage: 0.4 },
       backendErrors: [
         {
-          backend: 'azure-gpt5',
+          backend: 'openai-native',
           error: 'Narrative failed quality checks',
           qualityIssues: ['low card coverage']
         }
@@ -644,9 +644,9 @@ describe('persistReadingMetrics', () => {
       requestId: 'metrics-redact-test',
       spreadKey: 'threeCard',
       deckStyle: 'rws-1909',
-      provider: 'azure-gpt5',
+      provider: 'openai-native',
       promptEngineering: { system: 'secret', user: 'secret' },
-      backendErrors: [{ backend: 'azure-gpt5', error: 'Nope' }],
+      backendErrors: [{ backend: 'openai-native', error: 'Nope' }],
       narrative: { cardCoverage: 0.9 }
     };
 
@@ -667,7 +667,7 @@ describe('persistReadingMetrics', () => {
       requestId: 'metrics-redacted-prompts-test',
       spreadKey: 'single',
       deckStyle: 'rws-1909',
-      provider: 'azure-gpt5',
+      provider: 'openai-native',
       promptEngineering: {
         hashes: { combined: 'abc123', system: 'sys', user: 'usr', response: 'rsp' },
         redacted: {

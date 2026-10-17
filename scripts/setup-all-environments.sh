@@ -21,7 +21,7 @@ put_worker_secret() {
 
 echo "Setting up secrets for Cloudflare Worker '$WORKER_NAME'"
 echo ""
-echo "⚠️  You will be prompted for your OpenAI reading credentials and Azure TTS credentials."
+echo "You will be prompted for your OpenAI reading credential and optional ElevenLabs narration credential."
 echo ""
 
 read -p "Press Enter to continue or Ctrl+C to cancel..."
@@ -35,19 +35,15 @@ read -s gpt5_api_key
 echo ""
 
 echo ""
-read -p "TTS Endpoint (e.g., https://your-tts-resource.openai.azure.com): " tts_endpoint
+read -sp "ElevenLabs API key, or press Enter to use Workers AI narration: " elevenlabs_api_key
 echo ""
-echo "TTS API Key (input will be hidden):"
-read -s tts_api_key
-echo ""
-read -p "TTS Deployment Name (e.g., gpt-audio-mini): " tts_deployment
 
 echo ""
 echo "📝 Setting secrets on default Worker environment..."
 put_worker_secret OPENAI_API_KEY "$gpt5_api_key"
-put_worker_secret AZURE_OPENAI_TTS_ENDPOINT "$tts_endpoint"
-put_worker_secret AZURE_OPENAI_TTS_API_KEY "$tts_api_key"
-put_worker_secret AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT "$tts_deployment"
+if [[ -n "$elevenlabs_api_key" ]]; then
+  put_worker_secret ELEVENLABS_API_KEY "$elevenlabs_api_key"
+fi
 
 echo ""
 read -p "Also set secrets on Workers env '$PREVIEW_ENV_NAME'? (y/N): " set_preview
@@ -55,9 +51,9 @@ if [[ "$set_preview" == "y" || "$set_preview" == "Y" ]]; then
   echo ""
   echo "📝 Setting secrets on env '$PREVIEW_ENV_NAME'..."
   put_worker_secret OPENAI_API_KEY "$gpt5_api_key" "$PREVIEW_ENV_NAME"
-  put_worker_secret AZURE_OPENAI_TTS_ENDPOINT "$tts_endpoint" "$PREVIEW_ENV_NAME"
-  put_worker_secret AZURE_OPENAI_TTS_API_KEY "$tts_api_key" "$PREVIEW_ENV_NAME"
-  put_worker_secret AZURE_OPENAI_GPT_AUDIO_MINI_DEPLOYMENT "$tts_deployment" "$PREVIEW_ENV_NAME"
+  if [[ -n "$elevenlabs_api_key" ]]; then
+    put_worker_secret ELEVENLABS_API_KEY "$elevenlabs_api_key" "$PREVIEW_ENV_NAME"
+  fi
 fi
 
 echo ""

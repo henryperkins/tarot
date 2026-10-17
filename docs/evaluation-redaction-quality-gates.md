@@ -72,7 +72,7 @@ quality checks, and gating mechanisms in the Tarot codebase. It complements
   - `sanitizeMetricsPayload()` + `buildStoragePayload()` in `functions/lib/evaluation.js`.
   - Modes: `full`, `redact` (default), `minimal`.
   - In the default `redact` mode, redacts user question/reading text; strips user-added card notes; removes location coordinates while retaining timezone/location-used metadata. `full` mode bypasses these redactions, and `minimal` mode has separate retention behavior. This does not mean the app never collects location: the web client can request it when enabled, and journal persistence requires explicit consent.
-  - Runtime `eval_metrics` are written to D1; `METRICS_DB` is operational KV for media telemetry, media-usage counters, and card-video job metadata, plus ongoing legacy archival input.
+- Runtime `eval_metrics` are written to D1; `METRICS_DB` is operational KV for media telemetry, media-usage counters and retained legacy video-job metadata, plus ongoing legacy archival input.
 - Input sanitization:
   - `sanitizeText()` in `functions/lib/utils.js` strips markdown/control chars and filters instruction patterns.
   - `sanitizePromptValue()` in `functions/lib/narrative/helpers.js` removes template syntax and injection tokens.

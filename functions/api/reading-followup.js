@@ -15,20 +15,20 @@ import { buildFollowUpPrompt } from '../lib/followUpPrompt.js';
 import { buildFollowUpReadingReference, FollowUpContextTooLargeError } from '../lib/followUpContext.js';
 import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/journalSearch.js';
 import { insertFollowUps, loadFollowUpsByEntry } from '../lib/journalFollowups.js';
-import { callAzureResponses } from '../lib/azureResponses.js';
+import { callOpenAIResponses } from '../lib/openaiResponses.js';
 import { callModalChatCompletions } from '../lib/modalChatCompletions.js';
 import { NARRATIVE_BACKENDS } from '../lib/narrativeBackends.js';
 import {
-  callAzureResponsesStream,
-  callAzureResponsesStreamWithConversation,
+  callOpenAIResponsesStream,
+  callOpenAIResponsesStreamWithConversation,
   buildToolContinuationConversation,
-  transformAzureStream,
+  transformOpenAIStream,
   createSSEResponse,
   createSSEErrorResponse
-} from '../lib/azureResponsesStream.js';
+} from '../lib/openaiResponsesStream.js';
 import { getMemories, consolidateSessionMemories } from '../lib/userMemory.js';
 import { loadStoredPersonalization } from '../lib/userPersonalization.js';
-import { MEMORY_TOOL_AZURE_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
+import { MEMORY_TOOL_OPENAI_RESPONSES_FORMAT, handleMemoryToolCall } from '../lib/memoryTool.js';
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
 import { detectHallucinatedCards } from '../lib/readingQuality.js';
@@ -149,7 +149,7 @@ async function repairHallucinatedFollowUp(env, {
           signal,
           maxTokens: 4000
         })).text
-      : await callAzureResponses(env, {
+      : await callOpenAIResponses(env, {
           instructions,
           input: repairInstructions,
           maxTokens: 4096,
@@ -775,19 +775,19 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       try {
         const { text: fullText, provider } = await generateFollowUpText(env, {
           requestId,
-          primaryProvider: 'azure-responses-stream-buffered',
+          primaryProvider: 'openai-native',
           buildFallbackPrompts,
           generatePersonal: generatePersonalAnswer,
           generateClaudeApi: generateClaudeApiAnswer,
           signal: taskSignal,
           generatePrimary: async () => {
             // Prepare tools array if memory is enabled
-            const tools = enableMemoryTool ? [MEMORY_TOOL_AZURE_RESPONSES_FORMAT] : null;
+            const tools = enableMemoryTool ? [MEMORY_TOOL_OPENAI_RESPONSES_FORMAT] : null;
 
             // If memory tool is enabled, we need to handle potential tool round-trips
             // The model might call save_memory_note, and we need to:
             // 1. Execute the tool
-            // 2. Send the result back to Azure
+            // 2. Send the result back to OpenAI
             // 3. Get the continuation response with actual text
             let transformedStream;
 
@@ -819,7 +819,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 }
               });
             } else {
-              const azureStream = await callAzureResponsesStream(env, {
+              const openaiStream = await callOpenAIResponsesStream(env, {
                 instructions: effectiveSystemPrompt,
                 input: effectiveUserPrompt,
                 telemetry: { task: 'followup', requestId },
@@ -828,7 +828,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 verbosity: 'medium',
                 tools: null
               });
-              transformedStream = transformAzureStream(azureStream);
+              transformedStream = transformOpenAIStream(openaiStream);
             }
 
             // Buffer before emitting so safety/card checks can repair or replace unsafe content.
@@ -970,14 +970,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       try {
         ({ text: responseText, provider } = await generateFollowUpText(env, {
           requestId,
-          primaryProvider: 'azure-responses',
+          primaryProvider: 'openai-native',
           buildFallbackPrompts,
           generatePersonal: generatePersonalAnswer,
           generateClaudeApi: generateClaudeApiAnswer,
           signal: taskSignal,
           generatePrimary: async () => {
             if (enableMemoryTool) {
-              const tools = [MEMORY_TOOL_AZURE_RESPONSES_FORMAT];
+              const tools = [MEMORY_TOOL_OPENAI_RESPONSES_FORMAT];
               const toolStream = await createToolRoundTripStream(env, {
                 instructions: effectiveSystemPrompt,
                 userInput: effectiveUserPrompt,
@@ -1007,7 +1007,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               });
               return collectFullTextFromSse(toolStream, { requestId });
             }
-            return callAzureResponses(env, {
+            return callOpenAIResponses(env, {
               instructions: effectiveSystemPrompt,
               input: effectiveUserPrompt,
               telemetry: { task: 'followup', requestId },
@@ -1595,19 +1595,19 @@ async function persistFollowUpToJournal(env, userId, identifiers, followUp) {
 }
 
 /**
- * Create a stream that handles tool calls with proper Azure round-trips
+ * Create a stream that handles tool calls with proper OpenAI round-trips
  *
  * When the model calls a tool (e.g., save_memory_note), we need to:
  * 1. Collect all text and tool calls from the initial response
  * 2. Execute tool calls locally
- * 3. Send tool results back to Azure for a continuation
+ * 3. Send tool results back to OpenAI for a continuation
  * 4. Stream the continuation response (which contains the actual answer)
  *
  * @param {Object} env - Environment bindings
  * @param {Object} options - Stream options
  * @param {string} options.instructions - System prompt
  * @param {string} options.userInput - User's follow-up question
- * @param {Array} options.tools - Tool definitions for Azure
+ * @param {Array} options.tools - Tool definitions for OpenAI
  * @param {number} options.maxTokens - Max output tokens
  * @param {string} options.verbosity - Text verbosity
  * @param {string} options.requestId - Request ID for logging
@@ -1641,7 +1641,7 @@ function createToolRoundTripStream(env, {
       const toolCallArgs = new Map();
       let currentCallId = null;
 
-      const processAzureChunk = (chunkText, { emitDeltas, isFinal = false }) => {
+      const processOpenAIChunk = (chunkText, { emitDeltas, isFinal = false }) => {
         if (cancelled) {
           return { remainder: '', closed: true };
         }
@@ -1755,9 +1755,9 @@ function createToolRoundTripStream(env, {
         return { remainder, deltaText, doneText };
       };
 
-      let azureStream;
+      let openaiStream;
       try {
-        azureStream = await callAzureResponsesStream(env, {
+        openaiStream = await callOpenAIResponsesStream(env, {
           instructions,
           input: userInput,
           signal,
@@ -1774,7 +1774,7 @@ function createToolRoundTripStream(env, {
         return;
       }
 
-      reader = azureStream.getReader();
+      reader = openaiStream.getReader();
       let buffer = '';
 
       try {
@@ -1784,7 +1784,7 @@ function createToolRoundTripStream(env, {
           if (cancelled) return;
 
           buffer += decoder.decode(value, { stream: true });
-          const result = processAzureChunk(buffer, { emitDeltas: true });
+          const result = processOpenAIChunk(buffer, { emitDeltas: true });
           if (result?.closed) {
             return;
           }
@@ -1800,7 +1800,7 @@ function createToolRoundTripStream(env, {
           buffer += finalChunk;
         }
         if (buffer.length > 0) {
-          const finalResult = processAzureChunk(buffer, { emitDeltas: true, isFinal: true });
+          const finalResult = processOpenAIChunk(buffer, { emitDeltas: true, isFinal: true });
           if (finalResult?.closed) {
             return;
           }
@@ -1847,7 +1847,7 @@ function createToolRoundTripStream(env, {
 
       let continuationStream;
       try {
-        continuationStream = await callAzureResponsesStreamWithConversation(env, {
+        continuationStream = await callOpenAIResponsesStreamWithConversation(env, {
           instructions,
           conversation,
           signal,
@@ -1873,7 +1873,7 @@ function createToolRoundTripStream(env, {
           if (cancelled) return;
 
           buffer += decoder.decode(value, { stream: true });
-          const result = processAzureChunk(buffer, { emitDeltas: true });
+          const result = processOpenAIChunk(buffer, { emitDeltas: true });
           if (result?.closed) {
             return;
           }
@@ -1889,7 +1889,7 @@ function createToolRoundTripStream(env, {
           buffer += finalChunk;
         }
         if (buffer.length > 0) {
-          const finalResult = processAzureChunk(buffer, { emitDeltas: true, isFinal: true });
+          const finalResult = processOpenAIChunk(buffer, { emitDeltas: true, isFinal: true });
           if (finalResult?.closed) {
             return;
           }

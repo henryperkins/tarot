@@ -48,6 +48,14 @@ class FakeMediaDb {
       };
     }
 
+    if (sql.includes('FROM user_media') && sql.includes('WHERE user_id = ? AND id = ?')) {
+      return {
+        bind: (userId, id) => ({
+          first: async () => this.mediaRows.find(row => row.user_id === userId && row.id === id) || null
+        })
+      };
+    }
+
     if (sql.includes('SELECT COUNT(*) AS total FROM user_media')) {
       return {
         bind: () => ({
@@ -147,6 +155,32 @@ describe('/api/media', () => {
     assert.equal(payload.media[0].id, 'media-1');
     assert.equal(payload.media[0].contentUrl, '/api/media?contentId=media-1');
     assert.equal(payload.media[0].downloadUrl, '/api/media?contentId=media-1&download=1');
+  });
+
+  it('serves previously saved video content and downloads after generation retirement', async () => {
+    const DB = new FakeMediaDb({
+      user: { id: 'user-plus', subscription_tier: 'plus', subscription_status: 'active' },
+      mediaRows: [{
+        id: 'saved-video', user_id: 'user-plus', media_type: 'video',
+        source: 'card-reveal', title: 'The Fool reveal', mime_type: 'video/mp4',
+        storage_key: 'generated-video/saved-job.mp4'
+      }]
+    });
+    for (const download of [false, true]) {
+      const response = await onRequestGet({
+        request: new Request(`https://example.test/api/media?contentId=saved-video${download ? '&download=1' : ''}`, {
+          headers: { Authorization: 'Bearer session-token' }
+        }),
+        env: { DB, R2_LOGS: { get: async key => {
+          assert.equal(key, 'generated-video/saved-job.mp4');
+          return { body: new Uint8Array([1, 2, 3]), size: 3 };
+        } } }
+      });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('content-type'), 'video/mp4');
+      assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([1, 2, 3]));
+      if (download) assert.match(response.headers.get('content-disposition'), /attachment.*the-fool-reveal\.mp4/);
+    }
   });
 
   it('returns 503 when media storage binding is unavailable', async () => {

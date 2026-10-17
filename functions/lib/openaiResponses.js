@@ -5,66 +5,31 @@ import { observeInferenceAttempt } from './inferenceAttempts.js';
 export const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
 
 /**
- * Validate and normalize Responses API configuration.
- *
- * Native OpenAI takes priority when OPENAI_API_KEY is configured.
- * Azure OpenAI remains as a fallback for deployments that still use it.
- *
- * Normalizes Azure endpoint URL to prevent double-pathing issues:
- * - Strips trailing slashes
- * - Removes /openai/v1 suffix if present
- * - Removes /openai suffix if present
+ * Validate and normalize native OpenAI Responses API configuration.
  *
  * @param {Object} env - Environment bindings
- * @returns {Object} Normalized config { endpoint, apiKey, model, apiVersion }
- * @throws {Error} If required configuration is missing
+ * @returns {Object} Normalized config { endpoint, apiKey, model, url, authHeaders, provider }
+ * @throws {Error} If OPENAI_API_KEY is missing
  */
-export function ensureAzureConfig(env) {
-  // Native OpenAI Responses API takes priority when its key is configured.
-  // Azure and OpenAI-native share the Responses API body schema; only the URL
-  // path and auth header differ.
-  if (env?.OPENAI_API_KEY) {
-    const rawBase = (env.OPENAI_BASE_URL || 'https://api.openai.com').trim();
-    const endpoint = rawBase
-      .replace(/\/+$/, '')
-      .replace(/\/v1\/?$/, '');
-    const apiKey = env.OPENAI_API_KEY;
-    const model = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
-
-    return {
-      endpoint,
-      apiKey,
-      model,
-      apiVersion: null,
-      url: `${endpoint}/v1/responses`,
-      authHeaders: { 'Authorization': `Bearer ${apiKey}` },
-      provider: 'openai-native'
-    };
+export function ensureOpenAIConfig(env) {
+  const apiKey = typeof env?.OPENAI_API_KEY === 'string' ? env.OPENAI_API_KEY.trim() : '';
+  if (!apiKey) {
+    throw new Error('OpenAI Responses API configuration is missing. Set OPENAI_API_KEY.');
   }
 
-  const rawEndpoint = env.AZURE_OPENAI_ENDPOINT || '';
-  const endpoint = rawEndpoint
-    .replace(/\/+$/, '')                    // Remove trailing slashes
-    .replace(/\/openai\/v1\/?$/, '')        // Remove /openai/v1 suffix if present
-    .replace(/\/openai\/?$/, '');           // Remove /openai suffix if present
-
-  const apiKey = env.AZURE_OPENAI_API_KEY;
-  const model = env.AZURE_OPENAI_GPT5_MODEL;
-
-  if (!endpoint || !apiKey || !model) {
-    throw new Error('Responses API configuration is missing. Set OPENAI_API_KEY or complete the Azure OpenAI fallback configuration.');
-  }
-
-  const apiVersion = env.AZURE_OPENAI_RESPONSES_API_VERSION || env.AZURE_OPENAI_API_VERSION || 'v1';
+  const rawBase = (env.OPENAI_BASE_URL || 'https://api.openai.com').trim();
+  const endpoint = rawBase
+    .replace(/\/+$/, '')
+    .replace(/\/v1\/?$/, '');
+  const model = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
 
   return {
     endpoint,
     apiKey,
     model,
-    apiVersion,
-    url: `${endpoint}/openai/v1/responses?api-version=${encodeURIComponent(apiVersion)}`,
-    authHeaders: { 'api-key': apiKey },
-    provider: 'azure'
+    url: `${endpoint}/v1/responses`,
+    authHeaders: { Authorization: `Bearer ${apiKey}` },
+    provider: 'openai-native'
   };
 }
 
@@ -80,44 +45,33 @@ function normalizeResponsesUser(value) {
 }
 
 /**
- * Resolve the end-user identifier for Azure Responses API requests.
+ * Resolve the end-user identifier for OpenAI Responses API requests.
  *
  * Priority order:
  * 1) Explicit per-request value
- * 2) Environment fallback: AZURE_OPENAI_RESPONSES_USER
+ * 2) Environment fallback: OPENAI_RESPONSES_USER
  *
  * @param {Object|null} env - Environment bindings
  * @param {string|null} explicitUser - Optional per-request user identifier
  * @returns {string|null} Normalized user identifier or null when unavailable
  */
 export function resolveResponsesUser(env = null, explicitUser = null) {
-  return normalizeResponsesUser(explicitUser) || normalizeResponsesUser(env?.AZURE_OPENAI_RESPONSES_USER);
+  return normalizeResponsesUser(explicitUser) || normalizeResponsesUser(env?.OPENAI_RESPONSES_USER);
 }
 
 /**
  * Determine reasoning effort based on env overrides and model defaults.
  *
  * @param {Object} env - Environment bindings
- * @param {string} modelName - Azure deployment/model name
+ * @param {string} modelName - OpenAI model name
  * @returns {string} Reasoning effort level ('none'|'minimal'|'low'|'medium'|'high'|'xhigh')
  */
 export function getReasoningEffort(env = null, modelName = '') {
-  // Native OpenAI override takes priority when OPENAI_API_KEY is configured,
-  // mirroring how OPENAI_STREAMING_ENABLED precedes the legacy Azure flag. This
-  // lets the OpenAI-native path (e.g. gpt-5.6-sol on 'high') be tuned
-  // independently of the Azure fallback's AZURE_OPENAI_REASONING_EFFORT.
-  const nativeOverride = env?.OPENAI_API_KEY && typeof env?.OPENAI_REASONING_EFFORT === 'string'
+  const override = typeof env?.OPENAI_REASONING_EFFORT === 'string'
     ? env.OPENAI_REASONING_EFFORT.trim().toLowerCase()
     : null;
-  if (nativeOverride && VALID_REASONING_EFFORTS.has(nativeOverride)) {
-    return nativeOverride;
-  }
-
-  const rawOverride = typeof env?.AZURE_OPENAI_REASONING_EFFORT === 'string'
-    ? env.AZURE_OPENAI_REASONING_EFFORT.trim().toLowerCase()
-    : null;
-  if (rawOverride && VALID_REASONING_EFFORTS.has(rawOverride)) {
-    return rawOverride;
+  if (override && VALID_REASONING_EFFORTS.has(override)) {
+    return override;
   }
 
   const normalizedModel = typeof modelName === 'string' ? modelName.toLowerCase() : '';
@@ -132,25 +86,15 @@ export function getReasoningEffort(env = null, modelName = '') {
  * Determine verbosity based on env overrides and model defaults.
  *
  * @param {Object} env - Environment bindings
- * @param {string} modelName - Azure deployment/model name
+ * @param {string} modelName - OpenAI model name
  * @returns {string} Verbosity level ('low'|'medium'|'high')
  */
 export function getTextVerbosity(env = null, modelName = '') {
-  // Native OpenAI override takes priority when OPENAI_API_KEY is configured
-  // (parallels getReasoningEffort), so the OpenAI-native path can set verbosity
-  // independently of the Azure fallback's AZURE_OPENAI_VERBOSITY.
-  const nativeOverride = env?.OPENAI_API_KEY && typeof env?.OPENAI_VERBOSITY === 'string'
+  const override = typeof env?.OPENAI_VERBOSITY === 'string'
     ? env.OPENAI_VERBOSITY.trim().toLowerCase()
     : null;
-  if (nativeOverride && VALID_VERBOSITY_LEVELS.has(nativeOverride)) {
-    return nativeOverride;
-  }
-
-  const rawOverride = typeof env?.AZURE_OPENAI_VERBOSITY === 'string'
-    ? env.AZURE_OPENAI_VERBOSITY.trim().toLowerCase()
-    : null;
-  if (rawOverride && VALID_VERBOSITY_LEVELS.has(rawOverride)) {
-    return rawOverride;
+  if (override && VALID_VERBOSITY_LEVELS.has(override)) {
+    return override;
   }
 
   const normalizedModel = typeof modelName === 'string' ? modelName.toLowerCase() : '';
@@ -162,7 +106,7 @@ export function getTextVerbosity(env = null, modelName = '') {
 }
 
 /**
- * Call Azure OpenAI Responses API
+ * Call OpenAI Responses API
  *
  * @param {Object} env - Environment bindings
  * @param {Object} options - Request options
@@ -176,17 +120,17 @@ export function getTextVerbosity(env = null, modelName = '') {
  * @param {boolean} options.returnFullResponse - When true, return { text, usage } instead of just text
  * @returns {Promise<string|Object>} Response text or { text, usage } if returnFullResponse=true
  */
-export async function callAzureResponses(env, options) {
-  if (!options.telemetry) return callAzureResponsesImpl(env, options);
-  const config = ensureAzureConfig(env);
+export async function callOpenAIResponses(env, options) {
+  if (!options.telemetry) return callOpenAIResponsesImpl(env, options);
+  const config = ensureOpenAIConfig(env);
   const result = await observeInferenceAttempt(env, {
     ...options.telemetry, signal: options.signal,
     provider: config.provider, requestedModel: config.model
-  }, () => callAzureResponsesImpl(env, { ...options, returnFullResponse: true }));
+  }, () => callOpenAIResponsesImpl(env, { ...options, returnFullResponse: true }));
   return options.returnFullResponse ? result : result.text;
 }
 
-async function callAzureResponsesImpl(env, {
+async function callOpenAIResponsesImpl(env, {
   instructions,
   input,
   maxTokens = 900,
@@ -199,7 +143,7 @@ async function callAzureResponsesImpl(env, {
   signal,
   timeoutMs = 120000
 }) {
-  const { model, apiVersion, url, authHeaders, provider } = ensureAzureConfig(env);
+  const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   // Build request body
@@ -237,11 +181,10 @@ async function callAzureResponsesImpl(env, {
   }
 
   // Debug logging for request metadata (no secrets)
-  console.log('[azureResponses] Requesting Responses API', {
+  console.log('[openaiResponses] Requesting Responses API', {
     url,
     provider,
     model,
-    apiVersion,
     maxTokens: maxTokens ?? 'unlimited',
     reasoningEffort: reasoningEffort ?? 'omitted',
     reasoningSummary: reasoningSummary ?? 'omitted',
@@ -265,7 +208,7 @@ async function callAzureResponsesImpl(env, {
         },
         body: JSON.stringify(body)
       },
-      provider === 'openai-native' ? 'openai-native' : 'azure-openai',
+      'openai-native',
       requestId,
       {
         maxRetries: 3,
@@ -295,7 +238,7 @@ async function callAzureResponsesImpl(env, {
 
   // Snapshot of the raw payload shape for debugging
   try {
-    console.log('[azureResponses] Raw Azure Responses payload snapshot', {
+    console.log('[openaiResponses] Raw OpenAI Responses payload snapshot', {
       id: data.id,
       model: data.model,
       created: data.created,
@@ -306,7 +249,7 @@ async function callAzureResponsesImpl(env, {
       hasOutputTextField: typeof data.output_text === 'string' && data.output_text.trim().length > 0
     });
   } catch (logError) {
-    console.warn('[azureResponses] Failed to log Azure payload snapshot', logError);
+    console.warn('[openaiResponses] Failed to log OpenAI payload snapshot', logError);
   }
 
   // Extract text content and reasoning summary from response
@@ -343,11 +286,11 @@ async function callAzureResponsesImpl(env, {
   }
 
   if (!text) {
-    throw new Error('Azure Responses API returned no text content.');
+    throw new Error('OpenAI Responses API returned no text content.');
   }
 
   if (reasoningSummaryText) {
-    console.log('[azureResponses] Reasoning summary extracted:', reasoningSummaryText.length, 'chars');
+    console.log('[openaiResponses] Reasoning summary extracted:', reasoningSummaryText.length, 'chars');
   }
 
   // Return full response object or just text based on flag

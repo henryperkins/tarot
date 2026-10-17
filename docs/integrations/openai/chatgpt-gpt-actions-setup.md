@@ -115,7 +115,7 @@ paths:
                     description: Generated tarot-reading narrative.
                   provider:
                     type: string
-                    description: Narrative provider used (e.g. openai-native, azure-gpt5, local-composer).
+                    description: Narrative provider used (e.g. openai-native, local-composer).
                   requestId:
                     type: string
                     description: Unique request identifier.

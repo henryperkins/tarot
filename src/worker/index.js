@@ -402,9 +402,9 @@ function addCorsHeaders(response, request) {
  * @property {string} MODAL_TEMPERATURE - Modal sampling temperature (default 0.3)
  * @property {string} MODAL_TOP_P - Modal nucleus sampling probability (default 0.95)
  * @property {string} MODAL_TIMEOUT_MS - Modal request timeout in milliseconds
- * @property {string} AZURE_OPENAI_ENDPOINT - Azure OpenAI endpoint
- * @property {string} AZURE_OPENAI_API_KEY - Azure OpenAI API key
- * @property {string} AZURE_OPENAI_GPT5_MODEL - GPT-5 model deployment name
+ * @property {string} OPENAI_API_KEY - Native OpenAI Responses API key
+ * @property {string} OPENAI_BASE_URL - Optional native OpenAI API base URL
+ * @property {string} OPENAI_MODEL - OpenAI Responses model id
  * @property {string} ANTHROPIC_API_KEY - Claude Messages API key; when set, Claude is the first text provider
  * @property {string} ANTHROPIC_MODEL - Claude model id (default claude-opus-5-5)
  * @property {string} ANTHROPIC_EFFORT - Reading effort: low, medium, high, xhigh or max (default xhigh)

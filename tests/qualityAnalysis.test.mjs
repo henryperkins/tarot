@@ -52,7 +52,7 @@ describe('Quality Analysis', () => {
           reading_prompt_version: '1.1.0',
           eval_prompt_version: '2.2.0',
           variant_id: null,
-          provider: 'azure-gpt5',
+          provider: 'openai-native',
           spread_key: 'decision',
           reading_count: 3,
           eval_count: 0,
@@ -76,7 +76,7 @@ describe('Quality Analysis', () => {
       
       assert.strictEqual(result.length, 1);
       assert.strictEqual(result[0].reading_count, 3);
-      assert.strictEqual(result[0].provider, 'azure-gpt5');
+      assert.strictEqual(result[0].provider, 'openai-native');
     });
 
     it('should return empty array on error', async () => {
@@ -100,7 +100,7 @@ describe('Quality Analysis', () => {
         reading_prompt_version: '1.1.0',
         eval_prompt_version: '2.2.0',
         variant_id: null,
-        provider: 'azure-gpt5',
+        provider: 'openai-native',
         spread_key: 'decision',
         reading_count: 3,
         eval_count: 0,
@@ -123,7 +123,7 @@ describe('Quality Analysis', () => {
       const insertStmt = db._statements.find(s => s.sql.includes('INSERT'));
       assert.ok(insertStmt, 'Should have an INSERT statement');
       assert.ok(insertStmt.bindings.includes('2026-01-16'), 'Should include date');
-      assert.ok(insertStmt.bindings.includes('azure-gpt5'), 'Should include provider');
+      assert.ok(insertStmt.bindings.includes('openai-native'), 'Should include provider');
     });
   });
 
@@ -157,7 +157,7 @@ describe('Quality Analysis', () => {
           reading_prompt_version: '1.1.0',
           eval_prompt_version: '2.2.0',
           variant_id: null,
-          provider: 'azure-gpt5',
+          provider: 'openai-native',
           spread_key: 'decision',
           reading_count: 25,
           eval_count: 5,
@@ -201,7 +201,7 @@ describe('Quality Analysis', () => {
         reading_prompt_version: '1.0.0',
         eval_prompt_version: '2.0.0',
         variant_id: null,
-        provider: 'azure',
+        provider: 'openai-native',
         spread_key: 'threeCard',
         reading_count: 50,
         eval_count: 2,
@@ -218,7 +218,7 @@ describe('Quality Analysis', () => {
         avg_card_coverage: 0.9,
         hallucination_count: 0
       }];
-      const key = '1.0.0:null:threeCard:azure';
+      const key = '1.0.0:null:threeCard:openai-native';
       const baselines = new Map([
         [key, { overall: 4.0, coverage: 0.9, safety_flag_rate: 0, low_tone_rate: 0 }]
       ]);
@@ -232,7 +232,7 @@ describe('Quality Analysis', () => {
         reading_prompt_version: '1.0.0',
         eval_prompt_version: '2.0.0',
         variant_id: null,
-        provider: 'azure',
+        provider: 'openai-native',
         spread_key: 'threeCard',
         reading_count: 50,
         eval_count: 2,
@@ -249,7 +249,7 @@ describe('Quality Analysis', () => {
         avg_card_coverage: 0.6,
         hallucination_count: 0
       }];
-      const key = '1.0.0:null:threeCard:azure';
+      const key = '1.0.0:null:threeCard:openai-native';
       const baselines = new Map([
         [key, { overall: 4.0, coverage: 0.9, safety_flag_rate: 0, low_tone_rate: 0 }]
       ]);

@@ -101,8 +101,8 @@ export default function GovernanceCritiquePage() {
           <p className="governance-critique-page__lead">
             Tableu is an AI tarot app (React + Cloudflare Workers). It stacks four components:
             deterministic card draws, computer-vision card recognition, GraphRAG context, and{' '}
-            <strong>LLM narrative synthesis</strong> (Azure OpenAI primary, Claude / local composer
-            fallback). The AI output under critique is the <strong>generated reading</strong>.
+            <strong>LLM narrative synthesis</strong> (Claude, then Modal Qwen and native OpenAI,
+            with a local composer fallback). The AI output under critique is the <strong>generated reading</strong>.
           </p>
           <p>
             Its objective is a specific, grounded, <strong>non-deterministic reflective</strong>{' '}

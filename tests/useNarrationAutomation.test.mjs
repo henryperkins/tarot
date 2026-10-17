@@ -5,6 +5,7 @@ import {
   getCanAutoNarrate,
   getAutoNarrationReadingKey
 } from '../src/hooks/useNarrationAutomation.js';
+import { normalizeTtsProvider } from '../src/lib/audio.js';
 
 describe('getCanAutoNarrate', () => {
   test('leaves completed ElevenLabs and Deepgram narration to ReadingContext', () => {

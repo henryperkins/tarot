@@ -73,9 +73,9 @@ export function isDevelopmentEnvironment(env) {
  * @returns {string | undefined} The environment variable value or undefined
  *
  * @example
- * const apiKey = resolveEnv(env, 'AZURE_OPENAI_API_KEY');
+ * const apiKey = resolveEnv(env, 'OPENAI_API_KEY');
  * if (!apiKey) {
- *   throw new Error('AZURE_OPENAI_API_KEY is required');
+ *   throw new Error('OPENAI_API_KEY is required');
  * }
  */
 export function resolveEnv(env, key) {
@@ -101,8 +101,8 @@ export function resolveEnv(env, key) {
  * @returns {string | undefined} The environment variable value or undefined
  *
  * @example
- * const apiKey = resolveEnvStrict(env, 'ELEVENLABS_API_KEY');
- * // Returns undefined if ELEVENLABS_API_KEY is '', 0, false, null, or undefined
+ * const apiKey = resolveEnvStrict(env, 'OPENAI_API_KEY');
+ * // Returns undefined if OPENAI_API_KEY is '', 0, false, null, or undefined
  */
 export function resolveEnvStrict(env, key) {
   if (env?.[key]) return env[key];

@@ -203,11 +203,11 @@ Motion is implemented as a mixed stack:
 - JS-driven card, deck, overlay, modal, gesture, and toast transitions go through `src/lib/motionAdapter.js`, which wraps the `motion` library.
 - CSS keyframes handle narrative word reveals and the card-slot reveal burst.
 - `@tsparticles/react` and `@tsparticles/slim` provide the shared scene-level `ParticleLayer`; the per-slot reveal burst is CSS-based.
-- Sora card video is a separate feature-flagged media path, not an animation primitive.
+- Card-video generation is retired; the compatibility route returns HTTP 410.
 
 ### Reduced-Motion and Lifecycle Safeguards
 
-Scene transitions are skipped when reduced motion is active, particles receive a zero count, and the slot reveal burst collapses through the global reduced-motion rules. Particle sessions clean up their canvas when a scene unmounts, and media polling is bounded by the card-video client flow.
+Scene transitions are skipped when reduced motion is active, particles receive a zero count, and the slot reveal burst collapses through the global reduced-motion rules. Particle sessions clean up their canvas when a scene unmounts.
 
 ## Testing
 
@@ -237,7 +237,7 @@ npm run test:e2e
 | `motion` library via `motionAdapter` | Modern browsers | Reduced/static state |
 | Vibration API (centralized haptics) | Mobile browsers | Silent no-op; reduced motion disables it |
 | `@tsparticles` scene layer | Modern browsers | No particles |
-| Sora card video | Feature/config dependent | Static media fallback |
+| Card-video generation | Retired (HTTP 410) | Static card artwork |
 
 ## Implementation Status and Proposals
 
@@ -245,7 +245,7 @@ npm run test:e2e
 
 - Canonical scene orchestration with `IDLE`, `RITUAL`, `REVEAL`, `INTERLUDE`, `NARRATIVE`, and `COMPLETE` states.
 - JS motion through the `motion` adapter, CSS narrative/slot-reveal effects, and shared `@tsparticles` scene particles.
-- Sora-backed card video generation through the feature-flagged `/api/generate-card-video` path for Plus/Pro media access.
+- Static artwork for card reveals; `/api/generate-card-video` is retained only as a retired compatibility endpoint.
 - Centralized haptics with reduced-motion disabling.
 
 ### Prototype or unused
@@ -255,7 +255,7 @@ npm run test:e2e
 
 ### Proposals
 
-1. **Video expansion:** richer Sora usage across additional reading surfaces, if product scope and quotas are defined.
+1. **Future media:** any new video capability requires a separate provider and product decision; none is configured.
 2. **Audio layers:** narrative-driven ambient layers beyond the existing scene sounds.
 3. **Particle work:** WebGL-based trails or richer interaction presets.
 4. **Advanced haptics:** pattern composition based on card combinations.
@@ -302,4 +302,4 @@ The live component is `InterludeScene`; `AtmosphericInterlude` is only the unuse
 - [Particle Layer](../src/components/ParticleLayer.jsx)
 - [Motion Adapter](../src/lib/motionAdapter.js)
 - [Haptic Hook](../src/hooks/useHaptic.js)
-- [Sora Card Video UI](../src/components/AnimatedReveal.jsx)
+- [Card Reveal UI](../src/components/AnimatedReveal.jsx)

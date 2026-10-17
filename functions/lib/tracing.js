@@ -19,13 +19,8 @@ const noopSpanProcessor = {
 };
 
 const TRACE_PROPAGATION_HOSTS = [
-  '.openai.azure.com',
-  '.cognitiveservices.azure.com',
-  '.ai.azure.com',
-  '.services.ai.azure.com',
   'api.anthropic.com',
   'api.openai.com',
-  'models.inference.ai.azure.com',
 ];
 
 const SENSITIVE_HEADER_NAMES = new Set([

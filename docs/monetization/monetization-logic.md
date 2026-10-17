@@ -218,7 +218,7 @@ if (!hasAIAccess) {
 
 **Behavior:**
 - Free tier → deterministic local template (`craftQuestionFromPrompt`, `provider: 'local-template'`).
-- Plus/Pro → native OpenAI Responses when `OPENAI_API_KEY` is configured (`provider: 'openai-native'`), otherwise Azure Responses when the Azure configuration is present (`provider: 'azure-gpt5'`).
+- Plus/Pro → native OpenAI Responses when `OPENAI_API_KEY` is configured (`provider: 'openai-native'`).
 - Paid generation falls back to the deterministic local generator when no provider is configured or the provider call fails (`provider: 'local-fallback'`).
 
 ---

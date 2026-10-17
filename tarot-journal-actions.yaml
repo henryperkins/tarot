@@ -281,7 +281,7 @@ components:
           description: The `provider` value from the reading response.
           examples:
             - openai-native
-            - azure-gpt5
+            - openai-native
             - local-composer
         sessionSeed:
           type: string

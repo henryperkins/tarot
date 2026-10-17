@@ -123,7 +123,7 @@ describe('buildJournalEntryFromJob', () => {
   });
 
   it('keeps a reading whose first streamed draft failed the quality gate', () => {
-    const vetted = job({ result: { reading: 'Vetted.', provider: 'azure-gpt5', requestId: 'req-1', gateBlocked: true, gateReason: 'quality_gate_streaming' } });
+    const vetted = job({ result: { reading: 'Vetted.', provider: 'openai-native', requestId: 'req-1', gateBlocked: true, gateReason: 'quality_gate_streaming' } });
     assert.equal(buildJournalEntryFromJob(vetted).personalReading, 'Vetted.');
   });
 

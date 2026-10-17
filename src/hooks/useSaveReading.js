@@ -38,7 +38,7 @@ export function useSaveReading() {
     const { canUseCloudJournal } = useSubscription();
     // Include original content as well as seed: regenerating within a spread is
     // a new save target, and an account change must never inherit Saved state.
-    const readingKey = JSON.stringify([sessionSeed, selectedSpread, deckStyleId, userQuestion,
+    const readingKey = JSON.stringify([readingMeta?.readingResultId || null, sessionSeed, selectedSpread, deckStyleId, userQuestion,
         personalReading?.raw || personalReading?.normalized || '', reflections,
         reading?.map(card => [card.name, card.isReversed]),
         isAuthenticated ? user?.id : 'guest', Boolean(isAuthenticated && canUseCloudJournal)]);

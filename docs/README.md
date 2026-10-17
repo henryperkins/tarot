@@ -16,6 +16,7 @@ This directory mixes active references, design and product notes, audits, and ar
 
 ## Canonical References
 
+- [Provider inventory and reference](provider-reference.md) - services, feature routing, model defaults, configuration and React contexts
 - `architecture/full-system-diagrams.md` - detailed system diagrams
 - `architecture/overview-diagram.md` - lighter architecture overview
 - `architecture/narrative-architecture.md` - narrative-generation architecture

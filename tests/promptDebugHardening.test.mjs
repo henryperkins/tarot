@@ -153,7 +153,7 @@ describe('promptDebug size budget', () => {
     const huge = 'S'.repeat(PROMPT_DEBUG_MAX_PROMPT_CHARS + 5000);
     const payload = buildPromptDebugPayload({
       capturedPrompts: { system: huge, user: 'short' },
-      provider: 'azure-gpt5'
+      provider: 'openai-native'
     });
 
     assert.ok(payload.systemPrompt.length <= PROMPT_DEBUG_MAX_PROMPT_CHARS);
@@ -165,7 +165,7 @@ describe('promptDebug size budget', () => {
     const huge = 'U'.repeat(PROMPT_DEBUG_MAX_PROMPT_CHARS + 1);
     const payload = buildPromptDebugPayload({
       capturedPrompts: { system: 'short', user: huge },
-      provider: 'azure-gpt5'
+      provider: 'openai-native'
     });
 
     assert.ok(payload.userPrompt.length <= PROMPT_DEBUG_MAX_PROMPT_CHARS);
@@ -175,7 +175,7 @@ describe('promptDebug size budget', () => {
   it('keeps normal prompts verbatim and reports no truncation', () => {
     const payload = buildPromptDebugPayload({
       capturedPrompts: { system: 'SYS', user: 'USER' },
-      provider: 'azure-gpt5'
+      provider: 'openai-native'
     });
     assert.equal(payload.systemPrompt, 'SYS');
     assert.equal(payload.userPrompt, 'USER');
@@ -186,7 +186,7 @@ describe('promptDebug size budget', () => {
     const huge = 'X'.repeat(500_000);
     const payload = buildPromptDebugPayload({
       capturedPrompts: { system: huge, user: huge },
-      provider: 'azure-gpt5'
+      provider: 'openai-native'
     });
     assert.ok(
       JSON.stringify(payload).length < 100_000,
@@ -264,9 +264,9 @@ describe('worst-case response stays under the GPT Actions ceiling', () => {
     });
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'k',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
+      OPENAI_API_KEY: 'k',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
       EVAL_ENABLED: 'false',
       EVAL_GATE_ENABLED: 'false',
       GRAPHRAG_ENABLED: 'false',

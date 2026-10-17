@@ -116,7 +116,12 @@ test('handleScheduled archives KV data to D1', async (t) => {
   assert.ok(db.prepareCount > 0, 'D1 prepare should have been called');
 });
 
-test('handleScheduled runs card-video reconcile-only cron without archival', async () => {
+test('handleScheduled ignores the retired video cron without fetching or archival', async (t) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = () => {
+    assert.fail('The retired video cron must never call a provider');
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
   const metricsKV = new FakeKV([]);
   const feedbackKV = new FakeKV([
     ['feedback:1', { message: 'kept' }]
@@ -129,7 +134,6 @@ test('handleScheduled runs card-video reconcile-only cron without archival', asy
     { waitUntil: (promise) => promise }
   );
 
-  // Reconcile-only cron should short-circuit before D1 archival/cleanup work.
-  assert.strictEqual(db.prepareCount, 0, 'D1 should not be touched for reconcile-only cron');
+  assert.strictEqual(db.prepareCount, 0, 'D1 should not be touched for the retired cron');
   assert.strictEqual(feedbackKV.map.size, 1, 'feedback KV keys should remain untouched');
 });

@@ -18,7 +18,7 @@ import { JOURNEY_PRIMARY_BUTTON_CLASS } from '../../../styles/buttonClasses';
  * Provider badge component showing AI vs Heuristic.
  */
 function ProviderBadge({ provider }) {
-  const isAI = provider === 'azure-responses';
+  const isAI = ['claude-api', 'claude-code', 'openai-native'].includes(provider);
 
   return (
     <span

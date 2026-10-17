@@ -128,7 +128,7 @@ describe('maybeLogPromptPayload redaction', () => {
       maybeLogPromptPayload(
         { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
         'req-1',
-        'azure-gpt5',
+        'openai-native',
         '',
         '**Question**: My partner Alex and I are struggling.',
         null,
@@ -186,7 +186,7 @@ describe('maybeLogPromptPayload redaction', () => {
       maybeLogPromptPayload(
         { LOG_LLM_PROMPTS: 'true', NODE_ENV: 'development' },
         'req-3',
-        'azure-gpt5',
+        'openai-native',
         '',
         'Prompt with Alex and Jamie in context.',
         null,

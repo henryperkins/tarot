@@ -7,7 +7,7 @@ export function resolveNarrativeEvalBackend(value, { requireLive = false } = {})
   const backend = String(value || 'claude-code').trim().toLowerCase();
   if (['', 'auto', 'claude-code'].includes(backend)) return 'claude-code';
   if (['local', 'local-composer'].includes(backend) && !requireLive) return 'local-composer';
-  if (!['local', 'local-composer', 'claude-api', 'modal-qwen', 'azure-gpt5'].includes(backend)) {
+  if (!['local', 'local-composer', 'claude-api', 'modal-qwen', 'openai-native'].includes(backend)) {
     throw new Error(`Unknown backend "${value}"`);
   }
   throw new Error('Narrative qualification requires the Claude subscription (claude-code); paid API backends are disabled and local-composer is diagnostic only.');

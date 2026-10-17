@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
 import { runSubscriptionNarrative } from '../scripts/evaluation/lib/subscriptionNarrative.js';
 import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
-import { buildAzureGPT5Prompts } from '../functions/lib/narrativeBackends.js';
+import { buildOpenAIResponsesPrompts } from '../functions/lib/narrativeBackends.js';
 import { createClaudeCodeServer } from '../services/claude-code/server.mjs';
 import { parseClaudeOutput } from '../services/claude-code/runner.mjs';
 import { once } from 'node:events';
@@ -26,7 +26,7 @@ test('automatic narrative evaluation chooses the subscription even with every pa
 });
 
 test('narrative evaluation rejects paid provider overrides and retains local diagnostics', () => {
-  for (const requested of ['claude-api', 'azure-gpt5', 'modal-qwen']) {
+  for (const requested of ['claude-api', 'openai-native', 'modal-qwen']) {
     assert.throws(() => resolveBackendId(requested, apiSettings), /paid API backends are disabled/i);
   }
   assert.equal(resolveBackendId('local', {}), 'local-composer');
@@ -163,7 +163,7 @@ test('cancellation during CLI cleanup cannot qualify a completed response', asyn
 
 test('remote evaluation uses only the configured subscription gateway and records the actual model', async t => {
   const payload = await narrativePayload();
-  const expected = buildAzureGPT5Prompts(apiSettings, payload, 'test', {
+  const expected = buildOpenAIResponsesPrompts(apiSettings, payload, 'test', {
     backendId: 'claude-api', providerLabel: 'Claude Messages API', budgetTarget: 'claude'
   });
   t.mock.method(globalThis, 'fetch', async (url, options) => {

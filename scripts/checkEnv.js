@@ -37,13 +37,10 @@ const OPTIONAL_FOR_MODAL_READINGS = [
 const OPTIONAL_FOR_OPENAI_READINGS = [
   'OPENAI_MODEL',
   'OPENAI_BASE_URL',
+  'OPENAI_REASONING_EFFORT',
+  'OPENAI_VERBOSITY',
+  'OPENAI_RESPONSES_USER',
   'OPENAI_STREAMING_ENABLED'
-];
-
-const REQUIRED_FOR_AZURE_OPENAI_FALLBACK = [
-  'AZURE_OPENAI_ENDPOINT',
-  'AZURE_OPENAI_API_KEY',
-  'AZURE_OPENAI_GPT5_MODEL'
 ];
 
 const REQUIRED_FOR_CLAUDE_API = [
@@ -73,7 +70,7 @@ const OPTIONAL_FLAGS = [
   'ENABLE_PROMPT_SLIMMING',
   'DISABLE_QUALITY_FILTERING',
   'PERSIST_PROMPTS',
-  'PROMPT_BUDGET_AZURE',
+  'PROMPT_BUDGET_OPENAI',
   'PROMPT_BUDGET_CLAUDE',
   'PROMPT_BUDGET_DEFAULT'
 ];
@@ -333,14 +330,6 @@ function run() {
   }
   const openAIConfigured = missingOpenAI.length === 0;
 
-  const missingAzureFallback = [];
-  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
-    const resolved = resolveVariable(key, process.env, fileVars, wranglerVars);
-    results[key] = resolved;
-    if (!resolved) missingAzureFallback.push(key);
-  }
-  const azureFallbackConfigured = missingAzureFallback.length === 0;
-
   // Conditional: vision proof secret is only required when the vision UI is enabled.
   const visionEnabledValue = resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars);
   const visionEnabled = isTruthyFlag(visionEnabledValue);
@@ -400,13 +389,6 @@ function run() {
     else console.log(`• ${key} (not set)`);
   }
 
-  console.log('\nFallback: Azure OpenAI readings:');
-  for (const key of REQUIRED_FOR_AZURE_OPENAI_FALLBACK) {
-    const entry = results[key];
-    if (entry) console.log(`✔ ${key} (${entry.source})`);
-    else console.log(`• ${key} (not set)`);
-  }
-
   if (visionEnabled) {
     console.log('\nVision research mode is ENABLED (VITE_ENABLE_VISION_RESEARCH=true):');
     for (const key of OPTIONAL_FOR_VISION_RESEARCH) {
@@ -426,8 +408,8 @@ function run() {
     console.warn(`\nModal configuration unavailable: ${modalConfigurationError}`);
   }
 
-  if (!claudeConfigured && !modalConfigured && !openAIConfigured && !azureFallbackConfigured) {
-    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_CLAUDE_API.join(', ')} (preferred), ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')}, ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}, or ${REQUIRED_FOR_AZURE_OPENAI_FALLBACK.join(', ')} (fallback).`);
+  if (!claudeConfigured && !modalConfigured && !openAIConfigured) {
+    console.error(`\nMissing AI reading provider credentials: ${REQUIRED_FOR_CLAUDE_API.join(', ')} (preferred), ${MODAL_PROXY_TOKEN_PAIR.join(' + ')} (or legacy MODAL_PROXY_TOKEN) with ${REQUIRED_FOR_MODAL_READINGS.join(', ')}, or ${REQUIRED_FOR_OPENAI_READINGS.join(', ')}.`);
     console.error('Populate .dev.vars (or export env vars) to enable AI-generated readings.');
     console.error('Note: `npm run dev` will still run, but API-powered features may fall back to local generators.');
     process.exitCode = 1;
@@ -466,7 +448,7 @@ function run() {
     ? 'Claude API'
     : modalConfigured
       ? 'Modal'
-      : (openAIConfigured ? 'OpenAI native' : 'Azure OpenAI fallback');
+      : 'OpenAI native';
   console.log(`\nAll required environment variables for AI-generated readings are present (${activeProvider}). You are ready to run \`npm run dev\` 🙌`);
 }
 

@@ -3,29 +3,29 @@
 		return;
 	}
 
-	var registerBlockType = wp.blocks.registerBlockType;
-	var blockEditor = wp.blockEditor;
-	var components = wp.components;
-	var createElement = wp.element.createElement;
-	var Fragment = wp.element.Fragment;
-	var __ = wp.i18n.__;
-	var InspectorControls = blockEditor.InspectorControls;
-	var useBlockProps = blockEditor.useBlockProps;
-	var PanelBody = components.PanelBody;
-	var TextControl = components.TextControl;
-	var TextareaControl = components.TextareaControl;
-	var Button = components.Button;
-	var Disabled = components.Disabled;
-	var serverSideRenderModule = wp.serverSideRender;
-	var ServerSideRender = serverSideRenderModule && ( serverSideRenderModule.ServerSideRender || serverSideRenderModule.default || serverSideRenderModule );
-	var textDomain = 'lakefront-content-kit';
+	const registerBlockType = wp.blocks.registerBlockType;
+	const blockEditor = wp.blockEditor;
+	const components = wp.components;
+	const createElement = wp.element.createElement;
+	const Fragment = wp.element.Fragment;
+	const __ = wp.i18n.__;
+	const InspectorControls = blockEditor.InspectorControls;
+	const useBlockProps = blockEditor.useBlockProps;
+	const PanelBody = components.PanelBody;
+	const TextControl = components.TextControl;
+	const TextareaControl = components.TextareaControl;
+	const Button = components.Button;
+	const Disabled = components.Disabled;
+	const serverSideRenderModule = wp.serverSideRender;
+	const ServerSideRender = serverSideRenderModule && ( serverSideRenderModule.ServerSideRender || serverSideRenderModule.default || serverSideRenderModule );
+	const textDomain = 'lakefront-content-kit';
 
 	function cloneArray( values ) {
 		return Array.isArray( values ) ? values.slice() : [];
 	}
 
 	function replaceArrayItem( values, index, nextItem ) {
-		var nextValues = cloneArray( values );
+		const nextValues = cloneArray( values );
 
 		nextValues[ index ] = nextItem;
 
@@ -39,15 +39,14 @@
 	}
 
 	function moveArrayItem( values, index, offset ) {
-		var nextValues = cloneArray( values );
-		var targetIndex = index + offset;
-		var temporaryItem;
+		const nextValues = cloneArray( values );
+		const targetIndex = index + offset;
 
 		if ( targetIndex < 0 || targetIndex >= nextValues.length ) {
 			return nextValues;
 		}
 
-		temporaryItem = nextValues[ targetIndex ];
+		const temporaryItem = nextValues[ targetIndex ];
 		nextValues[ targetIndex ] = nextValues[ index ];
 		nextValues[ index ] = temporaryItem;
 
@@ -55,7 +54,7 @@
 	}
 
 	function renderItemActions( length, index, onMoveUp, onMoveDown, onRemove ) {
-		var children = [];
+		const children = [];
 
 		if ( index > 0 ) {
 			children.push(
@@ -116,8 +115,8 @@
 	}
 
 	function renderMetricControls( metrics, setAttributes ) {
-		var controls = metrics.map( function ( metric, index ) {
-			var safeMetric = metric && 'object' === typeof metric ? metric : {};
+		const controls = metrics.map( function ( metric, index ) {
+			const safeMetric = metric && 'object' === typeof metric ? metric : {};
 
 			return createElement(
 				'div',
@@ -193,7 +192,7 @@
 	}
 
 	function renderDeliverableControls( deliverables, setAttributes ) {
-		var controls = deliverables.map( function ( deliverable, index ) {
+		const controls = deliverables.map( function ( deliverable, index ) {
 			return createElement(
 				'div',
 				{
@@ -251,11 +250,11 @@
 	}
 
 	function Edit( props ) {
-		var attributes = props.attributes;
-		var setAttributes = props.setAttributes;
-		var metrics = Array.isArray( attributes.metrics ) ? attributes.metrics : [];
-		var deliverables = Array.isArray( attributes.deliverables ) ? attributes.deliverables : [];
-		var blockProps = useBlockProps();
+		const attributes = props.attributes;
+		const setAttributes = props.setAttributes;
+		const metrics = Array.isArray( attributes.metrics ) ? attributes.metrics : [];
+		const deliverables = Array.isArray( attributes.deliverables ) ? attributes.deliverables : [];
+		const blockProps = useBlockProps();
 
 		return createElement(
 			Fragment,

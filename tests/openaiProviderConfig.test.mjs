@@ -6,8 +6,9 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { ensureAzureConfig } from '../functions/lib/azureResponses.js';
-import { isAzureTokenStreamingEnabled } from '../functions/lib/readingTelemetry.js';
+import { ensureOpenAIConfig } from '../functions/lib/openaiResponses.js';
+import { isOpenAITokenStreamingEnabled } from '../functions/lib/readingTelemetry.js';
+import { getAvailableNarrativeBackends, NARRATIVE_BACKEND_ORDER } from '../functions/lib/narrativeBackends.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checkEnvScript = path.join(repoRoot, 'scripts/checkEnv.js');
@@ -163,7 +164,7 @@ describe('native OpenAI provider configuration', () => {
   });
 
   it('uses gpt-5.6-sol as the default native OpenAI Responses model', () => {
-    const config = ensureAzureConfig({
+    const config = ensureOpenAIConfig({
       OPENAI_API_KEY: 'openai-test-key'
     });
 
@@ -174,7 +175,7 @@ describe('native OpenAI provider configuration', () => {
   });
 
   it('honors an explicit OPENAI_MODEL override', () => {
-    const config = ensureAzureConfig({
+    const config = ensureOpenAIConfig({
       OPENAI_API_KEY: 'openai-test-key',
       OPENAI_MODEL: 'gpt-5.6-sol-preview'
     });
@@ -192,11 +193,24 @@ describe('native OpenAI provider configuration', () => {
     assert.match(output, /All required environment variables for AI-generated readings are present/);
   });
 
-  it('uses OPENAI_STREAMING_ENABLED before the legacy Azure streaming flag', () => {
-    assert.equal(isAzureTokenStreamingEnabled({ OPENAI_STREAMING_ENABLED: 'true' }), true);
-    assert.equal(isAzureTokenStreamingEnabled({
+  it('uses only OPENAI_STREAMING_ENABLED for native token streaming', () => {
+    assert.equal(isOpenAITokenStreamingEnabled({ OPENAI_STREAMING_ENABLED: 'true' }), true);
+    assert.equal(isOpenAITokenStreamingEnabled({
       OPENAI_STREAMING_ENABLED: 'false',
       AZURE_OPENAI_STREAMING_ENABLED: 'true'
     }), false);
+    assert.equal(isOpenAITokenStreamingEnabled({ AZURE_OPENAI_STREAMING_ENABLED: 'true' }), false);
+    assert.equal(isOpenAITokenStreamingEnabled({ ENABLE_AZURE_TOKEN_STREAMING: 'true' }), false);
+  });
+
+  it('does not offer a text inference backend for Azure-only credentials', () => {
+    const env = {
+      AZURE_OPENAI_ENDPOINT: 'https://retired.example',
+      AZURE_OPENAI_API_KEY: 'retired-key',
+      AZURE_OPENAI_GPT5_MODEL: 'retired-model'
+    };
+    assert.deepEqual(getAvailableNarrativeBackends(env).map(({ id }) => id), ['local-composer']);
+    assert.equal(NARRATIVE_BACKEND_ORDER.includes('azure-gpt5'), false);
+    assert.deepEqual(getAvailableNarrativeBackends({ ...env, OPENAI_API_KEY: 'native-key' }).map(({ id }) => id), ['openai-native', 'local-composer']);
   });
 });

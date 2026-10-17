@@ -4,6 +4,8 @@ Last reviewed: 2026-09-25
 
 This is a high-level runtime view. The application uses one Cloudflare Worker plus its `ASSETS` binding; there is no separate application server runtime. For endpoint-level details, verify `src/worker/index.js`, `wrangler.jsonc`, and the relevant `functions/api/` handler.
 
+The [provider inventory](../provider-reference.md) covers feature-specific routing, optional owner subscription inference, model defaults and configuration.
+
 ```mermaid
 flowchart TB
 %% Frontend
@@ -23,7 +25,6 @@ flowchart TB
         Router["Worker Router – routes /api/* requests"]
         CORS["CORS Handler (OPTIONS preflight,<br/>adds Access-Control-Allow-* headers)"]
         OG_Injection["Share OG Tag Injector (injects meta tags<br/>for /share/:token pages)"]
-        CronVideo["Scheduled Cron (*/10)<br/>card-video usage reconciliation"]
         CronDaily["Scheduled Cron (0 3 * * *)<br/>quality analysis, ongoing KV compatibility archival, cleanup"]
         subgraph API_Functions [API Route Handlers (functions/api/*)]
             direction TB
@@ -49,14 +50,13 @@ flowchart TB
     Router -->|"/api/*"| API_Functions
     Router -->|"/api/tarot-reading/jobs/*"| DurableObj
     Router -->|"/share/:token"| OG_Injection
-    Worker -->|Cron Trigger| CronVideo
     Worker -->|Cron Trigger| CronDaily
     Router --> CORS
     
 %% Data Storage (Cloudflare)
     subgraph CF_Storage [**Cloudflare Data Storage**]
         D1DB[(D1 (DB) – SQLite<br/>app data, eval_metrics, quality, usage, media metadata)]
-        KV_Metrics["KV (METRICS_DB) – media telemetry, media usage, card-video job metadata, ongoing compatibility archive input"]
+        KV_Metrics["KV (METRICS_DB) – media telemetry, media usage, legacy video-job metadata, ongoing compatibility archive input"]
         KV_Feedback["KV (FEEDBACK_KV) – feedback cache"]
         R2Bucket["R2 (R2_LOGS) – generated/user media, journal exports, archives"]
     end
@@ -64,7 +64,6 @@ flowchart TB
     Worker --> KV_Metrics
     Worker --> KV_Feedback
     Worker --> R2Bucket
-    CronVideo --> KV_Metrics
     CronDaily --> D1DB
     CronDaily --> KV_Metrics
     CronDaily --> KV_Feedback
@@ -73,13 +72,13 @@ flowchart TB
     subgraph External [**External Services**]
         StripeAPI["Stripe API – payments"]
         ModalQwen["Modal Qwen<br/>Chat Completions"]
-        AzureGPT5["azure-gpt5<br/>OpenAI native Responses or Azure OpenAI Responses"]
+        OpenAINative["openai-native<br/>OpenAI native Responses"]
         Claude["Anthropic API<br/>Claude Opus 5.5"]
         ReaderTTS["User-selected narration<br/>ElevenLabs v4 / Sarah<br/>Deepgram Aura-2 / Cora"]
     end
-    Worker -->|1. narrative| ModalQwen
-    Worker -->|2. narrative| AzureGPT5
-    Worker -->|3. fallback| Claude
+    Worker -->|1. narrative| Claude
+    Worker -->|2. narrative| ModalQwen
+    Worker -->|3. narrative| OpenAINative
     Worker -->|4. deterministic fallback| LocalComposer
     Worker -->|TTS generation and shared allowance| ReaderTTS
     Worker -->|Create sessions, Portal| StripeAPI

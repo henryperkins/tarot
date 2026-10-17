@@ -1,155 +1,62 @@
-// tests/azureResponses.test.mjs
-// Tests for Azure OpenAI Responses API helper module
-// Run with: npm test -- tests/azureResponses.test.mjs
+// tests/openaiResponses.test.mjs
+// Tests for native OpenAI Responses API helper module
+// Run with: npm test -- tests/openaiResponses.test.mjs
 
 import { test, describe, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ensureAzureConfig,
+  ensureOpenAIConfig,
   getReasoningEffort,
   getTextVerbosity,
   resolveResponsesUser
-} from '../functions/lib/azureResponses.js';
+} from '../functions/lib/openaiResponses.js';
 
-describe('ensureAzureConfig', () => {
-  test('returns normalized config when all required fields present', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    const config = ensureAzureConfig(env);
-
-    assert.strictEqual(config.endpoint, 'https://myresource.openai.azure.com');
-    assert.strictEqual(config.apiKey, 'test-key');
-    assert.strictEqual(config.model, 'gpt-5');
-    assert.strictEqual(config.apiVersion, 'v1'); // Default
+describe('ensureOpenAIConfig', () => {
+  test('defaults to native OpenAI with bearer authentication', () => {
+    const config = ensureOpenAIConfig({ OPENAI_API_KEY: 'test-key' });
+    assert.deepEqual(config, {
+      endpoint: 'https://api.openai.com',
+      apiKey: 'test-key',
+      model: 'gpt-5.6-sol',
+      url: 'https://api.openai.com/v1/responses',
+      authHeaders: { Authorization: 'Bearer test-key' },
+      provider: 'openai-native'
+    });
   });
 
-  test('returns native OpenAI config when OPENAI_API_KEY is present', () => {
-    const env = {
-      OPENAI_API_KEY: 'openai-test-key',
-      OPENAI_BASE_URL: 'https://api.openai.com/v1/',
-      OPENAI_MODEL: 'gpt-5.4',
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'azure-test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
+  for (const baseUrl of ['https://example.test', 'https://example.test///', 'https://example.test/v1', 'https://example.test/v1/']) {
+    test(`normalizes native base URL ${baseUrl}`, () => {
+      const config = ensureOpenAIConfig({ OPENAI_API_KEY: 'test-key', OPENAI_BASE_URL: baseUrl, OPENAI_MODEL: 'custom-model' });
+      assert.equal(config.url, 'https://example.test/v1/responses');
+      assert.equal(config.model, 'custom-model');
+    });
+  }
 
-    const config = ensureAzureConfig(env);
-
-    assert.strictEqual(config.endpoint, 'https://api.openai.com');
-    assert.strictEqual(config.apiKey, 'openai-test-key');
-    assert.strictEqual(config.model, 'gpt-5.4');
-    assert.strictEqual(config.apiVersion, null);
-    assert.strictEqual(config.url, 'https://api.openai.com/v1/responses');
-    assert.deepEqual(config.authHeaders, { Authorization: 'Bearer openai-test-key' });
-    assert.strictEqual(config.provider, 'openai-native');
+  test('rejects missing and blank native credentials', () => {
+    for (const env of [undefined, {}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: '   ' }]) {
+      assert.throws(() => ensureOpenAIConfig(env), /Set OPENAI_API_KEY/);
+    }
   });
 
-  test('strips trailing slashes from endpoint', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com///',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.endpoint, 'https://myresource.openai.azure.com');
+  test('Azure-only credentials cannot configure native inference', () => {
+    assert.throws(() => ensureOpenAIConfig({
+      AZURE_OPENAI_ENDPOINT: 'https://retired.example',
+      AZURE_OPENAI_API_KEY: 'retired-key',
+      AZURE_OPENAI_GPT5_MODEL: 'retired-model'
+    }), /Set OPENAI_API_KEY/);
   });
 
-  test('strips /openai/v1 suffix from endpoint', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com/openai/v1',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.endpoint, 'https://myresource.openai.azure.com');
-  });
-
-  test('strips /openai/v1/ suffix with trailing slash', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com/openai/v1/',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.endpoint, 'https://myresource.openai.azure.com');
-  });
-
-  test('strips /openai suffix from endpoint', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com/openai/',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.endpoint, 'https://myresource.openai.azure.com');
-  });
-
-  test('uses AZURE_OPENAI_RESPONSES_API_VERSION when set', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_RESPONSES_API_VERSION: 'preview'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.apiVersion, 'preview');
-  });
-
-  test('falls back to AZURE_OPENAI_API_VERSION', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_API_VERSION: '2024-01-01'
-    };
-
-    const config = ensureAzureConfig(env);
-    assert.strictEqual(config.apiVersion, '2024-01-01');
-  });
-
-  test('throws when endpoint is missing', () => {
-    const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    assert.throws(
-      () => ensureAzureConfig(env),
-      /Responses API configuration is missing/
-    );
-  });
-
-  test('throws when API key is missing', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
-    };
-
-    assert.throws(
-      () => ensureAzureConfig(env),
-      /Responses API configuration is missing/
-    );
-  });
-
-  test('throws when model is missing', () => {
-    const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://myresource.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key'
-    };
-
-    assert.throws(
-      () => ensureAzureConfig(env),
-      /Responses API configuration is missing/
-    );
+  test('ignores retired Azure endpoint, deployment and API version settings', () => {
+    const config = ensureOpenAIConfig({
+      OPENAI_API_KEY: 'native-key',
+      AZURE_OPENAI_ENDPOINT: 'https://retired.example',
+      AZURE_OPENAI_API_KEY: 'retired-key',
+      AZURE_OPENAI_GPT5_MODEL: 'retired-model',
+      AZURE_OPENAI_RESPONSES_API_VERSION: 'retired-version'
+    });
+    assert.equal(config.model, 'gpt-5.6-sol');
+    assert.equal(config.url, 'https://api.openai.com/v1/responses');
+    assert.deepEqual(config.authHeaders, { Authorization: 'Bearer native-key' });
   });
 });
 
@@ -185,7 +92,7 @@ describe('getReasoningEffort', () => {
   });
 
   test('respects env override', () => {
-    const env = { AZURE_OPENAI_REASONING_EFFORT: 'low' };
+    const env = { OPENAI_REASONING_EFFORT: 'low' };
     assert.strictEqual(getReasoningEffort(env, 'gpt-5.2'), 'low');
   });
 
@@ -198,20 +105,20 @@ describe('getReasoningEffort', () => {
     assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'high');
   });
 
-  test('ignores OPENAI_REASONING_EFFORT when OPENAI_API_KEY is absent (Azure fallback keeps its setting)', () => {
+  test('uses the native reasoning override without a credential dependency', () => {
     const env = {
       OPENAI_REASONING_EFFORT: 'high',
       AZURE_OPENAI_REASONING_EFFORT: 'xhigh'
     };
-    assert.strictEqual(getReasoningEffort(env, 'gpt-5'), 'xhigh');
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5'), 'high');
   });
 
-  test('falls back to AZURE_OPENAI_REASONING_EFFORT on the native path when no native override', () => {
+  test('ignores retired Azure reasoning defaults', () => {
     const env = {
       OPENAI_API_KEY: 'sk-test',
       AZURE_OPENAI_REASONING_EFFORT: 'medium'
     };
-    assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'medium');
+    assert.strictEqual(getReasoningEffort(env, 'gpt-5.6-sol'), 'high');
   });
 
   test('ignores an invalid native override and falls through to the model default', () => {
@@ -234,32 +141,40 @@ describe('getTextVerbosity', () => {
     assert.strictEqual(getTextVerbosity(env, 'gpt-5.6-sol'), 'high');
   });
 
-  test('ignores OPENAI_VERBOSITY when OPENAI_API_KEY is absent', () => {
+  test('uses the native verbosity override without a credential dependency', () => {
     const env = { OPENAI_VERBOSITY: 'high', AZURE_OPENAI_VERBOSITY: 'medium' };
-    assert.strictEqual(getTextVerbosity(env, 'gpt-5.6-sol'), 'medium');
+    assert.strictEqual(getTextVerbosity(env, 'gpt-5.6-sol'), 'high');
+  });
+
+  test('ignores retired Azure verbosity defaults', () => {
+    assert.equal(getTextVerbosity({ AZURE_OPENAI_VERBOSITY: 'high' }, 'gpt-5.6-sol'), 'low');
   });
 });
 
 describe('resolveResponsesUser', () => {
   test('uses explicit user when provided', () => {
-    const env = { AZURE_OPENAI_RESPONSES_USER: 'env-user' };
+    const env = { OPENAI_RESPONSES_USER: 'env-user' };
     assert.strictEqual(resolveResponsesUser(env, 'request-user'), 'request-user');
   });
 
   test('falls back to env user when explicit user is missing', () => {
-    const env = { AZURE_OPENAI_RESPONSES_USER: 'env-user' };
+    const env = { OPENAI_RESPONSES_USER: 'env-user' };
     assert.strictEqual(resolveResponsesUser(env, null), 'env-user');
   });
 
   test('returns null when both explicit and env values are blank', () => {
-    const env = { AZURE_OPENAI_RESPONSES_USER: '   ' };
+    const env = { OPENAI_RESPONSES_USER: '   ' };
     assert.strictEqual(resolveResponsesUser(env, '  '), null);
+  });
+
+  test('ignores the retired Azure user setting', () => {
+    assert.equal(resolveResponsesUser({ AZURE_OPENAI_RESPONSES_USER: 'retired-reader' }), null);
   });
 });
 
-// Note: callAzureResponses tests require mocking fetch
+// Note: callOpenAIResponses tests require mocking fetch
 // These tests verify the request body construction logic
-describe('callAzureResponses request body construction', () => {
+describe('callOpenAIResponses request body construction', () => {
   let originalFetch;
   let capturedRequest;
 
@@ -287,16 +202,26 @@ describe('callAzureResponses request body construction', () => {
     globalThis.fetch = originalFetch;
   });
 
+  test('rejects Azure-only credentials before making any inference request', async () => {
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
+    await assert.rejects(callOpenAIResponses({
+      AZURE_OPENAI_ENDPOINT: 'https://retired.example',
+      AZURE_OPENAI_API_KEY: 'retired-key',
+      AZURE_OPENAI_GPT5_MODEL: 'retired-model'
+    }, { instructions: 'System prompt', input: 'User input' }), /Set OPENAI_API_KEY/);
+    assert.equal(capturedRequest, null);
+  });
+
   test('omits reasoning block when reasoningEffort is null', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       reasoningEffort: null  // Should omit reasoning block
@@ -307,7 +232,7 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('uses bearer auth and native responses URL when OPENAI_API_KEY is set', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
       OPENAI_API_KEY: 'openai-test-key',
@@ -315,7 +240,7 @@ describe('callAzureResponses request body construction', () => {
       OPENAI_MODEL: 'gpt-5.4'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       reasoningEffort: null
@@ -329,15 +254,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('includes reasoning block when reasoningEffort is set', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       reasoningEffort: 'high'
@@ -348,15 +273,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('omits max_output_tokens when maxTokens is null', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       maxTokens: null  // Should omit max_output_tokens
@@ -367,15 +292,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('includes max_output_tokens when maxTokens is set', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       maxTokens: 500
@@ -386,15 +311,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('includes user when explicitly provided', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       user: 'reader-123'
@@ -405,16 +330,16 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('includes env fallback user when explicit user is not provided', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_RESPONSES_USER: 'env-reader'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_RESPONSES_USER: 'env-reader'
     };
 
-    await callAzureResponses(env, {
+    await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input'
     });
@@ -424,15 +349,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('returns string by default', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    const result = await callAzureResponses(env, {
+    const result = await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input'
     });
@@ -442,15 +367,15 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('returns { text, usage } when returnFullResponse is true', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
-    const result = await callAzureResponses(env, {
+    const result = await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       returnFullResponse: true
@@ -466,12 +391,12 @@ describe('callAzureResponses request body construction', () => {
   });
 
   test('includes reasoningSummary when provided in output blocks', async () => {
-    const { callAzureResponses } = await import('../functions/lib/azureResponses.js');
+    const { callOpenAIResponses } = await import('../functions/lib/openaiResponses.js');
 
     const env = {
-      AZURE_OPENAI_ENDPOINT: 'https://test.openai.azure.com',
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5'
+      OPENAI_BASE_URL: 'https://example.test',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_MODEL: 'gpt-5'
     };
 
     globalThis.fetch = mock.fn(async () => ({
@@ -491,7 +416,7 @@ describe('callAzureResponses request body construction', () => {
       })
     }));
 
-    const result = await callAzureResponses(env, {
+    const result = await callOpenAIResponses(env, {
       instructions: 'System prompt',
       input: 'User input',
       returnFullResponse: true

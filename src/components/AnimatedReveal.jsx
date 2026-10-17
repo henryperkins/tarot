@@ -1,8 +1,8 @@
 /**
  * AnimatedReveal.jsx
  * 
- * Component for displaying AI-generated animated card reveals
- * using Sora-2 video generation. Integrates with the card flip sequence.
+ * Legacy animated card-reveal interface. New video generation is retired;
+ * saved media remains available in the library.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';

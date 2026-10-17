@@ -3,31 +3,31 @@
 		return;
 	}
 
-	var registerBlockType = wp.blocks.registerBlockType;
-	var blockEditor = wp.blockEditor;
-	var components = wp.components;
-	var createElement = wp.element.createElement;
-	var Fragment = wp.element.Fragment;
-	var __ = wp.i18n.__;
-	var InspectorControls = blockEditor.InspectorControls;
-	var useBlockProps = blockEditor.useBlockProps;
-	var PanelBody = components.PanelBody;
-	var TextControl = components.TextControl;
-	var TextareaControl = components.TextareaControl;
-	var ToggleControl = components.ToggleControl;
-	var SelectControl = components.SelectControl;
-	var Button = components.Button;
-	var Disabled = components.Disabled;
-	var serverSideRenderModule = wp.serverSideRender;
-	var ServerSideRender = serverSideRenderModule && ( serverSideRenderModule.ServerSideRender || serverSideRenderModule.default || serverSideRenderModule );
-	var textDomain = 'lakefront-content-kit';
+	const registerBlockType = wp.blocks.registerBlockType;
+	const blockEditor = wp.blockEditor;
+	const components = wp.components;
+	const createElement = wp.element.createElement;
+	const Fragment = wp.element.Fragment;
+	const __ = wp.i18n.__;
+	const InspectorControls = blockEditor.InspectorControls;
+	const useBlockProps = blockEditor.useBlockProps;
+	const PanelBody = components.PanelBody;
+	const TextControl = components.TextControl;
+	const TextareaControl = components.TextareaControl;
+	const ToggleControl = components.ToggleControl;
+	const SelectControl = components.SelectControl;
+	const Button = components.Button;
+	const Disabled = components.Disabled;
+	const serverSideRenderModule = wp.serverSideRender;
+	const ServerSideRender = serverSideRenderModule && ( serverSideRenderModule.ServerSideRender || serverSideRenderModule.default || serverSideRenderModule );
+	const textDomain = 'lakefront-content-kit';
 
 	function cloneArray( values ) {
 		return Array.isArray( values ) ? values.slice() : [];
 	}
 
 	function replaceArrayItem( values, index, nextItem ) {
-		var nextValues = cloneArray( values );
+		const nextValues = cloneArray( values );
 
 		nextValues[ index ] = nextItem;
 
@@ -41,15 +41,14 @@
 	}
 
 	function moveArrayItem( values, index, offset ) {
-		var nextValues = cloneArray( values );
-		var targetIndex = index + offset;
-		var temporaryItem;
+		const nextValues = cloneArray( values );
+		const targetIndex = index + offset;
 
 		if ( targetIndex < 0 || targetIndex >= nextValues.length ) {
 			return nextValues;
 		}
 
-		temporaryItem = nextValues[ targetIndex ];
+		const temporaryItem = nextValues[ targetIndex ];
 		nextValues[ targetIndex ] = nextValues[ index ];
 		nextValues[ index ] = temporaryItem;
 
@@ -57,7 +56,7 @@
 	}
 
 	function renderItemActions( length, index, onMoveUp, onMoveDown, onRemove ) {
-		var children = [];
+		const children = [];
 
 		if ( index > 0 ) {
 			children.push(
@@ -118,10 +117,10 @@
 	}
 
 	function updatePlan( plans, index, key, value ) {
-		var safePlan = plans[ index ] && 'object' === typeof plans[ index ] ? plans[ index ] : {};
+		const safePlan = plans[ index ] && 'object' === typeof plans[ index ] ? plans[ index ] : {};
 
 		return replaceArrayItem( plans, index, Object.assign( {}, safePlan, ( function () {
-			var nextPlan = {};
+			const nextPlan = {};
 
 			nextPlan[ key ] = value;
 
@@ -130,11 +129,11 @@
 	}
 
 	function renderFeatureControls( plans, planIndex, setAttributes ) {
-		var safePlan = plans[ planIndex ] && 'object' === typeof plans[ planIndex ] ? plans[ planIndex ] : {};
-		var features = Array.isArray( safePlan.features ) ? safePlan.features : [];
-		var controls = features.map( function ( feature, featureIndex ) {
-			var safeFeature = feature && 'object' === typeof feature ? feature : {};
-			var nextFeatures;
+		const safePlan = plans[ planIndex ] && 'object' === typeof plans[ planIndex ] ? plans[ planIndex ] : {};
+		const features = Array.isArray( safePlan.features ) ? safePlan.features : [];
+		const controls = features.map( function ( feature, featureIndex ) {
+			const safeFeature = feature && 'object' === typeof feature ? feature : {};
+			let nextFeatures;
 
 			return createElement(
 				'div',
@@ -200,8 +199,8 @@
 	}
 
 	function renderPlanControls( plans, setAttributes ) {
-		var controls = plans.map( function ( plan, planIndex ) {
-			var safePlan = plan && 'object' === typeof plan ? plan : {};
+		const controls = plans.map( function ( plan, planIndex ) {
+			const safePlan = plan && 'object' === typeof plan ? plan : {};
 
 			return createElement(
 				'div',
@@ -346,10 +345,10 @@
 	}
 
 	function Edit( props ) {
-		var attributes = props.attributes;
-		var setAttributes = props.setAttributes;
-		var plans = Array.isArray( attributes.plans ) ? attributes.plans : [];
-		var blockProps = useBlockProps();
+		const attributes = props.attributes;
+		const setAttributes = props.setAttributes;
+		const plans = Array.isArray( attributes.plans ) ? attributes.plans : [];
+		const blockProps = useBlockProps();
 
 		return createElement(
 			Fragment,

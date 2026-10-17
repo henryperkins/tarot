@@ -17,7 +17,7 @@ function makeRequest(payload) {
   });
 }
 
-function createAzureStream(deltas) {
+function createOpenAIStream(deltas) {
   const encoder = new TextEncoder();
   const events = deltas.map((delta) => (
     `event: response.output_text.delta\n` +
@@ -143,22 +143,22 @@ describe('streaming gate metadata', () => {
   // Token streaming runs only when the Responses API is the first provider, so
   // a streaming failure continues with the providers after it.
   for (const failure of ['http', 'stream-error', 'empty']) {
-    it(`continues from Azure ${failure} to the local composer`, async (t) => {
+    it(`continues from OpenAI ${failure} to the local composer`, async (t) => {
       const requestedUrls = [];
       const quota = new Map();
       t.mock.method(globalThis, 'fetch', async (url) => {
         requestedUrls.push(String(url));
         if (failure === 'http') return new Response('private upstream details', { status: 400 });
-        if (failure === 'empty') return new Response(createAzureStream([]));
+        if (failure === 'empty') return new Response(createOpenAIStream([]));
         return new Response('event: error\ndata: {"type":"error","error":{"message":"private upstream details"}}\n\n');
       });
       const response = await onRequestPost({
         request: makeRequest(BASE_PAYLOAD),
         env: {
-          AZURE_OPENAI_API_KEY: 'test-key',
-          AZURE_OPENAI_ENDPOINT: 'https://azure.example',
-          AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-          AZURE_OPENAI_STREAMING_ENABLED: 'true',
+          OPENAI_API_KEY: 'test-key',
+          OPENAI_BASE_URL: 'https://openai.example',
+          OPENAI_MODEL: 'gpt-5',
+          OPENAI_STREAMING_ENABLED: 'true',
           ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
           EVAL_ENABLED: 'false',
           EVAL_GATE_ENABLED: 'false',
@@ -175,9 +175,9 @@ describe('streaming gate metadata', () => {
       const done = events.find((event) => event.event === 'done')?.data;
       assert.equal(done?.provider, 'local-composer');
       assert.ok(done.fullText.length > 0);
-      assert.equal(meta.backendErrors[0].backend, 'azure-gpt5');
+      assert.equal(meta.backendErrors[0].backend, 'openai-native');
       assert.ok(!JSON.stringify(meta.backendErrors).includes('private upstream details'));
-      assert.equal(requestedUrls.filter((url) => url.includes('azure.example')).length, 1);
+      assert.equal(requestedUrls.filter((url) => url.includes('openai.example')).length, 1);
       assert.deepEqual([...quota.entries()].filter(([key]) => key.startsWith('readings-monthly:')).map(([, value]) => value), ['1']);
     });
   }
@@ -194,10 +194,10 @@ describe('streaming gate metadata', () => {
       request: makeRequest(BASE_PAYLOAD),
       env: {
         ANTHROPIC_API_KEY: 'test-key',
-        AZURE_OPENAI_API_KEY: 'test-key',
-        AZURE_OPENAI_ENDPOINT: 'https://azure.example',
-        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-        AZURE_OPENAI_STREAMING_ENABLED: 'true',
+        OPENAI_API_KEY: 'test-key',
+        OPENAI_BASE_URL: 'https://openai.example',
+        OPENAI_MODEL: 'gpt-5',
+        OPENAI_STREAMING_ENABLED: 'true',
         ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
         EVAL_ENABLED: 'false',
         EVAL_GATE_ENABLED: 'false',
@@ -213,21 +213,21 @@ describe('streaming gate metadata', () => {
     const done = events.find((event) => event.event === 'done')?.data;
     assert.equal(done?.provider, 'claude-api');
     assert.equal(done.fullText, VALID_MODAL_READING);
-    assert.equal(requestedUrls.filter((url) => url.includes('azure.example')).length, 0);
+    assert.equal(requestedUrls.filter((url) => url.includes('openai.example')).length, 0);
     assert.equal(requestedUrls.length, 1);
   });
 
-  it('refunds the reservation when Azure fails and no fallback supports the question language', async (t) => {
+  it('refunds the reservation when OpenAI fails and no fallback supports the question language', async (t) => {
     const quota = new Map();
     const writes = [];
     t.mock.method(globalThis, 'fetch', async () => new Response('unavailable', { status: 400 }));
     const response = await onRequestPost({
       request: makeRequest({ ...BASE_PAYLOAD, userQuestion: '¿Qué necesito saber sobre mi camino actual?' }),
       env: {
-        AZURE_OPENAI_API_KEY: 'test-key',
-        AZURE_OPENAI_ENDPOINT: 'https://azure.example',
-        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-        AZURE_OPENAI_STREAMING_ENABLED: 'true',
+        OPENAI_API_KEY: 'test-key',
+        OPENAI_BASE_URL: 'https://openai.example',
+        OPENAI_MODEL: 'gpt-5',
+        OPENAI_STREAMING_ENABLED: 'true',
         ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
         EVAL_ENABLED: 'false',
         EVAL_GATE_ENABLED: 'false',
@@ -270,7 +270,7 @@ describe('streaming gate metadata', () => {
         return modalSseResponse(VALID_MODAL_READING);
       }
 
-      return new Response(createAzureStream([VALID_MODAL_READING]), {
+      return new Response(createOpenAIStream([VALID_MODAL_READING]), {
         status: 200,
         headers: { 'content-type': 'text/event-stream' }
       });
@@ -565,7 +565,7 @@ describe('streaming gate metadata', () => {
   it('buffers output and reports gate metadata when blocked', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response(
-      createAzureStream(['The Fool signals a new beginning.']),
+      createOpenAIStream(['The Fool signals a new beginning.']),
       { status: 200, headers: { 'content-type': 'text/event-stream' } }
     );
 
@@ -585,10 +585,10 @@ describe('streaming gate metadata', () => {
     };
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'true',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'true',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'true',
@@ -620,15 +620,15 @@ describe('streaming gate metadata', () => {
   it('buffers output and applies safety scan when eval gate is off', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response(
-      createAzureStream(['The Fool warns that you should hurt him to make a point.']),
+      createOpenAIStream(['The Fool warns that you should hurt him to make a point.']),
       { status: 200, headers: { 'content-type': 'text/event-stream' } }
     );
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'true',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'true',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'false',
       EVAL_GATE_ENABLED: 'false',
@@ -659,15 +659,15 @@ describe('streaming gate metadata', () => {
   it('forces safety buffering when streaming gates are disabled', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => new Response(
-      createAzureStream(['The Fool warns that you should hurt him to make a point.']),
+      createOpenAIStream(['The Fool warns that you should hurt him to make a point.']),
       { status: 200, headers: { 'content-type': 'text/event-stream' } }
     );
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'true',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'true',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'false',
       EVAL_GATE_ENABLED: 'false',
@@ -707,10 +707,10 @@ describe('streaming gate metadata', () => {
     );
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'false',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'false',
       EVAL_GATE_ENABLED: 'false',
@@ -753,10 +753,10 @@ describe('streaming gate metadata', () => {
     const response = await onRequestPost({
       request: makeRequest(BASE_PAYLOAD),
       env: {
-        AZURE_OPENAI_API_KEY: 'test-key',
-        AZURE_OPENAI_ENDPOINT: 'https://example.com',
-        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-        AZURE_OPENAI_STREAMING_ENABLED: 'false',
+        OPENAI_API_KEY: 'test-key',
+        OPENAI_BASE_URL: 'https://example.com',
+        OPENAI_MODEL: 'gpt-5',
+        OPENAI_STREAMING_ENABLED: 'false',
         ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
         EVAL_ENABLED: 'false',
         EVAL_GATE_ENABLED: 'false',
@@ -771,7 +771,7 @@ describe('streaming gate metadata', () => {
     const events = await collectSSEEvents(response);
     const done = events.find((evt) => evt.event === 'done')?.data;
     assert.equal(done?.gateBlocked, false);
-    assert.equal(done?.provider, 'azure-gpt5');
+    assert.equal(done?.provider, 'openai-native');
     assert.equal(done?.fullText, referralReading);
   });
 
@@ -822,10 +822,10 @@ describe('streaming gate metadata', () => {
         reflectionsText: ''
       }),
       env: {
-        AZURE_OPENAI_API_KEY: 'test-key',
-        AZURE_OPENAI_ENDPOINT: 'https://example.com',
-        AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-        AZURE_OPENAI_STREAMING_ENABLED: 'false',
+        OPENAI_API_KEY: 'test-key',
+        OPENAI_BASE_URL: 'https://example.com',
+        OPENAI_MODEL: 'gpt-5',
+        OPENAI_STREAMING_ENABLED: 'false',
         ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
         EVAL_ENABLED: 'false',
         EVAL_GATE_ENABLED: 'false',
@@ -837,7 +837,7 @@ describe('streaming gate metadata', () => {
     const events = await collectSSEEvents(response);
     const meta = events.find((evt) => evt.event === 'meta')?.data;
     const done = events.find((evt) => evt.event === 'done')?.data;
-    assert.equal(done?.provider, 'azure-gpt5');
+    assert.equal(done?.provider, 'openai-native');
     assert.equal(done?.fullText, fiveCardReading);
     assert.deepEqual(meta?.backendErrors || [], []);
   });
@@ -866,10 +866,10 @@ describe('streaming gate metadata', () => {
     );
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'false',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'false',
@@ -925,10 +925,10 @@ describe('streaming gate metadata', () => {
     );
 
     const env = {
-      AZURE_OPENAI_API_KEY: 'test-key',
-      AZURE_OPENAI_ENDPOINT: 'https://example.com',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      OPENAI_API_KEY: 'test-key',
+      OPENAI_BASE_URL: 'https://example.com',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'false',
       ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
       EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'false',

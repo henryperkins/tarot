@@ -51,10 +51,10 @@ test('stored eval metrics redact a name that reaches the reading only through me
     env: {
       DB: d1,
       AI: evaluator,
-      AZURE_OPENAI_API_KEY: 'test',
-      AZURE_OPENAI_ENDPOINT: 'https://provider.test',
-      AZURE_OPENAI_GPT5_MODEL: 'gpt-5',
-      AZURE_OPENAI_STREAMING_ENABLED: 'false',
+      OPENAI_API_KEY: 'test',
+      OPENAI_BASE_URL: 'https://provider.test',
+      OPENAI_MODEL: 'gpt-5',
+      OPENAI_STREAMING_ENABLED: 'false',
       EVAL_ENABLED: 'true',
       EVAL_GATE_ENABLED: 'false',
       GRAPHRAG_ENABLED: 'false'

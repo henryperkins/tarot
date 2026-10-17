@@ -116,7 +116,7 @@ it('runs subscription QA without an Anthropic API key', () => {
   assert.ok(result.checks.every(check => check.backend === 'claude-code'));
 });
 
-for (const backend of ['claude-api', 'modal-qwen', 'azure-gpt5']) {
+for (const backend of ['claude-api', 'modal-qwen', 'openai-native']) {
   it(`rejects the paid ${backend} backend before release checks`, () => {
     const result = release({ NARRATIVE_EVAL_BACKEND: backend });
     assert.equal(result.status, 1);
