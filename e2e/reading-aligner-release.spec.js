@@ -28,11 +28,11 @@ async function startOrdinaryReading(page, fixture, { captureSpreadEdition = fals
 }
 async function nativeClick(locator) { await expectForeground(locator); await locator.click(); }
 async function saveOrdinaryReading(page) {
-  const control = page.getByRole('button', { name: /^Save to Journal$|^Save reading to journal(?: —|$)/ }).filter({ visible: true });
+  const control = page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true });
   await expect(control).toHaveCount(1); await nativeClick(control);
 }
 async function viewOrdinaryJournal(page) {
-  const control = page.getByRole('button', { name: 'View Journal', exact: true }).filter({ visible: true });
+  const control = page.getByRole('button', { name: 'View saved entry', exact: true }).filter({ visible: true });
   await expect(control).toHaveCount(1); await nativeClick(control);
 }
 export async function openAlignerEntry(page, id) {
@@ -85,8 +85,28 @@ for (const delivery of ['paced-partial', 'final-only', 'reconnect', 'source-repl
     if (delivery === 'final-only') await fixture.emit('reading', 'done', { fullText: raw });
     else {
       await fixture.emit('reading', 'delta', { text: first }); await expect(page.locator('.narrative-stream')).toContainText(payload.cardsInfo[0].card);
-      const shelf = page.locator('[data-gesture-shelf] button').last(); await expect(shelf).toBeEnabled(); await expect(shelf.locator('..')).toHaveAttribute('data-introduced', 'false'); await nativeClick(shelf);
-      const stage = page.locator('[data-gesture-window]'); await expect(stage).toHaveAttribute('data-held', 'true'); const held = await stage.getAttribute('data-association');
+      const phone = testInfo.project.name.includes('-phone-');
+      const stage = page.locator('[data-gesture-window]');
+      const cardDialog = page.getByRole('dialog').filter({ visible: true });
+      const expectInspectedCard = async () => {
+        await expect(cardDialog).toHaveCount(1);
+        await expect(cardDialog.getByRole('heading', { level: 2 })).toContainText(payload.cardsInfo.at(-1).card);
+        await expect(cardDialog.getByText(payload.cardsInfo.at(-1).position, { exact: true })).toBeVisible();
+      };
+      let held; let inspectedCard;
+      if (phone) {
+        // The ordinary reading uses its overview and full card dialog on phones.
+        const overview = page.locator('[data-reading-overview]');
+        const disclosure = page.locator('details.reading-spread-disclosure');
+        if (await disclosure.count() && await disclosure.getAttribute('open') === null) await disclosure.locator('summary').click();
+        const card = overview.getByRole('button', { name: /Open card/ }).last();
+        inspectedCard = await card.getAttribute('aria-label');
+        await nativeClick(card);
+        await expectInspectedCard();
+      } else {
+        const shelf = page.locator('[data-gesture-shelf] button').last(); await expect(shelf).toBeEnabled(); await expect(shelf.locator('..')).toHaveAttribute('data-introduced', 'false'); await nativeClick(shelf);
+        await expect(stage).toHaveAttribute('data-held', 'true'); held = await stage.getAttribute('data-association');
+      }
       if (delivery === 'reconnect') { const previous = await fixture.connectionGeneration(); await fixture.disconnect(); await expect.poll(() => fixture.connected('reading', previous)).toBeGreaterThan(0); }
       if (delivery === 'source-replacement') {
         raw = '## A new source\n\nThis replacement preserves its own exact wording. Your choices remain your own.';
@@ -96,11 +116,18 @@ for (const delivery of ['paced-partial', 'final-only', 'reconnect', 'source-repl
         const scroll = await page.evaluate(() => scrollY);
         await fixture.emit('reading', 'delta', { text: ending });
         await expect(page.locator('.narrative-stream')).toContainText('Your choices remain your own.');
-        await expect(stage).toHaveAttribute('data-association', held); await expect(stage).toHaveAttribute('data-held', 'true');
+        if (!phone) { await expect(stage).toHaveAttribute('data-association', held); await expect(stage).toHaveAttribute('data-held', 'true'); }
+        else await expectInspectedCard();
         expect(await page.evaluate(() => scrollY)).toBe(scroll);
       }
       await fixture.emit('reading', 'done', { fullText: raw });
-      if (delivery !== 'source-replacement') { await expect(stage).toHaveAttribute('data-association', held); await expect(stage).toHaveAttribute('data-held', 'true'); }
+      if (delivery !== 'source-replacement' && !phone) { await expect(stage).toHaveAttribute('data-association', held); await expect(stage).toHaveAttribute('data-held', 'true'); }
+      if (phone) {
+        await expectInspectedCard();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog').filter({ visible: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: inspectedCard, exact: true })).toBeFocused();
+      }
     }
     await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
     await saveOrdinaryReading(page); await expect.poll(async () => Boolean((await storedEntry(page, fixture, 'free'))?.id)).toBe(true);
@@ -135,7 +162,8 @@ for (const metadata of ['none', 'cached-accepted', 'expired-handle']) test(`${me
   if (metadata === 'expired-handle') await page.addInitScript(binding => localStorage.setItem(`tarot_visual_resume:user:aligner-reader:${encodeURIComponent(binding.readingResultId)}`, JSON.stringify({ binding, visualJobToken: 'expired-controlled-token', expiresAt: 1 })), entry.visualBinding);
   try {
     await page.goto('/journal'); let card = await openAlignerEntry(page, entry.id); await page.reload(); card = await openAlignerEntry(page, entry.id);
-    await expect(card).toContainText('one pitcher into a pool'); const stage = card.locator('[data-gesture-window]'); await expect(stage).toHaveAttribute('data-phase', 'static');
+    // Mobile companion inspection moves its stage into a body-level dialog.
+    await expect(card).toContainText('one pitcher into a pool'); const stage = page.locator('[data-gesture-window]'); await expect(stage).toHaveAttribute('data-phase', 'static');
     const phrase = card.locator('.reading-gesture-association').filter({ hasText: /\bpool\b/ }); await expect(phrase).toHaveCount(1); await expect(phrase).toBeVisible();
     if (metadata === 'cached-accepted' && testInfo.project.name.includes('-phone-')) {
       keyboardGeometry = () => phrase.evaluate(inspectInlineReadingPhrase); keyboardStage = stage;
@@ -162,12 +190,22 @@ for (const metadata of ['none', 'cached-accepted', 'expired-handle']) test(`${me
       await expect(stage).toHaveAttribute('data-association',cue.id); await expect(stage).toHaveAttribute('data-held','true');
       keyboardEvidence.afterEnter = { geometry: await keyboardGeometry(), association: await stage.getAttribute('data-association'), held: await stage.getAttribute('data-held') };
       await testInfo.attach('cached-phrase-native-Enter-held', { body: JSON.stringify(keyboardEvidence.afterEnter,null,2), contentType: 'application/json' });
-      expect(keyboardEvidence.afterEnter.geometry.foreground).toBe(true);
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
       await page.keyboard.press('Escape'); await expect(stage).not.toHaveAttribute('data-held','true'); keyboardEvidence.released = await keyboardGeometry();
+      await expect(phrase).toBeFocused();
+      await expect.poll(async () => (await keyboardGeometry()).foreground).toBe(true);
     }
     await clickInlineReadingPhrase(phrase); await expect(stage).toHaveAttribute('data-held', 'true');
-
+    if (testInfo.project.name.includes('-phone-')) {
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape'); await expect(phrase).toBeFocused();
+    }
     await nativeClick(card.locator('[data-gesture-shelf] button').last()); await expect(stage).toHaveAttribute('data-held', 'true');
+    if (testInfo.project.name.includes('-phone-')) {
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(card.locator('[data-gesture-shelf] button').last()).toBeFocused();
+    }
     await expect(card.getByTestId('saved-visual-recovery')).toHaveCount(0); await expect(card.getByRole('button', { name: 'Retry card connections' })).toHaveCount(0);
     if (metadata === 'none') {
       const eligibility = () => page.locator('#journal-history-filters').evaluate(element => {
@@ -197,7 +235,7 @@ for (const metadata of ['none', 'cached-accepted', 'expired-handle']) test(`${me
         const header = document.querySelector('.header-sticky, header.sticky')?.getBoundingClientRect();
         const controls = [...document.querySelectorAll('button[aria-label="Start a new reading"], button[aria-label="Jump to journal filters"]')].map(button => button.parentElement).find(parent => getComputedStyle(parent).position === 'fixed');
         const controlBox = controls?.getBoundingClientRect(); const bounds = { top: header?.bottom || 0, bottom: controlBox?.top || innerHeight };
-        const companion = element.closest('.narrative-panel__layout')?.querySelector('.gesture-companion'); const companionBox = companion?.getBoundingClientRect();
+        const companion = element.closest('.reading-screen, .narrative-panel__layout')?.querySelector('.gesture-companion'); const companionBox = companion?.getBoundingClientRect();
         if (companion && getComputedStyle(companion).position === 'sticky' && companionBox.top <= (parseFloat(getComputedStyle(companion).top) || 0) + 1) bounds.top = Math.max(bounds.top, companionBox.bottom);
         const lines = rects.map(rect => { const hit = document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2); return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, foreground: Boolean(hit && element.contains(hit)) }; });
         const history = document.querySelector('#history');
@@ -293,15 +331,16 @@ test('RWS spread and companion follow the recorded edition decision', async ({ p
       const painted = await shelf.locator('.gesture-art__upright').evaluateAll(planes => planes.map(plane => ({ reverse: plane.dataset.reversed === 'true', rotations: getComputedStyle(plane).transform, overlays: [...plane.querySelectorAll('svg image')].map(image => image.getAttribute('href')), image: plane.querySelector('img').getAttribute('src') })));
       expect(painted.map(item => item.reverse)).toEqual([false, true]); for (const item of painted) for (const overlay of item.overlays) expect(overlay).toBe(item.image);
       const literal = card.locator('.reading-gesture-association').filter({ hasText: /\bpool\b/ }); await expect(literal).toHaveCount(1);
-      await clickInlineReadingPhrase(literal); await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-      const light = card.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) .gesture-art__light image'); await expect(light).toHaveCount(1);
+      await clickInlineReadingPhrase(literal); await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+      const light = page.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) .gesture-art__light image'); await expect(light).toHaveCount(1);
       const detailPlane = await light.evaluate(image => ({ overlay: image.getAttribute('href'), image: image.closest('.gesture-art__upright').querySelector('img').getAttribute('src') }));
       expect(detailPlane.overlay).toBe('/images/cards/rws-vector/major-17-star.webp'); expect(detailPlane.overlay).toBe(detailPlane.image);
       const uprightGeometry = await page.evaluate(measureGestureFocusLayer);
       expect(uprightGeometry.layer).toBe(true); expect(uprightGeometry.cards).toHaveLength(1); expect(uprightGeometry.cards[0].arts).toHaveLength(1);
       for (const art of uprightGeometry.cards.flatMap(card => card.arts)) { expect(art.orientation.halfTurns).toHaveLength(0); expect(art.orientation.unexpected).toEqual([]); expect(art.orientation.reversed).toBe(false); }
+      if (testInfo.project.name.includes('-phone-')) { await page.keyboard.press('Escape'); await expect(literal).toBeFocused(); }
       await nativeClick(shelf.locator('button').nth(1));
-      await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${await shelf.locator('button').nth(1).getAttribute('data-occurrence-id')}`);
+      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${await shelf.locator('button').nth(1).getAttribute('data-occurrence-id')}`);
       const reversedGeometry = await page.evaluate(measureGestureFocusLayer);
       expect(reversedGeometry.layer).toBe(true); expect(reversedGeometry.cards).toHaveLength(1); expect(reversedGeometry.cards[0].arts).toHaveLength(1);
       for (const art of reversedGeometry.cards.flatMap(card => card.arts)) { expect(art.orientation.halfTurns).toHaveLength(1); expect(art.orientation.unexpected).toEqual([]); expect(art.orientation.reversed).toBe(true); expect(art.orientation.composed[0]).toBeLessThan(0); expect(art.orientation.composed[3]).toBeLessThan(0); }
@@ -353,10 +392,11 @@ test('ten positions, duplicate occurrences, unknown art, non-RWS and translated 
         history: { scrollLeft: history.scrollLeft, scrollWidth: history.scrollWidth, clientWidth: history.clientWidth }, document: { width: document.documentElement.scrollWidth, viewport: innerWidth },
         stage: { association: stage.dataset.association, held: stage.dataset.held, phase: stage.dataset.phase } };
     }, index);
-    await nativeClick(shelf.nth(2)); await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+    await nativeClick(shelf.nth(2)); await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+    if (testInfo.project.name.includes('-phone-')) { await page.keyboard.press('Escape'); await expect(shelf.nth(2)).toBeFocused(); }
     const images = await shelf.locator('img').evaluateAll(elements => elements.map(element => element.getAttribute('src'))); expect(images[0]).toBe('/images/cards/thoth/thoth_major_17_the-star.png'); expect(images[1]).toBe('/images/cards/thoth/thoth_major_19_the-sun.png'); expect(images[2]).toBe('/images/cards/thoth/thoth_major_17_the-star.png'); expect(images[3]).toBe('/images/card-back.png');
     const unknownImage = shelf.nth(3).locator('img'); await expect.poll(() => unknownImage.evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true); expect(images.every(url => !url.startsWith('/images/cards/rws-vector/'))).toBe(true);
-    await expect(card.locator('.gesture-art__light, .gesture-art__water')).toHaveCount(0);
+    await expect(page.locator('.gesture-art__light, .gesture-art__water')).toHaveCount(0);
     const settleShelf = async (index, label) => {
       const samples = []; tenGeometry.keyboard[label] = { samples }; const started = Date.now(); let previous = ''; let unchangedSince = 0;
       while (Date.now() - started < 5000) {
@@ -378,12 +418,14 @@ test('ten positions, duplicate occurrences, unknown art, non-RWS and translated 
       const afterEnd = await settleShelf(-1, 'focused-last-after-End'); tenGeometry.keyboard.afterEnd = afterEnd.geometry;
       await testInfo.attach('ten-card-shelf-native-keyboard-after-End', { body: JSON.stringify(afterEnd, null, 2), contentType: 'application/json' });
       expect(afterEnd.geometry.foreground).toBe(true); expect(afterEnd.geometry.fullyVisible).toBe(true); expect(afterEnd.geometry.active.occurrence).toBe(ids.at(-1));
-      await page.keyboard.press('Enter'); await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-      await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${ids.at(-1)}`);
-      const afterEnter = await settleShelf(-1, 'exact-held-last-after-Enter'); tenGeometry.keyboard.afterEnter = afterEnter.geometry;
+      await page.keyboard.press('Enter'); await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+      await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${ids.at(-1)}`);
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape'); await expect(shelf.last()).toBeFocused();
+      const afterEnter = await settleShelf(-1, 'last-focus-restored-after-inspection'); tenGeometry.keyboard.afterEnter = afterEnter.geometry;
       await testInfo.attach('ten-card-shelf-native-keyboard-after-Enter', { body: JSON.stringify(afterEnter, null, 2), contentType: 'application/json' });
       expect(afterEnter.geometry.foreground).toBe(true); expect(afterEnter.geometry.fullyVisible).toBe(true);
-      await page.keyboard.press('Escape'); await expect(card.locator('[data-gesture-window]')).not.toHaveAttribute('data-held', 'true');
+      await expect(page.locator('[data-gesture-window]')).not.toHaveAttribute('data-held', 'true');
       // Return through the shelf's public native keyboard navigation so the
       // pointer path must independently expose an offscreen last occurrence.
       await page.keyboard.press('Home'); await expect(shelf.first()).toBeFocused();
@@ -394,8 +436,12 @@ test('ten positions, duplicate occurrences, unknown art, non-RWS and translated 
       await testInfo.attach('ten-card-shelf-fresh-pointer-baseline', { body: JSON.stringify(beforePointer, null, 2), contentType: 'application/json' });
       expect(beforePointer.target.rect.right).toBeGreaterThan(beforePointer.bounds.right);
     }
-    await nativeClick(shelf.last()); await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-    await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${ids.at(-1)}`);
+    await nativeClick(shelf.last()); await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-association', `identity-${ids.at(-1)}`);
+    if (testInfo.project.name.includes('-phone-')) {
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape'); await expect(shelf.last()).toBeFocused();
+    }
     const afterLast = testInfo.project.name.includes('-phone-') ? (await settleShelf(-1, 'native-pointer-exact-held-last')).geometry : await measureShelf(); tenGeometry.afterLast = afterLast;
     await testInfo.attach('ten-card-shelf-after-native-last', { body: JSON.stringify({ before: beforePointer, after: afterLast, expectedOccurrence: ids.at(-1), input: 'native End/Enter/Escape on phone, then unchanged native foreground predicate and last-card click' }, null, 2), contentType: 'application/json' });
     expect(afterLast.history.scrollLeft).toBe(0); expect(afterLast.history.scrollWidth).toBeLessThanOrEqual(afterLast.history.clientWidth + 1); expect(afterLast.document.width).toBeLessThanOrEqual(afterLast.document.viewport + 1);
@@ -424,7 +470,7 @@ test('synchronous burst gives every eligible exposed phrase its existing 1800ms 
     const stage = page.locator('[data-gesture-window]'); await expect(stage).toHaveAttribute('data-association', '');
     await page.evaluate(async () => {
       await document.fonts.ready;
-      await Promise.all([...document.querySelectorAll('.narrative-panel__layout img')].map(image => image.decode()));
+      await Promise.all([...document.querySelectorAll('.reading-screen img, .narrative-panel__layout img')].map(image => image.decode()));
     });
     await prose.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
     const settleViewport = () => page.evaluate(() => new Promise((resolve, reject) => {
@@ -499,8 +545,11 @@ test('synchronous burst gives every eligible exposed phrase its existing 1800ms 
     const chunks = cards.map((card, index) => `${index ? ' ' : ''}${card.card}.`);
     await fixture.emitBurst(chunks.map(text => ({ event: 'delta', data: { text } })));
     await expect(page.locator('.narrative-stream')).toContainText(supplied);
-    const phrases = page.locator('.reading-gesture-identity'); await expect(phrases).toHaveCount(cards.length);
-    await expect(page.locator('.reading-gesture-association')).toHaveCount(0);
+    const phrases = page.locator('.narrative-stream__text [data-gesture-id]'); await expect(phrases).toHaveCount(cards.length);
+    // Card names now support explicit full-card inspection. Automatic arrivals
+    // must still never invoke that ordinary-route selection callback.
+    await expect(page.locator('.reading-gesture-association')).toHaveCount(cards.length);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     const calm = testInfo.project.name.endsWith('-reduced');
     {
       const expectedPhase = calm ? 'static' : 'active';
@@ -537,6 +586,7 @@ test('synchronous burst gives every eligible exposed phrase its existing 1800ms 
     const measuredScroll = await page.evaluate(start => window.__alignerObservation.scroll.filter(event => event.at >= start), measuredInterval.startedAt);
     expect(measuredScroll.every(event => event.y === scroll)).toBe(true);
     measuredInterval.endedAt = await page.evaluate(() => performance.now());
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await fixture.emit('reading', 'done', { fullText: final }); await expect(page.locator('.narrative-stream')).toContainText('Keep your own pace.');
     const observation = await page.evaluate(() => window.__alignerObservation); const received = observation.source.find(event => event.event === 'delta' && event.data.text === chunks[0]);
     const rendered = observation.renders.find(event => event.at >= received.at && event.text.includes(supplied)); expect(rendered.at - received.at).toBeLessThan(1000);
@@ -556,12 +606,16 @@ test('English physical detail prose cannot attach RWS geometry to actual non-RWS
     const identity = card.locator('.reading-gesture-identity').filter({ hasText: 'The Star' }).first(); await expect(identity).toBeVisible();
     await expect(identity).not.toHaveAttribute('role', 'button'); await expect(card.locator('.reading-gesture-association')).toHaveCount(0);
     await nativeClick(card.locator('[data-gesture-shelf] button').first());
-    await expect(card.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-    await expect(card.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) img')).toHaveAttribute('src', '/images/cards/thoth/thoth_major_17_the-star.png');
-    await expect(card.locator('.gesture-art__light, .gesture-art__water')).toHaveCount(0);
+    await expect(page.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
+    await expect(page.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) img')).toHaveAttribute('src', '/images/cards/thoth/thoth_major_17_the-star.png');
+    await expect(page.locator('.gesture-art__light, .gesture-art__water')).toHaveCount(0);
     const images = await card.locator('[data-gesture-shelf] img').evaluateAll(elements => elements.map(element => element.getAttribute('src')));
     expect(images).toEqual(['/images/cards/thoth/thoth_major_17_the-star.png', '/images/cards/thoth/thoth_major_19_the-sun.png']);
     expect(images.some(url => url.startsWith('/images/cards/rws-vector/'))).toBe(false);
+    if (testInfo.project.name.includes('-phone-')) {
+      await page.keyboard.press('Escape');
+      await expect(card.locator('[data-gesture-shelf] button').first()).toBeFocused();
+    }
     await expectNoAnnotations(fixture); await attachAlignerEvidence(page, testInfo, fixture, { exactSavedRaw: raw, actualNonRwsURLs: images, EnglishPhysicalDetailSource: true });
   } finally { await fixture.close(); }
 });

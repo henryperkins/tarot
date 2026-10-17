@@ -223,7 +223,7 @@ test('five actual streamed introductions retain the same shelf nodes and prose p
       }
       expect(await page.evaluate(() => scrollY)).toBe(scroll);
       expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(focused);
-      await expect(page.getByTestId('gesture-source-diagnostics')).toHaveAttribute('data-selection-calls', '0');
+      await expect(page.getByRole('dialog')).toHaveCount(0);
     }
     await fixture.completeReading();
     await expect(reading(page).locator('h3')).toHaveCount(5);
