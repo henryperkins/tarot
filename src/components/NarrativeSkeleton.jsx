@@ -132,7 +132,7 @@ export function NarrativeSkeleton({
       <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
         Preparing your reading
       </h3>
-      <p role="status" aria-live="polite" aria-atomic="true" className="mt-3 mb-4 text-sm text-muted [overflow-wrap:anywhere]">
+      <p role="status" aria-live="polite" aria-atomic="true" className="mt-3 mb-4 text-sm text-muted wrap-anywhere">
         {statusMessage}
       </p>
 
@@ -198,7 +198,7 @@ export function NarrativeSkeleton({
       )}
 
       {/* Narrative text skeleton */}
-      <div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem]`}>
+      <div className={`narrative-skeleton__panel narrative-atmosphere ${atmosphereClassName} rounded-2xl bg-surface/70 shadow-md px-3 xxs:px-4 sm:px-6 py-5 sm:py-6 min-h-24 xxs:min-h-30 md:min-h-40`}>
         <div className="max-w-[68ch] mx-auto space-y-3">
           {displayLines.map((line, index) => {
             if (line.isBreak) {
@@ -208,7 +208,7 @@ export function NarrativeSkeleton({
             return (
               <div
                 key={index}
-                className={`h-4 sm:h-5 rounded-md bg-gradient-to-r from-secondary/25 via-secondary/15 to-secondary/25 ${
+                className={`h-4 sm:h-5 rounded-md bg-linear-to-r from-secondary/25 via-secondary/15 to-secondary/25 ${
                   prefersReducedMotion ? '' : 'animate-pulse'
                 }`}
                 style={{

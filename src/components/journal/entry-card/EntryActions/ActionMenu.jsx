@@ -88,7 +88,7 @@ export const ActionMenu = memo(function ActionMenu({
               <span className="flex items-center gap-2">
                 {isPending ? (
                   <CircleNotch
-                    className="h-3.5 w-3.5 animate-spin text-[color:var(--text-muted)]"
+                    className="h-3.5 w-3.5 animate-spin text-(--text-muted)"
                     aria-hidden="true"
                   />
                 ) : (
@@ -96,8 +96,8 @@ export const ActionMenu = memo(function ActionMenu({
                     className={cn(
                       'h-4 w-4',
                       item.tone === 'danger'
-                        ? 'text-[color:var(--status-error)]'
-                        : 'text-[color:var(--brand-primary)]'
+                        ? 'text-(--status-error)'
+                        : 'text-(--brand-primary)'
                     )}
                     aria-hidden="true"
                   />

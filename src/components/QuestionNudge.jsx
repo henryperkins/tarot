@@ -25,7 +25,7 @@ export function QuestionNudge({ id, kind, onOpenCoach }) {
               type="button"
               onClick={onOpenCoach}
               aria-haspopup="dialog"
-              className="min-h-touch text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:text-main transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="min-h-touch text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:text-main transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
             >
               Shape it with the coach
             </button>

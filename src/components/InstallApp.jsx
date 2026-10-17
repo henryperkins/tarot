@@ -45,7 +45,7 @@ function HomeScreenInstructions({ onClose, onLater, onAlreadyAdded, returnFocusR
             type="button"
             onClick={onClose}
             aria-label="Close home-screen instructions"
-            className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-muted hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-muted hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -63,14 +63,14 @@ function HomeScreenInstructions({ onClose, onLater, onAlreadyAdded, returnFocusR
           <button
             type="button"
             onClick={onLater}
-            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Later
           </button>
           <button
             type="button"
             onClick={onAlreadyAdded}
-            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="inline-flex min-h-touch flex-1 items-center justify-center rounded-xl border border-accent/30 bg-surface-muted px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Already added
           </button>
@@ -152,7 +152,7 @@ export function InstallApp({ fallbackFocusRef, getFallbackFocus, preventFocusScr
         aria-label={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
         title={isIOS ? 'Add to Home Screen' : 'Install Tableu'}
         data-pwa-install
-        className="pwa-install-button inline-flex min-h-touch items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium text-accent disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+        className="pwa-install-button inline-flex min-h-touch items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium text-accent disabled:cursor-wait disabled:opacity-70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
       >
         <span className="relative flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden="true">
           <img src="/icons/icon-maskable-512.png" width="28" height="28" alt="" className="h-7 w-7 rounded-md" />

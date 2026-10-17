@@ -1,6 +1,6 @@
 import { MOBILE_FOLLOWUP_DIALOG_ID } from '../../mobileActionBarConstants';
 
-const actionClass = 'min-h-[52px] min-w-touch rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary disabled:opacity-60';
+const actionClass = 'min-h-[52px] min-w-touch rounded-xl px-4 py-3 text-sm font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary disabled:opacity-60';
 
 export function ReadingCompletionActions({ saveController, onViewJournalEntry, onOpenFollowUp, followUpOpen = false }) {
   const { saveReading, saveState = { status: 'idle' }, isSaving = false } = saveController || {};

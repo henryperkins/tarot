@@ -208,7 +208,7 @@ export function SceneShell({
         />
         <div
           id="hero-bg"
-          className="absolute inset-0 z-[0] pointer-events-none"
+          className="absolute inset-0 z-0 pointer-events-none"
           aria-hidden="true"
         />
         {shouldRenderSceneParticles ? (
@@ -223,14 +223,14 @@ export function SceneShell({
         ) : null}
         <div
           ref={overlayRef}
-          className="pointer-events-none absolute inset-0 z-[2]"
+          className="pointer-events-none absolute inset-0 z-2"
           style={{
             opacity: 0,
             background: 'radial-gradient(circle at 50% 50%, rgba(6, 4, 12, 0.75), rgba(2, 1, 6, 0.94))'
           }}
           aria-hidden="true"
         />
-        <div className="relative z-[3]">
+        <div className="relative z-3">
           {ActiveScene ? <ActiveScene sceneModels={sceneModels}>{children}</ActiveScene> : children}
         </div>
       </div>

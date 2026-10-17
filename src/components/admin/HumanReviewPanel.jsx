@@ -96,7 +96,7 @@ function CommandList({ title, commands, onCopy, copiedKey }) {
           <button
             type="button"
             onClick={() => onCopy(command.value, command.key)}
-            className="flex min-h-touch min-w-touch items-center justify-center rounded-md border border-secondary/30 text-muted hover:text-main hover:border-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="flex min-h-touch min-w-touch items-center justify-center rounded-md border border-secondary/30 text-muted hover:text-main hover:border-secondary/60 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             aria-label={`Copy ${command.label}`}
           >
             {copiedKey === command.key ? (

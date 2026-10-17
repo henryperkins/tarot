@@ -285,7 +285,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     w-full px-4 py-3 min-h-cta
     bg-surface-muted border border-primary/30 rounded-lg
     text-main placeholder-main/40
-    focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50
+    focus:outline-hidden focus:ring-2 focus:ring-primary/50 focus:border-primary/50
     disabled:opacity-60 disabled:cursor-not-allowed
     transition-colors
   `;

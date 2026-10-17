@@ -49,17 +49,17 @@ function CollapsibleSection({
   badge,
 }) {
   return (
-    <div className="border-t border-[color:var(--border-warm-subtle)]">
+    <div className="border-t border-(--border-warm-subtle)">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between min-h-touch py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-main)] touch-manipulation"
+        className="flex w-full items-center justify-between min-h-touch py-3.5 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-(--bg-main) touch-manipulation"
         aria-expanded={isOpen}
       >
         <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-high">
           <Icon className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
           {label}
           {badge && (
-            <span className="ml-1 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-2xs font-medium text-[color:var(--text-main)]">
+            <span className="ml-1 rounded-full bg-(--accent-25) px-1.5 py-0.5 text-2xs font-medium text-(--text-main)">
               {badge}
             </span>
           )}
@@ -137,7 +137,7 @@ export default function JourneySidebar({
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-[color:var(--focus-ring-color)] -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -244,12 +244,12 @@ export default function JourneySidebar({
       <div className="panel-mystic bg-gradient-ambient rounded-3xl p-5 animate-pulse">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-[color:var(--border-warm-light)]" />
-            <div className="h-3 w-28 rounded bg-[color:var(--border-warm-light)]" />
+            <div className="h-3 w-3 rounded bg-(--border-warm-light)" />
+            <div className="h-3 w-28 rounded bg-(--border-warm-light)" />
           </div>
           <div className="space-y-2">
-            <div className="h-4 w-full rounded bg-[color:var(--border-warm-subtle)]" />
-            <div className="h-4 w-3/4 rounded bg-[color:var(--border-warm-subtle)]" />
+            <div className="h-4 w-full rounded bg-(--border-warm-subtle)" />
+            <div className="h-4 w-3/4 rounded bg-(--border-warm-subtle)" />
           </div>
         </div>
       </div>
@@ -307,7 +307,7 @@ export default function JourneySidebar({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-(--border-warm-light) px-4 py-2 text-sm font-semibold text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Go to Settings
           </button>
@@ -347,11 +347,11 @@ export default function JourneySidebar({
         }}
       />
       <div
-        className="pointer-events-none absolute -left-24 top-8 h-64 w-64 rounded-full bg-[color:var(--glow-gold)] blur-[110px]"
+        className="pointer-events-none absolute -left-24 top-8 h-64 w-64 rounded-full bg-(--glow-gold) blur-[110px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:var(--glow-blue)] blur-[110px]"
+        className="pointer-events-none absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-(--glow-blue) blur-[110px]"
         aria-hidden="true"
       />
 
@@ -365,14 +365,14 @@ export default function JourneySidebar({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className="ml-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className="ml-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}
           </h3>
           <Link
             to="/account#analytics"
-            className="flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-(--border-warm-subtle) transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             aria-label="Journey settings"
             title="Settings"
           >
@@ -380,12 +380,12 @@ export default function JourneySidebar({
           </Link>
         </div>
         {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-2xs text-muted-high">
+          <div className="flex flex-wrap items-center gap-2 rounded-full border border-(--border-warm) bg-(--accent-25) px-3 py-1 text-2xs text-muted-high">
             <span>Filters not applied to insights</span>
             <button
               type="button"
               onClick={() => onScopeSelect('filters')}
-              className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="font-semibold text-(--text-main) underline underline-offset-2 hover:text-(--text-accent) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               Apply filters
             </button>
@@ -437,18 +437,18 @@ export default function JourneySidebar({
 
         {/* Stats row */}
         <div className="flex flex-wrap gap-3 text-center">
-          <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+          <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
             <p className="text-lg font-medium text-main">{totalReadings}</p>
             <p className="text-xs text-muted">readings</p>
           </div>
-          <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+          <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
             <p className="text-lg font-medium text-main">{totalCards}</p>
             <p className="text-xs text-muted">cards</p>
           </div>
           {currentStreak > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+            <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
               <p className="text-lg font-medium text-main flex items-center justify-center gap-1">
-                <Fire className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />
+                <Fire className="h-3.5 w-3.5 text-(--brand-primary)" />
                 {currentStreak}
               </p>
               <div className="text-xs text-muted flex items-center justify-center gap-1">
@@ -465,7 +465,7 @@ export default function JourneySidebar({
             </div>
           )}
           {reversalRateSample > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-[color:var(--border-warm-subtle)] px-3 py-2">
+            <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
               <p className="text-lg font-medium text-main">
                 {reversalRateReliable ? `${reversalRate}%` : 'Emerging'}
               </p>
@@ -534,7 +534,7 @@ export default function JourneySidebar({
                     {themes.slice(0, 4).map((theme, i) => (
                       <span
                         key={i}
-                        className="rounded-full bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-xs text-muted-high"
+                        className="rounded-full bg-(--border-warm-subtle) px-2.5 py-1 text-xs text-muted-high"
                       >
                         {theme}
                       </span>
@@ -549,7 +549,7 @@ export default function JourneySidebar({
                   type="button"
                   onClick={handlePatternsToggle}
                   aria-expanded={showAllPatterns}
-                  className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                  className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 >
                   {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                 </button>

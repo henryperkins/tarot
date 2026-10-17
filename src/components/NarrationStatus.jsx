@@ -73,7 +73,7 @@ export function NarrationStatus({ ttsState, showLabel = true, showMessage = fals
       aria-live="polite"
     >
       <Icon
-        className={`w-4 h-4 flex-shrink-0 ${config.iconClassName}`}
+        className={`w-4 h-4 shrink-0 ${config.iconClassName}`}
         weight="bold"
         aria-hidden="true"
       />
@@ -115,7 +115,7 @@ export function NarrationError({ ttsState, onUpgrade, className = '' }) {
         <button
           type="button"
           onClick={onUpgrade}
-          className="min-h-touch min-w-touch mt-1.5 px-2 text-error underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 rounded"
+          className="min-h-touch min-w-touch mt-1.5 px-2 text-error underline hover:no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-error/50 rounded"
         >
           View subscription options
         </button>

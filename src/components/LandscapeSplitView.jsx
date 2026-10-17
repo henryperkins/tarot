@@ -123,7 +123,7 @@ function InteractiveMiniMap({
                 absolute transform -translate-x-1/2 -translate-y-1/2
                 flex flex-col items-center justify-center gap-0.5
                 rounded-lg border-2 transition-all touch-manipulation
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
+                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary
                 ${pos.overlay ? 'rotate-90 scale-75' : ''}
                 ${isActive
                   ? 'border-primary/80 bg-primary/20 ring-2 ring-primary/60 shadow-lg z-10'
@@ -240,7 +240,7 @@ export function LandscapeSplitView({
       style={{ minHeight: '200px', maxHeight: '320px' }}
     >
       {/* Left pane: Interactive mini-map (40%) */}
-      <div className="landscape-split-minimap w-[40%] flex-shrink-0 bg-surface/40 rounded-xl border border-accent/15 overflow-hidden">
+      <div className="landscape-split-minimap w-[40%] shrink-0 bg-surface/40 rounded-xl border border-accent/15 overflow-hidden">
         <InteractiveMiniMap
           spreadKey={selectedSpread}
           cards={visibleReading}

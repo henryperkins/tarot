@@ -48,7 +48,7 @@ export function WelcomeStep({ onNext }) {
   };
 
   return (
-    <div className="flex min-w-0 flex-col h-full [overflow-wrap:anywhere]">
+    <div className="flex min-w-0 flex-col h-full wrap-anywhere">
       {/* Hero - simplified */}
       <div
         className={`text-center ${isLandscape ? 'mb-3' : 'mb-6'} ${
@@ -88,7 +88,7 @@ export function WelcomeStep({ onNext }) {
             onChange={(e) => setName(e.target.value.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH))}
             maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
             placeholder="Your name or nickname"
-            className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50 transition"
+            className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50 transition"
             autoComplete="given-name"
           />
         </div>
@@ -105,7 +105,7 @@ export function WelcomeStep({ onNext }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setExperience(opt.value)}
-                className={`flex-1 basis-24 min-h-touch py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-24 min-h-touch py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   experience === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -133,7 +133,7 @@ export function WelcomeStep({ onNext }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setTone(opt.value)}
-                className={`flex-1 basis-24 min-h-touch py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-24 min-h-touch py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   tone === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -160,7 +160,7 @@ export function WelcomeStep({ onNext }) {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-primary active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-primary active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

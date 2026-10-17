@@ -51,79 +51,79 @@ export const FOLLOW_UP_LIMITS = {
 export const styles = {
   // Section containers
   section:
-    'relative overflow-hidden rounded-2xl border border-[color:var(--border-warm-subtle)] ' +
+    'relative overflow-hidden rounded-2xl border border-(--border-warm-subtle) ' +
     'bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] ' +
     'shadow-[0_18px_40px_-28px_rgba(0,0,0,0.8)] ' +
     'before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,var(--halo-star-color),transparent_55%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
   sectionHeader:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--border-warm-subtle)] ' +
-    'bg-[color:var(--panel-dark-3)] backdrop-blur',
+    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-(--border-warm-subtle) ' +
+    'bg-(--panel-dark-3) backdrop-blur',
 
   sectionHeaderClickable:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--border-warm-subtle)] ' +
-    'w-full text-left bg-[color:var(--panel-dark-3)] hover:bg-[color:var(--border-warm-subtle)] ' +
+    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-(--border-warm-subtle) ' +
+    'w-full text-left bg-(--panel-dark-3) hover:bg-(--border-warm-subtle) ' +
     'transition cursor-pointer backdrop-blur',
 
   sectionLabel:
-    'text-2xs font-semibold tracking-[0.28em] uppercase text-[color:var(--text-muted)]',
+    'text-2xs font-semibold tracking-[0.28em] uppercase text-(--text-muted)',
 
   sectionBody: 'relative z-10 px-4 py-4',
 
   // Pills and chips
   pill:
-    'inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] ' +
-    'bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-2xs tracking-[0.22em] uppercase ' +
-    'text-[color:var(--text-muted)] shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
+    'inline-flex items-center gap-2 rounded-full border border-(--border-warm-light) ' +
+    'bg-(--border-warm-subtle) px-2.5 py-1 text-2xs tracking-[0.22em] uppercase ' +
+    'text-(--text-muted) shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
 
   cardChip:
-    'inline-flex max-w-full items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] ' +
-    'bg-[color:var(--panel-dark-2)] px-2.5 py-1 text-2xs font-semibold text-[color:var(--text-muted)] ' +
+    'inline-flex max-w-full items-center gap-1 rounded-full border border-(--border-warm-light) ' +
+    'bg-(--panel-dark-2) px-2.5 py-1 text-2xs font-semibold text-(--text-muted) ' +
     'shadow-[0_12px_22px_-18px_rgba(0,0,0,0.7)]',
 
   reversedBadge:
-    'flex-shrink-0 rounded-full border border-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)] ' +
-    'bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-2xs ' +
-    'font-semibold text-[color:var(--status-error)]',
+    'shrink-0 rounded-full border border-[color-mix(in_srgb,var(--status-error)_45%,transparent)] ' +
+    'bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-2xs ' +
+    'font-semibold text-(--status-error)',
 
   uprightBadge:
-    'flex-shrink-0 rounded-full border border-[color:var(--border-warm-light)] px-1.5 py-0.5 text-2xs ' +
-    'text-[color:var(--text-muted)]',
+    'shrink-0 rounded-full border border-(--border-warm-light) px-1.5 py-0.5 text-2xs ' +
+    'text-(--text-muted)',
 
   // Buttons
   iconButton:
     'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
-    'border border-[color:var(--border-warm-light)] bg-[linear-gradient(135deg,var(--bg-surface-muted),var(--bg-surface))] ' +
-    'text-[color:var(--text-muted)] shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
-    'hover:border-[color:var(--border-warm)] hover:text-[color:var(--brand-accent)] hover:translate-y-[-1px] ' +
-    'transition-all duration-200 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:var(--focus-ring-color)]',
+    'border border-(--border-warm-light) bg-[linear-gradient(135deg,var(--bg-surface-muted),var(--bg-surface))] ' +
+    'text-(--text-muted) shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
+    'hover:border-(--border-warm) hover:text-(--brand-accent) hover:-translate-y-px ' +
+    'transition-all duration-200 active:translate-y-0 focus-visible:outline-hidden focus-visible:ring-2 ' +
+    'focus-visible:ring-(--focus-ring-color)',
 
   iconButtonCompact:
     'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
-    'border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] ' +
-    'text-[color:var(--text-muted)] hover:bg-[color:var(--border-warm-subtle)] ' +
-    'hover:text-[color:var(--brand-accent)] transition focus-visible:outline-none ' +
-    'focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] flex-shrink-0',
+    'border border-(--border-warm-subtle) bg-(--panel-dark-2) ' +
+    'text-(--text-muted) hover:bg-(--border-warm-subtle) ' +
+    'hover:text-(--brand-accent) transition focus-visible:outline-hidden ' +
+    'focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) shrink-0',
 
   actionButton:
     'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ' +
-    'transition focus-visible:outline-none focus-visible:ring-2 ' +
-    'focus-visible:ring-[color:var(--focus-ring-color)]',
+    'transition focus-visible:outline-hidden focus-visible:ring-2 ' +
+    'focus-visible:ring-(--focus-ring-color)',
 
   actionButtonEnabled:
-    'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] ' +
-    'text-[color:var(--text-main)] hover:border-[color:var(--border-warm)] ' +
-    'hover:bg-[color:var(--border-warm-light)]',
+    'border-(--border-warm-light) bg-(--border-warm-subtle) ' +
+    'text-(--text-main) hover:border-(--border-warm) ' +
+    'hover:bg-(--border-warm-light)',
 
   actionButtonDisabled:
-    'border-[color:var(--border-warm-subtle)] bg-[color:var(--border-warm-subtle)] ' +
-    'text-[color:var(--text-muted)] cursor-not-allowed opacity-70',
+    'border-(--border-warm-subtle) bg-(--border-warm-subtle) ' +
+    'text-(--text-muted) cursor-not-allowed opacity-70',
 
   // Cards
   cardBase:
-    'group relative overflow-hidden text-[color:var(--text-main)] transition-[transform,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] animate-fade-in ' +
+    'group relative overflow-hidden text-(--text-main) transition-[transform,box-shadow,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) animate-fade-in ' +
     'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,var(--border-warm-subtle),transparent_45%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
@@ -131,8 +131,8 @@ export const styles = {
     'hover:translate-y-[-2px] hover:shadow-[0_24px_48px_-32px_rgba(0,0,0,0.85),0_0_26px_var(--brand-primary),inset_0_1px_0_rgba(255,255,255,0.08)]',
 
   cardCompact:
-    'rounded-2xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
-    'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-[color:var(--border-warm-subtle)]',
+    'rounded-2xl border border-(--border-warm-light) bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
+    'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-(--border-warm-subtle)',
 
   // Accent bar
   accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_var(--primary-20),inset_0_0_0_1px_rgba(255,255,255,0.02)]',
@@ -142,29 +142,29 @@ export const styles = {
   // Menu
   menu:
     'fixed z-toast w-72 max-w-[calc(100vw-16px)] max-h-[75vh] overflow-y-auto rounded-2xl ' +
-    'border border-[color:var(--border-warm)] bg-[color:var(--bg-main)] p-2 ' +
+    'border border-(--border-warm) bg-(--bg-main) p-2 ' +
     'shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]',
 
   menuItem:
     'flex min-h-touch w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm ' +
-    'transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
+    'transition-colors focus-visible:outline-hidden focus-visible:ring-2 ' +
     'disabled:opacity-60 disabled:cursor-not-allowed',
 
   menuItemDefault:
-    'text-[color:var(--text-main)] hover:bg-[color:var(--border-warm-subtle)] ' +
-    'focus-visible:ring-[color:var(--focus-ring-color)]',
+    'text-(--text-main) hover:bg-(--border-warm-subtle) ' +
+    'focus-visible:ring-(--focus-ring-color)',
 
   menuItemDanger:
-    'text-[color:var(--status-error)] hover:bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] ' +
-    'focus-visible:ring-[color:color-mix(in_srgb,var(--status-error)_45%,transparent)]',
+    'text-(--status-error) hover:bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] ' +
+    'focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)]',
 
   // Follow-up turn card
   turnCard:
-    'rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] ' +
+    'rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-2) ' +
     'p-3 shadow-[0_16px_32px_-24px_rgba(0,0,0,0.8)]',
 
   // Divider
-  divider: 'my-4 h-px bg-[color:var(--border-warm-subtle)]'
+  divider: 'my-4 h-px bg-(--border-warm-subtle)'
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

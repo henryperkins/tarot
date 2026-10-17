@@ -308,7 +308,7 @@ export default function ShareReading() {
           </div>
         ) : (
           <div role="alert" className="min-w-0 max-w-md rounded-3xl border border-error/40 bg-surface p-6 text-center shadow-2xl sm:p-8">
-            <h1 dir="auto" className="break-words text-lg font-serif text-error">{errorMessage}</h1>
+            <h1 dir="auto" className="wrap-break-word text-lg font-serif text-error">{errorMessage}</h1>
             <Link
               to="/"
               className={`mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-primary/60 px-4 py-2 text-sm text-main hover:bg-primary/10 ${FOCUS_RING_DEFAULT}`}
@@ -330,7 +330,7 @@ export default function ShareReading() {
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition min-h-touch min-w-touch px-2 -ml-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+              className="inline-flex items-center gap-2 text-accent hover:text-accent/80 transition min-h-touch min-w-touch px-2 -ml-2 rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
               aria-label="Back to Reading"
             >
               <ArrowLeft className="h-5 w-5" weight="bold" />
@@ -338,7 +338,7 @@ export default function ShareReading() {
             </button>
             <div className="flex min-w-0 max-w-full items-center gap-2">
               <Eye className="h-5 w-5 shrink-0 text-accent" weight="duotone" />
-              <span className="min-w-0 break-words font-serif text-lg text-accent">Tableu</span>
+              <span className="min-w-0 wrap-break-word font-serif text-lg text-accent">Tableu</span>
             </div>
           </div>
           <div className="flex min-w-0 max-w-full items-center gap-2">
@@ -348,7 +348,7 @@ export default function ShareReading() {
               <Link
                 to="/account"
                 aria-label="Account"
-                className="inline-flex min-w-touch items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="inline-flex min-w-touch items-center justify-center gap-1.5 rounded-full border border-secondary/40 bg-surface/60 px-3 py-2 text-xs font-medium text-main hover:bg-surface hover:border-secondary/60 transition min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
               >
                 <User className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Account</span>
@@ -358,7 +358,7 @@ export default function ShareReading() {
         </div>
       </header>
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pt-8 pb-[calc(2rem+var(--share-footer-height,0px))] [overflow-wrap:anywhere]">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 pt-8 pb-[calc(2rem+var(--share-footer-height,0px))] wrap-anywhere">
         <div className="min-w-0 rounded-3xl border border-secondary/40 bg-surface p-[min(1.5rem,6vw)] shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1">
@@ -441,11 +441,11 @@ export default function ShareReading() {
         {/* Mobile view toggle - only visible below lg breakpoint */}
         <div
           ref={mobileTabsRef}
-          className="mt-6 lg:hidden sticky z-20 top-[var(--share-header-height,5rem)]"
+          className="mt-6 lg:hidden sticky z-20 top-(--share-header-height,5rem)"
           role="tablist"
           aria-label="View selection"
         >
-          <div className="grid min-w-0 grid-cols-2 rounded-xl bg-surface-muted/80 backdrop-blur p-1 border border-secondary/20 shadow-sm shadow-secondary/20">
+          <div className="grid min-w-0 grid-cols-2 rounded-xl bg-surface-muted/80 backdrop-blur p-1 border border-secondary/20 shadow-xs shadow-secondary/20">
             <button
               type="button"
               role="tab"
@@ -461,9 +461,9 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'spread'
-                  ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                  ? 'bg-surface shadow-xs border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
               }`}
             >
@@ -484,9 +484,9 @@ export default function ShareReading() {
                   document.getElementById(mobileView === 'spread' ? 'mobile-notes-tab' : 'mobile-spread-tab')?.focus();
                 }
               }}
-              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 ${
+              className={`min-w-0 rounded-lg px-[min(0.75rem,3vw)] py-3 min-h-touch text-sm font-semibold transition-all touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70 ${
                 mobileView === 'notes'
-                  ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                  ? 'bg-surface shadow-xs border border-secondary/30 text-accent'
                   : 'text-muted hover:text-main'
               }`}
             >
@@ -557,7 +557,7 @@ export default function ShareReading() {
             <button
               type="button"
               onClick={scrollToNotesForm}
-              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/70"
               aria-label="Add note: open note form"
             >
               Add note
@@ -566,7 +566,7 @@ export default function ShareReading() {
         )}
 
         {/* Desktop: side-by-side grid layout */}
-        <div className="mt-8 hidden lg:grid lg:grid-cols-[2fr,1fr] gap-6">
+        <div className="mt-8 hidden lg:grid lg:grid-cols-[2fr_1fr] gap-6">
           <div className="space-y-6">
             <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
               <div className="flex flex-col gap-1">
@@ -607,7 +607,7 @@ export default function ShareReading() {
       {!isAuthenticated && (
         <div
           ref={guestFooterRef}
-          className="fixed bottom-0 left-0 right-0 z-sticky-nav w-full border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe [overflow-wrap:anywhere]"
+          className="fixed bottom-0 left-0 right-0 z-sticky-nav w-full border-t border-accent/30 bg-surface/95 backdrop-blur-sm shadow-[0_-8px_30px_rgba(0,0,0,0.4)] pb-safe-action pl-safe pr-safe wrap-anywhere"
         >
           <div className="mx-auto max-w-6xl px-4 py-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -618,14 +618,14 @@ export default function ShareReading() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link
                   to="/"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   <Sparkle className="h-4 w-4" weight="fill" />
                   Start Reading
                 </Link>
                 <Link
                   to="/account"
-                  className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-main hover:bg-secondary/10 transition min-h-touch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="inline-flex items-center justify-center rounded-full border border-secondary/60 bg-transparent px-4 py-2.5 text-sm font-semibold text-main hover:bg-secondary/10 transition min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
                 >
                   Sign In
                 </Link>

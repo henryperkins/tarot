@@ -185,9 +185,9 @@ export function ReadingPreparation({
                                 className={`
                                     flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg min-h-touch
                                     text-xs font-semibold transition-colors touch-manipulation
-                                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
+                                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70
                                     ${isActive
-                                        ? 'bg-surface shadow-sm border border-secondary/30 text-accent'
+                                        ? 'bg-surface shadow-xs border border-secondary/30 text-accent'
                                         : 'text-muted hover:text-main'
                                     }
                                 `}
@@ -204,7 +204,7 @@ export function ReadingPreparation({
                     <span>Audio and appearance live in Settings.</span>
                     <Link
                         to="/account#audio"
-                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                     >
                         Open Settings
                     </Link>

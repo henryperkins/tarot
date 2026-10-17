@@ -102,7 +102,7 @@ export function JournalSummaryBand({
             ].map((star, i) => (
               <div
                 key={i}
-                className="absolute rounded-full bg-[color:var(--text-main)]"
+                className="absolute rounded-full bg-(--text-main)"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
@@ -116,10 +116,10 @@ export function JournalSummaryBand({
           </div>
 
           {/* Nebula glows */}
-          <div className="pointer-events-none absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-[color:var(--glow-blue)] blur-[100px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute -right-32 top-1/3 h-64 w-64 rounded-full bg-[color:var(--glow-gold)] blur-[80px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute left-1/4 -bottom-24 h-56 w-56 rounded-full bg-[color:var(--glow-pink)] blur-[90px]" aria-hidden="true" />
-          <div className="pointer-events-none absolute right-1/4 top-0 h-48 w-48 rounded-full bg-[color:var(--glow-blue)] blur-[70px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-(--glow-blue) blur-[100px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute -right-32 top-1/3 h-64 w-64 rounded-full bg-(--glow-gold) blur-[80px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute left-1/4 -bottom-24 h-56 w-56 rounded-full bg-(--glow-pink) blur-[90px]" aria-hidden="true" />
+          <div className="pointer-events-none absolute right-1/4 top-0 h-48 w-48 rounded-full bg-(--glow-blue) blur-[70px]" aria-hidden="true" />
         </>
       )}
 
@@ -142,10 +142,10 @@ export function JournalSummaryBand({
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
                       aria-pressed={isActive}
-                      className={`inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
+                      className={`inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
                         isActive
-                          ? 'border-[color:var(--brand-primary)] bg-[color:var(--accent-25)] text-[color:var(--text-main)] shadow-[0_8px_26px_-16px_var(--accent-45)]'
-                          : 'border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] text-[color:var(--text-muted)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)]'
+                          ? 'border-(--brand-primary) bg-(--accent-25) text-(--text-main) shadow-[0_8px_26px_-16px_var(--accent-45)]'
+                          : 'border-(--border-warm-light) bg-(--border-warm-subtle) text-(--text-muted) hover:border-(--border-warm) hover:bg-(--border-warm-light)'
                       }`}
                     >
                       {option.label}
@@ -156,16 +156,16 @@ export function JournalSummaryBand({
               <p className={scopeSummaryClass}>
                 Active: {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'}
               </p>
-              <span className={`inline-flex items-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] ${scopeChipClass}`}>
+              <span className={`inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) ${scopeChipClass}`}>
                 {scopeChipLabel} · {sourceLabel}
               </span>
               {filtersActive && analyticsScope !== 'filters' && (
-                <div className={`flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] ${filterNoticeClass}`}>
+                <div className={`flex flex-wrap items-center gap-2 rounded-full border border-(--border-warm) bg-(--accent-25) ${filterNoticeClass}`}>
                   <span>Filters not applied to insights</span>
                   <button
                     type="button"
                     onClick={() => onScopeSelect('filters')}
-                    className="min-h-touch min-w-touch font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                    className="min-h-touch min-w-touch font-semibold text-(--text-main) underline underline-offset-2 hover:text-(--text-accent) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                   >
                     Apply filters
                   </button>
@@ -182,7 +182,7 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.start}
                   onChange={(event) => onCustomScopeChange('start', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                  className="rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 />
               </label>
               <label className="flex items-center gap-1">
@@ -191,11 +191,11 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.end}
                   onChange={(event) => onCustomScopeChange('end', event.target.value)}
-                  className="rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-1 text-sm-mobile text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                  className="rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 />
               </label>
               {scopeError && (
-                <span className="text-2xs text-[color:var(--status-error)]">{scopeError}</span>
+                <span className="text-2xs text-(--status-error)">{scopeError}</span>
               )}
             </div>
           )}
@@ -214,9 +214,9 @@ export function JournalSummaryBand({
                   return (
                     <div
                       key={stat.id}
-                      className="rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
+                      className="rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
                     >
-                      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--border-warm-subtle)] text-accent">
+                      <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-(--border-warm-subtle) text-accent">
                         {icon}
                       </div>
                       <p className="text-2xl font-serif text-main">{stat.value}</p>
@@ -240,11 +240,11 @@ export function JournalSummaryBand({
                     onClick={() => onExpandedCardChange(isCardExpanded ? null : 0)}
                     aria-expanded={isCardExpanded}
                     aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
-                    className="w-full rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                    className="w-full rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) hover:border-(--border-warm) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                   >
                     <div className="flex items-center gap-3">
                       {/* Card thumbnail */}
-                      <div className="relative w-14 h-20 flex-shrink-0 overflow-hidden rounded-lg border border-[color:var(--border-warm-light)]">
+                      <div className="relative w-14 h-20 shrink-0 overflow-hidden rounded-lg border border-(--border-warm-light)">
                         <img
                           src={card.image}
                           alt={card.name}
@@ -259,13 +259,13 @@ export function JournalSummaryBand({
                         <p className="text-xs text-muted">{card.orientation} · {heroDateLabel}</p>
                       </div>
                       {/* Chevron indicator */}
-                      <div className={`flex-shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
+                      <div className={`shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
                         <CaretDown className="h-5 w-5" aria-hidden />
                       </div>
                     </div>
                     {/* Expandable insight */}
                     {isCardExpanded && meaning && (
-                      <div className="mt-3 pt-3 border-t border-[color:var(--border-warm-subtle)]">
+                      <div className="mt-3 pt-3 border-t border-(--border-warm-subtle)">
                         <p className="text-xs text-muted-high leading-relaxed">{meaning}</p>
                       </div>
                     )}
@@ -280,7 +280,7 @@ export function JournalSummaryBand({
             <button
               type="button"
               onClick={() => onStartReading()}
-              className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full bg-[color:var(--brand-primary)] px-4 py-3 text-sm font-semibold text-[color:var(--bg-main)] shadow-[0_16px_40px_-24px_var(--accent-45)] transition-[transform,box-shadow,background-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] hover:bg-[color:var(--brand-accent)] hover:shadow-[0_20px_46px_-24px_var(--accent-45)] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto sm:flex-1"
+              className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full bg-(--brand-primary) px-4 py-3 text-sm font-semibold text-(--bg-main) shadow-[0_16px_40px_-24px_var(--accent-45)] transition-[transform,box-shadow,background-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) hover:bg-(--brand-accent) hover:shadow-[0_20px_46px_-24px_var(--accent-45)] hover:-translate-y-0.5 active:translate-y-0 sm:w-auto sm:flex-1"
             >
               <JournalPlusCircleIcon className="h-4 w-4" aria-hidden />
               New Reading
@@ -294,7 +294,7 @@ export function JournalSummaryBand({
                     journeySection.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
                   }
                 }}
-                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
+                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-4 py-3 text-sm font-medium text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-light) hover:border-(--border-warm) sm:w-auto sm:flex-1"
               >
                 See Journey
                 <CaretDown className="h-4 w-4" aria-hidden />
@@ -303,7 +303,7 @@ export function JournalSummaryBand({
               <button
                 type="button"
                 onClick={() => setIsExpanded(true)}
-                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-4 py-3 text-sm font-medium text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)] sm:w-auto sm:flex-1"
+                className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-4 py-3 text-sm font-medium text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-light) hover:border-(--border-warm) sm:w-auto sm:flex-1"
               >
                 Show Details
                 <CaretDown className="h-4 w-4" aria-hidden />
@@ -331,22 +331,22 @@ export function JournalSummaryBand({
                       aria-expanded={isExpanded}
                       aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
                       onClick={() => onExpandedCardChange(isExpanded ? null : index)}
-                      className={`relative w-24 sm:w-28 flex-shrink-0 overflow-hidden rounded-xl border transition-[transform,border-color,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
+                      className={`relative w-24 sm:w-28 shrink-0 overflow-hidden rounded-xl border transition-[transform,border-color,box-shadow,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
                         isExpanded
-                          ? 'border-[color:var(--brand-primary)] ring-1 ring-[color:var(--primary-30)] rounded-r-none'
-                          : 'border-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]'
+                          ? 'border-(--brand-primary) ring-1 ring-(--primary-30) rounded-r-none'
+                          : 'border-(--border-warm-light) hover:border-(--border-warm)'
                       } bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_12px_32px_-20px_rgba(0,0,0,0.7)]`}
                     >
-                      <div className="relative aspect-[2/3] overflow-hidden">
+                      <div className="relative aspect-2/3 overflow-hidden">
                         <img
                           src={card.image}
                           alt={card.name}
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />
-                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 via-black/5 to-transparent" />
                         {index === 0 && heroDateLabel && (
-                          <div className="absolute left-1.5 top-1.5 rounded-full bg-[color:var(--accent-25)] px-1.5 py-0.5 text-2xs leading-none font-semibold text-main">
+                          <div className="absolute left-1.5 top-1.5 rounded-full bg-(--accent-25) px-1.5 py-0.5 text-2xs leading-none font-semibold text-main">
                             {heroDateLabel}
                           </div>
                         )}
@@ -359,11 +359,11 @@ export function JournalSummaryBand({
 
                     {/* Slide-out insight panel */}
                     <div
-                      className={`overflow-hidden transition-[width,opacity] duration-[var(--duration-medium)] ease-[var(--ease-out)] ${
+                      className={`overflow-hidden transition-[width,opacity] duration-(--duration-medium) ease-(--ease-out) ${
                         isExpanded ? 'w-36 sm:w-40 opacity-100' : 'w-0 opacity-0'
                       }`}
                     >
-                      <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-[color:var(--border-warm-light)] bg-[linear-gradient(135deg,var(--panel-dark-2),var(--panel-dark-1))] p-2 flex flex-col">
+                      <div className="w-36 sm:w-40 h-full rounded-r-xl border-y border-r border-(--border-warm-light) bg-[linear-gradient(135deg,var(--panel-dark-2),var(--panel-dark-1))] p-2 flex flex-col">
                         <p className="text-2xs uppercase tracking-wider text-muted mb-1">
                           {suitInfo ? suitInfo.element : isMajor ? 'Major Arcana' : 'Insight'}
                         </p>
@@ -483,18 +483,18 @@ export function JournalSummaryBand({
                 >
                   {/* Card glow */}
                   <div
-                    className={`pointer-events-none absolute -inset-3 rounded-xl blur-2xl transition-opacity duration-[var(--duration-slow)] ${
-                      isHero ? 'bg-[color:var(--primary-30)] opacity-100' : 'bg-[color:var(--primary-20)] opacity-0 group-hover:opacity-100'
+                    className={`pointer-events-none absolute -inset-3 rounded-xl blur-2xl transition-opacity duration-(--duration-slow) ${
+                      isHero ? 'bg-(--primary-30) opacity-100' : 'bg-(--primary-20) opacity-0 group-hover:opacity-100'
                     }`}
                     aria-hidden="true"
                   />
 
                   {/* Tarot card */}
                   <div
-                    className={`relative overflow-hidden rounded-lg transition-[transform,box-shadow] duration-[var(--duration-medium)] ease-[var(--ease-out)] group-hover:-translate-y-1 ${
+                    className={`relative overflow-hidden rounded-lg transition-[transform,box-shadow,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) group-hover:-translate-y-1 ${
                       isHero
-                        ? 'ring-2 ring-[color:var(--primary-30)] shadow-[0_0_40px_-10px_var(--primary-30)]'
-                        : 'ring-1 ring-[color:var(--border-warm-subtle)] shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)] group-hover:ring-[color:var(--border-warm-light)] group-hover:shadow-[0_12px_40px_-8px_var(--primary-20)]'
+                        ? 'ring-2 ring-(--primary-30) shadow-[0_0_40px_-10px_var(--primary-30)]'
+                        : 'ring-1 ring-(--border-warm-subtle) shadow-[0_8px_32px_-8px_rgba(0,0,0,0.8)] group-hover:ring-(--border-warm-light) group-hover:shadow-[0_12px_40px_-8px_var(--primary-20)]'
                     }`}
                     style={{ aspectRatio: '2.5/4' }}
                   >
@@ -508,9 +508,9 @@ export function JournalSummaryBand({
                       <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
                         <defs>
                           <pattern id={`cardPattern-${stat.id}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <path d="M10 0L20 10L10 20L0 10Z" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-[color:var(--primary-30)]' : 'text-[color:var(--primary-20)]'} />
-                            <circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-[color:var(--primary-20)]' : 'text-[color:var(--border-warm-subtle)]'} />
-                            <circle cx="10" cy="10" r="1" fill="currentColor" className={isHero ? 'text-[color:var(--primary-20)]' : 'text-[color:var(--border-warm-subtle)]'} />
+                            <path d="M10 0L20 10L10 20L0 10Z" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-(--primary-30)' : 'text-(--primary-20)'} />
+                            <circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="0.5" className={isHero ? 'text-(--primary-20)' : 'text-(--border-warm-subtle)'} />
+                            <circle cx="10" cy="10" r="1" fill="currentColor" className={isHero ? 'text-(--primary-20)' : 'text-(--border-warm-subtle)'} />
                           </pattern>
                         </defs>
                         <rect width="100%" height="100%" fill={`url(#cardPattern-${stat.id})`} />
@@ -525,12 +525,12 @@ export function JournalSummaryBand({
                     }`}>
                       {/* Inner border */}
                       <div className={`absolute inset-0 rounded border ${
-                        isHero ? 'border-[color:var(--border-warm)]' : 'border-[color:var(--border-warm-light)] group-hover:border-[color:var(--border-warm)]'
+                        isHero ? 'border-(--border-warm)' : 'border-(--border-warm-light) group-hover:border-(--border-warm)'
                       } transition-colors`} />
 
                       {/* Decorative inner frame line */}
                       <div className={`absolute inset-1 rounded border ${
-                        isHero ? 'border-[color:var(--border-warm-light)]' : 'border-[color:var(--border-warm-subtle)]'
+                        isHero ? 'border-(--border-warm-light)' : 'border-(--border-warm-subtle)'
                       }`} />
 
                       {/* Corner ornaments - more elaborate */}
@@ -542,7 +542,7 @@ export function JournalSummaryBand({
                       ].map((corner, i) => (
                         <svg
                           key={i}
-                          className={`absolute ${corner.pos} w-5 h-5 ${isHero ? 'text-[color:var(--primary-30)]' : 'text-[color:var(--primary-20)]'}`}
+                          className={`absolute ${corner.pos} w-5 h-5 ${isHero ? 'text-(--primary-30)' : 'text-(--primary-20)'}`}
                           viewBox="0 0 20 20"
                           style={{ transform: `rotate(${corner.rotate}deg)` }}
                           aria-hidden="true"
@@ -556,7 +556,7 @@ export function JournalSummaryBand({
                       {/* Center star/sun symbol for hero */}
                       {isHero && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03]" aria-hidden="true">
-                          <svg className="w-32 h-32 text-[color:var(--primary-60)]" viewBox="0 0 100 100">
+                          <svg className="w-32 h-32 text-(--primary-60)" viewBox="0 0 100 100">
                             {[...Array(8)].map((_, i) => (
                               <line
                                 key={i}
@@ -582,7 +582,7 @@ export function JournalSummaryBand({
                             <div className="relative mb-2 w-full flex-1 min-h-[80px] max-h-[100px]">
                               <svg className="w-full h-full" viewBox="0 0 80 100" aria-hidden="true">
                                 {/* Open notebook */}
-                                <g className="text-[color:var(--border-warm-light)] opacity-60">
+                                <g className="text-(--border-warm-light) opacity-60">
                                   {/* Left page */}
                                   <path d="M8 15 L38 12 L38 85 L8 88 Z" fill="var(--border-warm-subtle)" stroke="currentColor" strokeWidth="0.5" />
                                   {/* Right page */}
@@ -616,7 +616,7 @@ export function JournalSummaryBand({
                               </svg>
                             </div>
                             {/* Label at bottom like tarot card name */}
-                            <div className="border-t border-[color:var(--border-warm-subtle)] pt-1.5 w-full">
+                            <div className="border-t border-(--border-warm-subtle) pt-1.5 w-full">
                               <p className="text-2xs leading-none uppercase tracking-[0.2em] text-muted mb-0.5">{stat.label}</p>
                               <p className="font-serif text-lg text-main leading-tight">{stat.value}</p>
                             </div>
@@ -626,15 +626,15 @@ export function JournalSummaryBand({
                             {/* Icon medallion */}
                             <div className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full transition-all ${
                               isHero
-                                ? 'bg-[color:var(--accent-25)] text-[color:var(--text-accent)] ring-2 ring-[color:var(--border-warm)] shadow-[0_0_20px_-4px_var(--primary-30)]'
-                                : 'bg-[color:var(--border-warm-subtle)] text-muted-high ring-1 ring-[color:var(--border-warm-light)] group-hover:text-[color:var(--text-accent)] group-hover:ring-[color:var(--border-warm)]'
+                                ? 'bg-(--accent-25) text-(--text-accent) ring-2 ring-(--border-warm) shadow-[0_0_20px_-4px_var(--primary-30)]'
+                                : 'bg-(--border-warm-subtle) text-muted-high ring-1 ring-(--border-warm-light) group-hover:text-(--text-accent) group-hover:ring-(--border-warm)'
                             }`}>
                               {icon}
                             </div>
 
                             {/* Label */}
                             <p className={`text-2xs uppercase tracking-[0.2em] mb-1.5 ${
-                              isHero ? 'text-[color:var(--text-accent)]' : 'text-muted'
+                              isHero ? 'text-(--text-accent)' : 'text-muted'
                             }`}>
                               {stat.label}
                             </p>
@@ -660,8 +660,8 @@ export function JournalSummaryBand({
                             {/* Bottom decorative element */}
                             <div className={`mt-2 w-6 h-px ${
                               isHero
-                                ? 'bg-gradient-to-r from-transparent via-[color:var(--accent-45)] to-transparent'
-                                : 'bg-gradient-to-r from-transparent via-[color:var(--border-warm-light)] to-transparent'
+                                ? 'bg-linear-to-r from-transparent via-(--accent-45) to-transparent'
+                                : 'bg-linear-to-r from-transparent via-(--border-warm-light) to-transparent'
                             }`} />
                           </>
                         )}
@@ -671,8 +671,8 @@ export function JournalSummaryBand({
                     {/* Top edge shine */}
                     <div className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
                       isHero
-                        ? 'bg-gradient-to-r from-transparent via-[color:var(--accent-45)] to-transparent'
-                        : 'bg-gradient-to-r from-transparent via-[color:var(--border-warm-light)] to-transparent'
+                        ? 'bg-linear-to-r from-transparent via-(--accent-45) to-transparent'
+                        : 'bg-linear-to-r from-transparent via-(--border-warm-light) to-transparent'
                     }`} aria-hidden="true" />
                   </div>
                 </div>

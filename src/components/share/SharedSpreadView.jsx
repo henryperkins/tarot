@@ -216,7 +216,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                 aria-pressed={active}
                 aria-label={`${positionLabel}: ${card.name}, ${orientation}. ${positionNotes.length} note${positionNotes.length === 1 ? '' : 's'}. Click to target for note.`}
                 className={`group h-full w-full rounded-2xl border bg-surface/70 p-4 text-left shadow-lg transition-all duration-200
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2
+                  focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/60 focus-visible:ring-offset-2
                   active:scale-[0.98] touch-manipulation
                   ${active
                     ? 'border-secondary/70 ring-1 ring-secondary/30'
@@ -235,7 +235,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
 
                 <div className="mt-3 flex flex-col items-center text-center">
                   {/* Card image container with proper aspect ratio */}
-                  <div className="aspect-[2/3.5] w-full max-w-[200px] overflow-hidden rounded-xl border border-primary/30 bg-surface-muted/50">
+                  <div className="aspect-2/3.5 w-full max-w-[200px] overflow-hidden rounded-xl border border-primary/30 bg-surface-muted/50">
                     <img
                       src={getCardImage(card)}
                       alt={`${card.name}, ${orientation}`}
@@ -292,7 +292,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                     {note.formattedCreatedAt}
                   </time>
                 </header>
-                <p className="mt-2 text-sm text-main whitespace-pre-wrap break-words">{note.body}</p>
+                <p className="mt-2 text-sm text-main whitespace-pre-wrap wrap-break-word">{note.body}</p>
               </article>
             ))}
           </div>

@@ -123,12 +123,12 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
                 maxLength={USER_QUESTION_MAX_LENGTH}
                 enterKeyHint="done"
                 aria-describedby={describedBy}
-                className="min-w-0 flex-1 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
+                className="min-w-0 flex-1 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
               />
               <button
                 type="button"
                 onClick={finishEditing}
-                className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
               >
                 Done
               </button>
@@ -152,7 +152,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
               ref={editButtonRef}
               type="button"
               onClick={() => setIsEditing(true)}
-              className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-3 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
               aria-label={trimmedQuestion ? 'Edit your question' : 'Add a question'}
             >
               {trimmedQuestion ? 'Edit' : 'Add'}
@@ -183,7 +183,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           type="button"
           onClick={onCoachOpen}
           aria-haspopup="dialog"
-          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-secondary/40 min-h-touch min-w-touch px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-secondary/40 min-h-touch min-w-touch px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           aria-label="Open guided intention coach"
         >
           <Sparkle className="w-4 h-4" weight="duotone" aria-hidden="true" />
@@ -207,7 +207,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           maxLength={USER_QUESTION_MAX_LENGTH}
           enterKeyHint="done"
           aria-describedby={describedBy}
-          className="min-w-0 flex-1 basis-44 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none"
+          className="min-w-0 flex-1 basis-44 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
         />
       </div>
       <QuestionNudge id={nudgeId} kind={nudgeKind} onOpenCoach={onCoachOpen} />
@@ -217,7 +217,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
         <SaveIntentionButton question={userQuestion} />
       )}
       <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
-        <span className="min-w-0 break-words font-semibold">
+        <span className="min-w-0 wrap-break-word font-semibold">
           {DECK_OPTIONS.find(d => d.id === deckStyleId)?.label || 'Selected deck'}
         </span>
         <button
@@ -225,7 +225,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           onClick={onDeckChange}
           aria-haspopup="dialog"
           aria-label="Change deck"
-          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         >
           Change
         </button>
@@ -233,7 +233,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           type="button"
           onClick={onMoreOpen}
           aria-haspopup="dialog"
-          className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
           aria-label="More reading settings"
         >
           <span className="flex items-center gap-1">

@@ -45,17 +45,17 @@ const BADGE_ILLUSTRATIONS = {
 
 // Badge type to color mapping
 const BADGE_COLORS = {
-  fire: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
-  flame: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
-  streak: 'text-wands bg-[color:color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
-  star: 'text-[color:var(--brand-primary)] bg-[color:color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
-  first_reading: 'text-[color:var(--brand-primary)] bg-[color:color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
-  medal: 'text-[color:var(--brand-secondary)] bg-[color:color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
-  ten_readings: 'text-[color:var(--brand-secondary)] bg-[color:color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color:color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
-  trophy: 'text-[color:var(--brand-accent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color:color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
-  fifty_readings: 'text-[color:var(--brand-accent)] bg-[color:color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color:color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
-  sparkle: 'text-cups bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
-  mastery: 'text-cups bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
+  fire: 'text-wands bg-[color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  flame: 'text-wands bg-[color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  streak: 'text-wands bg-[color-mix(in_srgb,var(--color-wands)_18%,transparent)] border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]',
+  star: 'text-(--brand-primary) bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
+  first_reading: 'text-(--brand-primary) bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)] border-[color-mix(in_srgb,var(--brand-primary)_32%,transparent)]',
+  medal: 'text-(--brand-secondary) bg-[color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
+  ten_readings: 'text-(--brand-secondary) bg-[color-mix(in_srgb,var(--brand-secondary)_16%,transparent)] border-[color-mix(in_srgb,var(--brand-secondary)_32%,transparent)]',
+  trophy: 'text-(--brand-accent) bg-[color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
+  fifty_readings: 'text-(--brand-accent) bg-[color-mix(in_srgb,var(--brand-accent)_18%,transparent)] border-[color-mix(in_srgb,var(--brand-accent)_34%,transparent)]',
+  sparkle: 'text-cups bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
+  mastery: 'text-cups bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]',
 };
 
 function getBadgeIcon(type) {
@@ -95,16 +95,16 @@ function AchievementsRow({ badges = [] }) {
             <div
               key={badge.badge_key || index}
               className={`
-                flex-shrink-0 flex items-center gap-2 rounded-xl
+                shrink-0 flex items-center gap-2 rounded-xl
                 border px-3 py-2 min-h-touch ${colors}
                 hover:scale-[1.02] transition-transform
               `}
               title={title}
             >
               {BadgeIllustration ? (
-                <BadgeIllustration className="h-7 w-7 flex-shrink-0" size="compact" />
+                <BadgeIllustration className="h-7 w-7 shrink-0" size="compact" />
               ) : (
-                <FallbackIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                <FallbackIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
               )}
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-medium whitespace-nowrap truncate max-w-[100px]">

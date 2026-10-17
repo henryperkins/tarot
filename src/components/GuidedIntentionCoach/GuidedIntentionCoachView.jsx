@@ -37,9 +37,9 @@ import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';
 import { CoachTemplatePanel } from './CoachTemplatePanel';
 
 const baseOptionClass =
-  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
 const infoButtonClass =
-  'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-secondary transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+  'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-secondary transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60';
 // Footer actions follow the mobile action bar's docked pair: a candlelight
 // primary and a quiet bordered secondary. Focus is left to the global outline,
 // which carries the offset the design system asks for.
@@ -435,7 +435,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                 setCustomFocus(event.target.value);
               }}
               placeholder="e.g. a potential move, a creative launch, a new relationship"
-              className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main caret-accent placeholder:text-muted focus:border-secondary focus:outline-none focus:ring-1 focus:ring-secondary/60"
+              className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
             />
           </div>
 
@@ -522,7 +522,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
             </div>
 
             {prefillSource && prefillSourceDescription && (
-              <p className="text-xs text-secondary break-words">
+              <p className="text-xs text-secondary wrap-break-word">
                 <span className="font-semibold text-secondary">Auto-filled</span> from {prefillSourceDescription}.
               </p>
             )}
@@ -548,7 +548,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                 dir="auto"
                 aria-describedby={questionHelpId}
                 placeholder="Write your question in your own words…"
-                className="block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 px-4 py-3 font-serif text-xl sm:text-2xl text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/60"
+                className="block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 px-4 py-3 font-serif text-xl sm:text-2xl text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
               />
               <p id={questionHelpId} className="text-xs text-secondary">
                 Edit the wording before using your question.
@@ -667,7 +667,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[70] flex ${isSmallScreen ? 'items-end pt-[max(16px,var(--safe-pad-top))]' : 'items-center'} justify-center`}
+      className={`fixed inset-0 z-70 flex ${isSmallScreen ? 'items-end pt-[max(16px,var(--safe-pad-top))]' : 'items-center'} justify-center`}
       style={isSmallScreen && effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined}
     >
       <div
@@ -695,10 +695,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`relative w-full flex flex-col [overflow-wrap:anywhere] focus:outline-none selection:bg-accent selection:text-surface ${
+          className={`relative w-full flex flex-col wrap-anywhere focus:outline-hidden selection:bg-accent selection:text-surface ${
             isSmallScreen
               ? `mobile-drawer ${prefersReducedMotion ? '' : 'animate-slide-up'}`
-              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-[var(--ui-elevated-shadow)] ${prefersReducedMotion ? '' : 'animate-pop-in'}`
+              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-(--ui-elevated-shadow) ${prefersReducedMotion ? '' : 'animate-pop-in'}`
           }`}
           style={{
             ...(isSmallScreen ? {
@@ -726,12 +726,12 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
           <div className={isSmallScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-themed' : 'contents'}>
             <div className={isSmallScreen ? 'mobile-drawer__header px-4 pt-3 pb-3' : 'relative border-b border-accent/15'}>
               <div className={`flex items-start justify-between gap-3 ${isSmallScreen ? '' : `px-4 pt-8 sm:px-10 sm:pt-6 ${isLandscape ? 'pb-3' : 'pb-4 sm:pb-5'}`}`}>
-                <div className="min-w-0 space-y-1 break-words">
+                <div className="min-w-0 space-y-1 wrap-break-word">
                   <h2 id={titleId} className={`font-serif ${isSmallScreen ? 'text-lg text-accent' : `text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}`}>
                     Shape a question with clarity
                   </h2>
                   {!isLandscape && (
-                    <p className={`${isSmallScreen ? 'text-[0.78rem] text-muted' : 'text-sm text-muted'} leading-snug max-w-[22rem]`}>
+                    <p className={`${isSmallScreen ? 'text-[0.78rem] text-muted' : 'text-sm text-muted'} leading-snug max-w-88`}>
                       Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
                       directly into your reading.
                     </p>
@@ -790,7 +790,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                             aria-selected={index === step}
                             aria-controls={`step-panel-${entry.id}`}
                             tabIndex={index === step ? 0 : -1}
-                            className={`rounded-full px-3 py-1 min-h-touch min-w-touch touch-manipulation transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
+                            className={`rounded-full px-3 py-1 min-h-touch min-w-touch touch-manipulation transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
                               index === step
                                 ? 'bg-accent text-surface shadow-lg shadow-accent/20 forced-colors:underline forced-colors:underline-offset-4'
                                 : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
@@ -817,7 +817,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                         type="button"
                         onClick={() => openTemplatePanel('browse')}
                         aria-haspopup="dialog"
-                        className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-2xs uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+                        className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-2xs uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/60"
                       >
                         <BookmarkSimple className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                         Templates
@@ -846,11 +846,11 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
           </div>
 
           <div
-            className={`flex-shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4'} ${safeAreaXClass}`}
+            className={`shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4'} ${safeAreaXClass}`}
             style={!isSmallScreen ? footerPaddingStyle : undefined}
           >
             <div className={`flex sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row flex-wrap items-center gap-2' : 'flex-col gap-3'}`}>
-              <div className={`min-w-0 break-words text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
+              <div className={`min-w-0 wrap-break-word text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
                 <p>
                   {isLandscape ? footerSummaryCompact : footerSummary}
                 </p>

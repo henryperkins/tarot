@@ -312,7 +312,7 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
     >
       <div className="flex items-start gap-3">
         <div ref={iconRef}>
-          <Icon className={`h-5 w-5 flex-shrink-0 ${variant.icon}`} aria-hidden="true" />
+          <Icon className={`h-5 w-5 shrink-0 ${variant.icon}`} aria-hidden="true" />
         </div>
         <div className="flex-1 space-y-1">
           {toast.title && <p className="font-semibold leading-tight">{toast.title}</p>}
@@ -321,7 +321,7 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
         <button
           type="button"
           onClick={() => onDismiss(toast.id)}
-          className="rounded-full p-1 min-h-touch min-w-touch flex items-center justify-center text-sm text-white/80 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+          className="rounded-full p-1 min-h-touch min-w-touch flex items-center justify-center text-sm text-white/80 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label="Dismiss notification"
         >
           <X className="h-4 w-4" weight="bold" />

@@ -115,7 +115,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         <img
           src={card.image}
           alt={card.name}
-          className={`h-full w-full object-cover transition-opacity duration-[var(--duration-slow)] ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
+          className={`h-full w-full object-cover transition-opacity duration-(--duration-slow) ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
         />
         <div className="absolute inset-0 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--bg-main)_82%,transparent),transparent,color-mix(in_srgb,var(--bg-main)_40%,transparent))]" />
@@ -126,7 +126,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         {/* Top: Status */}
         <div className="flex flex-wrap justify-between items-start gap-2">
           {isFound ? (
-            <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-[color:var(--brand-primary)] text-2xs font-bold text-surface shadow-sm">
+            <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 rounded-full bg-(--brand-primary) text-2xs font-bold text-surface shadow-xs">
               {count}x
             </span>
           ) : (
@@ -139,17 +139,17 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
                 event.stopPropagation();
                 onViewInJournal(card);
               }}
-              className="gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-[color:var(--border-warm-light)] bg-[color:color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-[color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               aria-label={`View ${card.name} in Journal`}
             >
               <BookOpen className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 [overflow-wrap:anywhere]">Journal</span>
+              <span className="min-w-0 wrap-anywhere">Journal</span>
             </button>
           )}
         </div>
 
         {/* Bottom: Name & Date */}
-        <div className="min-w-0 [overflow-wrap:anywhere]">
+        <div className="min-w-0 wrap-anywhere">
           <p className={`font-serif text-sm leading-tight mb-0.5 ${isFound ? 'text-main' : 'text-muted'}`}>
             {card.name}
           </p>
@@ -166,7 +166,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   if (isFound) {
     return (
       <div
-        className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-[2/3] rounded-xl border border-[color:var(--border-warm-light)] bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color] duration-[var(--duration-medium)] ease-[var(--ease-out)] overflow-hidden text-left hover:-translate-y-1 hover:border-[color:var(--border-warm)] hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
+        className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) overflow-hidden text-left hover:-translate-y-1 hover:border-(--border-warm) hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
         aria-label={`Card ${card.name}`}
         style={{
           animation: `fadeInUp 320ms ease-out ${Math.min(index * 30, 500)}ms both`
@@ -175,7 +175,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
         <button
           type="button"
           onClick={() => onSelect?.(card)}
-          className="absolute inset-0 z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="absolute inset-0 z-10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           aria-label={`Open details for ${card.name}`}
         />
         {content}
@@ -185,7 +185,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
   return (
     <div
-      className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-[2/3] rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--bg-surface)] transition-[opacity,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] overflow-hidden opacity-60 grayscale hover:opacity-80"
+      className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-subtle) bg-(--bg-surface) transition-[opacity,border-color] duration-(--duration-normal) ease-(--ease-out) overflow-hidden opacity-60 grayscale hover:opacity-80"
       aria-label={`${card.name} (not yet discovered)`}
       style={{
         animation: `fadeInUp 280ms ease-out ${index * 24}ms both`
@@ -476,14 +476,14 @@ export default function CardGalleryPage() {
         <div className="mb-8">
           <button
             onClick={() => navigate('/journal')}
-            className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] mb-4"
+            className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) mb-4"
           >
             <CaretLeft className="w-5 h-5" />
             <span>Back to Journal</span>
           </button>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div className="min-w-0 [overflow-wrap:anywhere]">
+            <div className="min-w-0 wrap-anywhere">
               <h1 className="text-3xl font-serif text-accent mb-2">Card Collection</h1>
               <p className="text-muted text-sm">
                 Discover the full deck through your readings.
@@ -501,9 +501,9 @@ export default function CardGalleryPage() {
                 <span>Progress</span>
                 <span>{totalFound} / {deckSize}</span>
               </div>
-              <div className="h-2 rounded-full overflow-hidden border border-[color:var(--border-warm-subtle)] bg-[color:var(--border-warm-subtle)]">
+              <div className="h-2 rounded-full overflow-hidden border border-(--border-warm-subtle) bg-(--border-warm-subtle)">
                 <div
-                  className="h-full bg-gradient-to-r from-[color:var(--brand-primary)] to-[color:var(--brand-accent)] transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-out)]"
+                  className="h-full bg-linear-to-r from-(--brand-primary) to-(--brand-accent) transition-[width] duration-(--duration-slow) ease-(--ease-out)"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -512,23 +512,23 @@ export default function CardGalleryPage() {
         </div>
 
         {!loading && entries.length === 0 && (
-          <div className="mb-6 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <h2 className="text-lg font-serif text-main mb-2 [overflow-wrap:anywhere]">Your collection starts with a saved reading</h2>
+          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+            <h2 className="text-lg font-serif text-main mb-2 wrap-anywhere">Your collection starts with a saved reading</h2>
             <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className="inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--accent-25)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-main)] transition hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
-                <span className="min-w-0 [overflow-wrap:anywhere]">Start a reading</span>
+                <span className="min-w-0 wrap-anywhere">Start a reading</span>
               </button>
             </div>
           </div>
         )}
 
         {/* Toolbar */}
-        <div ref={toolbarRef} data-pinned="false" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color:color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-[color:var(--border-warm-subtle)] flex flex-wrap gap-2 items-center">
+        <div ref={toolbarRef} data-pinned="false" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
           <div className="relative group min-w-0 max-w-full">
             <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
@@ -537,7 +537,7 @@ export default function CardGalleryPage() {
               aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none min-h-touch max-w-full bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -551,7 +551,7 @@ export default function CardGalleryPage() {
 
           {/* Status Filter */}
           <div
-            className="flex max-w-full flex-wrap bg-[color:var(--border-warm-subtle)] rounded-lg p-1 border border-[color:var(--border-warm-light)]"
+            className="flex max-w-full flex-wrap bg-(--border-warm-subtle) rounded-lg p-1 border border-(--border-warm-light)"
             role="group"
             aria-label="Filter by card status"
           >
@@ -561,7 +561,7 @@ export default function CardGalleryPage() {
                 type="button"
                 onClick={() => setFilterStatus(status)}
                 aria-pressed={filterStatus === status}
-                className={`inline-flex min-h-touch items-center justify-center gap-1.5 border px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${filterStatus === status ? 'border-[color:var(--brand-primary)] bg-[color:var(--ui-selected-bg)] text-main' : 'border-transparent text-muted hover:text-main'}`}
+                className={`inline-flex min-h-touch items-center justify-center gap-1.5 border px-4 py-2 text-xs font-medium rounded-md transition-all touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main ${filterStatus === status ? 'border-(--brand-primary) bg-(--ui-selected-bg) text-main' : 'border-transparent text-muted hover:text-main'}`}
               >
                 <Check className={`h-3 w-3 shrink-0 ${filterStatus === status ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true" />
                 <span>{label}</span>
@@ -579,7 +579,7 @@ export default function CardGalleryPage() {
               aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none min-h-touch max-w-full bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-none cursor-pointer hover:bg-[color:var(--border-warm-light)] touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>
@@ -591,14 +591,14 @@ export default function CardGalleryPage() {
         </div>
 
         {showPartialStatsBanner && (
-          <div className="mb-6 rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span>{statsScopeLabel}</span>
               <button
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-main transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${
+                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >
@@ -610,7 +610,7 @@ export default function CardGalleryPage() {
 
         {/* Grid */}
         {analyticsDisabled ? (
-          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-6 text-center">
+          <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-6 text-center">
             <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
             <p className="text-sm text-muted-high mb-4">
               Enable Journey analytics in your account settings to track your card collection.
@@ -618,7 +618,7 @@ export default function CardGalleryPage() {
             <button
               type="button"
               onClick={() => navigate('/account#analytics')}
-              className="px-4 py-2 rounded-full border border-[color:var(--border-warm-light)] text-main hover:bg-[color:var(--border-warm-subtle)]"
+              className="px-4 py-2 rounded-full border border-(--border-warm-light) text-main hover:bg-(--border-warm-subtle)"
             >
               Go to Settings
             </button>
@@ -628,7 +628,7 @@ export default function CardGalleryPage() {
             {[...Array(12)].map((_, i) => (
               <div
                 key={i}
-                className="aspect-[2/3] rounded-xl bg-[color:var(--border-warm-subtle)] animate-pulse"
+                className="aspect-2/3 rounded-xl bg-(--border-warm-subtle) animate-pulse"
                 style={{
                   animationDelay: `${i * 80}ms`
                 }}

@@ -194,19 +194,19 @@ export default function DesignSystemPage() {
               <p className="text-xs font-semibold text-muted">Status banners</p>
               <div className="flex flex-col gap-2">
                 <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-main">
-                  <WarningCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning" weight="duotone" aria-hidden="true" />
+                  <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" weight="duotone" aria-hidden="true" />
                   <p className="text-sm text-main">
                     Warning messages use the `warning` token (not `accent`).
                   </p>
                 </div>
                 <div className="flex items-start gap-2 rounded-xl border border-success/40 bg-success/10 px-3 py-2 text-main">
-                  <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-success" weight="duotone" aria-hidden="true" />
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" weight="duotone" aria-hidden="true" />
                   <p className="text-sm text-main">
                     Success messages use the `success` token.
                   </p>
                 </div>
                 <div className="flex items-start gap-2 rounded-xl border border-error/40 bg-error/10 px-3 py-2 text-main">
-                  <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-error" weight="duotone" aria-hidden="true" />
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" weight="duotone" aria-hidden="true" />
                   <p className="text-sm text-main">
                     Errors use the `error` token and stay high-contrast.
                   </p>
@@ -224,7 +224,7 @@ export default function DesignSystemPage() {
                   Journey CTA
                 </button>
               </div>
-              <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+              <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <span>Only part of your history is loaded. Shared button variants should still keep 44px touch targets.</span>
                   <button

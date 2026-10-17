@@ -73,7 +73,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
             onChange={(e) => onQuestionChange(e.target.value)}
             placeholder="e.g., What should I focus on this week?"
             rows={isLandscape ? 2 : 3}
-            className="w-full rounded-xl border border-secondary/30 bg-surface px-4 py-3 text-base text-main placeholder:text-muted/70 resize-none transition focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/50"
+            className="w-full rounded-xl border border-secondary/30 bg-surface px-4 py-3 text-base text-main placeholder:text-muted/70 resize-none transition focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50"
             autoFocus
             aria-label="Your question or intention"
           />
@@ -129,7 +129,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
                   key={starter}
                   type="button"
                   onClick={() => onQuestionChange(starter)}
-                  className="block w-full text-left min-h-touch px-3 py-2 rounded-lg border border-secondary/20 text-sm text-muted transition touch-manipulation hover:border-accent/50 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="block w-full text-left min-h-touch px-3 py-2 rounded-lg border border-secondary/20 text-sm text-muted transition touch-manipulation hover:border-accent/50 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {starter}
                 </button>
@@ -144,7 +144,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
           aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
@@ -153,7 +153,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {hasQuestion ? 'Continue' : 'Skip for now'}
         </button>

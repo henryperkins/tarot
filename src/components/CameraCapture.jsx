@@ -135,11 +135,11 @@ export function CameraCapture({ onCapture, onCancel }) {
           disabled={!stream}
           className={`
             ${isLandscape ? 'w-14 h-14 xs:w-16 xs:h-16' : 'w-16 h-16 xs:w-20 xs:h-20'}
-            rounded-full bg-[color:var(--color-white)] border-4 border-secondary/40
+            rounded-full bg-(--color-white) border-4 border-secondary/40
             disabled:opacity-50 disabled:cursor-not-allowed
             transition touch-manipulation
             active:scale-95 active:border-secondary/60
-            focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/60
+            focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-accent/60
           `}
           aria-label="Capture photo"
         />

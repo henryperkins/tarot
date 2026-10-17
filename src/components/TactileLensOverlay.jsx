@@ -75,7 +75,7 @@ export function TactileLensButton({
           relative flex items-center justify-center
           w-12 h-12 rounded-full
           border-2 transition-all touch-manipulation
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
+          focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70
           disabled:opacity-50 disabled:cursor-not-allowed
           ${isActive
             ? 'bg-primary/30 border-primary/70 text-primary shadow-lg shadow-primary/30'

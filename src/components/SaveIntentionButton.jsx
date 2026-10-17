@@ -40,13 +40,13 @@ export function SaveIntentionButton({ question }) {
     <div className="flex flex-wrap items-center gap-2 xs:gap-3">
       <button
         type="button"
-        className="px-3 py-1.5 min-h-touch rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="px-3 py-1.5 min-h-touch rounded-lg border border-primary/40 text-xs text-main hover:bg-primary/10 active:bg-primary/15 transition disabled:opacity-50 touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         onClick={handleSave}
         disabled={!trimmed}
       >
         Save intention
       </button>
-      <span role="status" aria-live="polite" className="text-xs min-h-[1.25rem]">
+      <span role="status" aria-live="polite" className="text-xs min-h-5">
         {status.tone === 'success' && (
           <span className="inline-flex items-center gap-1 text-primary">
             <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />

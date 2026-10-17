@@ -315,7 +315,7 @@ function CollaborativeNotesContent({
       aria-labelledby="collab-notes-title"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="collab-notes-title" className="min-w-0 max-w-full break-words text-lg sm:text-xl font-serif text-main">
+        <h2 id="collab-notes-title" className="min-w-0 max-w-full wrap-break-word text-lg sm:text-xl font-serif text-main">
           Shared reflections
         </h2>
         {onRefresh && (
@@ -325,7 +325,7 @@ function CollaborativeNotesContent({
             disabled={isRefreshing}
             aria-label="Refresh shared notes"
             className="inline-flex min-h-touch min-w-touch max-w-full items-center gap-2 rounded-full border border-secondary/40 px-3 py-1.5 text-xs font-medium text-secondary transition-colors
-              hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+              hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isRefreshing ? 'Refreshing…' : 'Refresh'}
@@ -369,7 +369,7 @@ function CollaborativeNotesContent({
               className="rounded-2xl border border-accent/20 bg-surface-muted/70 p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-secondary">
-                <span className="min-w-0 max-w-full break-words font-semibold">{note.authorName || 'Anonymous'}</span>
+                <span className="min-w-0 max-w-full wrap-break-word font-semibold">{note.authorName || 'Anonymous'}</span>
                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                   {isReported ? (
                     <span className="text-2xs uppercase tracking-[0.14em] text-muted">Reported</span>
@@ -377,7 +377,7 @@ function CollaborativeNotesContent({
                     <button
                       type="button"
                       onClick={() => handleReportStart(note.id)}
-                      className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full px-2 py-1 text-xs text-muted hover:text-accent transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
+                      className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full px-2 py-1 text-xs text-muted hover:text-accent transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70"
                       aria-label="Report this note"
                     >
                       Report
@@ -401,7 +401,7 @@ function CollaborativeNotesContent({
                   Report received. The note text is hidden in Shared reflections.
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-main whitespace-pre-wrap break-words">
+                <p className="mt-2 text-sm text-main whitespace-pre-wrap wrap-break-word">
                   {note.body}
                 </p>
               )}
@@ -416,7 +416,7 @@ function CollaborativeNotesContent({
                       id={`report-reason-${note.id}`}
                       value={reportReason}
                       onChange={(event) => setReportReason(event.target.value)}
-                      className="w-full min-h-touch rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                      className="w-full min-h-touch rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
                     >
                       {REPORT_REASONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -434,7 +434,7 @@ function CollaborativeNotesContent({
                       rows={2}
                       maxLength={600}
                       placeholder="Share a little more context"
-                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
+                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
                     />
                   </div>
                   {reportError && (
@@ -480,7 +480,7 @@ function CollaborativeNotesContent({
               placeholder="Display name"
               aria-label="Your display name for this note"
               className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
               maxLength={40}
             />
           </div>
@@ -494,7 +494,7 @@ function CollaborativeNotesContent({
               onChange={(event) => handlePositionChange(event.target.value)}
               aria-label="Select which card position to comment on"
               className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+                focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
             >
               <option value="">Whole spread</option>
               {cards.map((card, index) => (
@@ -522,7 +522,7 @@ function CollaborativeNotesContent({
             aria-label="Your reflection on this spread"
             maxLength={600}
             className="min-w-0 w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted
-              focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
+              focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
           />
         </div>
 
@@ -534,7 +534,7 @@ function CollaborativeNotesContent({
             type="submit"
             disabled={isSubmitting || !body.trim()}
             className="min-h-touch min-w-touch max-w-full rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation
-              hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
+              hover:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface
               disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Sending…' : 'Share note'}

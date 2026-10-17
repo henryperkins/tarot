@@ -124,8 +124,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const baseCardClass = cardClass || (isSmallScreen ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS);
   
   const fullCardClass = useCompactStyle
-    ? cn(styles.cardCompact, 'group relative overflow-hidden animate-fade-in text-[color:var(--text-main)]')
-    : cn(baseCardClass, styles.cardBase, styles.cardHover, 'text-[color:var(--text-main)]');
+    ? cn(styles.cardCompact, 'group relative overflow-hidden animate-fade-in text-(--text-main)')
+    : cn(baseCardClass, styles.cardBase, styles.cardHover, 'text-(--text-main)');
 
   const accentBarClass = useCompactStyle
     ? cn(styles.accentBar, styles.accentBarCompact)

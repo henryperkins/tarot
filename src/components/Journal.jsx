@@ -695,7 +695,7 @@ export default function Journal() {
   const renderedHistoryEntries = monthSections.map((section) => (
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div className="sticky top-24 z-20">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-[color:var(--surface-88)] px-3 py-2 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
           <span className="text-2xs uppercase tracking-[0.3em] text-muted">{section.label}</span>
           <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted">
             {section.count} entries
@@ -712,7 +712,7 @@ export default function Journal() {
             <div
               id={anchorId}
               key={key}
-              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/[0.03] p-2' : ''}`}
+              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
             >
               <JournalEntryCard
                 entry={entry}
@@ -788,7 +788,7 @@ export default function Journal() {
                   }
                   navigate('/');
                 }}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 self-start"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full px-3 py-2 text-accent hover:text-main hover:bg-surface-muted/30 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 self-start"
               >
                 <CaretLeft className="w-5 h-5" />
                 <span>Back to Reading</span>
@@ -802,7 +802,7 @@ export default function Journal() {
               <button
                 type="button"
                 onClick={() => setShowSavedIntentionsModal(true)}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <JournalRefreshIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 Saved Intentions
@@ -810,7 +810,7 @@ export default function Journal() {
               <button
                 type="button"
                 onClick={() => navigate('/journal/gallery')}
-                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <JournalCardsAddIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 Card Gallery
@@ -849,14 +849,14 @@ export default function Journal() {
                   className="animate-pulse rounded-2xl border border-secondary/20 bg-surface-muted/40 ring-1 ring-primary/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="h-4 w-28 rounded-full bg-[color:var(--border-warm-light)]" />
-                    <div className="h-9 w-9 rounded-full bg-[color:var(--border-warm-light)]" />
+                    <div className="h-4 w-28 rounded-full bg-(--border-warm-light)" />
+                    <div className="h-9 w-9 rounded-full bg-(--border-warm-light)" />
                   </div>
-                  <div className="mt-3 h-3 w-3/4 rounded-full bg-[color:var(--border-warm-light)]" />
-                  <div className="mt-2 h-3 w-5/6 rounded-full bg-[color:var(--border-warm-light)]" />
+                  <div className="mt-3 h-3 w-3/4 rounded-full bg-(--border-warm-light)" />
+                  <div className="mt-2 h-3 w-5/6 rounded-full bg-(--border-warm-light)" />
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="h-16 rounded-xl bg-[color:var(--border-warm-subtle)]" />
-                    <div className="h-16 rounded-xl bg-[color:var(--border-warm-subtle)]" />
+                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
+                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
                   </div>
                 </div>
               ))}
@@ -894,7 +894,7 @@ export default function Journal() {
                                 id="jump-to-month"
                                 value={monthJumpValue}
                                 onChange={handleMonthJump}
-                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
                               >
                                 <option value="">Jump to month</option>
                                 {monthSections.map((section) => (
@@ -934,7 +934,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore || !hasMoreEntries}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Load older entries
@@ -945,7 +945,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Try again
@@ -1040,7 +1040,7 @@ export default function Journal() {
                                 type="button"
                                 onClick={handleLoadMoreEntries}
                                 disabled={loadingMore}
-                                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                               >
                                 <JournalSearchIcon className="h-4 w-4" aria-hidden="true" />
                                 {loadingMore ? 'Searching...' : inlineSearchOlderLabel}

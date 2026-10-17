@@ -67,7 +67,7 @@ export default function VerifyEmailPage() {
       />
     );
   };
-  const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent';
 
   return (
     <div className="min-h-screen bg-main text-main">
@@ -95,7 +95,7 @@ export default function VerifyEmailPage() {
             <div className="shrink-0 rounded-full bg-secondary/10 p-3 text-secondary">
               <EnvelopeOpen className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="min-w-0 break-words">
+            <div className="min-w-0 wrap-break-word">
               <h1 className="font-serif text-2xl text-accent">Verify your email</h1>
               <p className="text-sm text-muted mt-1">
                 Confirming your email keeps your account recoverable.
@@ -105,7 +105,7 @@ export default function VerifyEmailPage() {
 
           <div role="status" aria-atomic="true" className="mt-6 flex items-start gap-3 rounded-xl border border-primary/30 bg-surface-muted px-4 py-3">
             <div className="shrink-0">{renderStatusIcon()}</div>
-            <div className="min-w-0 break-words">
+            <div className="min-w-0 wrap-break-word">
               <p className="text-sm font-semibold text-main">
                 {status === 'pending' && 'Checking your link...'}
                 {status === 'success' && 'Email verified'}

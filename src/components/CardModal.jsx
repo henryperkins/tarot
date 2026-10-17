@@ -364,7 +364,7 @@ export function CardModal({
                     )}
                     <button
                         onClick={handleClose}
-                        className="min-h-touch min-w-touch inline-flex items-center justify-center p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ml-auto"
+                        className="min-h-touch min-w-touch inline-flex items-center justify-center p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ml-auto"
                         aria-label={artworkMode === 'full' ? 'Back to reading' : 'Close modal'}
                     >
                         {artworkMode === 'full' ? <span className="mr-2 text-sm">Back to reading</span> : null}
@@ -378,7 +378,7 @@ export function CardModal({
                     <div
                         data-layout-id={imageLayoutId || undefined}
                         data-reading-full-artwork={artworkMode === 'full' ? 'true' : undefined}
-                        className={`relative flex-shrink-0 ${artworkMode === 'full' ? 'w-[216px] max-w-full' : 'w-20 sm:w-28 aspect-[2/3]'} rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
+                        className={`relative shrink-0 ${artworkMode === 'full' ? 'w-[216px] max-w-full' : 'w-20 sm:w-28 aspect-2/3'} rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
                     >
                         <img
                             src={cardImage}
@@ -467,7 +467,7 @@ export function CardModal({
                                                             key={entry?.id || `${entry?.ts || 'entry'}-${spread}`}
                                                             type="button"
                                                             onClick={() => onOpenEntry?.(entry)}
-                                                            className="w-full flex items-center justify-between gap-2 rounded border border-primary/10 bg-surface-muted/30 px-2 py-1.5 text-left hover:bg-surface-muted/50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                                            className="w-full flex items-center justify-between gap-2 rounded border border-primary/10 bg-surface-muted/30 px-2 py-1.5 text-left hover:bg-surface-muted/50 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
                                                         >
                                                             <span className="text-xs text-main truncate">{label}</span>
                                                             {spread && <span className="text-2xs text-muted truncate">{spread}</span>}

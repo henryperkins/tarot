@@ -109,7 +109,7 @@ export function WelcomeHero({ onNext, onSkip }) {
             {PRINCIPLES.map((principle, i) => (
               <div
                 key={i}
-                className="flex-shrink-0 w-32 snap-center flex items-center gap-2 px-3 py-2 rounded-xl bg-surface/40 border border-secondary/20"
+                className="shrink-0 w-32 snap-center flex items-center gap-2 px-3 py-2 rounded-xl bg-surface/40 border border-secondary/20"
               >
                 <principle.Icon className="w-5 h-5 text-accent shrink-0" weight="duotone" aria-hidden="true" />
                 <span className="text-xs text-muted line-clamp-2">{principle.label}</span>
@@ -157,7 +157,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
               placeholder="Used to personalize your readings"
-              className="w-full bg-surface border border-primary/40 rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              className="w-full bg-surface border border-primary/40 rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               autoComplete="given-name"
             />
           </div>
@@ -175,7 +175,7 @@ export function WelcomeHero({ onNext, onSkip }) {
                     key={option.value}
                     type="button"
                     onClick={() => setTarotExperience(option.value)}
-                    className={`min-h-touch w-full xs:w-auto px-3 xxs:px-4 sm:px-5 py-2.5 rounded-full border text-sm font-medium text-center xs:text-left transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    className={`min-h-touch w-full xs:w-auto px-3 xxs:px-4 sm:px-5 py-2.5 rounded-full border text-sm font-medium text-center xs:text-left transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                       isSelected
                         ? 'bg-accent text-surface border-accent'
                         : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -198,7 +198,7 @@ export function WelcomeHero({ onNext, onSkip }) {
         <button
           type="button"
           onClick={onNext}
-          className="w-full flex items-center justify-center gap-2 min-h-cta px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full flex items-center justify-center gap-2 min-h-cta px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />
@@ -207,7 +207,7 @@ export function WelcomeHero({ onNext, onSkip }) {
           <button
             type="button"
             onClick={onSkip}
-            className="w-full min-h-cta px-4 xxs:px-5 py-2.5 rounded-xl border border-accent/50 text-accent font-semibold text-sm xxs:text-base bg-transparent hover:bg-accent/10 active:scale-[0.99] touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className="w-full min-h-cta px-4 xxs:px-5 py-2.5 rounded-xl border border-accent/50 text-accent font-semibold text-sm xxs:text-base bg-transparent hover:bg-accent/10 active:scale-[0.99] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
             Jump in now – start reading
           </button>

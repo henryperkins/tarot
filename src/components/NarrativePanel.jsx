@@ -23,7 +23,7 @@ export function NarrativePanel({ panelModel = {}, callbacks = {} }) {
         <h3 tabIndex={-1} data-reading-focus-target className="text-lg sm:text-2xl font-serif text-accent">
           Your reading could not be completed
         </h3>
-        <p role="alert" className="mt-4 text-main leading-relaxed [overflow-wrap:anywhere]">
+        <p role="alert" className="mt-4 text-main leading-relaxed wrap-anywhere">
           {narrativeText || 'The connection was interrupted. Please try again.'}
         </p>
         <p className="mt-3 text-sm text-muted">
@@ -36,7 +36,7 @@ export function NarrativePanel({ panelModel = {}, callbacks = {} }) {
           key={`${gestureSource?.runId}:${gestureSource?.sourceRevision}`} {...originalContext} /> : null}
         {action && !isHandset && (
           <button type="button" onClick={action}
-            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60">
+            className="mt-5 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/50 px-5 py-2 text-sm font-semibold text-main hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/60">
             {isLimit ? 'See plans' : 'Retry interpretation'}
           </button>
         )}

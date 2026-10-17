@@ -54,7 +54,7 @@ export function ExperienceSettings({ className = '' }) {
   const inactiveTileClass = 'border-accent/20 hover:border-accent/40 hover:bg-surface/70';
 
   const iconWrapperBase =
-    'flex h-8 w-8 xs:h-9 xs:w-9 flex-shrink-0 items-center justify-center rounded-xl border text-secondary transition-colors duration-200';
+    'flex h-8 w-8 xs:h-9 xs:w-9 shrink-0 items-center justify-center rounded-xl border text-secondary transition-colors duration-200';
   const activeIconWrapper =
     'border-secondary/60 bg-secondary/20 text-secondary shadow-md shadow-secondary/20';
   const inactiveIconWrapper =
@@ -62,10 +62,10 @@ export function ExperienceSettings({ className = '' }) {
 
   // Info button - subtle icon, 44px touch target but no visible border
   const infoButtonClass =
-    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
+    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const reversalSelectClass =
-    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-2 xs:px-3 py-2.5 min-h-touch text-sm-mobile sm:text-xs-plus uppercase tracking-[0.06em] xs:tracking-[0.08em] text-main transition focus:outline-none focus:ring-2 focus:ring-accent/50';
+    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-2 xs:px-3 py-2.5 min-h-touch text-sm-mobile sm:text-xs-plus uppercase tracking-[0.06em] xs:tracking-[0.08em] text-main transition focus:outline-hidden focus:ring-2 focus:ring-accent/50';
 
   const LightIcon = theme === 'light' ? Sun : Moon;
 

@@ -120,7 +120,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                 tabIndex={0}
                 onClick={handleCardClick}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e); } }}
-                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition touch-manipulation cursor-pointer [&:has(:focus-visible)]:outline-none [&:has(:focus-visible)]:ring-2 [&:has(:focus-visible)]:ring-accent [&:has(:focus-visible)]:ring-offset-2 [&:has(:focus-visible)]:ring-offset-main ${
+                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition touch-manipulation cursor-pointer has-focus-visible:outline-hidden has-focus-visible:ring-2 has-focus-visible:ring-accent has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-main ${
                   isSelected
                     ? 'border-accent bg-accent/10 ring-1 ring-accent/50'
                     : 'border-secondary/30 bg-surface/50 hover:border-accent/50 hover:bg-surface/70'
@@ -137,11 +137,11 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                 <button
                   type="button"
                   onClick={() => handleSpreadClick(spreadKey)}
-                  className="flex flex-col text-left focus-visible:outline-none touch-manipulation"
+                  className="flex flex-col text-left focus-visible:outline-hidden touch-manipulation"
                   aria-pressed={isSelected}
                 >
                   {/* Spread artwork */}
-                  <div className="relative aspect-video sm:aspect-[16/10] bg-gradient-to-br from-surface to-main overflow-hidden">
+                  <div className="relative aspect-video sm:aspect-16/10 bg-linear-to-br from-surface to-main overflow-hidden">
                     {art && responsiveSources.length > 0 ? (
                       <ResponsiveSpreadArt
                         alt={art.alt || `${spreadName} spread layout`}
@@ -163,7 +163,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                     ) : null}
                     {/* Overlay gradient */}
                     <div
-                      className="absolute inset-0 bg-gradient-to-t from-surface/90 via-transparent to-transparent"
+                      className="absolute inset-0 bg-linear-to-t from-surface/90 via-transparent to-transparent"
                       aria-hidden="true"
                     />
                   </div>
@@ -257,7 +257,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                   key={option.value}
                   type="button"
                   onClick={() => setPreferredSpreadDepth(option.value)}
-                  className={`min-h-touch px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                  className={`min-h-touch px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                     isSelected
                       ? 'bg-accent text-surface border-accent'
                       : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -293,7 +293,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                     key={option.value}
                     type="button"
                     onClick={() => toggleFocusArea(option.value)}
-                    className={`min-h-touch px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                    className={`min-h-touch px-4 py-2 rounded-full border text-sm font-medium transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                       isSelected
                         ? 'bg-accent text-surface border-accent'
                         : 'bg-surface/50 text-muted border-secondary/30 hover:border-accent/50 hover:text-main'
@@ -317,7 +317,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center justify-center gap-1 min-h-cta min-w-touch px-2.5 xs:px-3 sm:px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex items-center justify-center gap-1 min-h-cta min-w-touch px-2.5 xs:px-3 sm:px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -326,7 +326,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
           type="button"
           onClick={onNext}
           disabled={!selectedSpread}
-          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-4 xs:px-5 sm:px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-4 xs:px-5 sm:px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />

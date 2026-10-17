@@ -1,6 +1,6 @@
 /**
  * AnimatedReveal.jsx
- * 
+ *
  * Legacy animated card-reveal interface. New video generation is retired;
  * saved media remains available in the library.
  */
@@ -82,7 +82,7 @@ function VideoLoadingSkeleton({ prefersReducedMotion = false }) {
     <div className="relative w-full aspect-square bg-surface rounded-lg overflow-hidden">
       <div
         ref={shimmerRef}
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/20 to-transparent"
+        className="absolute inset-0 bg-linear-to-r from-transparent via-accent/20 to-transparent"
       />
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div
@@ -107,7 +107,7 @@ function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
     completed: 'Ready!',
     failed: 'Generation failed'
   };
-  
+
   return (
     <div className="text-center py-2">
       <div className="flex items-center justify-center gap-2 text-sm">
@@ -123,7 +123,7 @@ function ProgressIndicator({ status, progress, prefersReducedMotion = false }) {
       {progress > 0 && progress < 100 && (
         <div className="w-48 mx-auto mt-2 h-1 bg-surface-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-accent"
+            className="h-full bg-linear-to-r from-primary to-accent"
             style={{
               width: `${progress}%`,
               transition: prefersReducedMotion ? 'none' : 'width 220ms ease-out'
@@ -159,7 +159,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
       });
     }
   }, [videoData]);
-  
+
   useEffect(() => {
     const node = playButtonRef.current;
     if (!node) return undefined;
@@ -176,7 +176,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
       activeVideo.play().catch(() => setIsPlaying(false));
     }
   };
-  
+
   const handleEnded = () => {
     setIsPlaying(false);
   };
@@ -187,7 +187,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
     activeVideo.currentTime = 0;
     activeVideo.play().catch(() => setIsPlaying(false));
   };
-  
+
   const animatePlayButton = (scaleValue) => {
     if (prefersReducedMotion || !playButtonRef.current) return;
     animate(playButtonRef.current, {
@@ -387,10 +387,10 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
       >
         Expand
       </button>
-      
+
       {/* Play/Pause overlay */}
-      <div 
-        className="absolute inset-0 z-10 flex items-center justify-center 
+      <div
+        className="absolute inset-0 z-10 flex items-center justify-center
                    bg-main/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
         style={{ transition: prefersReducedMotion ? 'none' : undefined }}
       >
@@ -399,7 +399,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
           type="button"
           aria-pressed={isPlaying}
           aria-label={isPlaying ? 'Pause cinematic reveal' : 'Play cinematic reveal'}
-          className="w-16 h-16 bg-primary/90 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="w-16 h-16 bg-primary/90 rounded-full flex items-center justify-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           onClick={(event) => {
             event.stopPropagation();
             handlePlayPause();
@@ -420,7 +420,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
           )}
         </button>
       </div>
-      
+
       {/* Replay button (shown when video ends) */}
       {!isPlaying && (
         <button
@@ -429,7 +429,7 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
             event.stopPropagation();
             handleReplay();
           }}
-          className="absolute bottom-4 right-4 z-20 px-3 py-1.5 bg-surface/85 
+          className="absolute bottom-4 right-4 z-20 px-3 py-1.5 bg-surface/85
                      text-main rounded-lg text-sm hover:bg-surface transition-colors"
         >
           Replay ↻
@@ -466,7 +466,7 @@ export default function AnimatedReveal({
   const [progress, setProgress] = useState(0);
   const [videoData, setVideoData] = useState(null);
   const [showStylePicker, setShowStylePicker] = useState(false);
-  
+
   const pollStartTimeoutRef = useRef(null);
   const pollIntervalRef = useRef(null);
   const pollInFlightRef = useRef(false);
@@ -558,7 +558,7 @@ export default function AnimatedReveal({
       clearPolling();
     };
   }, [cardIdentity, clearPolling]);
-  
+
   // Poll for job completion
   const pollJobStatus = useCallback(async (id, requestToken) => {
     if (requestToken !== requestTokenRef.current) return;
@@ -579,7 +579,7 @@ export default function AnimatedReveal({
       const response = await fetch(`/api/generate-card-video?jobId=${id}`, {
         credentials: 'include'
       });
-      
+
       let data = null;
       try {
         data = await response.json();
@@ -617,7 +617,7 @@ export default function AnimatedReveal({
         clearPolling();
         return;
       }
-      
+
       if (data?.error) {
         const messageParts = [data?.error, data?.details, data?.hint].filter(Boolean);
         setError(messageParts.join(' ').trim() || 'Video generation failed.');
@@ -628,7 +628,7 @@ export default function AnimatedReveal({
         clearPolling();
         return;
       }
-      
+
       if (data.status === 'completed' && data.video) {
         // Video is ready
         setVideoData(data.video);
@@ -638,7 +638,7 @@ export default function AnimatedReveal({
         setErrorReason(null);
         setJobId(null);
         clearPolling();
-        
+
         if (onVideoReady) {
           onVideoReady(data.video, cardMediaMeta({
             cacheKey: data.cacheKey || null,
@@ -714,7 +714,7 @@ export default function AnimatedReveal({
     runPoll();
     pollIntervalRef.current = setInterval(runPoll, POLL_INTERVAL_MS);
   }, [clearPolling, pollJobStatus]);
-  
+
   // Start video generation
   const handleGenerate = useCallback(async () => {
     if (!config.enabled) return;
@@ -725,7 +725,7 @@ export default function AnimatedReveal({
 
     clearPolling();
     setJobId(null);
-    
+
     const requestToken = requestTokenRef.current + 1;
     requestTokenRef.current = requestToken;
 
@@ -747,7 +747,7 @@ export default function AnimatedReveal({
       rankValue: card?.rankValue ?? canonicalCard?.rankValue ?? null,
       meaning: card?.meaning || getOrientationMeaning({ ...card, isReversed: reversed }) || ''
     };
-    
+
     try {
       const response = await fetch('/api/generate-card-video', {
         method: 'POST',
@@ -761,21 +761,21 @@ export default function AnimatedReveal({
           seconds: 4
         })
       });
-      
+
       let data = null;
       try {
         data = await response.json();
       } catch {
         data = null;
       }
-      
+
       if (requestToken !== requestTokenRef.current) return;
 
       if (!response.ok) {
         const messageParts = [data?.details, data?.error, data?.hint].filter(Boolean);
         throw new Error(messageParts.join(' ').trim() || 'Generation failed');
       }
-      
+
       if (data.status === 'completed' && data.video) {
         // Cached result
         setVideoData(data.video);
@@ -783,7 +783,7 @@ export default function AnimatedReveal({
         setProgress(100);
         setLoading(false);
         setJobId(null);
-        
+
         if (onVideoReady) {
           onVideoReady(data.video, cardMediaMeta({
             cacheKey: data.cacheKey || null,
@@ -832,7 +832,7 @@ export default function AnimatedReveal({
 
     handleGenerate();
   }, [errorReason, handleGenerate, jobId, startPolling]);
-  
+
   // Auto-generate when context changes
   useEffect(() => {
     if (!autoGenerate) {
@@ -846,7 +846,7 @@ export default function AnimatedReveal({
     autoGenerateKeyRef.current = cardIdentity;
     handleGenerate();
   }, [autoGenerate, config.enabled, card?.name, cardIdentity, handleGenerate]);
-  
+
   // Feature not available
   if (!config.enabled) {
     return (
@@ -863,7 +863,7 @@ export default function AnimatedReveal({
       </div>
     );
   }
-  
+
   return (
     <div className={`relative w-full min-w-0 ${className}`}>
       {/* Video display */}
@@ -922,7 +922,7 @@ export default function AnimatedReveal({
                       }}
                       type="button"
                       aria-pressed={style === s.id}
-                      className={`px-3 py-1 rounded text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+                      className={`px-3 py-1 rounded text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 ${
                         style === s.id
                           ? 'bg-primary text-surface font-semibold border border-primary/60'
                           : 'bg-surface-muted text-muted hover:bg-surface hover:text-main border border-transparent'
@@ -938,9 +938,9 @@ export default function AnimatedReveal({
 
           <button
             onClick={handleGenerate}
-            className="px-6 py-2.5 bg-gradient-to-r from-primary to-accent 
+            className="px-6 py-2.5 bg-linear-to-r from-primary to-accent
                        text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
-                       transition-all shadow-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                       transition-all shadow-lg text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             Generate Cinematic Reveal
           </button>
@@ -950,7 +950,7 @@ export default function AnimatedReveal({
           </p>
         </div>
       )}
-      
+
       {/* Error display */}
       {error && (
         <div
@@ -981,25 +981,25 @@ export default function AnimatedReveal({
 /**
  * Compact trigger button for use within card reveal flow
  */
-export function AnimatedRevealTrigger({ 
-  card: _card, 
-  position: _position, 
+export function AnimatedRevealTrigger({
+  card: _card,
+  position: _position,
   question: _question,
   userTier,
-  onGenerate 
+  onGenerate
 }) {
   const prefersReducedMotion = useReducedMotion();
   const config = getMediaTierConfig(userTier).cardVideo;
-  
+
   if (!config.enabled) return null;
-  
+
   return (
     <button
       onClick={onGenerate}
-      className="absolute -bottom-2 left-1/2 -translate-x-1/2 
-                 px-3 py-1 bg-gradient-to-r from-primary/90 to-accent/90 
+      className="absolute -bottom-2 left-1/2 -translate-x-1/2
+                 px-3 py-1 bg-linear-to-r from-primary/90 to-accent/90
                  text-surface text-xs rounded-full shadow-lg backdrop-blur-sm
-                 hover:from-primary hover:to-accent transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                 hover:from-primary hover:to-accent transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
       style={{ transitionDuration: prefersReducedMotion ? '0ms' : undefined }}
     >
       🎬 Animate

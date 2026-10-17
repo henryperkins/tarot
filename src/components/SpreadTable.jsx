@@ -946,7 +946,7 @@ export function SpreadTable({
                   relative rounded-lg border-2 border-dashed
                   flex items-center justify-center
                   transition-all overflow-visible touch-manipulation
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70
                   ${canDeal
                     ? 'border-primary/60 bg-primary/10 card-placeholder-next cursor-pointer hover:bg-primary/20 active:scale-95'
                     : readingTable ? 'border-accent/30 bg-surface/30 cursor-default' : 'border-accent/30 bg-surface/30 cursor-not-allowed opacity-70'
@@ -993,7 +993,7 @@ export function SpreadTable({
                 ${sizeClass}
                 relative rounded-lg border-2 cursor-pointer overflow-visible
                 transition-all touch-manipulation
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 disabled:opacity-60 disabled:cursor-not-allowed
                 ${isRevealed
                   ? 'shadow-lg'
@@ -1116,7 +1116,7 @@ export function SpreadTable({
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />
-                        {!readingTable && <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
+                        {!readingTable && <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-main/80 to-transparent p-0.5 xs:p-1 sm:p-1 flex items-center gap-1">
                           <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-2xs'} text-main font-semibold leading-tight min-w-0 truncate`}>
                             {displayCard.name.replace(/^The /, '')}
                           </span>
@@ -1184,7 +1184,7 @@ export function SpreadTable({
             {revealBursts
               .filter((burst) => burst.slotIndex === i)
               .map((burst) => (
-                <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-[15]">
+                <div key={burst.id} className="pointer-events-none absolute inset-[-22%] z-15">
                   <div className="slot-reveal-bloom" aria-hidden="true" />
                   <SlotRevealBurst suit={burst.suit || card?.suit || null} />
                 </div>
@@ -1320,7 +1320,7 @@ export function SpreadTableCompact({
                 : 'border-primary/40 bg-primary/10'
               : 'border-accent/20 bg-surface/50'
           }
-          ${isInteractive ? 'cursor-pointer hover:border-primary/60 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary' : ''}
+          ${isInteractive ? 'cursor-pointer hover:border-primary/60 touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary' : ''}
         `;
 
         const accessibleLabel = `${positionLabel}${card ? `: ${card.name}${card.isReversed ? ', reversed' : ''}` : ''}`;

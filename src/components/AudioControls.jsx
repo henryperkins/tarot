@@ -21,7 +21,7 @@ export function AudioControls({ className = '' }) {
   const inactiveTileClass = 'hover:border-accent/35 hover:bg-surface/80';
 
   const iconWrapperBase =
-    'flex h-8 w-8 xs:h-9 xs:w-9 flex-shrink-0 items-center justify-center rounded-xl border transition-colors duration-200';
+    'flex h-8 w-8 xs:h-9 xs:w-9 shrink-0 items-center justify-center rounded-xl border transition-colors duration-200';
   const activeIconWrapper =
     'border-secondary/60 bg-secondary/20 text-secondary shadow-md shadow-secondary/20';
   const inactiveIconWrapper =
@@ -29,7 +29,7 @@ export function AudioControls({ className = '' }) {
 
   // Info button - subtle icon, 44px touch target but no visible border
   const infoButtonClass =
-    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
+    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const VoiceIcon = voiceOn ? SpeakerHigh : SpeakerSlash;
 

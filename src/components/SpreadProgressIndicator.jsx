@@ -97,7 +97,7 @@ export function SpreadProgressIndicator({
               className={`
                 w-2.5 h-2.5 rounded-full transition-all duration-200
                 ${filled
-                  ? 'bg-secondary shadow-sm shadow-secondary/40'
+                  ? 'bg-secondary shadow-xs shadow-secondary/40'
                   : 'bg-surface-muted/60 border border-secondary/30'
                 }
                 ${index === revealed - 1 && !prefersReducedMotion

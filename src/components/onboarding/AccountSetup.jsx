@@ -192,7 +192,7 @@ export function AccountSetup({ onNext, onBack }) {
               placeholder="you@example.com"
               required
               autoComplete="email"
-              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
             />
           </div>
 
@@ -211,7 +211,7 @@ export function AccountSetup({ onNext, onBack }) {
                 placeholder="Choose a username"
                 required
                 autoComplete="username"
-                className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+                className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               />
             </div>
           )}
@@ -231,7 +231,7 @@ export function AccountSetup({ onNext, onBack }) {
               required
               autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
               minLength={mode === 'register' ? 8 : undefined}
-              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              className="w-full bg-surface border border-primary/40 rounded-xl px-4 py-3 text-base text-main placeholder:text-muted/70 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
             />
             {mode === 'register' && (
               <p className="text-xs text-muted mt-1">At least 8 characters</p>

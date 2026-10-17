@@ -11,19 +11,19 @@ import { getSymbolFamily } from '../../shared/symbols/symbolIndex';
 const ELEMENT_BADGE_CONFIG = {
   Fire: {
     icon: '🔥',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
   },
   Water: {
     icon: '💧',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
   },
   Air: {
     icon: '💨',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color:color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
   },
   Earth: {
     icon: '🌍',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color:color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
   }
 };
 
@@ -97,7 +97,7 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-touch min-w-touch -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70"
+            className="min-h-touch min-w-touch -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70"
             aria-label="Close symbol insights"
           >
             <X className="h-5 w-5" />
@@ -246,7 +246,7 @@ function BottomSheet({ isOpen, onClose, children }) {
         aria-modal="true"
         aria-label="Card symbol insights"
         tabIndex={-1}
-        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl motion-safe:animate-slide-up focus:outline-none"
+        className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl motion-safe:animate-slide-up focus:outline-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle indicator */}
@@ -350,7 +350,7 @@ export function CardSymbolInsights({
     ? ''
     : 'inline-flex items-center justify-center gap-2 min-h-touch min-w-touch rounded-full ' +
       'border border-secondary/60 bg-surface/80 px-4 py-2 text-sm text-secondary hover:border-secondary ' +
-      'active:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 ' +
+      'active:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 ' +
       'focus-visible:ring-offset-2 transition-colors touch-manipulation';
 
   const buttonLabel = triggerAriaLabel || triggerLabel;
@@ -473,7 +473,7 @@ export function CardSymbolInsights({
         <button
           type="button"
           onClick={handleCloseImmediate}
-          className="absolute top-2 right-2 text-secondary hover:text-main focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 rounded-full"
+          className="absolute top-2 right-2 text-secondary hover:text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 rounded-full"
           aria-label="Close symbol insights"
         >
           ×

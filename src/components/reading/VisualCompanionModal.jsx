@@ -46,15 +46,15 @@ export function VisualCompanionModal({
   // WebKit can leave descendant visibility transitions hidden after opening,
   // so toggle display instead of inherited visibility.
   const overlayClasses = clsx(
-    'fixed inset-0 z-[70] items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm',
+    'fixed inset-0 z-70 items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm',
     'p-0 sm:p-4 px-safe pt-safe pb-safe transition-opacity duration-200',
     isOpen ? 'flex opacity-100 pointer-events-auto' : 'hidden opacity-0 pointer-events-none'
   );
 
   const panelClasses = clsx(
     'relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] flex-col overflow-hidden',
-    'panel-mystic rounded-none sm:rounded-3xl border border-[color:var(--border-warm-light)] shadow-2xl',
-    '!p-0 focus:outline-none transition duration-200',
+    'panel-mystic rounded-none sm:rounded-3xl border border-(--border-warm-light) shadow-2xl',
+    'p-0! focus:outline-hidden transition duration-200',
     isOpen ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-[0.98]'
   );
 
@@ -93,9 +93,9 @@ export function VisualCompanionModal({
           role="region"
           aria-label="Visual companion studio content"
           tabIndex={0}
-          className="relative z-10 flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain scroll-pt-[min(3.5rem,56px)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
+          className="relative z-10 flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain scroll-pt-[min(3.5rem,56px)] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
         >
-          <div className="relative min-w-0 [overflow-wrap:anywhere] px-[min(1rem,16px)] sm:px-6 py-[min(1rem,16px)] sm:py-4 pr-[min(3.5rem,56px)] sm:pr-16 border-b border-secondary/25">
+          <div className="relative min-w-0 wrap-anywhere px-[min(1rem,16px)] sm:px-6 py-[min(1rem,16px)] sm:py-4 pr-[min(3.5rem,56px)] sm:pr-16 border-b border-secondary/25">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2
                 id={VISUAL_COMPANION_MODAL_TITLE_ID}
@@ -110,7 +110,7 @@ export function VisualCompanionModal({
                 </span>
               ) : null}
             </div>
-            <p id={DESCRIPTION_ID} className="[overflow-wrap:anywhere] text-xs sm:text-sm text-muted mt-2">{message}</p>
+            <p id={DESCRIPTION_ID} className="wrap-anywhere text-xs sm:text-sm text-muted mt-2">{message}</p>
           </div>
 
           <div

@@ -649,14 +649,14 @@ export function Card({
       <div className="p-3 sm:p-4 md:p-6 relative" style={{ perspective: '1000px' }}>
         {/* Persistent anchor label - stays fixed during flip animation */}
         <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-          <span className="px-3 py-1 bg-surface/90 backdrop-blur-sm rounded-full text-xs font-semibold text-accent border border-secondary/40 shadow-sm">
+          <span className="px-3 py-1 bg-surface/90 backdrop-blur-sm rounded-full text-xs font-semibold text-accent border border-secondary/40 shadow-xs">
             {getPositionAnchor(position)}
           </span>
         </div>
 
         <div
           ref={cardRef}
-          className={`${prefersReducedMotion ? '' : 'transition-[transform,opacity] duration-500'} transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
+          className={`${prefersReducedMotion ? '' : 'transition-[transform,opacity,translate,scale,rotate] duration-500'} transform rounded-lg ${!isVisuallyRevealed ? '' : 'group'}`}
           style={{
             transformStyle: 'preserve-3d',
             WebkitTransformStyle: 'preserve-3d',
@@ -682,11 +682,11 @@ export function Card({
               onTouchCancel={handleTouchCancel}
               aria-label={`${position}. Tap to reveal.`}
               aria-expanded={isRevealed}
-              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 active:scale-95 transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
+              className={`card-swipe-container relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-96 sm:max-h-none flex flex-col items-center justify-center gap-4 p-4 sm:p-6 w-full cursor-pointer hover:bg-surface-muted/70 hover:scale-105 active:scale-95 transition-all touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main`}
             >
               {/* Card back with mystical design */}
               <div
-                className="relative w-full max-w-[280px] aspect-[2/3] mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden transition-transform"
+                className="relative w-full max-w-[280px] aspect-2/3 mx-auto rounded-xl border-2 border-primary/30 shadow-2xl overflow-hidden transition-transform"
                 style={{ transform: `translateX(${swipeOffset * 0.5}px)` }}
               >
                 <CardBack className="w-full h-full" />
@@ -713,7 +713,7 @@ export function Card({
               </div>
             </button>
           ) : (
-            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-[24rem] sm:max-h-none flex flex-col items-center ${isFlipAnimating ? 'pointer-events-none' : ''}`}>
+            <div className={`transition-all relative h-full ${isLandscape ? 'min-h-[200px] max-h-[280px]' : 'min-h-[40vh] supports-[height:1svh]:min-h-[40svh] max-h-[55vh] supports-[height:1svh]:max-h-[55svh]'} sm:min-h-96 sm:max-h-none flex flex-col items-center ${isFlipAnimating ? 'pointer-events-none' : ''}`}>
               {/* Card content area - restructured to avoid nested interactives */}
               <div className="relative w-full">
                 {/* Zoom Icon - primary keyboard target for modal */}
@@ -725,7 +725,7 @@ export function Card({
                   }}
                   disabled={isFlipAnimating}
                   aria-disabled={isFlipAnimating}
-                  className="absolute top-2 right-2 z-20 min-h-touch min-w-touch flex items-center justify-center bg-surface-muted/80 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm hover:bg-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
+                  className="absolute top-2 right-2 z-20 min-h-touch min-w-touch flex items-center justify-center bg-surface-muted/80 rounded-full text-accent border border-primary/30 shadow-lg backdrop-blur-sm hover:bg-surface-muted transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
                   aria-label={`View details for ${card.name}`}
                 >
                   <ArrowsOut className="w-5 h-5" />
@@ -782,7 +782,7 @@ export function Card({
                     data-layout-id={`card-image-${index}`}
                     className={`mx-auto mb-3 max-w-[65%] sm:max-w-[280px] ${card.isReversed ? 'rotate-180' : ''}`}
                   >
-                    <div className="relative aspect-[2/3] rounded-lg" style={suitFrameStyle}>
+                    <div className="relative aspect-2/3 rounded-lg" style={suitFrameStyle}>
                       <img
                         src={cardImage}
                         alt={`${card.name}${card.isReversed ? ' (Reversed)' : ''}`}
@@ -913,7 +913,7 @@ export function Card({
                       }
                       rows={isSmallScreen ? 3 : 4}
                       maxLength={500}
-                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] sm:min-h-[4.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary/55 touch-pan-y"
+                      className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-14 sm:min-h-18 resize-y text-main text-base leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-secondary/55 touch-pan-y"
                       placeholder={MICROCOPY.reflectionPlaceholder}
                       aria-describedby={`char-count-${index}`}
                     />

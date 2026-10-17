@@ -16,7 +16,7 @@ export default function EmptyState({
   const prefersReducedMotion = useReducedMotion();
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-[color:var(--border-warm-subtle)] bg-gradient-to-br from-[color:var(--panel-dark-1)] via-[color:var(--panel-dark-2)] to-[color:var(--panel-dark-3)] p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
+      className="relative overflow-hidden rounded-3xl border border-(--border-warm-subtle) bg-linear-to-br from-(--panel-dark-1) via-(--panel-dark-2) to-(--panel-dark-3) p-5 shadow-[0_24px_68px_-30px_rgba(0,0,0,0.9)]"
       aria-labelledby="reading-journey-empty-heading"
     >
       {/* Decorative background */}
@@ -29,11 +29,11 @@ export default function EmptyState({
         }}
       />
       <div
-        className="pointer-events-none absolute -left-16 top-10 h-48 w-48 rounded-full bg-[color:var(--glow-gold)] blur-[90px]"
+        className="pointer-events-none absolute -left-16 top-10 h-48 w-48 rounded-full bg-(--glow-gold) blur-[90px]"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute right-[-96px] top-1/3 h-60 w-60 rounded-full bg-[color:var(--glow-blue)] blur-[90px]"
+        className="pointer-events-none absolute right-[-96px] top-1/3 h-60 w-60 rounded-full bg-(--glow-blue) blur-[90px]"
         aria-hidden="true"
       />
 
@@ -92,11 +92,11 @@ export default function EmptyState({
                   aria-label="Analyze journal for reading journey"
                   className={`
                     flex items-center gap-2 min-h-touch px-4 py-2 rounded-full text-sm sm:text-xs font-medium
-                    border border-[color:var(--border-warm-light)] text-main bg-[color:var(--border-warm-subtle)]
+                    border border-(--border-warm-light) text-main bg-(--border-warm-subtle)
                     shadow-[0_16px_36px_-22px_var(--primary-60)]
-                    hover:-translate-y-0.5 hover:border-[color:var(--border-warm)]
-                    active:bg-[color:var(--accent-25)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
+                    hover:-translate-y-0.5 hover:border-(--border-warm)
+                    active:bg-(--accent-25)
+                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)
                     disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0
                     transition touch-manipulation
                   `}

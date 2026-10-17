@@ -53,7 +53,7 @@ export function NarrationProgress({ ttsState, className = '' }) {
       </div>
 
       {/* Time display */}
-      <span className="text-xs text-muted tabular-nums min-w-[4.5rem] text-right whitespace-nowrap">
+      <span className="text-xs text-muted tabular-nums min-w-18 text-right whitespace-nowrap">
         {lengthKnown ? `${formatTime(currentTime)} / ${formatTime(duration)}` : formatTime(currentTime)}
       </span>
     </div>

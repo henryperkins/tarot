@@ -184,7 +184,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 type="button"
                 className={`
                   w-full rounded-xl border transition-all font-semibold
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--focus-ring-color)]
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--focus-ring-color)
                   touch-manipulation active:scale-[0.97]
                   min-h-touch
                   ${isCelebrating ? 'motion-safe:animate-pop-in' : ''}

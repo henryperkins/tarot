@@ -165,7 +165,7 @@ export function Header({
           full-bleed sticky top-0 z-sticky-nav has-[[aria-haspopup=menu][aria-expanded=true]]:z-modal ${minimalNav ? 'mb-3' : 'mb-5'}
           bg-surface/95 backdrop-blur
           border-y border-accent/20
-          ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-[var(--safe-pad-top)]'}
+          ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-(--safe-pad-top)'}
           pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]
           sm:pl-[max(1.25rem,var(--safe-pad-left))] sm:pr-[max(1.25rem,var(--safe-pad-right))]
           md:pl-[max(1.5rem,var(--safe-pad-left))] md:pr-[max(1.5rem,var(--safe-pad-right))]

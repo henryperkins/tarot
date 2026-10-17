@@ -97,7 +97,7 @@ export function QuestionInput({
         // Mirrors the server contract so an over-long paste is trimmed here
         // rather than rejected with a 400 after the ritual.
         maxLength={USER_QUESTION_MAX_LENGTH}
-        className="block w-full min-h-touch bg-surface border border-primary/40 rounded-xl px-3 xs:px-4 py-3 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/70 transition-colors resize-none"
+        className="block w-full min-h-touch bg-surface border border-primary/40 rounded-xl px-3 xs:px-4 py-3 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-colors resize-none"
         // text-base (16px) prevents iOS zoom on focus
         onFocus={onFocus}
         onBlur={onBlur}

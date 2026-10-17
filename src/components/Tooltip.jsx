@@ -251,7 +251,7 @@ export function Tooltip({
 
   // Base trigger class with proper touch target and visual centering
   const triggerBaseClass =
-    'inline-flex items-center justify-center text-accent/60 hover:text-accent transition-colors focus:outline-none focus:ring-2 focus:ring-accent/50 rounded-full touch-manipulation';
+    'inline-flex items-center justify-center text-accent/60 hover:text-accent transition-colors focus:outline-hidden focus:ring-2 focus:ring-accent/50 rounded-full touch-manipulation';
 
   const rootBaseClass = asChild ? 'relative block' : 'relative inline-flex items-center';
 
@@ -309,14 +309,14 @@ export function Tooltip({
             id={tooltipId}
             ref={tooltipRef}
             className={`absolute z-50 ${positionClasses[effectivePosition]} max-w-xs`}
-            style={horizontalOffset ? { transform: `translateX(calc(-50% + ${horizontalOffset}px))` } : undefined}
+            style={horizontalOffset ? { translate: 'none', transform: `translateX(calc(-50% + ${horizontalOffset}px))` } : undefined}
           >
             <div className="relative bg-surface-muted text-main text-xs rounded-lg px-3 py-2 shadow-xl border border-primary/20 whitespace-pre-line">
               {showCloseButton && (
                 <button
                   type="button"
                   onClick={hideTooltip}
-                  className="absolute top-1 right-1 text-muted hover:text-main focus:outline-none focus-visible:ring-1 focus-visible:ring-accent/60 rounded"
+                  className="absolute top-1 right-1 text-muted hover:text-main focus:outline-hidden focus-visible:ring-1 focus-visible:ring-accent/60 rounded"
                   aria-label={closeLabel}
                 >
                   ×
@@ -326,7 +326,7 @@ export function Tooltip({
               {/* Arrow */}
               <div
                 className={`absolute w-0 h-0 border-4 ${arrowClasses[effectivePosition]}`}
-                style={horizontalOffset ? { transform: `translateX(calc(-50% - ${horizontalOffset}px))` } : undefined}
+                style={horizontalOffset ? { translate: 'none', transform: `translateX(calc(-50% - ${horizontalOffset}px))` } : undefined}
                 aria-hidden="true"
               />
             </div>

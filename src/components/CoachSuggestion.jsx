@@ -225,10 +225,10 @@ export function CoachSuggestion({
                 focusCta: 'mb-2 min-h-touch min-w-touch text-left text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
             }
             : {
-                container: 'rounded-lg bg-[color:var(--border-warm-subtle)] p-3 border border-[color:var(--border-warm-light)]',
+                container: 'rounded-lg bg-(--border-warm-subtle) p-3 border border-(--border-warm-light)',
                 headline: 'text-xs text-muted-high',
                 scope: 'mt-2 text-2xs uppercase tracking-[0.2em] text-muted',
-                badge: 'mt-2 flex items-center gap-1 text-2xs text-[color:var(--text-accent)]',
+                badge: 'mt-2 flex items-center gap-1 text-2xs text-(--text-accent)',
                 source: 'mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.2em] text-muted',
                 sourceTrigger: 'text-muted hover:text-main',
                 theme: 'mt-2 space-y-1 text-2xs text-muted',
@@ -237,9 +237,9 @@ export function CoachSuggestion({
                 remaining: 'mt-1 text-2xs text-muted',
                 statusMessage: 'mt-2 text-2xs text-muted',
                 actions: 'mt-2 flex flex-wrap items-center gap-2',
-                startButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs font-medium text-[color:var(--text-accent)] hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
-                saveButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
-                openButton: 'min-h-touch rounded-full border border-[color:var(--border-warm-light)] px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-[color:var(--border-warm)] transition-colors',
+                startButton: 'min-h-touch rounded-full border border-(--border-warm-light) px-3 py-1.5 text-2xs font-medium text-(--text-accent) hover:text-main hover:border-(--border-warm) transition-colors',
+                saveButton: 'min-h-touch rounded-full border border-(--border-warm-light) px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-(--border-warm) transition-colors',
+                openButton: 'min-h-touch rounded-full border border-(--border-warm-light) px-3 py-1.5 text-2xs text-muted-high hover:text-main hover:border-(--border-warm) transition-colors',
                 status: 'text-2xs text-muted',
                 focusCta: 'mt-2 min-h-touch min-w-touch text-left text-2xs text-muted underline underline-offset-4 hover:text-main transition-colors',
             };
@@ -450,7 +450,7 @@ export function CoachSuggestion({
                     <button
                         type="button"
                         onClick={onApply}
-                        className={`min-h-touch inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent hover:text-main underline decoration-accent/30 underline-offset-4 transition-colors focus:outline-none touch-manipulation ${ACCENT_50_RING_WITH_OFFSET}`}
+                        className={`min-h-touch inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent hover:text-main underline decoration-accent/30 underline-offset-4 transition-colors focus:outline-hidden touch-manipulation ${ACCENT_50_RING_WITH_OFFSET}`}
                     >
                         <span>Start with Intention Coach</span>
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -461,7 +461,7 @@ export function CoachSuggestion({
                             type="button"
                             onClick={onApply}
                             className={`min-h-touch rounded-full border border-primary/50 px-4 py-2 text-sm text-main transition-colors
-                                hover:bg-primary/10 focus:outline-none touch-manipulation ${PRIMARY_50_RING_WITH_OFFSET}`}
+                                hover:bg-primary/10 focus:outline-hidden touch-manipulation ${PRIMARY_50_RING_WITH_OFFSET}`}
                         >
                             Use this focus
                         </button>
@@ -470,7 +470,7 @@ export function CoachSuggestion({
                                 type="button"
                                 onClick={onDismiss}
                                 className={`min-h-touch rounded-full border border-secondary/40 px-4 py-2 text-sm text-muted transition-colors
-                                    hover:bg-secondary/10 focus:outline-none touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
+                                    hover:bg-secondary/10 focus:outline-hidden touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
                             >
                                 Dismiss
                             </button>
@@ -482,7 +482,7 @@ export function CoachSuggestion({
                         type="button"
                         onClick={() => onSaveIntention(recommendation)}
                         className={`min-h-touch rounded-full border border-secondary/40 px-4 py-2 text-sm text-muted transition-colors
-                            hover:bg-secondary/10 focus:outline-none touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
+                            hover:bg-secondary/10 focus:outline-hidden touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
                     >
                         Save intention
                     </button>
@@ -492,7 +492,7 @@ export function CoachSuggestion({
                         type="button"
                         onClick={() => onOpenJournal(recommendation)}
                         className={`min-h-touch rounded-full border border-secondary/40 px-4 py-2 text-sm text-muted transition-colors
-                            hover:bg-secondary/10 focus:outline-none touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
+                            hover:bg-secondary/10 focus:outline-hidden touch-manipulation ${SECONDARY_50_RING_WITH_OFFSET}`}
                     >
                         Open journal
                     </button>

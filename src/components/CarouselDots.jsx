@@ -95,7 +95,7 @@ export function CarouselDots({
       container: 'flex items-center justify-center gap-0',
       button: 'relative flex items-center justify-center min-w-touch min-h-touch w-11 h-11 touch-manipulation',
       dotBase: 'w-1.5 h-1.5 rounded-full transition-all duration-200',
-      dotActive: 'bg-primary w-3 shadow-sm shadow-primary/30',
+      dotActive: 'bg-primary w-3 shadow-xs shadow-primary/30',
       dotInactive: 'bg-secondary/40 hover:bg-secondary/60'
     },
     labeled: {
@@ -126,7 +126,7 @@ export function CarouselDots({
             type="button"
             aria-current={isActive ? 'true' : undefined}
             aria-label={`Show ${label}`}
-            className={`${styles.button} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main rounded-full`}
+            className={`${styles.button} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-main rounded-full`}
             tabIndex={isActive ? 0 : -1}
             onClick={() => goToIndex(idx)}
             onKeyDown={(event) => handleKeyDown(event, idx)}

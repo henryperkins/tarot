@@ -11,7 +11,7 @@ import {
 } from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
-const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
+const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)';
 const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:bg-primary`;
 const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-accent/30 hover:bg-surface`;
 const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-main border border-primary/40 hover:bg-primary/30`;
@@ -54,7 +54,7 @@ function ActionButton({
   const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
   const textSize = isLandscape ? 'text-xs' : 'text-sm';
   const nowrapClass = isLandscape ? 'whitespace-nowrap' : '';
-  const focusOffsetClass = isLandscape ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-surface)]' : '';
+  const focusOffsetClass = isLandscape ? 'focus-visible:ring-offset-2 focus-visible:ring-offset-(--bg-surface)' : '';
 
   return (
     <button
@@ -83,7 +83,7 @@ function ActionButton({
       `}
     >
       {Icon && <Icon className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} weight="fill" aria-hidden="true" />}
-      <span className={`${textSize} min-w-0 font-semibold [overflow-wrap:anywhere]`}>{children}</span>
+      <span className={`${textSize} min-w-0 font-semibold wrap-anywhere`}>{children}</span>
     </button>
   );
 }

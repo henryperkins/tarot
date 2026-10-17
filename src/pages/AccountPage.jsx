@@ -108,7 +108,7 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
         >
           <span
             className={`
-              inline-block h-5 w-5 transform rounded-full bg-white shadow-sm
+              inline-block h-5 w-5 transform rounded-full bg-white shadow-xs
               transition-transform duration-200
               ${enabled ? 'translate-x-6' : 'translate-x-1'}
             `}
@@ -1218,7 +1218,7 @@ export default function AccountPage() {
         {/* Section Navigation Chips */}
         <nav
           ref={sectionNavRef}
-          className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-[var(--sticky-header-height,6rem)]"
+          className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-(--sticky-header-height,6rem)"
           aria-label="Jump to section"
           style={{
             scrollbarWidth: 'none',
@@ -1389,7 +1389,7 @@ export default function AccountPage() {
                   className="
                     w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                     px-3 py-2.5 text-sm text-main
-                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                     transition
                   "
                 />
@@ -1417,7 +1417,7 @@ export default function AccountPage() {
                   className="
                     w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                     px-3 py-2.5 text-sm text-main
-                    focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                    focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                     transition
                   "
                 />
@@ -1481,7 +1481,7 @@ export default function AccountPage() {
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
-                      focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                      focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
                   />
@@ -1516,7 +1516,7 @@ export default function AccountPage() {
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
-                      focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                      focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
                   />
@@ -1557,7 +1557,7 @@ export default function AccountPage() {
                     className="
                       w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
-                      focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                      focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
                     "
                   />
@@ -1610,7 +1610,7 @@ export default function AccountPage() {
             <div className={`h-12 w-12 shrink-0 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
               <TierIcon className={`h-6 w-6 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
             </div>
-            <div className="min-w-0 flex-[1_1_10rem] [overflow-wrap:anywhere]">
+            <div className="min-w-0 flex-[1_1_10rem] wrap-anywhere">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-lg font-semibold text-main">{tierConfig.name}</p>
                 <span className="text-xs uppercase tracking-wider text-muted bg-secondary/20 px-2 py-0.5 rounded-full">
@@ -1691,28 +1691,28 @@ export default function AccountPage() {
             <ul className="space-y-1.5">
               <li className="flex items-center gap-2 text-sm text-secondary">
                 <Check className="h-4 w-4 text-accent shrink-0" />
-                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyReadings === Infinity ? 'Unlimited' : tierConfig.monthlyReadings} AI readings/month</span>
+                <span className="min-w-0 wrap-anywhere">{tierConfig.monthlyReadings === Infinity ? 'Unlimited' : tierConfig.monthlyReadings} AI readings/month</span>
               </li>
               <li className="flex items-center gap-2 text-sm text-secondary">
                 <Check className="h-4 w-4 text-accent shrink-0" />
-                <span className="min-w-0 [overflow-wrap:anywhere]">{tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} Reader voice narrations/month</span>
+                <span className="min-w-0 wrap-anywhere">{tierConfig.monthlyTTS === Infinity ? 'Unlimited' : tierConfig.monthlyTTS} Reader voice narrations/month</span>
               </li>
               {tierConfig.cloudJournal && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">Cloud journal sync</span>
+                  <span className="min-w-0 wrap-anywhere">Cloud journal sync</span>
                 </li>
               )}
               {tierConfig.advancedInsights && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">Advanced insights</span>
+                  <span className="min-w-0 wrap-anywhere">Advanced insights</span>
                 </li>
               )}
               {tierConfig.apiAccess && (
                 <li className="flex items-center gap-2 text-sm text-secondary">
                   <Check className="h-4 w-4 text-accent shrink-0" />
-                  <span className="min-w-0 [overflow-wrap:anywhere]">API access ({tierConfig.apiCallsPerMonth} calls/mo)</span>
+                  <span className="min-w-0 wrap-anywhere">API access ({tierConfig.apiCallsPerMonth} calls/mo)</span>
                 </li>
               )}
             </ul>
@@ -2095,7 +2095,7 @@ export default function AccountPage() {
                       flex items-center gap-2 transition
                       ${FOCUS_RING_DEFAULT} ${FOCUS_RING_OFFSET_SURFACE}
                       ${isActive
-                        ? 'bg-[color:var(--ui-selected-bg)] border-[color:var(--brand-primary)] text-main'
+                        ? 'bg-(--ui-selected-bg) border-(--brand-primary) text-main'
                         : 'border-transparent text-muted hover:text-main'}
                     `}
                   >
@@ -2134,7 +2134,7 @@ export default function AccountPage() {
               className="
                 min-h-touch min-w-touch w-full rounded-xl border border-secondary/30 bg-surface-muted/50
                 px-3 py-2.5 text-sm text-main
-                focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent
+                focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                 transition
               "
               aria-describedby="reversal-description"

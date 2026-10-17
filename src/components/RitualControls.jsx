@@ -45,7 +45,7 @@ export function RitualControls({
     'flex flex-col gap-3 rounded-2xl border border-secondary/15 bg-surface/70 p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg hover:shadow-accent/10';
   const activeTileClass = 'border-secondary/60 bg-secondary/5 shadow-lg shadow-secondary/35';
   const iconWrapperBase =
-    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border text-secondary transition-all duration-200';
+    'flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border text-secondary transition-all duration-200';
   const activeIconWrapper =
     'border-secondary/60 bg-secondary/20 text-secondary shadow-lg shadow-secondary/20';
   const inactiveIconWrapper = 'border-accent/20 bg-surface/80 text-muted';
@@ -56,9 +56,9 @@ export function RitualControls({
   const inactiveBadgeClass = 'border-accent/20 bg-surface-muted/80 text-muted';
   // Info button - subtle icon, 44px touch target but no visible border
   const infoButtonClass =
-    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
+    'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
   const primaryButtonBase =
-    'flex min-h-touch w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]';
+    'flex min-h-touch w-full items-center justify-between rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)';
   const primaryButtonActive = 'border-secondary/60 bg-secondary/15 text-secondary shadow-lg shadow-secondary/20';
   const primaryButtonIdle = 'border-accent/20 bg-surface/60 text-main/90 hover:border-accent/60 hover:text-main';
   const sliderWrapClass = 'rounded-2xl border border-accent/20 bg-surface/60 px-3 py-2.5';

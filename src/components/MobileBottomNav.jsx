@@ -27,7 +27,7 @@ export function MobileBottomNav() {
     py-2 px-2 min-h-nav
     touch-manipulation
     transition-colors
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset
+    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset
     active:scale-[0.98]
   `;
 

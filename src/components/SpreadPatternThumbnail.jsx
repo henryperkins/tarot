@@ -62,7 +62,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
           />
         )}
         <div
-          className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
+          className="pointer-events-none absolute inset-0 rounded-[14px] border border-(--border-warm-light) shadow-[0_0_0_1px_rgba(232,218,195,0.08)]"
           aria-hidden="true"
         />
       </div>
@@ -163,7 +163,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
   return (
     <div className={`relative overflow-hidden rounded-[14px] bg-main ${className}`} aria-hidden="true">
       {patterns[spreadKey] || patterns.single}
-      <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_rgba(232,218,195,0.08)]" aria-hidden="true"></div>
+      <div className="pointer-events-none absolute inset-0 rounded-[14px] border border-(--border-warm-light) shadow-[0_0_0_1px_rgba(232,218,195,0.08)]" aria-hidden="true"></div>
     </div>
   );
 }

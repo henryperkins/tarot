@@ -23,10 +23,10 @@ export function ReadingStart({ displayName, readingMeta, isHandset, isLandscape,
             type="button"
             onClick={shuffle}
             disabled={isShuffling}
-            className="min-h-cta max-w-full bg-accent hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className="min-h-cta max-w-full bg-accent hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed text-surface font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-lg shadow-lg transition-all inline-flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
             <ArrowCounterClockwise aria-hidden="true" className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${isShuffling ? 'motion-safe:animate-spin' : ''}`} />
-            <span className="min-w-0 break-words">{isShuffling ? 'Shuffling the cards...' : 'Draw cards'}</span>
+            <span className="min-w-0 wrap-break-word">{isShuffling ? 'Shuffling the cards...' : 'Draw cards'}</span>
           </button>
         </div>
       )}

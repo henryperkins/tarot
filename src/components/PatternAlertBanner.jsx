@@ -78,10 +78,10 @@ export default function PatternAlertBanner({ isAuthenticated }) {
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-primary/25 bg-gradient-to-r from-primary/20 to-primary/10 p-4 mb-6 shadow-lg animate-fade-in">
+    <div className="relative overflow-hidden rounded-xl border border-primary/25 bg-linear-to-r from-primary/20 to-primary/10 p-4 mb-6 shadow-lg animate-fade-in">
       <div className="absolute inset-0 bg-primary/5 mix-blend-overlay pointer-events-none" />
       <div className="relative flex items-start gap-3">
-        <div className="mt-0.5 flex-shrink-0 text-primary animate-pulse-slow">
+        <div className="mt-0.5 shrink-0 text-primary animate-pulse-slow">
           <Sparkle className="h-5 w-5" weight="fill" />
         </div>
         <div className="flex-1">
@@ -94,7 +94,7 @@ export default function PatternAlertBanner({ isAuthenticated }) {
           <button
             type="button"
             onClick={handleViewReadings}
-            className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-accent hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-accent hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
             title={patternQuery ? `Filter journal by ${patternQuery}` : 'View readings in your journal'}
           >
             View readings
@@ -102,7 +102,7 @@ export default function PatternAlertBanner({ isAuthenticated }) {
         </div>
         <button
           onClick={handleDismiss}
-          className="flex-shrink-0 min-h-touch min-w-touch flex items-center justify-center text-muted/60 hover:text-main transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded-full"
+          className="shrink-0 min-h-touch min-w-touch flex items-center justify-center text-muted/60 hover:text-main transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded-full"
           aria-label="Dismiss alert"
         >
           <X className="h-4 w-4" />

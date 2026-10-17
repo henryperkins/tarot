@@ -169,7 +169,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                 flex items-center gap-1.5 sm:gap-2 min-h-touch
                 rounded-full border transition text-xs-plus font-semibold text-accent touch-manipulation
                 active:scale-[0.98]
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
                 focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 ${condensed
                   ? 'h-11 w-11 max-w-11 justify-center px-0 overflow-hidden bg-surface/80 border-accent/30 hover:bg-surface hover:border-accent/50 active:bg-surface-muted sm:h-auto sm:w-auto sm:max-w-none sm:px-3 sm:justify-start sm:overflow-visible'
@@ -274,7 +274,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                         >
                           <span
                             className={`
-                              inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform
+                              inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform
                               ${journeyEnabled ? 'translate-x-5' : 'translate-x-1'}
                             `}
                           />
@@ -295,7 +295,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                         w-full px-4 py-3 min-h-touch
                         text-sm text-main hover:bg-accent/10 active:bg-accent/20
                         flex items-center justify-between gap-3 touch-manipulation
-                        focus-visible:outline-none focus-visible:bg-accent/10
+                        focus-visible:outline-hidden focus-visible:bg-accent/10
                         border-b border-accent/10
                       "
                     >
@@ -326,7 +326,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                       w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-none focus-visible:bg-accent/5
+                      focus-visible:outline-hidden focus-visible:bg-accent/5
                       border-b border-accent/10
                     "
                   >
@@ -340,7 +340,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                       w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-none focus-visible:bg-accent/5
+                      focus-visible:outline-hidden focus-visible:bg-accent/5
                       border-b border-accent/10
                     "
                   >
@@ -355,7 +355,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                       w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-none focus-visible:bg-accent/5
+                      focus-visible:outline-hidden focus-visible:bg-accent/5
                       border-b border-accent/10
                     "
                   >
@@ -371,7 +371,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                       w-full text-left px-4 py-3 min-h-touch
                       text-sm text-accent hover:bg-accent/5 active:bg-accent/10
                       flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-none focus-visible:bg-accent/5
+                      focus-visible:outline-hidden focus-visible:bg-accent/5
                     "
                   >
                     <SignOut className="w-4 h-4" aria-hidden="true" />
@@ -391,7 +391,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                   rounded-full bg-surface/50 border border-accent/20
                   text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
                   transition touch-manipulation
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
                   focus-visible:ring-offset-2 focus-visible:ring-offset-main
                 "
                 aria-label="Replay tutorial"
@@ -407,7 +407,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                 rounded-full border border-accent/30 text-accent
                 hover:bg-surface hover:border-accent/50 active:bg-surface-muted
                 transition text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
                 focus-visible:ring-offset-2 focus-visible:ring-offset-main
               "
               aria-label="Open settings"
@@ -421,9 +421,9 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                 flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
                 rounded-full bg-primary text-surface
                 hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
-                shadow-sm shadow-primary/20 transition
+                shadow-xs shadow-primary/20 transition
                 text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60
+                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60
                 focus-visible:ring-offset-2 focus-visible:ring-offset-main
               "
             >
@@ -503,12 +503,12 @@ export function AppUtilities() {
         summaryRef.current?.focus({ preventScroll: true });
       }
     }}>
-      <summary ref={summaryRef} className="flex min-h-touch min-w-touch cursor-pointer list-none items-center justify-center rounded-lg text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">
+      <summary ref={summaryRef} className="flex min-h-touch min-w-touch cursor-pointer list-none items-center justify-center rounded-lg text-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary">
         <Gear className="w-5 h-5" aria-hidden="true" /><span className="sr-only">App options</span>
       </summary>
-      <div ref={panelRef} className="absolute right-0 top-full z-50 translate-y-[var(--utilities-offset,4px)] w-56 max-w-[80vw] max-h-[var(--utilities-height,50dvh)] overflow-y-auto rounded-xl border border-accent/30 bg-surface p-2 shadow-xl space-y-2">
+      <div ref={panelRef} className="absolute right-0 top-full z-50 translate-y-(--utilities-offset,4px) w-56 max-w-[80vw] max-h-(--utilities-height,50dvh) overflow-y-auto rounded-xl border border-accent/30 bg-surface p-2 shadow-xl space-y-2">
         <InstallControl getFallbackFocus={getFallbackFocus} preventFocusScroll />
-        <Link to="/account" className="flex min-h-touch items-center rounded-lg px-2 text-sm text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary">Account and settings</Link>
+        <Link to="/account" className="flex min-h-touch items-center rounded-lg px-2 text-sm text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary">Account and settings</Link>
       </div>
     </details>
   );

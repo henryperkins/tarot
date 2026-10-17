@@ -4,7 +4,7 @@ export const USAGE_BADGE_CLASSES = {
   used: 'border-success bg-success-subtle text-success',
   partial: 'border-warning bg-warning-subtle text-warning',
   omitted: 'border-warning bg-warning-subtle text-warning',
-  neutral: 'border-[color:var(--text-muted-high)] bg-surface-muted text-muted-high'
+  neutral: 'border-(--text-muted-high) bg-surface-muted text-muted-high'
 };
 
 const INPUT_LABELS = {

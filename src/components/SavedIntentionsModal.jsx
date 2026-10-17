@@ -32,7 +32,7 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
+      className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
       onClick={createBackdropHandler(onClose)}
     >
       <div
@@ -41,7 +41,7 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
         aria-modal={!isConfirmOpen}
         aria-hidden={isConfirmOpen ? 'true' : undefined}
         aria-labelledby={titleId}
-        className="panel-mystic relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] rounded-none sm:rounded-3xl overflow-hidden p-0 focus:outline-none"
+        className="panel-mystic relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] rounded-none sm:rounded-3xl overflow-hidden p-0 focus:outline-hidden"
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
       >
@@ -51,7 +51,7 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
           ref={closeButtonRef}
           type="button"
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
+          className="absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
           aria-label="Close saved intentions"
         >
           <X className="h-5 w-5" aria-hidden="true" />

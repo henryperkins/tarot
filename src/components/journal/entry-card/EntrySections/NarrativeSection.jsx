@@ -39,7 +39,7 @@ const MARKDOWN_COMPONENTS = {
   a: ({ node: _node, ...props }) => (
     <a
       {...props}
-      className="text-[color:var(--brand-primary)] underline decoration-dotted underline-offset-4 hover:text-[color:var(--text-main)] [overflow-wrap:anywhere]"
+      className="text-(--brand-primary) underline decoration-dotted underline-offset-4 hover:text-(--text-main) wrap-anywhere"
       target="_blank"
       rel="noopener noreferrer"
     />
@@ -47,7 +47,7 @@ const MARKDOWN_COMPONENTS = {
   pre: ({ node: _node, ...props }) => (
     <pre
       {...props}
-      className="overflow-x-auto rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--bg-surface-muted)] p-3 text-sm leading-relaxed"
+      className="overflow-x-auto rounded-xl border border-(--border-warm-light) bg-(--bg-surface-muted) p-3 text-sm leading-relaxed"
     />
   ),
   code: ({ node: _node, inline, className, children, ...props }) => {
@@ -55,7 +55,7 @@ const MARKDOWN_COMPONENTS = {
       return (
         <code
           {...props}
-          className="rounded bg-[color:var(--border-warm-subtle)] px-1.5 py-0.5 font-mono text-[0.85em] text-[color:var(--text-main)] break-words"
+          className="rounded bg-(--border-warm-subtle) px-1.5 py-0.5 font-mono text-[0.85em] text-(--text-main) wrap-break-word"
         >
           {children}
         </code>
@@ -65,7 +65,7 @@ const MARKDOWN_COMPONENTS = {
     return (
       <code
         {...props}
-        className={cn('font-mono whitespace-pre-wrap break-words', className)}
+        className={cn('font-mono whitespace-pre-wrap wrap-break-word', className)}
       >
         {children}
       </code>
@@ -85,18 +85,18 @@ const MARKDOWN_COMPONENTS = {
     </div>
   ),
   thead: ({ node: _node, ...props }) => (
-    <thead {...props} className="bg-[color:var(--border-warm-subtle)]" />
+    <thead {...props} className="bg-(--border-warm-subtle)" />
   ),
   th: ({ node: _node, ...props }) => (
     <th
       {...props}
-      className="border border-[color:var(--border-warm-light)] px-2 py-2 text-left text-xs font-semibold text-main"
+      className="border border-(--border-warm-light) px-2 py-2 text-left text-xs font-semibold text-main"
     />
   ),
   td: ({ node: _node, ...props }) => (
     <td
       {...props}
-      className="border border-[color:var(--border-warm-subtle)] px-2 py-2 align-top text-xs text-muted"
+      className="border border-(--border-warm-subtle) px-2 py-2 align-top text-xs text-muted"
     />
   )
 };
@@ -124,7 +124,7 @@ export const NarrativeSection = memo(function NarrativeSection({
       handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
   ) : null;
   const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
-    <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-p:leading-relaxed [overflow-wrap:anywhere]">
+    <div className="prose prose-invert prose-base max-w-none text-(--text-main) prose-p:leading-relaxed wrap-anywhere">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml components={MARKDOWN_COMPONENTS}>
         {narrativeText}
       </ReactMarkdown>
@@ -143,10 +143,10 @@ export const NarrativeSection = memo(function NarrativeSection({
             className={styles.sectionHeaderClickable}
           >
             <div className="flex items-center gap-2">
-              <JournalNarrativeIcon className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+              <JournalNarrativeIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
               <div className={styles.sectionLabel}>Reading narrative</div>
             </div>
-            <div className="text-[color:var(--text-muted)]">
+            <div className="text-(--text-muted)">
               {showNarrative ? (
                 <CaretUp className="h-5 w-5" aria-hidden="true" />
               ) : (
@@ -162,7 +162,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             {showNarrative ? (
               <>{recovery}{reading}</>
             ) : (
-              <p className="text-sm leading-relaxed text-[color:var(--text-muted)] line-clamp-4">
+              <p className="text-sm leading-relaxed text-(--text-muted) line-clamp-4">
                 {getNarrativePreviewText(narrativeText) || 'Tap to read the full narrative.'}
               </p>
             )}
@@ -172,7 +172,7 @@ export const NarrativeSection = memo(function NarrativeSection({
         <>
           <header className={styles.sectionHeader}>
             <div className="flex items-center gap-2">
-              <JournalNarrativeIcon className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+              <JournalNarrativeIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
               <div className={styles.sectionLabel}>Reading narrative</div>
             </div>
           </header>

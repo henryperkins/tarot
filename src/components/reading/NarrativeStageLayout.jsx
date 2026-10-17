@@ -33,7 +33,7 @@ export function NarrativeStageLayout({
     >
       <div
         className={joinClasses(
-          'scene-stage__panel relative z-[2] min-w-0 max-w-5xl mx-auto p-0 sm:p-6',
+          'scene-stage__panel relative z-2 min-w-0 max-w-5xl mx-auto p-0 sm:p-6',
           `scene-stage__panel--${panelVariant}`,
           panelClassName
         )}

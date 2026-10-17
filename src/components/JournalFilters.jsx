@@ -28,8 +28,8 @@ const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timef
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
 const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-medium transition-all ${FOCUS_RING_DEFAULT}`;
-const OUTLINE_FILTER_IDLE = 'border-[color:var(--border-warm-light)] text-muted hover:border-[color:var(--border-warm)] hover:text-main';
-const OUTLINE_FILTER_ACTIVE = 'border-[color:var(--brand-primary)] bg-[color:var(--ui-selected-bg)] text-main shadow-[var(--ui-selected-shadow-strong)]';
+const OUTLINE_FILTER_IDLE = 'border-(--border-warm-light) text-muted hover:border-(--border-warm) hover:text-main';
+const OUTLINE_FILTER_ACTIVE = 'border-(--brand-primary) bg-(--ui-selected-bg) text-main shadow-(--ui-selected-shadow-strong)';
 
 function FilterDropdown({ label, options, value, onChange, multiple = false, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -156,10 +156,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
         aria-pressed={activeCount > 0}
       >
         {multiple && <span>{label}</span>}
-        {!multiple && <span className={value !== 'all' ? 'text-[color:var(--brand-primary)]' : ''}>{displayLabel}</span>}
+        {!multiple && <span className={value !== 'all' ? 'text-(--brand-primary)' : ''}>{displayLabel}</span>}
 
         {multiple && activeCount > 0 && (
-          <span className="flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[color:var(--ui-selected-bg-strong)] px-1 text-2xs">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs">
             {activeCount}
           </span>
         )}
@@ -174,7 +174,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
           aria-multiselectable={multiple || undefined}
           className={`absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] ${
             alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
-          } rounded-xl border border-[color:var(--border-warm)] bg-[color:var(--ui-overlay-strong)] p-1.5 shadow-[var(--ui-elevated-shadow)] ring-1 ring-[color:var(--border-warm-light)] backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
+          } rounded-xl border border-(--border-warm) bg-(--ui-overlay-strong) p-1.5 shadow-(--ui-elevated-shadow) ring-1 ring-(--border-warm-light) backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
@@ -188,10 +188,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
                 aria-selected={isSelected(option.value)}
                 tabIndex={focusedOptionIndex === index ? 0 : -1}
                 onFocus={() => setFocusedOptionIndex(index)}
-                className={`flex min-h-touch w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-[color:var(--ui-selected-bg-subtle)] hover:text-accent transition-colors focus:outline-none ${FOCUS_RING_DEFAULT}`}
+                className={`flex min-h-touch w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-(--ui-selected-bg-subtle) hover:text-accent transition-colors focus:outline-hidden ${FOCUS_RING_DEFAULT}`}
               >
                 <span>{option.label}</span>
-                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" />}
+                {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-(--brand-primary)" />}
               </button>
             ))}
           </div>
@@ -451,7 +451,7 @@ export function JournalFilters({
             ].map((star, i) => (
               <div
                 key={i}
-                className="absolute rounded-full bg-[color:var(--color-gold-soft)]"
+                className="absolute rounded-full bg-(--color-gold-soft)"
                 style={{
                   left: `${star.x}%`,
                   top: `${star.y}%`,
@@ -463,8 +463,8 @@ export function JournalFilters({
               />
             ))}
           </div>
-          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-[color:var(--glow-gold)] blur-[110px]" aria-hidden="true" />
-          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-[color:var(--glow-blue)] blur-[110px]" aria-hidden="true" />
+          <div className="absolute -left-24 top-12 h-64 w-64 rounded-full bg-(--glow-gold) blur-[110px]" aria-hidden="true" />
+          <div className="absolute right-[-120px] top-1/3 h-72 w-72 rounded-full bg-(--glow-blue) blur-[110px]" aria-hidden="true" />
         </div>
       )}
 
@@ -472,15 +472,15 @@ export function JournalFilters({
       <div className="relative z-10 space-y-4">
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-2xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">Filters</p>
-            <h2 className="text-lg sm:text-xl font-serif text-[color:var(--text-main)]">Journal filters</h2>
-            <p className="text-xs text-[color:var(--text-muted)]">Refine your history.</p>
+            <p className="text-2xs uppercase tracking-[0.3em] text-(--text-muted)">Filters</p>
+            <h2 className="text-lg sm:text-xl font-serif text-(--text-main)">Journal filters</h2>
+            <p className="text-xs text-(--text-muted)">Refine your history.</p>
           </div>
           <button
             type="button"
             onClick={clearFilters}
             disabled={!activeFilters}
-            className={`inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--ui-selected-bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[color:var(--text-main)] shadow-[var(--ui-selected-shadow)] transition hover:-translate-y-0.5 ${FOCUS_RING_DEFAULT} disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none`}
+            className={`inline-flex items-center gap-2 rounded-full border border-(--border-warm) bg-(--ui-selected-bg-subtle) px-3 py-1.5 text-xs font-semibold text-(--text-main) shadow-(--ui-selected-shadow) transition hover:-translate-y-0.5 ${FOCUS_RING_DEFAULT} disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none`}
           >
             <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
             Reset view
@@ -492,12 +492,12 @@ export function JournalFilters({
             type="button"
             onClick={() => setAdvancedOpen(prev => !prev)}
             aria-expanded={advancedOpen}
-            className={`flex min-h-touch w-full items-center justify-between rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-selected-bg-faint)] px-3 py-2.5 text-xs-plus font-semibold text-main ${FOCUS_RING_DEFAULT}`}
+            className={`flex min-h-touch w-full items-center justify-between rounded-xl border border-(--border-warm-light) bg-(--ui-selected-bg-faint) px-3 py-2.5 text-xs-plus font-semibold text-main ${FOCUS_RING_DEFAULT}`}
           >
             <span className="flex items-center gap-2">
               <span>More filters</span>
               {activeFilterCount > 0 && (
-                <span className="text-2xs text-[color:var(--text-muted)]">
+                <span className="text-2xs text-(--text-muted)">
                   ({activeFilterCount} active)
                 </span>
               )}
@@ -592,7 +592,7 @@ export function JournalFilters({
 
           return (
             <>
-              <p className={`text-2xs text-[color:var(--text-muted)] ${isCompact ? 'mb-2' : 'mb-3'}`}>
+              <p className={`text-2xs text-(--text-muted) ${isCompact ? 'mb-2' : 'mb-3'}`}>
                 {isCompact ? 'Tap any card to edit filters.' : 'Tap any node to edit filters.'}
               </p>
               {/* Desktop constellation */}
@@ -681,34 +681,34 @@ export function JournalFilters({
                     >
                       <div
                         className={`relative w-[160px] overflow-hidden rounded-xl border ${
-                          isHero ? 'border-[color:var(--border-warm)] shadow-[0_20px_60px_-24px_rgba(212,184,150,0.7)]' : 'border-[color:var(--border-warm-light)] shadow-[0_16px_40px_-26px_rgba(212,184,150,0.45)]'
-                        } bg-gradient-to-b from-[var(--bg-surface-muted)] via-[var(--bg-surface)] to-[var(--bg-main)] p-[1px] transition-transform ${node.disabled ? '' : 'group-hover:-translate-y-0.5'}`}
+                          isHero ? 'border-(--border-warm) shadow-[0_20px_60px_-24px_rgba(212,184,150,0.7)]' : 'border-(--border-warm-light) shadow-[0_16px_40px_-26px_rgba(212,184,150,0.45)]'
+                        } bg-linear-to-b from-(--bg-surface-muted) via-(--bg-surface) to-(--bg-main) p-px transition-transform ${node.disabled ? '' : 'group-hover:-translate-y-0.5'}`}
                       >
-                        <div className="relative h-full rounded-[11px] bg-gradient-to-b from-[var(--bg-surface)] via-[var(--bg-surface)] to-[var(--bg-main)]">
+                        <div className="relative h-full rounded-[11px] bg-linear-to-b from-(--bg-surface) via-(--bg-surface) to-(--bg-main)">
                           <div className="pointer-events-none absolute inset-0 opacity-10">
                             <svg className="h-full w-full" aria-hidden="true">
                               <defs>
                                 <pattern id={`filters-card-${node.id}`} width="18" height="18" patternUnits="userSpaceOnUse">
-                                  <path d="M9 0L18 9L9 18L0 9Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-[color:var(--brand-primary)]" />
-                                  <circle cx="9" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-[color:var(--brand-primary)]" />
+                                  <path d="M9 0L18 9L9 18L0 9Z" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-(--brand-primary)" />
+                                  <circle cx="9" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-(--brand-primary)" />
                                 </pattern>
                               </defs>
                               <rect width="100%" height="100%" fill={`url(#filters-card-${node.id})`} />
                             </svg>
                           </div>
-                          <div className={`relative flex flex-col items-center gap-1 px-4 py-4 text-center ${isHero ? 'bg-[color:var(--ui-selected-bg-faint)]' : ''}`}>
+                          <div className={`relative flex flex-col items-center gap-1 px-4 py-4 text-center ${isHero ? 'bg-(--ui-selected-bg-faint)' : ''}`}>
                             <div
                               className={`mb-1 flex h-10 w-10 items-center justify-center rounded-full ${
                                 node.active
-                                  ? 'bg-[color:rgba(212,184,150,0.20)] text-[color:var(--brand-accent)] ring-1 ring-[color:var(--border-warm)]'
-                                  : 'bg-[color:rgba(232,218,195,0.10)] text-[color:var(--text-muted)] ring-1 ring-[color:var(--border-warm-light)]'
+                                  ? 'bg-[rgba(212,184,150,0.20)] text-(--brand-accent) ring-1 ring-(--border-warm)'
+                                  : 'bg-[rgba(232,218,195,0.10)] text-(--text-muted) ring-1 ring-(--border-warm-light)'
                               }`}
                             >
                               {node.icon}
                             </div>
-                            <p className={`text-2xs uppercase tracking-[0.24em] ${isHero ? 'text-[color:var(--brand-accent)]' : 'text-[color:var(--text-muted)]'}`}>{node.label}</p>
-                            <p className={`font-serif leading-tight ${isHero ? 'text-[color:var(--text-main)] text-xl' : 'text-[color:var(--text-main)] text-lg'}`}>{node.value}</p>
-                            <p className="text-2xs text-[color:var(--text-muted)]">{node.hint}</p>
+                            <p className={`text-2xs uppercase tracking-[0.24em] ${isHero ? 'text-(--brand-accent)' : 'text-(--text-muted)'}`}>{node.label}</p>
+                            <p className={`font-serif leading-tight ${isHero ? 'text-(--text-main) text-xl' : 'text-(--text-main) text-lg'}`}>{node.value}</p>
+                            <p className="text-2xs text-(--text-muted)">{node.hint}</p>
                           </div>
                         </div>
                       </div>
@@ -730,16 +730,16 @@ export function JournalFilters({
                     aria-label={`Edit ${node.label} filter`}
                     className={`min-w-[150px] flex-1 rounded-xl border px-4 py-3 text-left backdrop-blur-md snap-start ${FOCUS_RING_DEFAULT} ${
                       node.isHero
-                        ? 'border-[color:var(--border-warm)] bg-[color:var(--ui-selected-bg-subtle)] shadow-[var(--ui-card-shadow-strong)]'
-                        : 'border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-emphasis)] shadow-[var(--ui-card-shadow-soft)]'
+                        ? 'border-(--border-warm) bg-(--ui-selected-bg-subtle) shadow-(--ui-card-shadow-strong)'
+                        : 'border-(--border-warm-light) bg-(--ui-overlay-emphasis) shadow-(--ui-card-shadow-soft)'
                     } ${node.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                   >
-                    <div className="mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.22em] text-[color:var(--text-muted)]">
+                    <div className="mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.22em] text-(--text-muted)">
                       {node.icon}
                       <span>{node.label}</span>
                     </div>
-                    <p className="font-serif text-lg text-[color:var(--text-main)] leading-tight">{node.value}</p>
-                    <p className="text-2xs text-[color:var(--text-muted)]">{node.hint}</p>
+                    <p className="font-serif text-lg text-(--text-main) leading-tight">{node.value}</p>
+                    <p className="text-2xs text-(--text-muted)">{node.hint}</p>
                   </button>
                 ))}
               </div>
@@ -749,10 +749,10 @@ export function JournalFilters({
 
         <div className={isCompact ? 'flex flex-col gap-4' : 'grid gap-4 lg:grid-cols-[1.05fr_0.95fr]'}>
           {/* Search + saved filters */}
-          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-3 ring-1 ring-[color:var(--border-warm-light)] shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-(--border-warm-light) bg-linear-to-br from-(--panel-dark-1) via-(--panel-dark-2) to-(--panel-dark-3) p-3 ring-1 ring-(--border-warm-light) shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="space-y-1.5">
               <div className="relative min-w-[220px]">
-                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[color:var(--text-muted)]">
+                <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-(--text-muted)">
                   <JournalSearchIcon className="h-4 w-4" aria-hidden />
                 </div>
                 <input
@@ -762,20 +762,20 @@ export function JournalFilters({
                   onChange={handleQueryChange}
                   placeholder="Search readings..."
                   aria-label="Search journal entries"
-                  className={`w-full min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay)] px-8 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
+                  className={`w-full min-h-touch rounded-xl border border-(--border-warm-light) bg-(--ui-overlay) px-8 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
                 />
               </div>
 
               {/* Search feedback: result count */}
               {filters.query.trim() && typeof resultCount === 'number' && typeof totalCount === 'number' && (
-                <div className="text-xs text-[color:var(--text-muted)]">
-                  Found <span className="font-semibold text-[color:var(--text-main)]">{resultCount}</span> in {totalCount} loaded readings
+                <div className="text-xs text-(--text-muted)">
+                  Found <span className="font-semibold text-(--text-main)">{resultCount}</span> in {totalCount} loaded readings
                   {resultCount === 0 && ' - try different keywords'}
                 </div>
               )}
 
               {(searchCoverageLabel || searchScopeLabel) && (
-                <div className="flex flex-wrap items-center gap-2 text-2xs text-[color:var(--text-muted)]">
+                <div className="flex flex-wrap items-center gap-2 text-2xs text-(--text-muted)">
                   {searchCoverageLabel && (
                     <span>{searchCoverageLabel}</span>
                   )}
@@ -786,11 +786,11 @@ export function JournalFilters({
               )}
 
               {/* Search scope help */}
-              <details className="text-2xs text-[color:var(--text-muted)]">
-                <summary className={`min-h-touch cursor-pointer content-center rounded hover:text-[color:var(--text-muted)] transition-colors ${FOCUS_RING_DEFAULT}`}>
+              <details className="text-2xs text-(--text-muted)">
+                <summary className={`min-h-touch cursor-pointer content-center rounded hover:text-(--text-muted) transition-colors ${FOCUS_RING_DEFAULT}`}>
                   <span className="inline-block py-3">What fields are searched?</span>
                 </summary>
-                <ul className="mt-1.5 space-y-0.5 pl-4 text-[color:var(--text-muted)]">
+                <ul className="mt-1.5 space-y-0.5 pl-4 text-(--text-muted)">
                   <li>Questions you asked</li>
                   <li>Cards drawn (names, positions)</li>
                   <li>AI reading narratives</li>
@@ -801,12 +801,12 @@ export function JournalFilters({
             </div>
 
             {showSavedFiltersPanel && (
-              <div className="mt-3 rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-soft)] p-2.5">
-                <div className="flex items-center gap-2 text-2xs uppercase tracking-[0.25em] text-[color:var(--text-muted)]">
+              <div className="mt-3 rounded-xl border border-(--border-warm-light) bg-(--ui-overlay-soft) p-2.5">
+                <div className="flex items-center gap-2 text-2xs uppercase tracking-[0.25em] text-(--text-muted)">
                   <JournalBookmarkIcon className="h-4 w-4" aria-hidden="true" />
                   <span>Saved views</span>
                   {savedFilters.length > 0 && (
-                    <span className="ml-auto text-2xs text-[color:var(--text-muted)]">{savedFilters.length} saved</span>
+                    <span className="ml-auto text-2xs text-(--text-muted)">{savedFilters.length} saved</span>
                   )}
                 </div>
 
@@ -815,19 +815,19 @@ export function JournalFilters({
                     savedFilters.map((saved) => (
                       <div
                         key={saved.id}
-                        className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--ui-selected-bg-faint)] px-2.5 py-0.5 text-2xs text-[color:var(--text-muted)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--ui-selected-bg-faint) px-2.5 py-0.5 text-2xs text-(--text-muted)"
                       >
                         <button
                           type="button"
                           onClick={() => handleApplySaved(saved)}
                           className={`flex items-center gap-1 ${FOCUS_RING_DEFAULT}`}
                         >
-                          <span className="font-semibold text-[color:var(--text-main)]">{saved.name}</span>
+                          <span className="font-semibold text-(--text-main)">{saved.name}</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteSaved(saved.id)}
-                          className={`rounded-full px-1 text-[color:var(--text-muted)] hover:text-[color:var(--status-error)] ${FOCUS_RING_DEFAULT}`}
+                          className={`rounded-full px-1 text-(--text-muted) hover:text-(--status-error) ${FOCUS_RING_DEFAULT}`}
                           aria-label={`Delete saved filter ${saved.name}`}
                         >
                           <span aria-hidden="true">×</span>
@@ -835,7 +835,7 @@ export function JournalFilters({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[color:var(--text-muted)]">No saved views yet.</p>
+                    <p className="text-xs text-(--text-muted)">No saved views yet.</p>
                   )}
                 </div>
 
@@ -845,9 +845,9 @@ export function JournalFilters({
                       <button
                         type="button"
                         onClick={() => setSavePanelOpen(true)}
-                        className={`inline-flex min-h-touch items-center gap-2 rounded-xl border border-[color:var(--border-warm)] bg-[color:var(--ui-selected-bg-subtle)] px-3 py-2 text-xs-plus font-semibold text-main shadow-[var(--ui-selected-shadow-soft)] transition hover:-translate-y-0.5 ${FOCUS_RING_DEFAULT}`}
+                        className={`inline-flex min-h-touch items-center gap-2 rounded-xl border border-(--border-warm) bg-(--ui-selected-bg-subtle) px-3 py-2 text-xs-plus font-semibold text-main shadow-(--ui-selected-shadow-soft) transition hover:-translate-y-0.5 ${FOCUS_RING_DEFAULT}`}
                       >
-                        <JournalBookmarkIcon className="h-4 w-4 text-[color:var(--brand-accent)]" aria-hidden="true" />
+                        <JournalBookmarkIcon className="h-4 w-4 text-(--brand-accent)" aria-hidden="true" />
                         Save this view
                       </button>
                     ) : (
@@ -859,7 +859,7 @@ export function JournalFilters({
                           onChange={(event) => setNewFilterName(event.target.value)}
                           placeholder="Name this view"
                           aria-label="Name for saved filter view"
-                          className={`flex-1 min-h-touch rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-soft)] px-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
+                          className={`flex-1 min-h-touch rounded-xl border border-(--border-warm-light) bg-(--ui-overlay-soft) px-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`}
                         />
                         <div className="flex items-center gap-2">
                           <button
@@ -890,7 +890,7 @@ export function JournalFilters({
           </div>
 
           {/* Filter toggles */}
-          <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-gradient-to-br from-[var(--panel-dark-1)] via-[var(--panel-dark-2)] to-[var(--panel-dark-3)] p-3 ring-1 ring-[color:var(--border-warm-light)] shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
+          <div className="rounded-2xl border border-(--border-warm-light) bg-linear-to-br from-(--panel-dark-1) via-(--panel-dark-2) to-(--panel-dark-3) p-3 ring-1 ring-(--border-warm-light) shadow-[0_18px_45px_-30px_rgba(0,0,0,0.8)]">
             <div className="flex flex-wrap items-center gap-2">
               <FilterDropdown
                 label="Timeframe"
@@ -934,7 +934,7 @@ export function JournalFilters({
                 />
               )}
 
-              <div className="hidden h-6 w-px bg-[color:var(--border-warm-light)] sm:block" />
+              <div className="hidden h-6 w-px bg-(--border-warm-light) sm:block" />
 
               <button
                 ref={reversalsButtonRef}
@@ -949,11 +949,11 @@ export function JournalFilters({
 
               {onViewModeChange && (
                 <>
-                  <div className="hidden h-6 w-px bg-[color:var(--border-warm-light)] sm:block" />
+                  <div className="hidden h-6 w-px bg-(--border-warm-light) sm:block" />
 
                   {/* View mode toggle */}
                   <div
-                    className="inline-flex rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--ui-overlay-muted)] p-0.5"
+                    className="inline-flex rounded-xl border border-(--border-warm-light) bg-(--ui-overlay-muted) p-0.5"
                     role="group"
                     aria-label="List view mode"
                   >
@@ -964,8 +964,8 @@ export function JournalFilters({
                       title="Comfortable view - shows more details"
                     className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all ${FOCUS_RING_DEFAULT} ${
                       viewMode === 'comfortable'
-                        ? 'bg-[color:var(--ui-selected-bg)] text-[color:var(--text-main)] shadow-[var(--ui-card-shadow-soft)]'
-                        : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
+                        ? 'bg-(--ui-selected-bg) text-(--text-main) shadow-(--ui-card-shadow-soft)'
+                        : 'text-(--text-muted) hover:text-(--text-main)'
                     }`}
                   >
                       <SquaresFour className="h-4 w-4" aria-hidden="true" />
@@ -979,8 +979,8 @@ export function JournalFilters({
                       title="Compact view - shows more entries"
                     className={`flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs-plus font-medium transition-all ${FOCUS_RING_DEFAULT} ${
                       viewMode === 'compact'
-                        ? 'bg-[color:var(--ui-selected-bg)] text-[color:var(--text-main)] shadow-[var(--ui-card-shadow-soft)]'
-                        : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-main)]'
+                        ? 'bg-(--ui-selected-bg) text-(--text-main) shadow-(--ui-card-shadow-soft)'
+                        : 'text-(--text-muted) hover:text-(--text-main)'
                     }`}
                   >
                       <ListBullets className="h-4 w-4" aria-hidden="true" />
@@ -991,7 +991,7 @@ export function JournalFilters({
                 </>
               )}
             </div>
-            <p className="mt-3 text-2xs uppercase tracking-[0.22em] text-[color:var(--text-muted)]">
+            <p className="mt-3 text-2xs uppercase tracking-[0.22em] text-(--text-muted)">
               Tip: combine filters to surface exact readings you want.
             </p>
           </div>

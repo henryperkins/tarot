@@ -17,7 +17,7 @@ function UsageBadge({ state, children }) {
 
   // Keep the opaque status pair above the panel's decorative grain.
   return (
-    <span className={`relative z-[1] inline-block max-w-full break-words rounded-full border px-[min(0.625rem,10px)] py-1 text-sm font-semibold leading-snug sm:px-2.5 ${USAGE_BADGE_CLASSES[state]}`}>
+    <span className={`relative z-1 inline-block max-w-full wrap-break-word rounded-full border px-[min(0.625rem,10px)] py-1 text-sm font-semibold leading-snug sm:px-2.5 ${USAGE_BADGE_CLASSES[state]}`}>
       <Icon className="inline h-[16px] w-[16px] align-middle" weight="bold" aria-hidden="true" />{' '}
       {children}
     </span>
@@ -68,13 +68,13 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
               <h3 className="text-sm font-semibold text-main">{group.label}</h3>
               <ul className="mt-2 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {usage.rows.filter(row => row.group === group.key).map((row) => (
-                  <li key={row.label} className="min-w-0 border-t border-[color:var(--border-warm-light)] pt-3">
+                  <li key={row.label} className="min-w-0 border-t border-(--border-warm-light) pt-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="min-w-0 max-w-full break-words text-sm font-semibold text-main leading-snug">{row.label}</p>
+                      <p className="min-w-0 max-w-full wrap-break-word text-sm font-semibold text-main leading-snug">{row.label}</p>
                       <UsageBadge state={row.state}>{row.badgeText}</UsageBadge>
                     </div>
                     {row.detail && (
-                      <p className="mt-1.5 text-sm text-muted leading-relaxed break-words">
+                      <p className="mt-1.5 text-sm text-muted leading-relaxed wrap-break-word">
                         {row.detail}
                       </p>
                     )}

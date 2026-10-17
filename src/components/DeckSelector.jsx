@@ -21,7 +21,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   const sizes = '(min-width: 1024px) 280px, (min-width: 640px) 42vw, 60vw';
 
   return (
-    <div className="relative aspect-[982/799] overflow-hidden rounded-[14px] bg-main mb-1">
+    <div className="relative aspect-982/799 overflow-hidden rounded-[14px] bg-main mb-1">
       <picture className="block h-full w-full">
         {(preview.sources || []).map(source => (
           <source key={source.type} type={source.type} srcSet={source.srcSet} sizes={sizes} />
@@ -42,7 +42,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
         />
       </picture>
       <div
-        className="pointer-events-none absolute inset-0 rounded-[14px] border border-[color:var(--border-warm-light)] shadow-[0_0_0_1px_var(--border-warm-subtle)]"
+        className="pointer-events-none absolute inset-0 rounded-[14px] border border-(--border-warm-light) shadow-[0_0_0_1px_var(--border-warm-subtle)]"
         aria-hidden="true"
       />
     </div>
@@ -184,7 +184,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             className={`
               absolute left-0 top-0 bottom-3 w-8 z-10
               pointer-events-none
-              bg-gradient-to-r from-[color:var(--panel-dark-1)]/90 to-transparent
+              bg-linear-to-r from-(--panel-dark-1)/90 to-transparent
               rounded-l-2xl
               transition-opacity duration-200
               sm:hidden
@@ -198,7 +198,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
             className={`
               absolute right-0 top-0 bottom-3 w-12 z-10
               pointer-events-none
-              bg-gradient-to-l from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
+              bg-linear-to-l from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
               rounded-r-2xl
               transition-opacity duration-200
               sm:hidden
@@ -243,13 +243,13 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                   tabIndex={isTabbable ? 0 : -1}
                   onClick={() => onDeckChange(deck.id)}
                   onKeyDown={(e) => handleKeyDown(e, deck.id)}
-                  className="flex w-full flex-1 flex-col gap-3 rounded-xl text-left cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                  className="flex w-full flex-1 flex-col gap-3 rounded-xl text-left cursor-pointer select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 >
                   {isSelected && (
                     <>
                       <div className="absolute top-3 right-3 z-20">
                         <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
+                          className="w-7 h-7 rounded-full flex items-center justify-center border border-(--border-warm-light)"
                           style={{
                             backgroundColor: 'var(--brand-primary)',
                             boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
@@ -278,11 +278,11 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                     priority={index === 0 ? 'high' : 'low'}
                   />
 
-                  <div className="min-w-0 pr-1 [overflow-wrap:anywhere]">
+                  <div className="min-w-0 pr-1 wrap-anywhere">
                     <div className="deck-card__title font-serif text-accent text-lg font-semibold leading-tight text-balance">
                       {deck.label}
                     </div>
-                    <div className="mt-1 mb-2 text-xs font-medium uppercase tracking-[0.1em] leading-normal text-muted">
+                    <div className="mt-1 mb-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
                       {deck.subtitle}
                     </div>
                     <p className="deck-card__description text-sm text-muted leading-normal text-pretty">

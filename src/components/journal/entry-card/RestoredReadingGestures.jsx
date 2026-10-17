@@ -175,10 +175,10 @@ export function SavedVisualRecovery({ entry, onRetry = null, handleRevision = 0,
   if (!gestureStudyEnabled || !requestsEnabled || recovery.phase === 'none' || (recovery.phase === 'complete' && !showReady && !visibleNotice)) return null;
   const message = visibleNotice || RECOVERY_COPY[recovery.phase];
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--border-warm-subtle)] bg-[color:var(--panel-dark-2)] px-3 py-2"
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-(--border-warm-subtle) bg-(--panel-dark-2) px-3 py-2"
       data-testid="saved-visual-recovery" data-recovery-phase={recovery.phase}>
       <p ref={statusRef} tabIndex={-1} role="status" aria-live="polite"
-        className="min-w-0 flex-1 text-sm leading-relaxed text-[color:var(--text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">
+        className="min-w-0 flex-1 text-sm leading-relaxed text-(--text-muted) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)">
         {message}
       </p>
       {recovery.canRetry && onRetry ? (

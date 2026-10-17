@@ -58,7 +58,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     <div className={cn(
       'relative z-10',
       headerPadding,
-      isExpanded && 'border-b border-[color:var(--border-warm-subtle)]'
+      isExpanded && 'border-b border-(--border-warm-subtle)'
     )}>
       <div className="flex flex-wrap items-start gap-3">
         {/* Main clickable area */}
@@ -69,14 +69,14 @@ export const ComfortableHeader = memo(function ComfortableHeader({
           aria-controls={entryContentId}
           title={isExpanded ? 'Collapse entry' : 'Expand entry'}
           className={cn(
-            'group flex min-w-0 flex-[1_1_14rem] rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+            'group flex min-w-0 flex-[1_1_14rem] rounded-2xl px-1 py-1 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
             isCompactView ? 'flex-row items-start gap-3' : 'flex-col gap-3'
           )}
         >
           <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
             {/* Expand/collapse icon */}
             <span className={cn(
-              'mt-0.5 flex shrink-0 items-center justify-center rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] text-[color:var(--text-muted)] shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover:border-[color:var(--border-warm)]',
+              'mt-0.5 flex shrink-0 items-center justify-center rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-2) text-(--text-muted) shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover:border-(--border-warm)',
               isCompactView ? 'h-8 w-8 rounded-xl shadow-[0_10px_18px_-12px_rgba(0,0,0,0.6)]' : 'h-10 w-10'
             )}>
               {isExpanded ? (
@@ -89,11 +89,11 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             <div className="min-w-0 flex-[1_1_10rem]">
               {isCompactView ? (
                 <>
-                  <h3 className="min-w-0 break-words text-sm font-semibold text-accent">
+                  <h3 className="min-w-0 wrap-break-word text-sm font-semibold text-accent">
                     {entry.spread || entry.spreadName || 'Reading'}
                   </h3>
                   {timestampLabel && (
-                    <p className="mt-1 break-words text-2xs text-muted">
+                    <p className="mt-1 wrap-break-word text-2xs text-muted">
                       {timestampLabel}
                     </p>
                   )}
@@ -101,19 +101,19 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               ) : (
                 <>
                   {/* Meta row */}
-                  <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-[0.3em] text-[color:var(--text-muted)]">
+                  <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-[0.3em] text-(--text-muted)">
                     {timestampLabel && (
                       <span
-                        className="inline-flex items-center rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 normal-case tracking-normal"
+                        className="inline-flex items-center rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 normal-case tracking-normal"
                         title={timestampTitle}
                       >
                         {timestampLabel}
                       </span>
                     )}
                     {deckLabel && (
-                      <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-[color:var(--border-warm-subtle)] px-2 py-0.5">
+                      <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-(--border-warm-subtle) px-2 py-0.5">
                         Deck
-                        <span className="min-w-0 break-words normal-case text-[color:var(--text-main)]">
+                        <span className="min-w-0 wrap-break-word normal-case text-(--text-main)">
                           {deckLabel}
                         </span>
                       </span>
@@ -121,7 +121,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   </div>
 
                   {/* Title */}
-                  <h3 className="mt-1 min-w-0 break-words font-serif text-lg sm:text-xl text-[color:var(--brand-primary)] tracking-[0.04em] leading-snug">
+                  <h3 className="mt-1 min-w-0 wrap-break-word font-serif text-lg sm:text-xl text-(--brand-primary) tracking-[0.04em] leading-snug">
                     {entry.spread || entry.spreadName || 'Tarot Reading'}
                   </h3>
                 </>
@@ -145,7 +145,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                 )}
                 {hasReflections && (
                   <span className={cn(styles.pill, 'whitespace-nowrap')}>
-                    <JournalCommentAddIcon className="h-3 w-3 text-[color:var(--brand-primary)]" aria-hidden="true" />
+                    <JournalCommentAddIcon className="h-3 w-3 text-(--brand-primary)" aria-hidden="true" />
                     {reflections.length}
                   </span>
                 )}
@@ -153,7 +153,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
               {/* Card preview chips */}
               {cardPreview.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 text-2xs text-[color:var(--text-muted)]">
+                <div className="flex flex-wrap items-center gap-1.5 text-2xs text-(--text-muted)">
                   {cardPreview.map((card, idx) => {
                     const name = card.displayName || card.name || 'Card';
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
@@ -162,8 +162,8 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                         key={`${card.name || 'card'}-${idx}`}
                         className={cn(styles.cardChip, 'min-w-0 flex-wrap')}
                       >
-                        <JournalCardIcon className="h-3 w-3 shrink-0 text-[color:var(--text-muted)]" aria-hidden="true" />
-                        <span className="min-w-0 flex-auto break-words text-2xs text-[color:var(--text-main)]">
+                        <JournalCardIcon className="h-3 w-3 shrink-0 text-(--text-muted)" aria-hidden="true" />
+                        <span className="min-w-0 flex-auto wrap-break-word text-2xs text-(--text-main)">
                           {name}
                         </span>
                         {reversed && (
@@ -173,7 +173,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     );
                   })}
                   {cards.length > cardPreview.length && (
-                    <span className="text-2xs text-[color:var(--text-muted)]">
+                    <span className="text-2xs text-(--text-muted)">
                       +{cards.length - cardPreview.length} more
                     </span>
                   )}

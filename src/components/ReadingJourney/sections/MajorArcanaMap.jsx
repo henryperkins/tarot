@@ -71,7 +71,7 @@ function MajorArcanaMap({ data = [] }) {
           aria-label="Major Arcana 0 to 10"
           tabIndex={0}
           onKeyDown={handleRowKeyDown}
-          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
+          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)"
         >
           {ROMAN_NUMERALS.slice(0, 11).map((numeral, index) => {
             const count = countMap.get(index) || 0;
@@ -80,7 +80,7 @@ function MajorArcanaMap({ data = [] }) {
                 key={index}
                 role="img"
                 className={`
-                  flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
+                  shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors
                   ${count > 0 ? 'text-main' : 'text-muted/50'}
                 `}
@@ -100,7 +100,7 @@ function MajorArcanaMap({ data = [] }) {
           aria-label="Major Arcana 11 to 21"
           tabIndex={0}
           onKeyDown={handleRowKeyDown}
-          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--focus-ring-color)]"
+          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)"
         >
           {ROMAN_NUMERALS.slice(11).map((numeral, i) => {
             const index = i + 11;
@@ -110,7 +110,7 @@ function MajorArcanaMap({ data = [] }) {
                 key={index}
                 role="img"
                 className={`
-                  flex-shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
+                  shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors
                   ${count > 0 ? 'text-main' : 'text-muted/50'}
                 `}

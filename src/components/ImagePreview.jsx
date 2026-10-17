@@ -88,7 +88,7 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
         <button
           type="button"
           onClick={onRetake}
-          className="min-h-cta min-w-[100px] px-6 py-3 text-lg text-main font-semibold rounded-lg border border-secondary/40 hover:bg-secondary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
+          className="min-h-cta min-w-[100px] px-6 py-3 text-lg text-main font-semibold rounded-lg border border-secondary/40 hover:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
         >
           Retake
         </button>
@@ -96,7 +96,7 @@ export function ImagePreview({ image, onConfirm, onRetake }) {
           ref={confirmButtonRef}
           type="button"
           onClick={onConfirm}
-          className="min-h-cta min-w-[120px] px-6 py-3 text-lg text-surface font-semibold bg-secondary hover:bg-secondary/90 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
+          className="min-h-cta min-w-[120px] px-6 py-3 text-lg text-surface font-semibold bg-secondary hover:bg-secondary/90 rounded-lg focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main transition-colors touch-manipulation"
         >
           Use Photo
         </button>

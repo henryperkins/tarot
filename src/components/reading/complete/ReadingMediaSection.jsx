@@ -27,7 +27,7 @@ export function ReadingMediaSection({
 
     return (
         <div className={`${READING_PANEL_COLUMN_CLASS} mt-6 sm:mt-8`}>
-            <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
+            <div className="panel-mystic rounded-2xl border border-(--border-warm-light) p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="min-w-0 space-y-1">
                         <h2 className="flex items-center gap-2 text-base font-semibold text-main">

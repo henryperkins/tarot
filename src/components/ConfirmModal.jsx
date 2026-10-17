@@ -74,7 +74,7 @@ export function ConfirmModal({
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -99,14 +99,14 @@ export function ConfirmModal({
             <button
               ref={cancelButtonRef}
               onClick={onClose}
-              className="w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition text-sm font-medium touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               {cancelText}
             </button>
             <button
               onClick={handleConfirm}
               disabled={confirming}
-              className={`w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${confirming ? 'opacity-70 cursor-not-allowed' : ''}`}
+              className={`w-full xs:w-auto px-4 py-2.5 min-h-touch rounded-lg border ${buttonStyles[variant]} transition text-sm font-medium touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${confirming ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {confirmText}
             </button>

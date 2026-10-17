@@ -69,7 +69,7 @@ export function UpgradeNudge({
           <button
             type="button"
             onClick={handleUpgrade}
-            className="ml-auto min-h-touch px-2 inline-flex items-center text-xs font-semibold text-accent hover:text-accent/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+            className="ml-auto min-h-touch px-2 inline-flex items-center text-xs font-semibold text-accent hover:text-accent/80 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
           >
             Upgrade
           </button>
@@ -81,7 +81,7 @@ export function UpgradeNudge({
   // Banner variant - full-width, more prominent
   if (variant === 'banner') {
     return (
-      <div className={`rounded-2xl border border-accent/30 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent p-4 ${className}`}>
+      <div className={`rounded-2xl border border-accent/30 bg-linear-to-r from-accent/10 via-accent/5 to-transparent p-4 ${className}`}>
         <div className="flex items-start gap-3">
           <div className="rounded-full bg-accent/20 p-2 shrink-0">
             <Sparkle className="h-5 w-5 text-accent" weight="fill" />
@@ -98,7 +98,7 @@ export function UpgradeNudge({
             <button
               type="button"
               onClick={handleUpgrade}
-              className={`inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent/10 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent/10 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}`}
             >
               <Crown className="h-4 w-4" weight="fill" />
               Upgrade
@@ -107,7 +107,7 @@ export function UpgradeNudge({
               <button
                 type="button"
                 onClick={handleDismiss}
-                className="rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 aria-label="Dismiss"
               >
                 <X className="h-4 w-4" />
@@ -128,7 +128,7 @@ export function UpgradeNudge({
             <button
               type="button"
               onClick={handleDismiss}
-              className="absolute right-4 top-4 rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="absolute right-4 top-4 rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -153,7 +153,7 @@ export function UpgradeNudge({
               <button
                 type="button"
                 onClick={handleUpgrade}
-                className={`w-full inline-flex items-center justify-center gap-2 rounded-full border border-accent bg-accent px-6 py-3 text-base font-semibold text-main transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}`}
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-full border border-accent bg-accent px-6 py-3 text-base font-semibold text-main transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${prefersReducedMotion ? '' : 'hover:scale-[1.02]'}`}
               >
                 <Crown className="h-5 w-5" weight="fill" />
                 Upgrade to {tierConfig.label} - ${tierConfig.price}/mo

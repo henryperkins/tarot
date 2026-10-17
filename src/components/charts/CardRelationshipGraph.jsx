@@ -42,7 +42,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
   };
 
   return (
-    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-[color:var(--border-warm-subtle)]">
+    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-(--border-warm-subtle)">
       <h4 className="text-xs font-bold uppercase tracking-widest text-muted mb-2">Pattern Web</h4>
       <div style={{ width: '100%', height: '180px' }}>
         <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
@@ -111,11 +111,11 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
       </div>
       <div className="flex gap-4 mt-2 text-2xs text-muted">
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] rounded-sm"></span>
+          <span className="w-2 h-2 bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-sm"></span>
           Triad
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-0.5 border-t border-[color:var(--border-warm-light)] border-dashed"></span>
+          <span className="w-3 h-0.5 border-t border-(--border-warm-light) border-dashed"></span>
           Dyad
         </span>
       </div>

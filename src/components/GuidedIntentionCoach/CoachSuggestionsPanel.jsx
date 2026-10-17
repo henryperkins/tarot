@@ -90,7 +90,7 @@ export function CoachSuggestionsPanel({
         </div>
       </div>
       {isSuggestionsExpanded && (
-        <div id={`${idPrefix}-list`} className="grid gap-3 sm:grid-cols-2 max-h-[16rem] sm:max-h-[20rem] overflow-y-auto pr-1 scrollbar-themed">
+        <div id={`${idPrefix}-list`} className="grid gap-3 sm:grid-cols-2 max-h-64 sm:max-h-80 overflow-y-auto pr-1 scrollbar-themed">
           {visibleSuggestions.map((suggestion, index) => {
             const preview = buildSuggestionPreview(suggestion);
             const chips = [
@@ -115,15 +115,15 @@ export function CoachSuggestionsPanel({
               >
                 <span className="flex items-start justify-between gap-2">
                   <span className="min-w-0">
-                    <span id={labelId} className="block text-sm font-semibold text-main break-words">{suggestion.label}</span>
+                    <span id={labelId} className="block text-sm font-semibold text-main wrap-break-word">{suggestion.label}</span>
                     {suggestion.helper && (
-                      <span id={helperId} className="mt-1 block text-xs text-secondary break-words">{suggestion.helper}</span>
+                      <span id={helperId} className="mt-1 block text-xs text-secondary wrap-break-word">{suggestion.helper}</span>
                     )}
                   </span>
                   <span className="shrink-0 text-2xs uppercase tracking-[0.3em] text-secondary" aria-hidden="true">Use</span>
                 </span>
                 {preview && (
-                  <span id={previewId} className="mt-2 block text-sm text-main break-words">{preview}</span>
+                  <span id={previewId} className="mt-2 block text-sm text-main wrap-break-word">{preview}</span>
                 )}
                 {chips.length > 0 && (
                   <span className="mt-2 flex flex-wrap gap-2 text-2xs uppercase tracking-[0.3em] text-secondary" aria-hidden="true">

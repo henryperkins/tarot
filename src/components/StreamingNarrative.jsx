@@ -573,7 +573,7 @@ export function StreamingNarrative({
       <button
         type="button"
         onClick={handleEnableStreaming}
-        className="min-h-touch w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+        className="min-h-touch w-full rounded-full border border-secondary/40 bg-secondary/20 px-4 py-2 text-xs-plus font-semibold text-secondary shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary"
       >
         Play typing effect
       </button>
@@ -592,7 +592,7 @@ export function StreamingNarrative({
       <button
         type="button"
         onClick={handleSkip}
-        className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-sm backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+        className="min-h-touch w-full max-w-sm sm:max-w-none px-4 xs:px-5 py-2.5 text-sm font-semibold rounded-full bg-surface-muted/90 border border-secondary/40 text-secondary hover:bg-surface-muted hover:border-secondary/60 shadow-lg sm:shadow-xs backdrop-blur-sm transition-all touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
         aria-label="Show full narrative immediately"
       >
         <span className="inline-flex items-center justify-center gap-2">
@@ -612,7 +612,7 @@ export function StreamingNarrative({
   ) : null;
   const atmosphereHostClass = withAtmosphere ? 'narrative-atmosphere-host' : '';
   const narrativeBody = useMarkdown ? (
-    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-24 xxs:min-h-30 md:min-h-40 narrative-stream__text narrative-stream__text--md ${atmosphereHostClass} ${textBottomPaddingClass}`}>
       {atmosphereDecoration}
       <MarkdownRenderer
         className="narrative-stream__markdown"
@@ -627,7 +627,7 @@ export function StreamingNarrative({
       />
     </div>
   ) : (
-    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-22 xxs:min-h-30 md:min-h-40 narrative-stream__text narrative-stream__text--plain ${atmosphereHostClass} ${textBottomPaddingClass}`}>
       {atmosphereDecoration}
       {visibleWords.map((word, idx) => {
         const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };

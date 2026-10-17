@@ -81,7 +81,7 @@ function SeasonSummary({
   };
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 border border-primary/10">
+    <div className="rounded-xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent p-4 border border-primary/10">
       {/* Season Label */}
       {seasonWindow && (
         <p className="text-sm sm:text-xs text-muted mb-2">{formatSeasonLabel()}</p>

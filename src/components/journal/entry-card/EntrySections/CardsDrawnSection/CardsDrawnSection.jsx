@@ -41,7 +41,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
           <span className="text-xs text-muted">0</span>
         </header>
         <div className={styles.sectionBody}>
-          <p className="text-sm text-[color:var(--text-muted)]">No cards recorded for this entry.</p>
+          <p className="text-sm text-(--text-muted)">No cards recorded for this entry.</p>
         </div>
       </section>
     );
@@ -61,7 +61,7 @@ export const CardsDrawnSection = memo(function CardsDrawnSection({
             <div className={styles.sectionLabel}>Cards drawn</div>
             <span className="text-xs text-muted">({cardItems.length})</span>
           </div>
-          <div className="text-[color:var(--text-muted)]">
+          <div className="text-(--text-muted)">
             {cardFan.showExpanded ? (
               <CaretUp className="h-5 w-5" aria-hidden="true" />
             ) : (

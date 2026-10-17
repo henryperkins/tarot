@@ -214,7 +214,7 @@ export function AtmosphericInterlude({
       </div>
 
       {!prefersReducedMotion && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-[2]">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-2">
           {Array.from({ length: 12 }).map((_, i) => (
             <OrbitSymbol key={i} index={i} />
           ))}

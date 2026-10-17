@@ -34,7 +34,7 @@ export function InterludeScene({
       className={`scene-shell scene-stage scene-stage--interlude relative px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
       data-scene="interlude"
     >
-      <div className="relative z-[2] max-w-3xl mx-auto">
+      <div className="relative z-2 max-w-3xl mx-auto">
         <ReadingPreparationScreen cards={spreadCards} spreadName={spreadName} question={userQuestion}
           onSelectCard={onSelectCard} onCancel={onCancel} />
       </div>

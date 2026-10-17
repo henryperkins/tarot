@@ -82,7 +82,7 @@ function CelticCrossMiniMap({ activeIndex, totalCards }) {
     <div className="flex items-center gap-3 px-4 py-2 bg-surface/80 backdrop-blur rounded-xl border border-secondary/30">
       {/* Mini grid visualization */}
       <div
-        className="relative w-16 flex-shrink-0"
+        className="relative w-16 shrink-0"
         style={{ aspectRatio: `${MINIMAP_GRID_WIDTH} / ${MINIMAP_GRID_HEIGHT}` }}
         aria-hidden="true"
       >
@@ -192,10 +192,10 @@ export function ReadingGrid({
 
   // In landscape mobile: use smaller card widths to fit more cards visible
   const carouselCardWidthClass = isLandscape
-    ? 'min-w-[44vw] max-w-[11.5rem]'
+    ? 'min-w-[44vw] max-w-46'
     : isVerySmallScreen
-      ? 'min-w-[82vw] max-w-[17.5rem]'
-      : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-[18.5rem]';
+      ? 'min-w-[82vw] max-w-70'
+      : 'min-w-[72vw] xxs:min-w-[66vw] xs:min-w-[60vw] max-w-74';
   const mobileCarouselPadding = isLandscape ? 'px-2' : 'px-3 xxs:px-4';
 
   // Keep only one mobile reflection open at a time; default to the first card with notes.
@@ -520,7 +520,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={!isListView}
                 onClick={() => handleLayoutToggle('carousel')}
-                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${isListView ? 'border-secondary/40 text-muted' : 'border-primary/60 bg-primary/10 text-primary'}`}
               >
                 Swipe view
               </button>
@@ -528,7 +528,7 @@ export function ReadingGrid({
                 type="button"
                 aria-pressed={isListView}
                 onClick={() => handleLayoutToggle('list')}
-                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
+                className={`flex-1 min-h-touch rounded-full border px-3 py-2 text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${isListView ? 'border-primary/60 bg-primary/10 text-primary' : 'border-secondary/40 text-muted'}`}
               >
                 List view
               </button>
@@ -562,7 +562,7 @@ export function ReadingGrid({
                   type="button"
                   onClick={() => scrollToIndex(activeIndex - 1)}
                   disabled={activeIndex === 0}
-                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show previous card"
                 >
                   {isLandscape ? '←' : 'Prev'}
@@ -576,7 +576,7 @@ export function ReadingGrid({
                   type="button"
                   onClick={() => scrollToIndex(activeIndex + 1)}
                   disabled={activeIndex >= visibleCount - 1}
-                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+                  className={`inline-flex items-center justify-center rounded-full border border-secondary/50 bg-surface ${isLandscape ? 'px-2 py-1 min-w-touch min-h-touch' : 'px-3 py-2 min-w-touch min-h-touch'} text-xs font-semibold text-muted disabled:opacity-40 touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary`}
                   aria-label="Show next card"
                 >
                   {isLandscape ? '→' : 'Next'}

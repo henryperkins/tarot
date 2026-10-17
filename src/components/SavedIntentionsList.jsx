@@ -185,7 +185,7 @@ export function SavedIntentionsList({
                 type="button"
                 onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
                 disabled={page === 0}
-                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 aria-label="Previous intentions page"
               >
                 <CaretLeft className="h-4 w-4" />
@@ -198,7 +198,7 @@ export function SavedIntentionsList({
                 type="button"
                 onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
                 disabled={page === totalPages - 1}
-                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 aria-label="Next intentions page"
               >
                 Next

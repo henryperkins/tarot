@@ -17,7 +17,7 @@ function PatternsSnapshotPanel({
   onClose,
 }) {
   return (
-    <div className="rounded-2xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 space-y-4">
+    <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-high">
@@ -31,7 +31,7 @@ function PatternsSnapshotPanel({
         <button
           type="button"
           onClick={onClose}
-          className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted hover:text-main hover:bg-[color:var(--border-warm-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+          className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted hover:text-main hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           aria-label="Close full patterns snapshot"
         >
           <X className="h-3.5 w-3.5" />
@@ -51,7 +51,7 @@ function PatternsSnapshotPanel({
             {themes.map((theme, i) => (
               <span
                 key={`${theme}-${i}`}
-                className="rounded-full bg-[color:var(--panel-dark-3)] px-2.5 py-1 text-xs text-muted-high"
+                className="rounded-full bg-(--panel-dark-3) px-2.5 py-1 text-xs text-muted-high"
               >
                 {theme}
               </span>

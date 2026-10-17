@@ -97,9 +97,9 @@ const STYLE_VARIANTS = {
     blockquote:
       'border-l-2 border-secondary/40 pl-4 xs:pl-5 italic text-accent/85 my-4 xs:my-5',
     inlineCode:
-      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs-plus xs:text-sm font-mono break-words',
+      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs-plus xs:text-sm font-mono wrap-break-word',
     codeBlock:
-      'block p-3 text-xs xs:text-sm font-mono whitespace-pre-wrap break-words',
+      'block p-3 text-xs xs:text-sm font-mono whitespace-pre-wrap wrap-break-word',
     pre: 'bg-surface-muted/50 rounded-lg overflow-x-auto my-3 xs:my-4 border border-secondary/20 max-w-full',
     hr: 'border-secondary/30 my-6 xs:my-8',
     tableWrapper: 'overflow-x-auto my-4 xs:my-5 -mx-1 px-1',
@@ -123,8 +123,8 @@ const STYLE_VARIANTS = {
     list: 'list-disc pl-5 space-y-1.5 text-base leading-relaxed',
     blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-accent/85 my-3 text-base',
     inlineCode:
-      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs font-mono break-words',
-    codeBlock: 'block p-2 text-xs font-mono whitespace-pre-wrap break-words',
+      'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs font-mono wrap-break-word',
+    codeBlock: 'block p-2 text-xs font-mono whitespace-pre-wrap wrap-break-word',
     pre: 'bg-surface-muted/50 rounded-lg overflow-x-auto my-2 border border-secondary/20 max-w-full',
     hr: 'border-secondary/30 my-3',
     tableWrapper: 'overflow-x-auto my-2 -mx-1 px-1',
@@ -425,7 +425,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
           a: ({ node: _node, ...props }) => (
             <a
               {...props}
-              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary break-words overflow-wrap-anywhere"
+              className="text-secondary underline decoration-dotted underline-offset-4 hover:text-secondary wrap-break-word overflow-wrap-anywhere"
               target="_blank"
               rel="noopener noreferrer"
             />

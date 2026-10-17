@@ -17,7 +17,7 @@ export function ContinueConversationSection({
 
     return (
         <div className={`${READING_PANEL_COLUMN_CLASS} mt-6`}>
-            <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
+            <div className="panel-mystic rounded-2xl border border-(--border-warm-light) p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h2 className="text-base font-semibold text-main">Continue the conversation</h2>
@@ -26,7 +26,7 @@ export function ContinueConversationSection({
                     <button
                         type="button"
                         onClick={(event) => setFollowUpOpen?.(true, event)}
-                        className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                        className="min-h-touch min-w-touch inline-flex items-center gap-2 rounded-full bg-accent/15 border border-accent/40 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50"
                     >
                         <ChatCircle className="w-4 h-4" weight="fill" aria-hidden="true" />
                         <span>Open chat</span>

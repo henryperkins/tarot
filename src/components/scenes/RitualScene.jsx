@@ -41,7 +41,7 @@ export function RitualScene({
       className={`scene-stage scene-stage--ritual relative min-h-[320px] px-3 xs:px-4 sm:px-6 py-6 sm:py-8 ${className}`}
       data-scene="ritual"
     >
-      <div className="scene-stage__panel scene-stage__panel--ritual relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
+      <div className="scene-stage__panel scene-stage__panel--ritual relative z-2 max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-4">{title}</h2> : null}
 
         {shouldShowRitualNudge && !newDeckInterface && knockCount === 0 && !hasCut && (

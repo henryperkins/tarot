@@ -49,7 +49,11 @@ export default {
         // Short viewport (useful for foldables and small tablets in landscape)
         'short': { 'raw': '(max-height: 600px)' },
       },
+      // Named utilities keep v3 defaults; explicit app variables remain separate.
+      transitionTimingFunction: { out: 'cubic-bezier(0, 0, 0.2, 1)' },
       colors: {
+        white: '#fff',
+        black: '#000',
         // Elegant Minimal Palette
         charcoal: 'var(--color-charcoal)',
         slate: {
@@ -138,8 +142,11 @@ export default {
         'auth': 'var(--z-auth, 100)',
         'tooltip-portal': 'var(--z-tooltip-portal, 110)',
       },
+      // Preserve the existing app blur scale across the v4 default renames.
       backdropBlur: {
-        xs: "2px"
+        DEFAULT: '8px',
+        sm: '4px',
+        xs: '2px'
       },
       // Safe area utilities for modern mobile devices
       padding: {

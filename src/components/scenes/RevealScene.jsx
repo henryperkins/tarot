@@ -47,7 +47,7 @@ export function RevealScene({
       className={`relative px-3 xs:px-4 sm:px-6 py-5 sm:py-7 ${className}`}
       data-scene="reveal"
     >
-      <div className="relative z-[2] max-w-5xl mx-auto p-4 sm:p-6">
+      <div className="relative z-2 max-w-5xl mx-auto p-4 sm:p-6">
         {showTitle ? <h2 className="text-xl sm:text-2xl font-serif text-accent text-center mb-3">{title}</h2> : null}
 
         <div className={`text-center text-accent font-serif mb-2 ${isLandscape ? 'text-lg' : 'text-2xl'}`}>
@@ -60,7 +60,7 @@ export function RevealScene({
               <button
                 type="button"
                 onClick={handleAnimatedDeal}
-                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 {guidedRevealLabel}
               </button>
@@ -68,7 +68,7 @@ export function RevealScene({
                 type="button"
                 onClick={handleRevealAllWithScroll}
                 aria-label="Reveal all cards"
-                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="min-h-touch px-4 sm:px-5 py-2.5 sm:py-3 rounded-full border border-secondary/40 text-sm sm:text-base text-muted hover:text-main hover:border-secondary/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 Reveal instantly
               </button>
@@ -104,7 +104,7 @@ export function RevealScene({
             <button
               type="button"
               onClick={handleResetReveals}
-              className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="inline-flex items-center justify-center min-h-touch px-4 py-2 rounded-full border border-accent/50 text-muted text-xs sm:text-sm hover:text-main hover:border-accent/70 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               <span className="hidden xs:inline">Reset reveals (keep this spread)</span>
               <span className="xs:hidden">Reset reveals</span>
@@ -117,7 +117,7 @@ export function RevealScene({
             {isHandset ? (
               <p className="text-xs text-muted">Choose &ldquo;Interpret cards&rdquo; in the action bar below.</p>
             ) : (
-              <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]">
+              <button onClick={generatePersonalReading} className="bg-accent hover:bg-accent/90 text-surface font-semibold px-5 sm:px-8 py-3 sm:py-4 rounded-xl shadow-xl shadow-accent/20 transition-all flex items-center gap-2 sm:gap-3 mx-auto text-sm sm:text-base md:text-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)">
                 <Sparkle className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Interpret cards</span>
               </button>

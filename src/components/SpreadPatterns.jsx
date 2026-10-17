@@ -20,7 +20,7 @@ function InsightItem({ item, cards, onSelectCard }) {
   return (
     <li className="flex items-start gap-3">
       <Icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
-      <div className="min-w-0 max-w-prose break-words text-base leading-relaxed text-main">
+      <div className="min-w-0 max-w-prose wrap-break-word text-base leading-relaxed text-main">
         {item.title ? (
           <><span className="font-semibold"><InsightText text={item.title} cards={cards} onSelectCard={onSelectCard} /></span>{' '}</>
         ) : null}
@@ -44,7 +44,7 @@ function InsightSection({ title, children }) {
   const id = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   return (
-    <section className="border-t border-[color:var(--border-warm-light)]">
+    <section className="border-t border-(--border-warm-light)">
       <h3>
         <button
           type="button"
@@ -53,7 +53,7 @@ function InsightSection({ title, children }) {
           aria-expanded={isExpanded}
           aria-controls={id}
         >
-          <span className="min-w-0 break-words">{title}</span>
+          <span className="min-w-0 wrap-break-word">{title}</span>
           <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
       </h3>
@@ -94,7 +94,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
             aria-expanded={isExpanded}
             aria-controls={contentId}
           >
-            <span className="min-w-0 break-words">
+            <span className="min-w-0 wrap-break-word">
               Spread Insights <span className="text-sm font-normal text-muted">({totalCount})</span>
             </span>
             <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -127,7 +127,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
         {references.length > 0 ? (
           <InsightSection title="Traditional wisdom">
             {otherSources.length > 0 ? (
-              <p className="max-w-prose break-words text-base leading-relaxed text-muted">
+              <p className="max-w-prose wrap-break-word text-base leading-relaxed text-muted">
                 These references use {otherSources.join(' and ')} names and imagery. Your reading uses {selectedDeck.label}.
               </p>
             ) : null}
@@ -136,7 +136,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
                 const source = getPassageSource(passage);
                 return (
                   <li key={`${passage.id || passage.patternId || 'passage'}-${index}`}>
-                    <article className="max-w-prose break-words space-y-2 text-base leading-relaxed">
+                    <article className="max-w-prose wrap-break-word space-y-2 text-base leading-relaxed">
                       <p className="font-semibold">
                         <InsightText text={passage.title || passage.theme} cards={cards} onSelectCard={onSelectCard} sourceDeck={source?.deckStyle} />
                       </p>

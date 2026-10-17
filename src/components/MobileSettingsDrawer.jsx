@@ -132,7 +132,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
+      className="fixed inset-0 z-70 flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
       style={wrapperStyle}
     >
       <div
@@ -166,7 +166,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
-              <p className="text-xs text-muted leading-relaxed max-w-[22rem]">
+              <p className="text-xs text-muted leading-relaxed max-w-88">
                 Choose your deck and ritual before you draw.
               </p>
             </div>
@@ -196,7 +196,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 flex w-full min-h-touch items-center justify-center rounded-xl text-sm font-semibold text-muted hover:text-main touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="mt-2 flex w-full min-h-touch items-center justify-center rounded-xl text-sm font-semibold text-muted hover:text-main touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Done
           </button>

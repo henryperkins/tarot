@@ -112,7 +112,7 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isCom
             <div className="flex flex-col items-center justify-center py-6 sm:py-8 animate-fade-in relative z-20">
                 <button
                     onClick={onViewReading}
-                    className="group flex items-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-br from-secondary/90 to-secondary/70 border-2 border-secondary/60 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2"
+                    className="group flex items-center gap-3 px-6 py-4 rounded-2xl bg-linear-to-br from-secondary/90 to-secondary/70 border-2 border-secondary/60 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all touch-manipulation focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 focus-visible:ring-offset-2"
                     aria-label={MICROCOPY.viewCompleteReading}
                 >
                     <BookOpen className="w-6 h-6 text-main" weight="duotone" />
@@ -140,7 +140,7 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isCom
                 onPointerDown={handlePointerDown}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerLeave}
-                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-2xl touch-manipulation"
+                className="group relative w-[clamp(9rem,45vw,10rem)] h-[clamp(13.5rem,67.5vw,15rem)] sm:w-32 sm:h-48 md:w-40 md:h-60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 rounded-2xl touch-manipulation"
                 aria-label={nextLabel ? `Draw card for ${nextLabel}` : "Draw next card"}
             >
                 {/* Stack effect layers - decorative, hidden when user prefers reduced motion */}
@@ -152,7 +152,7 @@ export function DeckPile({ cardsRemaining, onDraw, isShuffling, nextLabel, isCom
                 )}
 
                 {/* Top Card with Tableu Logo */}
-                <div className="absolute inset-0 bg-gradient-to-br from-surface/95 via-surface-muted/90 to-surface/95 rounded-2xl border-2 border-primary/30 shadow-2xl overflow-hidden">
+                <div className="absolute inset-0 bg-linear-to-br from-surface/95 via-surface-muted/90 to-surface/95 rounded-2xl border-2 border-primary/30 shadow-2xl overflow-hidden">
                     {/* Subtle pattern overlay */}
                     <div className="absolute inset-0 opacity-10" style={{
                         backgroundImage: 'radial-gradient(circle at 50% 50%, var(--brand-secondary) 1px, transparent 1px)',

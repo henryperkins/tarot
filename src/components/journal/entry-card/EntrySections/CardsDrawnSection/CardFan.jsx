@@ -83,7 +83,7 @@ export const CardFan = memo(function CardFan({
     return (
       <div
         key={`${card?.name || 'card'}-${index}`}
-        className="absolute left-1/2 hover:!z-50 focus-within:!z-50"
+        className="absolute left-1/2 hover:z-50! focus-within:z-50!"
         style={{
           bottom: bottomInset,
           zIndex: isActive ? (arcPos.zIndex || 1) + 20 : (arcPos.zIndex || 1),
@@ -101,7 +101,7 @@ export const CardFan = memo(function CardFan({
           aria-label={cardLabel}
           className={cn(
             'group rounded-lg transition-shadow duration-300 ease-out',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+            'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
             'hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]',
             isActive && 'shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]'
           )}
@@ -152,7 +152,7 @@ export const CardFan = memo(function CardFan({
             aria-label={cardLabel}
             className={cn(
               'group rounded-lg transition-shadow duration-300 ease-out',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+              'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
               'hover:shadow-[0_20px_40px_-20px_rgba(0,0,0,0.6)]'
             )}
             tabIndex={0}

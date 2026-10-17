@@ -45,7 +45,7 @@ export function QuestionExamples({ value, onChange }) {
         ref={primaryRef}
         type="button"
         onClick={insertExample}
-        className="inline-flex min-h-touch items-center gap-2 rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="inline-flex min-h-touch items-center gap-2 rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
       >
         <ExampleIcon className="w-3.5 h-3.5" aria-hidden="true" />
         {holdsExample ? 'Another example' : 'Try an example'}
@@ -55,7 +55,7 @@ export function QuestionExamples({ value, onChange }) {
           type="button"
           onClick={clearExample}
           aria-label="Clear example"
-          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         >
           Clear
         </button>

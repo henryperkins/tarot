@@ -13,7 +13,7 @@ export const KeyThemesSection = memo(function KeyThemesSection({ insights }) {
     <section className={cn(styles.section, 'mt-4')}>
       <header className={styles.sectionHeader}>
         <div className="flex items-center gap-2">
-          <JournalThemesIcon className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+          <JournalThemesIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
           <div className={styles.sectionLabel}>Key themes</div>
         </div>
       </header>

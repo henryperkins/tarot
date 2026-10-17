@@ -324,7 +324,7 @@ export function SpreadSelector({
           <div
             className={`
               absolute left-0 top-0 bottom-3 w-12 z-10
-              bg-gradient-to-r from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
+              bg-linear-to-r from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
               rounded-l-2xl
               transition-opacity duration-200
               sm:hidden
@@ -348,7 +348,7 @@ export function SpreadSelector({
           <div
             className={`
               absolute right-0 top-0 bottom-3 w-12 z-10
-              bg-gradient-to-l from-[color:var(--panel-dark-1)]/90 via-[color:var(--panel-dark-1)]/60 to-transparent
+              bg-linear-to-l from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
               rounded-r-2xl
               transition-opacity duration-200
               sm:hidden
@@ -404,7 +404,7 @@ export function SpreadSelector({
                 aria-checked={isActive}
                 onClick={() => handleSpreadSelection(key)}
                 onKeyDown={event => handleCardKeyDown(event, key)}
-                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
+                className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
                   '--spread-border': resolvedBorder,
@@ -415,7 +415,7 @@ export function SpreadSelector({
                   <>
                     <div className="absolute top-3 right-3 z-20">
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center border border-[color:var(--border-warm-light)]"
+                        className="w-7 h-7 rounded-full flex items-center justify-center border border-(--border-warm-light)"
                         style={{
                           backgroundColor: 'var(--brand-primary)',
                           boxShadow: '0 12px 26px -18px var(--spread-glow, var(--primary-30))'
@@ -476,7 +476,7 @@ export function SpreadSelector({
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-[0.1em] leading-normal text-muted">
+                  <div className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
                     <span>{spread.tag || 'Guided spread'}</span>
                     <span className="whitespace-nowrap">· {cardLabel}</span>
                   </div>
@@ -489,7 +489,7 @@ export function SpreadSelector({
 
                   <div className="spread-card__meta">
                     <div className="spread-card__complexity">
-                      <span className="text-xs font-medium uppercase tracking-[0.1em] text-muted">Complexity</span>
+                      <span className="text-xs font-medium uppercase tracking-widest text-muted">Complexity</span>
                       {renderStars(stars)}
                       <span className="text-sm text-muted capitalize">{complexityLabel}</span>
                     </div>

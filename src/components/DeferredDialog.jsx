@@ -22,9 +22,9 @@ function DialogLoadState({ title, onClose, returnFocusRef, failed = false }) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="w-full max-w-md rounded-2xl border border-[color:var(--border-warm)] bg-surface p-6 text-main shadow-2xl"
+        className="w-full max-w-md rounded-2xl border border-(--border-warm) bg-surface p-6 text-main shadow-2xl"
       >
-        <h2 ref={headingRef} id={titleId} tabIndex={-1} className="font-serif text-xl outline-none">
+        <h2 ref={headingRef} id={titleId} tabIndex={-1} className="font-serif text-xl outline-hidden">
           {failed ? `Unable to open ${title}` : `Opening ${title}…`}
         </h2>
         <p role={failed ? 'alert' : 'status'} className="mt-3 text-sm text-muted">
@@ -33,7 +33,7 @@ function DialogLoadState({ title, onClose, returnFocusRef, failed = false }) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 min-h-touch rounded-full border border-[color:var(--border-warm)] px-5 py-2 text-sm font-semibold hover:bg-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className="mt-6 min-h-touch rounded-full border border-(--border-warm) px-5 py-2 text-sm font-semibold hover:bg-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           Close
         </button>

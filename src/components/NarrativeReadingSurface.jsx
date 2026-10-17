@@ -13,9 +13,9 @@ const StoryIllustration = lazy(() => import('./StoryIllustration'));
 function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
   return (
     <div className={READING_PANEL_COLUMN_CLASS}>
-      <div className="panel-mystic rounded-2xl border border-[color:var(--border-warm-light)] p-4 sm:p-5">
+      <div className="panel-mystic rounded-2xl border border-(--border-warm-light) p-4 sm:p-5">
         <div className="flex flex-wrap items-start sm:items-center justify-between gap-4">
-          <div className="flex-1 basis-64 min-w-0 max-w-full space-y-1 [overflow-wrap:anywhere]">
+          <div className="flex-1 basis-64 min-w-0 max-w-full space-y-1 wrap-anywhere">
             <p className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-main">
               <Sparkle className="w-4 h-4 shrink-0 text-secondary" aria-hidden="true" />
               <span className="min-w-0">Visual Companion Studio</span>
@@ -24,7 +24,7 @@ function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
           </div>
           <div className="flex min-w-0 max-w-full items-center gap-3 shrink-0 flex-wrap">
             {modeLabel ? (
-              <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted [overflow-wrap:anywhere]">
+              <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted wrap-anywhere">
                 {modeLabel}
               </span>
             ) : null}
@@ -33,7 +33,7 @@ function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
               onClick={onOpen}
               aria-haspopup="dialog"
               aria-expanded={isOpen}
-              className={`${OUTLINE_BUTTON_CLASS} min-w-0 max-w-full [overflow-wrap:anywhere]`}
+              className={`${OUTLINE_BUTTON_CLASS} min-w-0 max-w-full wrap-anywhere`}
             >
               <Sparkle className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span className="min-w-0">Open visual studio</span>

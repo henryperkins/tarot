@@ -60,24 +60,24 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
             >
               <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent flex-shrink-0"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent shrink-0"
                   aria-hidden="true"
                 >
                   {index + 1}
                 </span>
                 {SuitIcon && (
                   <SuitIcon 
-                    className={`h-4 w-4 flex-shrink-0 ${suitColor}`}
+                    className={`h-4 w-4 shrink-0 ${suitColor}`}
                     aria-label={`${suitName} suit`}
                   />
                 )}
-                <span className="min-w-0 text-main break-words">
+                <span className="min-w-0 text-main wrap-break-word">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>
                 {hasBadge && (
                   <Fire
-                    className="h-3.5 w-3.5 text-accent flex-shrink-0"
+                    className="h-3.5 w-3.5 text-accent shrink-0"
                     aria-label="streak badge earned"
                   />
                 )}

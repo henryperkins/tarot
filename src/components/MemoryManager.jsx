@@ -137,7 +137,7 @@ export function MemoryManager({ className = '' }) {
             ref={addButtonRef}
             onClick={() => setShowAddForm(!showAddForm)}
             disabled={busy}
-            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-lg border border-secondary/30 hover:border-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="p-1.5 min-h-touch min-w-touch flex items-center justify-center rounded-lg border border-secondary/30 hover:border-secondary/60 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             aria-label={showAddForm ? 'Cancel adding memory' : 'Add new memory'}
             aria-expanded={showAddForm}
           >
@@ -159,8 +159,8 @@ export function MemoryManager({ className = '' }) {
       {/* Error display */}
       {(error || deleteError) && (
         <div className="mb-3 p-3 rounded-lg bg-error/10 border border-error/30">
-          <p role="alert" className="flex items-start gap-2 text-sm text-main break-words">
-            <Warning className="mt-0.5 w-4 h-4 text-error flex-shrink-0" aria-hidden="true" />
+          <p role="alert" className="flex items-start gap-2 text-sm text-main wrap-break-word">
+            <Warning className="mt-0.5 w-4 h-4 text-error shrink-0" aria-hidden="true" />
             <span>{deleteError || error}</span>
           </p>
           {error && (
@@ -187,14 +187,14 @@ export function MemoryManager({ className = '' }) {
             <button
               onClick={handleClearAll}
               disabled={busy}
-              className="min-h-touch min-w-touch px-3 py-1.5 text-xs bg-error/20 hover:bg-error/30 text-main rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="min-h-touch min-w-touch px-3 py-1.5 text-xs bg-error/20 hover:bg-error/30 text-main rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               {isClearing ? 'Deleting memories…' : 'Yes, delete all'}
             </button>
             <button
               onClick={() => setShowClearConfirm(false)}
               disabled={busy}
-              className="min-h-touch min-w-touch px-3 py-1.5 text-xs bg-surface/50 hover:bg-surface/70 text-muted rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+              className="min-h-touch min-w-touch px-3 py-1.5 text-xs bg-surface/50 hover:bg-surface/70 text-muted rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               Cancel
             </button>
@@ -219,7 +219,7 @@ export function MemoryManager({ className = '' }) {
               value={newMemoryText}
               onChange={(e) => setNewMemoryText(e.target.value)}
               placeholder="e.g., User prefers concrete action steps over abstract symbolism"
-              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50 resize-none"
+              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50 resize-none"
               rows={2}
               maxLength={200}
             />
@@ -236,7 +236,7 @@ export function MemoryManager({ className = '' }) {
               disabled={busy}
               value={newMemoryCategory}
               onChange={(e) => setNewMemoryCategory(e.target.value)}
-              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
+              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{categoryLabels[cat]}</option>
@@ -246,7 +246,7 @@ export function MemoryManager({ className = '' }) {
           <button
             type="submit"
             disabled={newMemoryText.trim().length < 3 || busy}
-            className="w-full min-h-touch py-2 text-sm bg-secondary/20 hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed text-main rounded-lg transition-colors flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="w-full min-h-touch py-2 text-sm bg-secondary/20 hover:bg-secondary/30 disabled:opacity-50 disabled:cursor-not-allowed text-main rounded-lg transition-colors flex items-center justify-center gap-2 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             {isSubmitting ? (
               <><SpinnerGap className="w-4 h-4 animate-spin" aria-hidden="true" /> Saving memory…</>
@@ -351,7 +351,7 @@ function MemoryItem({ memory, onDelete, disabled }) {
   return (
     <div className="group flex items-start gap-2 p-2 rounded-lg bg-surface/40 hover:bg-surface/60 transition-colors">
       <div className="flex-1 min-w-0">
-        <p dir="auto" className="text-sm text-main leading-snug break-words">{memory.text}</p>
+        <p dir="auto" className="text-sm text-main leading-snug wrap-break-word">{memory.text}</p>
         <div className="flex items-center gap-2 mt-1">
           <span className="text-2xs text-muted">
             {Object.hasOwn(sourceLabel, memory.source) ? sourceLabel[memory.source] : 'Memory'}
@@ -366,7 +366,7 @@ function MemoryItem({ memory, onDelete, disabled }) {
       <button
         onClick={handleDelete}
         disabled={isDeleting || disabled}
-        className="p-1.5 min-h-touch min-w-touch shrink-0 flex items-center justify-center rounded-lg hover:bg-error/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+        className="p-1.5 min-h-touch min-w-touch shrink-0 flex items-center justify-center rounded-lg hover:bg-error/20 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
         aria-label="Delete memory"
       >
         {isDeleting ? (

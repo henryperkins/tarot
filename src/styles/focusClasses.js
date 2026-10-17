@@ -1,10 +1,10 @@
-const FOCUS_OUTLINE_NONE = 'focus-visible:outline-none';
+const FOCUS_OUTLINE_NONE = 'focus-visible:outline-hidden';
 const FOCUS_RING_WIDTH = 'focus-visible:ring-2';
 const FOCUS_RING_OFFSET_WIDTH = 'focus-visible:ring-offset-2';
 const FOCUS_RING_OFFSET_MAIN_TOKEN = 'focus-visible:ring-offset-main';
 const FOCUS_RING_OFFSET_SURFACE_TOKEN = 'focus-visible:ring-offset-surface';
 
-const FOCUS_RING_DEFAULT_TOKEN = 'focus-visible:ring-[color:var(--focus-ring-color)]';
+const FOCUS_RING_DEFAULT_TOKEN = 'focus-visible:ring-(--focus-ring-color)';
 const FOCUS_RING_ACCENT_TOKEN = 'focus-visible:ring-accent';
 const FOCUS_RING_ACCENT_50_TOKEN = 'focus-visible:ring-accent/50';
 const FOCUS_RING_ACCENT_SOFT_TOKEN = 'focus-visible:ring-accent/60';

@@ -367,7 +367,7 @@ function ExportSection({
           <fieldset className="space-y-2">
             <legend className="text-2xs uppercase tracking-wider text-muted mb-1">Export scope</legend>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'all' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'all' ? 'bg-(--accent-25)' : 'hover:bg-(--border-warm-subtle)'}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -377,7 +377,7 @@ function ExportSection({
                   setExportScope('all');
                   setExportScopeTouched(true);
                 }}
-                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">All entries</span>
@@ -387,7 +387,7 @@ function ExportSection({
               </div>
             </label>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${exportScope === 'filters' ? 'bg-[color:var(--accent-25)]' : filtersApplied ? 'hover:bg-[color:var(--border-warm-subtle)]' : ''}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${exportScope === 'filters' ? 'bg-(--accent-25)' : filtersApplied ? 'hover:bg-(--border-warm-subtle)' : ''}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -398,7 +398,7 @@ function ExportSection({
                   setExportScopeTouched(true);
                 }}
                 disabled={!filtersApplied}
-                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">Current filters</span>
@@ -410,7 +410,7 @@ function ExportSection({
               </div>
             </label>
 
-            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'scope' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
+            <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${exportScope === 'scope' ? 'bg-(--accent-25)' : 'hover:bg-(--border-warm-subtle)'}`}>
               <input
                 type="radio"
                 name="exportScope"
@@ -420,7 +420,7 @@ function ExportSection({
                   setExportScope('scope');
                   setExportScopeTouched(true);
                 }}
-                className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
               />
               <div>
                 <span className="font-medium">Current scope</span>
@@ -433,7 +433,7 @@ function ExportSection({
 
           {filtersApplied && exportScope === 'all' && (
             <div className="flex items-start gap-2 text-2xs text-muted-high">
-              <Warning className="h-3.5 w-3.5 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <Warning className="h-3.5 w-3.5 text-(--brand-primary) shrink-0 mt-0.5" aria-hidden="true" />
               <span>Filters are active — exporting all entries ignores filters.</span>
             </div>
           )}
@@ -470,9 +470,9 @@ function ExportSection({
 
         {/* Large export confirmation */}
         {pendingLargeExport && (
-          <div className="mt-3 rounded-lg border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] p-3">
+          <div className="mt-3 rounded-lg border border-(--border-warm) bg-(--accent-25) p-3">
             <div className="flex items-start gap-2">
-              <Warning className="h-4 w-4 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <Warning className="h-4 w-4 text-(--brand-primary) shrink-0 mt-0.5" aria-hidden="true" />
               <div className="flex-1">
                 <p className="text-sm sm:text-xs text-main font-medium">Large export</p>
                 <p className="text-xs sm:text-2xs text-muted-high mt-1">
@@ -481,7 +481,7 @@ function ExportSection({
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleConfirmLargeExport}
-                    className="min-h-touch px-4 py-2.5 rounded text-sm font-medium bg-[color:var(--accent-25)] text-[color:var(--text-main)] hover:bg-[color:var(--accent-45)] transition-colors touch-manipulation"
+                    className="min-h-touch px-4 py-2.5 rounded text-sm font-medium bg-(--accent-25) text-(--text-main) hover:bg-(--accent-45) transition-colors touch-manipulation"
                   >
                     Continue
                   </button>
@@ -500,7 +500,7 @@ function ExportSection({
         {/* Export status feedback */}
         {exportStatus && (
           <p
-            className={`mt-2 text-sm sm:text-xs ${exportStatus.type === 'success' ? 'text-[color:var(--status-success)]' : 'text-[color:var(--status-error)]'
+            className={`mt-2 text-sm sm:text-xs ${exportStatus.type === 'success' ? 'text-(--status-success)' : 'text-(--status-error)'
               }`}
           >
             {exportStatus.message}
@@ -513,7 +513,7 @@ function ExportSection({
         )}
       </div>
 
-      <div className="rounded-lg border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-xs sm:text-2xs text-muted-high">
+      <div className="rounded-lg border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-xs sm:text-2xs text-muted-high">
         Exporting: {exportScopeLabel} · {hasEntries ? exportEntries.length : 0} entr{hasEntries && exportEntries.length === 1 ? 'y' : 'ies'}
       </div>
 
@@ -522,12 +522,12 @@ function ExportSection({
         <div>
           <p className="text-sm sm:text-xs text-muted mb-2">Share Journal Entries</p>
 
-          <div className="mb-3 space-y-3 rounded-lg border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-3 text-sm text-muted-high">
+          <div className="mb-3 space-y-3 rounded-lg border border-(--border-warm-light) bg-(--border-warm-subtle) p-3 text-sm text-muted-high">
             {/* Scope selection */}
             <fieldset className="space-y-2">
               <legend className="text-xs sm:text-2xs uppercase tracking-wider text-muted mb-1">What to share</legend>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'all' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'all' ? 'bg-(--accent-25)' : 'hover:bg-(--border-warm-subtle)'}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -537,7 +537,7 @@ function ExportSection({
                     setShareScope('all');
                     setShareScopeTouched(true);
                   }}
-                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">All entries</span>
@@ -547,7 +547,7 @@ function ExportSection({
                 </div>
               </label>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${shareScope === 'filters' ? 'bg-[color:var(--accent-25)]' : filtersApplied ? 'hover:bg-[color:var(--border-warm-subtle)]' : ''}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg transition-colors ${filtersApplied ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${shareScope === 'filters' ? 'bg-(--accent-25)' : filtersApplied ? 'hover:bg-(--border-warm-subtle)' : ''}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -558,7 +558,7 @@ function ExportSection({
                     setShareScopeTouched(true);
                   }}
                   disabled={!filtersApplied}
-                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">Current filters</span>
@@ -570,7 +570,7 @@ function ExportSection({
                 </div>
               </label>
 
-              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'scope' ? 'bg-[color:var(--accent-25)]' : 'hover:bg-[color:var(--border-warm-subtle)]'}`}>
+              <label className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${shareScope === 'scope' ? 'bg-(--accent-25)' : 'hover:bg-(--border-warm-subtle)'}`}>
                 <input
                   type="radio"
                   name="shareScope"
@@ -580,7 +580,7 @@ function ExportSection({
                     setShareScope('scope');
                     setShareScopeTouched(true);
                   }}
-                  className="mt-0.5 h-5 w-5 border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--brand-primary)] focus:ring-[color:var(--accent-45)] focus:ring-offset-0 touch-manipulation"
+                  className="mt-0.5 h-5 w-5 border-(--border-warm-light) bg-transparent text-(--brand-primary) focus:ring-(--accent-45) focus:ring-offset-0 touch-manipulation"
                 />
                 <div>
                   <span className="font-medium">Current scope</span>
@@ -593,13 +593,13 @@ function ExportSection({
 
             {filtersApplied && shareScope === 'all' && (
               <div className="flex items-start gap-2 text-2xs text-muted-high">
-                <Warning className="h-3.5 w-3.5 text-[color:var(--brand-primary)] flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <Warning className="h-3.5 w-3.5 text-(--brand-primary) shrink-0 mt-0.5" aria-hidden="true" />
                 <span>Filters are active — sharing all entries ignores filters.</span>
               </div>
             )}
 
             {/* Limit control */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[color:var(--border-warm-subtle)]">
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-(--border-warm-subtle)">
               <label htmlFor="share-limit" className="text-xs sm:text-2xs text-muted-high">Max entries to share</label>
               <input
                 id="share-limit"
@@ -610,18 +610,18 @@ function ExportSection({
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-20 min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] touch-manipulation"
+                className="w-20 min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) text-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
               />
             </div>
 
             {/* Expiry control */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[color:var(--border-warm-subtle)]">
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-(--border-warm-subtle)">
               <label htmlFor="share-expiry" className="text-xs sm:text-2xs text-muted-high">Link expiry</label>
               <select
                 id="share-expiry"
                 value={expiresInHours}
                 onChange={(event) => setExpiresInHours(event.target.value)}
-                className="min-h-touch rounded border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-3 py-2 text-sm text-[color:var(--text-main)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 {SHARE_EXPIRY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -632,7 +632,7 @@ function ExportSection({
             </div>
 
             {/* Summary */}
-            <div className="rounded bg-[color:var(--border-warm-subtle)] px-2 py-1.5 text-xs sm:text-2xs text-muted-high">
+            <div className="rounded bg-(--border-warm-subtle) px-2 py-1.5 text-xs sm:text-2xs text-muted-high">
               Will share {shareUsesServerFallback ? 'up to ' : ''}
               <span className="font-semibold text-main">{shareDisplayEntryCount}</span> entr{shareDisplayEntryCount === 1 ? 'y' : 'ies'} from {shareScopeLabel} · {expiryLabel}
             </div>
@@ -649,8 +649,8 @@ function ExportSection({
           </div>
 
           {linkCreated ? (
-            <div className="rounded-lg bg-[color:color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-success)_24%,transparent)] p-3">
-              <p className="text-sm sm:text-xs text-[color:var(--status-success)] mb-2 flex items-center gap-1">
+            <div className="rounded-lg bg-[color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color-mix(in_srgb,var(--status-success)_24%,transparent)] p-3">
+              <p className="text-sm sm:text-xs text-(--status-success) mb-2 flex items-center gap-1">
                 <LinkIcon className="h-3 w-3" />
                 {linkCopyStatus?.message || 'Link ready'}
               </p>
@@ -661,13 +661,13 @@ function ExportSection({
                 type="text"
                 value={linkCreated.url}
                 readOnly
-                className="w-full min-h-touch px-3 py-2 text-sm sm:text-xs bg-transparent text-[color:var(--text-main)] rounded border border-[color:color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
+                className="w-full min-h-touch px-3 py-2 text-sm sm:text-xs bg-transparent text-(--text-main) rounded border border-[color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
                 onClick={(e) => e.target.select()}
                 aria-label="Share link - tap to select and copy"
               />
               <button
                 onClick={() => setLinkCreated(null)}
-                className="mt-2 min-h-touch px-3 py-2 text-sm sm:text-xs text-muted hover:text-[color:var(--status-success)] touch-manipulation"
+                className="mt-2 min-h-touch px-3 py-2 text-sm sm:text-xs text-muted hover:text-(--status-success) touch-manipulation"
               >
                 Create another
               </button>
@@ -703,7 +703,7 @@ function ExportSection({
         </button>
         {shareStatus && (
           <p
-            className={`mt-2 text-xs sm:text-2xs ${shareStatus.type === 'success' ? 'text-[color:var(--status-success)]' : 'text-[color:var(--status-error)]'
+            className={`mt-2 text-xs sm:text-2xs ${shareStatus.type === 'success' ? 'text-(--status-success)' : 'text-(--status-error)'
               }`}
           >
             {shareStatus.message}

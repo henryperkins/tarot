@@ -18,7 +18,7 @@ function CadenceTooltip({ active, payload, label }) {
 
   const data = payload[0]?.payload;
   return (
-    <div className="rounded-lg border border-secondary/20 bg-[color:var(--surface-92)] px-3 py-2 shadow-lg backdrop-blur-sm">
+    <div className="rounded-lg border border-secondary/20 bg-(--surface-92) px-3 py-2 shadow-lg backdrop-blur-sm">
       <p className="text-xs font-medium text-muted">{data?.label || label}</p>
       <p className="text-sm font-semibold text-main">
         {data?.count} reading{data?.count === 1 ? '' : 's'}

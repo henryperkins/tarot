@@ -133,7 +133,7 @@ export function FeedbackPanel({
           onClick={() => setIsCollapsed((prev) => !prev)}
           aria-expanded={!isCollapsed}
           aria-controls={panelId}
-          className="w-full flex items-center justify-between gap-3 rounded-lg border-t border-accent/30 px-1 py-3 hover:border-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="w-full flex items-center justify-between gap-3 rounded-lg border-t border-accent/30 px-1 py-3 hover:border-accent transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           <span className="min-w-0 text-left">
             <span className="block text-sm font-semibold text-main">How did this reading land?</span>
@@ -214,7 +214,7 @@ export function FeedbackPanel({
               rows={3}
               maxLength={750}
               disabled={hasSubmitted}
-              className="w-full rounded-lg border border-accent/20 bg-surface/70 p-3 text-sm text-main placeholder:text-muted/60 focus:border-secondary/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full rounded-lg border border-accent/20 bg-surface/70 p-3 text-sm text-main placeholder:text-muted/60 focus:border-secondary/60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="What resonated or felt off?"
             />
             <p className="mt-1 text-sm text-muted/70 text-right">
@@ -244,7 +244,7 @@ export function FeedbackPanel({
               type="submit"
               disabled={!canSubmit || hasSubmitted}
               className="min-h-touch px-5 py-2.5 rounded-full border border-secondary/40 bg-secondary/20 text-sm font-medium text-secondary transition-colors touch-manipulation
-                hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
+                hover:bg-secondary/30 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 focus-visible:ring-offset-2
                 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-secondary/20"
             >
               {isSubmitting ? 'Sending…' : hasSubmitted ? 'Feedback saved' : 'Submit feedback'}

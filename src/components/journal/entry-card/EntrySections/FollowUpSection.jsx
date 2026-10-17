@@ -30,20 +30,20 @@ const FollowUpTurn = memo(function FollowUpTurn({ turn, fallbackTurnNumber }) {
     <li className={styles.turnCard}>
       <div className="flex items-start justify-between gap-2 text-xs text-muted">
         <span className="flex items-center gap-2">
-          <span className="font-semibold text-[color:var(--text-main)]">{turnLabel}</span>
+          <span className="font-semibold text-(--text-main)">{turnLabel}</span>
           {tsLabel && <span aria-hidden="true">•</span>}
           {tsLabel && <span>{tsLabel}</span>}
         </span>
         {patterns.length > 0 && (
-          <span className="inline-flex items-center gap-1 text-2xs text-[color:var(--brand-primary)]">
+          <span className="inline-flex items-center gap-1 text-2xs text-(--brand-primary)">
             <Lightning className="h-3 w-3" weight="fill" aria-hidden="true" />
             {patterns.length} pattern{patterns.length === 1 ? '' : 's'}
           </span>
         )}
       </div>
       <div className="mt-2 space-y-2">
-        <p className="text-sm font-semibold text-[color:var(--text-main)]">Q: {turn.question}</p>
-        <div className="prose prose-invert prose-sm max-w-none text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)]">
+        <p className="text-sm font-semibold text-(--text-main)">Q: {turn.question}</p>
+        <div className="prose prose-invert prose-sm max-w-none text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
             {turn.answer || ''}
           </ReactMarkdown>
@@ -70,7 +70,7 @@ export const FollowUpSection = memo(function FollowUpSection({
     <section className={cn(styles.section, 'mt-4')}>
       <header className={styles.sectionHeader}>
         <div className="flex items-center gap-2">
-          <Lightning className="h-4 w-4 text-[color:var(--brand-primary)]" aria-hidden="true" />
+          <Lightning className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
           <div className={styles.sectionLabel}>Follow-up chat</div>
         </div>
         <span className="text-xs text-muted">{followUps.length}</span>
@@ -100,18 +100,18 @@ export const FollowUpSection = memo(function FollowUpSection({
         )}
 
         {hasHiddenFollowUps && (
-          <p className="mt-3 text-2xs text-[color:var(--text-muted)]">
+          <p className="mt-3 text-2xs text-(--text-muted)">
             Showing the most recent {followUpPreview.length} of {followUps.length} turns.
           </p>
         )}
 
         {isAuthenticated && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-[color:var(--text-muted)]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-2xs text-(--text-muted)">
             <span>Limits reset per reading.</span>
             {!canAskFollowUp && effectiveTier === 'free' && (
               <a
                 href="/pricing"
-                className="text-[color:var(--brand-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+                className="text-(--brand-primary) hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
               >
                 Upgrade to Plus for 3 follow-ups
               </a>
@@ -137,7 +137,7 @@ export const FollowUpSection = memo(function FollowUpSection({
               canAskFollowUp ? styles.actionButtonEnabled : styles.actionButtonDisabled
             )}
           >
-            <Lightning className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
+            <Lightning className="h-3.5 w-3.5 text-(--brand-primary)" aria-hidden="true" />
             {canAskFollowUp ? 'Ask a follow-up' : isAuthenticated ? 'Limit reached' : 'Sign in to ask'}
           </button>
 
@@ -147,8 +147,8 @@ export const FollowUpSection = memo(function FollowUpSection({
               onClick={() => onOpenFollowUp('continue')}
               className={cn(
                 styles.actionButton,
-                'border-[color:var(--border-warm-light)] bg-transparent text-[color:var(--text-muted)]',
-                'hover:border-[color:var(--border-warm)] hover:bg-[color:var(--border-warm-subtle)] hover:text-[color:var(--text-main)]'
+                'border-(--border-warm-light) bg-transparent text-(--text-muted)',
+                'hover:border-(--border-warm) hover:bg-(--border-warm-subtle) hover:text-(--text-main)'
               )}
               title={canAskFollowUp ? 'Continue chat' : 'Open full chat'}
             >
@@ -156,7 +156,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             </button>
           )}
 
-          <span className="text-2xs text-[color:var(--text-muted)]">
+          <span className="text-2xs text-(--text-muted)">
             {isAuthenticated
               ? `Follow-ups used: ${followUpTurnsUsed}/${followUpLimit}`
               : 'Sign in to unlock follow-up chat'}

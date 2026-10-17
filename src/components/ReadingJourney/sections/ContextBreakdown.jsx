@@ -49,7 +49,7 @@ function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
                 <span className="text-main">{contextName}</span>
                 <span className="text-muted">{percentage}%</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-[color:var(--border-warm-subtle)] overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-(--border-warm-subtle) overflow-hidden">
                 <div
                   className={`h-full rounded-full ${getContextColor(item.name)} transition-all duration-300`}
                   style={{ width: `${percentage}%` }}
@@ -67,8 +67,8 @@ function ContextBreakdown({ data = [], preferenceDrift, maxItems = 4 }) {
 
       {/* Preference drift indicator */}
       {driftContext?.context && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] p-2 border border-[color:var(--border-warm-light)]">
-          <Lightning className="h-3.5 w-3.5 text-accent mt-0.5 flex-shrink-0" />
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-(--border-warm-subtle) p-2 border border-(--border-warm-light)">
+          <Lightning className="h-3.5 w-3.5 text-accent mt-0.5 shrink-0" />
           <div className="flex items-center gap-2">
             <p className="text-xs text-muted-high">
               <span className="font-medium">{driftLabel}:</span>{' '}

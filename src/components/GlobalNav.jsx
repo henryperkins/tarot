@@ -19,7 +19,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
     inline-flex items-center justify-center gap-1.5
     rounded-full font-semibold
     transition-all touch-manipulation
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/80
+    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/80
     focus-visible:ring-offset-2 focus-visible:ring-offset-main
     active:scale-[0.97]
     min-h-touch
@@ -30,10 +30,10 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
     : 'px-3.5 sm:px-5 py-2.5 text-sm';
   // Reserve readable destinations; guest actions wrap below them when space is tight.
   const buttonWidth = condensed
-    ? 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[9rem] sm:basis-auto'
-    : 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[10rem] sm:basis-auto';
+    ? 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-36 sm:basis-auto'
+    : 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-40 sm:basis-auto';
 
-  const activeClasses = 'bg-primary text-surface shadow shadow-primary/30 active:bg-primary/90';
+  const activeClasses = 'bg-primary text-surface shadow-sm shadow-primary/30 active:bg-primary/90';
   const inactiveClasses = `
     bg-surface text-main border border-secondary/50
     hover:bg-surface-muted hover:text-main hover:border-secondary/60

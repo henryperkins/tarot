@@ -142,7 +142,7 @@ export default function JourneyMobileSheet({
 
   const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-[color:var(--focus-ring-color)] -ml-2 -mr-2';
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
   const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
     ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
     : '';
@@ -345,10 +345,10 @@ export default function JourneyMobileSheet({
       <div className="panel-mystic bg-gradient-ambient rounded-3xl p-5 animate-pulse">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded bg-[color:var(--border-warm-light)]" />
-            <div className="h-3 w-28 rounded bg-[color:var(--border-warm-light)]" />
+            <div className="h-3 w-3 rounded bg-(--border-warm-light)" />
+            <div className="h-3 w-28 rounded bg-(--border-warm-light)" />
           </div>
-          <div className="h-20 w-full rounded-xl bg-[color:var(--border-warm-subtle)]" />
+          <div className="h-20 w-full rounded-xl bg-(--border-warm-subtle)" />
         </div>
       </div>
     );
@@ -405,7 +405,7 @@ export default function JourneyMobileSheet({
           <button
             type="button"
             onClick={() => navigate('/account#analytics')}
-            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-[color:var(--border-warm-light)] px-4 py-2 text-sm font-semibold text-[color:var(--text-main)] transition-[background-color,border-color] duration-[var(--duration-normal)] ease-[var(--ease-out)] hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="mt-4 inline-flex min-h-touch items-center justify-center rounded-full border border-(--border-warm-light) px-4 py-2 text-sm font-semibold text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Go to Settings
           </button>
@@ -461,18 +461,18 @@ export default function JourneyMobileSheet({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
             {scopeLabel && (
-              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className="rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                 Scope: {scopeLabel}
               </span>
             )}
           </h2>
           {filtersApplied && analyticsScope !== 'filters' && typeof onScopeSelect === 'function' && (
-            <div className="flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--border-warm)] bg-[color:var(--accent-25)] px-3 py-1 text-2xs text-muted-high">
+            <div className="flex flex-wrap items-center gap-2 rounded-full border border-(--border-warm) bg-(--accent-25) px-3 py-1 text-2xs text-muted-high">
               <span>Filters not applied to insights</span>
               <button
                 type="button"
                 onClick={() => onScopeSelect('filters')}
-                className="font-semibold text-[color:var(--text-main)] underline underline-offset-2 hover:text-[color:var(--text-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                className="font-semibold text-(--text-main) underline underline-offset-2 hover:text-(--text-accent) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 Apply filters
               </button>
@@ -501,15 +501,15 @@ export default function JourneyMobileSheet({
 
           {/* Top Card Feature */}
           {topCard && (
-            <div className="rounded-xl bg-gradient-ambient p-4 border border-[color:var(--border-warm-light)] text-center">
+            <div className="rounded-xl bg-gradient-ambient p-4 border border-(--border-warm-light) text-center">
               <div className="text-2xl mb-1">🃏</div>
               <p className="text-lg font-serif text-main">{topCard.name}</p>
               <p className="text-xs text-muted-high">
                 appeared {topCard.count}x {topCardScopeLabel}
               </p>
               {topCard.hasBadge && (
-                <p className="mt-2 inline-flex items-center gap-1 text-xs text-[color:var(--text-accent)]">
-                  <Fire className="h-3 w-3 text-[color:var(--text-accent)]" />
+                <p className="mt-2 inline-flex items-center gap-1 text-xs text-(--text-accent)">
+                  <Fire className="h-3 w-3 text-(--text-accent)" />
                   Streak badge earned
                 </p>
               )}
@@ -529,7 +529,7 @@ export default function JourneyMobileSheet({
             {currentStreak > 0 && (
               <div className="text-center">
                 <p className="text-xl font-medium text-main flex items-center justify-center gap-1">
-                  <Fire className="h-4 w-4 text-[color:var(--text-accent)]" />
+                  <Fire className="h-4 w-4 text-(--text-accent)" />
                   {currentStreak}
                 </p>
                 <div className="text-2xs text-muted flex items-center justify-center gap-1">
@@ -584,9 +584,9 @@ export default function JourneyMobileSheet({
             onClick={() => setIsSheetOpen(true)}
             className="
               w-full py-3 min-h-touch rounded-full text-sm font-medium
-              border border-[color:var(--border-warm-light)] text-[color:var(--text-main)] bg-[color:var(--border-warm-subtle)]
-              hover:bg-[color:var(--border-warm-light)] hover:border-[color:var(--border-warm)]
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
+              border border-(--border-warm-light) text-(--text-main) bg-(--border-warm-subtle)
+              hover:bg-(--border-warm-light) hover:border-(--border-warm)
+              focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)
               transition-colors
             "
           >
@@ -619,7 +619,7 @@ export default function JourneyMobileSheet({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
-            className="relative bg-[linear-gradient(135deg,var(--panel-dark-1),var(--panel-dark-2)_55%,var(--panel-dark-3))] rounded-t-3xl border-t border-x border-[color:var(--border-warm-light)] overflow-hidden flex flex-col animate-slide-up"
+            className="relative bg-[linear-gradient(135deg,var(--panel-dark-1),var(--panel-dark-2)_55%,var(--panel-dark-3))] rounded-t-3xl border-t border-x border-(--border-warm-light) overflow-hidden flex flex-col animate-slide-up"
             style={{
               maxHeight: 'min(calc(100dvh - 8px), calc(100vh - 8px - var(--safe-pad-bottom)))',
               transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
@@ -629,7 +629,7 @@ export default function JourneyMobileSheet({
           >
             {/* Drag handle */}
             <div className="journey-sheet__handle flex justify-center py-3 short:py-2 cursor-grab active:cursor-grabbing">
-              <div className="w-10 h-1 rounded-full bg-[color:var(--border-warm-light)]" />
+              <div className="w-10 h-1 rounded-full bg-(--border-warm-light)" />
             </div>
 
             {/* Header */}
@@ -640,10 +640,10 @@ export default function JourneyMobileSheet({
                   className="flex min-w-0 items-center gap-2 text-sm font-medium text-main"
                 >
                   <Sparkle className="h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 break-words">Your Reading Journey</span>
+                  <span className="min-w-0 wrap-break-word">Your Reading Journey</span>
                 </h2>
                 {scopeLabel && (
-                  <span className="max-w-full break-words rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+                  <span className="max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}
@@ -651,7 +651,7 @@ export default function JourneyMobileSheet({
               <div className="ms-auto flex shrink-0 items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] transition-colors"
+                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) transition-colors"
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
@@ -663,8 +663,8 @@ export default function JourneyMobileSheet({
                     flex items-center justify-center
                     min-h-touch min-w-touch -mr-2
                     rounded-lg text-muted
-                    hover:text-main hover:bg-[color:var(--border-warm-subtle)]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]
+                    hover:text-main hover:bg-(--border-warm-subtle)
+                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)
                     transition-colors
                   "
                   aria-label="Close journey panel"
@@ -675,7 +675,7 @@ export default function JourneyMobileSheet({
             </div>
 
             {/* Tabs with proper touch targets */}
-            <div className="flex shrink-0 overflow-x-auto border-b border-[color:var(--border-warm-subtle)] px-5 short:px-4" role="tablist" aria-label="Journey sections">
+            <div className="flex shrink-0 overflow-x-auto border-b border-(--border-warm-subtle) px-5 short:px-4" role="tablist" aria-label="Journey sections">
               {visibleTabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -692,7 +692,7 @@ export default function JourneyMobileSheet({
                     border-b-2 transition-colors
                     ${
                       activeTab === tab.key
-                        ? 'border-[color:var(--brand-primary)] text-main'
+                        ? 'border-(--brand-primary) text-main'
                         : 'border-transparent text-muted hover:text-muted-high'
                     }
                   `}
@@ -740,7 +740,7 @@ export default function JourneyMobileSheet({
                         {themes.slice(0, 4).map((theme, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-[color:var(--border-warm-subtle)] px-2.5 py-1 text-xs text-muted-high"
+                            className="rounded-full bg-(--border-warm-subtle) px-2.5 py-1 text-xs text-muted-high"
                           >
                             {theme}
                           </span>
@@ -754,7 +754,7 @@ export default function JourneyMobileSheet({
                       type="button"
                       onClick={handlePatternsToggle}
                       aria-expanded={showAllPatterns}
-                      className="text-xs font-semibold text-[color:var(--text-accent)] hover:text-main focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                      className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                     >
                       {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                     </button>

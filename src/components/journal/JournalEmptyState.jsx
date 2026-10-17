@@ -27,7 +27,7 @@ function JournalEntryPreview() {
         onClick={() => setIsExpanded((prev) => !prev)}
         aria-expanded={isExpanded}
         aria-controls={isExpanded ? previewContentId : undefined}
-        className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-[color:var(--border-warm-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+        className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
       >
         <div className="space-y-1">
           <p className="text-2xs uppercase tracking-[0.18em] text-muted">Journal entry preview</p>
@@ -45,7 +45,7 @@ function JournalEntryPreview() {
           <div>
             <p className="text-2xs uppercase tracking-[0.18em] text-muted">Cards drawn</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <span className="rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--panel-dark-2)] px-3 py-1 text-xs font-semibold text-main">
+              <span className="rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-3 py-1 text-xs font-semibold text-main">
                 The Star · Upright
               </span>
             </div>
@@ -99,7 +99,7 @@ export function JournalEmptyState({ shellClass, onStartReading }) {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] p-4 text-left shadow-[0_14px_40px_-24px_rgba(0,0,0,0.75)]">
+        <div className="rounded-xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-left shadow-[0_14px_40px_-24px_rgba(0,0,0,0.75)]">
           <p className="text-[0.78rem] uppercase tracking-[0.12em] text-muted mb-1">Example entry</p>
           <div className="journal-prose flex flex-col gap-1 text-sm text-muted-high">
             <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
@@ -120,7 +120,7 @@ export function JournalEmptyState({ shellClass, onStartReading }) {
           <button
             type="button"
             onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
-            className="inline-flex min-h-touch items-center gap-2 rounded-full border border-[color:var(--border-warm-light)] bg-[color:var(--border-warm-subtle)] px-5 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_var(--primary-30)] transition hover:-translate-y-0.5 hover:border-[color:var(--border-warm)] hover:bg-[color:var(--accent-25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-5 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_var(--primary-30)] transition hover:-translate-y-0.5 hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           >
             Try a guided draw
           </button>

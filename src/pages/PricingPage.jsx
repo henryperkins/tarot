@@ -103,7 +103,7 @@ function TierCard({ tierKey, config, isCurrent, actionLabel, onSelect, isLoading
   return (
     <div
       className={[
-        'relative min-w-0 rounded-3xl border bg-surface/80 p-6 backdrop-blur [overflow-wrap:anywhere]',
+        'relative min-w-0 rounded-3xl border bg-surface/80 p-6 backdrop-blur wrap-anywhere',
         isCurrent
           ? 'border-accent/80 ring-2 ring-accent/40'
           : 'border-secondary/40 hover:border-accent/60',
@@ -398,7 +398,7 @@ function ComparisonModal({ isOpen, onClose }) {
     <div
       ref={containerRef}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex h-[100dvh] items-center justify-center p-4 pt-[max(1rem,var(--safe-pad-top))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))]"
+      className="fixed inset-0 z-50 flex h-dvh items-center justify-center p-4 pt-[max(1rem,var(--safe-pad-top))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(1rem,var(--safe-pad-bottom))] pl-[max(1rem,var(--safe-pad-left))]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="comparison-modal-title"
@@ -448,7 +448,7 @@ function ComparisonModal({ isOpen, onClose }) {
             tabIndex={0}
             className={`overflow-x-auto overscroll-x-contain focus-visible:ring-inset ${FOCUS_RING_DEFAULT}`}
           >
-            <table className="w-full min-w-[32rem] text-sm">
+            <table className="w-full min-w-lg text-sm">
               <caption className="sr-only">Features included in each plan</caption>
               <thead>
                 <tr className="border-b border-secondary/30">
@@ -765,7 +765,7 @@ export default function PricingPage() {
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(6rem,calc(var(--pricing-upgrade-height,0px)+1.5rem))] pt-8">
         {/* Hero */}
         <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
-          <div className="min-w-0 space-y-6 [overflow-wrap:anywhere]">
+          <div className="min-w-0 space-y-6 wrap-anywhere">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
               Plans for deeper practice
             </p>
@@ -921,7 +921,7 @@ export default function PricingPage() {
                     key={tier}
                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
                   >
-                    <div className="min-w-0 flex-[1_1_10rem] space-y-0.5 [overflow-wrap:anywhere]">
+                    <div className="min-w-0 flex-[1_1_10rem] space-y-0.5 wrap-anywhere">
                       <p className="text-2xs font-semibold uppercase tracking-[0.16em] text-muted">
                         {config.name}
                       </p>
@@ -978,7 +978,7 @@ export default function PricingPage() {
                 type="button"
                 onClick={() => setBillingInterval('monthly')}
                 className={[
-                  'rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+                  'rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
                   billingInterval === 'monthly'
                     ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
@@ -990,7 +990,7 @@ export default function PricingPage() {
                 type="button"
                 onClick={() => setBillingInterval('annual')}
                 className={[
-                  'inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]',
+                  'inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full px-4 py-1.5 min-h-touch text-sm font-medium transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
                   billingInterval === 'annual'
                     ? 'bg-accent text-surface'
                     : 'text-secondary hover:text-main'
@@ -1143,7 +1143,7 @@ export default function PricingPage() {
         <section ref={upgradeBarRef} aria-label="Plan upgrade" tabIndex={-1} className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
           <div className="mx-auto flex max-w-6xl items-end gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0 flex-[1_1_8rem] text-xs text-muted [overflow-wrap:anywhere]">
+              <div className="min-w-0 flex-[1_1_8rem] text-xs text-muted wrap-anywhere">
                 <p className="font-semibold text-main">Upgrade to Plus</p>
                 <p>
                   {billingInterval === 'annual' && plusAnnualTotal && plusAnnualMonthly
@@ -1157,7 +1157,7 @@ export default function PricingPage() {
                 disabled={loadingTier !== null}
                 className="inline-flex min-h-touch max-w-full shrink-0 items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-xs font-semibold text-surface shadow-md hover:bg-accent/90 transition"
               >
-                <span className="min-w-0 [overflow-wrap:anywhere]">Go Plus</span>
+                <span className="min-w-0 wrap-anywhere">Go Plus</span>
                 {loadingTier === 'plus' ? (
                   <CircleNotch className="h-3.5 w-3.5 animate-spin" />
                 ) : (

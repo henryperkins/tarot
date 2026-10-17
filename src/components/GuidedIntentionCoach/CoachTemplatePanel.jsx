@@ -63,7 +63,7 @@ export function CoachTemplatePanel({
         aria-modal="true"
         aria-labelledby={headingId}
         tabIndex={-1}
-        className={`ml-auto h-full w-full sm:w-[26rem] bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-[var(--ui-elevated-shadow)] focus:outline-none ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
+        className={`ml-auto h-full w-full sm:w-104 bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-(--ui-elevated-shadow) focus:outline-hidden ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
         onClick={event => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
@@ -80,7 +80,7 @@ export function CoachTemplatePanel({
             type="button"
             onClick={onClose}
             data-initial-focus="browse"
-            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 min-h-touch min-w-touch text-secondary hover:bg-secondary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 min-h-touch min-w-touch text-secondary hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             aria-label="Close template panel"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -109,11 +109,11 @@ export function CoachTemplatePanel({
                   autoComplete="off"
                   enterKeyHint="done"
                   data-initial-focus="save"
-                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-secondary/60"
+                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
                 />
                 <button
                   type="submit"
-                  className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)]"
+                  className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/60 bg-secondary/10 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 >
                   <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
                   Save
@@ -124,7 +124,7 @@ export function CoachTemplatePanel({
               </p>
             </div>
             {templateStatus && (
-              <p className="text-xs text-secondary break-words">{templateStatus}</p>
+              <p className="text-xs text-secondary wrap-break-word">{templateStatus}</p>
             )}
             {/* Always mounted, and off screen so an empty region leaves no gap,
                 so screen readers hear each save, update, and removal. */}
@@ -166,14 +166,14 @@ export function CoachTemplatePanel({
                         aria-describedby={summaryId}
                         className="min-h-touch min-w-0 text-left"
                       >
-                        <span className="block text-sm font-semibold text-main break-words">{template.label}</span>
+                        <span className="block text-sm font-semibold text-main wrap-break-word">{template.label}</span>
                         <span id={summaryId} className="block">
                           <span className="block text-xs text-muted">{summary}</span>
                           {template.customFocus && (
-                            <span className="mt-1 block text-xs text-secondary break-words">{template.customFocus}</span>
+                            <span className="mt-1 block text-xs text-secondary wrap-break-word">{template.customFocus}</span>
                           )}
                           {template.savedQuestion && (
-                            <span className="mt-2 block text-xs text-muted break-words">{template.savedQuestion}</span>
+                            <span className="mt-2 block text-xs text-muted wrap-break-word">{template.savedQuestion}</span>
                           )}
                         </span>
                       </button>
@@ -206,7 +206,7 @@ export function CoachTemplatePanel({
                     <button
                       type="button"
                       onClick={() => handleApplyHistoryQuestion(item)}
-                      className="w-full min-h-touch text-left rounded-2xl border border-accent/20 bg-surface-muted/70 px-4 py-2 text-sm text-muted hover:border-secondary/50 transition break-words"
+                      className="w-full min-h-touch text-left rounded-2xl border border-accent/20 bg-surface-muted/70 px-4 py-2 text-sm text-muted hover:border-secondary/50 transition wrap-break-word"
                     >
                       {item.question}
                     </button>

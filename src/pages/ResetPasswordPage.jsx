@@ -80,10 +80,10 @@ export default function ResetPasswordPage() {
 
   const inputClasses = `
     min-w-0 w-full px-4 py-3 rounded-xl bg-surface-muted border border-primary/30
-    text-base text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/60
+    text-base text-main placeholder:text-muted focus:outline-hidden focus:ring-2 focus:ring-primary/60
     focus:border-primary/50 transition disabled:opacity-60 disabled:cursor-not-allowed
   `;
-  const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+  const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent';
 
   return (
     <div className="min-h-screen bg-main text-main">
@@ -111,7 +111,7 @@ export default function ResetPasswordPage() {
             <div className="shrink-0 rounded-full bg-primary/10 p-3 text-primary">
               <LockKey className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="min-w-0 break-words">
+            <div className="min-w-0 wrap-break-word">
               <h1 className="font-serif text-2xl text-accent">Reset your password</h1>
               <p className="text-sm text-muted mt-1">
                 Choose a new password for your Tableu account. Reset links expire after 30 minutes.
@@ -122,7 +122,7 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} aria-busy={loading} className="mt-6 space-y-4">
             {tokenMissing && (
               <div className="flex items-start gap-2 rounded-xl border border-warning/60 bg-warning/10 px-3 py-2 text-warning">
-                <WarningCircle className="mt-0.5 h-4 w-4 flex-shrink-0" weight="fill" aria-hidden="true" />
+                <WarningCircle className="mt-0.5 h-4 w-4 shrink-0" weight="fill" aria-hidden="true" />
                 <p className="text-sm text-warning/90">
                   This reset link is missing a token. Try requesting a fresh link from the sign-in dialog.
                 </p>
@@ -186,15 +186,15 @@ export default function ResetPasswordPage() {
             </div>
 
             {error && (
-              <div id="reset-password-error" role="alert" aria-atomic="true" className="break-words rounded-xl border border-error/50 bg-error/10 px-3 py-2 text-sm text-error">
+              <div id="reset-password-error" role="alert" aria-atomic="true" className="wrap-break-word rounded-xl border border-error/50 bg-error/10 px-3 py-2 text-sm text-error">
                 {error}
               </div>
             )}
 
             {success && (
               <div role="status" aria-atomic="true" className="flex items-start gap-2 rounded-xl border border-secondary/50 bg-secondary/10 px-3 py-2 text-sm text-secondary">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" weight="duotone" aria-hidden="true" />
-                <div className="min-w-0 break-words">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" weight="duotone" aria-hidden="true" />
+                <div className="min-w-0 wrap-break-word">
                   <p className="font-semibold text-main">Password reset</p>
                   <p className="text-secondary text-sm">{success}</p>
                 </div>

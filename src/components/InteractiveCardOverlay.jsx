@@ -12,19 +12,19 @@ import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
 const ELEMENT_BADGE_CONFIG = {
   Fire: {
     icon: '🔥',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color:color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
   },
   Water: {
     icon: '💧',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color:color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
   },
   Air: {
     icon: '💨',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color:color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
   },
   Earth: {
     icon: '🌍',
-    className: 'bg-[color:color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color:color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
   }
 };
 
@@ -202,7 +202,7 @@ export function InteractiveCardOverlay({ card }) {
             fill: isActive ? 'rgb(var(--brand-primary-rgb) / 0.25)' : 'transparent',
             stroke: isActive ? 'rgb(var(--brand-primary-rgb) / 0.7)' : 'rgb(var(--text-main-rgb) / 0.18)',
             strokeWidth: "3",
-            className: "cursor-pointer transition-all duration-200 hover:fill-primary/20 hover:stroke-primary/60 focus-visible:outline-none focus-visible:stroke-primary focus-visible:stroke-[6px]",
+            className: "cursor-pointer transition-all duration-200 hover:fill-primary/20 hover:stroke-primary/60 focus-visible:outline-hidden focus-visible:stroke-primary focus-visible:stroke-[6px]",
             onClick: (e) => handleSymbolActivate(symbolCoord.symbol, e),
             onKeyDown: (e) => handleKeyDown(symbolCoord.symbol, e),
             style: { pointerEvents: 'all' },
@@ -304,7 +304,7 @@ export function InteractiveCardOverlay({ card }) {
               {(reflection || relatedCards.length > 0) && (
                 <button
                   onClick={handleToggleExpand}
-                  className="flex items-center gap-1 text-xs text-secondary/70 hover:text-accent transition-colors p-1 min-h-touch min-w-touch justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+                  className="flex items-center gap-1 text-xs text-secondary/70 hover:text-accent transition-colors p-1 min-h-touch min-w-touch justify-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
                   aria-expanded={isExpanded}
                   aria-label={isExpanded ? 'Show less' : 'Explore deeper'}
                 >
@@ -330,7 +330,7 @@ export function InteractiveCardOverlay({ card }) {
                 {/* Reflective question */}
                 {reflection && (
                   <div className="flex gap-2">
-                    <Lightbulb className="w-3.5 h-3.5 text-accent/70 flex-shrink-0 mt-0.5" />
+                    <Lightbulb className="w-3.5 h-3.5 text-accent/70 shrink-0 mt-0.5" />
                     <p className="text-xs text-main/80 italic leading-relaxed">
                       {reflection}
                     </p>
@@ -360,7 +360,7 @@ export function InteractiveCardOverlay({ card }) {
             {!isExpanded && (reflection || relatedCards.length > 0) && (
               <button
                 onClick={handleToggleExpand}
-                className="mt-2 text-xs text-secondary/50 hover:text-accent transition-colors flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+                className="mt-2 text-xs text-secondary/50 hover:text-accent transition-colors flex items-center gap-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
               >
                 <span>Explore deeper</span>
                 <CaretDown className="w-3 h-3" />

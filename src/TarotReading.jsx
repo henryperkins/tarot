@@ -990,7 +990,7 @@ export default function TarotReading() {
   return (
     <div className={`app-shell relative isolate min-h-screen bg-main text-main ${hasReading && !showSetupSection ? 'app-shell--reading' : ''} ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
-      <div className="relative z-[1]">
+      <div className="relative z-1">
       {!isOnboardingOpen && <ReadingSkipLinks showSetupSection={showSetupSection} />}
       <main
         id="main-content"
@@ -1257,7 +1257,7 @@ export default function TarotReading() {
             />
           {connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
             <div
-              className="fixed left-0 right-0 z-[60] flex justify-center pl-safe pr-safe bottom-safe-action"
+              className="fixed left-0 right-0 z-60 flex justify-center pl-safe pr-safe bottom-safe-action"
               aria-live="polite"
             >
               <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>

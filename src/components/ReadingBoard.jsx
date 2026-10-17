@@ -55,22 +55,22 @@ function CardDetailContent({
   const containerClass = isFocusLayout ? 'space-y-6' : 'space-y-4';
   const headerClass = isFocusLayout ? 'flex flex-col items-center text-center gap-4' : 'flex flex-col sm:flex-row gap-4';
   const imageWrapClass = isFocusLayout
-    ? 'w-36 xs:w-40 sm:w-44 max-w-[70%] flex-shrink-0 mx-auto'
-    : 'w-24 sm:w-28 flex-shrink-0 mx-auto sm:mx-0';
+    ? 'w-36 xs:w-40 sm:w-44 max-w-[70%] shrink-0 mx-auto'
+    : 'w-24 sm:w-28 shrink-0 mx-auto sm:mx-0';
   const headingWrapClass = isFocusLayout ? 'flex-1 min-w-0 text-center' : 'flex-1 min-w-0';
   const positionClass = isFocusLayout ? 'text-2xs uppercase tracking-[0.2em] text-muted' : 'text-xs text-muted';
   const headingClass = isFocusLayout ? 'text-xl font-serif text-accent' : 'text-base font-semibold text-accent';
   const meaningClass = isFocusLayout ? 'text-base text-main/90 leading-relaxed mt-3' : 'text-sm text-main/90 mt-2';
   const meaningClampClass = isMeaningExpanded ? '' : isFocusLayout ? 'line-clamp-6' : 'line-clamp-4';
   const imageFrameClass = isFocusLayout
-    ? 'aspect-[2/3] rounded-xl border border-primary/30 overflow-hidden shadow-xl'
-    : 'aspect-[2/3] rounded-lg border border-primary/30 overflow-hidden';
+    ? 'aspect-2/3 rounded-xl border border-primary/30 overflow-hidden shadow-xl'
+    : 'aspect-2/3 rounded-lg border border-primary/30 overflow-hidden';
   const expandButtonClass = isFocusLayout
     ? 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-2'
     : 'text-xs font-semibold text-accent hover:text-main underline underline-offset-4 mt-1';
   const openButtonClass = isFocusLayout
-    ? 'mt-4 inline-flex w-full min-h-cta items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50'
-    : 'mt-3 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50';
+    ? 'mt-4 inline-flex w-full min-h-cta items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50'
+    : 'mt-3 inline-flex min-h-touch items-center justify-center rounded-full border border-secondary/40 px-4 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50';
   const reflectionLabelClass = isFocusLayout ? 'text-muted text-sm block mb-1' : 'text-muted text-xs-plus sm:text-sm block mb-1';
 
   return (
@@ -134,7 +134,7 @@ function CardDetailContent({
           }}
           rows={isFocusLayout ? 4 : 3}
           maxLength={500}
-          className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-[3.5rem] resize-y text-main text-base leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary/55"
+          className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-14 resize-y text-main text-base leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-secondary/55"
           placeholder="What resonates? (optional)"
           aria-describedby={`reflection-panel-count-${index}`}
         />
@@ -290,7 +290,7 @@ function CardFocusOverlay({
       />
       <div
         ref={overlayRef}
-        className="relative z-10 flex h-full flex-col focus:outline-none pt-[max(10px,var(--safe-pad-top))] pb-[max(12px,var(--safe-pad-bottom))]"
+        className="relative z-10 flex h-full flex-col focus:outline-hidden pt-[max(10px,var(--safe-pad-top))] pb-[max(12px,var(--safe-pad-bottom))]"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -304,7 +304,7 @@ function CardFocusOverlay({
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-2 min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 text-xs font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
+              className="inline-flex items-center gap-2 min-h-touch rounded-full border border-secondary/30 bg-surface/40 px-3 text-xs font-semibold text-muted hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
               aria-label="Back to spread"
             >
               <X className="w-4 h-4" />

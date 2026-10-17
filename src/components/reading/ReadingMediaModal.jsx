@@ -55,7 +55,7 @@ export function ReadingMediaModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 px-safe pt-safe pb-safe"
+      className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 px-safe pt-safe pb-safe"
       onClick={createBackdropHandler(onClose)}
     >
       <div
@@ -64,7 +64,7 @@ export function ReadingMediaModal({
         aria-modal="true"
         aria-labelledby={READING_MEDIA_MODAL_TITLE_ID}
         aria-describedby={DESCRIPTION_ID}
-        className="relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] flex-col overflow-hidden panel-mystic rounded-none sm:rounded-3xl border border-[color:var(--border-warm-light)] shadow-2xl p-0 focus:outline-none"
+        className="relative flex w-full h-full sm:h-auto sm:max-h-[85vh] sm:w-[min(92vw,56rem)] flex-col overflow-hidden panel-mystic rounded-none sm:rounded-3xl border border-(--border-warm-light) shadow-2xl p-0 focus:outline-hidden"
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
       >

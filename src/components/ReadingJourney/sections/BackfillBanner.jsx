@@ -57,8 +57,8 @@ export default function BackfillBanner({
   // After successful backfill, show success briefly then hide
   if (backfillResult?.success) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-success)_24%,transparent)] px-3 py-2 text-xs text-[color:var(--status-success)]">
-        <CheckCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+      <div className="flex items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--status-success)_12%,transparent)] border border-[color-mix(in_srgb,var(--status-success)_24%,transparent)] px-3 py-2 text-xs text-(--status-success)">
+        <CheckCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>
           Analysis complete!{' '}
           {backfillResult.stats?.cardsTracked > 0 && (
@@ -74,13 +74,13 @@ export default function BackfillBanner({
   // Show error state
   if (backfillResult && !backfillResult.success) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-[color:color-mix(in_srgb,var(--status-error)_12%,transparent)] border border-[color:color-mix(in_srgb,var(--status-error)_24%,transparent)] px-3 py-2 text-xs text-[color:var(--status-error)]">
-        <XCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+      <div className="flex items-center gap-2 rounded-lg bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] border border-[color-mix(in_srgb,var(--status-error)_24%,transparent)] px-3 py-2 text-xs text-(--status-error)">
+        <XCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span>Analysis failed. {backfillResult.message || 'Please try again.'}</span>
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
-          className="ml-auto min-h-touch inline-flex items-center text-[color:var(--status-error)] hover:text-[color:color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring-color)] rounded"
+          className="ml-auto min-h-touch inline-flex items-center text-(--status-error) hover:text-[color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
         >
           {isBackfilling ? 'Retrying...' : 'Retry'}
         </button>
@@ -96,8 +96,8 @@ export default function BackfillBanner({
   // Compact variant for tight spaces
   if (variant === 'compact') {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-[color:var(--border-warm-subtle)] border border-[color:var(--border-warm-light)] px-3 py-2">
-        <Info className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--brand-primary)]" aria-hidden="true" />
+      <div className="flex items-center gap-2 rounded-lg bg-(--border-warm-subtle) border border-(--border-warm-light) px-3 py-2">
+        <Info className="h-3.5 w-3.5 shrink-0 text-(--brand-primary)" aria-hidden="true" />
         <span className="text-xs sm:text-2xs text-muted-high flex-1">
           Analyze past readings for deeper insights
         </span>
@@ -126,7 +126,7 @@ export default function BackfillBanner({
 
   // Default variant
   return (
-    <div className="relative rounded-xl bg-gradient-ambient border border-[color:var(--border-warm-light)] p-3">
+    <div className="relative rounded-xl bg-gradient-ambient border border-(--border-warm-light) p-3">
       <button
         onClick={handleDismiss}
         className="absolute top-2 right-2 min-h-touch min-w-touch flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
@@ -135,8 +135,8 @@ export default function BackfillBanner({
         <X className="h-3.5 w-3.5" />
       </button>
       <div className="flex items-start gap-3 pr-4">
-        <div className="rounded-full bg-[color:var(--accent-25)] p-1.5">
-          <ArrowsClockwise className="h-3.5 w-3.5 text-[color:var(--brand-primary)]" aria-hidden="true" />
+        <div className="rounded-full bg-(--accent-25) p-1.5">
+          <ArrowsClockwise className="h-3.5 w-3.5 text-(--brand-primary)" aria-hidden="true" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm sm:text-xs font-medium text-main mb-1">
@@ -150,9 +150,9 @@ export default function BackfillBanner({
             disabled={isBackfilling}
             className="
               inline-flex items-center gap-1.5 min-h-touch px-3 py-1.5 rounded-full
-              text-xs sm:text-2xs font-medium text-[color:var(--text-main)] bg-[color:var(--accent-25)]
-              border border-[color:var(--border-warm-light)]
-              hover:bg-[color:var(--accent-45)] hover:border-[color:var(--border-warm)]
+              text-xs sm:text-2xs font-medium text-(--text-main) bg-(--accent-25)
+              border border-(--border-warm-light)
+              hover:bg-(--accent-45) hover:border-(--border-warm)
               disabled:opacity-50 disabled:cursor-not-allowed
               transition-colors touch-manipulation
             "

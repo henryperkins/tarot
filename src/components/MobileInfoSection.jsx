@@ -41,7 +41,7 @@ export function MobileInfoSection({
     text-xs text-secondary
     transition-colors duration-150
     hover:border-accent/50 hover:bg-surface/80
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main
+    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-main
     touch-manipulation
     active:scale-[0.98]
   `;
@@ -54,7 +54,7 @@ export function MobileInfoSection({
     text-sm text-main
     transition-colors duration-150
     hover:border-accent/40 hover:bg-surface/70
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60
+    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
     touch-manipulation
     active:scale-[0.99]
   `;
@@ -78,17 +78,17 @@ export function MobileInfoSection({
       >
         {isInline ? (
           <>
-            <Info className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            <Info className="w-4 h-4 shrink-0" aria-hidden="true" />
             <span className="font-medium">{title}</span>
             {isOpen
-              ? <CaretUp className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
-              : <CaretDown className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+              ? <CaretUp className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              : <CaretDown className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             }
           </>
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <Info className="w-5 h-5 text-secondary flex-shrink-0" aria-hidden="true" />
+              <Info className="w-5 h-5 text-secondary shrink-0" aria-hidden="true" />
               <span className="font-semibold">{title}</span>
             </div>
             <span className="w-8 h-8 flex items-center justify-center rounded-full bg-secondary/10 border border-secondary/20">
@@ -127,7 +127,7 @@ export function MobileInfoSection({
 export function InfoText({ children, className = '' }) {
   return (
     <div className={`flex items-start gap-2 text-xs text-muted ${className}`}>
-      <Info className="w-4 h-4 flex-shrink-0 text-secondary/70 mt-0.5" aria-hidden="true" />
+      <Info className="w-4 h-4 shrink-0 text-secondary/70 mt-0.5" aria-hidden="true" />
       <span className="leading-relaxed">{children}</span>
     </div>
   );

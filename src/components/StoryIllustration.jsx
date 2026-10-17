@@ -1,6 +1,6 @@
 /**
  * StoryIllustration.jsx
- * 
+ *
  * Component for displaying and requesting AI-generated story art
  * based on the tarot reading. Supports multiple styles and formats.
  */
@@ -31,13 +31,13 @@ const FORMAT_OPTIONS = [
 // Loading skeleton component
 function LoadingSkeleton({ format }) {
   const panelCount = format === 'triptych' ? 3 : 1;
-  
+
   return (
     <div className="flex flex-wrap gap-2 justify-center">
       {Array.from({ length: panelCount }).map((_, i) => (
         <div
           key={i}
-          className="w-full bg-gradient-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden animate-pulse"
+          className="w-full bg-linear-to-br from-primary/20 to-accent/15 rounded-lg overflow-hidden animate-pulse"
           style={{
             maxWidth: format === 'triptych' ? '200px' : '400px',
             height: format === 'vignette' ? '300px' : '200px',
@@ -47,7 +47,7 @@ function LoadingSkeleton({ format }) {
           <div className="h-full flex flex-col items-center justify-center p-4">
             <div className="w-12 h-12 border-2 border-accent/40 border-t-primary rounded-full motion-safe:animate-spin" />
             <p className="text-accent/80 text-sm mt-3 text-center">
-              {format === 'triptych' 
+              {format === 'triptych'
                 ? ['Past', 'Present', 'Future'][i]
                 : 'Illustrating...'}
             </p>
@@ -60,10 +60,10 @@ function LoadingSkeleton({ format }) {
 
 // Style selector component
 function StyleSelector({ value, onChange, allowedStyles }) {
-  const available = STYLE_OPTIONS.filter(s => 
+  const available = STYLE_OPTIONS.filter(s =>
     !allowedStyles || allowedStyles.includes(s.id)
   );
-  
+
   return (
     <div className="flex flex-wrap gap-2 justify-center">
       {available.map(style => (
@@ -72,7 +72,7 @@ function StyleSelector({ value, onChange, allowedStyles }) {
           onClick={() => onChange(style.id)}
           type="button"
           aria-pressed={value === style.id}
-          className={`px-3 py-1.5 rounded-full text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          className={`px-3 py-1.5 rounded-full text-sm transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 ${
             value === style.id
               ? 'bg-primary text-surface font-semibold border border-primary/60 shadow-lg'
               : 'bg-surface-muted text-muted hover:bg-surface hover:text-main border border-transparent'
@@ -88,10 +88,10 @@ function StyleSelector({ value, onChange, allowedStyles }) {
 
 // Format selector component
 function FormatSelector({ value, onChange, allowedFormats }) {
-  const available = FORMAT_OPTIONS.filter(f => 
+  const available = FORMAT_OPTIONS.filter(f =>
     !allowedFormats || allowedFormats.includes(f.id)
   );
-  
+
   return (
     <div className="flex flex-wrap gap-2 justify-center">
       {available.map(format => (
@@ -100,7 +100,7 @@ function FormatSelector({ value, onChange, allowedFormats }) {
           onClick={() => onChange(format.id)}
           type="button"
           aria-pressed={value === format.id}
-          className={`px-3 py-1.5 rounded-lg text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+          className={`px-3 py-1.5 rounded-lg text-sm transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 ${
             value === format.id
               ? 'bg-primary text-surface font-semibold border border-primary/60 shadow-lg'
               : 'bg-surface-muted text-muted hover:bg-surface hover:text-main border border-transparent'
@@ -131,7 +131,7 @@ function GeneratedArt({
     : 'bg-primary text-surface hover:bg-primary/90 border border-primary/60';
 
   return (
-    <div className="relative transition-[opacity,transform] duration-300 ease-out">
+    <div className="relative transition-[opacity,transform,translate,scale,rotate] duration-300 ease-out">
       {showImage && (
         <div className={`
           rounded-xl overflow-hidden shadow-2xl
@@ -145,50 +145,50 @@ function GeneratedArt({
           />
         </div>
       )}
-      
+
       {/* Action buttons */}
       <div className={`flex flex-wrap gap-3 justify-center ${showImage ? 'mt-4' : 'mt-1'}`}>
         {canSave && (
           <button
             onClick={onSave}
             type="button"
-            className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 
+            className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90
                        text-surface rounded-lg transition-colors text-sm border border-primary/60
-                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                       focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
             Save to Journal
           </button>
         )}
-        
+
         <button
           onClick={onDownload}
           type="button"
           className={`w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm
                       ${downloadClasses}
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60`}
+                      focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
           Download
         </button>
-        
+
         <button
           onClick={onShare}
           type="button"
           disabled={!canShare}
-          className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-surface-muted hover:bg-surface 
+          className="w-full sm:w-auto max-w-full flex items-center justify-center gap-2 px-4 py-2 bg-surface-muted hover:bg-surface
                      text-main rounded-lg transition-colors text-sm border border-secondary/30
                      disabled:opacity-45 disabled:cursor-not-allowed
-                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                     focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
           </svg>
           Share
@@ -264,7 +264,7 @@ function HeroBackground({ image, format, activePanel = 1 }) {
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[0] pointer-events-none"
+      className="fixed inset-0 z-0 pointer-events-none"
       style={{
         opacity: 0,
         filter: 'blur(20px)'
@@ -293,9 +293,9 @@ function HeroBackground({ image, format, activePanel = 1 }) {
 const upgradeTitleId = 'story-illustration-upgrade-title';
 
 // Main component
-export default function StoryIllustration({ 
-  cards, 
-  question, 
+export default function StoryIllustration({
+  cards,
+  question,
   narrative,
   userTier = 'free',
   onSaveToJournal,
@@ -320,7 +320,7 @@ export default function StoryIllustration({
   const generationKeyRef = useRef(generationKey);
   const requestTokenRef = useRef(0);
   const requestControllerRef = useRef(null);
-  
+
   const config = getMediaTierConfig(userTier, {
     storyArtStyles: STYLE_OPTIONS.map((option) => option.id),
     storyArtFormats: FORMAT_OPTIONS.map((option) => option.id)
@@ -378,7 +378,7 @@ export default function StoryIllustration({
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
   }, [isUpgradePromptOpen]);
-  
+
   // Generate illustration
   const handleGenerate = useCallback(async () => {
     if (!config.enabled) {
@@ -389,14 +389,14 @@ export default function StoryIllustration({
     const requestCards = format === 'vignette' && Array.isArray(cards)
       ? cards.slice(0, 1)
       : cards;
-    
+
     const requestToken = requestTokenRef.current + 1;
     requestTokenRef.current = requestToken;
 
     setLoading(true);
     setError(null);
     setStatusNotice(null);
-    
+
     if (requestControllerRef.current) {
       requestControllerRef.current.abort();
     }
@@ -427,7 +427,7 @@ export default function StoryIllustration({
       }
 
       if (requestToken !== requestTokenRef.current) return;
-      
+
       if (!response.ok) {
         if (data?.upgrade) {
           setShowUpgrade(true);
@@ -437,7 +437,7 @@ export default function StoryIllustration({
         }
         return;
       }
-      
+
       if (!data?.image) {
         throw new Error('No image returned. Please try again.');
       }
@@ -454,7 +454,7 @@ export default function StoryIllustration({
           cardCount: Array.isArray(requestCards) ? requestCards.length : 0
         });
       }
-      
+
     } catch (err) {
       if (requestToken !== requestTokenRef.current) return;
       if (err?.name === 'AbortError') {
@@ -483,11 +483,11 @@ export default function StoryIllustration({
     });
     return () => { cancelled = true; };
   }, [autoGenerate, cards, config.enabled, handleGenerate]);
-  
+
   // Download image
   const handleDownload = useCallback(() => {
     if (!generatedImage) return;
-    
+
     const link = document.createElement('a');
     link.href = `data:image/jpeg;base64,${generatedImage}`;
     link.download = `tarot-${style}-${Date.now()}.jpg`;
@@ -495,7 +495,7 @@ export default function StoryIllustration({
     link.click();
     document.body.removeChild(link);
   }, [generatedImage, style]);
-  
+
   // Save to journal
   const handleSave = useCallback(() => {
     if (onSaveToJournal && generatedImage) {
@@ -552,11 +552,11 @@ export default function StoryIllustration({
       setStatusNotice('Unable to share right now. Please try again.');
     }
   }, [generatedImage, style]);
-  
+
   // Feature not available for tier
   if (!config.enabled && !generatedImage) {
     return (
-      <div className={`w-full min-w-0 [overflow-wrap:anywhere] ${embedded ? 'p-[min(1rem,16px)] sm:p-[min(1.25rem,20px)] bg-surface/70' : 'p-6 bg-surface/95 backdrop-blur-xl'} rounded-xl border border-secondary/40 ${className}`}>
+      <div className={`w-full min-w-0 wrap-anywhere ${embedded ? 'p-[min(1rem,16px)] sm:p-[min(1.25rem,20px)] bg-surface/70' : 'p-6 bg-surface/95 backdrop-blur-xl'} rounded-xl border border-secondary/40 ${className}`}>
         <div className="text-center">
           <h3 className="text-lg font-serif text-accent mb-2">
             Visual Companion
@@ -566,9 +566,9 @@ export default function StoryIllustration({
           </p>
           <button
             onClick={() => setShowUpgrade(true)}
-            className="min-h-[44px] max-w-full whitespace-normal px-[min(1.5rem,24px)] py-[min(0.5rem,8px)] bg-gradient-to-r from-primary to-accent
+            className="min-h-[44px] max-w-full whitespace-normal px-[min(1.5rem,24px)] py-[min(0.5rem,8px)] bg-linear-to-r from-primary to-accent
                        text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
-                       transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                       transition-all shadow-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             Upgrade to Plus
           </button>
@@ -576,7 +576,7 @@ export default function StoryIllustration({
       </div>
     );
   }
-  
+
   const heroBackground = heroMode && generatedImage ? (
     <HeroBackground image={generatedImage} format={format} activePanel={activePanel} />
   ) : null;
@@ -595,7 +595,7 @@ export default function StoryIllustration({
           Generate artwork anchored to this exact narrative and spread.
         </p>
       </div>
-      
+
       {!generatedImage && !loading && (
         <div className="space-y-4 transition-opacity duration-200 ease-out">
           {/* Style selector */}
@@ -603,32 +603,32 @@ export default function StoryIllustration({
             <label className="block text-muted text-xs mb-2 text-center">
               Art Style
             </label>
-            <StyleSelector 
-              value={style} 
+            <StyleSelector
+              value={style}
               onChange={setStyle}
               allowedStyles={config.styles}
             />
           </div>
-          
+
           {/* Format selector */}
           <div>
             <label className="block text-muted text-xs mb-2 text-center">
               Format
             </label>
-            <FormatSelector 
-              value={format} 
+            <FormatSelector
+              value={format}
               onChange={setFormat}
               allowedFormats={config.formats}
             />
           </div>
-          
+
           {/* Generate button */}
           <div className={`pt-2 ${embedded ? '' : 'text-center'}`}>
             <button
               onClick={handleGenerate}
-              className="px-8 py-3 bg-gradient-to-r from-primary to-accent 
+              className="px-8 py-3 bg-linear-to-r from-primary to-accent
                          text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
-                         transition-all shadow-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                         transition-all shadow-lg text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
             >
               Generate Illustration
             </button>
@@ -638,7 +638,7 @@ export default function StoryIllustration({
           </div>
         </div>
       )}
-      
+
       {loading && (
         <div className="py-4 transition-opacity duration-200 ease-out">
           <LoadingSkeleton format={format} />
@@ -647,7 +647,7 @@ export default function StoryIllustration({
           </p>
         </div>
       )}
-      
+
       {generatedImage && (
         <div className="transition-opacity duration-200 ease-out">
           <GeneratedArt
@@ -661,7 +661,7 @@ export default function StoryIllustration({
             canShare={Boolean(generatedImage)}
             showImage
           />
-          
+
           {/* Regenerate option */}
           <div className="text-center mt-4">
             <button
@@ -679,7 +679,7 @@ export default function StoryIllustration({
           <p className="text-xs text-muted">{statusNotice}</p>
         </div>
       ) : null}
-      
+
       {/* Error display */}
       {error && (
         <div className="mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-center transition-opacity duration-200 ease-out">
@@ -700,7 +700,7 @@ export default function StoryIllustration({
           </div>
         </div>
       )}
-      
+
       {/* Upgrade modal */}
       {isUpgradePromptOpen && (
         <div
@@ -711,7 +711,7 @@ export default function StoryIllustration({
           onClick={() => setShowUpgrade(false)}
         >
           <div
-            className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40 transition-[opacity,transform] duration-200 ease-out"
+            className="bg-surface rounded-xl p-6 max-w-md border border-secondary/40 transition-[opacity,transform,translate,scale,rotate] duration-200 ease-out"
             onClick={(event) => event.stopPropagation()}
           >
             <h3 id={upgradeTitleId} className="text-xl font-serif text-accent mb-3">
@@ -724,17 +724,17 @@ export default function StoryIllustration({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowUpgrade(false)}
-                className="flex-1 px-4 py-2 bg-surface-muted text-main rounded-lg 
+                className="flex-1 px-4 py-2 bg-surface-muted text-main rounded-lg
                            hover:bg-surface transition-colors border border-secondary/30
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                           focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
               >
                 Maybe Later
               </button>
               <button
                 onClick={() => window.location.href = '/pricing'}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-primary to-accent 
+                className="flex-1 px-4 py-2 bg-linear-to-r from-primary to-accent
                            text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                           focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
               >
                 View Plans
               </button>
