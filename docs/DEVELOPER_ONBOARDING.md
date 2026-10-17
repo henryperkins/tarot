@@ -17,17 +17,14 @@ Common local variables include:
 - `ANTHROPIC_API_KEY` — enables the public `claude-api` backend, which is tried first for readings, follow-up answers and journal summaries. Narrative QA gates use the owner's subscription instead. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
 - `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
-- `OPENAI_API_KEY` — enables the native OpenAI Responses path in the `azure-gpt5` backend
+- `OPENAI_API_KEY` — enables the `openai-native` Responses backend
 - `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
-- Azure OpenAI Responses fallback variables, if the native OpenAI path is not configured:
-  - `AZURE_OPENAI_ENDPOINT`
-  - `AZURE_OPENAI_API_KEY`
-  - `AZURE_OPENAI_GPT5_MODEL`
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
+- `ELEVENLABS_API_KEY` — enables ElevenLabs reading narration through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. Without the key, reader voice uses Workers AI Aura-2. See [narration safeguards](narration-safeguards.md).
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
 - Auth variables such as `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_AUDIENCE`, `AUTH0_USERINFO_URL`, and `APP_URL` when testing auth flows
 
-`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, Azure Speech, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
+`npm run config:check` validates selected provider and authentication variables; it is not a complete feature-secret audit. Set optional Stripe, MCP/OAuth, email, media, and admin secrets only for the environments and routes that use them.
 
 Modal currently targets `https://henryperkins--ep-qwen3-8-max-vl-thinking-server.us-west.modal.direct/v1` with model `Qwen/Qwen3.8-Max-VL-Thinking`, high reasoning effort, upstream streaming enabled, temperature `0.3`, and top-p `0.95`. Full readings leave `max_tokens` unset. Only callers that explicitly provide a `maxTokens` option apply a cap; a stale `MODAL_MAX_TOKENS` environment value is ignored. Upstream streaming is collected before a complete reading is returned and does not by itself enable user-visible token streaming.
 
@@ -63,13 +60,15 @@ Do not cross-import browser code into Worker code or Worker code into browser co
 
 ## Current Stack
 
+See the [provider inventory and reference](provider-reference.md) for all implemented integrations, feature-specific fallback chains, configuration names and React context responsibilities.
+
 - Frontend: React 19, Vite, Tailwind CSS
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
 
-Public narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `azure-gpt5` (native OpenAI Responses when `OPENAI_API_KEY` is set, otherwise Azure OpenAI Responses) → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
+Public narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `openai-native` (OpenAI Responses when `OPENAI_API_KEY` is set) → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
 
-Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry, daily media-usage counters, and card-video job metadata, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
+Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry and daily media-usage counters, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 
 ## App Entry And Routing
 

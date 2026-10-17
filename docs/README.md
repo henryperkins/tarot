@@ -2,7 +2,7 @@
 
 Type: index
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-11
 
 This directory mixes active references, design and product notes, audits, and archived plans. Start here when you need the current source of truth.
 
@@ -16,6 +16,7 @@ This directory mixes active references, design and product notes, audits, and ar
 
 ## Canonical References
 
+- [Provider inventory and reference](provider-reference.md) - services, feature routing, model defaults, configuration and React contexts
 - `architecture/full-system-diagrams.md` - detailed system diagrams
 - `architecture/overview-diagram.md` - lighter architecture overview
 - `architecture/narrative-architecture.md` - narrative-generation architecture

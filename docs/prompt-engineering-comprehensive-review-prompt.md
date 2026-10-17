@@ -29,9 +29,9 @@ audit the full surface listed below.
   Marseille variants. Non-negotiable ethics: empowerment over determinism, no
   hallucinated cards, no medical/legal/financial/mental-health replacement, trauma-
   informed language, disclaimers for sensitive topics.
-- AI dispatch: OpenAI GPT-5.4 via Responses API (native `OPENAI_API_KEY` preferred,
-  Azure fallback), with Claude and local composer as further fallbacks. Streaming is on
-  by default (`AZURE_OPENAI_STREAMING_ENABLED=true`).
+- AI dispatch: Claude through the Anthropic API → Modal Qwen → native OpenAI Responses →
+  local composer. Native OpenAI requires `OPENAI_API_KEY`; streaming uses
+  `OPENAI_STREAMING_ENABLED`.
 - Every AI reading is asynchronously scored by Workers AI (Llama 3 8B) on personalization,
   tarot_coherence, tone, safety, overall, and a binary `safety_flag`. Scores feed
   `quality_stats` and optional gating (`EVAL_GATE_ENABLED`).
@@ -73,7 +73,7 @@ Media / story art / video / vision prompts:
   `mediaPromptSanitization.js`
 - `functions/lib/storyArtPrompts.js`, `functions/lib/videoPrompts.js`
 - `functions/api/media.js`, `functions/api/generate-story-art.js`,
-  `functions/api/generate-card-video.js`
+  `functions/api/generate-card-video.js` (retired; HTTP 410)
 - `functions/lib/llamaVision.js` (vision prompting)
 - `shared/vision/**` for validation/annotation prompts the server embeds
 
@@ -89,7 +89,7 @@ Evaluation prompts (the prompts that score the reading):
   `computeNarrativeMetrics.js`, `runWeaveEval.js`
 
 Backend dispatch and transport:
-- `functions/lib/azureResponses.js`, `azureResponsesStream.js`
+- `functions/lib/openaiResponses.js`, `openaiResponsesStream.js`
 - Any OpenAI-native client path
 - Claude/Anthropic path (if present) and the local composer fallback
 
@@ -105,7 +105,7 @@ Tests (judge coverage, not just presence):
   `narrativeBuilder.*.test.mjs`, `narrativeSpine.test.mjs`,
   `followUpSuggestions.test.mjs`, `readingFollowup.test.mjs`,
   `questionQuality.test.mjs`, `readingQuality.test.mjs`,
-  `mediaPromptSanitization.test.mjs`, `azureResponses.test.mjs`,
+  `mediaPromptSanitization.test.mjs`, `openaiResponses.test.mjs`,
   `evaluation.test.mjs`, `graphRAG.test.mjs`,
   `api.languageFallback.test.mjs`, `astroRelevanceGate.test.mjs`,
   `visionWeaving.test.mjs`, `contextDetection.test.mjs`,
@@ -164,9 +164,9 @@ For every surface above, evaluate:
      spreads, all-Major spreads, all-court spreads)?
 
 5. Backend dispatch, streaming, and fallback
-   - Does the order (OpenAI native → Azure GPT → Claude → local composer) match what
+   - Does the order (Claude API → Modal Qwen → OpenAI native → local composer) match what
      CLAUDE.md claims? Are secrets checked in the right precedence?
-   - On streaming (`azureResponsesStream.js`), what happens on mid-stream disconnect,
+   - On streaming (`openaiResponsesStream.js`), what happens on mid-stream disconnect,
      abort, rate-limit, or malformed SSE? Is backpressure handled?
    - On fallback, does the downstream prompt shape match what the alternative backend
      expects, or do we send a Claude-shaped prompt to a GPT endpoint (or vice versa)?

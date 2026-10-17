@@ -56,8 +56,7 @@ Claude account ID. Existing Tableu tier, ownership and usage checks still apply.
 Log into that account in Tableu, then start the normal `npm run dev` stack.
 
 The default `TEXT_PROVIDER=legacy` in Wrangler keeps an unconfigured deployment
-working. Switching to `claude-code` takes priority over configured Modal, OpenAI
-and Azure credentials. Invalid provider names are configuration errors. A missing
+working. Switching to `claude-code` takes priority over configured Anthropic, Modal and OpenAI credentials. Invalid provider names are configuration errors. A missing
 owner denies access. A missing or unavailable gateway permits only existing local
 reading/summary fallbacks; follow-ups return their existing retry error.
 

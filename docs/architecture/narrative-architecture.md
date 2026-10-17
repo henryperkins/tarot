@@ -52,10 +52,10 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
                      │              BACKEND SELECTION              │
                      │  • availability and per-attempt A/B assignment      │
                      │  NARRATIVE_BACKEND_ORDER:                    │
-                     │  claude-api → modal-qwen → azure-gpt5 →      │
+                     │  claude-api → modal-qwen → openai-native →      │
                      │  local-composer                               │
-                     │  azure-gpt5 = native OpenAI Responses or      │
-                     │  Azure OpenAI Responses                       │
+                     │  openai-native = native OpenAI Responses      │
+                     │  requires OPENAI_API_KEY                       │
                      └──────────────────┬──────────────────────────┘
                                         │
                                         ▼
@@ -63,7 +63,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              │           PROVIDER ATTEMPT LOOP                 │
              │  1. claude-api (Claude via Anthropic API)      │
              │  2. modal-qwen (Qwen via Modal)                │
-             │  3. azure-gpt5 (native OpenAI or Azure)       │
+             │  3. openai-native (OpenAI Responses)       │
              │  4. local-composer (deterministic fallback)   │
              └──────────────────┬──────────────────────────┘
                                         │
@@ -141,7 +141,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              ┌─────────────────────────────────────────────────┐
              │           NARRATIVE GENERATION                  │
              │  • LLM inference or deterministic composition  │
-             │  • Token streaming (native OpenAI/Azure path)   │
+             │  • Token streaming (native OpenAI path)   │
              │  • Response formatting                         │
              └───────────────────────┬─────────────────────────┘
                                     │
@@ -197,7 +197,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              │  {                                              │
              │    reading: "Narrative text...",                │
              │    provider: "claude-api | modal-qwen |         │
-             │      openai-native | azure-gpt5 | local-composer",│
+             │      openai-native | local-composer",│
              │    themes: {...},                               │
              │    context: "love",                             │
              │    spreadAnalysis: {...},                       │
@@ -206,7 +206,7 @@ Guardrail: Enrichment layers may add nuance, but they must not replace drawn car
              └─────────────────────────────────────────────────┘
 ```
 
-For `claude-api`, `modal-qwen`, and `azure-gpt5`, the prompt-construction layer
+For `claude-api`, `modal-qwen`, and `openai-native`, the prompt-construction layer
 assembles system and user prompts. `local-composer` bypasses LLM prompt assembly and
 uses the reasoning-aware spread builders directly.
 
@@ -271,7 +271,7 @@ No cross-request bleed in production.
 3. **Crisis check** performed (1-2ms)
 4. **Spread analysis** computed (50-100ms)
 5. **Reasoning chain** built from the actual spread and question
-6. **Backend selected** in order: `claude-api` → `modal-qwen` → `azure-gpt5` → `local-composer`
+6. **Backend selected** in order: `claude-api` → `modal-qwen` → `openai-native` → `local-composer`
 7. **Prompt or local composition** constructed (10-20ms):
    - Token budgeting and GraphRAG retrieval for LLM paths
    - Spread-specific sections and reasoning-aware synthesis
@@ -282,7 +282,7 @@ No cross-request bleed in production.
 
 ## Runtime Scheduling and Storage
 
-The Worker has two cron entries: `*/10 * * * *` reconciles pending card-video usage in `METRICS_DB`, and `0 3 * * *` runs D1 quality analysis, ongoing legacy KV compatibility archival, and cleanup. Runtime reading metrics and evaluation payloads are written directly to D1 `eval_metrics`; `METRICS_DB` also stores current media telemetry, media-usage counters, and card-video job metadata. `R2_LOGS` stores generated media, user-media objects, journal-export caches, and archives/exports.
+The Worker's daily `0 3 * * *` cron runs D1 quality analysis, ongoing legacy KV compatibility archival, and cleanup. Runtime reading metrics and evaluation payloads are written directly to D1 `eval_metrics`; `METRICS_DB` also stores current media telemetry and media-usage counters. `R2_LOGS` stores generated media, user-media objects, journal-export caches, and archives/exports.
 
 ## Optimization Opportunities
 

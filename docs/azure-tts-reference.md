@@ -1,8 +1,10 @@
 # Azure Text-to-Speech Complete Reference
 
 Type: reference
-Status: active reference
+Status: historical reference
 Last reviewed: 2026-04-23
+
+This retained vendor reference is historical. Azure Speech and Word Sync are retired; `/api/speech-token` returns HTTP 410. Use [narration safeguards](narration-safeguards.md) for current audio setup.
 
 Compiled from Microsoft Azure documentation (January 2026).
 

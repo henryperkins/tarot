@@ -82,7 +82,7 @@ The deterministic scan (`buildHeuristicScores`, the streaming safety scan, and t
 ```mermaid
 flowchart TB
   subgraph R["RUNTIME (per request)"]
-    U["User request"] --> G["Generate reading<br/>claude-api → modal-qwen → azure-gpt5 → local-composer"]
+    U["User request"] --> G["Generate reading<br/>claude-api → modal-qwen → openai-native → local-composer"]
     G --> QG["Structural quality gate<br/>(tarot-reading.js + readingQuality.js)"]
     QG --> EG["Sync evaluation gate<br/>(evaluation.js, @cf/zai-org/glm-5.3-flash;<br/>enabled or selectively forced)"]
     EG --> RESP["Return response to user"]
@@ -92,7 +92,6 @@ flowchart TB
   end
 
   subgraph M["MAINTENANCE (scheduled)"]
-    V["*/10 * * * *<br/>card-video usage reconciliation"] --> VDB["METRICS_DB KV usage settlement"]
     CRON["0 3 * * *<br/>functions/lib/scheduled.js"] --> QA["Quality analysis<br/>(eval_metrics → quality_stats/alerts)"]
     CRON --> ARCH["Continue legacy KV compatibility archive → D1<br/>(metrics_archive/feedback_archive)"]
     CRON --> CLEAN["Cleanup sessions, tokens, memories, and usage"]
@@ -117,7 +116,7 @@ flowchart TB
 | Metrics storage | `eval_metrics` (D1) | Primary storage for runtime + eval payloads |
 | Legacy KV compatibility archives (ongoing) | `metrics_archive` / `feedback_archive` (D1) or `archives/metrics/*` (R2) | Scheduled archival continues for old `reading:*` and `feedback:*` keys; runtime reading/eval metrics use D1 |
 | Shared data access | `scripts/lib/dataAccess.js` | R2/KV/D1 helpers for export scripts |
-| `METRICS_DB` | KV | Current media telemetry, daily media-usage counters, and card-video job metadata; also the source for ongoing legacy `reading:*` archival |
+| `METRICS_DB` | KV | Current media telemetry, daily media-usage counters; also the source for ongoing legacy `reading:*` archival |
 | `R2_LOGS` | R2 | Generated media and user-media objects, journal-export cache, archives, and exports |
 
 ### File structure
@@ -228,7 +227,7 @@ npx wrangler tail --format=json \
 
 ```text
 POST /api/tarot-reading
-  -> generateReading() (claude-api → modal-qwen → azure-gpt5 → local-composer)
+  -> generateReading() (claude-api → modal-qwen → openai-native → local-composer)
   -> Structural quality gate (tarot-reading.js + readingQuality.js: coverage + hallucination + spine + high-weight positions)
   -> (optional) evaluation gate (evaluation.js) if enabled or selectively forced
   -> persistReadingMetrics() upsert to D1 (eval_metrics)
@@ -240,9 +239,8 @@ POST /api/tarot-reading
 
 ### 2) Scheduled: quality analysis, cleanup, and ongoing legacy KV archival
 
-`wrangler.jsonc` configures two cron entries handled by `functions/lib/scheduled.js`:
+`wrangler.jsonc` configures the daily cron entry handled by `functions/lib/scheduled.js`:
 
-- `*/10 * * * *` — reconcile pending card-video usage settlements
 - `0 3 * * *` — analyze the previous day's `eval_metrics` into `quality_stats`/`quality_alerts`, continue legacy KV compatibility archival, and clean up expired sessions, tokens, memories, webhook events, and guest usage
 
 ### 3) Offline: export & analysis
