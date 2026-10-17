@@ -52,7 +52,7 @@ test('inspection of an available card survives progress before any translated in
     await expect(focus).toHaveAttribute('data-association', `identity-${occurrence}`);
     await expect(shelf.locator('button:enabled')).toHaveCount(fixture.requests.reading[0].cardsInfo.length);
     await expect(shelf.locator('[data-introduced="true"]')).toHaveCount(0);
-    const mountedPanel = await page.locator('.narrative-panel').elementHandle();
+    const mountedPanel = await page.locator('.reading-screen').elementHandle();
     await fixture.completeReading();
     expect(await mountedPanel.evaluate(node => node.isConnected)).toBe(true);
     await expect(focus).toHaveAttribute('data-held', 'true');

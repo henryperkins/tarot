@@ -1712,8 +1712,9 @@ export function ReadingProvider({ children }) {
         setIsGenerating(false);
         setIsReadingStreamActive(false);
         setNarrativePhase('idle');
+        updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
         setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
-    }, [cancelInFlightReading]);
+    }, [cancelInFlightReading, updateGestureSource]);
 
     const value = useMemo(() => ({
         ...audioController,
