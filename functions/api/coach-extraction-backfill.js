@@ -25,6 +25,7 @@
  */
 
 import {
+  COACH_EXTRACTION_BUDGET_MS,
   EMPTY_EXTRACTION_VERSION,
   EXTRACTION_VERSION,
   extractAndEmbed,
@@ -32,15 +33,15 @@ import {
 } from '../lib/coachSuggestion.js';
 import { timingSafeEqual } from '../lib/crypto.js';
 
-// Keep batch sizes small - each entry can take ~13s worst-case (8s extraction + 5s embedding).
+// Each entry can take 20s for extraction plus 5s for embeddings and persistence.
 // Requests are time-budgeted and will stop early to avoid HTTP timeouts.
 const MAX_BATCH_SIZE = 10;
 const DEFAULT_BATCH_SIZE = 2;
 
 // Conservative wall-time budget for the whole request.
-const REQUEST_TIME_BUDGET_MS = 25000;
+const REQUEST_TIME_BUDGET_MS = 28000;
 // Conservative estimate for one entry (timeouts + DB write + overhead).
-const ENTRY_BUDGET_MS = 14000;
+const ENTRY_BUDGET_MS = COACH_EXTRACTION_BUDGET_MS;
 
 // Entries without a finished extraction at the current version: never
 // extracted, extracted by an older version, or stored without embeddings.
