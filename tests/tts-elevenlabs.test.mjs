@@ -272,7 +272,7 @@ for (const [body, headers, label] of [
   });
 }
 
-test('failure on a later piece does not settle a partial streamed reading or retry', async t => {
+test('failure on a later piece counts a partial paid reading once without retrying', async t => {
   const calls = mockProvider(t, async (_call, index) => index === 1 ? audioResponse('first MP3') : new Response('private failure', { status: 500 }));
   const DB = await createD1();
   const response = await onRequestPost({ request: request({ text: 'A'.repeat(4000), provider: 'elevenlabs' }, { stream: true }), env: { ...configuration, DB } });
@@ -283,8 +283,118 @@ test('failure on a later piece does not settle a partial streamed reading or ret
   await assert.rejects(reader.read());
   reader.releaseLock();
   assert.equal(calls.length, 2);
-  assert.deepEqual(usage(DB), [{ used: 0, reserved: 0 }]);
-  assert.deepEqual(DB.rows('SELECT state FROM narration_requests'), [{ state: 'released' }]);
+  assert.deepEqual(usage(DB), [{ used: 1, reserved: 0 }]);
+  assert.deepEqual(DB.rows('SELECT state FROM narration_requests'), [{ state: 'settled' }]);
+});
+
+test('a buffered failure cannot refund paid audio produced by an earlier piece', async t => {
+  const calls = mockProvider(t, async (_call, index) => index === 1
+    ? audioResponse('first MP3') : new Response('private failure', { status: 500 }));
+  const DB = await createD1();
+  const response = await onRequestPost({ request: request({ text: 'A'.repeat(4000), provider: 'elevenlabs' }), env: { ...configuration, DB } });
+  assert.equal(response.status, 503);
+  assert.ok(!(await response.text()).includes('private failure'));
+  assert.equal(calls.length, 2);
+  assert.deepEqual(usage(DB), [{ used: 1, reserved: 0 }]);
+  assert.deepEqual(DB.rows('SELECT state FROM narration_requests'), [{ state: 'settled' }]);
+});
+
+for (const interruption of ['consumer cancel', 'caller abort', 'deadline', 'body failure', 'abort and cancel']) {
+  test(`${interruption} after paid audio consumes exactly one narration`, async t => {
+    if (interruption === 'deadline') t.mock.timers.enable({ apis: ['setTimeout'] });
+    let source;
+    const calls = mockProvider(t, async () => audioResponse(new ReadableStream({
+      start(controller) {
+        source = controller;
+        controller.enqueue(new Uint8Array([73, 68, 51]));
+      },
+      // Provider cancellation must not delay accounting, even if it stalls.
+      cancel() { return new Promise(() => {}); }
+    })));
+    const DB = await createD1();
+    const caller = new AbortController();
+    const response = await onRequestPost({ request: request({ text: 'A reading.', provider: 'elevenlabs' }, { stream: true, signal: caller.signal }), env: { ...configuration, DB } });
+    assert.equal(response.status, 200);
+    const reader = response.body.getReader();
+    assert.deepEqual((await reader.read()).value, new Uint8Array([73, 68, 51]));
+    assert.deepEqual(usage(DB), [{ used: 0, reserved: 1 }]);
+    if (interruption === 'consumer cancel' || interruption === 'abort and cancel') {
+      if (interruption === 'abort and cancel') caller.abort();
+      await reader.cancel();
+    } else {
+      const remaining = reader.read();
+      if (interruption === 'caller abort') caller.abort();
+      else if (interruption === 'deadline') t.mock.timers.tick(NARRATION_DEADLINE_MS);
+      else source.error(new Error('Interrupted paid audio'));
+      await assert.rejects(remaining);
+    }
+    reader.releaseLock();
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].signal.aborted, true);
+    assert.deepEqual(usage(DB), [{ used: 1, reserved: 0 }]);
+    assert.deepEqual(DB.rows('SELECT state FROM narration_requests'), [{ state: 'settled' }]);
+  });
+}
+
+test('paid audio keeps the active narration lock until cancellation resolves its allowance', async t => {
+  const calls = mockProvider(t, async () => audioResponse(new ReadableStream({
+    start(controller) { controller.enqueue(new Uint8Array([1])); }
+  })));
+  const DB = await createD1();
+  const env = { ...configuration, DB };
+  const first = await onRequestPost({ request: request({ text: 'A reading.' }, { stream: true }), env });
+  const reader = first.body.getReader();
+  await reader.read();
+  const concurrent = await onRequestPost({ request: request({ text: 'Another reading.' }, { stream: true }), env });
+  assert.equal(concurrent.status, 409);
+  assert.equal((await concurrent.json()).errorCode, 'NARRATION_BUSY');
+  assert.equal(calls.length, 1);
+  await reader.cancel();
+  reader.releaseLock();
+  assert.deepEqual(usage(DB), [{ used: 1, reserved: 0 }]);
+});
+
+for (const interruption of ['caller abort', 'consumer cancel', 'abort and cancel']) {
+  test(`paid bytes arriving in the same turn as ${interruption} still count`, async t => {
+    let source;
+    const calls = mockProvider(t, async () => audioResponse(new ReadableStream({
+      start(controller) { source = controller; }
+    })));
+    const DB = await createD1();
+    const caller = new AbortController();
+    const response = await onRequestPost({ request: request({ text: 'A reading.' }, { stream: true, signal: caller.signal }), env: { ...configuration, DB } });
+    // Resolve the pending upstream read, then interrupt before its continuation.
+    source.enqueue(new Uint8Array([73, 68, 51]));
+    if (interruption !== 'consumer cancel') caller.abort();
+    if (interruption === 'caller abort') await assert.rejects(response.arrayBuffer());
+    else await response.body.cancel();
+    assert.equal(calls.length, 1);
+    assert.deepEqual(usage(DB), [{ used: 1, reserved: 0 }]);
+    assert.deepEqual(DB.rows('SELECT state FROM narration_requests'), [{ state: 'settled' }]);
+  });
+}
+
+test('repeated paid-audio cancellations exhaust the guest allowance before another synthesis', async t => {
+  const calls = mockProvider(t, async () => audioResponse(new ReadableStream({
+    start(controller) { controller.enqueue(new Uint8Array([1])); }
+  })));
+  const DB = await createD1();
+  const env = { ...configuration, DB };
+  for (let index = 0; index < 3; index++) {
+    const response = await onRequestPost({ request: request({ text: 'A reading.' }, { stream: true }), env });
+    assert.equal(response.status, 200);
+    const reader = response.body.getReader();
+    await reader.read();
+    await reader.cancel();
+    reader.releaseLock();
+  }
+  const denied = await onRequestPost({ request: request({ text: 'A fourth reading.' }, { stream: true }), env });
+  // Clean up a regressed implementation's otherwise-stalled paid response.
+  if (denied.status === 200) await denied.body.cancel();
+  assert.equal(denied.status, 429);
+  assert.equal((await denied.json()).errorCode, 'TIER_LIMIT');
+  assert.equal(calls.length, 3);
+  assert.deepEqual(usage(DB), [{ used: 3, reserved: 0 }]);
 });
 
 test('pre-aborted requests never start ElevenLabs synthesis', async t => {

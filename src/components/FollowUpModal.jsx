@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
+import { useReading } from '../contexts/ReadingContext';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useVisibleViewport } from '../hooks/useKeyboardOffset';
@@ -8,10 +9,14 @@ import FollowUpChat from './FollowUpChat';
 import { MOBILE_FOLLOWUP_DIALOG_ID } from './mobileActionBarConstants';
 import '../styles/follow-up.css';
 
-// This one mounted shell changes presentation without replacing its chat child.
+// Keep one shell and chat across presentation changes within the same reading.
 export default function FollowUpModal({
   isOpen, onClose, isVisible = true, isHandset = false, autoFocusInput = true, returnFocusRef
 }) {
+  const { readingMeta, sessionSeed } = useReading();
+  // Start with the incoming saved turns when a different reading is opened.
+  // Older journal entries may have neither a request ID nor a session seed.
+  const readingIdentity = readingMeta?.requestId || sessionSeed || readingMeta?.readingId || 'unidentified-reading';
   const modalRef = useRef(null);
   const active = Boolean(isOpen && isVisible);
   const viewport = useVisibleViewport(active);
@@ -60,6 +65,7 @@ export default function FollowUpModal({
         inert={!active}
       >
         <FollowUpChat
+          key={readingIdentity}
           variant={isHandset ? 'drawer' : 'modal'}
           isActive={active}
           onClose={onClose}

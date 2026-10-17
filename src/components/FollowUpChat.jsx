@@ -201,7 +201,11 @@ export default function FollowUpChat({
     }
   }, [resetKey, followUps, setFollowUps]);
 
-  useEffect(() => () => activeRequestRef.current?.abort(), []);
+  useEffect(() => () => {
+    const request = activeRequestRef.current;
+    activeRequestRef.current = null;
+    request?.abort();
+  }, []);
 
   // Hydrate chat history from journal follow-ups when available.
   if (hydrationSource.resetKey === resetKey && hydrationSource.followUps !== followUps
