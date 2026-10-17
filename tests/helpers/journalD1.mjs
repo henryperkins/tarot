@@ -1,4 +1,4 @@
-import { Miniflare } from 'miniflare';
+import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { hashApiKey } from '../../functions/lib/apiKeys.js';
 import { readFile } from 'node:fs/promises';
 
@@ -7,13 +7,15 @@ export const OTHER_KEY = `sk_${'b'.repeat(64)}`;
 
 // A real local D1 database: exercise SQL constraints, atomic writes and auth joins.
 export async function journalFixture() {
-  const mf = new Miniflare({
+  // Miniflare 5 accepts compiled worker configs; its converter preserves this
+  // fixture's inline module and real local D1 binding.
+  const mf = new Miniflare(convertV4MiniflareOptions({
     modules: true,
     script: 'export default { fetch() { return new Response("fixture"); } };',
     // Production's date (wrangler.jsonc). Newer runtimes reject future dates.
     compatibilityDate: '2025-11-24',
     d1Databases: ['DB']
-  });
+  }));
   // A failed setup must still stop workerd, or the test process never exits.
   try {
     return await seedJournalDb(mf);
