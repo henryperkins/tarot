@@ -398,10 +398,10 @@ export function CardModal({
                     <div className="flex-1 min-w-0 w-full">
                         {failedImage === cardImage ? <p role="status" className="mb-2 text-sm text-muted">Artwork unavailable. The card details are still here.</p> : null}
                         <p className="text-sm text-muted">{position}</p>
-                        <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight">
+                        <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight wrap-anywhere">
                             {card.name}
                             {card.isReversed && (
-                                <span className="ml-1.5 text-sm text-primary font-normal">(Reversed)</span>
+                                <span className="text-sm text-primary font-normal">{' '}(Reversed)</span>
                             )}
                         </h2>
                         {inspectionContext?.phrase ? <blockquote className="mt-3 text-base text-main">“{inspectionContext.phrase}”</blockquote> : null}
