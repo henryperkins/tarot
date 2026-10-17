@@ -37,7 +37,6 @@ export function useNarrativeReadingController({
   autoNarrate,
   ttsProvider,
   ttsState,
-  wordBoundary,
   effectiveTier,
   isAuthenticated,
   autoGenerateVisualsEnabled,
@@ -176,9 +175,7 @@ export function useNarrativeReadingController({
     handleNarrationButtonClick,
     handleVoicePromptEnable
   });
-  const activeWordBoundary = ttsProvider === 'azure-sdk' && ttsState?.status === 'playing'
-    ? wordBoundary
-    : null;
+  const activeWordBoundary = null;
   const narrativeAtmosphereClassName = useMemo(() => (
     [narrativeAtmosphereClasses, beatClassName].filter(Boolean).join(' ')
   ), [beatClassName, narrativeAtmosphereClasses]);

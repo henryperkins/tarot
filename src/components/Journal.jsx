@@ -124,7 +124,7 @@ export default function Journal() {
     shareError,
     createShareLink,
     deleteShareLink
-  } = useJournalSharing(isAuthenticated);
+  } = useJournalSharing(isAuthenticated, user?.id);
 
   // Local UI state
   const [migrating, setMigrating] = useState(false);

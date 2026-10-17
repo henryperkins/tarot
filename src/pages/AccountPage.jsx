@@ -17,7 +17,6 @@ import {
   Envelope,
   ShieldCheck,
   SpeakerHigh,
-  Waveform,
   ArrowCounterClockwise,
   Palette,
   FileArrowDown,
@@ -190,7 +189,6 @@ export default function AccountPage() {
     ambienceOn,
     setAmbienceOn,
     ttsProvider,
-    setTtsProvider,
     // Theme/experience settings
     theme,
     setTheme,
@@ -1972,40 +1970,9 @@ export default function AccountPage() {
             />
           </div>
 
-          {/* Voice Engine Selector */}
-          <div className="mt-4 pt-4 border-t border-secondary/20">
-            <div className="flex items-center gap-2 mb-3">
-              <Waveform className="h-4 w-4 text-accent" />
-              <span className="text-xs font-semibold text-muted uppercase tracking-wide">Voice Engine</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Select voice engine">
-              {[
-                { id: 'azure', label: 'Clear', desc: 'Deepgram' },
-                { id: 'azure-sdk', label: 'Word-Sync', desc: 'Azure SDK' }
-              ].map(engine => (
-                <button
-                  key={engine.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={ttsProvider === engine.id}
-                  onClick={() => setTtsProvider(engine.id)}
-                  className={`
-                    min-h-touch min-w-touch px-3 py-2.5 rounded-xl text-center transition-all touch-manipulation
-                    ${ttsProvider === engine.id
-                      ? 'bg-accent/20 border-2 border-accent text-main'
-                      : 'bg-surface-muted/50 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50'
-                    }
-                  `}
-                >
-                  <span className="block text-xs font-semibold">{engine.label}</span>
-                  <span className="block text-2xs text-muted">{engine.desc}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted mt-2">
-              Clear uses your monthly narration allowance. Word-Sync uses separate request safeguards; it does not count against that allowance.
-            </p>
-          </div>
+          <p className="text-xs text-muted mt-4 pt-4 border-t border-secondary/20">
+            Reader voice uses your monthly narration allowance.
+          </p>
         </SectionCard>
 
         {/* Display Section */}

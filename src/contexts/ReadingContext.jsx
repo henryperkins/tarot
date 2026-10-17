@@ -288,7 +288,7 @@ export function ReadingProvider({ children }) {
             voiceOn: voiceEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        if (!autoNarrateEnabled || !voiceEnabled || narrationProvider !== 'azure') {
+        if (!autoNarrateEnabled || !voiceEnabled || narrationProvider !== 'reader-voice') {
             narrationSuppressedRef.current = true;
             return;
         }
@@ -355,7 +355,7 @@ export function ReadingProvider({ children }) {
             autoNarrate: autoNarrateEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        const shouldTrackBuffer = autoNarrateEnabled && narrationProvider === 'azure';
+        const shouldTrackBuffer = autoNarrateEnabled && narrationProvider === 'reader-voice';
         if (!shouldTrackBuffer && narrationSuppressedRef.current) {
             return;
         }
@@ -370,7 +370,7 @@ export function ReadingProvider({ children }) {
             voiceOn: voiceEnabled,
             ttsProvider: narrationProvider
         } = narrationSettingsRef.current;
-        const narrationEligible = autoNarrateEnabled && voiceEnabled && narrationProvider === 'azure';
+        const narrationEligible = autoNarrateEnabled && voiceEnabled && narrationProvider === 'reader-voice';
 
         if (!narrationEligible || narrationInterruptedByUserRef.current) {
             narrationFallbackPendingRef.current = false;
@@ -458,7 +458,7 @@ export function ReadingProvider({ children }) {
         if (!resume) {
             resetStreamingNarration();
         }
-        const streamNarrationEnabled = autoNarrate && voiceOn && ttsProvider === 'azure';
+        const streamNarrationEnabled = autoNarrate && voiceOn && ttsProvider === 'reader-voice';
         const isTtsBusy = isNarrationPlaybackBusy(ttsState?.status);
         if (!streamNarrationEnabled) {
             narrationSuppressedRef.current = true;
@@ -587,7 +587,7 @@ export function ReadingProvider({ children }) {
                     const narrationSettings = narrationSettingsRef.current;
                     const narrationEligible = narrationSettings.autoNarrate &&
                         narrationSettings.voiceOn &&
-                        narrationSettings.ttsProvider === 'azure';
+                        narrationSettings.ttsProvider === 'reader-voice';
                     if (narrationEligible && !narrationInterruptedByUserRef.current) {
                         const queuedChars = narrationQueuedCharsRef.current;
                         const finalChars = finalText.length;
@@ -711,7 +711,7 @@ export function ReadingProvider({ children }) {
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         if (inFlightReadingRef.current?.controller && !inFlightReadingRef.current.controller.signal.aborted) return;
         if (narrativePhase === 'complete' || personalReading?.isError) return;
-        if (ttsProvider === 'azure' && ttsState?.status === 'paused') {
+        if (ttsProvider === 'reader-voice' && ttsState?.status === 'paused') {
             void resumeNarrationPlayback();
         }
         streamReadingJob({ jobId, jobToken, cursor, resume: true });
@@ -725,7 +725,7 @@ export function ReadingProvider({ children }) {
     ]);
 
     useEffect(() => {
-        const narrationDisabled = !voiceOn || !autoNarrate || ttsProvider !== 'azure';
+        const narrationDisabled = !voiceOn || !autoNarrate || ttsProvider !== 'reader-voice';
         if (narrationDisabled) {
             const disabledByUserChoice = !voiceOn || !autoNarrate;
             if (isReadingStreamActive && disabledByUserChoice) {
@@ -751,7 +751,7 @@ export function ReadingProvider({ children }) {
             narrationFallbackTextRef.current = '';
             return;
         }
-        if (!autoNarrate || !voiceOn || ttsProvider !== 'azure') {
+        if (!autoNarrate || !voiceOn || ttsProvider !== 'reader-voice') {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
             return;

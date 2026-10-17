@@ -2,7 +2,6 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useSmallScreen } from '../hooks/useSmallScreen';
 import { DECK_OPTIONS } from './deckOptions';
 
 function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
@@ -58,7 +57,6 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(true);
   const prefersReducedMotion = useReducedMotion();
-  const isSmallScreen = useSmallScreen();
 
   // Update edge fade visibility based on scroll position
   const updateEdgeFades = useCallback((el) => {
@@ -166,14 +164,14 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
   return (
     <div className="panel-mystic deck-selector-panel animate-fade-in">
       <div className="relative z-10 space-y-5">
-        <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-2xs uppercase tracking-[0.22em] text-gold-soft">Choose Your Deck</p>
-            <p className="text-xs text-muted max-w-2xl">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Choose Your Deck</p>
+            <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
               Select the deck art for today&apos;s reading. Match it to your physical deck if you&apos;re contributing photos to the vision study.
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-2xs text-accent backdrop-blur">
+          <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs font-medium text-accent backdrop-blur">
             <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
             <span>Curated editions</span>
           </div>
@@ -261,7 +259,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                         </div>
                       </div>
                       <div
-                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs font-semibold text-main"
+                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-main"
                         style={{
                           backgroundColor: 'var(--surface-92)',
                           border: '1px solid var(--border-warm-light)',
@@ -280,19 +278,19 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                     priority={index === 0 ? 'high' : 'low'}
                   />
 
-                  <div className="pr-1">
-                    <div className="font-serif text-accent text-base leading-tight">
+                  <div className="min-w-0 pr-1 [overflow-wrap:anywhere]">
+                    <div className="deck-card__title font-serif text-accent text-lg font-semibold leading-tight text-balance">
                       {deck.label}
                     </div>
-                    <div className="text-2xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
+                    <div className="mt-1 mb-2 text-xs font-medium uppercase tracking-[0.1em] leading-normal text-muted">
                       {deck.subtitle}
                     </div>
-                    <p className={`text-xs text-muted leading-snug ${isSmallScreen ? 'line-clamp-2' : ''}`}>
+                    <p className="deck-card__description text-sm text-muted leading-normal text-pretty">
                       {deck.mobileDescription || deck.description}
                     </p>
 
                     {deck.note && (
-                      <p className="text-2xs text-accent/85 italic mt-2">
+                      <p className="text-xs leading-relaxed text-muted italic mt-2 text-pretty">
                         {deck.note}
                       </p>
                     )}
@@ -317,7 +315,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
         </div>
 
         <div className="deck-panel-footnote">
-          <p className="text-xs leading-relaxed text-muted">
+          <p className="max-w-[65ch] text-sm leading-relaxed text-muted text-pretty">
             <strong className="text-accent">For research participants:</strong> Choose the matching deck to help the vision model recognize suits and illustrations across art styles.
           </p>
         </div>

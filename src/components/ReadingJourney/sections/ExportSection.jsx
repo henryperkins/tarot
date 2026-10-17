@@ -71,10 +71,10 @@ function ExportSection({
   const [linkCopyStatus, setLinkCopyStatus] = useState(null);
   const [exportStatus, setExportStatus] = useState(null);
   const [shareStatus, setShareStatus] = useState(null);
-  const [exportScope, setExportScope] = useState(defaultScope);
+  const [selectedExportScope, setExportScope] = useState(defaultScope);
   const [exportScopeTouched, setExportScopeTouched] = useState(false);
   // Share scope: 'all' (all entries), 'scope' (current analytics scope), 'filters' (journal filters)
-  const [shareScope, setShareScope] = useState(defaultScope);
+  const [selectedShareScope, setShareScope] = useState(defaultScope);
   const [shareScopeTouched, setShareScopeTouched] = useState(false);
   const [shareLimit, setShareLimit] = useState(5);
   const [expiresInHours, setExpiresInHours] = useState('');
@@ -95,31 +95,16 @@ function ExportSection({
   );
   const effectiveShareLimit = Number.isFinite(Number(shareLimit)) ? Math.max(1, Math.min(10, Number(shareLimit))) : 5;
 
-  useEffect(() => {
-    if (!exportScopeTouched) {
-      setExportScope(defaultScope);
-    }
-  }, [defaultScope, exportScopeTouched]);
-
-  useEffect(() => {
-    if (!shareScopeTouched) {
-      setShareScope(defaultScope);
-    }
-  }, [defaultScope, shareScopeTouched]);
-
-  useEffect(() => {
-    if (!filtersApplied && exportScope === 'filters') {
-      setExportScope(defaultScope);
-      setExportScopeTouched(false);
-    }
-  }, [filtersApplied, exportScope, defaultScope]);
-
-  useEffect(() => {
-    if (!filtersApplied && shareScope === 'filters') {
-      setShareScope(defaultScope);
-      setShareScopeTouched(false);
-    }
-  }, [filtersApplied, shareScope, defaultScope]);
+  if (!filtersApplied && selectedExportScope === 'filters' && exportScopeTouched) {
+    setExportScopeTouched(false);
+  }
+  if (!filtersApplied && selectedShareScope === 'filters' && shareScopeTouched) {
+    setShareScopeTouched(false);
+  }
+  const exportScope = exportScopeTouched && (filtersApplied || selectedExportScope !== 'filters')
+    ? selectedExportScope : defaultScope;
+  const shareScope = shareScopeTouched && (filtersApplied || selectedShareScope !== 'filters')
+    ? selectedShareScope : defaultScope;
 
   const exportEntries = exportScope === 'filters'
     ? normalizedFilteredEntries

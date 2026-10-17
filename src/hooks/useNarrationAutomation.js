@@ -38,7 +38,7 @@ export function getCanAutoNarrate({
     && narrativePhase === 'complete'
     && !isReadingStreaming
     && !autoNarrationTriggered
-    && ttsProvider !== 'azure'
+    && ttsProvider !== 'reader-voice'
   );
 }
 

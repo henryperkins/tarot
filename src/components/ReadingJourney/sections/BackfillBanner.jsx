@@ -7,7 +7,7 @@
  */
 
 import { ArrowsClockwise, Info, X, CheckCircle, XCircle } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { COMPACT_SYNC_ACTION_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
@@ -34,13 +34,15 @@ export default function BackfillBanner({
   variant = 'default', // 'default' | 'compact'
 }) {
   const dismissKey = getDismissKey(userId);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(() => checkDismissed(dismissKey));
+  const [dismissedOwner, setDismissedOwner] = useState(dismissKey);
   const prefersReducedMotion = useReducedMotion();
 
-  // Check dismiss state on mount and when userId changes
-  useEffect(() => {
+  // Keep the dismissal with its account before rendering the new owner.
+  if (dismissedOwner !== dismissKey) {
+    setDismissedOwner(dismissKey);
     setIsDismissed(checkDismissed(dismissKey));
-  }, [dismissKey]);
+  }
 
   const handleDismiss = () => {
     setIsDismissed(true);

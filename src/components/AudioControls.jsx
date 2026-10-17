@@ -1,4 +1,4 @@
-import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform, Gauge } from '@phosphor-icons/react';
+import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Gauge } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -8,7 +8,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider, ttsSpeed, setTtsSpeed } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsSpeed, setTtsSpeed } = usePreferences();
 
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
@@ -144,56 +144,8 @@ export function AudioControls({ className = '' }) {
         })}
       </div>
 
-      {/* Voice Engine Selector */}
+      {/* Speed Control - applied by the reader voice player */}
       {voiceOn && (
-        <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Waveform className="h-4 w-4 text-accent" aria-hidden="true" />
-            <span className="text-xs font-semibold text-accent uppercase tracking-wide">Voice Engine</span>
-            <Tooltip
-              content="Reader voice uses your monthly narration allowance. Word Sync adds highlighting and uses separate request safeguards."
-              position="top"
-              triggerClassName={infoButtonClass}
-              ariaLabel="About voice engine options"
-            >
-              <Info className="h-3.5 w-3.5" />
-            </Tooltip>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2" role="radiogroup" aria-label="Select voice engine">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={ttsProvider === 'azure'}
-              onClick={() => setTtsProvider('azure')}
-              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
-                ttsProvider === 'azure'
-                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
-              }`}
-            >
-              <span className="block font-semibold text-xs xs:text-sm">Deepgram</span>
-              <span className="block text-2xs xs:text-xs opacity-75">Clear</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={ttsProvider === 'azure-sdk'}
-              onClick={() => setTtsProvider('azure-sdk')}
-              className={`flex-1 min-h-cta px-2 xs:px-3 py-2 rounded-xl text-sm font-medium transition-all touch-manipulation ${
-                ttsProvider === 'azure-sdk'
-                  ? 'bg-primary/20 border-2 border-primary text-primary shadow-md'
-                  : 'bg-surface/60 border border-secondary/30 text-muted hover:text-main hover:border-secondary/50 active:bg-surface/80'
-              }`}
-            >
-              <span className="block font-semibold text-xs xs:text-sm">Azure SDK</span>
-              <span className="block text-2xs xs:text-xs opacity-75">Word sync</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Speed Control - only for the Deepgram provider */}
-      {voiceOn && ttsProvider === 'azure' && (
         <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">
             <Gauge className="h-4 w-4 text-accent" aria-hidden="true" />

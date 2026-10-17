@@ -240,7 +240,7 @@ export function buildNarrativePanelModel({
     },
     statusModel: {
       showNarrationStatus: hasNarrativeContext && narrationState !== 'idle' && narrationState !== 'completed',
-      showNarrationProgress: hasNarrativeContext && ttsProvider === 'azure' && (isNarrationPlaying || isNarrationPaused),
+      showNarrationProgress: hasNarrativeContext && ttsProvider === 'reader-voice' && (isNarrationPlaying || isNarrationPaused),
       showNarrationTierLimit: ttsState?.status === 'error' && ttsState?.errorCode === 'TIER_LIMIT',
       showVoicePrompt: Boolean(showVoicePrompt),
       showJournalStatus: Boolean(journalStatus),

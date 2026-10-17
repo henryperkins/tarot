@@ -74,7 +74,7 @@ export function normalizeReadingText(markdown) {
 }
 
 /**
- * Normalize reading text for Azure SDK word-boundary alignment.
+ * Normalize reading text for narration highlight alignment.
  *
  * Produces a plain-text representation with consistent block separators
  * so offsets can be mapped back to rendered Markdown text nodes.

@@ -290,10 +290,10 @@ export function SpreadSelector({
     <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
         <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
-          <div>
-            <p className="text-xs uppercase tracking-[0.18em] text-gold-soft">Spread Selection</p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Spread Selection</p>
             {!isLandscape && (
-              <p className="text-xs text-muted max-w-2xl">
+              <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
                 Choose how your reading unfolds.
               </p>
             )}
@@ -443,34 +443,34 @@ export function SpreadSelector({
                 />
 
                 <div className="spread-card__body">
-                  <div className="spread-card__title font-serif font-semibold text-accent text-base leading-tight flex flex-wrap items-center gap-2">
-                    <span className="spread-card__title-text">{spread.name}</span>
+                  <div className="spread-card__title text-accent">
+                    <span className="spread-card__title-text font-serif text-lg font-semibold leading-tight text-balance">{spread.name}</span>
                     {!canUseSpread(key) && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-accent">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 font-sans text-xs font-semibold uppercase tracking-wide text-accent">
                         <Lock className="w-3 h-3" weight="fill" aria-hidden="true" />
                         Requires Plus
                       </span>
                     )}
                     {key === recommendedSpread && (
-                      <span className="text-xs uppercase tracking-[0.16em] text-accent bg-accent/15 border border-accent/40 px-2 py-0.5 rounded-full">
+                      <span className="font-sans text-xs font-semibold uppercase tracking-wide text-accent bg-accent/15 border border-accent/40 px-2 py-0.5 rounded-full">
                         Recommended
                       </span>
                     )}
                   </div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-gold-soft/90 mb-2">
-                    {spread.tag || 'Guided spread'}
-                    <span className="text-gold-soft/60 ml-2">· {cardLabel}</span>
+                  <div className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-[0.1em] leading-normal text-muted">
+                    <span>{spread.tag || 'Guided spread'}</span>
+                    <span className="whitespace-nowrap">· {cardLabel}</span>
                   </div>
 
                   {!isLandscape && !isExperienced && (
-                    <p className={`spread-card__description text-xs-plus text-muted leading-snug ${isCompactCopy ? 'mb-2 line-clamp-2' : 'mb-3'}`}>
+                    <p className={`spread-card__description text-sm text-muted leading-normal text-pretty ${isCompactCopy ? 'mb-2' : 'mb-3'}`}>
                       {isCompactCopy ? (spread.mobileDescription || baseDescription) : baseDescription}
                     </p>
                   )}
 
                   <div className="spread-card__meta">
                     <div className="spread-card__complexity">
-                      <span className="text-xs uppercase tracking-[0.18em] text-gold-soft/80">Complexity</span>
+                      <span className="text-xs font-medium uppercase tracking-[0.1em] text-muted">Complexity</span>
                       {renderStars(stars)}
                       <span className="text-sm text-muted capitalize">{complexityLabel}</span>
                     </div>

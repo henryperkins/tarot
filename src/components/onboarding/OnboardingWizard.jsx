@@ -121,7 +121,8 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   // Modal accessibility: useModalA11y handles scroll lock, escape key, and focus restoration.
   // Focus trapping is delegated to the FocusTrap library (trapFocus: false) because it provides
   // more robust handling for complex modals with dynamic step content, where focusable elements
-  // change between steps. This matches the pattern used in GuidedIntentionCoach and ConfirmModal.
+  // change between steps. The parent trap is inactive while ConfirmModal manages the nested
+  // confirmation with useModalA11y.
   useModalA11y(isOpen, {
     onClose: () => handleSkipRequest(),
     containerRef: modalRef,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 import {
   loadCoachHistory,
@@ -76,7 +76,9 @@ export function SavedIntentionsList({
     };
   }, [userId]);
 
-  useEffect(() => {
+  // Restore the parent's accessibility and trap before the nested dialog's
+  // deferred focus restoration. A passive effect can run after that timer.
+  useLayoutEffect(() => {
     if (onConfirmOpenChange) {
       onConfirmOpenChange(Boolean(pendingAction));
     }

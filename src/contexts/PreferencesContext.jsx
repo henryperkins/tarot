@@ -134,7 +134,7 @@ export function PreferencesProvider({ children }) {
   // Expose validated state value (alias for clarity)
   const ttsProvider = ttsProviderState;
 
-  // Persist TTS provider setting
+  // Persist the canonical reader-voice ID, including migrated saved engines.
   useEffect(() => {
     safeStorage.setItem('tarot-tts-provider', ttsProviderState);
   }, [ttsProviderState]);
@@ -217,18 +217,22 @@ export function PreferencesProvider({ children }) {
     if (authLoading || loadedPersonalizationKey === personalizationStorageKey) return;
 
     const nextKey = personalizationStorageKey;
-    personalizationKeyRef.current = nextKey;
-
-    const migrated = migrateLegacyPersonalization(nextKey, { userId });
-    const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
-    const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
-    setPersonalizationState(loadedPersonalization);
-    setPersonalizationExplicitFields(
-      loadedExplicitFields.length > 0
-        ? loadedExplicitFields
-        : derivePersonalizationExplicitFields(loadedPersonalization)
-    );
-    setLoadedPersonalizationKey(nextKey);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      personalizationKeyRef.current = nextKey;
+      const migrated = migrateLegacyPersonalization(nextKey, { userId });
+      const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
+      const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
+      setPersonalizationState(loadedPersonalization);
+      setPersonalizationExplicitFields(
+        loadedExplicitFields.length > 0
+          ? loadedExplicitFields
+          : derivePersonalizationExplicitFields(loadedPersonalization)
+      );
+      setLoadedPersonalizationKey(nextKey);
+    });
+    return () => { cancelled = true; };
   }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId]);
 
   // Persist personalization changes
@@ -448,7 +452,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Location Preferences ---
   // locationEnabled: session-level toggle for location-aware readings (not persisted)
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabledState] = useState(false);
 
   // cachedLocation: transient location data (not persisted for privacy)
   const [cachedLocation, setCachedLocation] = useState(null);
@@ -465,12 +469,10 @@ export function PreferencesProvider({ children }) {
     setPersistLocationToJournalState(Boolean(value));
   }, []);
 
-  // Clear cached location when location is disabled
-  useEffect(() => {
-    if (!locationEnabled) {
-      setCachedLocation(null);
-    }
-  }, [locationEnabled]);
+  const setLocationEnabled = useCallback(value => {
+    setLocationEnabledState(Boolean(value));
+    if (!value) setCachedLocation(null);
+  }, []);
 
   const value = {
     theme,

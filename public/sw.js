@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tableu-shell-v4';
+const CACHE_NAME = 'tableu-shell-v6';
 const OFFLINE_URL = '/offline.html';
 const PLACEHOLDER_IMAGE = '/images/cards/RWS1909_-_00_Fool.jpeg';
 const PRECACHE_URLS = [
@@ -6,9 +6,10 @@ const PRECACHE_URLS = [
   '/journal',
   OFFLINE_URL,
   '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/icon-maskable-512.png',
+  '/icons/icon-192.png?v=brand-20261008-original',
+  '/icons/icon-512.png?v=brand-20261008-original',
+  '/icons/icon-maskable-512.png?v=brand-20261008-original',
+  '/brand/tableu-favicon.svg?v=brand-20261008-original',
   PLACEHOLDER_IMAGE
 ];
 
