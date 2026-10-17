@@ -8,11 +8,16 @@ const reading = page => page.locator('.narrative-stream');
 const windowArt = page => page.locator('[data-gesture-window]');
 const currentCards = page => windowArt(page).locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
 const phrase = (page, id) => page.locator(`[data-gesture-id="${id}"]`);
-async function open(page, query = '') {
+async function open(page, query = '', { compact = false } = {}) {
   await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
   await page.goto(`/__e2e/reading-gestures?${query}`);
   await expect(page.getByTestId('reading-gestures-fixture')).toBeVisible();
-  await expect(windowArt(page)).toBeVisible();
+  if (compact) {
+    await expect(windowArt(page)).toBeHidden();
+    await expect(page.locator('.reading-spread-disclosure > summary')).toBeVisible();
+  } else {
+    await expect(windowArt(page)).toBeVisible();
+  }
 }
 
 test('completed Star is static and every connection can be revisited without changing prose', async ({ page }) => {
@@ -113,21 +118,30 @@ test('compact landscape and doubled page zoom keep phrase controls and labels re
   // 844x390 is a landscape phone; 550x500 is the 1100x1000 desktop at 200% page zoom.
   for (const viewport of [{ width: 844, height: 390 }, { width: 550, height: 500 }]) {
     await page.setViewportSize(viewport);
-    await open(page, 'study=five-card&arrival=complete');
+    await open(page, 'study=five-card&arrival=complete', { compact: true });
     for (const id of ['ace-meaning', 'drive-and-sensitivity']) {
       const control = phrase(page, id);
       await control.scrollIntoViewIfNeeded();
       await control.focus();
+      await expect(control).toBeInViewport();
       await page.keyboard.press('Enter');
       await expect(control).toHaveAttribute('aria-pressed', 'true');
-      await expect(control).toBeInViewport();
+      await expect(page.getByRole('dialog', { name: 'Card detail', exact: true })).toBeVisible();
+      await expect(windowArt(page)).toBeVisible();
+      await expect(windowArt(page)).toHaveAttribute('data-association', id);
       await page.keyboard.press('Escape');
       await expect(control).toHaveAttribute('aria-pressed', 'false');
+      await expect(control).toBeFocused();
+      await expect(control).toBeInViewport();
     }
+    await page.locator('.reading-spread-disclosure > summary').click();
+    const labels = page.locator('[data-reading-overview] figcaption > span');
+    await expect(labels).toHaveCount(15);
+    await expect(labels.first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
-    const clipped = await page.locator('.gesture-shelf-label').evaluateAll(labels => labels
+    const clipped = await labels.evaluateAll(labels => labels
       .filter(label => label.scrollWidth > label.clientWidth + 1).map(label => label.textContent));
-    expect(clipped, `${viewport.width}x${viewport.height} shelf labels`).toEqual([]);
+    expect(clipped, `${viewport.width}x${viewport.height} drawn card labels`).toEqual([]);
   }
 });
 
@@ -243,21 +257,21 @@ test('missing WAAPI preserves static crop and accessible prose', async ({ page }
 
 test('compact relationship and reduced-motion meaning @mobile', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await open(page, 'study=five-card&arrival=complete&reflection=off');
+  await open(page, 'study=five-card&arrival=complete&reflection=off', { compact: true });
   await expect(page.getByTestId('recorded-reflection')).toHaveCount(0);
+  const dialog = page.getByRole('dialog', { name: 'Card detail', exact: true });
   const tapPhrase = async target => {
     // Tap an actual visible text line on touch devices; the full multiline
-    // bounding box can include space occupied by the sticky companion. Center
-    // the phrase on every attempt and tap only a point that stayed put across two
+    // bounding box can include unowned empty space. Center the phrase on every
+    // attempt and tap only a point that stayed put across two
     // frames: WebKit has no scroll anchoring and can apply a late reflow (such as
     // the 200% root font size below) after a single scroll or measurement.
     let point = null;
     await expect.poll(async () => (point = await target.evaluate(async element => {
       const measure = () => {
         element.scrollIntoView({ block: 'center', behavior: 'instant' });
-        const shelfBottom = document.querySelector('.gesture-companion').getBoundingClientRect().bottom;
         return [...element.getClientRects()].map(rect => ({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }))
-          .find(({ x, y }) => y > shelfBottom && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
+          .find(({ x, y }) => y > 0 && y < innerHeight && element.contains(document.elementFromPoint(x, y))) || null;
       };
       const first = measure();
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -268,31 +282,43 @@ test('compact relationship and reduced-motion meaning @mobile', async ({ page })
   };
   for (const width of [390, 375, 320]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 667 });
-    await expect(windowArt(page)).toBeVisible();
-    // WebKit can briefly return no protocol quad after a viewport resize even
-    // though the visible stage has a valid DOM layout. Compare layout heights.
-    // Wait for the resized breakpoint, not merely the stage's visibility.
-    // WebKit may report the previous 106px layout once after moving to 320px.
-    const expectedHeight = width < 359 ? 96 : 106;
-    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(expectedHeight);
-    const beforeHeight = expectedHeight;
+    // The compact reading keeps prose unobstructed until an explicit inspection.
+    await expect(windowArt(page)).toBeHidden();
     await tapPhrase(phrase(page, 'drive-and-sensitivity'));
+    await expect(dialog).toBeVisible();
     await expect(windowArt(page)).toBeVisible();
-    await expect.poll(() => windowArt(page).evaluate(element => element.getBoundingClientRect().height)).toBe(beforeHeight);
+    await expect(windowArt(page)).toHaveAttribute('data-association', 'drive-and-sensitivity');
     await expect(currentCards(page)).toHaveCount(2);
+    await expect(currentCards(page).nth(0)).toHaveAttribute('data-details', 'sprout');
+    await expect(currentCards(page).nth(1)).toHaveAttribute('data-details', 'cup');
+    await dialog.getByRole('button', { name: 'Back to reading', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(phrase(page, 'drive-and-sensitivity')).toBeFocused();
     await tapPhrase(phrase(page, 'ace-meaning'));
+    await expect(dialog).toBeVisible();
     await expect(windowArt(page).locator('[data-gesture-art]')).toHaveCount(2);
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await expectNoHorizontalOverflow(page);
     expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running' && animation.effect?.target?.closest('[data-gesture-window]')).length)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(phrase(page, 'ace-meaning')).toBeFocused();
   }
   await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
   const zoomedPhrase = phrase(page, 'drive-and-sensitivity');
   await tapPhrase(zoomedPhrase);
   await expect(currentCards(page)).toHaveCount(2);
   await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'true');
-  await zoomedPhrase.focus();
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(zoomedPhrase).toBeFocused();
   await expect(zoomedPhrase).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await expect(currentCards(page)).toHaveCount(2);
+  await dialog.getByRole('button', { name: 'Back to reading', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(zoomedPhrase).toBeFocused();
   await expectNoHorizontalOverflow(page);
   await expect(reading(page)).toContainText('both your drive and your sensitivity');
 });

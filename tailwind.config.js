@@ -42,13 +42,6 @@ export default {
       ...defaultTheme.screens,
     },
     extend: {
-      screens: {
-        // Landscape detection (for short landscape viewports)
-        'landscape': { 'raw': '(orientation: landscape) and (max-height: 500px)' },
-        'portrait': { 'raw': '(orientation: portrait)' },
-        // Short viewport (useful for foldables and small tablets in landscape)
-        'short': { 'raw': '(max-height: 600px)' },
-      },
       // Named utilities keep v3 defaults; explicit app variables remain separate.
       transitionTimingFunction: { out: 'cubic-bezier(0, 0, 0.2, 1)' },
       colors: {

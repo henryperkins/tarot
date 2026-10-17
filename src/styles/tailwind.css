@@ -12,6 +12,17 @@
 
 @config '../../tailwind.config.js';
 
+/* Height and orientation queries must not become container width tokens. */
+@custom-variant landscape {
+  @media (orientation: landscape) and (max-height: 500px) { @slot; }
+}
+@custom-variant portrait {
+  @media (orientation: portrait) { @slot; }
+}
+@custom-variant short {
+  @media (max-height: 600px) { @slot; }
+}
+
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still

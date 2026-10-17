@@ -413,6 +413,10 @@ for (const size of [{ width: 375, height: 568 }, { width: 844, height: 390 }]) {
 
 test('long questions and linked phrases remain readable through mobile card inspection at doubled text size @mobile', async ({ page }, testInfo) => {
   test.setTimeout(60000);
+  // Fix only wall-clock time, leaving timers running. With this question and
+  // the untouched ritual, the real draw begins with The Empress reversed.
+  // Its title exposes the name/orientation wrapping regression at 200% text.
+  await page.clock.setFixedTime(1792195207236);
   await page.setViewportSize({ width: 844, height: 390 });
   const question = `How can I make room for this change? ${Array(4).fill(backgroundParagraph).join(' ')} End of my question.`;
   const { fixture, cue } = await controlledQuote(page, { quote: 'A painted detail invites a closer look.', question, context: true });
@@ -426,6 +430,7 @@ test('long questions and linked phrases remain readable through mobile card insp
       await phrase.press('Enter');
       const dialog = page.getByRole('dialog').filter({ visible: true });
       await expect(dialog).toHaveCount(1);
+      await expect(dialog.getByRole('heading', { level: 2 })).toHaveText(/The Empress\s*\(Reversed\)/);
       const quote = dialog.locator('blockquote');
       await expect(quote).toHaveText(`“${cue.passage.quote}”`);
       await quote.scrollIntoViewIfNeeded();
