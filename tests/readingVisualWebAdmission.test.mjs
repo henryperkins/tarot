@@ -112,6 +112,9 @@ for (const tier of ['plus', 'pro']) test(`eligible controlled ${tier} web start 
   const response = await startRoute({ env: f.env, request: f.request('/api/tarot-reading/jobs'), waitUntil: p => f.background.push(p) });
   assert.equal(response.status, 200); const body = await response.json(); await f.drain();
   assert.ok(body.visualJobToken); assert.equal(f.bodies[0].visualInit.ownerUserId, 'user-1');
+  assert.ok(body.visualExpiresAt > Date.now() + 23 * 60 * 60 * 1000, 'original recovery remains valid beyond one hour');
+  assert.ok(body.visualExpiresAt <= Date.now() + 24 * 60 * 60 * 1000, 'a fixed admission deadline is returned');
+  assert.ok(f.DB.rows('SELECT expires_at FROM visual_initial_admissions')[0].expires_at >= body.visualExpiresAt, 'the browser never outlives the original server job');
   assert.equal(f.DB.rows('SELECT * FROM reading_visual_results').length, 1);
   assert.equal(f.proseStarts(), 1);
   assert.equal(f.DB.rows('SELECT * FROM visual_initial_admissions').length, 1);

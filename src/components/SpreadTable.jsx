@@ -3,7 +3,7 @@ import { animate, createLayout, cubicBezier, set } from '../lib/motionAdapter';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSounds } from '../hooks/useSounds';
-import { getCardImage, FALLBACK_IMAGE } from '../lib/cardLookup';
+import { getCardImage, getCardThumbnailSrcSet, FALLBACK_IMAGE } from '../lib/cardLookup';
 import { getSuitBorderColor, getRevealedCardGlow, getSuitGlowColor } from '../lib/suitColors';
 import { getSpreadTableContainerPresentation } from '../lib/spreadTablePresentation';
 import { CARD_ASPECT, COMPACT_SPREAD_LAYOUTS, getMaxCardWidth, getSpreadLayout } from '../lib/spreadLayouts';
@@ -792,37 +792,6 @@ export function SpreadTable({
         : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
   useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
-    const preloadImages = cards
-      ?.slice?.(0, visibleLayout.length)
-      ?.map?.((card) => getCardImage(card))
-      ?.filter?.((src) => typeof src === 'string' && src.length > 0) || [];
-    if (!preloadImages.length) return undefined;
-
-    const head = document.head;
-    const created = [];
-    preloadImages.forEach((src) => {
-      const existing = head.querySelector(`link[rel="preload"][as="image"][href="${src}"]`);
-      if (existing) return;
-      const link = document.createElement('link');
-      link.rel = 'preload';
-      link.as = 'image';
-      link.href = src;
-      link.setAttribute('data-spread-preload', 'true');
-      head.appendChild(link);
-      created.push(link);
-    });
-
-    return () => {
-      created.forEach((node) => {
-        if (node?.parentNode) {
-          node.parentNode.removeChild(node);
-        }
-      });
-    };
-  }, [cards, visibleLayout.length]);
-
-  useEffect(() => {
     if (!revealedIndices || !(revealedIndices instanceof Set)) return;
     if (revealedIndices.size === 0) {
       prevRevealedRef.current = new Set();
@@ -1131,6 +1100,8 @@ export function SpreadTable({
                       >
                         <img
                           src={displayImage}
+                          srcSet={getCardThumbnailSrcSet(displayImage)}
+                          sizes="(max-width: 640px) 28vw, 160px"
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
                           style={{
@@ -1140,6 +1111,8 @@ export function SpreadTable({
                           decoding="async"
                           onError={(e) => {
                             e.target.onerror = null;
+                            // srcset wins over src, so drop it for the fallback to show.
+                            e.target.removeAttribute('srcset');
                             e.target.src = FALLBACK_IMAGE;
                           }}
                         />

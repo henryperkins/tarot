@@ -1,3 +1,4 @@
+import { appJournalResultId } from '../../../shared/journal/readingIdentity.js';
 /**
  * Journal Entry Operations by ID
  * GET /api/journal/[id] - Fetch a specific journal entry
@@ -57,6 +58,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         source_usage_json,
         deck_id,
@@ -88,6 +90,7 @@ export async function onRequestGet(context) {
         context,
         provider,
         session_seed,
+        idempotency_key,
         user_preferences_json,
         deck_id,
         request_id
@@ -144,6 +147,7 @@ export async function onRequestGet(context) {
       context: entry.context,
       provider: entry.provider,
       sessionSeed: entry.session_seed,
+      readingResultId: appJournalResultId(entry.idempotency_key),
       userPreferences: entry.user_preferences_json ? safeJsonParse(entry.user_preferences_json, null) : null,
       sourceUsage: entry.provider === 'safe-fallback' ? null : sanitizeSourceUsage(safeJsonParse(entry.source_usage_json, null)),
       deckId: entry.deck_id,

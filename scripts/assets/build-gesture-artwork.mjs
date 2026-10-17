@@ -31,4 +31,5 @@ const manifest = { schemaVersion: 1, edition: 'rws-immanuelle-vector', renderer:
   totalSourceBytes: cards.reduce((sum, card) => sum + card.sourceBytes, 0),
   totalBytes: cards.reduce((sum, card) => sum + card.bytes, 0), cards };
 await writeFile(new URL('manifest.json', outputRoot), `${JSON.stringify(manifest, null, 2)}\n`);
+await writeFile(new URL('src/data/cardGestureAssetManifest.json', root), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(JSON.stringify({ cards: cards.length, sourceBytes: manifest.totalSourceBytes, deliveryBytes: manifest.totalBytes, settings }));

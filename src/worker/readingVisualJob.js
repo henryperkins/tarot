@@ -17,7 +17,8 @@ import { captureVisualInitialDispatchConfiguration, createVisualInitialAdmission
 
 const STREAM_HEADERS = { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' };
 const HEARTBEAT_INTERVAL_MS = 15000;
-export const VISUAL_JOB_TTL_MS = 24 * 60 * 60 * 1000;
+import { VISUAL_JOB_TTL_MS } from '../../shared/reading/visualJobLifetime.js';
+export { VISUAL_JOB_TTL_MS } from '../../shared/reading/visualJobLifetime.js';
 const TERMINAL = new Set(['complete', 'failed', 'cancelled', 'expired', 'revoked']);
 const BLOCKED = new Set(['cancelled', 'expired', 'revoked']);
 const buildError = (status, message) => jsonResponse({ error: message }, { status });

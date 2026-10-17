@@ -299,6 +299,8 @@ test('owned cloud replay route returns current attachment without configuration 
 test('DELETE retirement receipt preserves an unobserved shared result alias and retires only its final reference', async t => {
   const env = await setup(t); await register(env);
   const first = await saveAppJournalEntry({ env, user: USER, body: { ...BODY, sessionSeed: 'shared-alias-first' } });
+  // Reproduce a pre-result-identity alias that remains supported on deletion.
+  await env.DB.prepare('UPDATE journal_entries SET idempotency_key = NULL WHERE id = ?').bind(first.body.entry.id).run();
   const last = await saveAppJournalEntry({ env, user: USER, body: { ...BODY, sessionSeed: 'shared-alias-last' } });
   assert.notEqual(first.body.entry.id, last.body.entry.id);
   const firstResponse = await deleteEntry({ env, request: request(`/${first.body.entry.id}`, 'DELETE'), params: { id: first.body.entry.id } });

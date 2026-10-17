@@ -221,6 +221,22 @@ function GestureCompanion({ focus, api }) {
       })}
     </div>;
   };
+  const fullArtActions = state.held && api.canInspectCard ? <div className="flex flex-wrap gap-2">
+    {current?.targets.map(target => {
+      const card = cards.find(item => item.occurrenceId === target.occurrenceId);
+      if (!card || !eligibleOccurrences.has(target.occurrenceId)) return null;
+      return <button key={target.occurrenceId} type="button" aria-haspopup="dialog"
+        className="min-h-touch rounded-lg border border-secondary/40 px-3 py-2 text-sm"
+        onClick={() => {
+          const trigger = Array.from(document.querySelectorAll('[data-gesture-id]'))
+            .find(element => element.dataset.gestureId === current.id)
+            || root.current?.querySelector(`[data-gesture-shelf] [data-occurrence-id="${target.occurrenceId}"]`);
+          api.releaseAssociation();
+          api.selectCard(card.index, { gestureId: current.id, occurrenceId: target.occurrenceId,
+            phrase: current.passage?.quote, touchIds: target.detailIds, triggerElement: trigger });
+        }}>Open {card.name}</button>;
+    })}
+  </div> : null;
   return <aside ref={root} className="gesture-companion" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
     <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length, '--shelf-columns': Math.min(cards.length, 5) }}>
       {cards.map(card => {
@@ -257,6 +273,7 @@ function GestureCompanion({ focus, api }) {
             data-phase="static" data-held="true">
             {present(current, false, true)}
           </div>
+          {fullArtActions}
           {personalContext ? <p className="gesture-inspection-context">“{personalContext.quote}”</p> : null}
         </section>
       </div>, document.body
@@ -266,6 +283,7 @@ function GestureCompanion({ focus, api }) {
       onBlur={event => { if (!containsInspectionFocus(event.relatedTarget)) reportStageFocus(false); }}>
       {focus.studyEnabled && !calm && present(layers.departing, true, false)}{present(current, false, false)}
     </div>}
+    {!mobileInspection && fullArtActions}
     <div ref={contextRef} className="gesture-context" aria-live="off" role={personalContext ? 'region' : undefined}
       aria-label={personalContext ? 'Related personal context' : undefined} tabIndex={personalContext ? 0 : undefined}
       onFocus={event => reportStageFocus(keyboardFocus(event.target))}

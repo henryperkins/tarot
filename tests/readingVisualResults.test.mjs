@@ -460,6 +460,8 @@ test('deleting one shared entry preserves the surviving source, initial admissio
   const { db, binding } = await setup(t);
   await observe(db, binding);
   const first = await save(db, binding.readingResultId);
+  // Historical clients could save several entries attached to one result.
+  await db.prepare('UPDATE journal_entries SET idempotency_key = NULL WHERE id = ?').bind(first.body.entry.id).run();
   const second = await save(db, binding.readingResultId);
   const now = Date.now();
   await db.prepare(`INSERT INTO visual_initial_admissions
@@ -533,7 +535,7 @@ test('saved source, context and edition determine attachment; incoming savedSour
   assert.equal(wrongDeck.body.visual, undefined);
 });
 
-test('same-seed retries retain saved prose and the original visual result', async t => {
+test('a regenerated result with the same seed retains both prose and visual identities', async t => {
   const { db, binding } = await setup(t);
   await observe(db, binding);
   const first = await save(db, binding.readingResultId, { sessionSeed: 'same-session' });
@@ -541,9 +543,13 @@ test('same-seed retries retain saved prose and the original visual result', asyn
   await registerVisualResult({ db, userId: user.id, readingResultId: 'result-2', binding: secondBinding });
   await observe(db, secondBinding, 'Replacement prose.');
   const retry = await save(db, 'result-2', { sessionSeed: 'same-session', personalReading: 'Replacement prose.' });
-  assert.equal(retry.body.deduplicated, true);
-  assert.equal(retry.body.entry.id, first.body.entry.id);
-  assert.equal(retry.body.visual.readingResultId, binding.readingResultId);
+  assert.equal(retry.status, 201);
+  assert.notEqual(retry.body.entry.id, first.body.entry.id);
+  assert.equal(retry.body.visual.readingResultId, 'result-2');
+  assert.equal((await loadJournalVisualResult({ db, userId: user.id, entryId: first.body.entry.id })).readingResultId, binding.readingResultId);
+  const repeated = await save(db, 'result-2', { sessionSeed: 'same-session', personalReading: 'Replacement prose.' });
+  assert.equal(repeated.body.deduplicated, true);
+  assert.equal(repeated.body.entry.id, retry.body.entry.id);
 });
 
 test('source replacement preserves saved old cues and rejects late old-source commits', async t => {
@@ -611,6 +617,8 @@ test('concurrent deletion of all references still revokes the final result', asy
   const { db, binding } = await setup(t);
   await observe(db, binding);
   const first = await save(db, binding.readingResultId);
+  // Historical clients could save several entries attached to one result.
+  await db.prepare('UPDATE journal_entries SET idempotency_key = NULL WHERE id = ?').bind(first.body.entry.id).run();
   const second = await save(db, binding.readingResultId);
   let revoked = 0;
   const env = { READING_VISUAL_JOBS: { idFromName: id => id, get: () => ({ fetch: async () => { revoked++; return new Response('{}'); } }) } };

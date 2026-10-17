@@ -6,11 +6,11 @@ export function GesturePhrase({ node: _node, children, ...props }) {
   const id = props['data-gesture-id'];
   if (!id || !focus?.studyEnabled) return <span {...props}>{children}</span>;
   const association = focus.associations.find((item) => item.id === id);
-  if (association?.kind === 'identity' && props['data-gesture-heading'] === 'true') {
+  if (association?.kind === 'identity' && (props['data-gesture-heading'] === 'true' || !api?.canInspectCard)) {
     return <span {...props} className="reading-gesture-identity">{children}</span>;
   }
   const target = association?.targets?.length === 1 ? association.targets[0] : null;
-  const card = target && focus.cards.find(item => item.occurrenceId === target.occurrenceId);
+  const card = api?.canInspectCard && target && focus.cards.find(item => item.occurrenceId === target.occurrenceId);
   const activate = event => {
     if (window.getSelection()?.toString().trim()) return;
     event.currentTarget.focus({ preventScroll: true });

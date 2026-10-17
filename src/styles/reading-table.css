@@ -98,7 +98,7 @@
 .reading-table__meaning { margin-top: 24px; font-size: 1rem; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-line; }
 .reading-table__card-navigation { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-block: 16px 24px; }
 .reading-table__reflection-label { display: block; margin-bottom: 8px; font-size: 1rem; }
-.reading-table__reflection { width: 100%; min-height: 96px; resize: vertical; padding: 12px; border: 1px solid var(--border-warm); border-radius: 12px; background: var(--bg-main); color: var(--text-main); font-size: 1rem; line-height: 1.5; caret-color: var(--brand-accent); scroll-margin-bottom: calc(var(--mobile-action-bar-height, 0px) + 24px); }
+.reading-table__reflection { width: 100%; min-height: 96px; resize: vertical; padding: 12px; border: 1px solid var(--border-warm); border-radius: 12px; background: var(--bg-main); color: var(--text-main); font-size: 1rem; line-height: 1.5; caret-color: var(--brand-accent); scroll-margin-bottom: 8px; }
 .reading-table__reflection::placeholder { color: var(--text-muted); opacity: 1; }
 .reading-table__reflection:hover { border-color: var(--text-muted); }
 .reading-table__reflection:focus { border-color: var(--brand-accent); }

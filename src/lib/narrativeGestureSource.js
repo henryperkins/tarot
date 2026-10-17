@@ -1,4 +1,4 @@
-import { sameVisualCueBinding, visualCueBindingSchema } from '../../shared/contracts/visualCueBatches.js';
+import { sameVisualCueBinding, isVisualCueBinding } from '../../shared/contracts/visualCueBinding.js';
 
 /** Raw generation source, independent of formatting and transport credentials. */
 function boundDocument(document, raw, status) {
@@ -7,7 +7,7 @@ function boundDocument(document, raw, status) {
 }
 
 function boundVisualIdentity(binding, runId, sourceRevision) {
-  return visualCueBindingSchema.safeParse(binding).success && binding.readingResultId === runId
+  return isVisualCueBinding(binding) && binding.readingResultId === runId
     && binding.sourceRevision === sourceRevision ? binding : undefined;
 }
 

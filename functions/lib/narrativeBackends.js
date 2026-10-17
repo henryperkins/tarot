@@ -1483,7 +1483,7 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
       case 'codex-subscription': {
         const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(env, payload, requestId, {
           backendId, providerLabel: NARRATIVE_BACKENDS[backendId].label,
-          budgetTarget: backendId === 'claude-code' ? 'claude' : 'azure'
+          budgetTarget: backendId === 'claude-code' ? 'claude' : 'openai'
         });
         const completion = await callPersonalTextProvider(env, {
           task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal: payload.signal

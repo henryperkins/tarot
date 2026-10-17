@@ -48,6 +48,11 @@ test('Vite production app route and modulepreload closures exclude the gesture r
   for (const chunk of productionRoots) {
     const modules = [...closure(chunk)].flatMap(file => Object.keys(byFile.get(file).modules));
     assert.deepEqual(modules.filter(id => heavy.test(id)), [], `${chunk.fileName} production import/preload closure`);
+    assert.deepEqual(modules.filter(id => id.includes('/node_modules/zod/')), [], `${chunk.fileName} keeps optional schemas out of startup`);
+    if (chunk.isEntry) {
+      assert.deepEqual(modules.filter(id => id.endsWith('/shared/symbols/symbolAnnotations.js')), [],
+        `${chunk.fileName} defers symbol annotations until cards are drawn`);
+    }
   }
   const heavyChunks = outputs.filter(chunk => Object.keys(chunk.modules).some(id => heavy.test(id)));
   assert.ok(heavyChunks.some(chunk => Object.keys(chunk.modules).some(id => /narrativePassageAligner\.js$/.test(id))));

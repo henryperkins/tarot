@@ -13,7 +13,7 @@ import { Header } from './components/Header';
 import { InstallFooter } from './components/InstallFooter';
 import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
-import { GestureCoachOverlay } from './components/GestureCoachOverlay';
+import { LazyLoadBoundary } from './components/LazyLoadBoundary';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './styles/tarot.css';
 
@@ -45,7 +45,10 @@ const STEP_PROGRESS_STEPS = [
   { id: 'reading', label: 'Reading' }
 ];
 
-const ReadingDisplay = lazy(() => import('./components/ReadingDisplay').then(module => ({ default: module.ReadingDisplay })));
+// The reading table loads on the first Draw. It is fetched after the first tap
+// or key press (see below), so a connection lost before the Draw still has it.
+const loadReadingDisplay = () => import('./components/ReadingDisplay');
+const ReadingDisplay = lazy(() => loadReadingDisplay().then(module => ({ default: module.ReadingDisplay })));
 const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
 const GuidedIntentionCoach = lazy(() => import('./components/GuidedIntentionCoach').then(module => ({ default: module.GuidedIntentionCoach })));
 
@@ -98,10 +101,7 @@ export default function TarotReading() {
     setOnboardingComplete,
     setOnboardingSpreadKey,
     showPersonalizationBanner,
-    setShowPersonalizationBanner,
-    // Gesture coach
-    shouldShowGestureCoach,
-    markGestureCoachSeen
+    setShowPersonalizationBanner
   } = usePreferences();
 
   // Accessibility: reduced motion preference
@@ -195,7 +195,6 @@ export default function TarotReading() {
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   const [onboardingDeferred, setOnboardingDeferred] = useState(false);
   const isOnboardingOpen = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
-  const shouldShowGestureCoachOverlay = shouldShowGestureCoach && hasConfirmedSpread && !reading && !isOnboardingOpen;
   const shouldFocusCinematicFlow = newDeckInterface && (
     Boolean(reading?.length) ||
     isGenerating ||
@@ -500,10 +499,6 @@ export default function TarotReading() {
     setShowAllHighlights(false);
   }, [selectedSpread, reading, setShowAllHighlights]);
 
-  const handleGestureCoachDismiss = useCallback(() => {
-    markGestureCoachSeen();
-  }, [markGestureCoachSeen]);
-
   // --- Handlers ---
 
   const handleDeckChange = useCallback((newDeckId) => {
@@ -512,6 +507,49 @@ export default function TarotReading() {
     setVisionConflicts([]);
     resetVisionProof();
   }, [setDeckStyleId, setVisionResults, setVisionConflicts, resetVisionProof]);
+
+  // Keyboard focus, anchors and scrollIntoView keep clear of the pinned header,
+  // the pinned reading toolbar and the bottom dock (WCAG 2.4.11), the pattern
+  // ShareReading uses. Heights come from useResponsiveSticky (Header),
+  // ReadingContents and MobileActionBar.
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = [root.style.scrollPaddingTop, root.style.scrollPaddingBottom];
+    root.style.scrollPaddingTop = 'calc(var(--pinned-header-height, 0px) + var(--pinned-wayfinding-height, 0px) + 1rem)';
+    root.style.scrollPaddingBottom = 'calc(var(--mobile-action-bar-height, 0px) + 1rem)';
+    return () => {
+      [root.style.scrollPaddingTop, root.style.scrollPaddingBottom] = previous;
+    };
+  }, []);
+
+  // Fetch the reading table once the person starts preparing a reading (their
+  // first tap or key), so a connection that drops before the first Draw does
+  // not leave nothing to show; LazyLoadBoundary covers the rest. Waiting for
+  // input keeps it out of the startup download. Skipped under Save-Data.
+  useEffect(() => {
+    if (typeof window === 'undefined' || navigator.connection?.saveData) return undefined;
+    const usesIdle = 'requestIdleCallback' in window;
+    let handle = null;
+    const prefetch = () => { loadReadingDisplay().catch(() => {}); };
+    const stopListening = () => {
+      window.removeEventListener('pointerdown', onFirstInput, true);
+      window.removeEventListener('keydown', onFirstInput, true);
+    };
+    function onFirstInput() {
+      stopListening();
+      handle = usesIdle
+        ? window.requestIdleCallback(prefetch, { timeout: 2000 })
+        : window.setTimeout(prefetch, 300);
+    }
+    window.addEventListener('pointerdown', onFirstInput, true);
+    window.addEventListener('keydown', onFirstInput, true);
+    return () => {
+      stopListening();
+      if (handle === null) return;
+      if (usesIdle) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, []);
 
   const scrollQuickIntentionIntoView = useCallback(() => {
     if (!isHandset) return;
@@ -531,7 +569,12 @@ export default function TarotReading() {
     // A route entrance can temporarily move a fixed dock outside the viewport.
     // Wait for its settled bounds rather than scrolling against invalid geometry.
     if (bottom <= top || (dockBox && dockBox.bottom > window.innerHeight + 1)) return;
-    const delta = box.top < top ? box.top - top : box.bottom > bottom ? box.bottom - bottom : 0;
+    // Coming back up to the card, keep its prompt (the field's label) in view
+    // too when both fit; otherwise the field alone wins.
+    const label = target.id ? document.querySelector(`label[for="${CSS.escape(target.id)}"]`) : null;
+    const labelTop = label?.getBoundingClientRect().top ?? box.top;
+    const startTop = labelTop < box.top && box.bottom - labelTop <= bottom - top ? labelTop : box.top;
+    const delta = startTop < top ? startTop - top : box.bottom > bottom ? box.bottom - bottom : 0;
     if (delta) window.scrollBy({ top: delta, behavior: 'instant' });
   }, [isHandset]);
 
@@ -952,7 +995,7 @@ export default function TarotReading() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={`scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem] max-w-7xl mx-auto px-4 sm:px-5 md:px-6 ${mainContentSpacing}`}
+        className={`max-w-7xl mx-auto pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:pl-[max(1.25rem,var(--safe-pad-left))] sm:pr-[max(1.25rem,var(--safe-pad-right))] md:pl-[max(1.5rem,var(--safe-pad-left))] md:pr-[max(1.5rem,var(--safe-pad-right))] ${mainContentSpacing}`}
         style={handsetPaddingBottom ? { paddingBottom: handsetPaddingBottom } : undefined}
       >
         <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
@@ -1037,26 +1080,10 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         {showSetupSection && (
           <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
-            <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-              <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
-              {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
-            </div>
-
-            <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-              {!isHandset && (
-                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
-              )}
-
-              <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1} className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-                <SpreadSelector
-                  selectedSpread={selectedSpread}
-                  onSelectSpread={handleSpreadSelection}
-                  onSpreadConfirm={onSpreadConfirm}
-                />
-              </div>
-
-              {/* Mobile quick intention entry keeps the question visible without opening the drawer */}
-              {isHandset && (
+            {/* On phones the question comes first: the default spread is already
+                chosen, and the question field would otherwise start below the fold. */}
+            {isHandset && (
+              <div className={isLandscape ? 'mb-3' : 'mb-6'}>
                 <QuickIntentionCard
                   ref={quickIntentionCardRef}
                   variant={isLandscape ? 'compact' : 'full'}
@@ -1078,7 +1105,25 @@ export default function TarotReading() {
                     setIsMobileSettingsOpen(true);
                   }}
                 />
+              </div>
+            )}
+            <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
+              <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
+              {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
+            </div>
+
+            <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
+              {!isHandset && (
+                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
               )}
+
+              <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1}>
+                <SpreadSelector
+                  selectedSpread={selectedSpread}
+                  onSelectSpread={handleSpreadSelection}
+                  onSpreadConfirm={onSpreadConfirm}
+                />
+              </div>
 
               {!isHandset && (
                 <ReadingPreparation
@@ -1121,28 +1166,30 @@ export default function TarotReading() {
         )}
 
         {!isOnboardingOpen && (isShuffling || reading?.length || isGenerating || personalReading ? (
-          <Suspense fallback={
-            <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
-              <p role="status" className="py-6 text-sm text-muted">Loading your reading space…</p>
-            </section>
-          }>
-            <ReadingDisplay
-              saveController={saveController}
-              onCardModalChange={setIsCardModalOpen}
-              sectionRef={readingSectionRef}
-              onOpenFollowUp={canShowFollowUp ? handleOpenFollowUp : null}
-              onSaveReading={saveReading}
-              isSaving={isSaving}
-              savedEntryId={savedEntryId}
-              followUpOpen={isFollowUpOpen}
-              onFollowUpOpenChange={handleFollowUpOpenChange}
-              followUpAutoFocus={followUpIntent === 'ask'}
-              suppressInterruptions={suppressFocusInterruptions}
-              isMobileStableMode={shouldEnableMobileStableMode}
-            />
-          </Suspense>
+          <LazyLoadBoundary title="Your reading table did not load" className="my-6">
+            <Suspense fallback={
+              <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading">
+                <p role="status" className="py-6 text-sm text-muted">Loading your reading space…</p>
+              </section>
+            }>
+              <ReadingDisplay
+                saveController={saveController}
+                onCardModalChange={setIsCardModalOpen}
+                sectionRef={readingSectionRef}
+                onOpenFollowUp={canShowFollowUp ? handleOpenFollowUp : null}
+                onSaveReading={saveReading}
+                isSaving={isSaving}
+                savedEntryId={savedEntryId}
+                followUpOpen={isFollowUpOpen}
+                onFollowUpOpenChange={handleFollowUpOpenChange}
+                followUpAutoFocus={followUpIntent === 'ask'}
+                suppressInterruptions={suppressFocusInterruptions}
+                isMobileStableMode={shouldEnableMobileStableMode}
+              />
+            </Suspense>
+          </LazyLoadBoundary>
         ) : (
-          <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading" className="scroll-mt-[6.5rem] sm:scroll-mt-[7.5rem]">
+          <section id="step-reading" ref={readingSectionRef} tabIndex={-1} aria-label="Draw and explore your reading">
             <ReadingStart
               displayName={personalization?.displayName?.trim()}
               readingMeta={readingMeta}
@@ -1206,6 +1253,7 @@ export default function TarotReading() {
               onViewSavedEntry={() => navigate('/journal', { state: { highlightEntryId: savedEntryId, fromReading: true } })}
               onCancelGeneration={cancelPersonalReading}
               onNewReading={handleShuffle}
+              onUpgrade={() => navigate('/pricing')}
             />
           {connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
             <div
@@ -1317,11 +1365,6 @@ export default function TarotReading() {
         initialQuestion={userQuestion}
       />
 
-      {/* Gesture coach for first-time ritual education */}
-      <GestureCoachOverlay
-        isOpen={shouldShowGestureCoachOverlay}
-        onDismiss={handleGestureCoachDismiss}
-      />
       </div>
     </div>
   );

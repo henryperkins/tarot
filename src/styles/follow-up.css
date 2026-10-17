@@ -279,6 +279,20 @@
   outline-offset: 2px;
 }
 
+.follow-up-chat__bottom-close {
+  flex: none;
+  align-self: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: .875rem;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+.follow-up-chat__bottom-close:hover { color: var(--text-main); }
+.follow-up-chat__bottom-close:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
+
 .follow-up-overlay--handset {
   align-items: flex-end;
   padding: max(16px, var(--safe-pad-top)) 0 0;

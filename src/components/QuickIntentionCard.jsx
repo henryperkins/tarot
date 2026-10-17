@@ -92,7 +92,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
     return (
       <div
         ref={ref}
-        className={`scroll-mt-[calc(var(--sticky-header-height,0px)+2rem)] rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface ${
+        className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface ${
           highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
         }`}
       >
@@ -168,7 +168,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   return (
     <div
       ref={ref}
-      className={`scroll-mt-[calc(var(--sticky-header-height,0px)+2rem)] rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface ${
+      className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface ${
         highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
       }`}
     >

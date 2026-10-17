@@ -1,3 +1,5 @@
+import { createD1 } from './helpers/d1Sqlite.mjs';
+import { getMonthKeyUtc } from '../functions/lib/usageTracking.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { onRequestGet, onRequestPost } from '../functions/api/speech-token.js';

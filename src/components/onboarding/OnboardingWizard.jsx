@@ -6,6 +6,7 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { useSwipeNavigation } from '../../hooks/useSwipeNavigation';
+import { useAndroidBackGuard } from '../../hooks/useAndroidBackGuard';
 // Control variant components (7 steps)
 import { WelcomeHero } from './WelcomeHero';
 import { SpreadEducation } from './SpreadEducation';
@@ -211,24 +212,13 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     setExitIntent('resume');
   }, []);
 
-  useEffect(() => {
-    if (!isOpen || !isSmallScreen || typeof window === 'undefined' || !window.history?.pushState) {
-      return undefined;
-    }
-
-    const guardState = { onboardingGuard: true, ts: Date.now() };
-    window.history.pushState(guardState, document.title);
-
-    const handlePopState = () => {
-      setExitIntent(intent => intent || 'resume');
-      window.history.pushState(guardState, document.title);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [isOpen, isSmallScreen]);
+  // Back asks before leaving onboarding; the guard keeps its history entry
+  // while onboarding stays open and removes it once onboarding closes.
+  useAndroidBackGuard(isOpen, {
+    onBack: () => setExitIntent(intent => intent || 'resume'),
+    enabled: isSmallScreen,
+    guardId: 'onboarding'
+  });
 
   const handleSpreadSelect = useCallback((spreadKey) => {
     setSelectedSpread(spreadKey);

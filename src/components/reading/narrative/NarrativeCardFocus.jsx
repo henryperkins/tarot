@@ -47,6 +47,8 @@ export function NarrativeCardFocusProvider({
   const [sweep, setSweep] = useState({ key: null, step: 0 });
   const containerRef = useRef(null);
   const onSelectCardRef = useRef(onSelectCard);
+  const cardsRef = useRef(cards);
+  useLayoutEffect(() => { cardsRef.current = cards; }, [cards]);
   // Revealed spread cards are available to inspect in every language. This is
   // independent of a prose introduction and never creates an automatic cue.
   const availableOccurrences = useMemo(() => cards.filter(card => card.inspectionAvailable)
@@ -149,6 +151,7 @@ export function NarrativeCardFocusProvider({
 
   const api = useMemo(() => ({
     get studyEnabled() { return gestureRef.current.enabled; },
+    get canInspectCard() { return typeof onSelectCardRef.current === 'function'; },
     holdAssociation(id) {
       const { source } = gestureRef.current;
       if (source) dispatch({ type: 'HOLD', runId: source.runId, sourceRevision: source.sourceRevision, selection: { kind: 'association', id }, now: performance.now() });
@@ -202,7 +205,9 @@ export function NarrativeCardFocusProvider({
       else delete container.dataset.spreadHover;
     },
     selectCard(index, inspection = null) {
-      onSelectCardRef.current?.(index, inspection);
+      const artworkByIndex = Object.fromEntries(cardsRef.current.map(card => [card.index,
+        { image: card.image, artworkEdition: card.artworkEdition, frame: card.frame }]));
+      onSelectCardRef.current?.(index, { ...inspection, artworkByIndex });
     }
   }), []);
 

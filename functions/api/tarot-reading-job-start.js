@@ -42,6 +42,6 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     jobToken: result.jobToken,
     ...(result.readingResultId ? { readingResultId: result.readingResultId } : {}),
     ...(result.visualBinding ? { visualBinding: result.visualBinding } : {}),
-    ...(result.visualJobToken ? { visualJobToken: result.visualJobToken } : {})
+    ...(result.visualJobToken ? { visualJobToken: result.visualJobToken, visualExpiresAt: result.visualExpiresAt } : {})
   });
 };

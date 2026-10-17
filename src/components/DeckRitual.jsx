@@ -592,7 +592,7 @@ export function DeckRitual({
     }
     runTopCardAnimation({ scale: 1, translateY: 0, rotateX: 0 }, { duration: 200, ease: 'outQuad' });
   }, [isIdleBreathing, prefersReducedMotion, runTopCardAnimation, startIdleBreath, stopIdleBreath]);
-  const knockHint = '3 quick taps within 2s';
+  const knockHint = 'three knocks, at your own pace';
   const drawLabel = nextPosition ? `Tap to draw card for ${nextPosition}.` : 'Tap to draw the next card.';
   const boardLabel = nextPosition
     ? `Tap ${nextPosition} on the board to reveal.`

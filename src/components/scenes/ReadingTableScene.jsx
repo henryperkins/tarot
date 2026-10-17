@@ -3,7 +3,7 @@ import { CaretLeft, CaretRight, HandTap, Sparkle } from '@phosphor-icons/react';
 import { CardBack } from '../CardBack';
 import { SpreadTable } from '../SpreadTable';
 import { getReadingTableAction, extractShortLabel } from '../readingBoardUtils';
-import { getCardImage, getOrientationMeaning } from '../../lib/cardLookup';
+import { getCardImage, getCardThumbnailSrcSet, getOrientationMeaning } from '../../lib/cardLookup';
 import { getSceneModel } from './sceneModelUtils';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import '../../styles/reading-table.css';
@@ -120,7 +120,8 @@ export function ReadingTableScene({ sceneModels = {} }) {
             <>
               <div ref={interpretationRef}>
                 <div className="reading-table__card-heading">
-                  <img className={`reading-table__card-image ${card.isReversed ? 'reading-table__card-image--reversed' : ''}`} src={getCardImage(card)} alt={card.name} />
+                  <img className={`reading-table__card-image ${card.isReversed ? 'reading-table__card-image--reversed' : ''}`} src={getCardImage(card)}
+                    srcSet={getCardThumbnailSrcSet(getCardImage(card))} sizes="(orientation: landscape) and (max-height: 500px) and (min-width: 640px) 64px, 88px" alt={card.name} />
                   <div>
                     <p className="reading-table__position">{extractShortLabel(selected.position, 80) || selected.position}</p>
                     <h3>{card.name}</h3>

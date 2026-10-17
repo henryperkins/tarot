@@ -1,4 +1,4 @@
-import { canonicalVisualCueJSON, hashVisualCueText } from '../contracts/visualCueBatches.js';
+import { canonicalVisualCueJSON, hashVisualCueText } from '../contracts/visualCueBinding.js';
 
 const clean = value => typeof value === 'string' ? value.trim() : '';
 const RWS_DECKS = new Set(['rws-1909', 'rws1909', 'rws', 'rider-waite-smith']);

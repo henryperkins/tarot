@@ -1,3 +1,4 @@
+import { VISUAL_JOB_TTL_MS } from '../../shared/reading/visualJobLifetime.js';
 /**
  * Reading-job helpers shared by POST /api/tarot-reading/jobs (the app) and
  * the ChatGPT MCP tools.
@@ -58,6 +59,7 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   const jobId = crypto.randomUUID();
   const jobToken = crypto.randomUUID();
   const readingResultId = crypto.randomUUID();
+  const visualExpiresAt = Date.now() + VISUAL_JOB_TTL_MS;
   let visualJobToken = null;
   let visualBinding = null;
   let visualInit = null;
@@ -146,7 +148,8 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   if (visualInit && waitUntil) {
     waitUntil(initVisualJob({ env, ...visualInit }).catch(() => undefined));
   }
-  return { ok: true, jobId, jobToken, readingResultId, visualBinding, visualJobToken: visualInit ? visualJobToken : null };
+  return { ok: true, jobId, jobToken, readingResultId, visualBinding, visualJobToken: visualInit ? visualJobToken : null,
+    visualExpiresAt: visualInit ? visualExpiresAt : null };
 }
 
 async function callMcpPath(path, { env, jobId, userId, method = 'GET' }) {

@@ -207,7 +207,11 @@ export function ReadingOverlays({
   const selectedCard = selectedCardData?.card;
   const { cardVideo: cardVideoEnabled } = useFeatureFlags();
   // Keep unrelated reading updates from restarting the modal's animation.
-  const modalCard = useMemo(() => getCardForDeck(selectedCard, deckStyleId), [selectedCard, deckStyleId]);
+  const modalCard = useMemo(() => {
+    const card = getCardForDeck(selectedCard, deckStyleId);
+    const artwork = selectedCardData?.inspection?.artworkByIndex?.[selectedCardData.index];
+    return artwork ? { ...card, ...artwork } : card;
+  }, [selectedCard, deckStyleId, selectedCardData]);
   const returnFocusRef = useMemo(() => ({ current: selectedCardData?.inspection?.triggerElement || null }), [selectedCardData?.inspection?.triggerElement]);
   const getFallbackFocus = useCallback(() => {
     const gestureId = selectedCardData?.inspection?.gestureId;

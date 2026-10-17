@@ -1,4 +1,4 @@
-import { canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding, visualCueBindingSchema } from '../../shared/contracts/visualCueBatches.js';
+import { canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding, isVisualCueBinding } from '../../shared/contracts/visualCueBinding.js';
 import { fingerprintVisualSource, normalizeVisualSource } from '../../shared/reading/visualSourceIdentity.js';
 import { boundVisualCueLedger } from './narrativeGestureSource.js';
 import { postSavedVisualRetry } from './readingVisualStream.js';
@@ -64,7 +64,7 @@ export function writeVisualResume({ namespace, binding, resumeHandle, expiresAt 
   storage, entryId = null, sourceFingerprint = null, stateVersion = null, expectedAttemptId } = {}) {
   const target = storageOrDefault(storage);
   if (!target || deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })
-    || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target }) || !visualCueBindingSchema.safeParse(binding).success || !resumeHandle?.visualJobToken
+    || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target }) || !isVisualCueBinding(binding) || !resumeHandle?.visualJobToken
     || !sameVisualCueBinding(binding, resumeHandle.visualBinding) || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return false;
   if (resumeHandle.visualJobId == null && resumeHandle.attemptId == null) {
     try {
@@ -124,7 +124,7 @@ export function readVisualResume({ namespace, readingResultId, binding, storage,
     const key = replayKey(namespace, String(entryId));
     const record = readJSON(target, key);
     if (!record) return null;
-    if (!(record.expiresAt > now) || record.entryId !== String(entryId) || !visualCueBindingSchema.safeParse(record.binding).success
+    if (!(record.expiresAt > now) || record.entryId !== String(entryId) || !isVisualCueBinding(record.binding)
       || !opaque(record.visualJobToken) || !opaque(record.visualJobId) || !opaque(record.attemptId)) {
       try { target.removeItem(key); } catch { /* Optional storage. */ }
       return null;
@@ -162,14 +162,14 @@ function publicCueLedger(ledger) {
     introductions: (ledger.introductions || []).map(intro => project(intro, ['spreadIndex', 'canonicalName', 'start', 'namedEnd', 'descriptionStart', 'midpoint', 'end'])),
     receipts: (ledger.receipts || []).map(receipt => ({
       ...project(receipt, ['batchId', 'payloadDigest', 'requestSequence', 'baseLedgerRevision', 'analyzedEnd', 'analyzedHash', 'aliases', 'addedCueIds']),
-      ...(visualCueBindingSchema.safeParse(receipt.binding).success ? { binding: visualCueBindingSchema.parse(receipt.binding) } : {}),
+      ...(isVisualCueBinding(receipt.binding) ? { binding: { ...receipt.binding } } : {}),
       ...(receipt.rejected ? { rejected: receipt.rejected.map(item => project(item, ['localAlias', 'code', 'message'])) } : {})
     }))
   };
 }
 
 export function publicVisualSnapshot({ binding, cueLedger, status = 'pending', raw }) {
-  if (!visualCueBindingSchema.safeParse(binding).success || typeof raw !== 'string') return null;
+  if (!isVisualCueBinding(binding) || typeof raw !== 'string') return null;
   const ledger = cueLedger && boundVisualCueLedger(cueLedger, { runId: binding.readingResultId,
     sourceRevision: binding.sourceRevision, visualBinding: binding, raw });
   if (cueLedger && !ledger) return null;
@@ -424,7 +424,7 @@ export async function adoptSavedVisualReplay({ namespace, entryId, resume, cueLe
   storage, isCurrent = () => true }) {
   const target = storageOrDefault(storage);
   const reject = reason => ({ adopted: false, reason, entry: null });
-  if (!target || !opaque(resume?.attemptId) || !visualCueBindingSchema.safeParse(resume?.visualBinding).success) return reject('invalid-handle');
+  if (!target || !opaque(resume?.attemptId) || !isVisualCueBinding(resume?.visualBinding)) return reject('invalid-handle');
   if (status !== 'complete' && !FAILURE_STATES[status]) return reject('not-terminal');
   const entry = readSavedVisualEntry({ namespace, entryId, storage: target });
   if (!entry && !cloud) return reject('entry-not-found');
@@ -501,7 +501,7 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
   const state = publicVisualRetryState(response.state);
   if (!state) throw retryFailure('server');
   if (state.sourceFingerprint !== fingerprint) throw retryFailure('stale');
-  const handle = response.resumeHandle && visualCueBindingSchema.safeParse(response.resumeHandle.visualBinding).success
+  const handle = response.resumeHandle && isVisualCueBinding(response.resumeHandle.visualBinding)
     && opaque(response.resumeHandle.attemptId) && opaque(response.resumeHandle.visualJobId) ? response.resumeHandle : null;
   let next = state;
   let visual = null;

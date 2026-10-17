@@ -39,24 +39,4 @@ export const visualCueResponseSchema = z.object({
   proposals: z.array(z.unknown()).max(240)
 }).strict();
 
-export function canonicalVisualCueJSON(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalVisualCueJSON).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map(key =>
-      `${JSON.stringify(key)}:${canonicalVisualCueJSON(value[key])}`).join(',')}}`;
-  }
-  const serialized = JSON.stringify(value);
-  if (serialized === undefined) throw new TypeError('Visual cue data must be JSON serializable');
-  return serialized;
-}
-
-export function sameVisualCueBinding(left, right) {
-  const a = visualCueBindingSchema.safeParse(left);
-  const b = visualCueBindingSchema.safeParse(right);
-  return a.success && b.success && canonicalVisualCueJSON(a.data) === canonicalVisualCueJSON(b.data);
-}
-
-export async function hashVisualCueText(text) {
-  const hash = await globalThis.crypto.subtle.digest('SHA-256', new globalThis.TextEncoder().encode(text));
-  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
-}
+export { canonicalVisualCueJSON, sameVisualCueBinding, hashVisualCueText } from './visualCueBinding.js';

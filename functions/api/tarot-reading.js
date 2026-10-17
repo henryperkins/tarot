@@ -1208,7 +1208,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       narrativePayload.abAssignment = attemptAssignment;
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
       const { systemPrompt, userPrompt } = buildOpenAIResponsesPrompts(env, narrativePayload, requestId, {
-        backendId: streamProvider, providerLabel: NARRATIVE_BACKENDS[streamProvider].label, budgetTarget: 'azure'
+        backendId: streamProvider, providerLabel: NARRATIVE_BACKENDS[streamProvider].label, budgetTarget: 'openai'
       });
       applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
       const capturedPrompts = { system: systemPrompt, user: userPrompt };

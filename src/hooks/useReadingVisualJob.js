@@ -1,6 +1,6 @@
 import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
 import { useState, useEffect, useRef } from 'react';
-import { canonicalVisualCueJSON, sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
+import { canonicalVisualCueJSON, sameVisualCueBinding } from '../../shared/contracts/visualCueBinding.js';
 import { boundVisualCueLedger, visualJobPresentationStatus } from '../lib/narrativeGestureSource.js';
 import { readVisualJobEvents, isVisualJobTerminal } from '../lib/readingVisualStream.js';
 import { readingGesturesEnabled, readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';

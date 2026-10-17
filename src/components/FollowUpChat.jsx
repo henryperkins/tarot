@@ -927,6 +927,12 @@ export default function FollowUpChat({
           )}
         </div>
       )}
+      {/* On phones the sheet's close button is in the far top corner. */}
+      {variant === 'drawer' && onClose && (
+        <button type="button" onClick={onClose} className="follow-up-chat__bottom-close">
+          Close chat
+        </button>
+      )}
 
       {/* Journal upsell for free/auth'd users */}
       {!canUseJournal && isAuthenticated && (

@@ -1,4 +1,4 @@
-import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Gauge } from '@phosphor-icons/react';
+import { SpeakerHigh, SpeakerSlash, MusicNotes, Info, Waveform, Gauge } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { GlowToggle } from './GlowToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -10,7 +10,7 @@ import { handleRadioGroupKeyDown } from '../lib/radioGroupKeyboard.js';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsSpeed, setTtsSpeed } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider, ttsSpeed, setTtsSpeed } = usePreferences();
 
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
@@ -146,7 +146,7 @@ export function AudioControls({ className = '' }) {
         })}
       </div>
 
-      {/* Speed Control - applied by the reader voice player */}
+      {/* Voice Engine Selector */}
       {voiceOn && (
         <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-secondary/20">
           <div className="flex items-center gap-2 mb-2">

@@ -1,3 +1,4 @@
+import { sameJournalReading } from '../../shared/journal/readingIdentity.js';
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
@@ -662,7 +663,7 @@ export function useJournal({ autoLoad = true } = {}) {
         // entries may be stale, so merge with the actual scoped storage bucket.
         const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
         const existing = filterDeletedJournalEntries(namespace, readLocalJournalArray(localKey));
-        const duplicate = entry.sessionSeed && existing.find(item => item.sessionSeed === entry.sessionSeed);
+        const duplicate = existing.find(item => sameJournalReading(item, entry));
         if (duplicate) return { success: true, entry: duplicate, deduplicated: true };
         const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
         const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
@@ -899,6 +900,7 @@ export function useJournal({ autoLoad = true } = {}) {
       });
       if (!isCurrent()) return accountChanged();
 
+      const existingResults = new Set();
       const existingSeeds = new Set();
       const existingCompositeKeys = new Set();
       if (existingResponse.ok) {
@@ -907,7 +909,8 @@ export function useJournal({ autoLoad = true } = {}) {
         // Build sets for deduplication
         cloudEntries.forEach(entry => {
           // Primary: track by session_seed
-          if (entry.sessionSeed) {
+          if (entry.readingResultId) existingResults.add(entry.readingResultId);
+          if (!entry.readingResultId && entry.sessionSeed) {
             existingSeeds.add(entry.sessionSeed);
           }
           // Fallback: track by composite key for entries without sessionSeed
@@ -932,12 +935,13 @@ export function useJournal({ autoLoad = true } = {}) {
           let isDuplicate = false;
 
           // Primary: Check by session_seed
-          if (entry.sessionSeed && existingSeeds.has(entry.sessionSeed)) {
+          if (entry.readingResultId ? existingResults.has(entry.readingResultId)
+            : entry.sessionSeed && existingSeeds.has(entry.sessionSeed)) {
             isDuplicate = true;
           }
 
           // Fallback: Check by composite key (timestamp + question + spread + cards)
-          if (!isDuplicate && !entry.sessionSeed && entry.ts) {
+          if (!isDuplicate && !entry.readingResultId && !entry.sessionSeed && entry.ts) {
             const cardsFingerprint = (Array.isArray(entry?.cards) ? entry.cards : [])
               .map((card) => `${card?.name || 'card'}:${card?.orientation || (card?.isReversed ? 'reversed' : 'upright')}`)
               .join(',');
@@ -971,7 +975,8 @@ export function useJournal({ autoLoad = true } = {}) {
           if (response.ok) {
             migrated++;
             // Add to sets to prevent duplicate uploads in this batch
-            if (entry.sessionSeed) {
+            if (entry.readingResultId) existingResults.add(entry.readingResultId);
+            if (!entry.readingResultId && entry.sessionSeed) {
               existingSeeds.add(entry.sessionSeed);
             }
             if (entry.ts) {

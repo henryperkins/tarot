@@ -82,10 +82,13 @@ async function inspectStatic(page, cue) {
   await expect(phrase).toBeVisible();
   await expect(restored.locator('[data-gesture-window]')).not.toHaveAttribute('data-phase', /active|settling/);
   await clickForeground(phrase);
-  await expect(restored.locator('[data-gesture-window]')).toHaveAttribute('data-held', 'true');
-  await expect(restored.locator('[data-gesture-window]')).toHaveAttribute('data-phase', 'held');
-  await expect(restored.locator('[data-focus-card]')).toHaveAttribute('data-details', 'pool-pour');
-  expect(await runningAnimations(restored)).toEqual([]);
+  // Phone inspection portals the same static artwork into the active dialog.
+  const inspection = page.locator('[data-gesture-window]').filter({ visible: true });
+  await expect(inspection).toHaveCount(1);
+  await expect(inspection).toHaveAttribute('data-held', 'true');
+  await expect(inspection).toHaveAttribute('data-phase', /^(held|static)$/);
+  await expect(inspection.locator('[data-focus-card]')).toHaveAttribute('data-details', 'pool-pour');
+  expect(await runningAnimations(inspection)).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(restored.locator('[data-gesture-window]')).not.toHaveAttribute('data-held', 'true');
   await expect(restored.locator('.narrative-stream__text')).toHaveText(star.excerpt);

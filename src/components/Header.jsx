@@ -26,7 +26,7 @@ export function Header({
   onOpenReadingSettings
 }) {
   const prefersReducedMotion = useReducedMotion();
-  const stickyRef = useResponsiveSticky();
+  const stickyRef = useResponsiveSticky(true, { rootVar: '--pinned-header-height' });
   const isMobile = useSmallScreen(TABLET_SCREEN_MAX);
   const { personalization } = usePreferences();
   const displayName = personalization?.displayName?.trim();
@@ -166,9 +166,9 @@ export function Header({
           bg-surface/95 backdrop-blur
           border-y border-accent/20
           ${minimalNav ? 'pt-[max(0.35rem,var(--safe-pad-top))]' : 'pt-[var(--safe-pad-top)]'}
-          px-4 sm:px-5 md:px-6
-          pr-[max(1rem,var(--safe-pad-right))]
-          pl-[max(1rem,var(--safe-pad-left))]
+          pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]
+          sm:pl-[max(1.25rem,var(--safe-pad-left))] sm:pr-[max(1.25rem,var(--safe-pad-right))]
+          md:pl-[max(1.5rem,var(--safe-pad-left))] md:pr-[max(1.5rem,var(--safe-pad-right))]
           shadow-lg shadow-primary/20
           header-sticky
           ${minimalNav ? 'header-sticky--scene' : ''}
