@@ -1,0 +1,20 @@
+
+> tableau@1.0.0 build
+> vite build
+
+vite v7.3.6 building client environment for production...
+transforming...
+✓ 7713 modules transformed.
+../../node_modules/onnxruntime-web/dist/ort-web.min.js (6:62546): Use of eval in "../../node_modules/onnxruntime-web/dist/ort-web.min.js" is strongly discouraged as it poses security risks and may cause issues with minification.
+dist/assets/MarkdownRenderer-sTJ6WjH9.js                          164.14 kB │ gzip:  52.13 kB
+dist/assets/Journal-QORPcvCh.js                                   191.98 kB │ gzip:  50.28 kB
+dist/assets/html2canvas.esm-DXEQVQnt.js                           201.04 kB │ gzip:  47.43 kB
+dist/assets/react-DIwE7n6Y.js                                     231.44 kB │ gzip:  74.27 kB
+dist/assets/ReadingDisplay-BhdQB5HU.js                            255.24 kB │ gzip:  76.62 kB
+dist/assets/TarotReading-CxwbSNZ-.js                              271.89 kB │ gzip:  69.69 kB
+dist/assets/app-DkOY3--8.js                                       307.21 kB │ gzip: 102.37 kB
+dist/assets/AreaChart-C-2eW2B0.js                                 381.31 kB │ gzip: 110.67 kB
+dist/assets/microsoft.cognitiveservices.speech.sdk-CCFeHNsl.js    387.15 kB │ gzip:  84.50 kB
+dist/assets/pdfExport-CTuQAI3Y.js                                 389.91 kB │ gzip: 127.72 kB
+dist/assets/vision-DKy_-sPp.js                                    810.56 kB │ gzip: 197.42 kB
+✓ built in 12.08s

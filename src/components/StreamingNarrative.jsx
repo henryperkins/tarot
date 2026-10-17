@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cueTimingProbeActive, emitCueTiming, emitCueSourceDigest, remarkCueSourcePositions } from '../lib/readingCueTimingProbe.js';
+import { useCallback, useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight } from '@phosphor-icons/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -9,7 +10,12 @@ import {
 } from '../lib/highlightUtils';
 import { getSectionKeyFromHeading } from '../lib/narrativeSections';
 import { STREAM_AUTO_NARRATE_DEBOUNCE_MS } from '../lib/narrationStream.js';
+import { useReadingGestureRuntime } from '../hooks/useReadingGestureRuntime.js';
+import { measureNarrativePassage } from '../lib/narrativeReadingDom.js';
+import { useNarrativeReadingLine } from '../hooks/useNarrativeReadingLine';
+import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './reading/narrative/narrativeFocusContext.js';
 
+const NO_PHRASES = [];
 const LONG_MOBILE_WORD_THRESHOLD = 200;
 const LONG_DESKTOP_WORD_THRESHOLD = 600; // Guardrail for very long narratives on any device
 const BASE_WORD_DELAY = 45;
@@ -175,8 +181,20 @@ export function StreamingNarrative({
   wordBoundary = null,
   getHeadingProps = null,
   renderHeadingLead = null,
+  cardLinks = null,
+  renderParagraphLead = null,
+  gestureSource = null,
+  onVisibleSourceProgress = null,
 }) {
   const narrativeText = useMemo(() => (typeof text === 'string' ? text : ''), [text]);
+  const wrapperRef = useRef(null);
+  const focus = useNarrativeCardFocus();
+  const focusApi = useNarrativeCardFocusApi();
+  const studyEnabled = focus?.studyEnabled;
+  const studyRequested = focus?.studyRequested;
+  const associations = focus?.associations;
+  const gestureRuntime = useReadingGestureRuntime(Boolean(cardLinks || studyRequested));
+  const remarkCardLinks = gestureRuntime?.remarkCardLinks;
   const prefersReducedMotion = useReducedMotion();
   const isSmallScreen = useSmallScreen();
   const wrapperClassName = className ? `narrative-stream ${className}` : 'narrative-stream';
@@ -289,7 +307,9 @@ export function StreamingNarrative({
     }
   }, []);
 
-  // Clear timers and reset refs when text changes (side effects that must stay in useEffect)
+  // A source append belongs to the same reading; previously reported sections
+  // and narration must not fire again for each transport flush.
+  const callbackScope = gestureSource ? `${gestureSource.runId}:${gestureSource.sourceRevision}` : narrativeText;
   useEffect(() => {
     clearTimer();
     clearNarrationTimer();
@@ -297,7 +317,7 @@ export function StreamingNarrative({
     narrationTriggeredRef.current = false;
     triggeredHighlightRef.current = new Set();
     triggeredSectionRef.current = new Set();
-  }, [narrativeText, clearTimer, clearNarrationTimer]);
+  }, [callbackScope, clearTimer, clearNarrationTimer]);
 
   // Notify completion when all content is visible
   // This effect only calls external callback, no setState
@@ -369,6 +389,86 @@ export function StreamingNarrative({
     if (!visibleWords.length) return '';
     return visibleWords.join('');
   }, [visibleWords]);
+  // Raw-source progress belongs to the prose actually committed here. Formatting
+  // mismatches fail closed rather than guessing offsets from normalized text.
+  const visibleSourceEnd = gestureSource?.raw?.startsWith(visibleText) ? visibleText.length : null;
+  const cardLinkPlugins = useMemo(() => (
+    remarkCardLinks && (cardLinks || studyRequested) ? [[remarkCardLinks, { catalog: cardLinks,
+      associations: studyEnabled && visibleSourceEnd !== null ? associations.filter((item) => item.passage.end <= visibleSourceEnd) : [],
+      authoredOnly: Boolean(studyRequested)
+    }], ...(cueTimingProbeActive() ? [[remarkCueSourcePositions, { raw: visibleText }]] : [])] : null
+  ), [remarkCardLinks, cardLinks, studyEnabled, studyRequested, associations, visibleSourceEnd, visibleText]);
+  useLayoutEffect(() => {
+    if (!gestureSource || visibleSourceEnd === null) return;
+    const complete = !isReadingStreaming && visibleSourceEnd === gestureSource.raw.length;
+    emitCueTiming('source-render', { runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision,
+      end: visibleSourceEnd, complete, mode: isReadingStreaming ? 'server' : streamingActive ? 'typing' : 'instant' });
+    if (complete) void emitCueSourceDigest({ runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, raw: visibleText });
+  }, [gestureSource, visibleSourceEnd, isReadingStreaming, streamingActive, visibleText]);
+  useEffect(() => {
+    if (!gestureSource || visibleSourceEnd === null) return;
+    const progress = { runId: gestureSource.runId, sourceRevision: gestureSource.sourceRevision, visibleEnd: visibleSourceEnd,
+      complete: !isReadingStreaming && visibleSourceEnd === gestureSource.raw.length,
+      mode: isReadingStreaming ? 'server' : streamingActive ? 'typing' : 'instant' };
+    (onVisibleSourceProgress || focusApi?.reportProgress)?.(progress);
+  }, [gestureSource, visibleSourceEnd, isReadingStreaming, streamingActive, onVisibleSourceProgress, focusApi]);
+
+  useEffect(() => {
+    const root = wrapperRef.current;
+    if (!root || !focus?.studyEnabled || !focusApi) return undefined;
+    let elements = [];
+    let observing = true;
+    let frame = null;
+    const measure = () => {
+      if (!observing) return;
+      const visibilitySnapshot = {};
+      const passedCueIds = [];
+      // Registration is source-owned. IntersectionObserver only wakes this
+      // exact quote measurement; wrapper intersection never grants eligibility.
+      for (const element of elements) {
+        const { visible, passed } = measureNarrativePassage(element);
+        const id = element.dataset.gestureId;
+        visibilitySnapshot[id] = visible;
+        if (passed) passedCueIds.push(id);
+      }
+      focusApi.reportPassageVisibility({ runId: gestureSource.runId,
+        sourceRevision: gestureSource.sourceRevision, visibilitySnapshot, passedCueIds });
+    };
+    const schedule = () => {
+      if (frame !== null || !observing) return;
+      frame = requestAnimationFrame(() => { frame = null; measure(); });
+    };
+    const observer = new IntersectionObserver(schedule, { threshold: [0, .01, 1] });
+    // Optional Markdown annotations may commit after selection clears without
+    // changing source or association props. Register the actual committed DOM,
+    // then measure exact quotes through the same source-owned reporting API.
+    const register = () => {
+      if (!observing) return;
+      observer.disconnect();
+      elements = [...root.querySelectorAll('[data-gesture-id]')];
+      elements.forEach(element => observer.observe(element));
+      schedule();
+    };
+    const annotationsObserver = new MutationObserver(register);
+    annotationsObserver.observe(root, { childList: true, subtree: true,
+      attributes: true, attributeFilter: ['data-gesture-id'] });
+    register();
+    // Source text can enter while its padded/multiline wrapper remains at the
+    // same observer threshold. Scroll/layout events must remeasure its rects.
+    window.addEventListener('scroll', schedule, { passive: true, capture: true });
+    window.addEventListener('resize', schedule);
+    document.addEventListener('visibilitychange', schedule);
+    const resizeObserver = new ResizeObserver(schedule);
+    resizeObserver.observe(root);
+    return () => {
+      observing = false;
+      observer.disconnect(); resizeObserver.disconnect(); annotationsObserver.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+      document.removeEventListener('visibilitychange', schedule);
+    };
+  }, [visibleText, associations, focus?.studyEnabled, focusApi, gestureSource?.runId, gestureSource?.sourceRevision]);
 
   useEffect(() => {
     if (!onHighlightPhrase) return;
@@ -457,6 +557,13 @@ export function StreamingNarrative({
     return buildTokenMeta(visibleWords, highlightRanges);
   }, [useMarkdown, visibleWords, highlightRanges]);
 
+  // Point the spread at whatever the reading has reached: the newest words
+  // while they arrive, then the passage at the reader's eye line.
+  useNarrativeReadingLine(wrapperRef, {
+    enabled: Boolean(cardLinks && useMarkdown && !studyRequested),
+    isLive: Boolean(isReadingStreaming || (streamingActive && !isComplete))
+  });
+
   const streamingSuppressionMessage = isMarkdownMobileNarrative
     ? 'Markdown readings show instantly on small screens for smoother performance.'
     : 'Long readings show instantly on small screens.';
@@ -497,20 +604,31 @@ export function StreamingNarrative({
   ) : null;
 
   const EMPHASIS_POP_THRESHOLD = 8;
+  const atmosphereDecoration = withAtmosphere ? (
+    <div
+      aria-hidden="true"
+      className={`${atmosphereClass} narrative-atmosphere__decoration`}
+    />
+  ) : null;
+  const atmosphereHostClass = withAtmosphere ? 'narrative-atmosphere-host' : '';
   const narrativeBody = useMarkdown ? (
-    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`prose prose-sm xxs:prose-base md:prose-lg max-w-none w-full min-h-[6rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--md ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+      {atmosphereDecoration}
       <MarkdownRenderer
         className="narrative-stream__markdown"
         content={visibleText}
-        highlightPhrases={normalizedHighlightPhrases}
+        highlightPhrases={cardLinks ? NO_PHRASES : normalizedHighlightPhrases}
         wordBoundary={wordBoundary}
         headingBaseLevel={headingBaseLevel}
         getHeadingProps={getHeadingProps}
         renderHeadingLead={renderHeadingLead}
+        extraRemarkPlugins={cardLinkPlugins}
+        renderParagraphLead={cardLinks ? renderParagraphLead : null}
       />
     </div>
   ) : (
-    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereClass} ${textBottomPaddingClass}`}>
+    <div className={`text-main text-[1rem] xxs:text-[1.05rem] md:text-lg leading-[1.85] md:leading-loose w-full text-left min-h-[5.5rem] xxs:min-h-[7.5rem] md:min-h-[10rem] narrative-stream__text narrative-stream__text--plain ${atmosphereHostClass} ${textBottomPaddingClass}`}>
+      {atmosphereDecoration}
       {visibleWords.map((word, idx) => {
         const meta = tokenMeta[idx] || { isWhitespace: /^\s+$/.test(word), isHighlighted: false };
 
@@ -544,7 +662,7 @@ export function StreamingNarrative({
   );
 
   return (
-    <div className={wrapperClassName} aria-live="off">
+    <div ref={wrapperRef} className={wrapperClassName} aria-live="off">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {narrationStatusMessage}
       </p>

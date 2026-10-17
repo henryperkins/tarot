@@ -2,6 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureModalConfig, MODAL_DEFAULT_MODEL } from '../functions/lib/modalChatCompletions.js';
+import { ensureClaudeCodeConfig } from '../functions/lib/claudeCode.js';
+import { ensureCodexSubscriptionConfig } from '../functions/lib/codexSubscription.js';
+import { getPersonalTextProvider } from '../functions/lib/personalTextProvider.js';
 
 // NOTE: The app can run with local fallbacks when these are missing.
 // This script is intended to help you verify that AI-powered features and
@@ -254,6 +257,41 @@ function run() {
   const fileVars = parseDevVars(devVarsPath);
   const wranglerVars = parseWranglerVars(wranglerConfigPath);
   const results = {};
+
+  // Subscription mode is explicit: paid credentials cannot repair missing
+  // gateway/owner settings, and unused API providers have no prerequisites here.
+  let personalProvider;
+  try {
+    personalProvider = getPersonalTextProvider({ TEXT_PROVIDER: resolveValue('TEXT_PROVIDER', process.env, fileVars, wranglerVars) });
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+    return;
+  }
+  if (personalProvider) {
+    const prefix = personalProvider === 'claude-code' ? 'CLAUDE_CODE' : 'CODEX_SUBSCRIPTION';
+    const personalEnv = {};
+    for (const suffix of ['GATEWAY_URL', 'GATEWAY_TOKEN', 'OWNER_USER_ID', 'TIMEOUT_MS']) {
+      const key = `${prefix}_${suffix}`;
+      personalEnv[key] = resolveValue(key, process.env, fileVars, wranglerVars);
+    }
+    try {
+      const validate = personalProvider === 'claude-code' ? ensureClaudeCodeConfig : ensureCodexSubscriptionConfig;
+      validate(personalEnv);
+      if (!personalEnv[`${prefix}_OWNER_USER_ID`]?.trim()) throw new Error(`${prefix}_OWNER_USER_ID is required.`);
+      if (isTruthyFlag(resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars))
+        && !resolveValue('VISION_PROOF_SECRET', process.env, fileVars, wranglerVars)) {
+        throw new Error('Missing vision prerequisites: VISION_PROOF_SECRET');
+      }
+    } catch (error) {
+      console.error(`Personal inference configuration is incomplete: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`Personal inference settings are valid (${personalProvider}). Paid API backends are disabled for this selection.`);
+    console.log('Gateway availability and subscription login are not checked by this configuration-only command.');
+    return;
+  }
 
   const modalInputs = {};
   for (const key of [...REQUIRED_FOR_MODAL_READINGS, ...MODAL_CREDENTIALS, ...OPTIONAL_FOR_MODAL_READINGS]) {

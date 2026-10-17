@@ -9,7 +9,8 @@ import { NarrativeStageLayout } from '../reading/NarrativeStageLayout';
 import { getSceneModel } from './sceneModelUtils';
 
 export function CompleteScene({
-  sceneModels = {}
+  sceneModels = {},
+  isComplete = true
 }) {
   const narrativeModel = getSceneModel(sceneModels, 'narrativeModel');
   const completionModel = getSceneModel(sceneModels, 'completionModel');
@@ -42,7 +43,7 @@ export function CompleteScene({
   const narrativePanel = narrativeModel?.narrativePanel || null;
   const narrativeCompanion = narrativeModel?.secondaryContent || null;
   const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeCompanion);
-  const secondaryContent = (
+  const secondaryContent = isComplete ? (
     <details className="reading-support"><summary>Explore this reading</summary>
       {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
 
@@ -95,15 +96,15 @@ export function CompleteScene({
         shuffle={shuffle}
       />
     </details>
-  );
+  ) : narrativeCompanion;
 
   return (
     <NarrativeStageLayout
-      scene="complete"
-      panelVariant="complete"
+      scene={isComplete ? 'complete' : 'narrative'}
+      panelVariant={isComplete ? 'complete' : 'narrative'}
       narrativePanel={narrativePanel}
       secondaryContent={secondaryContent}
-      wrapSecondaryWithTopSpacing={false}
+      wrapSecondaryWithTopSpacing={!isComplete}
     />
   );
 }

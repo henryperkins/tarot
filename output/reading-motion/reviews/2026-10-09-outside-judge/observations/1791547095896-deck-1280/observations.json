@@ -1,0 +1,237 @@
+{
+  "revision": "f6bcfcd17cc52dfe36cea65a286867f8a3e80c95",
+  "parameters": {
+    "study": "deck",
+    "card": "Two of Swords",
+    "arrival": "complete",
+    "width": "1280",
+    "height": "1000",
+    "phrase": "crossed swords",
+    "hold-at": "800",
+    "times": "400,1500"
+  },
+  "errors": [],
+  "records": [
+    {
+      "observedMs": 499,
+      "requestedMs": 400,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547095896-deck-1280/0-400ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "f62a7053-8ce8-44bd-a3bf-319da4f5f2b6",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "111",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-0-80",
+        "phase": "static",
+        "pending": "",
+        "rect": {
+          "x": 161,
+          "y": 387,
+          "width": 340,
+          "height": 360,
+          "top": 387,
+          "right": 501,
+          "bottom": 747,
+          "left": 161
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "f62a7053-8ce8-44bd-a3bf-319da4f5f2b6:0",
+          "details": "crossed-swords",
+          "label": "Artwork: Two of Swords, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "Two of Swords",
+          "id": "identity-0-3",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 257.7507019042969,
+            "width": 151.34375,
+            "height": 50,
+            "top": 257.7507019042969,
+            "right": 692.34375,
+            "bottom": 307.7507019042969,
+            "left": 541
+          }
+        },
+        {
+          "text": "blindfold",
+          "id": "literal-0-44",
+          "pressed": "false",
+          "rect": {
+            "x": 763.6875,
+            "y": 309.75,
+            "width": 72.625,
+            "height": 41,
+            "top": 309.75,
+            "right": 836.3125,
+            "bottom": 350.75,
+            "left": 763.6875
+          }
+        },
+        {
+          "text": "crossed swords",
+          "id": "literal-0-80",
+          "pressed": "false",
+          "associated": "true",
+          "rect": {
+            "x": 627.8125,
+            "y": 361.75,
+            "width": 131.53125,
+            "height": 41,
+            "top": 361.75,
+            "right": 759.34375,
+            "bottom": 402.75,
+            "left": 627.8125
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Artwork: Two of Swords, upright",
+          "disabled": false,
+          "rect": {
+            "x": 277,
+            "y": 166,
+            "width": 108,
+            "height": 180,
+            "top": 166,
+            "right": 385,
+            "bottom": 346,
+            "left": 277
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nTwo of Swords\n\nThe seated figure wears a blindfold over her eyes.\n\nShe holds crossed swords above her chest.",
+      "runningAnimations": 2
+    },
+    {
+      "observedMs": 1656,
+      "requestedMs": 1500,
+      "image": "/tmp/tableu-outside-judge-qmewvi77/observations/1791547095896-deck-1280/1-1500ms.png",
+      "viewport": {
+        "width": 1280,
+        "height": 1000,
+        "scrollWidth": 1280,
+        "scrollY": 0
+      },
+      "source": {
+        "testid": "gesture-source-diagnostics",
+        "associationMode": "dynamic",
+        "runId": "f62a7053-8ce8-44bd-a3bf-319da4f5f2b6",
+        "sourceRevision": "0",
+        "sourceStatus": "complete",
+        "rawLength": "111",
+        "selectionCalls": "0"
+      },
+      "window": {
+        "gestureWindow": "true",
+        "association": "literal-0-80",
+        "phase": "held",
+        "pending": "",
+        "held": "true",
+        "rect": {
+          "x": 161,
+          "y": 387,
+          "width": 340,
+          "height": 360,
+          "top": 387,
+          "right": 501,
+          "bottom": 747,
+          "left": 161
+        }
+      },
+      "focused": [
+        {
+          "focusCard": "true",
+          "occurrenceId": "f62a7053-8ce8-44bd-a3bf-319da4f5f2b6:0",
+          "details": "crossed-swords",
+          "label": "Artwork: Two of Swords, upright"
+        }
+      ],
+      "phrases": [
+        {
+          "text": "Two of Swords",
+          "id": "identity-0-3",
+          "pressed": "false",
+          "rect": {
+            "x": 541,
+            "y": 257.75,
+            "width": 151.34375,
+            "height": 50,
+            "top": 257.75,
+            "right": 692.34375,
+            "bottom": 307.75,
+            "left": 541
+          }
+        },
+        {
+          "text": "blindfold",
+          "id": "literal-0-44",
+          "pressed": "false",
+          "rect": {
+            "x": 763.6875,
+            "y": 309.75,
+            "width": 72.625,
+            "height": 41,
+            "top": 309.75,
+            "right": 836.3125,
+            "bottom": 350.75,
+            "left": 763.6875
+          }
+        },
+        {
+          "text": "crossed swords",
+          "id": "literal-0-80",
+          "pressed": "true",
+          "associated": "true",
+          "rect": {
+            "x": 627.8125,
+            "y": 361.75,
+            "width": 131.53125,
+            "height": 41,
+            "top": 361.75,
+            "right": 759.34375,
+            "bottom": 402.75,
+            "left": 627.8125
+          }
+        }
+      ],
+      "shelf": [
+        {
+          "label": "Artwork: Two of Swords, upright",
+          "disabled": false,
+          "rect": {
+            "x": 277,
+            "y": 166,
+            "width": 108,
+            "height": 180,
+            "top": 166,
+            "right": 385,
+            "bottom": 346,
+            "left": 277
+          }
+        }
+      ],
+      "reading": "Narrative ready.\n\nTwo of Swords\n\nThe seated figure wears a blindfold over her eyes.\n\nShe holds crossed swords above her chest.",
+      "runningAnimations": 2
+    }
+  ]
+}

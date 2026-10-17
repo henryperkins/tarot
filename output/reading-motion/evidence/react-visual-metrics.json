@@ -1,0 +1,67 @@
+[
+  {
+    "name": "react-star-desktop",
+    "viewport": 1100,
+    "pageWidth": 1100,
+    "stage": 360,
+    "font": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif",
+    "fontsReady": true,
+    "bodyColor": "rgb(232, 230, 227)",
+    "stageBackground": "rgba(0, 0, 0, 0)",
+    "owners": 1,
+    "running": 8,
+    "errors": []
+  },
+  {
+    "name": "react-five-desktop",
+    "viewport": 1100,
+    "pageWidth": 1100,
+    "stage": 360,
+    "font": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif",
+    "fontsReady": true,
+    "bodyColor": "rgb(232, 230, 227)",
+    "stageBackground": "rgba(0, 0, 0, 0)",
+    "owners": 2,
+    "running": 1,
+    "errors": []
+  },
+  {
+    "name": "react-star-phone",
+    "viewport": 390,
+    "pageWidth": 390,
+    "stage": 106,
+    "font": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif",
+    "fontsReady": true,
+    "bodyColor": "rgb(232, 230, 227)",
+    "stageBackground": "rgb(28, 26, 34)",
+    "owners": 1,
+    "running": 16,
+    "errors": []
+  },
+  {
+    "name": "react-five-phone",
+    "viewport": 375,
+    "pageWidth": 375,
+    "stage": 106,
+    "font": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif",
+    "fontsReady": true,
+    "bodyColor": "rgb(232, 230, 227)",
+    "stageBackground": "rgb(28, 26, 34)",
+    "owners": 2,
+    "running": 1,
+    "errors": []
+  },
+  {
+    "name": "react-five-small-reduced",
+    "viewport": 320,
+    "pageWidth": 320,
+    "stage": 96,
+    "font": "\"Inter Variable\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif",
+    "fontsReady": true,
+    "bodyColor": "rgb(232, 230, 227)",
+    "stageBackground": "rgb(28, 26, 34)",
+    "owners": 1,
+    "running": 0,
+    "errors": []
+  }
+]

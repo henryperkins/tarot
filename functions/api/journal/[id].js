@@ -10,6 +10,7 @@ import { safeJsonParse } from '../../lib/utils.js';
 import { sanitizeSourceUsage } from '../../../shared/readingSourceUsage.js';
 import { deleteFollowUpsByEntry, loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 import { EXTRACTION_VERSION } from '../../lib/coachSuggestion.js';
+import { deleteJournalVisualLink, loadJournalVisualResult, loadJournalVisualState } from '../../lib/readingVisualResults.js';
 
 function isMissingColumnError(err) {
   const message = String(err?.message || err || '');
@@ -164,6 +165,19 @@ export async function onRequestGet(context) {
       }
     }
 
+    try {
+      const visualResult = await loadJournalVisualResult({ db: env.DB, userId: user.id, entryId: entry.id });
+      if (visualResult) parsedEntry.visual = visualResult;
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual snapshot unavailable`);
+    }
+    try {
+      const visualState = await loadJournalVisualState({ env, db: env.DB, userId: user.id, entryId: entry.id });
+      if (visualState) parsedEntry.visualState = visualState;
+    } catch {
+      console.warn(`[${requestId}] [journal] Visual state unavailable`);
+    }
+
     return new Response(
       JSON.stringify({ entry: parsedEntry }),
       {
@@ -225,10 +239,8 @@ export async function onRequestDelete(context) {
       );
     }
 
-    // Delete the entry first so a failed delete doesn't drop follow-ups.
-    await env.DB.prepare('DELETE FROM journal_entries WHERE id = ?')
-      .bind(entryId)
-      .run();
+    // Revoke the last visual reference before the parent's FK cascade removes it.
+    const visualCleanup = await deleteJournalVisualLink({ db: env.DB, env, userId: user.id, entryId, deleteEntry: true });
 
     // Best-effort cleanup for follow-up turns.
     try {
@@ -240,8 +252,9 @@ export async function onRequestDelete(context) {
       );
     }
 
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, retiredReadingResultIds: visualCleanup.retiredReadingResultIds }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' }

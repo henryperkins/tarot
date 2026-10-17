@@ -1,19 +1,35 @@
 /** Safe operational provenance for logical provider calls, never a billing estimate. */
 const REASONS = new Set(['provider_error', 'timeout', 'cancelled', 'incomplete', 'refusal', 'quality_rejected', 'empty_response', 'safety_blocked', 'unknown']);
-function identifier(value) {
+export function normalizeInferenceIdentifier(value) {
   return typeof value === 'string' && /^[A-Za-z0-9@._:/-]{1,160}$/.test(value) ? value : null;
 }
 const tokenCount = (value) => Number.isSafeInteger(value) && value >= 0 ? value : null;
 
 export function normalizeInferenceUsage(usage) {
-  const inputTokens = tokenCount(usage?.input_tokens ?? usage?.prompt_tokens);
-  const outputTokens = tokenCount(usage?.output_tokens ?? usage?.completion_tokens);
-  const totalTokens = tokenCount(usage?.total_tokens) ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null);
-  const cacheReadInputTokens = tokenCount(usage?.cache_read_input_tokens);
-  const cacheCreationInputTokens = tokenCount(usage?.cache_creation_input_tokens);
-  const reasoningTokens = tokenCount(usage?.output_tokens_details?.reasoning_tokens ?? usage?.completion_tokens_details?.reasoning_tokens);
+  let invalid = usage?.valid === false;
+  const countAliases = values => {
+    const supplied = values.filter(value => value != null);
+    if (supplied.some(value => tokenCount(value) === null) || new Set(supplied).size > 1) invalid = true;
+    return tokenCount(supplied[0]);
+  };
+  const inputTokens = countAliases([usage?.inputTokens, usage?.input_tokens, usage?.prompt_tokens]);
+  const outputTokens = countAliases([usage?.outputTokens, usage?.output_tokens, usage?.completion_tokens]);
+  const suppliedTotal = usage != null && (Object.hasOwn(usage, 'totalTokens') || Object.hasOwn(usage, 'total_tokens'));
+  const reportedTotal = countAliases([usage?.totalTokens, usage?.total_tokens]);
+  const sum = inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null;
+  const totalTokens = suppliedTotal ? reportedTotal : tokenCount(sum);
+  // Cache and reasoning counts are subsets, not additions to input/output totals.
+  const cacheReadInputTokens = countAliases([usage?.cacheReadInputTokens, usage?.cache_read_input_tokens,
+    usage?.cached_input_tokens, usage?.input_tokens_details?.cached_tokens, usage?.prompt_tokens_details?.cached_tokens]);
+  const cacheCreationInputTokens = countAliases([usage?.cacheCreationInputTokens, usage?.cache_creation_input_tokens]);
+  const reasoningTokens = countAliases([usage?.reasoningTokens, usage?.reasoning_output_tokens,
+    usage?.output_tokens_details?.reasoning_tokens, usage?.completion_tokens_details?.reasoning_tokens]);
+  if (sum !== null && (!Number.isSafeInteger(sum) || (suppliedTotal && reportedTotal !== sum))) invalid = true;
+  if (inputTokens !== null && (cacheReadInputTokens ?? 0) + (cacheCreationInputTokens ?? 0) > inputTokens) invalid = true;
+  if (outputTokens !== null && (reasoningTokens ?? 0) > outputTokens) invalid = true;
   const counts = [inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens];
-  return { status: inputTokens !== null && outputTokens !== null ? 'known' : counts.some((count) => count !== null) ? 'partial' : 'unknown', inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens };
+  return { status: !invalid && inputTokens !== null && outputTokens !== null ? 'known' : counts.some((count) => count !== null) ? 'partial' : 'unknown', inputTokens, outputTokens, totalTokens, cacheReadInputTokens, cacheCreationInputTokens, reasoningTokens,
+    ...(invalid ? { valid: false } : {}) };
 }
 
 export function inferAttemptReason(error, signal) {
@@ -43,9 +59,9 @@ export async function recordInferenceAttempt(env, attempt) {
         started_at, finished_at, latency_ms
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO NOTHING
-    `).bind(identifier(attempt.id) || crypto.randomUUID(), identifier(attempt.requestId) || 'unknown',
-      identifier(attempt.task) || 'unknown', identifier(attempt.provider) || 'unknown',
-      identifier(attempt.requestedModel), identifier(attempt.model), state,
+    `).bind(normalizeInferenceIdentifier(attempt.id) || crypto.randomUUID(), normalizeInferenceIdentifier(attempt.requestId) || 'unknown',
+      normalizeInferenceIdentifier(attempt.task) || 'unknown', normalizeInferenceIdentifier(attempt.provider) || 'unknown',
+      normalizeInferenceIdentifier(attempt.requestedModel), normalizeInferenceIdentifier(attempt.model), state,
       attempt.reason ? (REASONS.has(attempt.reason) ? attempt.reason : 'unknown') : null,
       usage.status, usage.inputTokens, usage.outputTokens, usage.totalTokens,
       usage.cacheReadInputTokens, usage.cacheCreationInputTokens, usage.reasoningTokens,

@@ -213,3 +213,12 @@
   .reading-screen--preparing { padding-top: 2rem; }
   .reading-spread__cards--small { gap: 18px; }
 }
+
+.reading-screen__companion { display: none; }
+.reading-screen__mobile-companion { min-width: 0; }
+@media (min-width: 1100px) {
+  .reading-screen--with-companion { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 42rem); gap: 3rem; justify-content: center; }
+  .reading-screen__companion { display: block; min-width: 0; }
+  .reading-screen__companion .gesture-companion { position: sticky; top: calc(var(--sticky-header-height, 64px) + 24px); }
+  .reading-screen__mobile-companion { display: none; }
+}

@@ -727,12 +727,16 @@ export function useJourneyData({
 
     // Cache for authenticated, unfiltered views
     if (cacheKey && !filtersActive && narrative) {
-      setCachedNarrative(userId, cacheKey, narrative);
+      // Server aggregates do not expose their contributing entry IDs. Do not
+      // claim the current local page completely identifies those inputs.
+      setCachedNarrative(userId, cacheKey, narrative, useServerData ? undefined : (scopedEntries || []).map(entry => entry?.id).filter(Boolean));
     }
 
     return narrative;
   }, [
     cardFrequency,
+    scopedEntries,
+    useServerData,
     topContext,
     insightsStats.recentThemes,
     insightsStats.themeSignals,

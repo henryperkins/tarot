@@ -9,6 +9,8 @@
  */
 
 import { djb2Hash } from './utils.js';
+import { isDeletedAccount, isDeletedAccountStorageKey } from './deletedAccountStorage.js';
+import { canPersistJournalDerivation, derivedJournalNamespaceForKey, journalNamespaceForKey, filterDeletedJournalEntries } from './deletedJournalEntryStorage.js';
 
 const NARRATIVE_CACHE_KEY = 'journey_narrative_cache';
 const NARRATIVE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
@@ -31,7 +33,13 @@ export const safeStorage = {
   getItem(key) {
     if (!this.isAvailable) return null;
     try {
-      return localStorage.getItem(key);
+      const raw = localStorage.getItem(key);
+      if (!raw) return raw;
+      const namespace = journalNamespaceForKey(key);
+      if (namespace) return JSON.stringify(filterDeletedJournalEntries(namespace, JSON.parse(raw)));
+      const derivedNamespace = derivedJournalNamespaceForKey(key);
+      if (derivedNamespace && !canPersistJournalDerivation(derivedNamespace, JSON.parse(raw)?.sourceEntryIds)) return null;
+      return raw;
     } catch {
       // Handle quota exceeded, private browsing, etc.
       return null;
@@ -41,6 +49,21 @@ export const safeStorage = {
   setItem(key, value) {
     if (!this.isAvailable) return;
     try {
+      if (isDeletedAccountStorageKey(key, { storage: localStorage })) return;
+      const namespace = journalNamespaceForKey(key);
+      if (namespace) value = JSON.stringify(filterDeletedJournalEntries(namespace, JSON.parse(value)));
+      const derivedNamespace = derivedJournalNamespaceForKey(key);
+      if (derivedNamespace && !canPersistJournalDerivation(derivedNamespace, JSON.parse(value)?.sourceEntryIds)) return;
+      // A different owner's stale shared-cache copy must not restore deleted
+      // prose when it writes its own new narrative.
+      if (key === NARRATIVE_CACHE_KEY) {
+        const cache = JSON.parse(value);
+        if (cache && typeof cache === 'object' && !Array.isArray(cache)) {
+          const remaining = Object.fromEntries(Object.entries(cache).filter(([entryKey]) => !isDeletedAccount(entryKey.split(':')[0])
+            && canPersistJournalDerivation(entryKey.split(':')[0] === 'anon' ? 'anon' : `user:${encodeURIComponent(entryKey.split(':')[0])}`, cache[entryKey]?.sourceEntryIds)));
+          if (Object.keys(remaining).length !== Object.keys(cache).length) value = JSON.stringify(remaining);
+        }
+      }
       localStorage.setItem(key, value);
     } catch {
       // Silently fail if storage is unavailable
@@ -120,6 +143,7 @@ export function getCachedNarrative(userId, seasonKey) {
   if (!userId || userId === 'undefined' || userId === 'null') {
     return null;
   }
+  if (isDeletedAccount(userId)) return null;
 
   if (!safeStorage.isAvailable) return null;
 
@@ -129,7 +153,7 @@ export function getCachedNarrative(userId, seasonKey) {
   try {
     const cache = JSON.parse(raw);
     const entry = cache[`${userId}:${seasonKey}`];
-    if (!entry) return null;
+    if (!entry || !canPersistJournalDerivation(`user:${encodeURIComponent(userId)}`, entry.sourceEntryIds)) return null;
 
     // Check TTL (24 hours)
     if (Date.now() - entry.timestamp > NARRATIVE_CACHE_TTL) {
@@ -150,11 +174,12 @@ export function getCachedNarrative(userId, seasonKey) {
  * @param {string} seasonKey - Cache key from buildSeasonKey
  * @param {string} narrative - Narrative text to cache
  */
-export function setCachedNarrative(userId, seasonKey, narrative) {
+export function setCachedNarrative(userId, seasonKey, narrative, sourceEntryIds) {
   // SECURITY: Never cache for unauthenticated users
   if (!userId || userId === 'undefined' || userId === 'null') {
     return;
   }
+  if (!canPersistJournalDerivation(`user:${encodeURIComponent(userId)}`, sourceEntryIds)) return;
 
   // Don't cache filtered views
   if (seasonKey.includes('filtered:')) return;
@@ -167,10 +192,11 @@ export function setCachedNarrative(userId, seasonKey, narrative) {
 
     cache[`${userId}:${seasonKey}`] = {
       narrative,
+      ...(Array.isArray(sourceEntryIds) ? { sourceEntryIds } : {}),
       timestamp: Date.now(),
     };
 
-    safeStorage.setItem(NARRATIVE_CACHE_KEY, JSON.stringify(cache));
+    if (!isDeletedAccount(userId)) safeStorage.setItem(NARRATIVE_CACHE_KEY, JSON.stringify(cache));
   } catch {
     // Silently fail
   }

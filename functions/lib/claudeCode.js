@@ -54,7 +54,9 @@ export async function callClaudeCode(env, { signal: callerSignal, ...input }) {
   try {
     if (controller.signal.aborted) return await cancelled;
     const response = await Promise.race([fetch(url, {
-      method: 'POST', redirect: 'error', signal: controller.signal,
+      // Workers supports manual redirects; the non-OK guard below rejects every
+      // 3xx response without forwarding the gateway credential to Location.
+      method: 'POST', redirect: 'manual', signal: controller.signal,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(input)
     }), cancelled]);

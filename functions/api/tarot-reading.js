@@ -83,7 +83,10 @@ import {
   buildAzureGPT5Prompts,
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
-import { getClaudeCodeAccessError, isClaudeCodeEnabled } from '../lib/claudeCode.js';
+import { getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
+import { streamCodexSubscription } from '../lib/codexSubscription.js';
+import { createCodexReadingStream } from '../lib/codexReadingStream.js';
+import { createReadingPassageGuard } from '../lib/readingPassageGuard.js';
 import {
   getSpreadDefinition,
   getSpreadKey,
@@ -410,6 +413,7 @@ async function finalizeReading({
   backendErrors = [],
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
+  rejectGateBlocked = false,
   gateOverride = null,
   gateNotice = null,
   evalGateEnv = env,
@@ -515,6 +519,11 @@ async function finalizeReading({
   }
 
   if (!gateResult.passed) {
+    if (rejectGateBlocked) {
+      const error = new Error('Reading failed its final delivery check.');
+      error.code = 'reading_stream_rejected';
+      throw error;
+    }
     wasGateBlocked = true;
     if (allowGateBlocking) {
       const gateLabel = gateOverride?.blocked ? 'Safety scan' : 'Evaluation gate';
@@ -770,6 +779,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
   const taskSignal = taskDeadline.signal;
   const requestId = crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   let readingReservation = null;
+  let streamOwnsDeadline = false;
   const url = new URL(request.url);
   const acceptHeader = request.headers.get('accept') || '';
   const useStreaming = url.searchParams.get('stream') === 'true' || acceptHeader.includes('text/event-stream');
@@ -860,7 +870,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     if (unauthorized) {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
-    const personalAccessError = getClaudeCodeAccessError(env, user);
+    const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     const subscription = getSubscriptionContext(user);
     const subscriptionTier = subscription.effectiveTier;
@@ -1196,7 +1206,89 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const backendErrors = [];
 
     narrativePayload.signal = taskSignal;
-    const tokenStreamingEnabled = !isClaudeCodeEnabled(env) && isAzureTokenStreamingEnabled(env);
+    const codexLiveEnabled = useStreaming
+      && getAvailableNarrativeBackends(env)[0]?.id === 'codex-subscription'
+      && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
+      && !evalGatePolicy.effectiveEvalGateEnabled;
+    if (codexLiveEnabled) {
+      const streamProvider = 'codex-subscription';
+      const { assignment: attemptAssignment, variantPromptOverrides } = resolveAttemptABAssignment(requestId, activeExperiments, {
+        spreadKey: analysis.spreadKey, provider: streamProvider
+      });
+      narrativePayload.abAssignment = attemptAssignment;
+      narrativePayload.variantPromptOverrides = variantPromptOverrides;
+      const { systemPrompt, userPrompt } = buildAzureGPT5Prompts(env, narrativePayload, requestId, {
+        backendId: streamProvider, providerLabel: NARRATIVE_BACKENDS[streamProvider].label, budgetTarget: 'azure'
+      });
+      applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
+      const capturedPrompts = { system: systemPrompt, user: userPrompt };
+      const streamPromptDebug = promptDebugAccess.allowed ? buildPromptDebugPayload({ capturedPrompts, provider: streamProvider, promptMeta: narrativePayload.promptMeta }) : null;
+      const streamMeta = {
+        requestId, provider: streamProvider, themes: analysis.themes,
+        reasoning: analysis.reasoning || null, emotionalTone: deriveEmotionalTone(analysis.themes),
+        ephemeris: buildEphemerisClientPayload(analysis.ephemerisContext), context,
+        contextDiagnostics: narrativePayload.contextDiagnostics || contextDiagnostics,
+        graphRAG: narrativePayload.promptMeta?.graphRAG || null,
+        sourceUsage: narrativePayload.promptMeta?.sourceUsage || null,
+        spreadAnalysis: buildSpreadAnalysisPayload(analysis), gateBlocked: false, gateReason: null,
+        ...(streamPromptDebug ? { promptDebug: streamPromptDebug } : {})
+      };
+      const streamStartedAt = Date.now();
+      let streamResult = null;
+      let streamState = 'failed';
+      let streamReason = 'provider_error';
+      const stream = createCodexReadingStream({
+        signal: taskSignal, waitUntil, meta: streamMeta,
+        guard: createReadingPassageGuard({ cardsInfo, spreadKey: analysis.spreadKey, deckStyle }),
+        source: signal => streamCodexSubscription(env, { task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal }),
+        onComplete: async (result, signal) => {
+          streamResult = result;
+          const { qualityMetrics, qualityIssues } = evaluateQualityGate({ readingText: result.text, cardsInfo, deckStyle, analysis, requestId });
+          if (qualityIssues.length) {
+            const error = new Error('Reading failed final quality checks.');
+            error.code = 'reading_stream_rejected';
+            throw error;
+          }
+          narrativePayload.signal = signal;
+          narrativePayload.promptMeta.inference = { provider: streamProvider, model: result.model, modelSource: result.modelSource };
+          const { responsePayload } = await taskDeadline.run(() => finalizeReading({
+            env, requestId, startTime, reading: result.text, provider: streamProvider, deckStyle, analysis,
+            narrativePayload, contextDiagnostics, cardsInfo, userQuestion, reflectionsText: querentReflections,
+            context, visionMetrics, abAssignment: attemptAssignment, capturedPrompts, capturedUsage: result.usage,
+            waitUntil, personalization, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
+            allowGateBlocking: true, rejectGateBlocked: true, evalGateEnv, evalGatePolicy,
+            promptDebugAllowed: promptDebugAccess.allowed
+          }));
+          signal.throwIfAborted();
+          if (responsePayload.reading !== result.text) throw new Error('Reading source changed during finalization.');
+          if (attemptAssignment) await recordExperimentAssignment(env.DB, attemptAssignment.experimentId);
+          streamState = 'accepted';
+          streamReason = null;
+          return { requestId, model: result.model, modelSource: result.modelSource, usage: result.usage, gateBlocked: false, gateReason: null };
+        },
+        onError: async error => {
+          streamState = error?.code === 'reading_stream_rejected' ? 'rejected' : 'failed';
+          streamReason = error?.code === 'reading_stream_rejected' ? 'quality_rejected' : inferAttemptReason(error, taskSignal);
+          await releaseReadingReservation(env, readingReservation);
+        },
+        onFinally: async () => {
+          try {
+            await recordInferenceAttempt(env, {
+              requestId, task: 'reading', provider: streamProvider,
+              requestedModel: streamResult?.modelSource === 'configured' ? streamResult.model : null,
+              model: streamResult?.modelSource === 'reported' ? streamResult.model : null,
+              usage: streamResult?.usage || null, state: streamState, reason: streamReason,
+              startedAtMs: streamStartedAt, finishedAtMs: Date.now()
+            });
+          } finally {
+            taskDeadline.dispose();
+          }
+        }
+      });
+      streamOwnsDeadline = true;
+      return createSSEResponse(stream);
+    }
+    const tokenStreamingEnabled = !isPersonalTextProviderEnabled(env) && isAzureTokenStreamingEnabled(env);
     const evalGateEnabled = evalGatePolicy.effectiveEvalGateEnabled;
     const allowStreamingGateBypass = allowStreamingWithEvalGate(env);
     const safetyScanExplicit = env?.STREAMING_SAFETY_SCAN_ENABLED !== undefined;
@@ -1657,9 +1749,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         await recordInferenceAttempt(env, {
           requestId, task: 'reading', provider: backendProvider, state: attemptState,
           reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
-          model: backendResult?.model || attemptError?.model || null,
+          model: backendResult?.modelSource === 'configured' ? null : backendResult?.model || attemptError?.model || null,
           usage: backendResult?.usage || attemptError?.usage || null,
-          requestedModel: backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
+          requestedModel: backendResult?.modelSource === 'configured' ? backendResult.model
+            : backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
             : backend.id === 'modal-qwen' ? env.MODAL_MODEL || 'Qwen/Qwen3.8-Max-VL-Thinking'
             : backend.id === 'azure-gpt5' ? env.OPENAI_API_KEY ? env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL : env.AZURE_OPENAI_GPT5_MODEL
             : null,
@@ -1795,7 +1888,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       { status: 500 }
     );
   } finally {
-    taskDeadline.dispose();
+    if (!streamOwnsDeadline) taskDeadline.dispose();
   }
 };
 

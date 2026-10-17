@@ -41,6 +41,10 @@ See the [authentication reference](https://code.claude.com/docs/en/authenticatio
 
 ## Connect local Tableu
 
+For ChatGPT-backed Codex inference instead, see the separate
+[Codex subscription provider](codex-subscription.md). Choose one text provider
+per Worker; Claude remains available with the settings below.
+
 Add these settings to this checkout's untracked `.dev.vars`:
 
 ```dotenv

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
@@ -7,10 +7,32 @@ import { fetchJournalEntryById } from '../lib/journal/fetchEntryById';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
+import { readingGesturesEnabled, readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
+import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAccountStorage.js';
+import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalResult, purgeDeletedJournalEntryStorage,
+  subscribeToDeletedJournalEntries, journalNamespaceForKey } from '../lib/deletedJournalEntryStorage.js';
+import { visualStorageNamespace, writeVisualResume, patchVisualEntry,
+  persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT, readSavedVisualEntry, projectJournalEntryVisuals,
+  mergeCachedJournalVisuals, needsCloudVisualRefresh, requestSavedVisualRetry, adoptEntryVisuals,
+  savedVisualSourceKey, publicVisualRetryState } from '../lib/readingVisualStorage.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
 const PAGE_SIZE = 25;
+const EMPTY_ENTRIES = [];
+// One explicit retry per owner/entry in this tab; the server claim covers other tabs.
+const retryFlights = new Map();
+
+function mapChanged(entries, map) {
+  let changed = false;
+  const next = entries.map(entry => {
+    const value = map(entry);
+    if (value !== entry) changed = true;
+    return value;
+  });
+  return changed ? next : entries;
+}
+
 
 /**
  * Get user-scoped cache key to prevent data leakage across accounts
@@ -58,10 +80,25 @@ function readLocalJournalArray(key) {
  * This provides backward compatibility while enabling cloud sync for auth users
  */
 export function useJournal({ autoLoad = true } = {}) {
+  const gestureStudyEnabled = readingGesturesEnabled();
+  const visualRequestsEnabled = readingVisualRequestsEnabled();
   const { isAuthenticated, user } = useAuth();
   const userId = user?.id;
   const { canUseCloudJournal } = useSubscription();
-  const [entries, setEntries] = useState([]);
+  const namespace = visualStorageNamespace(isAuthenticated ? user?.id : null);
+  const namespaceRef = useRef(namespace);
+  const [entryState, setEntryState] = useState({ namespace: visualStorageNamespace(isAuthenticated ? user?.id : null), entries: [] });
+  const entries = !isDeletedAccount(userId) && entryState.namespace === visualStorageNamespace(isAuthenticated ? user?.id : null)
+    ? filterDeletedJournalEntries(entryState.namespace, entryState.entries) : EMPTY_ENTRIES;
+  const setEntries = useCallback(update => setEntryState(previous => {
+    const owner = visualStorageNamespace(isAuthenticated ? user?.id : null);
+    // React can execute an already queued updater after the deletion response.
+    // Never invoke its cache/insight side effects for the deleted owner.
+    if (isDeletedAccount(user?.id)) return { namespace: owner, entries: EMPTY_ENTRIES };
+    if (namespaceRef.current !== owner) return previous;
+    const current = filterDeletedJournalEntries(owner, previous.namespace === owner ? previous.entries : []);
+    return { namespace: owner, entries: filterDeletedJournalEntries(owner, typeof update === 'function' ? update(current) : update) };
+  }), [isAuthenticated, user?.id]);
   const [loading, setLoading] = useState(autoLoad);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -79,14 +116,104 @@ export function useJournal({ autoLoad = true } = {}) {
 
   // Track previous user ID to detect account switches
   const prevUserIdRef = useRef(user?.id);
+  useLayoutEffect(() => {
+    namespaceRef.current = isDeletedAccount(userId) ? null : namespace;
+    return subscribeToDeletedAccounts(owner => {
+      if (owner !== userId) return;
+      namespaceRef.current = null;
+      setEntries([]);
+    });
+  }, [namespace, userId, setEntries]);
+
+  const entriesRef = useRef(entries);
+  useLayoutEffect(() => { entriesRef.current = entries; }, [entries]);
+  useLayoutEffect(() => subscribeToDeletedJournalEntries(owner => {
+    if (owner !== namespaceRef.current) return;
+    entriesRef.current = filterDeletedJournalEntries(owner, entriesRef.current);
+    setEntries(previous => filterDeletedJournalEntries(owner, previous));
+  }), [setEntries]);
+  // A namespace captured by an unmounted instance is stale: late work is discarded.
+  const mountedRef = useRef(false);
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  // Owned journal refresh: server-authoritative public state, never inference.
+  // Older public state, changed prose and other owners are never applied.
+  const refreshCloudVisual = useCallback(async (entryId, signal) => {
+    if (!visualRequestsEnabled) return;
+    const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}?includeFollowups=true`, {
+      credentials: 'include', signal
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (signal?.aborted || isDeletedAccount(userId) || namespaceRef.current !== namespace || !data.entry) return;
+    const incoming = projectJournalEntryVisuals(data.entry);
+    setEntries(previous => {
+      const next = mapChanged(previous, existing => {
+        if (existing.id !== entryId || existing.personalReading !== incoming.personalReading) return existing;
+        const before = publicVisualRetryState(existing.visualState)?.stateVersion ?? -1;
+        const after = publicVisualRetryState(incoming.visualState)?.stateVersion ?? -1;
+        return after < before ? existing : mergeCachedJournalVisuals(incoming, existing);
+      });
+      if (next !== previous) {
+        try { localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next))); } catch { /* Optional cache. */ }
+      }
+      return next;
+    });
+  }, [namespace, setEntries, userId, visualRequestsEnabled]);
+
+  useEffect(() => {
+    if (!gestureStudyEnabled) return undefined;
+    const cloud = autoLoad && isAuthenticated && canUseCloudJournal;
+    const receive = event => {
+      const detail = event.detail;
+      if (detail?.namespace !== namespace) return;
+      if (detail.entryId) {
+        // Entry-scoped notices carry no data: adopt the committed public copy.
+        const stored = readSavedVisualEntry({ namespace, entryId: detail.entryId });
+        if (stored) setEntries(previous => mapChanged(previous, entry => entry.id === detail.entryId ? adoptEntryVisuals(entry, stored) : entry));
+        if (visualRequestsEnabled && detail.refresh && cloud) refreshCloudVisual(detail.entryId).catch(() => { /* Polling retries. */ });
+        return;
+      }
+      setEntries(previous => mapChanged(previous, entry => patchVisualEntry(entry, detail)));
+    };
+    window.addEventListener(VISUAL_SNAPSHOT_EVENT, receive);
+    return () => window.removeEventListener(VISUAL_SNAPSHOT_EVENT, receive);
+  }, [gestureStudyEnabled, namespace, setEntries, autoLoad, isAuthenticated, canUseCloudJournal, refreshCloudVisual, visualRequestsEnabled]);
+
+  // Cloud entries may be saved before annotation completes, or have a pending
+  // explicit replay. Their owned journal endpoint supplies the latest durable
+  // state and snapshot without a private capability; polling never retries work.
+  useEffect(() => {
+    if (!visualRequestsEnabled || !autoLoad || !isAuthenticated || !canUseCloudJournal) return undefined;
+    const pending = entries.filter(needsCloudVisualRefresh);
+    if (!pending.length) return undefined;
+    const controller = new AbortController();
+    let polling = false;
+    const timer = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        for (const entry of pending) {
+          try { await refreshCloudVisual(entry.id, controller.signal); }
+          catch { /* Offline: retain the cached prose and retry on the next tick. */ }
+          if (controller.signal.aborted || isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
+        }
+      } finally { polling = false; }
+    }, 3000);
+    return () => { clearInterval(timer); controller.abort(); };
+  }, [visualRequestsEnabled, autoLoad, entries, isAuthenticated, canUseCloudJournal, namespace, userId, refreshCloudVisual]);
 
   const persistInsights = useCallback((entriesToPersist) => {
-    const result = persistJournalInsights(entriesToPersist, user?.id);
+    if (isDeletedAccount(user?.id)) return { payload: null, error: null };
+    const result = persistJournalInsights(filterDeletedJournalEntries(namespace, entriesToPersist), isAuthenticated ? user?.id : null);
     if (result?.error) {
       console.warn('Unable to persist journal insights cache:', result.error);
     }
     return result;
-  }, [user?.id]);
+  }, [user?.id, namespace, isAuthenticated]);
 
   // Clear stale cache when user changes (login/logout/switch accounts)
   useEffect(() => {
@@ -102,14 +229,14 @@ export function useJournal({ autoLoad = true } = {}) {
       if (prevUserId && typeof localStorage !== 'undefined') {
         try {
           localStorage.removeItem(getCacheKey(prevUserId));
-          clearJournalInsightsCache(prevUserId);
+          if (!isDeletedAccount(prevUserId)) clearJournalInsightsCache(prevUserId);
         } catch (e) {
           console.warn('Failed to clear previous user cache:', e);
         }
       }
       prevUserIdRef.current = currentUserId;
     }
-  }, [user?.id]);
+  }, [user?.id, setEntries]);
 
   const buildApiUrl = useCallback((cursor) => {
     const params = new URLSearchParams();
@@ -122,6 +249,7 @@ export function useJournal({ autoLoad = true } = {}) {
   }, []);
 
   const loadEntries = useCallback(async () => {
+    if (isDeletedAccount(userId)) return;
     prefetchedOnceRef.current = false;
     setLoading(true);
     setError(null);
@@ -144,7 +272,12 @@ export function useJournal({ autoLoad = true } = {}) {
           }
 
           const data = await response.json();
-          const apiEntries = dedupeEntries(data.entries || []);
+          if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
+          // Public projection; a recorded explicit-unavailable outcome or locally
+          // validated cache survives only for the same source and server state.
+          const cachedById = new Map(readLocalJournalArray(getCacheKey(userId)).map(item => [item?.id, item]));
+          const apiEntries = filterDeletedJournalEntries(namespace, dedupeEntries(data.entries || []))
+            .map(item => mergeCachedJournalVisuals(projectJournalEntryVisuals(item), cachedById.get(item.id)));
           setEntries(apiEntries);
           setPagination({
             hasMore: Boolean(data?.pagination?.hasMore),
@@ -160,20 +293,21 @@ export function useJournal({ autoLoad = true } = {}) {
           if (typeof localStorage !== 'undefined') {
             const cacheKey = getCacheKey(userId);
             try {
-              localStorage.setItem(cacheKey, JSON.stringify(apiEntries));
+              localStorage.setItem(cacheKey, JSON.stringify(filterDeletedJournalEntries(namespace, apiEntries)));
             } catch (quotaErr) {
               console.warn('localStorage quota exceeded, skipping cache:', quotaErr);
             }
             persistInsights(apiEntries);
           }
         } catch (apiError) {
+          if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
           console.warn('API load failed, falling back to cache:', apiError);
           // Fallback to user-scoped cache
           if (typeof localStorage !== 'undefined') {
             const cacheKey = getCacheKey(userId);
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
-              const parsedCache = dedupeEntries(JSON.parse(cached));
+              const parsedCache = filterDeletedJournalEntries(namespace, dedupeEntries(JSON.parse(cached))).map(projectJournalEntryVisuals);
               setEntries(parsedCache);
               persistInsights(parsedCache);
               // Don't set error if we have cache, just warn
@@ -205,7 +339,7 @@ export function useJournal({ autoLoad = true } = {}) {
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
-              const safeEntries = dedupeEntries(Array.isArray(parsed) ? parsed : []);
+              const safeEntries = filterDeletedJournalEntries(namespace, dedupeEntries(Array.isArray(parsed) ? parsed : [])).map(projectJournalEntryVisuals);
               setEntries(safeEntries);
               if (typeof window !== 'undefined') {
                 persistInsights(safeEntries);
@@ -216,6 +350,7 @@ export function useJournal({ autoLoad = true } = {}) {
                 total: safeEntries.length
               });
             } catch (err) {
+              if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
               console.error('Failed to parse localStorage journal:', err);
               setEntries([]);
               if (typeof window !== 'undefined') {
@@ -241,6 +376,7 @@ export function useJournal({ autoLoad = true } = {}) {
         }
       }
     } catch (err) {
+      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
       console.error('Failed to load journal entries:', err);
       setError(err.message);
       setEntries([]);
@@ -250,9 +386,9 @@ export function useJournal({ autoLoad = true } = {}) {
         total: 0
       });
     } finally {
-      setLoading(false);
+      if (!isDeletedAccount(userId) && namespaceRef.current === namespace) setLoading(false);
     }
-  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, persistInsights, userId]);
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, persistInsights, userId, namespace, setEntries]);
 
   // Load only for the committed owner; canceled setup must not start a request.
   useEffect(() => {
@@ -280,14 +416,15 @@ export function useJournal({ autoLoad = true } = {}) {
         throw new Error('Failed to load more entries');
       }
       const data = await response.json();
-      const newEntries = Array.isArray(data?.entries) ? data.entries : [];
+      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return { success: false, appended: 0 };
+      const newEntries = filterDeletedJournalEntries(namespace, data?.entries).map(projectJournalEntryVisuals);
       setEntries((prev) => {
         const next = dedupeEntries([...(Array.isArray(prev) ? prev : []), ...newEntries]);
         if (typeof window !== 'undefined') {
           persistInsights(next);
           if (userId) {
             try {
-              localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+              localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next)));
             } catch (quotaErr) {
               console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
             }
@@ -302,15 +439,16 @@ export function useJournal({ autoLoad = true } = {}) {
       });
       return { success: true, appended: newEntries.length };
     } catch (err) {
+      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return { success: false, appended: 0 };
       if (!prefetch) {
         console.error('Failed to load more journal entries:', err);
         setError(err.message || 'Unable to load more entries');
       }
       return { success: false, appended: 0, error: err?.message || 'Unable to load more entries' };
     } finally {
-      setLoadingMore(false);
+      if (!isDeletedAccount(userId) && namespaceRef.current === namespace) setLoadingMore(false);
     }
-  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, userId]);
+  }, [buildApiUrl, canUseCloudJournal, isAuthenticated, loadingMore, pagination.hasMore, pagination.nextCursor, pagination.total, persistInsights, userId, namespace, setEntries]);
 
   const fetchEntryById = useCallback(async (entryId, { includeFollowups = true } = {}) => {
     const userId = user?.id;
@@ -320,6 +458,7 @@ export function useJournal({ autoLoad = true } = {}) {
       canUseCloudJournal
     });
 
+    if (isDeletedAccount(userId) || namespaceRef.current !== namespace || isDeletedJournalEntry(namespace, entryId)) return { entry: null, status: 'skipped' };
     if (result.status !== 'found') {
       if (result.status === 'error') {
         console.error('Failed to fetch journal entry:', result?.message);
@@ -328,7 +467,7 @@ export function useJournal({ autoLoad = true } = {}) {
       return result;
     }
 
-    const entry = result.entry;
+    const entry = projectJournalEntryVisuals(result.entry);
     setEntries((prev) => {
       const prevEntries = Array.isArray(prev) ? prev : [];
       const next = dedupeEntries([entry, ...prevEntries]);
@@ -344,7 +483,7 @@ export function useJournal({ autoLoad = true } = {}) {
         persistInsights(next);
         if (userId) {
           try {
-            localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+            localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next)));
           } catch (quotaErr) {
             console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
           }
@@ -354,8 +493,8 @@ export function useJournal({ autoLoad = true } = {}) {
       return next;
     });
 
-    return result;
-  }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id]);
+    return { ...result, entry };
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, user?.id, namespace, setEntries]);
 
   // Prefetch the next page on idle to reduce perceived latency on long histories
   useEffect(() => {
@@ -409,7 +548,11 @@ export function useJournal({ autoLoad = true } = {}) {
     }
   }, [isAuthenticated]);
 
-  const saveEntry = useCallback(async (entry) => {
+  const saveEntry = useCallback(async (entry, { visualResume = null } = {}) => {
+    if (isDeletedAccount(userId)) return { success: false, error: 'This account has been deleted.' };
+    if (isDeletedJournalEntry(namespace, entry?.id) || isDeletedJournalResult(namespace, entry?.readingResultId)) {
+      return { success: false, error: 'This reading has been deleted.' };
+    }
     setError(null);
 
     try {
@@ -430,17 +573,36 @@ export function useJournal({ autoLoad = true } = {}) {
 
         const data = await response.json();
 
-        // Build entry object from server response
-        const newEntry = {
+        // Build entry object from server response. The durable public visual
+        // state is authoritative; a submitted local snapshot stays only a
+        // locally validated display cache and never implies cloud attachment.
+        const newEntry = projectJournalEntryVisuals({
           id: data.entry.id,
           ts: data.entry.ts,
-          ...entry
-        };
+          ...entry,
+          ...data.entry,
+          ...(data.visual ? { visual: data.visual } : {}),
+          ...(data.visualState ? { visualState: data.visualState } : {})
+        });
+        if (isDeletedAccount(userId) || namespaceRef.current !== namespace || isDeletedJournalEntry(namespace, newEntry.id)
+          || isDeletedJournalResult(namespace, newEntry.readingResultId)) return { success: false, error: 'This reading is no longer available.' };
 
         // If server detected a duplicate (same session_seed), skip local state
         // updates to keep client in sync with DB
         if (data.deduplicated) {
-          return { success: true, entry: newEntry, deduplicated: true };
+          const stored = await fetchJournalEntryById(data.entry.id, { isAuthenticated: true, canUseCloudJournal: true });
+          if (isDeletedAccount(userId) || namespaceRef.current !== namespace || isDeletedJournalEntry(namespace, data.entry.id)) {
+            return { success: false, error: 'This reading is no longer available.' };
+          }
+          return { success: true, entry: stored.entry ? projectJournalEntryVisuals(stored.entry) : { id: data.entry.id, ts: data.entry.ts }, deduplicated: true };
+        }
+
+        // Pending original cues resume from the private owner-scoped handle. A
+        // response arriving after this instance unmounted (for example after the
+        // user left and signed out) writes nothing; cloud pending state is polled.
+        if (visualRequestsEnabled && visualResume && entry.visualBinding && mountedRef.current
+          && (!visualResume.namespace || visualResume.namespace === namespace)) {
+          writeVisualResume({ namespace, entryId: newEntry.id, binding: entry.visualBinding, resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
         }
 
         // Add to local state - prepend and dedupe in one pass
@@ -458,7 +620,7 @@ export function useJournal({ autoLoad = true } = {}) {
             persistInsights(next);
             if (userId) {
               try {
-                localStorage.setItem(getCacheKey(userId), JSON.stringify(next));
+                localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next)));
               } catch (quotaErr) {
                 console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
               }
@@ -496,33 +658,22 @@ export function useJournal({ autoLoad = true } = {}) {
           ...entry
         };
 
-        setEntries(prev => {
-          const prevEntries = Array.isArray(prev) ? prev : [];
-          let next = dedupeEntries([newEntry, ...prevEntries]);
-
-          setPagination((prevPag) => ({
-            ...prevPag,
-            total: typeof prevPag?.total === 'number' ? prevPag.total + 1 : next.length
-          }));
-
-          // Limit to 100 entries in localStorage
-          if (next.length > 100) {
-            next = next.slice(0, 100);
-          }
-
-          try {
-            const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
-            localStorage.setItem(localKey, JSON.stringify(next));
-            setLastLocalSaveAt(savedAt);
-          } catch (quotaErr) {
-            console.warn('localStorage quota exceeded, unable to persist journal:', quotaErr);
-          }
-
-          if (typeof window !== 'undefined') {
-            persistInsights(next);
-          }
-          return next;
-        });
+        // Persist synchronously before reporting success; another hook instance's
+        // entries may be stale, so merge with the actual scoped storage bucket.
+        const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
+        const existing = filterDeletedJournalEntries(namespace, readLocalJournalArray(localKey));
+        const duplicate = entry.sessionSeed && existing.find(item => item.sessionSeed === entry.sessionSeed);
+        if (duplicate) return { success: true, entry: duplicate, deduplicated: true };
+        const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
+        const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
+        if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
+        if (visualRequestsEnabled && visualResume && entry.visualBinding
+          && (!visualResume.namespace || visualResume.namespace === namespace)) writeVisualResume({ namespace, entryId: newEntry.id, binding: entry.visualBinding,
+          resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
+        setEntries(persisted.entries);
+        setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
+        setLastLocalSaveAt(savedAt);
+        persistInsights(persisted.entries);
 
         return { success: true, entry: newEntry };
       }
@@ -531,76 +682,95 @@ export function useJournal({ autoLoad = true } = {}) {
       setError(err.message);
       return { success: false, error: err.message };
     }
-  }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId]);
+  }, [canUseCloudJournal, isAuthenticated, persistInsights, trackCardAppearances, userId, visualRequestsEnabled, namespace, setEntries]);
 
-  const deleteEntry = async (entryId) => {
-    setError(null);
-
-    try {
-      if (isAuthenticated && canUseCloudJournal) {
-        // Delete from API
-        const response = await fetch(`/api/journal/${entryId}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete journal entry');
-        }
-
-        // Remove from local state
-        setEntries(prev => {
-          const next = prev.filter(e => e.id !== entryId);
-          setPagination((prevPag) => ({
-            ...prevPag,
-            total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
-          }));
-          if (typeof window !== 'undefined') {
-            persistInsights(next);
-            const cacheKey = getCacheKey(user?.id);
-            try {
-              localStorage.setItem(cacheKey, JSON.stringify(next));
-            } catch (quotaErr) {
-              console.warn('localStorage quota exceeded, skipping cache update:', quotaErr);
-            }
+  /**
+   * Explicit "Retry card connections" for one saved entry. Only this user
+   * action can request saved-visual annotation; mount, polling, reconnect,
+   * reload and account changes never call it. The source is the existing saved
+   * entry in the current owner's scope (cloud: the server reads its own row).
+   * Resolves with the committed PublicVisualRetryState after the claim/status
+   * and private handle are durable; rejects with a typed `code` otherwise.
+   */
+  const retrySavedVisuals = useCallback((entryId) => {
+    const owner = namespace;
+    const flightKey = `${owner}\u0000${entryId}`;
+    if (retryFlights.has(flightKey)) return retryFlights.get(flightKey);
+    const cloud = Boolean(isAuthenticated && canUseCloudJournal);
+    const isCurrent = () => mountedRef.current && !isDeletedAccount(userId) && namespaceRef.current === owner
+      && !isDeletedJournalEntry(owner, entryId);
+    const flight = (async () => {
+      if (!visualRequestsEnabled) throw Object.assign(new Error('Card connections are unavailable.'), { code: 'ineligible' });
+      const entry = cloud ? entriesRef.current.find(item => item.id === entryId) : readSavedVisualEntry({ namespace: owner, entryId });
+      // Cloud state is server-authoritative: commit only to the current owner's
+      // in-memory entry for the same exact source; never insert or recreate.
+      const commit = cloud ? ({ entryId: id, sourceKey, update }) => {
+        const current = entriesRef.current.find(item => item.id === id);
+        if (!isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
+        if (!current) return { committed: false, reason: 'entry-not-found', entry: null };
+        if (savedVisualSourceKey(current) !== sourceKey) return { committed: false, reason: 'source-changed', entry: current };
+        const next = update(current);
+        return next ? { committed: true, reason: null, entry: next } : { committed: false, reason: 'unchanged', entry: current };
+      } : null;
+      const result = await requestSavedVisualRetry({ namespace: owner, entry, cloud, isCurrent, commit });
+      if (isCurrent()) {
+        setEntries(previous => {
+          const next = mapChanged(previous, item => item.id === entryId ? adoptEntryVisuals(item, result.entry) : item);
+          if (cloud && next !== previous) {
+            try { localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next))); } catch { /* Optional cache. */ }
           }
           return next;
         });
-
-        // Invalidate narrative cache since entry data has changed
-        // Guard: only invalidate if we have a valid userId to avoid clearing all caches
-        if (user?.id) {
-          invalidateNarrativeCache(user.id);
-        }
-
-        return { success: true };
-      } else {
-        // Delete from localStorage (anonymous or authenticated without cloud entitlements)
-        if (typeof localStorage === 'undefined') {
-          return { success: false, error: 'localStorage not available' };
-        }
-
-        setEntries(prev => {
-          const next = prev.filter(e => e.id !== entryId);
-          setPagination((prevPag) => ({
-            ...prevPag,
-            total: typeof prevPag?.total === 'number' && prevPag.total > 0 ? prevPag.total - 1 : Math.max(0, next.length)
-          }));
-          try {
-            const localKey = getLocalJournalKey(isAuthenticated ? user?.id : null);
-            localStorage.setItem(localKey, JSON.stringify(next));
-            setLastLocalSaveAt(Date.now());
-          } catch (quotaErr) {
-            console.warn('localStorage quota exceeded, skipping storage update:', quotaErr);
-          }
-          if (typeof window !== 'undefined') {
-            persistInsights(next);
-          }
-          return next;
-        });
-
-        return { success: true };
       }
+      return result.state;
+    })().finally(() => retryFlights.delete(flightKey));
+    retryFlights.set(flightKey, flight);
+    return flight;
+  }, [namespace, isAuthenticated, canUseCloudJournal, visualRequestsEnabled, setEntries, userId]);
+
+  const deleteEntry = async (entryId, { readingResultId = null } = {}) => {
+    setError(null);
+    const cloud = isAuthenticated && canUseCloudJournal;
+    let deletionEntries = [...entries, ...(readingResultId ? [{ id: entryId, readingResultId }] : [])];
+    let retiredReadingResultIds = null;
+    let retirementReceiptValid = !cloud;
+    try {
+      if (cloud) {
+        const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}`, { method: 'DELETE', credentials: 'include' });
+        if (!response.ok) throw new Error('Failed to delete journal entry');
+        const receipt = await response.json().catch(() => null);
+        retirementReceiptValid = Array.isArray(receipt?.retiredReadingResultIds)
+          && receipt.retiredReadingResultIds.every(id => typeof id === 'string' && id.length > 0 && id.length <= 256);
+        retiredReadingResultIds = retirementReceiptValid ? receipt.retiredReadingResultIds : [];
+      } else {
+        // Local deletion is confirmed only after the actual authoritative bucket
+        // is rewritten. A storage failure creates no tombstone and no success.
+        if (typeof localStorage === 'undefined') throw new Error('localStorage not available');
+        const key = getLocalJournalKey(isAuthenticated ? userId : null);
+        const raw = localStorage.getItem(key);
+        const stored = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(stored)) throw new Error('Unable to read the local journal');
+        deletionEntries = [...deletionEntries, ...stored];
+        localStorage.setItem(key, JSON.stringify(stored.filter(item => item?.id !== entryId)));
+      }
+      // Erase and fence synchronously before React can run a queued updater.
+      // The captured namespace still owns the confirmed response after a switch.
+      const erased = purgeDeletedJournalEntryStorage({ namespace, entryId, entries: deletionEntries, retiredReadingResultIds });
+      const cleanup = { ...erased, purged: erased.purged && retirementReceiptValid };
+      if (namespaceRef.current === namespace && !isDeletedAccount(userId)) {
+        entriesRef.current = filterDeletedJournalEntries(namespace, entriesRef.current);
+        setEntries(previous => filterDeletedJournalEntries(namespace, previous));
+        setPagination(previous => ({ ...previous,
+          total: typeof previous.total === 'number' ? Math.max(0, previous.total - 1) : cleanup.entries.length }));
+        if (!cloud) setLastLocalSaveAt(Date.now());
+      }
+      if (!cleanup.purged) {
+        const message = cloud ? 'Reading deleted from your account, but this browser could not finish removing its saved data.'
+          : 'The local reading was removed, but this browser could not finish removing its saved data.';
+        setError(message);
+        return { success: Boolean(cloud), purged: false, error: message };
+      }
+      return { success: true, purged: true };
     } catch (err) {
       console.error('Failed to delete journal entry:', err);
       setError(err.message);
@@ -633,16 +803,19 @@ export function useJournal({ autoLoad = true } = {}) {
     if (!userId) {
       return { success: false, error: 'Missing user id', imported: 0, skipped: 0 };
     }
+    if (isDeletedAccount(userId) || namespaceRef.current !== namespace) {
+      return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
+    }
 
     const legacyEntriesRaw = readLocalJournalArray(LOCALSTORAGE_KEY);
-    const legacyEntries = dedupeEntries(legacyEntriesRaw);
+    const legacyEntries = filterDeletedJournalEntries('anon', dedupeEntries(legacyEntriesRaw));
     if (!legacyEntries.length) {
       return { success: true, imported: 0, skipped: 0 };
     }
 
     const scopedKey = getLocalJournalKey(userId);
     const scopedExistingRaw = readLocalJournalArray(scopedKey);
-    const scopedExisting = dedupeEntries(scopedExistingRaw);
+    const scopedExisting = filterDeletedJournalEntries(namespace, dedupeEntries(scopedExistingRaw));
 
     const merged = dedupeEntries([...legacyEntries, ...scopedExisting]);
     const ordered = sortEntriesNewestFirst(merged);
@@ -651,7 +824,10 @@ export function useJournal({ autoLoad = true } = {}) {
     const next = ordered.slice(0, 100);
 
     try {
-      localStorage.setItem(scopedKey, JSON.stringify(next));
+      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) {
+        return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
+      }
+      localStorage.setItem(scopedKey, JSON.stringify(filterDeletedJournalEntries(namespace, next)));
       setLastLocalSaveAt(Date.now());
       if (removeLegacy) {
         localStorage.removeItem(LOCALSTORAGE_KEY);
@@ -685,18 +861,27 @@ export function useJournal({ autoLoad = true } = {}) {
       return { success: false, error: 'localStorage not available', skipped: 0 };
     }
 
+    const userId = user?.id;
+    const isCurrent = () => !isDeletedAccount(userId) && namespaceRef.current === namespace;
+    const accountChanged = () => ({ success: false, error: 'Account changed', skipped: 0 });
+    if (!userId || !isCurrent()) return accountChanged();
+
     try {
       const candidateKeys = [
         LOCALSTORAGE_KEY,
         getLocalJournalKey(user?.id || null)
       ].filter(Boolean);
 
+      // Symbols survive dedupe's object projection but never enter JSON/API
+      // payloads. Retain each bucket's origin across migration awaits.
+      const migrationNamespace = Symbol('journal-namespace');
       const localEntries = candidateKeys.flatMap((key) => {
         try {
           const stored = localStorage.getItem(key);
           if (!stored) return [];
           const parsed = JSON.parse(stored);
-          return Array.isArray(parsed) ? parsed : [];
+          return filterDeletedJournalEntries(journalNamespaceForKey(key), parsed)
+            .map(entry => ({ ...entry, [migrationNamespace]: journalNamespaceForKey(key) }));
         } catch (error) {
           console.warn('Failed to parse local journal storage during migration:', error);
           return [];
@@ -712,11 +897,13 @@ export function useJournal({ autoLoad = true } = {}) {
       const existingResponse = await fetch('/api/journal?all=true&includeFollowups=true', {
         credentials: 'include'
       });
+      if (!isCurrent()) return accountChanged();
 
       const existingSeeds = new Set();
       const existingCompositeKeys = new Set();
       if (existingResponse.ok) {
         const { entries: cloudEntries } = await existingResponse.json();
+        if (!isCurrent()) return accountChanged();
         // Build sets for deduplication
         cloudEntries.forEach(entry => {
           // Primary: track by session_seed
@@ -740,6 +927,8 @@ export function useJournal({ autoLoad = true } = {}) {
       let skipped = 0;
       for (const entry of dedupedLocalEntries) {
         try {
+          if (!isCurrent()) return accountChanged();
+          if (isDeletedJournalEntry(namespace, entry.id) || isDeletedJournalEntry(entry[migrationNamespace], entry.id)) continue;
           let isDuplicate = false;
 
           // Primary: Check by session_seed
@@ -776,7 +965,9 @@ export function useJournal({ autoLoad = true } = {}) {
               timestampMs: typeof entry.ts === 'number' ? entry.ts : undefined
             })
           });
+          if (!isCurrent()) return accountChanged();
 
+          if (isDeletedJournalEntry(namespace, entry.id) || isDeletedJournalEntry(entry[migrationNamespace], entry.id)) continue;
           if (response.ok) {
             migrated++;
             // Add to sets to prevent duplicate uploads in this batch
@@ -801,6 +992,7 @@ export function useJournal({ autoLoad = true } = {}) {
       // (e.g. due to a flaky network), keep the local copy so the user can
       // retry the migration later without losing data.
       const totalLocal = dedupedLocalEntries.length;
+      if (!isCurrent()) return accountChanged();
       if (totalLocal > 0 && migrated + skipped === totalLocal) {
         candidateKeys.forEach((key) => {
           if (key) localStorage.removeItem(key);
@@ -809,6 +1001,7 @@ export function useJournal({ autoLoad = true } = {}) {
 
       // Reload entries from API
       await loadEntries();
+      if (!isCurrent()) return accountChanged();
 
       // Invalidate narrative cache since entry data has changed
       // Guard: only invalidate if we have a valid userId to avoid clearing all caches
@@ -842,6 +1035,7 @@ export function useJournal({ autoLoad = true } = {}) {
     syncSource,
     saveEntry,
     deleteEntry,
+    retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
     reload: loadEntries,

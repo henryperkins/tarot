@@ -12,6 +12,35 @@ import { insertFollowUps, sanitizeFollowUps } from './journalFollowups.js';
 import { normalizeJournalContext } from './journalContext.js';
 import { safeJsonParse } from './utils.js';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
+import { attachJournalVisualResult, loadJournalVisualResult, loadJournalVisualState, persistJournalVisualState } from './readingVisualResults.js';
+
+// Visual durability is optional: a failure must never roll back saved prose.
+async function savedVisualEnvelope({ env, userId, entryId, readingResultId }) {
+  let visual = null;
+  let visualState = null;
+  let attachmentFailed = false;
+  try {
+    if (readingResultId) await attachJournalVisualResult({ db: env.DB, userId, entryId, readingResultId });
+  } catch { attachmentFailed = true; }
+  // Cached cues and durable retry state have independent availability.
+  try { visual = await loadJournalVisualResult({ db: env.DB, userId, entryId }); } catch { /* Optional cache read. */ }
+  try {
+    if (attachmentFailed) await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
+    visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    if (visualState?.stateVersion === 0) {
+      await persistJournalVisualState({ db: env.DB, userId, entryId, sourceFingerprint: visualState.sourceFingerprint,
+        attachmentStatus: visualState.attachmentStatus,
+        reason: visualState.reason === 'configuration-unavailable' ? 'missing-result' : visualState.reason });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    }
+  } catch {
+    try {
+      await persistJournalVisualState({ db: env.DB, userId, entryId, attachmentStatus: 'failed', reason: 'attachment-error' });
+      visualState = await loadJournalVisualState({ env, db: env.DB, userId, entryId });
+    } catch { /* Prose remains saved when optional visual storage is unavailable. */ }
+  }
+  return { ...(visual ? { visual } : {}), ...(visualState ? { visualState } : {}) };
+}
 
 /**
  * Whether a D1/SQLite error is a unique-constraint failure on the given
@@ -60,6 +89,7 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     context,
     provider,
     sessionSeed,
+    readingResultId,
     // Optional: original timestamp in milliseconds (used for migrations)
     timestampMs,
     // User preferences snapshot at time of reading (Phase 5.2)
@@ -88,12 +118,14 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         requestId
       });
     }
+    const visuals = await savedVisualEnvelope({ env, userId: user.id, entryId: existing.id, readingResultId });
     return {
       status: 200,
       body: {
         success: true,
         entry: { id: existing.id, ts: existing.created_at * 1000 },
-        deduplicated: true
+        deduplicated: true,
+        ...visuals
       }
     };
   };
@@ -224,11 +256,14 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
     });
   }
 
+  const visuals = await savedVisualEnvelope({ env, userId: user.id, entryId, readingResultId });
+
   return {
     status: 201,
     body: {
       success: true,
-      entry: { id: entryId, ts: createdAt * 1000 }
+      entry: { id: entryId, ts: createdAt * 1000 },
+      ...visuals
     }
   };
 }

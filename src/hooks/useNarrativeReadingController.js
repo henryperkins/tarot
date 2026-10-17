@@ -1,8 +1,10 @@
-import { createElement, useCallback, useEffect, useMemo } from 'react';
+import { createGestureSource } from '../lib/narrativeGestureSource.js';
+import { createElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { NarrativePanel } from '../components/NarrativePanel';
 import { NarrativeReadingSurface } from '../components/NarrativeReadingSurface';
 import { useNarrationAutomation } from './useNarrationAutomation';
 import { getCardForDeck } from '../lib/cardLookup';
+import { useReadingGestureRuntime } from './useReadingGestureRuntime.js';
 import {
   getNarrativeBiasClass,
   getNarrativePhaseClass,
@@ -11,6 +13,7 @@ import {
 import {
   buildNarrativeHighlightPhrases,
   buildNarrativePanelModel,
+  buildSpreadCompanionCards,
   buildNarrativeSurfaceModel,
   buildNarrativeText,
   buildStoryArtCards,
@@ -27,6 +30,11 @@ export function useNarrativeReadingController({
   visibleCount,
   spreadPositions,
   personalReading,
+  gestureSource: suppliedGestureSource = null,
+  gestureStudyEnabled = false,
+  gestureSidecar = null,
+  manualInspectionStatus = null,
+  artworkEdition = null,
   isReadingStreamActive,
   narrativePhase,
   themes,
@@ -79,6 +87,18 @@ export function useNarrativeReadingController({
   beatClassName = '',
   isMobileStableMode = false
 }) {
+  const [hydratedRunId] = useState(() => crypto.randomUUID());
+  const hydratedSource = useMemo(() => createGestureSource({
+    runId: hydratedRunId,
+    semanticDocument: personalReading?.semanticDocument,
+    raw: personalReading?.isError ? '' : (personalReading?.raw || personalReading?.normalized || ''),
+    status: personalReading?.isError ? 'error' : personalReading?.isStreaming ? 'streaming' : personalReading ? 'complete' : 'idle'
+  }), [hydratedRunId, personalReading]);
+  const gestureSource = suppliedGestureSource || hydratedSource;
+  const originalContext = useMemo(() => ({ question: userQuestion, reflections,
+    cards: (Array.isArray(reading) ? reading : []).map((card, index) => ({ ...card,
+      position: spreadPositions?.[index] || card.position || `Position ${index + 1}` }))
+  }), [userQuestion, reflections, reading, spreadPositions]);
   const resolvedQuestion = useMemo(() => getResolvedQuestion(userQuestion), [userQuestion]);
   const isPersonalReadingError = Boolean(personalReading?.isError);
   const isReadingStreaming = Boolean(isReadingStreamActive || personalReading?.isStreaming);
@@ -99,9 +119,24 @@ export function useNarrativeReadingController({
       ...getCardForDeck(card, deckStyleId),
       position: spreadPositions?.[index] || `Position ${index + 1}`
     })), [reading, deckStyleId, spreadPositions, visibleCount]);
-  const spreadCards = useMemo(() => buildReadingDisplayCards({
+  const displayCards = useMemo(() => buildReadingDisplayCards({
     reading, visibleCount, spreadPositions, deckStyleId
   }), [reading, visibleCount, spreadPositions, deckStyleId]);
+  const spreadCards = useMemo(() => buildSpreadCompanionCards({
+    reading,
+    visibleCount,
+    spreadPositions,
+    deckStyleId,
+    revealedCards,
+    runId: gestureSource.runId,
+    artworkEdition,
+    inspectionAvailable: gestureStudyEnabled,
+    reflections
+  }), [artworkEdition, gestureSource.runId, gestureStudyEnabled, deckStyleId, reading, reflections, revealedCards, spreadPositions, visibleCount]);
+  const gestureRuntime = useReadingGestureRuntime(gestureStudyEnabled);
+  const cardLinkCatalog = useMemo(() => (
+    gestureRuntime?.buildCardLinkCatalog({ cards: spreadCards, deckStyle: deckStyleId }) || null
+  ), [gestureRuntime, deckStyleId, spreadCards]);
   const { cinematicCard, cinematicPosition } = useMemo(() => (
     selectCinematicCard({ reading, visibleCount, spreadPositions })
   ), [reading, spreadPositions, visibleCount]);
@@ -249,6 +284,10 @@ export function useNarrativeReadingController({
   }, [persistMediaRecord, resolvedQuestion, setHasHeroStoryArt, storyArtCards]);
 
   const panelModel = useMemo(() => ({ ...buildNarrativePanelModel({
+    gestureSource,
+    gestureStudyEnabled,
+    gestureSidecar,
+    manualInspectionStatus,
     personalReading,
     isPersonalReadingError,
     isReadingStreaming,
@@ -274,13 +313,20 @@ export function useNarrativeReadingController({
     journalStatus,
     shouldShowJournalNudge,
     hasHeroStoryArt,
-    isMobileStableMode
-  }), spreadCards, savedEntryId, spreadName, originalContext: { reflections, cards: spreadCards } }), [
+    isMobileStableMode,
     spreadCards,
+    cardLinkCatalog
+  }), originalContext, displayCards, savedEntryId, spreadName }), [
+    originalContext,
+    displayCards,
     savedEntryId,
     spreadName,
-    reflections,
+    gestureSource,
+    gestureStudyEnabled,
+    gestureSidecar,
+    manualInspectionStatus,
     canAutoNarrate,
+    cardLinkCatalog,
     displayName,
     emotionalTone,
     fullReadingText,
@@ -301,6 +347,7 @@ export function useNarrativeReadingController({
     shouldShowJournalNudge,
     shouldStreamNarrative,
     showVoicePrompt,
+    spreadCards,
     ttsProvider,
     ttsState,
     userQuestion,

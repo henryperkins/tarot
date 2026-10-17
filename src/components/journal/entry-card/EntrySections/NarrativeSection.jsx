@@ -2,13 +2,15 @@
  * NarrativeSection.jsx
  * Collapsible section displaying the full reading narrative (markdown).
  */
-import { memo, useState } from 'react';
+import { memo, useReducer, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
+import { RestoredReadingGestures, SavedVisualRecovery } from '../RestoredReadingGestures';
+import { readingVisualRequestsEnabled } from '../../../../lib/readingGestureSettings';
 
 function getNarrativePreviewText(text, maxChars = 260) {
   if (!text || typeof text !== 'string') return '';
@@ -103,11 +105,31 @@ export const NarrativeSection = memo(function NarrativeSection({
   narrativeText,
   narrativeId,
   collapsible = true,
-  defaultExpanded = false
+  defaultExpanded = false,
+  entry = null,
+  gestureStudyEnabled = false,
+  onRetryVisuals = null
 }) {
   const [showNarrative, setShowNarrative] = useState(defaultExpanded);
+  // Private resume handles live outside React state; re-read them after changes.
+  const [handleRevision, handlesChanged] = useReducer(revision => revision + 1, 0);
 
   if (!narrativeText) return null;
+  const hasGestures = gestureStudyEnabled && typeof entry?.personalReading === 'string'
+    && entry.personalReading.trim() && Array.isArray(entry.cards)
+    && entry.cards.some(card => card && (card.name || card.canonicalName || card.card));
+  // Saved-visual status/action sits beside the readable prose, with or without cues.
+  const recovery = gestureStudyEnabled && entry ? (
+    <SavedVisualRecovery entry={entry} onRetry={readingVisualRequestsEnabled() ? onRetryVisuals : null}
+      handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
+  ) : null;
+  const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
+    <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-p:leading-relaxed [overflow-wrap:anywhere]">
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml components={MARKDOWN_COMPONENTS}>
+        {narrativeText}
+      </ReactMarkdown>
+    </div>
+  );
 
   return (
     <section className={cn(styles.section, 'mt-4')}>
@@ -138,15 +160,7 @@ export const NarrativeSection = memo(function NarrativeSection({
             className={styles.sectionBody}
           >
             {showNarrative ? (
-              <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  skipHtml
-                  components={MARKDOWN_COMPONENTS}
-                >
-                  {narrativeText}
-                </ReactMarkdown>
-              </div>
+              <>{recovery}{reading}</>
             ) : (
               <p className="text-sm leading-relaxed text-[color:var(--text-muted)] line-clamp-4">
                 {getNarrativePreviewText(narrativeText) || 'Tap to read the full narrative.'}
@@ -163,15 +177,8 @@ export const NarrativeSection = memo(function NarrativeSection({
             </div>
           </header>
           <div id={narrativeId} className={styles.sectionBody}>
-            <div className="prose prose-invert prose-base max-w-none text-[color:var(--text-main)] prose-headings:text-[color:var(--text-main)] prose-a:text-[color:var(--brand-primary)] prose-strong:text-[color:var(--text-main)] prose-p:leading-relaxed prose-li:leading-relaxed [overflow-wrap:anywhere]">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                skipHtml
-                components={MARKDOWN_COMPONENTS}
-              >
-                {narrativeText}
-              </ReactMarkdown>
-            </div>
+            {recovery}
+            {reading}
           </div>
         </>
       )}

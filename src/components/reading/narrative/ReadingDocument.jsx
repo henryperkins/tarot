@@ -14,7 +14,7 @@ export function ReadingDocument({ model, callbacks }) {
   const root = useRef(null);
   const sections = useMemo(() => getReadingSections(model.narrativeText), [model.narrativeText]);
   const starts = useMemo(() => new Set(sections.filter(section => section.depth !== null).map(section => section.headingStart)), [sections]);
-  const cards = model.spreadCards || EMPTY_CARDS;
+  const cards = model.displayCards || model.spreadCards || EMPTY_CARDS;
   const headingProps = useCallback(node => starts.has(node.position?.start?.offset) ? {
     id: `reading-section-${node.position.start.offset}`, 'data-reading-section': true, tabIndex: -1
   } : {}, [starts]);
@@ -61,7 +61,8 @@ export function ReadingDocument({ model, callbacks }) {
         autoNarrate={model.canAutoNarrate} onNarrationStart={callbacks.onNarrationStart} onDone={callbacks.onNarrativeComplete}
         displayName={model.displayName} highlightPhrases={model.narrativeHighlightPhrases} emotionalTone={model.emotionalTone}
         onHighlightPhrase={callbacks.onHighlightPhrase} onSectionEnter={callbacks.onSectionEnter} wordBoundary={model.activeWordBoundary}
-        getHeadingProps={headingProps} renderHeadingLead={headingLead} />
+        cardLinks={model.gestureStudyEnabled && model.personalReading?.hasMarkdown ? model.cardLinkCatalog : null}
+        gestureSource={model.gestureSource} getHeadingProps={headingProps} renderHeadingLead={headingLead} />
     </div>
     {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions">
       <button type="button" className="reading-screen__primary" disabled={model.controlsModel?.isSaving}

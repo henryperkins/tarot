@@ -1,3 +1,10 @@
+import { emitCueTiming } from '../lib/readingCueTimingProbe.js';
+import { createGestureSource, advanceGestureSource } from '../lib/narrativeGestureSource.js';
+import { useReadingVisualJob } from '../hooks/useReadingVisualJob.js';
+import { sameVisualCueBinding } from '../../shared/contracts/visualCueBatches.js';
+import { useAuth } from './AuthContext';
+import { patchSavedVisualSnapshot, visualStorageNamespace } from '../lib/readingVisualStorage.js';
+import { readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTarotState } from '../hooks/useTarotState';
@@ -29,6 +36,12 @@ import {
 const ReadingContext = createContext(null);
 
 export function ReadingProvider({ children }) {
+    const { user, loading: authLoading } = useAuth();
+    const visualRequestsEnabled = readingVisualRequestsEnabled();
+    const visualNamespace = visualStorageNamespace(user?.id);
+    const visualNamespaceRef = useRef(visualNamespace);
+    const [visualResume, setVisualResume] = useState(null);
+    useEffect(() => { visualNamespaceRef.current = visualNamespace; }, [visualNamespace]);
     // 1. Audio Controller
     const audioController = useAudioController();
     const {
@@ -84,16 +97,8 @@ export function ReadingProvider({ children }) {
 
     // 4. Reading Generation State
     const [personalReading, setPersonalReading] = useState(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
-    const [narrativePhase, setNarrativePhase] = useState('idle');
-    const [spreadAnalysis, setSpreadAnalysis] = useState(null);
-    const [themes, setThemes] = useState(null);
-    const [emotionalTone, setEmotionalTone] = useState(null);
-    const [analysisContext, setAnalysisContext] = useState(null);
-    const [reasoningSummary, setReasoningSummary] = useState(null);
-    const [reasoning, setReasoning] = useState(null);
-    const [followUps, setFollowUps] = useState([]);
+    const [gestureSource, setGestureSource] = useState(null);
+    const gestureSourceRef = useRef(null);
     const [readingMeta, setReadingMeta] = useState({
         requestId: null,
         provider: null,
@@ -104,6 +109,70 @@ export function ReadingProvider({ children }) {
         graphContext: null,
         ephemeris: null,
         sourceUsage: null
+    });
+    const updateGestureSource = useCallback((runId, update) => {
+        if (!gestureSourceRef.current || gestureSourceRef.current.runId !== runId) return;
+        const previous = gestureSourceRef.current;
+        const replaced = typeof update.raw === 'string' && !update.raw.startsWith(previous.raw);
+        const nextBinding = replaced && previous.visualBinding
+            ? { ...previous.visualBinding, sourceRevision: previous.sourceRevision + 1 } : null;
+        const suppliedBinding = update.visualBinding?.sourceRevision >= previous.sourceRevision + (replaced ? 1 : 0)
+            ? update.visualBinding : null;
+        const { visualBinding: _incomingBinding, ...sourceUpdate } = update;
+        const authoritativeBinding = suppliedBinding || nextBinding;
+        // A controller-established replacement has a new visual epoch. Do not
+        // expose fallback turns while the new subscription is still mounting.
+        const replacingVisualJob = authoritativeBinding && previous.visualJobStatus
+            && !sameVisualCueBinding(authoritativeBinding, previous.visualBinding);
+        const next = advanceGestureSource(previous, { ...sourceUpdate,
+            ...(replacingVisualJob ? { visualJobStatus: 'pending' } : {}),
+            ...(authoritativeBinding ? { visualBinding: authoritativeBinding } : {}) });
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+        if (next.visualBinding && next.sourceRevision !== previous.sourceRevision) {
+            setVisualResume(current => current?.readingResultId === runId ? { ...current, visualBinding: next.visualBinding } : current);
+            setReadingMeta(current => ({ ...current, visualBinding: next.visualBinding, visualSnapshot: null }));
+        }
+    }, []);
+    const beginGestureSource = useCallback((runId = crypto.randomUUID(), options = {}) => {
+        const next = createGestureSource({ runId, ...options });
+        gestureSourceRef.current = next;
+        setGestureSource(next);
+        return runId;
+    }, []);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isReadingStreamActive, setIsReadingStreamActive] = useState(false);
+    const [narrativePhase, setNarrativePhase] = useState('idle');
+    const [spreadAnalysis, setSpreadAnalysis] = useState(null);
+    const [themes, setThemes] = useState(null);
+    const [emotionalTone, setEmotionalTone] = useState(null);
+    const [analysisContext, setAnalysisContext] = useState(null);
+    const [reasoningSummary, setReasoningSummary] = useState(null);
+    const [reasoning, setReasoning] = useState(null);
+    const [followUps, setFollowUps] = useState([]);
+    const acceptVisualStatus = useCallback(({ binding, status }) => {
+        const current = gestureSourceRef.current;
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { visualJobStatus: status });
+        setReadingMeta(previous => ({ ...previous, visualStatus: status }));
+    }, [updateGestureSource]);
+    const acceptVisualSnapshot = useCallback(({ binding, cueLedger, status }) => {
+        const current = gestureSourceRef.current;
+        if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
+        updateGestureSource(current.runId, { cueLedger, visualJobStatus: status });
+        if (gestureSourceRef.current?.cueLedger !== cueLedger) return;
+        setReadingMeta(previous => ({ ...previous, readingResultId: binding.readingResultId,
+            visualBinding: binding, visualSnapshot: cueLedger, visualStatus: status }));
+        patchSavedVisualSnapshot({ namespace: visualNamespaceRef.current, binding, cueLedger, status });
+    }, [updateGestureSource]);
+    useReadingVisualJob({
+        readingResultId: visualResume?.readingResultId,
+        visualBinding: visualResume?.visualBinding,
+        visualJobToken: visualResume?.visualJobToken,
+        raw: gestureSource?.raw || '',
+        enabled: visualRequestsEnabled && !authLoading && visualResume?.namespace === visualNamespace,
+        onBatch: acceptVisualSnapshot,
+        onStatus: acceptVisualStatus
     });
 
     // 5. UI State
@@ -234,6 +303,24 @@ export function ReadingProvider({ children }) {
         clearReadingJob();
     }, [clearReadingJob, resetNarrationStream]);
 
+    const lastVisualNamespace = useRef(null);
+    useEffect(() => {
+        if (authLoading) return;
+        const previous = lastVisualNamespace.current;
+        lastVisualNamespace.current = visualNamespace;
+        if (!previous || previous === visualNamespace) return;
+        cancelInFlightReading();
+        gestureSourceRef.current = null;
+        // An external account change retires the previous user's in-memory reading.
+        setVisualResume(null);
+        setGestureSource(null);
+        setPersonalReading(null);
+        setReadingMeta({});
+        setIsGenerating(false);
+        setIsReadingStreamActive(false);
+        setNarrativePhase('idle');
+    }, [authLoading, visualNamespace, cancelInFlightReading]);
+
     const resetStreamingNarration = useCallback(() => {
         narrationBufferRef.current = '';
         narrationSuppressedRef.current = false;
@@ -249,6 +336,8 @@ export function ReadingProvider({ children }) {
     // Reset analysis state when Shuffle is triggered
     const handleShuffle = useCallback(() => {
         cancelInFlightReading();
+        setVisualResume(null);
+        setReadingMeta(previous => ({ ...previous, readingResultId: null, visualBinding: null, visualSnapshot: null }));
         resetStreamingNarration();
         shuffle(() => {
             setPersonalReading(null);
@@ -275,13 +364,14 @@ export function ReadingProvider({ children }) {
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
+        updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
         setSrAnnouncement(message);
         if (preserveNarration) {
             pauseNarrationPlayback();
             return;
         }
         resetNarrationStream();
-    }, [pauseNarrationPlayback, resetNarrationStream]);
+    }, [pauseNarrationPlayback, resetNarrationStream, updateGestureSource]);
 
     const flushNarrationBuffer = useCallback((force = false) => {
         const {
@@ -444,6 +534,13 @@ export function ReadingProvider({ children }) {
         }
 
         const controller = new AbortController();
+        const runId = readingJobRef.current.runId || gestureSourceRef.current?.runId || crypto.randomUUID();
+        if (gestureSourceRef.current?.runId !== runId) beginGestureSource(runId, {
+            visualBinding: readingJobRef.current.visualBinding,
+            sourceRevision: readingJobRef.current.visualBinding?.sourceRevision || 0,
+            ...(visualRequestsEnabled && readingJobRef.current.visualBinding ? { visualJobStatus: 'pending' } : {})
+        });
+        updateGestureSource(runId, { status: 'streaming' });
         inFlightReadingRef.current = { controller, jobId };
 
         const isActiveRequest = () =>
@@ -473,9 +570,12 @@ export function ReadingProvider({ children }) {
         }
 
         let streamedText = resume
-            ? (personalReading?.raw || personalReading?.normalized || '')
+            ? (gestureSourceRef.current?.raw || personalReading?.raw || personalReading?.normalized || '')
             : '';
         let streamMeta = null;
+        let streamVisualBinding = readingJobRef.current?.visualBinding || gestureSourceRef.current?.visualBinding;
+        let sourceKind = 'append';
+        let flushTimer = null;
 
         try {
             let lastFlush = 0;
@@ -489,9 +589,22 @@ export function ReadingProvider({ children }) {
                 if (!isActiveRequest()) return;
                 const now = Date.now();
                 if (!force && now - lastFlush < 120) {
+                    if (flushTimer === null) {
+                        flushTimer = setTimeout(() => {
+                            flushTimer = null;
+                            flushStreamedText(true);
+                        }, 120 - (now - lastFlush));
+                    }
                     return;
                 }
+                if (flushTimer !== null) {
+                    clearTimeout(flushTimer);
+                    flushTimer = null;
+                }
                 lastFlush = now;
+                updateGestureSource(runId, { raw: streamedText, kind: sourceKind, status: 'streaming',
+                    ...(streamVisualBinding ? { visualBinding: streamVisualBinding } : {}) });
+                if (gestureSourceRef.current?.visualBinding) readingJobRef.current.visualBinding = gestureSourceRef.current.visualBinding;
                 const formatted = formatReading(streamedText);
                 formatted.isError = false;
                 formatted.isStreaming = true;
@@ -518,10 +631,19 @@ export function ReadingProvider({ children }) {
                 }
             })) {
                 if (!isActiveRequest()) return;
+                emitCueTiming('narrative-receipt', { runId,
+                    sourceRevision: data?.visualBinding?.sourceRevision ?? streamVisualBinding?.sourceRevision ?? 0,
+                    eventId: data?.eventId, eventType,
+                    start: eventType === 'delta' ? streamedText.length : 0,
+                    end: eventType === 'delta' ? streamedText.length + (data?.text?.length || 0)
+                        : typeof data?.fullText === 'string' ? data.fullText.length : streamedText.length,
+                    complete: eventType === 'done' });
                 updateCursor(data?.eventId);
+                if (data?.visualBinding) streamVisualBinding = data.visualBinding;
 
                 if (eventType === 'meta') {
                     streamMeta = data;
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { semanticDocument: data.semanticDocument });
                     if (data?.themes !== undefined) {
                         setThemes(data.themes || null);
                     }
@@ -539,7 +661,8 @@ export function ReadingProvider({ children }) {
                         setReasoning(data.reasoning || null);
                     }
                     if (isActiveRequest()) {
-                        setReadingMeta({
+                        setReadingMeta(previous => ({
+                            ...previous,
                             requestId: data.requestId || null,
                             provider: data.provider || 'local',
                             spreadKey: safeSpreadKey,
@@ -549,15 +672,19 @@ export function ReadingProvider({ children }) {
                             graphContext: data.themes?.knowledgeGraph || null,
                             ephemeris: data.ephemeris || null,
                             sourceUsage: data.provider === 'safe-fallback' ? null : (data.sourceUsage || null)
-                        });
+                        }));
                     }
                 } else if (eventType === 'snapshot') {
                     if (typeof data.fullText === 'string') {
                         streamedText = data.fullText;
+                        sourceKind = 'snapshot';
+                        if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                         flushStreamedText(true);
                     }
                 } else if (eventType === 'delta') {
+                    sourceKind = 'append';
                     streamedText += data.text || '';
+                    if (Object.hasOwn(data, 'semanticDocument')) updateGestureSource(runId, { raw: streamedText, kind: sourceKind, semanticDocument: data.semanticDocument });
                     flushStreamedText();
                     appendNarrationBuffer(data.text || '');
                 } else if (eventType === 'reasoning') {
@@ -571,7 +698,8 @@ export function ReadingProvider({ children }) {
                         }
                     }
                 } else if (eventType === 'done') {
-                    const finalText = (data.fullText || streamedText || '').trim();
+                    const finalRaw = typeof data.fullText === 'string' ? data.fullText : streamedText;
+                    const finalText = finalRaw.trim();
                     if (!finalText) {
                         throw new Error('Empty reading returned');
                     }
@@ -614,15 +742,19 @@ export function ReadingProvider({ children }) {
                         narrationFallbackTextRef.current = '';
                     }
 
+                    updateGestureSource(runId, { raw: finalRaw, kind: 'complete', status: 'complete',
+                        ...(streamVisualBinding ? { visualBinding: streamVisualBinding } : {}),
+                        ...(Object.hasOwn(data, 'semanticDocument') ? { semanticDocument: data.semanticDocument } : {}) });
                     setNarrativePhase('polishing');
                     setSrAnnouncement('Your reading is ready.');
 
-                    const formatted = formatReading(finalText);
+                    const formatted = formatReading(finalRaw);
                     formatted.isError = false;
                     formatted.isStreaming = false;
                     formatted.isServerStreamed = true;
                     formatted.provider = data.provider || streamMeta?.provider || 'local-composer';
                     formatted.requestId = data.requestId || streamMeta?.requestId || null;
+                    if (gestureSourceRef.current?.semanticDocument) formatted.semanticDocument = gestureSourceRef.current.semanticDocument;
                     setPersonalReading(formatted);
                     setIsReadingStreamActive(false);
                     setNarrativePhase('complete');
@@ -664,6 +796,7 @@ export function ReadingProvider({ children }) {
                 return;
             }
 
+            updateGestureSource(runId, { raw: streamedText, status: 'error' });
             settleNarrationAfterStreamFailure(streamedText);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -680,6 +813,7 @@ export function ReadingProvider({ children }) {
             setIsGenerating(false);
             clearReadingJob();
         } finally {
+            if (flushTimer !== null) clearTimeout(flushTimer);
             if (inFlightReadingRef.current?.controller === controller) {
                 inFlightReadingRef.current = null;
                 setIsReadingStreamActive(false);
@@ -691,6 +825,8 @@ export function ReadingProvider({ children }) {
         ttsProvider,
         ttsState?.status,
         clearReadingJob,
+        beginGestureSource,
+        updateGestureSource,
         deckStyleId,
         personalReading,
         pauseReadingStream,
@@ -702,7 +838,8 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer,
         finalizeNarrationStream,
         isNarrationStreamActive,
-        settleNarrationAfterStreamFailure
+        settleNarrationAfterStreamFailure,
+        visualRequestsEnabled
     ]);
 
     const resumeReadingStreamIfEligible = useCallback(() => {
@@ -805,6 +942,7 @@ export function ReadingProvider({ children }) {
         try {
             const parsed = JSON.parse(stored);
             if (!parsed?.jobId || !parsed?.jobToken) return;
+            if (parsed.namespace && parsed.namespace !== visualNamespaceRef.current) { clearReadingJob(); return; }
             if (parsed.readingKey && parsed.readingKey !== buildReadingKey()) {
                 clearReadingJob();
                 return;
@@ -815,13 +953,23 @@ export function ReadingProvider({ children }) {
                 jobId: parsed.jobId,
                 jobToken: parsed.jobToken,
                 cursor,
+                runId: parsed.runId || crypto.randomUUID(),
+                readingResultId: parsed.readingResultId || null,
+                visualBinding: parsed.visualBinding || null,
+                visualJobToken: parsed.visualJobToken || null,
+                namespace: parsed.namespace || visualNamespaceRef.current,
                 readingKey: parsed.readingKey || null
             };
+            if (visualRequestsEnabled && parsed.readingResultId && parsed.visualBinding) {
+                setVisualResume({ readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding,
+                    visualJobToken: parsed.visualJobToken, namespace: visualNamespaceRef.current });
+                setReadingMeta(previous => ({ ...previous, readingResultId: parsed.readingResultId, visualBinding: parsed.visualBinding }));
+            }
             resumeReadingStreamIfEligible();
         } catch {
             clearReadingJob();
         }
-    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible]);
+    }, [buildReadingKey, cancelInFlightReading, clearReadingJob, resumeReadingStreamIfEligible, visualRequestsEnabled]);
 
     useEffect(() => {
         if (typeof document === 'undefined') return;
@@ -904,6 +1052,8 @@ export function ReadingProvider({ children }) {
 
         cancelInFlightReading();
         resetStreamingNarration();
+        let runId = beginGestureSource();
+        setVisualResume(null);
         const startController = new AbortController();
         inFlightReadingRef.current = { controller: startController, sessionSeed };
 
@@ -915,7 +1065,8 @@ export function ReadingProvider({ children }) {
         setJournalStatus(null);
         setNarrativePhase('analyzing');
         setSrAnnouncement('Preparing your personalized reading.');
-        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null }));
+        setReadingMeta((prev) => ({ ...prev, requestId: null, ephemeris: null, sourceUsage: null,
+            readingResultId: null, visualBinding: null, visualSnapshot: null, visualStatus: 'idle' }));
         setLastCardsForFeedback([]);
 
         try {
@@ -1025,7 +1176,8 @@ export function ReadingProvider({ children }) {
             const startResponse = await fetch('/api/tarot-reading/jobs', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...(visualRequestsEnabled ? { 'X-Reading-Cue-Display': '1' } : {})
                 },
                 body: JSON.stringify(normalizedPayload.data),
                 signal: startController.signal
@@ -1070,14 +1222,32 @@ export function ReadingProvider({ children }) {
             }
 
             const readingKey = buildReadingKey();
+            const readingResultId = startData?.readingResultId || null;
+            const visualBinding = startData?.visualBinding || null;
+            const visualJobToken = visualRequestsEnabled ? startData?.visualJobToken || null : null;
+            if (startController.signal.aborted || gestureSourceRef.current?.runId !== runId) return;
+            if (visualRequestsEnabled && readingResultId && visualBinding) {
+                runId = beginGestureSource(readingResultId, { visualBinding, sourceRevision: visualBinding.sourceRevision, visualJobStatus: 'pending' });
+                setVisualResume({ readingResultId, visualBinding, visualJobToken, namespace: visualNamespaceRef.current });
+            }
 
             cardsInfoRef.current = cardsInfo;
             setReadingJob({
                 jobId,
                 jobToken,
+                readingResultId,
+                visualBinding,
+                visualJobToken,
+                namespace: visualNamespaceRef.current,
                 cursor: 0,
+                runId,
                 readingKey
             });
+            setReadingMeta((prev) => ({
+                ...prev,
+                readingResultId,
+                visualBinding
+            }));
 
             await streamReadingJob({ jobId, jobToken, cursor: 0, resume: false });
         } catch (error) {
@@ -1085,6 +1255,8 @@ export function ReadingProvider({ children }) {
                 console.debug('generatePersonalReading aborted');
                 return;
             }
+            if (gestureSourceRef.current?.runId !== runId) return;
+            updateGestureSource(runId, { status: 'error' });
             console.error('generatePersonalReading error:', error);
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
@@ -1130,7 +1302,10 @@ export function ReadingProvider({ children }) {
         persistLocationToJournal,
         buildReadingKey,
         setReadingJob,
-        streamReadingJob
+        streamReadingJob,
+        beginGestureSource,
+        updateGestureSource,
+        visualRequestsEnabled
     ]);
 
     // --- Logic: Analysis Highlights ---
@@ -1352,7 +1527,7 @@ export function ReadingProvider({ children }) {
         dealNext,
         revealCard,
         revealAll,
-        personalReading, setPersonalReading,
+        personalReading, setPersonalReading, gestureSource,
         isGenerating, setIsGenerating,
         isReadingStreamActive,
         narrativePhase, setNarrativePhase,
@@ -1362,7 +1537,7 @@ export function ReadingProvider({ children }) {
         analysisContext, setAnalysisContext,
         reasoningSummary, setReasoningSummary,
         reasoning, setReasoning,
-        readingMeta, setReadingMeta,
+        readingMeta, setReadingMeta, visualResume,
         journalStatus, setJournalStatus,
         reflections, setReflections,
         followUps, setFollowUps,
@@ -1381,6 +1556,7 @@ export function ReadingProvider({ children }) {
         revealCard,
         revealAll,
         personalReading,
+        gestureSource,
         isGenerating,
         isReadingStreamActive,
         narrativePhase,
@@ -1391,6 +1567,7 @@ export function ReadingProvider({ children }) {
         reasoningSummary,
         reasoning,
         readingMeta,
+        visualResume,
         journalStatus,
         reflections,
         followUps,

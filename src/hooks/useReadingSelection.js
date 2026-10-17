@@ -14,6 +14,7 @@ export function useReadingSelection({
     const mentionPulseRef = useRef(0);
     const mentionPulseTimeoutRef = useRef(null);
     const [focusedCardData, setFocusedCardData] = useState(null);
+    const [manualDetail, setManualDetail] = useState(null);
     const [recentlyClosedIndex, setRecentlyClosedIndex] = useState(-1);
     const recentlyClosedTimeoutRef = useRef(null);
     const previousRevealsRef = useRef({ reading, revealed: new Set() });
@@ -80,6 +81,7 @@ export function useReadingSelection({
         if (!revealedCards.has(index)) return;
         const payload = { card, position, index, readingKey: readingIdentity };
         setFocusedCardData(payload);
+        setManualDetail(payload);
     }, [revealedCards, readingIdentity]);
 
     const handleOpenModalFromPanel = useCallback((cardData) => {
@@ -88,6 +90,7 @@ export function useReadingSelection({
     }, [setSelectedCardData]);
 
     const handleCloseDetail = useCallback(() => {
+        setManualDetail(null);
         if (!focusedCardData) {
             if (recentlyClosedTimeoutRef.current) {
                 window.clearTimeout(recentlyClosedTimeoutRef.current);
@@ -161,6 +164,7 @@ export function useReadingSelection({
 
         if (activeFocusedCardData) {
             setFocusedCardData(payload);
+            setManualDetail(previous => previous?.readingKey === readingIdentity ? payload : previous);
         }
         if (selectedCardData) {
             setSelectedCardData(payload);
@@ -187,6 +191,10 @@ export function useReadingSelection({
     }, []);
 
     return {
+        manualInspectionStatus: useMemo(() => [
+            { kind: 'modal', active: Boolean(selectedCardData), index: selectedCardData?.index, readingKey: readingIdentity },
+            { kind: 'card-detail', active: Boolean(manualDetail?.readingKey === readingIdentity && revealedCards.has(manualDetail.index)), index: manualDetail?.index, readingKey: readingIdentity }
+        ], [selectedCardData, manualDetail, readingIdentity, revealedCards]),
         selectedCardData,
         setSelectedCardData,
         narrativeMentionPulse,

@@ -1,0 +1,324 @@
+{
+  "id": "voz-creativa",
+  "language": "es",
+  "userQuestion": "¿Qué podría ayudarme a compartir mi trabajo creativo con más confianza?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "The Empress",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Page of Wands",
+      "position": "Invitation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Judgement",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Apertura\n\nPreguntas qué podría ayudarte a compartir tu trabajo creativo con más confianza. Estas tres cartas ofrecen un recorrido, no un veredicto.\n\n## La Historia\n\nEn la Situación aparece La Emperatriz, al derecho. Ante ella crece el trigo, y a su lado descansa un escudo en forma de corazón. Quizá tu obra ya tiene una cosecha propia: ese trigo podría recordarte que lo que has cultivado merece ser visto.\n\nEn la Invitación está la Sota de Bastos, invertida. Sostiene un bastón que brota y lleva una pluma roja en el sombrero. Invertida, puede sugerir un entusiasmo que se guarda antes de mostrarse. Esa pluma roja te invita a preguntarte dónde escondes tu chispa.\n\nEn la Dirección llega El Juicio, al derecho. Suena una trompeta y unas figuras responden con los brazos alzados. Tal vez el rumbo sea dejar que tu voz suene como esa trompeta.\n\n## Uniéndolo Todo\n\nEntre el trigo y el escudo hay un equilibrio sereno: abundancia y cuidado a la vez. El trigo de La Emperatriz y la trompeta del Juicio unen cosecha y llamada: lo creado puede anunciarse. Aunque la Sota aparezca invertida, el bastón que brota sigue vivo; quizá solo espera un gesto pequeño.\n\n## Próximos Pasos Suaves\n\n- Elige una pieza que sientas madura y compártela con alguien de confianza.\n- Observa qué parte de tu entusiasmo retienes y nómbrala.\n- Pregúntate qué respuesta te gustaría dar, con los brazos alzados, a tu propio trabajo.\n\n## Cierre\n\nTu trabajo puede mostrarse a su propio ritmo. Que esta lectura sea una invitación, no una certeza.",
+    "annotations": [
+      {
+        "id": "id-empress",
+        "kind": "identity",
+        "quote": "La Emperatriz, al derecho",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-wheat",
+        "kind": "literal",
+        "quote": "Ante ella crece el trigo",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "wheat"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-shield",
+        "kind": "literal",
+        "quote": "a su lado descansa un escudo en forma de corazón",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "venus-shield"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-wheat",
+        "kind": "interpretation",
+        "quote": "ese trigo podría recordarte que lo que has cultivado merece ser visto",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "wheat"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wheat"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "compartir mi trabajo creativo"
+        }
+      },
+      {
+        "id": "id-page",
+        "kind": "identity",
+        "quote": "la Sota de Bastos, invertida",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-staff",
+        "kind": "literal",
+        "quote": "Sostiene un bastón que brota",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-staff"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-feather",
+        "kind": "literal",
+        "quote": "lleva una pluma roja en el sombrero",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "hat-feather"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-feather",
+        "kind": "interpretation",
+        "quote": "Esa pluma roja te invita a preguntarte dónde escondes tu chispa",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "hat-feather"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-feather"
+        ]
+      },
+      {
+        "id": "id-judgement",
+        "kind": "identity",
+        "quote": "El Juicio, al derecho",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-trumpet",
+        "kind": "literal",
+        "quote": "Suena una trompeta",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "trumpet"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-arms",
+        "kind": "literal",
+        "quote": "unas figuras responden con los brazos alzados",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "raised-arms"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-trumpet",
+        "kind": "interpretation",
+        "quote": "dejar que tu voz suene como esa trompeta",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "trumpet"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-trumpet"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "con más confianza"
+        }
+      },
+      {
+        "id": "bal-empress",
+        "kind": "balance",
+        "quote": "Entre el trigo y el escudo hay un equilibrio sereno",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "wheat",
+              "venus-shield"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wheat",
+          "lit-shield"
+        ]
+      },
+      {
+        "id": "rel-harvest-call",
+        "kind": "relationship",
+        "quote": "El trigo de La Emperatriz y la trompeta del Juicio",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "wheat"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "trumpet"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-wheat",
+          "lit-trumpet"
+        ]
+      },
+      {
+        "id": "int-staff",
+        "kind": "interpretation",
+        "quote": "el bastón que brota sigue vivo",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-staff"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-staff"
+        ]
+      },
+      {
+        "id": "int-arms",
+        "kind": "interpretation",
+        "quote": "qué respuesta te gustaría dar, con los brazos alzados",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "raised-arms"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-arms"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:31:08.649Z",
+    "completedAt": "2026-10-09T12:32:29.059Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 967,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 10231,
+      "output_tokens_details": {
+        "thinking_tokens": 8094
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 967,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "8a98c7bdd16bbc81a1bdea4a18febb99f91c9f7b246d49628198fc3524c0314c",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Apertura\\n\\nPreguntas qué podría ayudarte a compartir tu trabajo creativo con más confianza. Estas tres cartas ofrecen un recorrido, no un veredicto.\\n\\n## La Historia\\n\\nEn la Situación aparece La Emperatriz, al derecho. Ante ella crece el trigo, y a su lado descansa un escudo en forma de corazón. Quizá tu obra ya tiene una cosecha propia: ese trigo podría recordarte que lo que has cultivado merece ser visto.\\n\\nEn la Invitación está la Sota de Bastos, invertida. Sostiene un bastón que brota y lleva una pluma roja en el sombrero. Invertida, puede sugerir un entusiasmo que se guarda antes de mostrarse. Esa pluma roja te invita a preguntarte dónde escondes tu chispa.\\n\\nEn la Dirección llega El Juicio, al derecho. Suena una trompeta y unas figuras responden con los brazos alzados. Tal vez el rumbo sea dejar que tu voz suene como esa trompeta.\\n\\n## Uniéndolo Todo\\n\\nEntre el trigo y el escudo hay un equilibrio sereno: abundancia y cuidado a la vez. El trigo de La Emperatriz y la trompeta del Juicio unen cosecha y llamada: lo creado puede anunciarse. Aunque la Sota aparezca invertida, el bastón que brota sigue vivo; quizá solo espera un gesto pequeño.\\n\\n## Próximos Pasos Suaves\\n\\n- Elige una pieza que sientas madura y compártela con alguien de confianza.\\n- Observa qué parte de tu entusiasmo retienes y nómbrala.\\n- Pregúntate qué respuesta te gustaría dar, con los brazos alzados, a tu propio trabajo.\\n\\n## Cierre\\n\\nTu trabajo puede mostrarse a su propio ritmo. Que esta lectura sea una invitación, no una certeza.\",\"annotations\":[{\"id\":\"id-empress\",\"kind\":\"identity\",\"quote\":\"La Emperatriz, al derecho\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-wheat\",\"kind\":\"literal\",\"quote\":\"Ante ella crece el trigo\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"wheat\"]}]},{\"id\":\"lit-shield\",\"kind\":\"literal\",\"quote\":\"a su lado descansa un escudo en forma de corazón\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"venus-shield\"]}]},{\"id\":\"int-wheat\",\"kind\":\"interpretation\",\"quote\":\"ese trigo podría recordarte que lo que has cultivado merece ser visto\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"wheat\"]}],\"establishedBy\":[\"lit-wheat\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"compartir mi trabajo creativo\"}},{\"id\":\"id-page\",\"kind\":\"identity\",\"quote\":\"la Sota de Bastos, invertida\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-staff\",\"kind\":\"literal\",\"quote\":\"Sostiene un bastón que brota\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-staff\"]}]},{\"id\":\"lit-feather\",\"kind\":\"literal\",\"quote\":\"lleva una pluma roja en el sombrero\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"hat-feather\"]}]},{\"id\":\"int-feather\",\"kind\":\"interpretation\",\"quote\":\"Esa pluma roja te invita a preguntarte dónde escondes tu chispa\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"hat-feather\"]}],\"establishedBy\":[\"lit-feather\"]},{\"id\":\"id-judgement\",\"kind\":\"identity\",\"quote\":\"El Juicio, al derecho\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-trumpet\",\"kind\":\"literal\",\"quote\":\"Suena una trompeta\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"trumpet\"]}]},{\"id\":\"lit-arms\",\"kind\":\"literal\",\"quote\":\"unas figuras responden con los brazos alzados\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"raised-arms\"]}]},{\"id\":\"int-trumpet\",\"kind\":\"interpretation\",\"quote\":\"dejar que tu voz suene como esa trompeta\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"trumpet\"]}],\"establishedBy\":[\"lit-trumpet\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"con más confianza\"}},{\"id\":\"bal-empress\",\"kind\":\"balance\",\"quote\":\"Entre el trigo y el escudo hay un equilibrio sereno\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"wheat\",\"venus-shield\"]}],\"establishedBy\":[\"lit-wheat\",\"lit-shield\"]},{\"id\":\"rel-harvest-call\",\"kind\":\"relationship\",\"quote\":\"El trigo de La Emperatriz y la trompeta del Juicio\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"wheat\"]},{\"spreadIndex\":2,\"detailIds\":[\"trumpet\"]}],\"establishedBy\":[\"lit-wheat\",\"lit-trumpet\"]},{\"id\":\"int-staff\",\"kind\":\"interpretation\",\"quote\":\"el bastón que brota sigue vivo\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-staff\"]}],\"establishedBy\":[\"lit-staff\"]},{\"id\":\"int-arms\",\"kind\":\"interpretation\",\"quote\":\"qué respuesta te gustaría dar, con los brazos alzados\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"raised-arms\"]}],\"establishedBy\":[\"lit-arms\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 5,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 0,
+      "literal": 0,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 0,
+    "rawSha256": "61bd688c21a5979ca523d366cac40f838f2696e49764b4289db0d7c6fb31d31f",
+    "wordCount": 261
+  }
+}

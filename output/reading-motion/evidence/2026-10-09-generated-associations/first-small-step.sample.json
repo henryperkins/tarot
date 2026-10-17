@@ -1,0 +1,358 @@
+{
+  "id": "first-small-step",
+  "language": "en",
+  "userQuestion": "What should I consider before beginning an evening class?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "The Fool",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Eight of Pentacles",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Two of Wands",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou asked what to consider before beginning an evening class. These three cards move from a first step to a practice to a wider view.\n\n## The Story\n\nIn the Situation position stands The Fool, upright. A white dog travels alongside the figure, who walks near a cliff edge. That edge may mirror the small uncertainty of starting something new at the end of a full day, while the dog might stand for an instinct worth trusting, such as curiosity.\n\nThe Invitation comes from the Eight of Pentacles, upright. A craftsman works with hammer and chisel, and a row of pentacles displays finished work. Those tools invite you to consider the repeated effort a class asks for, evening after evening, and the finished pentacles suggest that skill may gather one piece at a time.\n\nFor Direction, the Two of Wands appears upright. A figure holds a small globe, with distant sea beyond the wall. The globe could represent the larger picture this class belongs to.\n\n## Putting It Together\n\nThe Fool's step toward the edge and the Eight of Pentacles' patient tools can belong to the same choice: beginning openly and practicing steadily.\n\n## Gentle Next Steps\n\n- Ask what you hope the class opens toward, as the distant sea hints.\n- Consider how many evenings you can realistically offer it.\n- Notice where curiosity, like the white dog, is nudging you.\n\n## Closing\n\nBetween the globe in hand and the water beyond, there is room to begin simply.",
+    "annotations": [
+      {
+        "id": "id-fool",
+        "kind": "identity",
+        "quote": "The Fool",
+        "occurrence": 0,
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "l-fool-dog",
+        "kind": "literal",
+        "quote": "A white dog travels alongside the figure",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "white-dog"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "l-fool-cliff",
+        "kind": "literal",
+        "quote": "walks near a cliff edge",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cliff-edge"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "i-fool-edge",
+        "kind": "interpretation",
+        "quote": "That edge may mirror the small uncertainty of starting something new at the end of a full day",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cliff-edge"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-fool-cliff"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "beginning an evening class"
+        }
+      },
+      {
+        "id": "i-fool-dog",
+        "kind": "interpretation",
+        "quote": "the dog might stand for an instinct worth trusting",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "white-dog"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-fool-dog"
+        ]
+      },
+      {
+        "id": "id-eight",
+        "kind": "identity",
+        "quote": "Eight of Pentacles",
+        "occurrence": 0,
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "l-eight-tools",
+        "kind": "literal",
+        "quote": "works with hammer and chisel",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "working-tools"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "l-eight-pentacles",
+        "kind": "literal",
+        "quote": "a row of pentacles displays finished work",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "finished-pentacles"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "i-eight-tools",
+        "kind": "interpretation",
+        "quote": "Those tools invite you to consider the repeated effort a class asks for, evening after evening",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "working-tools"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-eight-tools"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "evening class"
+        }
+      },
+      {
+        "id": "i-eight-pentacles",
+        "kind": "interpretation",
+        "quote": "the finished pentacles suggest that skill may gather one piece at a time",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "finished-pentacles"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-eight-pentacles"
+        ]
+      },
+      {
+        "id": "id-two",
+        "kind": "identity",
+        "quote": "Two of Wands",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "l-two-globe",
+        "kind": "literal",
+        "quote": "holds a small globe",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "globe"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "l-two-sea",
+        "kind": "literal",
+        "quote": "distant sea beyond the wall",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "distant-water"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "i-two-globe",
+        "kind": "interpretation",
+        "quote": "The globe could represent the larger picture this class belongs to",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "globe"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-two-globe"
+        ]
+      },
+      {
+        "id": "rel-fool-eight",
+        "kind": "relationship",
+        "quote": "The Fool's step toward the edge and the Eight of Pentacles' patient tools",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "cliff-edge"
+            ]
+          },
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "working-tools"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-fool-cliff",
+          "l-eight-tools"
+        ]
+      },
+      {
+        "id": "i-two-sea",
+        "kind": "interpretation",
+        "quote": "as the distant sea hints",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "distant-water"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-two-sea"
+        ]
+      },
+      {
+        "id": "i-fool-dog-return",
+        "kind": "interpretation",
+        "quote": "like the white dog, is nudging you",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "white-dog"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-fool-dog"
+        ]
+      },
+      {
+        "id": "bal-two",
+        "kind": "balance",
+        "quote": "Between the globe in hand and the water beyond",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "globe",
+              "distant-water"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "l-two-globe",
+          "l-two-sea"
+        ]
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:23:53.809Z",
+    "completedAt": "2026-10-09T12:24:57.059Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 965,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 8072,
+      "output_tokens_details": {
+        "thinking_tokens": 5960
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 965,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "b686a8a955e0fed672f5ce4e79b451231294cf6408da59b83f18fd232b7937ac",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou asked what to consider before beginning an evening class. These three cards move from a first step to a practice to a wider view.\\n\\n## The Story\\n\\nIn the Situation position stands The Fool, upright. A white dog travels alongside the figure, who walks near a cliff edge. That edge may mirror the small uncertainty of starting something new at the end of a full day, while the dog might stand for an instinct worth trusting, such as curiosity.\\n\\nThe Invitation comes from the Eight of Pentacles, upright. A craftsman works with hammer and chisel, and a row of pentacles displays finished work. Those tools invite you to consider the repeated effort a class asks for, evening after evening, and the finished pentacles suggest that skill may gather one piece at a time.\\n\\nFor Direction, the Two of Wands appears upright. A figure holds a small globe, with distant sea beyond the wall. The globe could represent the larger picture this class belongs to.\\n\\n## Putting It Together\\n\\nThe Fool's step toward the edge and the Eight of Pentacles' patient tools can belong to the same choice: beginning openly and practicing steadily.\\n\\n## Gentle Next Steps\\n\\n- Ask what you hope the class opens toward, as the distant sea hints.\\n- Consider how many evenings you can realistically offer it.\\n- Notice where curiosity, like the white dog, is nudging you.\\n\\n## Closing\\n\\nBetween the globe in hand and the water beyond, there is room to begin simply.\",\"annotations\":[{\"id\":\"id-fool\",\"kind\":\"identity\",\"quote\":\"The Fool\",\"occurrence\":0,\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"l-fool-dog\",\"kind\":\"literal\",\"quote\":\"A white dog travels alongside the figure\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"white-dog\"]}]},{\"id\":\"l-fool-cliff\",\"kind\":\"literal\",\"quote\":\"walks near a cliff edge\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cliff-edge\"]}]},{\"id\":\"i-fool-edge\",\"kind\":\"interpretation\",\"quote\":\"That edge may mirror the small uncertainty of starting something new at the end of a full day\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cliff-edge\"]}],\"establishedBy\":[\"l-fool-cliff\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"beginning an evening class\"}},{\"id\":\"i-fool-dog\",\"kind\":\"interpretation\",\"quote\":\"the dog might stand for an instinct worth trusting\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"white-dog\"]}],\"establishedBy\":[\"l-fool-dog\"]},{\"id\":\"id-eight\",\"kind\":\"identity\",\"quote\":\"Eight of Pentacles\",\"occurrence\":0,\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"l-eight-tools\",\"kind\":\"literal\",\"quote\":\"works with hammer and chisel\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"working-tools\"]}]},{\"id\":\"l-eight-pentacles\",\"kind\":\"literal\",\"quote\":\"a row of pentacles displays finished work\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"finished-pentacles\"]}]},{\"id\":\"i-eight-tools\",\"kind\":\"interpretation\",\"quote\":\"Those tools invite you to consider the repeated effort a class asks for, evening after evening\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"working-tools\"]}],\"establishedBy\":[\"l-eight-tools\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"evening class\"}},{\"id\":\"i-eight-pentacles\",\"kind\":\"interpretation\",\"quote\":\"the finished pentacles suggest that skill may gather one piece at a time\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"finished-pentacles\"]}],\"establishedBy\":[\"l-eight-pentacles\"]},{\"id\":\"id-two\",\"kind\":\"identity\",\"quote\":\"Two of Wands\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"l-two-globe\",\"kind\":\"literal\",\"quote\":\"holds a small globe\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"globe\"]}]},{\"id\":\"l-two-sea\",\"kind\":\"literal\",\"quote\":\"distant sea beyond the wall\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"distant-water\"]}]},{\"id\":\"i-two-globe\",\"kind\":\"interpretation\",\"quote\":\"The globe could represent the larger picture this class belongs to\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"globe\"]}],\"establishedBy\":[\"l-two-globe\"]},{\"id\":\"rel-fool-eight\",\"kind\":\"relationship\",\"quote\":\"The Fool's step toward the edge and the Eight of Pentacles' patient tools\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"cliff-edge\"]},{\"spreadIndex\":1,\"detailIds\":[\"working-tools\"]}],\"establishedBy\":[\"l-fool-cliff\",\"l-eight-tools\"]},{\"id\":\"i-two-sea\",\"kind\":\"interpretation\",\"quote\":\"as the distant sea hints\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"distant-water\"]}],\"establishedBy\":[\"l-two-sea\"]},{\"id\":\"i-fool-dog-return\",\"kind\":\"interpretation\",\"quote\":\"like the white dog, is nudging you\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"white-dog\"]}],\"establishedBy\":[\"l-fool-dog\"]},{\"id\":\"bal-two\",\"kind\":\"balance\",\"quote\":\"Between the globe in hand and the water beyond\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"globe\",\"distant-water\"]}],\"establishedBy\":[\"l-two-globe\",\"l-two-sea\"]}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 18,
+    "acceptedAnnotations": 18,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 7,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 5,
+      "literal": 4,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 4,
+    "rawSha256": "eb6543c39955dc3d99e07297505fd4e6b2ac64d7d209aeaf021d363f9a92f23a",
+    "wordCount": 251
+  }
+}

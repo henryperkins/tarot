@@ -15,7 +15,7 @@ const result = { provider: 'claude-code', text: 'What would help you explore thi
 test('Claude transport preserves prompts, returned model and usage without sending subscription credentials', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://claude.example.test/v1/generate');
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     assert.equal(options.headers.Authorization, 'Bearer test-token');
     assert.deepEqual(JSON.parse(options.body), input);
     return Response.json(result);
@@ -56,4 +56,28 @@ test('personal subscription access requires the configured authenticated owner',
   assert.equal(getClaudeCodeAccessError(env, null).status, 403);
   assert.equal(getClaudeCodeAccessError({ ...env, CLAUDE_CODE_OWNER_USER_ID: '' }, { id: 'owner' }).status, 503);
   assert.equal(getClaudeCodeAccessError({}, null), null);
+});
+
+// Workers supports follow/manual, not redirect:error. Never forward the bearer
+// token to a Location destination while using its compatible manual mode.
+test('Claude transport rejects redirects without following or exposing gateway details', async t => {
+  for (const status of [301, 302, 303, 307, 308]) {
+    let calls = 0;
+    let cancelled = false;
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+      calls++;
+      assert.equal(url, 'https://claude.example.test/v1/generate');
+      assert.equal(options.redirect, 'manual');
+      return new Response(new ReadableStream({ cancel() { cancelled = true; } }), {
+        status, headers: { Location: 'https://untrusted.example/private' }
+      });
+    });
+    await assert.rejects(callClaudeCode(env, input), error => {
+      assert.equal(error.status, status);
+      return !error.message.includes('untrusted') && !error.message.includes('test-token');
+    });
+    assert.equal(calls, 1);
+    assert.equal(cancelled, true);
+    t.mock.restoreAll();
+  }
 });

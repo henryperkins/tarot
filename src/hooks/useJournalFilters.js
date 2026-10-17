@@ -2,7 +2,9 @@
  * useJournalFilters - Manages filter state, filtered entries, and active filter chips
  */
 
-import { useDeferredValue, useCallback, useMemo, useState, useEffect } from 'react';
+import { useDeferredValue, useCallback, useMemo, useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAccountStorage.js';
+import { filterDeletedJournalEntries, subscribeToDeletedJournalEntries } from '../lib/deletedJournalEntryStorage.js';
 import { formatContextName } from '../lib/journalInsights';
 import {
   CONTEXT_FILTERS,
@@ -17,15 +19,35 @@ const IDLE_SERVER_SEARCH = Object.freeze({
   searchKey: null, status: 'idle', results: [], error: null, query: '', mode: 'exact'
 });
 
-export function useJournalFilters(entries, options = {}) {
-  const { isAuthenticated = false, canUseCloudJournal = false } = options;
+export function useJournalFilters(sourceEntries, options = {}) {
+  const { isAuthenticated = false, canUseCloudJournal = false, userId = null } = options;
+  const namespace = isAuthenticated && userId ? `user:${encodeURIComponent(userId)}` : 'anon';
+  const namespaceRef = useRef(namespace);
+  const entries = filterDeletedJournalEntries(namespace, sourceEntries);
   const SERVER_SEARCH_THRESHOLD = 200;
   const SERVER_SEARCH_LIMIT = 25;
   const SERVER_SEARCH_MIN_QUERY = 3;
 
   const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
   const deferredQuery = useDeferredValue(filters.query);
-  const [serverSearchResult, setServerSearch] = useState(IDLE_SERVER_SEARCH);
+  const [serverSearchResult, setServerSearchResult] = useState(IDLE_SERVER_SEARCH);
+  const setServerSearch = useCallback(update => setServerSearchResult(previous => {
+    if (namespaceRef.current !== namespace || isDeletedAccount(userId)) return previous;
+    const next = typeof update === 'function' ? update(previous) : update;
+    return { ...next, results: filterDeletedJournalEntries(namespace, next.results) };
+  }), [namespace, userId]);
+  useLayoutEffect(() => {
+    namespaceRef.current = isDeletedAccount(userId) ? null : namespace;
+    const unsubscribeEntries = subscribeToDeletedJournalEntries(owner => {
+      if (owner === namespaceRef.current) setServerSearch(previous => ({ ...previous, results: filterDeletedJournalEntries(owner, previous.results) }));
+    });
+    const unsubscribeAccount = subscribeToDeletedAccounts(owner => {
+      if (owner !== userId) return;
+      namespaceRef.current = null;
+      setServerSearchResult(IDLE_SERVER_SEARCH);
+    });
+    return () => { unsubscribeEntries(); unsubscribeAccount(); };
+  }, [namespace, userId, setServerSearch]);
   const [serverSearchNonce, setServerSearchNonce] = useState(0);
   const refreshServerSearch = useCallback(() => {
     setServerSearchNonce((prev) => prev + 1);
@@ -56,6 +78,7 @@ export function useJournalFilters(entries, options = {}) {
   const filterSignature = useMemo(
     () =>
       JSON.stringify({
+        namespace,
         query: filters.query.trim().toLowerCase(),
         contexts: [...filters.contexts].sort(),
         spreads: [...filters.spreads].sort(),
@@ -64,7 +87,7 @@ export function useJournalFilters(entries, options = {}) {
         onlyReversals: filters.onlyReversals,
         serverSearchEnabled: isAuthenticated && canUseCloudJournal && entries?.length >= SERVER_SEARCH_THRESHOLD
       }),
-    [filters, isAuthenticated, canUseCloudJournal, entries?.length]
+    [filters, namespace, isAuthenticated, canUseCloudJournal, entries]
   );
 
   const serverFilterSignature = useMemo(
@@ -81,16 +104,17 @@ export function useJournalFilters(entries, options = {}) {
 
   const trimmedDeferredQuery = deferredQuery.trim();
   const shouldUseServerSearch = isAuthenticated
+    && Boolean(userId) && !isDeletedAccount(userId)
     && canUseCloudJournal
     && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
     && entries?.length >= SERVER_SEARCH_THRESHOLD;
 
   const searchKey = shouldUseServerSearch
-    ? JSON.stringify([trimmedDeferredQuery, serverFilterSignature, serverSearchNonce]) : null;
+    ? JSON.stringify([namespace, trimmedDeferredQuery, serverFilterSignature, serverSearchNonce]) : null;
   const serverSearch = !shouldUseServerSearch
     ? IDLE_SERVER_SEARCH
     : serverSearchResult.searchKey === searchKey
-      ? serverSearchResult
+      ? { ...serverSearchResult, results: filterDeletedJournalEntries(namespace, serverSearchResult.results) }
       : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: 'exact' };
 
   // Returning to a previous query starts fresh, including after a cleared search.
@@ -141,8 +165,8 @@ export function useJournalFilters(entries, options = {}) {
         return response.json();
       })
       .then((data) => {
-        if (cancelled) return;
-        const normalizedResults = Array.isArray(data?.entries) ? data.entries : [];
+        if (cancelled || namespaceRef.current !== namespace || isDeletedAccount(userId)) return;
+        const normalizedResults = filterDeletedJournalEntries(namespace, data?.entries).slice();
         normalizedResults.sort((a, b) => (b?.ts || 0) - (a?.ts || 0));
         setServerSearch({
           searchKey,
@@ -154,7 +178,7 @@ export function useJournalFilters(entries, options = {}) {
         });
       })
       .catch((error) => {
-        if (cancelled || error?.name === 'AbortError') return;
+        if (cancelled || namespaceRef.current !== namespace || isDeletedAccount(userId) || error?.name === 'AbortError') return;
         setServerSearch({
           searchKey,
           status: 'error',
@@ -171,7 +195,7 @@ export function useJournalFilters(entries, options = {}) {
         controller.abort();
       }
     };
-  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery]);
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, namespace, userId, setServerSearch]);
 
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {

@@ -61,6 +61,7 @@ export default function Journal() {
     loading,
     loadingMore,
     deleteEntry,
+    retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
     loadMoreEntries,
@@ -95,7 +96,7 @@ export default function Journal() {
     handleRemoveFilter,
     serverSearchState,
     refreshServerSearch
-  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal });
+  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id });
 
   const {
     analyticsScope,
@@ -530,7 +531,8 @@ export default function Journal() {
   };
 
   const handleDeleteRequest = (entryId) => {
-    setDeleteConfirmModal({ isOpen: true, entryId });
+    const entry = filteredEntries.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
+    setDeleteConfirmModal({ isOpen: true, entryId, ownerId: user?.id || null, readingResultId: entry?.readingResultId || null });
   };
 
   const handleDeleteConfirm = async () => {
@@ -540,13 +542,17 @@ export default function Journal() {
     // Close modal immediately to provide responsive feedback
     setDeleteConfirmModal({ isOpen: false, entryId: null });
 
-    const result = await deleteEntry(entryId);
+    if (deleteConfirmModal.ownerId !== (user?.id || null)) {
+      showToast({ type: 'error', title: 'Account changed', description: 'Choose this entry again in the current account.' });
+      return;
+    }
+    const result = await deleteEntry(entryId, { readingResultId: deleteConfirmModal.readingResultId });
 
     if (result.success) {
       showToast({
         type: 'success',
         title: 'Entry deleted',
-        description: 'Removed from your journal history.'
+        description: result.purged === false ? result.error : 'Removed from your journal history.'
       });
       if (serverSearchEnabled) {
         refreshServerSearch();
@@ -717,6 +723,7 @@ export default function Journal() {
                 shareError={shareError}
                 onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 onDelete={handleDeleteRequest}
+                onRetryVisuals={retrySavedVisuals}
                 compact={compactList}
                 cardClass={cardClass}
               />
@@ -859,7 +866,10 @@ export default function Journal() {
               <div className="min-w-0 flex-[999_1_32rem] space-y-8">
                 {hasEntries ? (
                   <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
-                    <AmberStarfield />
+                    {/* Keep decorative orbs from becoming native focus-scroll space. */}
+                    <div className="pointer-events-none absolute inset-0 overflow-clip rounded-[inherit]" aria-hidden="true">
+                      <AmberStarfield />
+                    </div>
                     <div className="relative z-10 space-y-5">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">

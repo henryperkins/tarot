@@ -43,6 +43,7 @@ import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
+import { purgeDeletedAccountStorage } from '../lib/deletedAccountStorage.js';
 import {
   FOCUS_RING_ACCENT_SOFT,
   FOCUS_RING_DEFAULT,
@@ -918,10 +919,14 @@ export default function AccountPage() {
       if (!response.ok) {
         throw new Error(data.error || 'Unable to delete account');
       }
-      await logout();
+      const cleanup = purgeDeletedAccountStorage(user?.id);
+      // The deletion response clears the session cookie. Refresh client auth
+      // without ordinary logout's shared narrative-cache reset.
+      await checkAuth();
       publish({
         title: 'Account deleted',
-        description: 'Your data has been removed.',
+        description: cleanup.purged ? 'Your data has been removed.'
+          : 'Your account was deleted, but this browser could not remove all saved reading data.',
         type: 'success'
       });
       navigate('/', { replace: true });
@@ -934,7 +939,7 @@ export default function AccountPage() {
     } finally {
       setDeleteLoading(false);
     }
-  }, [deleteLoading, logout, publish, navigate]);
+  }, [deleteLoading, user?.id, checkAuth, publish, navigate]);
 
   const handleResendEmailVerification = useCallback(async () => {
     if (!user?.email || verificationSending) return;

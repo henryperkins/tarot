@@ -1,0 +1,45 @@
+{
+  "scope": "Controlled narrative and cue transports on normal reading route; guest auth; no model inference. Generic prose verifies layout, not semantic quality.",
+  "viewport": {
+    "label": "desktop",
+    "width": 1100,
+    "height": 1000
+  },
+  "browser": "headless Chromium",
+  "card": "Nine of Pentacles",
+  "detail": "gloved-falcon",
+  "header": {
+    "top": 0,
+    "bottom": 65.1875,
+    "left": 0,
+    "right": 1100,
+    "width": 1100,
+    "height": 65.1875
+  },
+  "shelf": {
+    "top": 81.1875,
+    "bottom": 261.1875,
+    "left": 107,
+    "right": 215,
+    "width": 108,
+    "height": 180
+  },
+  "artwork": {
+    "top": 299.1875,
+    "bottom": 659.1875,
+    "left": 169,
+    "right": 385,
+    "width": 216,
+    "height": 360
+  },
+  "companion": {
+    "top": 81.1875,
+    "bottom": 718.1875,
+    "left": 107,
+    "right": 447,
+    "width": 340,
+    "height": 637
+  },
+  "measuredHeaderHeight": 65.1875,
+  "shelfReceivesPointer": true
+}

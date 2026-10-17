@@ -1,0 +1,71 @@
+{
+  "deck": "Rider-Waite-Smith tarot deck (Geldard)",
+  "artist": "Pamela Colman Smith",
+  "restoration": "Geldard / YarnSpinnerTool",
+  "categoryUrl": "https://commons.wikimedia.org/wiki/Category:Rider-Waite-Smith_tarot_deck_(Geldard)",
+  "retrievedAt": "2026-10-08T19:49:19.463957+00:00",
+  "license": "Public domain, as marked on the linked Wikimedia Commons file descriptions.",
+  "encoding": "Full 2100 × 3600 source dimensions; WebP quality 90, alpha quality 100, effort 5. No resizing, recoloring, or further retouching. Used by the previous Geldard preview; the current study references Immanuelle SVG originals.",
+  "cards": [
+    {
+      "id": "star",
+      "name": "The Star",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:The_Star_(Rider-Waite_Smith_tarot_deck).png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/0/09/The_Star_%28Rider-Waite_Smith_tarot_deck%29.png",
+      "width": 2100,
+      "height": 3600,
+      "originalBytes": 12027307,
+      "originalSha256": "a10da470ca9c2a57308e8879fc58b18f6876c22a9c79e285685addbc7664fcce",
+      "embeddedBytes": 1195436,
+      "embeddedSha256": "6557124e2c0dfd5afee854f25220dd653d26761f3b1dff4128e7cb899824872c"
+    },
+    {
+      "id": "cups",
+      "name": "Six of Cups",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Six_of_Cups_(Rider-Waite_Smith_tarot_deck).png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/f/f7/Six_of_Cups_%28Rider-Waite_Smith_tarot_deck%29.png",
+      "width": 2100,
+      "height": 3600,
+      "originalBytes": 14940289,
+      "originalSha256": "00417b4435a10c677f554d50c84b6167be9772f02ade64bc760ade5502c8d5ee",
+      "embeddedBytes": 1695480,
+      "embeddedSha256": "0491efee45e18b4fcdafc62c41191dcddb3ecf673300ff88d71f6a7c4a47d654"
+    },
+    {
+      "id": "tower",
+      "name": "The Tower",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:The_Tower_(Rider-Waite_Smith_tarot_deck).png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/8/8c/The_Tower_%28Rider-Waite_Smith_tarot_deck%29.png",
+      "width": 2100,
+      "height": 3600,
+      "originalBytes": 11603028,
+      "originalSha256": "17d39ffc1dfb97bc459ec4eb855e360414686bbe589f43643ef38b485f458093",
+      "embeddedBytes": 1092856,
+      "embeddedSha256": "c822e1adfd3557321b206a8429c5bd00d3103d6def5d7de22d7b1535a80057b0"
+    },
+    {
+      "id": "hermit",
+      "name": "The Hermit",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:The_Hermit_(Rider-Waite_Smith_tarot_deck).png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/1/1a/The_Hermit_%28Rider-Waite_Smith_tarot_deck%29.png",
+      "width": 2100,
+      "height": 3600,
+      "originalBytes": 11469758,
+      "originalSha256": "4e4b9c5e9a5c9cdf96beca31ac23fa70d841df1d2dff2d9f946e884a21fe370c",
+      "embeddedBytes": 914514,
+      "embeddedSha256": "220eb22aedb1537061274d723aafdebff9b61e5f92abf4915ea02ea08b7998a9"
+    },
+    {
+      "id": "wands",
+      "name": "Five of Wands",
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Five_of_Wands_(Rider-Waite_Smith_tarot_deck).png",
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/4/42/Five_of_Wands_%28Rider-Waite_Smith_tarot_deck%29.png",
+      "width": 2100,
+      "height": 3600,
+      "originalBytes": 13155576,
+      "originalSha256": "6af85988b1a2070236e0683e8987da8d02bc92420184e13e72462d47c86e0c5f",
+      "embeddedBytes": 1228104,
+      "embeddedSha256": "15c7b6b3bbc42dbd3171488787a1e27578c8dbefa663132a933c34ce9d0d6732"
+    }
+  ]
+}

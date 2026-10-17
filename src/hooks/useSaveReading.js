@@ -4,6 +4,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
 import { getSpreadInfo } from '../data/spreads';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage';
+import { publicVisualSnapshot } from '../lib/readingVisualStorage.js';
 
 export function useSaveReading() {
     const {
@@ -17,7 +18,8 @@ export function useSaveReading() {
         selectedSpread,
         setJournalStatus,
         readingMeta,
-        followUps
+        followUps,
+        visualResume
     } = useReading();
 
     const {
@@ -98,6 +100,11 @@ export function useSaveReading() {
             context: contextValue,
             provider: personalReading?.provider || readingMeta?.provider || 'local',
             sessionSeed,
+            readingResultId: readingMeta?.readingResultId || null,
+            visualBinding: readingMeta?.visualBinding || null,
+            visual: publicVisualSnapshot({ binding: readingMeta?.visualBinding,
+                cueLedger: readingMeta?.visualSnapshot, status: readingMeta?.visualStatus || 'pending',
+                raw: personalReading?.raw || personalReading?.normalized || '' }),
             deckId: deckStyleId,
             followUps: Array.isArray(followUps) && followUps.length ? followUps : undefined,
             // Request ID for API tracing/correlation
@@ -132,7 +139,7 @@ export function useSaveReading() {
         savingRef.current = true;
         setIsSaving(true);
         try {
-            const result = await saveEntry(entry);
+            const result = await saveEntry(entry, { visualResume });
             if (result.success) {
                 // Track successful save to prevent duplicate saves of same reading
                 if (sessionSeed) {
@@ -170,7 +177,7 @@ export function useSaveReading() {
         identity, sessionSeed, reading, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
         deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
-        locationEnabled, cachedLocation, persistLocationToJournal, followUps
+        locationEnabled, cachedLocation, persistLocationToJournal, followUps, visualResume
     ]);
 
     return { saveReading, isSaving, savedEntryId: identity && savedReading?.identity === identity ? savedReading.entryId : null };

@@ -6,13 +6,12 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 const scratchDirectories = new Set(['.worktrees', '.superpowers', 'tmp', 'test-results', 'playwright-report']);
 import react from '@vitejs/plugin-react';
+import { secureDevelopmentServer } from './scripts/lib/developmentServerSecurity.mjs';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    host: '0.0.0.0',
+  server: secureDevelopmentServer({
     port: 5000,
-    allowedHosts: true,
     watch: {
       ignored: [watchedPath => relative(projectRoot, resolve(watchedPath)).split(sep)
         .some(segment => scratchDirectories.has(segment))]
@@ -27,10 +26,12 @@ export default defineConfig({
       }
     },
     fs: {
-      allow: ['.', realpathSync('./node_modules')],
+      // Linked worktrees may share installed packages. Permit their resolved
+      // assets (including the local reading fonts), not the parent repository.
+      allow: [fileURLToPath(new URL('.', import.meta.url)), realpathSync(fileURLToPath(new URL('./node_modules', import.meta.url)))],
       deny: ['venv/**', '.git/**']
     }
-  },
+  }),
   optimizeDeps: {
     // Keep dependency scanning on browser entrypoints only.
     // Broad src globs pull the Cloudflare worker graph into the frontend optimizer.

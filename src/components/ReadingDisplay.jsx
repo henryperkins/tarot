@@ -16,6 +16,7 @@ import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
 import { getCardImage } from '../lib/cardLookup';
+import { readingGestureEdition, readingGesturesEnabled } from '../lib/readingGestureSettings';
 import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
@@ -42,7 +43,12 @@ export function ReadingDisplay({
     followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
-    isMobileStableMode = false
+    isMobileStableMode = false,
+    gestureSource: gestureSourceOverride = null,
+    gestureStudyEnabled = readingGesturesEnabled(),
+    gestureSidecar = null,
+    manualInspectionStatus = null,
+    artworkEdition = null
 }) {
     const { publish: publishToast } = useToast();
     const { effectiveTier } = useSubscription();
@@ -97,6 +103,7 @@ export function ReadingDisplay({
 
         // Reading Generation & UI
         personalReading,
+        gestureSource,
         isGenerating,
         cancelPersonalReading,
         isReadingStreamActive,
@@ -236,6 +243,7 @@ export function ReadingDisplay({
 
     const {
         selectedCardData,
+        manualInspectionStatus: selectionInspectionStatus,
         narrativeMentionPulse,
         activeFocusedCardData,
         recentlyClosedIndex,
@@ -351,6 +359,12 @@ export function ReadingDisplay({
         narrativeAtmosphereClasses,
         narrativeModel
     } = useNarrativeReadingController({
+        gestureSource: gestureSourceOverride || gestureSource,
+        gestureStudyEnabled,
+        gestureSidecar,
+        manualInspectionStatus: manualInspectionStatus || selectionInspectionStatus,
+        artworkEdition: readingGestureEdition({ enabled: gestureStudyEnabled, deckStyleId,
+            artworkEdition: artworkEdition || (gestureStudyEnabled ? (gestureSourceOverride || gestureSource)?.visualBinding?.artworkEdition : null) }),
         reading,
         deckStyleId,
         onSelectInsightCard: handleSelectInsightCard,

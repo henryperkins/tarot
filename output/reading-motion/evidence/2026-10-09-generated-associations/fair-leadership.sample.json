@@ -1,0 +1,310 @@
+{
+  "id": "fair-leadership",
+  "language": "en",
+  "userQuestion": "How can I lead a small team with clearer boundaries and more fairness?",
+  "reflectionsText": "",
+  "cards": [
+    {
+      "card": "The Emperor",
+      "position": "Situation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Justice",
+      "position": "Invitation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Six of Pentacles",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou asked how to lead a small team with clearer boundaries and more fairness. These three cards move from how authority is held, to how choices are weighed, to how resources are shared.\n\n## The Story\n\nThe Emperor appears reversed in the Situation position. He sits on a throne adorned with ram heads and holds a scepter. Reversed, he may point to structure that feels unsteady, perhaps expectations that shift without being named. The scepter might ask where your authority feels clearly held and where it wavers.\n\nJustice arrives upright as the Invitation. The figure holds scales in one hand and an upright sword in the other. The scales invite you to weigh each person's needs openly; the sword suggests stating decisions plainly once they are made.\n\nThe Six of Pentacles, upright in the Direction position, shows a figure holding balance scales while giving coins with an outstretched hand. That giving hand frames fairness as practical: credit, attention, and workload shared with care.\n\n## Putting It Together\n\nJustice and the Six of Pentacles both carry scales, linking principle to everyday practice. The ram heads may remind you that a firm foundation can make generosity sustainable rather than draining.\n\n## Gentle Next Steps\n\n- Consider writing down two or three team agreements and sharing them openly.\n- Notice who receives your time this week, and whether that feels balanced.\n\n## Closing\n\nClear boundaries and fairness can grow together, one considered choice at a time.",
+    "annotations": [
+      {
+        "id": "emperor-identity",
+        "kind": "identity",
+        "quote": "The Emperor appears reversed",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "emperor-ram-throne",
+        "kind": "literal",
+        "quote": "a throne adorned with ram heads",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "ram-throne"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "emperor-scepter",
+        "kind": "literal",
+        "quote": "holds a scepter",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "scepter"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "emperor-scepter-interp",
+        "kind": "interpretation",
+        "quote": "The scepter might ask where your authority feels clearly held",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "scepter"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "emperor-scepter"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "lead a small team"
+        }
+      },
+      {
+        "id": "justice-identity",
+        "kind": "identity",
+        "quote": "Justice arrives upright",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "justice-scales",
+        "kind": "literal",
+        "quote": "holds scales in one hand",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scales"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "justice-sword",
+        "kind": "literal",
+        "quote": "an upright sword in the other",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-sword"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "justice-scales-interp",
+        "kind": "interpretation",
+        "quote": "The scales invite you to weigh each person's needs openly",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scales"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "justice-scales"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "more fairness"
+        }
+      },
+      {
+        "id": "justice-sword-interp",
+        "kind": "interpretation",
+        "quote": "the sword suggests stating decisions plainly",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "upright-sword"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "justice-sword"
+        ]
+      },
+      {
+        "id": "six-identity",
+        "kind": "identity",
+        "quote": "The Six of Pentacles, upright in the Direction position",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "six-scales",
+        "kind": "literal",
+        "quote": "holding balance scales",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "balance-scales"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "six-hand",
+        "kind": "literal",
+        "quote": "giving coins with an outstretched hand",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "giving-hand"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "six-hand-interp",
+        "kind": "interpretation",
+        "quote": "That giving hand frames fairness as practical",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "giving-hand"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "six-hand"
+        ]
+      },
+      {
+        "id": "scales-relationship",
+        "kind": "relationship",
+        "quote": "Justice and the Six of Pentacles both carry scales",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "scales"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "balance-scales"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "justice-scales",
+          "six-scales"
+        ]
+      },
+      {
+        "id": "emperor-ram-interp",
+        "kind": "interpretation",
+        "quote": "The ram heads may remind you that a firm foundation",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "ram-throne"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "emperor-ram-throne"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "clearer boundaries"
+        }
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:23:53.808Z",
+    "completedAt": "2026-10-09T12:25:02.339Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 958,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 6190,
+      "output_tokens_details": {
+        "thinking_tokens": 4383
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 958,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "2d12789b87c6c73d9bbcdb6b5e13c06b2a91814e8c61b2cc020d61b27dd9a3b8",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou asked how to lead a small team with clearer boundaries and more fairness. These three cards move from how authority is held, to how choices are weighed, to how resources are shared.\\n\\n## The Story\\n\\nThe Emperor appears reversed in the Situation position. He sits on a throne adorned with ram heads and holds a scepter. Reversed, he may point to structure that feels unsteady, perhaps expectations that shift without being named. The scepter might ask where your authority feels clearly held and where it wavers.\\n\\nJustice arrives upright as the Invitation. The figure holds scales in one hand and an upright sword in the other. The scales invite you to weigh each person's needs openly; the sword suggests stating decisions plainly once they are made.\\n\\nThe Six of Pentacles, upright in the Direction position, shows a figure holding balance scales while giving coins with an outstretched hand. That giving hand frames fairness as practical: credit, attention, and workload shared with care.\\n\\n## Putting It Together\\n\\nJustice and the Six of Pentacles both carry scales, linking principle to everyday practice. The ram heads may remind you that a firm foundation can make generosity sustainable rather than draining.\\n\\n## Gentle Next Steps\\n\\n- Consider writing down two or three team agreements and sharing them openly.\\n- Notice who receives your time this week, and whether that feels balanced.\\n\\n## Closing\\n\\nClear boundaries and fairness can grow together, one considered choice at a time.\",\"annotations\":[{\"id\":\"emperor-identity\",\"kind\":\"identity\",\"quote\":\"The Emperor appears reversed\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"emperor-ram-throne\",\"kind\":\"literal\",\"quote\":\"a throne adorned with ram heads\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"ram-throne\"]}]},{\"id\":\"emperor-scepter\",\"kind\":\"literal\",\"quote\":\"holds a scepter\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"scepter\"]}]},{\"id\":\"emperor-scepter-interp\",\"kind\":\"interpretation\",\"quote\":\"The scepter might ask where your authority feels clearly held\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"scepter\"]}],\"establishedBy\":[\"emperor-scepter\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"lead a small team\"}},{\"id\":\"justice-identity\",\"kind\":\"identity\",\"quote\":\"Justice arrives upright\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"justice-scales\",\"kind\":\"literal\",\"quote\":\"holds scales in one hand\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scales\"]}]},{\"id\":\"justice-sword\",\"kind\":\"literal\",\"quote\":\"an upright sword in the other\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-sword\"]}]},{\"id\":\"justice-scales-interp\",\"kind\":\"interpretation\",\"quote\":\"The scales invite you to weigh each person's needs openly\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scales\"]}],\"establishedBy\":[\"justice-scales\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"more fairness\"}},{\"id\":\"justice-sword-interp\",\"kind\":\"interpretation\",\"quote\":\"the sword suggests stating decisions plainly\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"upright-sword\"]}],\"establishedBy\":[\"justice-sword\"]},{\"id\":\"six-identity\",\"kind\":\"identity\",\"quote\":\"The Six of Pentacles, upright in the Direction position\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"six-scales\",\"kind\":\"literal\",\"quote\":\"holding balance scales\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"balance-scales\"]}]},{\"id\":\"six-hand\",\"kind\":\"literal\",\"quote\":\"giving coins with an outstretched hand\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"giving-hand\"]}]},{\"id\":\"six-hand-interp\",\"kind\":\"interpretation\",\"quote\":\"That giving hand frames fairness as practical\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"giving-hand\"]}],\"establishedBy\":[\"six-hand\"]},{\"id\":\"scales-relationship\",\"kind\":\"relationship\",\"quote\":\"Justice and the Six of Pentacles both carry scales\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"scales\"]},{\"spreadIndex\":2,\"detailIds\":[\"balance-scales\"]}],\"establishedBy\":[\"justice-scales\",\"six-scales\"]},{\"id\":\"emperor-ram-interp\",\"kind\":\"interpretation\",\"quote\":\"The ram heads may remind you that a firm foundation\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"ram-throne\"]}],\"establishedBy\":[\"emperor-ram-throne\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"clearer boundaries\"}}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 15,
+    "acceptedAnnotations": 15,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 5,
+      "balance": 0,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 1
+    },
+    "personalContextCount": 3,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 6,
+    "rawSha256": "a7ebba2dc1a49a19e8ccd3ca4fadacf6802030e34c56436a1cc940314473b161",
+    "wordCount": 245
+  }
+}

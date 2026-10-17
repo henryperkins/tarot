@@ -1,0 +1,32 @@
+# Reading mobile feedback follow-up — October 12 UTC
+
+Type: current correction and scoped verification record
+
+The owner used the restricted preview on their iPhone and reported that content was in the way and that the text made no sense or flowed poorly. This is actual qualitative owner feedback, not a completed Safari/VoiceOver checklist. The reported iPhone is a 14 Pro Max; its iOS version remains unknown.
+
+A local WebKit reproduction at 428 × 926 found the mobile companion pinned below the 65 px header with a 310 px footprint, including an empty detail stage. The fixed bottom actions took another 81 px. The preview's supposed reading was a card roster and a disconnected closing sentence, accompanied by a synthetic Unicode question. That prose belonged to the standalone replay controller; it was not a narrative-provider result.
+
+The correction lets the companion scroll with the phone page. Explicit phrase or shelf activation opens **Card detail**, using the same held occurrence/edition and one artwork stage. **Back to reading**, backdrop and Escape dismiss it, restore focus, and retain the reading position. Automatic cues never open the dialog or scroll the page. Desktop keeps its companion beside the prose. The approved scan spread/vector companion arrangement, source-order policy and 1,800 ms active phase remain intact. On phones, cards now leave the viewport during prose scrolling; offscreen automatic turns are not proof that a reader saw the artwork. Explicit inspection supplies the available view on demand.
+
+The standalone controller now uses the plain question “What would help me take my next step with more clarity?” and authored sample paragraphs for the actual cards, positions and orientations. Its opening, card passages and practical closing preserve one exact string through streaming and completion. Approximately 96-character chunks arrive every 420 ms after the initial 1,200 ms delay, independently of visual turns. This changes only the sample replay's delivery, not production prose or narrative-provider behavior. Saved example bodies retain their original synthetic test data.
+
+## Candidate and evidence
+
+- Runtime source: 1,197 frozen files, SHA-256 `5c8bbf870b5f96602e2ca65c55484f506815f41980d4d6fa4b7c12bfea2d4e09`; three changed paths: `SpreadCompanion.jsx`, `GesturePhrase.jsx` and `narrative-card-touch.css`.
+- Frontend: 590 frozen files, SHA-256 `93d6fca878c04a5ebacf7b7109d3477e35ece9a5c1d549ab2f636c8c66136147` (candidate `phone-detail-20261012-r3`); production presentation on, annotation requests off.
+- Authored controller: version `device-replay-v3-authored`; five-module inventory SHA-256 `5b1f85bff4bf03f80d2f9e06aad0be5612ce978aa75d8295d159185dfa71d6b2`. Fixtures SHA-256 `6db99ae7791f3ad5857e7fbdbc316fdcbf2893d7fb1ed9ecce2dd9721a0d7006`; setup SHA-256 `5b705f5b0d8a3a6e434d953aa260beb695f8f1fc69e8a2e58d109f39d26954f8`.
+- App Node suite: 4,157 passed, 2 skipped, no failures, 521 suites; full lint, production build and `docs:check` (212 files) passed.
+- Controller: 25/25 Node tests, including all 468 card/deck/orientation combinations, edition boundaries, exact streamed/completed prose and schedules; the bundle contains exactly the five reviewed modules.
+- Scoped interaction verification (`check-ui-fixes-targeted.mjs` and `check-mobile-card-detail.mjs`): tested across Chromium and WebKit. Card detail artwork inside modal dialog renders full, uncropped whole card at 216 × 360 px (aspect ratio 0.60). Focus fallback restores to shelf button when opener element unmounts or upon dialog dismissal. Narrowing viewport while held opens inspection dialog cleanly. Natural phone scrolling to reading end leaves full clearance above the fixed bottom action bar with zero prose or action obstruction.
+- Multi-case review (`mobile-reading-review-r3`): 197 functional checks passed across 4 guest and real authenticated Pro phone/desktop cases, exercising journal persistence and zero external model calls, followed by clean teardown.
+
+The original 184-case composite and its failures remain attached to their earlier source. They are not relabelled as results for this correction. The CSS-only intermediate build and all setup/interaction failures remain retained.
+
+The [aligner plan](../plans/2026-10-11-reading-aligner-release.md) remains the single execution checklist. Physical speech/touch/OS evidence, unavailable mid-range handset evidence, deployable cargo and production release gates stay open. The [post-reading model plan](../plans/2026-10-11-reading-post-reading-model.md) remains separate and unstarted. No providers, model inference or migrations are part of this correction.
+
+## Resolution of gaps
+
+1. **Card detail artwork geometry:** Repaired `SpreadCompanion.jsx` to pass `inDialog` boolean to `present()`; when in modal dialog, `crop={ids.length > 0}` allows whole-card identities (`detailIds: []`) to display uncropped while preserving authored literal detail crops. Updated `.gesture-inspection-dialog .gesture-focus-card` and `.gesture-art` in `narrative-card-touch.css` to `height: 100%`, `aspect-ratio: 3/5`, and centered alignment, rendering legible 216 × 360 px cards.
+2. **Focus fallback:** Implemented `getFallbackFocus` in `SpreadCompanion.jsx` targeting the companion shelf button matching the active occurrence ID or the first available shelf button, hooked into `useModalA11y`. When the opener unmounts upon dialog portal creation, focus falls back reliably to the shelf button rather than `document.body`.
+3. **Bottom action bar clearance:** Verified that standard scrolling cleanly reveals all trailing prose lines, reflection prompts, and action buttons (`Save reading`, `View Journal`, `Visual Companion Studio`) above the fixed bottom action bar.
+4. **Publish state:** Candidate `phone-detail-20261012-r3` was deployed to restricted preview `tableu-aligner-device-4dee57d3` on October 12 at 04:06:09 UTC (active version `96af2b08-f656-43cc-a86a-919b19128d21` at 100% traffic, deployment `4fb96e53-a857-465b-ab37-da6ecc73925d`). Unauthenticated requests redirect to Cloudflare Access with HTTP 302. Preview origin `https://tableu-aligner-device-4dee57d3.lfd.workers.dev` and setup path `/review/setup` retain the original Access application and policy expiry (`1791855794501` / October 12 at 8:43:14 p.m. CDT). Frontend digest is `93d6fca878c04a5ebacf7b7109d3477e35ece9a5c1d549ab2f636c8c66136147`.

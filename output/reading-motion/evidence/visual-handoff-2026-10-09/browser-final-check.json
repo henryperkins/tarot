@@ -1,0 +1,395 @@
+{
+  "config": {
+    "argv": [
+      "/home/ubuntu/.nvm/versions/node/v24.21.0/bin/node",
+      "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "output/reading-motion/react-bridge.playwright.config.mjs",
+      "e2e/reading-gestures-lifecycle.spec.js",
+      "e2e/reading-visual-handoff.spec.js",
+      "--grep",
+      "completed burst settles|authoritative done revision|independent late cues|replacement prose",
+      "--project=chromium",
+      "--reporter=list,json"
+    ],
+    "configFile": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/output/reading-motion/react-bridge.playwright.config.mjs",
+    "rootDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js",
+          "journal-visual-restoration.spec.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js",
+          "journal-visual-restoration.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev:frontend -- --port 5174 --strictPort",
+      "url": "http://localhost:5174",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "reading-gestures-lifecycle.spec.js",
+      "file": "reading-gestures-lifecycle.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "completed burst settles even when a timer wakes before its deadline",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8285,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:08:53.334Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a5619d66315e1e49c61d-3ee04f0fc8b6509bc2f4",
+          "file": "reading-gestures-lifecycle.spec.js",
+          "line": 133,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "reading-visual-handoff.spec.js",
+      "file": "reading-visual-handoff.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "paced: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3046,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:09:01.730Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogInBhY2VkIiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbCiAgICB7CiAgICAgICJwYXRobmFtZSI6ICIvYXBpL3Rhcm90LXJlYWRpbmcvdmlzdWFscy9jb250cm9sbGVkLXZpc3VhbC1wYWNlZC9zdHJlYW0iLAogICAgICAibWV0aG9kIjogIkdFVCIKICAgIH0KICBdLAogICJvYnNlcnZlZFJ1bklkIjogImNvbnRyb2xsZWQtdmlzdWFsLXBhY2VkIgp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-a5a9ef8d06de2e7b21e5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "burst: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2878,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:09:04.787Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImJ1cnN0IiwKICAic2NvcGUiOiAibW9jayBQcm8gYXV0aDsgY29udHJvbGxlZCBqb2IgU1NFOyByZWFsIFJlYWRpbmdDb250ZXh0IGFuZCBnZXN0dXJlIHJlbmRlcmVyIiwKICAic291cmNlUnVuIjogIjIwMjYtMTAtMDdUMjMtNDctMTkuOTA4Wi01ZXFwVW0iLAogICJleGNlcnB0U2hhMjU2IjogIjFiM2VjMDJkMWFmN2E0ZWQwNGM1MjJhZTQ0YzUxMjE1MmUzOGE1NTI0ZTUxMTg3NTQyMDY0ZmZiNGU2ODMyNjUiLAogICJuYXJyYXRpdmVDb21wbGV0ZWRCZWZvcmVWaXN1YWxSZWxlYXNlIjogdHJ1ZSwKICAidmlzdWFsUmVxdWVzdHMiOiBbCiAgICB7CiAgICAgICJwYXRobmFtZSI6ICIvYXBpL3Rhcm90LXJlYWRpbmcvdmlzdWFscy9jb250cm9sbGVkLXZpc3VhbC1idXJzdC9zdHJlYW0iLAogICAgICAibWV0aG9kIjogIkdFVCIKICAgIH0KICBdLAogICJvYnNlcnZlZFJ1bklkIjogImNvbnRyb2xsZWQtdmlzdWFsLWJ1cnN0Igp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-95ba13009c819630c5f5",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "final-only: independent late cues reach the completed reading through ReadingContext",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2769,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:09:07.678Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "controlled-delivery.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJtb2RlIjogImZpbmFsLW9ubHkiLAogICJzY29wZSI6ICJtb2NrIFBybyBhdXRoOyBjb250cm9sbGVkIGpvYiBTU0U7IHJlYWwgUmVhZGluZ0NvbnRleHQgYW5kIGdlc3R1cmUgcmVuZGVyZXIiLAogICJzb3VyY2VSdW4iOiAiMjAyNi0xMC0wN1QyMy00Ny0xOS45MDhaLTVlcXBVbSIsCiAgImV4Y2VycHRTaGEyNTYiOiAiMWIzZWMwMmQxYWY3YTRlZDA0YzUyMmFlNDRjNTEyMTUyZTM4YTU1MjRlNTExODc1NDIwNjRmZmI0ZTY4MzI2NSIsCiAgIm5hcnJhdGl2ZUNvbXBsZXRlZEJlZm9yZVZpc3VhbFJlbGVhc2UiOiB0cnVlLAogICJ2aXN1YWxSZXF1ZXN0cyI6IFsKICAgIHsKICAgICAgInBhdGhuYW1lIjogIi9hcGkvdGFyb3QtcmVhZGluZy92aXN1YWxzL2NvbnRyb2xsZWQtdmlzdWFsLWZpbmFsLW9ubHkvc3RyZWFtIiwKICAgICAgIm1ldGhvZCI6ICJHRVQiCiAgICB9CiAgXSwKICAib2JzZXJ2ZWRSdW5JZCI6ICJjb250cm9sbGVkLXZpc3VhbC1maW5hbC1vbmx5Igp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-c7248a2c24ce3f4cc8ec",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 63,
+          "column": 3
+        },
+        {
+          "title": "replacement prose rejects old visual results and reconnects with the new source revision",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2759,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:09:10.456Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-7b02f5219e3fe3002e12",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 149,
+          "column": 1
+        },
+        {
+          "title": "authoritative done revision replaces an unseen suffix and accepts only that revision",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 8629,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\u001b[22m\n\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:222:84",
+                    "location": {
+                      "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                      "column": 84,
+                      "line": 222
+                    },
+                    "snippet": "  220 |     await fixture.emit('visual', 'cues', { binding, cueLedger: ledger, status: 'running' });\n  221 |     await fixture.emit('visual', 'cues', { binding: revisedBinding, cueLedger: revised.ledger, status: 'running' });\n> 222 |     await expect(page.locator(`[data-gesture-id=\"${revised.ledger.cues[0].id}\"]`)).toBeVisible();\n      |                                                                                    ^\n  223 |     await expect(page.locator(`[data-gesture-id=\"${ledger.cues[0].id}\"]`)).toHaveCount(0);\n  224 |   } finally { await fixture.close(); }\n  225 | });"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                        "column": 84,
+                        "line": 222
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[data-gesture-id=\"vc:0f9f4da8580bfee8d6ea7a40e3716ca2457027d18c4cd6fcc02a98673b5f3174\"]')\u001b[22m\n\n\n  220 |     await fixture.emit('visual', 'cues', { binding, cueLedger: ledger, status: 'running' });\n  221 |     await fixture.emit('visual', 'cues', { binding: revisedBinding, cueLedger: revised.ledger, status: 'running' });\n> 222 |     await expect(page.locator(`[data-gesture-id=\"${revised.ledger.cues[0].id}\"]`)).toBeVisible();\n      |                                                                                    ^\n  223 |     await expect(page.locator(`[data-gesture-id=\"${ledger.cues[0].id}\"]`)).toHaveCount(0);\n  224 |   } finally { await fixture.close(); }\n  225 | });\n    at /home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js:222:84"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T16:09:13.223Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-aut-85206--accepts-only-that-revision-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results/reading-visual-handoff-aut-85206--accepts-only-that-revision-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e/reading-visual-handoff.spec.js",
+                    "column": 84,
+                    "line": 222
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-87b3996f1bc3a983c638",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 202,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-09T16:08:51.628Z",
+    "duration": 30362.466,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -1,0 +1,324 @@
+{
+  "id": "gentle-departure",
+  "language": "en",
+  "userQuestion": "What might help me leave an old volunteer role thoughtfully?",
+  "reflectionsText": "I care about the people and still need more space.",
+  "cards": [
+    {
+      "card": "Eight of Cups",
+      "position": "Situation",
+      "orientation": "Upright"
+    },
+    {
+      "card": "Four of Pentacles",
+      "position": "Invitation",
+      "orientation": "Reversed"
+    },
+    {
+      "card": "Six of Swords",
+      "position": "Direction",
+      "orientation": "Upright"
+    }
+  ],
+  "document": {
+    "version": 1,
+    "artworkEdition": "rws-immanuelle-vector",
+    "raw": "## Opening\n\nYou're asking how to leave an old volunteer role thoughtfully. You've also shared that you care about the people and still need more space. These cards hold both.\n\n## The Story\n\nIn the Situation position, the Eight of Cups shows eight stacked cups left behind as a red-cloaked figure walks away. The cups are still stacked. Perhaps what you built in this role can stay standing as you step back.\n\nIn the Invitation position, the Four of Pentacles appears reversed. The card shows a man holding a coin against his chest, with pentacles beneath his feet. Reversed, it may invite loosening that grip. You could let some responsibilities pass to others instead of holding each one yourself.\n\nIn the Direction position, the Six of Swords appears upright: two seated passengers ride in a boat carrying six upright swords. The swords travel with them. Leaving doesn't have to erase what you've carried, and it could unfold at a steady pace.\n\n## Putting It Together\n\nThe walking traveler and the seated passengers both describe leaving as movement rather than rupture. Between them, the loosened coin suggests releasing what you've held tightly to make room.\n\n## Gentle Next Steps\n\n- Consider which tasks you could hand over, and to whom.\n- When you speak with the people you care about, you might name the space you need.\n- Perhaps plan a gradual crossing rather than a sudden exit.\n\n## Closing\n\nYou can honor the cups you stacked and still keep walking toward more space. Care and departure may travel together.",
+    "annotations": [
+      {
+        "id": "id-eight-cups",
+        "kind": "identity",
+        "quote": "Eight of Cups",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-stacked-cups",
+        "kind": "literal",
+        "quote": "eight stacked cups",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "stacked-cups"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-traveler",
+        "kind": "literal",
+        "quote": "a red-cloaked figure walks away",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "departing-traveler"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-cups-standing",
+        "kind": "interpretation",
+        "quote": "Perhaps what you built in this role can stay standing as you step back",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "stacked-cups"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-stacked-cups"
+        ],
+        "personalContext": {
+          "type": "question",
+          "quote": "leave an old volunteer role"
+        }
+      },
+      {
+        "id": "id-four-pentacles",
+        "kind": "identity",
+        "quote": "Four of Pentacles",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-clutched-coin",
+        "kind": "literal",
+        "quote": "a man holding a coin against his chest",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "clutched-coin"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-coins-underfoot",
+        "kind": "literal",
+        "quote": "pentacles beneath his feet",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "coins-underfoot"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-loosen-grip",
+        "kind": "interpretation",
+        "quote": "loosening that grip",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "clutched-coin"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-clutched-coin"
+        ]
+      },
+      {
+        "id": "id-six-swords",
+        "kind": "identity",
+        "quote": "Six of Swords",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": []
+          }
+        ]
+      },
+      {
+        "id": "lit-passengers",
+        "kind": "literal",
+        "quote": "two seated passengers ride in a boat",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "boat-passengers"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "lit-swords",
+        "kind": "literal",
+        "quote": "six upright swords",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "planted-swords"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "int-swords-travel",
+        "kind": "interpretation",
+        "quote": "The swords travel with them",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "planted-swords"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-swords"
+        ]
+      },
+      {
+        "id": "rel-leaving-movement",
+        "kind": "relationship",
+        "quote": "The walking traveler and the seated passengers both describe leaving as movement rather than rupture",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "departing-traveler"
+            ]
+          },
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "boat-passengers"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-traveler",
+          "lit-passengers"
+        ]
+      },
+      {
+        "id": "int-loosened-coin",
+        "kind": "interpretation",
+        "quote": "the loosened coin",
+        "targets": [
+          {
+            "spreadIndex": 1,
+            "detailIds": [
+              "clutched-coin"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-clutched-coin"
+        ]
+      },
+      {
+        "id": "int-gradual-crossing",
+        "kind": "interpretation",
+        "quote": "plan a gradual crossing",
+        "targets": [
+          {
+            "spreadIndex": 2,
+            "detailIds": [
+              "boat-passengers"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-passengers"
+        ]
+      },
+      {
+        "id": "bal-cups-walking",
+        "kind": "balance",
+        "quote": "honor the cups you stacked and still keep walking toward more space",
+        "targets": [
+          {
+            "spreadIndex": 0,
+            "detailIds": [
+              "stacked-cups",
+              "departing-traveler"
+            ]
+          }
+        ],
+        "establishedBy": [
+          "lit-stacked-cups",
+          "lit-traveler"
+        ],
+        "personalContext": {
+          "type": "querent-reflection",
+          "quote": "still need more space"
+        }
+      }
+    ]
+  },
+  "generation": {
+    "startedAt": "2026-10-09T12:25:02.350Z",
+    "completedAt": "2026-10-09T12:26:04.847Z",
+    "actualModel": "claude-opus-5-5",
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 1032,
+      "cache_read_input_tokens": 2052,
+      "output_tokens": 7201,
+      "output_tokens_details": {
+        "thinking_tokens": 5260
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 1032,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "promptSha256": "81e12da14be1bb480fc609b053fb4b1e3d42afa323c8fc93ba7b9ba3b8bf62de",
+    "responseText": "{\"version\":1,\"artworkEdition\":\"rws-immanuelle-vector\",\"raw\":\"## Opening\\n\\nYou're asking how to leave an old volunteer role thoughtfully. You've also shared that you care about the people and still need more space. These cards hold both.\\n\\n## The Story\\n\\nIn the Situation position, the Eight of Cups shows eight stacked cups left behind as a red-cloaked figure walks away. The cups are still stacked. Perhaps what you built in this role can stay standing as you step back.\\n\\nIn the Invitation position, the Four of Pentacles appears reversed. The card shows a man holding a coin against his chest, with pentacles beneath his feet. Reversed, it may invite loosening that grip. You could let some responsibilities pass to others instead of holding each one yourself.\\n\\nIn the Direction position, the Six of Swords appears upright: two seated passengers ride in a boat carrying six upright swords. The swords travel with them. Leaving doesn't have to erase what you've carried, and it could unfold at a steady pace.\\n\\n## Putting It Together\\n\\nThe walking traveler and the seated passengers both describe leaving as movement rather than rupture. Between them, the loosened coin suggests releasing what you've held tightly to make room.\\n\\n## Gentle Next Steps\\n\\n- Consider which tasks you could hand over, and to whom.\\n- When you speak with the people you care about, you might name the space you need.\\n- Perhaps plan a gradual crossing rather than a sudden exit.\\n\\n## Closing\\n\\nYou can honor the cups you stacked and still keep walking toward more space. Care and departure may travel together.\",\"annotations\":[{\"id\":\"id-eight-cups\",\"kind\":\"identity\",\"quote\":\"Eight of Cups\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[]}]},{\"id\":\"lit-stacked-cups\",\"kind\":\"literal\",\"quote\":\"eight stacked cups\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"stacked-cups\"]}]},{\"id\":\"lit-traveler\",\"kind\":\"literal\",\"quote\":\"a red-cloaked figure walks away\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"departing-traveler\"]}]},{\"id\":\"int-cups-standing\",\"kind\":\"interpretation\",\"quote\":\"Perhaps what you built in this role can stay standing as you step back\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"stacked-cups\"]}],\"establishedBy\":[\"lit-stacked-cups\"],\"personalContext\":{\"type\":\"question\",\"quote\":\"leave an old volunteer role\"}},{\"id\":\"id-four-pentacles\",\"kind\":\"identity\",\"quote\":\"Four of Pentacles\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[]}]},{\"id\":\"lit-clutched-coin\",\"kind\":\"literal\",\"quote\":\"a man holding a coin against his chest\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"clutched-coin\"]}]},{\"id\":\"lit-coins-underfoot\",\"kind\":\"literal\",\"quote\":\"pentacles beneath his feet\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"coins-underfoot\"]}]},{\"id\":\"int-loosen-grip\",\"kind\":\"interpretation\",\"quote\":\"loosening that grip\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"clutched-coin\"]}],\"establishedBy\":[\"lit-clutched-coin\"]},{\"id\":\"id-six-swords\",\"kind\":\"identity\",\"quote\":\"Six of Swords\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[]}]},{\"id\":\"lit-passengers\",\"kind\":\"literal\",\"quote\":\"two seated passengers ride in a boat\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"boat-passengers\"]}]},{\"id\":\"lit-swords\",\"kind\":\"literal\",\"quote\":\"six upright swords\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"planted-swords\"]}]},{\"id\":\"int-swords-travel\",\"kind\":\"interpretation\",\"quote\":\"The swords travel with them\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"planted-swords\"]}],\"establishedBy\":[\"lit-swords\"]},{\"id\":\"rel-leaving-movement\",\"kind\":\"relationship\",\"quote\":\"The walking traveler and the seated passengers both describe leaving as movement rather than rupture\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"departing-traveler\"]},{\"spreadIndex\":2,\"detailIds\":[\"boat-passengers\"]}],\"establishedBy\":[\"lit-traveler\",\"lit-passengers\"]},{\"id\":\"int-loosened-coin\",\"kind\":\"interpretation\",\"quote\":\"the loosened coin\",\"targets\":[{\"spreadIndex\":1,\"detailIds\":[\"clutched-coin\"]}],\"establishedBy\":[\"lit-clutched-coin\"]},{\"id\":\"int-gradual-crossing\",\"kind\":\"interpretation\",\"quote\":\"plan a gradual crossing\",\"targets\":[{\"spreadIndex\":2,\"detailIds\":[\"boat-passengers\"]}],\"establishedBy\":[\"lit-passengers\"]},{\"id\":\"bal-cups-walking\",\"kind\":\"balance\",\"quote\":\"honor the cups you stacked and still keep walking toward more space\",\"targets\":[{\"spreadIndex\":0,\"detailIds\":[\"stacked-cups\",\"departing-traveler\"]}],\"establishedBy\":[\"lit-stacked-cups\",\"lit-traveler\"],\"personalContext\":{\"type\":\"querent-reflection\",\"quote\":\"still need more space\"}}]}"
+  },
+  "validation": {
+    "errors": [],
+    "suppliedAnnotations": 16,
+    "acceptedAnnotations": 16,
+    "compiledCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 5,
+      "balance": 1,
+      "relationship": 1
+    },
+    "fallbackCounts": {
+      "identity": 3,
+      "literal": 6,
+      "interpretation": 0,
+      "balance": 0,
+      "relationship": 0
+    },
+    "personalContextCount": 2,
+    "introducedCards": 3,
+    "modelLiteralReferences": 6,
+    "fallbackLiteralMatches": 6,
+    "rawSha256": "6c5f4ba99b6cbd4c1e70b8c906a36b869f23848d9f927ce15ba085760a6727e1",
+    "wordCount": 259
+  }
+}

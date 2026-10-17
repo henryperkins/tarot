@@ -55,6 +55,12 @@ export default [
     },
   },
 
+  // Native JSON import attributes keep the artwork resolver usable by Node and Vite.
+  {
+    files: ['src/data/cardGestureAssets.js'],
+    languageOptions: { ecmaVersion: 2025 },
+  },
+
   // React components in src/
   {
     files: ['src/**/*.{js,jsx}'],

@@ -1,0 +1,161 @@
+{
+  "config": {
+    "argv": [
+      "/home/ubuntu/.nvm/versions/node/v24.21.0/bin/node",
+      "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "output/reading-motion/react-bridge.playwright.config.mjs",
+      "e2e/reading-visual-handoff.spec.js",
+      "--project=chromium",
+      "--grep",
+      "reading-only delivery",
+      "--reporter=list,json"
+    ],
+    "configFile": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/output/reading-motion/react-bridge.playwright.config.mjs",
+    "rootDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/home/ubuntu/tarot/.worktrees/reading-gestures-react-bridge/e2e",
+        "testIgnore": [
+          "**/*.integration.spec.js",
+          "**/journal-owner.spec.js"
+        ],
+        "testMatch": [
+          "reading-gestures.spec.js",
+          "reading-gestures-lifecycle.spec.js",
+          "reading-gestures-dynamic.spec.js",
+          "reading-gestures-refinement.spec.js",
+          "reading-gestures-deck.spec.js",
+          "reading-gestures-generated.spec.js",
+          "reading-visual-handoff.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev:frontend -- --port 5174 --strictPort",
+      "url": "http://localhost:5174",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "reading-visual-handoff.spec.js",
+      "file": "reading-visual-handoff.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "reading-only delivery remains complete with no visual capability",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4167,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-09T15:51:54.169Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "5b38206193fb03abb5a8-291295d4492502070521",
+          "file": "reading-visual-handoff.spec.js",
+          "line": 103,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-09T15:51:52.209Z",
+    "duration": 6359.526,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
