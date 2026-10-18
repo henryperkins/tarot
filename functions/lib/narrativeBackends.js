@@ -595,13 +595,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const visionPromptEligibility = summarizeVisionPromptEligibility(payload?.visionInsights);
 
   const hasGraphRAGSource = hasMeaningfulGraphRAGPayload(graphRAGPayload) || hasMeaningfulGraphKeys(analysis?.themes?.knowledgeGraph?.graphKeys);
-  const graphRAGHighlightsUsed = Array.isArray(analysis?.themes?.knowledgeGraph?.narrativeHighlights)
-    && analysis.themes.knowledgeGraph.narrativeHighlights.length > 0;
   const graphRAGVisibleInOutput = Boolean(promptMeta?.graphRAG?.debugVisibleInOutput || promptMeta?.graphRAG?.visibleInOutput);
-  const graphRAGUsed = graphRAGVisibleInOutput || graphRAGHighlightsUsed;
-  const graphRAGMode = graphRAGVisibleInOutput
-    ? 'full'
-    : (graphRAGHighlightsUsed ? 'summary' : 'none');
+  // Detected patterns are analysis metadata; the composer does not weave them
+  // into its narrative. Only the explicit reference postscript uses passages.
+  const graphRAGUsed = graphRAGVisibleInOutput;
+  const graphRAGMode = graphRAGVisibleInOutput ? 'full' : 'none';
   const passagesProvided = Number.isFinite(promptMeta?.graphRAG?.passagesProvided)
     ? promptMeta.graphRAG.passagesProvided
     : (

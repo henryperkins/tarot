@@ -11,6 +11,7 @@ import {
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
+import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
 import {
   analyzeCelticCross,
@@ -249,6 +250,27 @@ describe('composeReadingEnhanced', () => {
     assert.ok(result.reading.includes('## Traditional Wisdom'));
     assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
     assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
+    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, true);
+    assert.ok(formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
+  });
+
+  it('does not claim detected patterns as wisdom used by the local composer', async () => {
+    const cardsInfo = [
+      major('Death', 13, 'Past'), major('Temperance', 14, 'Present'), major('The Star', 17, 'Future')
+    ];
+    const themes = await analyzeSpreadThemes(cardsInfo, { env: { GRAPHRAG_ENABLED: 'true' } });
+    assert.ok(themes.knowledgeGraph.narrativeHighlights.length > 0);
+    const passages = themes.knowledgeGraph.retrievedPassages;
+    assert.ok(passages.length > 0);
+    const result = await composeReadingEnhanced({
+      spreadInfo: { name: 'Past, Present, Future', key: 'threeCard' }, cardsInfo,
+      userQuestion: 'How can I navigate this transition?', context: 'general',
+      analysis: { themes, spreadKey: 'threeCard', spreadAnalysis: analyzeThreeCard(cardsInfo), graphRAGPayload: { passages } }
+    });
+    for (const passage of passages) assert.ok(!result.reading.includes(passage.text));
+    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, false);
+    assert.equal(result.promptMeta.sourceUsage.graphRAG.mode, 'none');
+    assert.ok(!formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
   });
 
   it('suppresses GraphRAG omission alerts when debug passages are visibly appended', async () => {
