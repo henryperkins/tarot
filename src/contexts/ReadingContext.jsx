@@ -1615,9 +1615,9 @@ export function ReadingProvider({ children }) {
         const reversedIdx = visibleReading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
         if (reversedIdx.length > 0) {
             const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
-            let text = `These often point to inner processing, timing delays, or tension in the theme.`;
+            let text = `${reversedIdx.length === 1 ? 'This often points' : 'These often point'} to inner processing, timing delays, or tension in the theme.`;
             if (hasCluster) text += ' Consecutive reversals suggest the theme persists across positions.';
-            items.push({ key: 'reversal-summary', icon: '⤴', title: `Reversed cards (${reversedIdx.length}):`, text });
+            items.push({ key: 'reversal-summary', icon: '⤴', title: `Reversed card${reversedIdx.length === 1 ? '' : 's'} (${reversedIdx.length}):`, text });
         }
         const relationshipMeta = {
             sequence: { icon: '→', title: 'Sequence:' },

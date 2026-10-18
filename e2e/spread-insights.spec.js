@@ -10,7 +10,7 @@ test.use({ serviceWorkers: 'block' });
 // This seed draws The Star, Temperance/Art, and Death through the real UI.
 const DRAW_TIME = 1790500049291;
 
-async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices, drawTime = DRAW_TIME } = {}, check) {
+async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices, spreadName, drawTime = DRAW_TIME } = {}, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(drawTime);
@@ -18,7 +18,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false, passage
   const sourceUsage = structuredClone(SOURCE_USAGE.reference);
   const fixture = await createNarrativeFixture(page, { sourceUsage });
   try {
-    await startReading(page, fixture, { complete: false });
+    await startReading(page, fixture, { complete: false, spreadName });
     await expect.poll(() => fixture.requests.reading.length).toBe(1);
     if (!fallback) {
       const request = fixture.requests.reading[0];
@@ -304,5 +304,17 @@ test('local fallback keeps all highlights reachable without empty sections', asy
     await expect(panel.getByRole('button', { name: /^Archetypal patterns|^Traditional wisdom/ })).toHaveCount(0);
     await panel.getByRole('button', { name: /^More spread details/ }).press('Enter');
     await expect(panel).toContainText('Deck scope:');
+  });
+});
+
+
+test('one reversed card has one singular orientation insight', async ({ page }) => {
+  await withInsights(page, { fallback: true, spreadName: 'One-Card Insight' }, async (panel, fixture) => {
+    expect(fixture.requests.reading[0].cardsInfo).toHaveLength(1);
+    expect(fixture.requests.reading[0].cardsInfo[0].orientation).toBe('Reversed');
+    await openSupportingSections(panel);
+    await expect(panel).not.toContainText('A majority of reversed cards');
+    await expect(panel).toContainText('Reversed card (1):');
+    await expect(panel.getByRole('listitem').filter({ hasText: /Revers/ })).toHaveCount(1);
   });
 });

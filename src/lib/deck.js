@@ -95,7 +95,7 @@ export function getDeckPool(includeMinors = false) {
 }
 
 export function computeRelationships(cards) {
-  if (!cards || cards.length === 0) return [];
+  if (!cards || cards.length < 2) return [];
 
   const relationships = [];
   const numbers = cards.map(card => card.number);

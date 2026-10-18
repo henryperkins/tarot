@@ -449,3 +449,14 @@ describe('Deck Shuffling and Seeding', () => {
 });
 
 console.log('Running deck tests...');
+
+
+describe('single-card reversal language', () => {
+  it('leaves a lone reversal to the orientation summary', () => {
+    assert.deepEqual(computeRelationships([{ ...MAJOR_ARCANA[17], isReversed: true }]), []);
+  });
+  it('keeps the majority pattern for multiple reversed cards', () => {
+    const cards = [17, 14, 13].map((number, index) => ({ ...MAJOR_ARCANA[number], isReversed: index < 2 }));
+    assert.ok(computeRelationships(cards).some(item => item.type === 'reversal-heavy'));
+  });
+});
