@@ -15,6 +15,7 @@
  */
 
 import { GUEST_DRAFT_OWNER } from './questionDraft.js';
+import { getKnownDeckStyleId, getSnapshotDeckStyleId } from './readingDeck.js';
 
 export const READING_SNAPSHOT_STORAGE_KEY = 'tarot:reading-snapshot';
 export const READING_SNAPSHOT_VERSION = 1;
@@ -57,6 +58,7 @@ export function buildReadingSnapshot({
   hasUserSelectedSpread = false,
   reading,
   drawIncludeMinors = null,
+  drawDeckStyleId = null,
   isSpreadDealt = false,
   revealedCards,
   dealIndex = 0,
@@ -80,6 +82,7 @@ export function buildReadingSnapshot({
     hasUserSelectedSpread: Boolean(hasUserSelectedSpread),
     reading: cards,
     drawIncludeMinors: typeof drawIncludeMinors === 'boolean' ? drawIncludeMinors : null,
+    drawDeckStyleId: getKnownDeckStyleId(drawDeckStyleId),
     isSpreadDealt: Boolean(isSpreadDealt),
     revealed,
     dealIndex: Number.isInteger(dealIndex) && dealIndex >= 0 ? dealIndex : 0,
@@ -138,7 +141,9 @@ export function loadReadingSnapshot({ owner = null, storage = getSessionStorage(
       return null;
     }
     if (owner && !snapshotBelongsTo(snapshot, owner)) return null;
-    return { ...snapshot, drawIncludeMinors: typeof snapshot.drawIncludeMinors === 'boolean' ? snapshot.drawIncludeMinors : null };
+    return { ...snapshot,
+      drawIncludeMinors: typeof snapshot.drawIncludeMinors === 'boolean' ? snapshot.drawIncludeMinors : null,
+      drawDeckStyleId: getSnapshotDeckStyleId(snapshot) };
   } catch {
     return null;
   }

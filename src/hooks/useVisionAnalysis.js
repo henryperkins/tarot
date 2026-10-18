@@ -106,8 +106,9 @@ const mergeVisionResults = (existing = [], incoming = []) => {
   return merged.slice(-MAX_VISION_UPLOADS);
 };
 
-export function useVisionAnalysis(reading = []) {
-  const { deckStyleId } = usePreferences();
+export function useVisionAnalysis(reading = [], readingDeckStyleId = null) {
+  const { deckStyleId: preferredDeckStyleId } = usePreferences();
+  const deckStyleId = readingDeckStyleId || preferredDeckStyleId;
   const [visionResults, setVisionResults] = useState([]);
   const [visionConflicts, setVisionConflicts] = useState([]);
   const [visionProof, setVisionProof] = useState(null);

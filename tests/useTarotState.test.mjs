@@ -20,6 +20,32 @@ test('an uninterrupted shuffle commits the chosen spread and its ritual', async 
   assert.equal(h.render().isShuffling, false);
 });
 
+test('draw deck stays with its cards when the preference changes; a new draw uses the new deck', async t => {
+  const h = await tarotStateHarness({ preferences: { deckStyleId: 'thoth-a1' } });
+  t.after(() => h.unmount());
+  h.render().shuffle(); h.pendingShuffle()();
+  h.preferences.deckStyleId = 'marseille-classic';
+  assert.equal(h.render().drawDeckStyleId, 'thoth-a1');
+  assert.equal(h.render().readingDeckStyleId, 'thoth-a1');
+  h.render().shuffle(); h.pendingShuffle()();
+  assert.equal(h.render().drawDeckStyleId, 'marseille-classic');
+  h.render().resetReadingState();
+  assert.equal(h.render().drawDeckStyleId, null);
+});
+
+test('restored draw deck and journal deck win over the current preference', async t => {
+  const h = await tarotStateHarness({ preferences: { deckStyleId: 'rws-1909' }, snapshot: {
+    owner: 'user:owner-a', spreadKey: 'threeCard', reading: [{ name: 'Temperance' }],
+    analysis: { themes: { deckStyle: 'thoth-a1' } }
+  } });
+  t.after(() => h.unmount());
+  assert.equal(h.render().readingDeckStyleId, 'thoth-a1');
+  h.render().setReading([{ name: 'Death' }], false, 'marseille-classic');
+  assert.equal(h.render().readingDeckStyleId, 'marseille-classic');
+  h.render().setReading([{ name: 'The Star' }]);
+  assert.equal(h.render().drawDeckStyleId, null, 'unknown imports do not inherit the previous draw deck');
+});
+
 for (const [name, invalidate] of [
   ['reset', (h, state) => state.resetReadingState()],
   ['spread selection', (h, state) => state.selectSpread('celtic')],

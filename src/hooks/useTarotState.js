@@ -16,6 +16,7 @@ import {
 import { clearReadingSnapshot, loadReadingSnapshot, snapshotBelongsTo } from '../lib/readingSnapshot';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
+import { getKnownDeckStyleId, getSnapshotDeckStyleId } from '../lib/readingDeck.js';
 
 const SKIP_RITUAL_DEFAULTS = {
   knockTimes: [100, 200, 300],
@@ -23,7 +24,7 @@ const SKIP_RITUAL_DEFAULTS = {
 };
 
 export function useTarotState(speak) {
-  const { includeMinors, deckSize, personalization } = usePreferences();
+  const { includeMinors, deckSize, personalization, deckStyleId } = usePreferences();
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const { user, loading: authLoading } = useAuth();
   const { vibrate } = useHaptic();
@@ -56,16 +57,21 @@ export function useTarotState(speak) {
   }, [cancelShuffle]);
   const [draw, setDraw] = useState(() => ({
     reading: initialSnapshot?.reading ?? null,
-    drawIncludeMinors: initialSnapshot?.drawIncludeMinors ?? null
+    drawIncludeMinors: initialSnapshot?.drawIncludeMinors ?? null,
+    drawDeckStyleId: getSnapshotDeckStyleId(initialSnapshot)
   }));
-  const { reading, drawIncludeMinors } = draw;
+  const { reading, drawIncludeMinors, drawDeckStyleId } = draw;
+  const readingDeckStyleId = reading
+    ? drawDeckStyleId || 'rws-1909'
+    : getKnownDeckStyleId(deckStyleId) || 'rws-1909';
   // Keep scope and cards atomic. Imported/legacy readings have unknown scope
   // unless their saved metadata explicitly records it.
-  const setReading = useCallback((cards, includeMinorsAtDraw = null) => {
+  const setReading = useCallback((cards, includeMinorsAtDraw = null, deckAtDraw = null) => {
     cancelShuffle();
     setDraw(current => ({
       reading: typeof cards === 'function' ? cards(current.reading) : cards,
-      drawIncludeMinors: typeof includeMinorsAtDraw === 'boolean' ? includeMinorsAtDraw : null
+      drawIncludeMinors: typeof includeMinorsAtDraw === 'boolean' ? includeMinorsAtDraw : null,
+      drawDeckStyleId: getKnownDeckStyleId(deckAtDraw)
     }));
   }, [cancelShuffle]);
   const [revealedCards, setRevealedCards] = useState(() => new Set(initialSnapshot?.revealed || []));
@@ -312,7 +318,7 @@ export function useTarotState(speak) {
 
     shuffleTimeoutRef.current = setTimeout(() => {
       if (generation !== shuffleGenerationRef.current) return;
-      setReading(cards, includeMinors);
+      setReading(cards, includeMinors, getKnownDeckStyleId(deckStyleId) || 'rws-1909');
       setIsShuffling(false);
       setSessionSeed(nextSessionSeed);
 
@@ -322,7 +328,7 @@ export function useTarotState(speak) {
         setHasCut(true);
       }
     }, 1200);
-  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, resetReadingState, shouldSkipRitual, deckSize, setReading]);
+  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, deckStyleId, resetReadingState, shouldSkipRitual, deckSize, setReading]);
 
   const shortLineForCard = useCallback((card, position) => {
     const meaning = card.isReversed ? card.reversed : card.upright;
@@ -335,10 +341,10 @@ export function useTarotState(speak) {
     // Ritual choices made at the table are applied when its cards are committed.
     const useSeed = Boolean(hasKnocked || hasCut || userQuestion.trim() || shouldSkipRitual);
     const seed = computeSeed({ cutIndex, knockTimes: knockTimesRef.current, userQuestion });
-    setReading(drawSpread({ spreadKey: selectedSpread, useSeed, seed, includeMinors }), includeMinors);
+    setReading(drawSpread({ spreadKey: selectedSpread, useSeed, seed, includeMinors }), includeMinors, getKnownDeckStyleId(deckStyleId) || 'rws-1909');
     setSessionSeed(useSeed ? seed : null);
     setIsSpreadDealt(true);
-  }, [reading, isShuffling, isSpreadDealt, hasKnocked, hasCut, userQuestion, shouldSkipRitual, cutIndex, selectedSpread, includeMinors, setReading]);
+  }, [reading, isShuffling, isSpreadDealt, hasKnocked, hasCut, userQuestion, shouldSkipRitual, cutIndex, selectedSpread, includeMinors, deckStyleId, setReading]);
 
   const resetReveals = useCallback(() => {
     setRevealedCards(new Set());
@@ -403,6 +409,8 @@ export function useTarotState(speak) {
     selectSpread,
     reading,
     drawIncludeMinors,
+    drawDeckStyleId,
+    readingDeckStyleId,
     setReading,
     isShuffling,
     isSpreadDealt,

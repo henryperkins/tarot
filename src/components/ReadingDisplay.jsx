@@ -16,6 +16,7 @@ import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
 import { readingGestureEdition, readingGesturesEnabled } from '../lib/readingGestureSettings';
+import { getCardForDeck } from '../lib/cardLookup.js';
 import { determineColorScript } from '../lib/colorScript';
 import { ReadingChrome } from './reading/ReadingChrome';
 import { ReadingSceneRouter } from './reading/ReadingSceneRouter';
@@ -68,6 +69,7 @@ export function ReadingDisplay({
         // Tarot State
         selectedSpread,
         reading,
+        readingDeckStyleId: deckStyleId,
         isShuffling,
         isSpreadDealt,
         dealSpread,
@@ -212,7 +214,6 @@ export function ReadingDisplay({
     const {
         voiceOn,
         autoNarrate,
-        deckStyleId,
         deckSize,
         personalization,
         ttsProvider,
@@ -242,6 +243,7 @@ export function ReadingDisplay({
     const spreadInfo = getSpreadInfo(safeSpreadKey);
     const maxCards = typeof spreadInfo?.maxCards === 'number' ? spreadInfo.maxCards : null;
     const visibleCount = reading ? (maxCards ? Math.min(reading.length, maxCards) : reading.length) : 0;
+    const displayReading = useMemo(() => reading?.map(card => getCardForDeck(card, deckStyleId)) || null, [reading, deckStyleId]);
     const canShowVisionPanel = visionResearchEnabled && isAuthenticated;
     const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
     const canUseMediaGallery = isAuthenticated && canAutoGenerateVisuals;
@@ -261,7 +263,7 @@ export function ReadingDisplay({
         handleNavigateCard
     } = useReadingSelection({
         readingIdentity,
-        reading,
+        reading: displayReading,
         revealedCards,
         visibleCount,
         spreadPositions: spreadInfo?.positions || [],
@@ -608,7 +610,7 @@ export function ReadingDisplay({
         handleRevealAllWithScroll,
         handleResetReveals,
         safeSpreadKey,
-        reading,
+        reading: displayReading,
         revealCard,
         handleCardClick,
         activeFocusedCardData,

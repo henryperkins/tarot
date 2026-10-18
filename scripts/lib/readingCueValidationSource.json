@@ -919,6 +919,7 @@
     "src/lib/questionQuality.js",
     "src/lib/radioGroupKeyboard.js",
     "src/lib/readingCueTimingProbe.js",
+    "src/lib/readingDeck.js",
     "src/lib/readingErrors.js",
     "src/lib/readingGestureSettings.js",
     "src/lib/readingJobStream.js",

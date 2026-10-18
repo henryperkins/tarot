@@ -12,6 +12,7 @@ export function useSaveReading() {
     const {
         reading,
         drawIncludeMinors,
+        drawDeckStyleId: deckStyleId,
         personalReading,
         themes,
         reflections,
@@ -26,7 +27,6 @@ export function useSaveReading() {
     } = useReading();
 
     const {
-        deckStyleId,
         personalization,
         incrementJournalSaveCount,
         cachedLocation,

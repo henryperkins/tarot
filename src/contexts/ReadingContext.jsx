@@ -62,6 +62,8 @@ export function ReadingProvider({ children }) {
     const {
         reading,
         drawIncludeMinors,
+        drawDeckStyleId,
+        readingDeckStyleId: deckStyleId,
         selectedSpread,
         userQuestion,
         revealedCards,
@@ -76,7 +78,6 @@ export function ReadingProvider({ children }) {
         snapshotRevision
     } = tarotState;
     const {
-        deckStyleId,
         reversalFramework,
         personalization,
         autoNarrate,
@@ -88,7 +89,7 @@ export function ReadingProvider({ children }) {
     } = usePreferences();
 
     // 3. Vision Analysis
-    const visionAnalysis = useVisionAnalysis(reading);
+    const visionAnalysis = useVisionAnalysis(reading, deckStyleId);
     const { visionResults, visionConflicts, resetVisionProof: _resetVisionProof, ensureVisionProof, getVisionConflictsForCards, setVisionConflicts } = visionAnalysis;
 
     const personalizationForRequest = useMemo(() => {
@@ -307,6 +308,7 @@ export function ReadingProvider({ children }) {
                 hasUserSelectedSpread,
                 reading,
                 drawIncludeMinors,
+                drawDeckStyleId,
                 isSpreadDealt,
                 revealedCards,
                 dealIndex,
@@ -325,7 +327,7 @@ export function ReadingProvider({ children }) {
         const timer = setTimeout(save, 250);
         return () => clearTimeout(timer);
     }, [
-        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, isSpreadDealt, revealedCards,
+        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, drawDeckStyleId, isSpreadDealt, revealedCards,
         dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
         userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
         readingMeta, lastCardsForFeedback

@@ -86,6 +86,24 @@ describe('reading snapshot', () => {
     }
   });
 
+  it('round-trips the draw deck and recovers known legacy analysis without inventing a deck', () => {
+    for (const drawDeckStyleId of ['thoth-a1', 'marseille-classic', 'rws-1909']) {
+      saveReadingSnapshot(snapshot({ drawDeckStyleId }), { storage });
+      assert.equal(loadReadingSnapshot({ storage, now: NOW }).drawDeckStyleId, drawDeckStyleId);
+    }
+    for (const [analysis, want] of [
+      [{ readingMeta: { deckStyle: 'thoth-a1' } }, 'thoth-a1'],
+      [{ themes: { deckStyle: 'marseille-classic' } }, 'marseille-classic'],
+      [{ themes: { deckStyle: 'unknown-deck' } }, null],
+      [null, null]
+    ]) {
+      const legacy = { ...snapshot(), analysis };
+      delete legacy.drawDeckStyleId;
+      storage.setItem(READING_SNAPSHOT_STORAGE_KEY, JSON.stringify(legacy));
+      assert.equal(loadReadingSnapshot({ storage, now: NOW }).drawDeckStyleId, want);
+    }
+  });
+
   it('keeps a finished narrative with its analysis', () => {
     saveReadingSnapshot(snapshot({
       narrative: { raw: '## Opening\nA steady rhythm.', provider: 'claude-api', requestId: 'req-1', isStreaming: false },
