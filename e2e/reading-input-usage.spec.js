@@ -123,3 +123,21 @@ for (const hasSnapshot of [false, true]) {
     }
   });
 }
+
+for (const explicit of [false, true]) {
+  test(`journal saves preserve ${explicit ? 'explicit default choices' : 'absence of chosen preferences'}`, async ({ page }) => {
+    if (explicit) await page.addInitScript(() => {
+      localStorage.setItem('tarot-personalization:fixture-pro-user', JSON.stringify({ readingTone: 'balanced' }));
+      localStorage.setItem('tarot-personalization:fixture-pro-user:explicit-fields', JSON.stringify(['readingTone']));
+    });
+    const fixture = await createNarrativeFixture(page);
+    try {
+      await startReading(page, fixture);
+      await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
+      await expect.poll(() => fixture.requests.journal.length).toBe(1);
+      expect(fixture.requests.journal[0].userPreferences).toEqual(explicit
+        ? { readingTone: 'balanced', _explicitFields: ['readingTone'] }
+        : { _explicitFields: [] });
+    } finally { await fixture.close(); }
+  });
+}

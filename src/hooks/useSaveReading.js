@@ -6,6 +6,7 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from './useJournal';
 import { getSpreadInfo } from '../data/spreads';
 import { sanitizeSourceUsage } from '../../shared/readingSourceUsage';
+import { buildPersonalizationRequestPayload } from '../utils/personalizationStorage.js';
 import { publicVisualSnapshot } from '../lib/readingVisualStorage.js';
 
 export function useSaveReading() {
@@ -28,6 +29,7 @@ export function useSaveReading() {
 
     const {
         personalization,
+        personalizationExplicitFields,
         incrementJournalSaveCount,
         cachedLocation,
         persistLocationToJournal,
@@ -115,19 +117,10 @@ export function useSaveReading() {
             requestId: readingMeta?.requestId || null,
             sourceUsage: (personalReading?.provider || readingMeta?.provider) === 'safe-fallback'
                 ? null : sanitizeSourceUsage(readingMeta?.sourceUsage),
-            // Snapshot of user preferences at the time of the reading (Phase 5.1)
-            userPreferences: personalization ? {
-                readingTone: personalization.readingTone || 'balanced',
-                spiritualFrame: personalization.spiritualFrame || 'mixed',
-                tarotExperience: personalization.tarotExperience || 'intermediate',
-                // Capture reading depth preference for narrative length consistency
-                preferredSpreadDepth: personalization.preferredSpreadDepth || 'standard',
-                focusAreas: Array.isArray(personalization.focusAreas)
-                    ? personalization.focusAreas.filter((area) => typeof area === 'string' && area.trim().length > 0)
-                    : [],
-                // Store displayName only if set (avoid null/empty)
-                ...(personalization.displayName?.trim() ? { displayName: personalization.displayName.trim() } : {})
-            } : null,
+            // Keep the same chosen fields as the reading request. An explicit
+            // empty snapshot supersedes older choices without inventing defaults.
+            userPreferences: buildPersonalizationRequestPayload(personalization, personalizationExplicitFields)
+                || { _explicitFields: [] },
             // Location data (only included if enabled and consent given)
             // Use explicit null/undefined checks - 0° lat/long are valid coordinates
             ...(locationEnabled && persistLocationToJournal &&
@@ -181,7 +174,7 @@ export function useSaveReading() {
     }, [
         readingKey, sessionSeed, reading, drawIncludeMinors, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
-        deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
+        deckStyleId, personalization, personalizationExplicitFields, saveEntry, setJournalStatus, incrementJournalSaveCount,
         locationEnabled, cachedLocation, persistLocationToJournal, followUps, setSaveState, visualResume
     ]);
 

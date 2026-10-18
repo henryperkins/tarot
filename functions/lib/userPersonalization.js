@@ -203,7 +203,13 @@ async function loadLatestJournalPreferences(db, userId) {
   if (!result?.user_preferences_json) return null;
 
   const parsed = safeJsonParse(result.user_preferences_json, null);
-  return sanitizePersonalizationInput(parsed);
+  const preferences = sanitizePersonalizationInput(parsed);
+  const explicitFields = new Set(normalizeExplicitFields(parsed?.[PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY]));
+  // Legacy journal saves filled every default even when no choice was made.
+  // Keep nondefaults and recorded choices, including deliberately chosen defaults.
+  return Object.fromEntries(Object.entries(preferences).filter(([field, value]) =>
+    explicitFields.has(field) || !isClientDefaultRequestValue(field, value)
+  ));
 }
 
 export async function loadStoredPersonalization(db, userId) {

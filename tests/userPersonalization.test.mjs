@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
+import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 import { describe, test } from 'node:test';
 
 import {
@@ -265,4 +267,27 @@ describe('resolveReadingPersonalizationContext', () => {
     assert.equal(result.storedPersonalization, null);
     assert.deepEqual(result.memories, []);
   });
+});
+
+for (const journalPreferences of [
+  { readingTone: 'balanced', spiritualFrame: 'mixed', tarotExperience: 'newbie', preferredSpreadDepth: 'standard', focusAreas: [] },
+  { _explicitFields: [] }
+]) {
+  test('a journal snapshot of implicit defaults does not activate preferences', async () => {
+    const result = await resolveReadingPersonalizationContext(createDb({ journalPreferences }), 'user-1', null, { loadMemories: async () => [] });
+    assert.equal(result.personalization, null);
+    const { promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'single', name: 'One card' },
+      cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme' }],
+      userQuestion: 'What can I reflect on today?', personalization: result.personalization
+    });
+    assert.equal(formatUsageSummary(promptMeta.sourceUsage).rows.some(row => row.label === 'Your preferences'), false);
+  });
+}
+
+test('explicit saved defaults still count as a choice', async () => {
+  const result = await resolveReadingPersonalizationContext(createDb({ journalPreferences: {
+    readingTone: 'balanced', preferredSpreadDepth: 'standard', _explicitFields: ['readingTone', 'preferredSpreadDepth']
+  } }), 'user-1', null, { loadMemories: async () => [] });
+  assert.deepEqual(result.personalization, { readingTone: 'balanced', preferredSpreadDepth: 'standard' });
 });
