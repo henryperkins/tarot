@@ -44,6 +44,9 @@ export function buildSpreadInsightSections(spreadHighlights, archetypeHighlights
 export function findInsightCardMentions(text, cards = [], { sourceDeck } = {}) {
   if (typeof text !== 'string' || !text) return [];
   const matches = [];
+  const rwsLabels = [...text.matchAll(/\(RWS:\s*([^)]*)\)/gi)].map(match => ({
+    start: match.index, end: match.index + match[0].length
+  }));
   cards.forEach((card, index) => {
     // A quoted RWS Knight must still open the canonical Knight when the chosen
     // Thoth deck calls that card Prince and calls a different card Knight.
@@ -51,13 +54,23 @@ export function findInsightCardMentions(text, cards = [], { sourceDeck } = {}) {
     const names = sourceDeck
       ? new Set([sourceName])
       : new Set([card?.name, card?.canonicalName, ...(Array.isArray(card?.aliases) ? card.aliases : [])]);
+    const rwsName = getCardForDeck(card, 'rws-1909')?.name;
+    if (rwsLabels.length) names.add(rwsName);
     for (const name of names) {
       if (typeof name !== 'string' || !name.trim()) continue;
       const needle = name.toLowerCase();
       const lower = text.toLowerCase();
       for (let start = lower.indexOf(needle); start >= 0; start = lower.indexOf(needle, start + 1)) {
         const end = start + name.length;
-        if (passesWordBoundary(text, start, end)) matches.push({ start, end, index, exact: name === sourceName });
+        if (!passesWordBoundary(text, start, end)) continue;
+        const inRwsLabel = rwsLabels.some(range => start > range.start && end < range.end);
+        if (inRwsLabel && name !== rwsName) continue;
+        if (!inRwsLabel && sourceDeck && name !== sourceName) continue;
+        // Single common words need name capitalization or an explicit card cue.
+        const word = text.slice(start, end).replace(/^the\s+/i, '');
+        const explicitCard = /^\s+(?:card|upright|reversed)\b/i.test(text.slice(end));
+        if (!word.includes(' ') && !/^\p{Lu}/u.test(word) && !explicitCard && !inRwsLabel) continue;
+        matches.push({ start, end, index, exact: name === (inRwsLabel ? rwsName : sourceName) });
       }
     }
   });

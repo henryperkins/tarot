@@ -96,3 +96,17 @@ test('source labels cover legacy passages without inventing unknown provenance',
   assert.equal(getPassageSource({ type: 'custom' }), null);
   assert.equal(getPassageSource({ type: 'triad', sourceDeck: 'unknown' }), null);
 });
+
+test('ordinary prose does not turn ambiguous card words into links', () => {
+  const cards = [{ name: 'The World' }, getCardForDeck({ name: 'Justice' }, 'thoth-a1')];
+  assert.deepEqual(findInsightCardMentions('Your place in the world may need an adjustment. The world keeps turning.', cards), []);
+  const text = 'The World invites completion; Adjustment invites balance. The world card is upright.';
+  assert.deepEqual(findInsightCardMentions(text, cards).map(match => match.index), [0, 1, 0]);
+});
+
+test('inline RWS court labels resolve their canonical card within Thoth prose', () => {
+  const cards = [getCardForDeck({ name: 'Knight of Cups' }, 'thoth-a1'), getCardForDeck({ name: 'King of Cups' }, 'thoth-a1')];
+  const text = 'Prince of Cups (RWS: Knight of Cups) meets Knight of Cups (RWS: King of Cups).';
+  assert.deepEqual(findInsightCardMentions(text, cards).map(match => match.index), [0, 0, 1, 1]);
+  assert.deepEqual(findInsightCardMentions(text, cards, { sourceDeck: 'thoth-a1' }).map(match => match.index), [0, 0, 1, 1]);
+});
