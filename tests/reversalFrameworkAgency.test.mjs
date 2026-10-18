@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
+import { analyzeSpreadThemes, REVERSAL_FRAMEWORK_OVERRIDES } from '../functions/lib/spreadAnalysis.js';
 import { buildEnhancedClaudePrompt, buildDecisionReading } from '../functions/lib/narrativeBuilder.js';
 
 // Mirrors the reviewed reading: a five-card decision spread with one card per
@@ -90,3 +90,13 @@ describe('requested reversal lens', () => {
     assert.equal(themes.reversalDescription.name, 'Internal Processing');
   });
 });
+
+
+for (const reversalFrameworkOverride of REVERSAL_FRAMEWORK_OVERRIDES) {
+  it(`ignores ${reversalFrameworkOverride} when every card is upright`, async () => {
+    const themes = await analyzeSpreadThemes(DECISION_CARDS.map(card => ({ ...card, orientation: 'Upright' })), { reversalFrameworkOverride });
+    assert.equal(themes.reversalCount, 0);
+    assert.equal(themes.reversalFramework, 'none');
+    assert.equal(themes.reversalDescription.name, 'All Upright');
+  });
+}

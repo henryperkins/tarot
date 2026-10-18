@@ -411,7 +411,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
   let reversalFramework = selectReversalFramework(reversalRatio, normalizedCards, {
     userQuestion: options.userQuestion
   });
-  if (options.reversalFrameworkOverride && REVERSAL_FRAMEWORKS[options.reversalFrameworkOverride]) {
+  if (reversalCount > 0 && options.reversalFrameworkOverride && REVERSAL_FRAMEWORKS[options.reversalFrameworkOverride]) {
     reversalFramework = options.reversalFrameworkOverride;
   }
 
