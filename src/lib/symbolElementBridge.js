@@ -69,7 +69,7 @@ function uniqueList(items = []) {
 }
 
 export function buildSymbolElementCue({ reading, themes, maxSymbols = 3, deckStyleId = themes?.deckStyle || 'rws-1909' } = {}) {
-  if (!themes) return null;
+  if (!themes || themes.majorRatio > 0.8) return null;
   // The symbol annotations describe RWS artwork. Other traditions need their
   // own verified imagery. A changed preference must not override a known
   // non-RWS reading, and a source/current imagery mismatch stays unclaimed.

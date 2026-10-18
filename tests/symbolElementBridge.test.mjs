@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
 import { describe, test } from 'node:test';
 
 import {
@@ -117,4 +118,17 @@ describe('symbolElementBridge', () => {
     assert.ok(ELEMENT_FAMILY_MAP.Fire.includes('fire'), 'Fire should include fire symbol');
     assert.ok(ELEMENT_FAMILY_MAP.Water.includes('water'), 'Water should include water symbol');
   });
+});
+
+
+test('Major-heavy cues agree with the actual elemental analysis', async () => {
+  const reading = [['The Sun', 19], ['The Emperor', 4], ['Strength', 8]].map(([name, number]) => ({ name, number, card: name, orientation: 'Upright' }));
+  const themes = await analyzeSpreadThemes(reading);
+  assert.match(themes.elementalBalance, /transcending elemental/);
+  assert.equal(buildSymbolElementCue({ reading, themes }), null);
+  const mixed = [...reading, { card: 'The Tower', name: 'The Tower', number: 16 }, { card: 'Ace of Wands', name: 'Ace of Wands', suit: 'Wands' }];
+  const mixedThemes = await analyzeSpreadThemes(mixed);
+  assert.equal(mixedThemes.majorRatio, 0.8);
+  assert.doesNotMatch(mixedThemes.elementalBalance, /transcending/);
+  assert.match(buildSymbolElementCue({ reading: mixed, themes: mixedThemes }).text, /Fire/);
 });
