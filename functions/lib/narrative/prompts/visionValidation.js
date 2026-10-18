@@ -123,7 +123,11 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = [], options
       if (verified.length) {
         verified.forEach((entry) => {
           const literal = evidenceText(entry?.literalObservation || entry?.label, 180);
-          if (literal) lines.push(`    - ${literal}`);
+          if (literal) {
+            const line = `    - ${literal}`;
+            lines.push(line);
+            options.sourceUsageSignals?.visionEvidenceDetailLines?.push(line);
+          }
         });
       } else {
         lines.push('    - none');
@@ -148,7 +152,9 @@ export function buildUploadedVisibleEvidenceSection(visionEvidence = [], options
     (packet.visibleEvidence || []).slice(0, 5).forEach((entry) => {
       const literal = evidenceText(entry?.literalObservation, 180);
       if (literal) {
-        lines.push(`  - Literal: ${literal}`);
+        const line = `  - Literal: ${literal}`;
+        lines.push(line);
+        options.sourceUsageSignals?.visionEvidenceDetailLines?.push(line);
       }
 
       const symbolic = Array.isArray(entry?.symbolicMeaning)

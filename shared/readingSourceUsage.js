@@ -14,6 +14,7 @@ export const USAGE_REASON_COPY = Object.freeze({
   deduped_against_card_reflection: 'Included with your card notes.',
   deduplicated: 'Included once with matching notes.',
   default_profile: 'The standard depth was applied.',
+  card_mismatch: 'The uploaded image did not match a card in this reading.',
   no_usable_evidence: 'The image could not be read clearly enough to include.',
   diagnostics_disabled: 'Image details were not included in this reading.',
   not_used_by_backend: 'This reading method did not include this input.',
@@ -55,7 +56,7 @@ export function sanitizeSourceUsage(value) {
     const input = value[key];
     if (!isRecord(input) || typeof input.used !== 'boolean') continue;
     const entry = { used: input.used };
-    copyFlags(entry, input, ['requested', 'diagnosticsIncluded', 'cardCuesUsed']);
+    copyFlags(entry, input, ['requested', 'diagnosticsIncluded', 'cardCuesUsed', 'imageDetailsUsed']);
     if (input.skippedReason != null) entry.skippedReason = reasonCode(input.skippedReason);
     copyCounts(entry, input, countKeys);
     if (['full', 'summary', 'none'].includes(input.mode)) entry.mode = input.mode;

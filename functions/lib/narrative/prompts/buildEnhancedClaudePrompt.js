@@ -615,6 +615,7 @@ export function buildEnhancedClaudePrompt({
     const sourceUsageSignals = {
       visionCardCuesUsed: false,
       visionEvidencePacketHeadings: [],
+      visionEvidenceDetailLines: [],
       userContext: {}
     };
     const systemPrompt = buildSystemPrompt(
@@ -1133,6 +1134,10 @@ export function buildEnhancedClaudePrompt({
   const visionCardCuesIncluded = built.sourceUsageSignals?.visionCardCuesUsed === true && hasVisibleVisionCardCues(finalUser);
   const visionEvidencePacketsUsed = countVisibleVisionEvidencePackets(finalUser, built.sourceUsageSignals?.visionEvidencePacketHeadings);
   const visionUsed = visionCardCuesIncluded || visionEvidencePacketsUsed > 0;
+  const imageDetailsUsed = visionCardCuesIncluded || (visionEvidencePacketsUsed > 0
+    && built.sourceUsageSignals?.visionEvidenceDetailLines?.some(line => finalUser.includes(line)) === true);
+  const allImagesMismatch = hasVisionSource
+    && visionPromptEligibility.suppressionReasons?.card_mismatch === visionInsights.length;
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
   );
@@ -1191,10 +1196,11 @@ export function buildEnhancedClaudePrompt({
       suppressionReasons: visionPromptEligibility.suppressionReasons,
       diagnosticsIncluded: visionDiagnosticsIncluded,
       cardCuesUsed: visionCardCuesIncluded,
+      imageDetailsUsed,
       evidencePacketsUsed: visionEvidencePacketsUsed,
       evidenceMode: visionEvidencePacketsUsed > 0 ? 'uploaded_image' : 'none',
       skippedReason: hasVisionSource
-        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : 'no_usable_evidence'))
+        ? (visionUsed ? null : (visionRemovedForBudget ? 'removed_for_budget' : allImagesMismatch ? 'card_mismatch' : 'no_usable_evidence'))
         : 'not_provided'
     },
     userContext: {

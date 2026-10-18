@@ -172,3 +172,35 @@ test('keeps alternate-card tone and emotion out of the entire assembled reading 
   assert.match(userPrompt, /Vision-detected tone: warm/);
   assert.match(userPrompt, /Emotional quality: quiet strength/);
 });
+
+for (const kind of ['mismatch', 'identity', 'details']) {
+  test(`image attribution describes ${kind} evidence after persistence`, async () => {
+    const { annotateVisionInsights } = await import('../functions/lib/readingQuality.js');
+    const { readingMetadataFromEntry } = await import('../src/lib/readingMetadata.js');
+    const { formatUsageSummary } = await import('../src/components/reading/complete/sourceUsageSummary.js');
+    const insights = annotateVisionInsights([{
+      predictedCard: kind === 'mismatch' ? 'The Moon' : 'The Sun', confidence: 0.98,
+      ...(kind === 'details' ? { symbolVerification: {
+        annotationStatus: 'verified', matchRate: 1, weightedMatchRate: 1,
+        matches: [{ object: 'sun', found: true, confidence: 0.99 }]
+      } } : {})
+    }], cardsInfo);
+    const visionEvidence = buildVisionEvidencePackets(insights, cardsInfo);
+    const built = buildEnhancedClaudePrompt({ spreadInfo: { key: 'single', name: 'One card' }, cardsInfo,
+      userQuestion: 'What supports me today?', visionInsights: insights, visionEvidence });
+    const usage = readingMetadataFromEntry({ sourceUsage: built.promptMeta.sourceUsage }).sourceUsage;
+    const row = formatUsageSummary(usage).rows.find(row => row.label === 'Uploaded images');
+    if (kind === 'mismatch') {
+      assert.equal(row.state, 'omitted');
+      assert.match(row.detail, /did not match/i);
+      assert.doesNotMatch(row.detail, /read clearly/i);
+    } else if (kind === 'identity') {
+      assert.equal(row.state, 'used');
+      assert.match(row.detail, /card identit/i);
+      assert.doesNotMatch(row.detail, /visual details/i);
+    } else {
+      assert.equal(row.state, 'used');
+      assert.match(row.detail, /visual details/i);
+    }
+  });
+}

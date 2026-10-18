@@ -81,9 +81,14 @@ export function formatUsageSummary(rawUsage) {
     const used = vision.used && !diagnosticsOnly;
     const omitted = vision.telemetryOnlyUploads || 0;
     const partial = used && omitted > 0;
+    const evidence = vision.imageDetailsUsed === true
+      ? 'Visual details from your uploaded images.'
+      : vision.imageDetailsUsed === false
+        ? 'Card identities from your uploaded images.'
+        : 'Your uploaded images informed this reading.';
     const detail = used
-      ? `Visual details from your uploaded images.${partial ? ` ${omitted} image${omitted === 1 ? '' : 's'} could not be included.` : ''}`
-      : reasonCopy(diagnosticsOnly ? 'no_usable_evidence' : vision.skippedReason);
+      ? `${evidence}${partial ? ` ${omitted} image${omitted === 1 ? '' : 's'} could not be included.` : ''}`
+      : reasonCopy(vision.skippedReason || (diagnosticsOnly ? 'no_usable_evidence' : null));
     addRow('Uploaded images', partial ? 'partial' : used ? 'used' : 'omitted', detail, 'you', 'uploaded images');
   }
 
