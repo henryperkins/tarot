@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { computeSeed, drawSpread } from '../lib/deck';
 import { playFlip, unlockAudio } from '../lib/audio';
 import { DEFAULT_SPREAD_KEY, normalizeSpreadKey, getSpreadInfo } from '../data/spreads';
@@ -38,9 +38,22 @@ export function useTarotState(speak) {
     ? getSpreadFromDepth(personalization.preferredSpreadDepth)
     : null;
   const selectedSpread = normalizeSpreadKey(autoSelectedSpread || selectedSpreadState);
-  const setSelectedSpread = useCallback((nextKey) => {
-    setSelectedSpreadState(normalizeSpreadKey(nextKey));
+  const [isShuffling, setIsShuffling] = useState(false);
+  const shuffleTimeoutRef = useRef(null);
+  const shuffleGenerationRef = useRef(0);
+  const invalidatePendingShuffle = useCallback(() => {
+    shuffleGenerationRef.current += 1;
+    if (shuffleTimeoutRef.current !== null) clearTimeout(shuffleTimeoutRef.current);
+    shuffleTimeoutRef.current = null;
   }, []);
+  const cancelShuffle = useCallback(() => {
+    invalidatePendingShuffle();
+    setIsShuffling(false);
+  }, [invalidatePendingShuffle]);
+  const setSelectedSpread = useCallback((nextKey) => {
+    cancelShuffle();
+    setSelectedSpreadState(normalizeSpreadKey(nextKey));
+  }, [cancelShuffle]);
   const [draw, setDraw] = useState(() => ({
     reading: initialSnapshot?.reading ?? null,
     drawIncludeMinors: initialSnapshot?.drawIncludeMinors ?? null
@@ -49,12 +62,12 @@ export function useTarotState(speak) {
   // Keep scope and cards atomic. Imported/legacy readings have unknown scope
   // unless their saved metadata explicitly records it.
   const setReading = useCallback((cards, includeMinorsAtDraw = null) => {
+    cancelShuffle();
     setDraw(current => ({
       reading: typeof cards === 'function' ? cards(current.reading) : cards,
       drawIncludeMinors: typeof includeMinorsAtDraw === 'boolean' ? includeMinorsAtDraw : null
     }));
-  }, []);
-  const [isShuffling, setIsShuffling] = useState(false);
+  }, [cancelShuffle]);
   const [revealedCards, setRevealedCards] = useState(() => new Set(initialSnapshot?.revealed || []));
   const [isSpreadDealt, setIsSpreadDealt] = useState(() => Boolean(initialSnapshot?.isSpreadDealt));
   const [dealIndex, setDealIndex] = useState(() => initialSnapshot?.dealIndex ?? 0);
@@ -76,11 +89,17 @@ export function useTarotState(speak) {
   const [snapshotRevision, setSnapshotRevision] = useState(0);
 
   const knockTimesRef = useRef(initialSnapshot?.ritual?.knockTimes || []);
-  const shuffleTimeoutRef = useRef(null);
   const deckAnnouncementTimeoutRef = useRef(null);
   const deckSizeInitializedRef = useRef(false);
   const restoredCutIndexRef = useRef(Number.isInteger(initialSnapshot?.ritual?.cutIndex));
   const shouldSkipRitual = personalization?.showRitualSteps === false;
+
+  // Invalidate before timers can run after a committed owner/spread change,
+  // including automatic spread selection that does not use the public setter.
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- cancel work belonging to the previous committed context
+    cancelShuffle();
+  }, [selectedSpread, questionDraftOwner, authLoading, cancelShuffle]);
 
   // Keep the question someone is writing through a reload, for this tab only
   // (see lib/questionDraft). Restore once auth has settled, so one account's
@@ -180,11 +199,9 @@ export function useTarotState(speak) {
       if (deckAnnouncementTimeoutRef.current) {
         clearTimeout(deckAnnouncementTimeoutRef.current);
       }
-      if (shuffleTimeoutRef.current) {
-        clearTimeout(shuffleTimeoutRef.current);
-      }
+      invalidatePendingShuffle();
     };
-  }, []);
+  }, [invalidatePendingShuffle]);
 
   // Three knocks at the person's own pace. The times still seed the draw, but
   // there is no deadline: a slow tapper, VoiceOver or Switch Control user
@@ -253,18 +270,17 @@ export function useTarotState(speak) {
 
   const shuffle = useCallback((onShuffleComplete) => {
     const currentSpread = selectedSpread;
-
-    if (shuffleTimeoutRef.current) {
-      clearTimeout(shuffleTimeoutRef.current);
-    }
-
-    setIsShuffling(true);
     if (!hasConfirmedSpread) {
       setHasConfirmedSpread(true);
     }
 
     resetReadingState(false);
+    // Reset intentionally invalidates the previous generation; this draw owns
+    // the new one. External reset/replacement can invalidate it immediately.
+    const generation = shuffleGenerationRef.current;
+    setIsShuffling(true);
     if (onShuffleComplete) onShuffleComplete(); // Callback to clear external state like vision/analysis
+    if (generation !== shuffleGenerationRef.current) return;
 
     let effectiveKnockTimes = knockTimesRef.current;
     let effectiveCutIndex = cutIndex;
@@ -295,10 +311,7 @@ export function useTarotState(speak) {
     });
 
     shuffleTimeoutRef.current = setTimeout(() => {
-      if (selectedSpread !== currentSpread) {
-        setIsShuffling(false);
-        return;
-      }
+      if (generation !== shuffleGenerationRef.current) return;
       setReading(cards, includeMinors);
       setIsShuffling(false);
       setSessionSeed(nextSessionSeed);
