@@ -53,6 +53,7 @@ export function ReadingProvider({ children }) {
         isNarrationStreamActive,
         pauseNarrationPlayback,
         resumeNarrationPlayback,
+        handleNarrationStop: stopNarration,
         ttsProvider,
         ttsState
     } = audioController;
@@ -371,6 +372,13 @@ export function ReadingProvider({ children }) {
     const narrationFallbackPendingRef = useRef(false);
     const narrationFallbackTextRef = useRef('');
     const narrationInterruptedByUserRef = useRef(false);
+    const handleNarrationStop = useCallback(() => {
+        narrationInterruptedByUserRef.current = true;
+        narrationSuppressedRef.current = true;
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
+        stopNarration();
+    }, [stopNarration]);
     const narrationSettingsRef = useRef({
         autoNarrate,
         voiceOn,
@@ -453,6 +461,8 @@ export function ReadingProvider({ children }) {
     }, []);
 
     const cancelInFlightReading = useCallback(() => {
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
         if (inFlightReadingRef.current?.controller) {
             inFlightReadingRef.current.controller.abort();
         }
@@ -629,46 +639,14 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer(false);
     }, [flushNarrationBuffer]);
 
-    const settleNarrationAfterStreamFailure = useCallback((fallbackText = '') => {
-        const {
-            autoNarrate: autoNarrateEnabled,
-            voiceOn: voiceEnabled,
-            ttsProvider: narrationProvider
-        } = narrationSettingsRef.current;
-        const narrationEligible = autoNarrateEnabled && voiceEnabled && isServerNarrationProvider(narrationProvider);
-
-        if (!narrationEligible || narrationInterruptedByUserRef.current) {
-            narrationFallbackPendingRef.current = false;
-            narrationFallbackTextRef.current = '';
-            resetNarrationStream();
-            return;
-        }
-
-        if (!narrationSuppressedRef.current) {
-            flushNarrationBuffer(true);
-            const hasQueuedNarration = narrationStartedRef.current || isNarrationStreamActive();
-            if (hasQueuedNarration) {
-                finalizeNarrationStream();
-                return;
-            }
-        }
-
-        const trimmedFallback = typeof fallbackText === 'string' ? fallbackText.trim() : '';
-        if (trimmedFallback) {
-            narrationFallbackPendingRef.current = true;
-            narrationFallbackTextRef.current = trimmedFallback;
-            return;
-        }
-
+    const settleNarrationAfterStreamFailure = useCallback(() => {
+        // Partial output has not passed the completed reading's screening.
+        narrationBufferRef.current = '';
+        narrationSuppressedRef.current = true;
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         resetNarrationStream();
-    }, [
-        finalizeNarrationStream,
-        flushNarrationBuffer,
-        isNarrationStreamActive,
-        resetNarrationStream
-    ]);
+    }, [resetNarrationStream]);
 
     const buildReadingKey = useCallback(() => {
         const count = reading?.length ?? 0;
@@ -971,7 +949,7 @@ export function ReadingProvider({ children }) {
             }
 
             updateGestureSource(runId, { raw: streamedText, status: 'error' });
-            settleNarrationAfterStreamFailure(streamedText);
+            settleNarrationAfterStreamFailure();
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
@@ -1046,7 +1024,10 @@ export function ReadingProvider({ children }) {
             narrationSuppressedRef.current = true;
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
-            resetNarrationStream();
+            // This effect disables automatic scheduling. Voice/provider changes
+            // already stop playback in the audio controller; manual play stays
+            // available when only auto narration is off.
+            resetNarrationStream({ preserveAudio: true });
             return;
         }
 
@@ -1058,6 +1039,7 @@ export function ReadingProvider({ children }) {
 
     useEffect(() => {
         if (!narrationFallbackPendingRef.current) return;
+        if (!personalReading || personalReading.isStreaming || personalReading.isError) return;
         if (narrationInterruptedByUserRef.current) {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
@@ -1077,12 +1059,6 @@ export function ReadingProvider({ children }) {
             narrationFallbackTextRef.current = '';
             return;
         }
-        if (ttsState?.reason === 'user') {
-            narrationFallbackPendingRef.current = false;
-            narrationFallbackTextRef.current = '';
-            return;
-        }
-
         const fallbackText = narrationFallbackTextRef.current;
         if (!fallbackText) {
             narrationFallbackPendingRef.current = false;
@@ -1092,7 +1068,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         void speak(fallbackText, 'full-reading', narrationEmotionRef.current);
-    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak, personalReading]);
+    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, isNarrationStreamActive, speak, personalReading]);
 
     useEffect(() => {
         // Re-renders must not replace a live cursor with an older batched
@@ -1730,6 +1706,7 @@ export function ReadingProvider({ children }) {
 
     const value = useMemo(() => ({
         ...audioController,
+        handleNarrationStop,
         ...tarotState,
         ...visionAnalysis,
         shuffle: handleShuffle,
@@ -1758,6 +1735,7 @@ export function ReadingProvider({ children }) {
         srAnnouncement, setSrAnnouncement
     }), [
         audioController,
+        handleNarrationStop,
         tarotState,
         visionAnalysis,
         handleShuffle,

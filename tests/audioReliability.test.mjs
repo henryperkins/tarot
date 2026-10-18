@@ -5,6 +5,7 @@ import { djb2Hash } from '../src/lib/utils.js';
 
 function browser(t, mediaSource = false) {
   const players = [];
+  const sources = [];
   const storage = Object.create(null);
   Object.defineProperties(storage, {
     getItem: { value(key) { return storage[key] ?? null; } },
@@ -19,7 +20,17 @@ function browser(t, mediaSource = false) {
   t.mock.property(globalThis, 'localStorage', storage);
   t.mock.property(globalThis, 'window', { addEventListener() {}, removeEventListener() {}, localStorage: storage });
   t.mock.property(globalThis, 'Audio', class extends EventTarget {
-    constructor(src) { super(); this.src = src; this.paused = true; this.ended = false; players.push(this); }
+    constructor(src) {
+      super(); this.src = src; this.paused = true; this.ended = false; players.push(this);
+      // A real MediaSource opens only after a media element attaches its URL.
+      if (src === 'blob:test-audio') queueMicrotask(() => {
+        for (const source of sources) {
+          if (source.readyState !== 'closed') continue;
+          source.readyState = 'open';
+          source.dispatchEvent(new Event('sourceopen'));
+        }
+      });
+    }
     async play() { this.paused = false; }
     pause() { this.paused = true; }
   });
@@ -28,9 +39,17 @@ function browser(t, mediaSource = false) {
   if (mediaSource) {
     t.mock.property(globalThis, 'MediaSource', class extends EventTarget {
       static isTypeSupported() { return true; }
-      constructor() { super(); this.readyState = 'open'; queueMicrotask(() => this.dispatchEvent(new Event('sourceopen'))); }
-      addSourceBuffer() { return Object.assign(new EventTarget(), { appendBuffer() {}, updating: false }); }
-      endOfStream() {}
+      constructor() { super(); this.readyState = 'closed'; sources.push(this); }
+      addSourceBuffer() {
+        return Object.assign(new EventTarget(), {
+          buffered: { length: 0 }, updating: false,
+          appendBuffer() {
+            this.updating = true;
+            queueMicrotask(() => { this.updating = false; this.dispatchEvent(new Event('updateend')); });
+          }
+        });
+      }
+      endOfStream() { this.readyState = 'ended'; }
     });
   } else t.mock.property(globalThis, 'MediaSource', undefined);
   t.after(() => cleanupAudio());
@@ -68,6 +87,7 @@ for (const mediaSource of [false, true]) {
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(getCurrentTTSState().status, 'error');
     assert.equal(getCurrentTTSState().errorCode, 'NARRATION_INCOMPLETE');
+    assert.equal(getCurrentTTSState().error, 'Audio body failed');
     assert.ok(getCurrentTTSState().message.includes('Please try again'));
   });
 }

@@ -935,6 +935,7 @@
     "src/lib/spreadInsights.js",
     "src/lib/spreadLayouts.js",
     "src/lib/spreadTablePresentation.js",
+    "src/lib/streamingAudio.js",
     "src/lib/suitColors.js",
     "src/lib/symbolElementBridge.js",
     "src/lib/textUtils.js",

@@ -7,6 +7,7 @@ import {
   subscribeToTTS,
   getCurrentTTSState,
   unlockAudio,
+  beginNarrationIntent,
   finalizeTTSStream,
   resetTTSStream,
   isTTSStreamActive,
@@ -65,7 +66,6 @@ export function useAudioController() {
   useEffect(() => {
     if (!voiceOn || previousProviderRef.current !== ttsProvider) {
       stopTTS();
-      resetTTSStream();
     }
     previousProviderRef.current = ttsProvider;
   }, [voiceOn, ttsProvider]);
@@ -147,8 +147,9 @@ export function useAudioController() {
       return;
     }
 
-    const unlocked = await unlockAudio();
-    if (!unlocked) {
+    const isCurrent = beginNarrationIntent();
+    const unlocked = await unlockAudio({ isCurrent });
+    if (!unlocked || !isCurrent()) {
       return;
     }
 
@@ -166,12 +167,14 @@ export function useAudioController() {
   }, []);
 
   const handleVoicePromptEnable = useCallback(async (fullReadingText, emotion) => {
+    const isCurrent = beginNarrationIntent();
     setVoiceOn(true);
     setVoicePromptRequested(false);
     if (!fullReadingText) return;
-    const unlocked = await unlockAudio();
-    if (!unlocked) return;
+    const unlocked = await unlockAudio({ isCurrent });
+    if (!unlocked || !isCurrent()) return;
     setTimeout(() => {
+      if (!isCurrent()) return;
       // Enabling voice rerenders the hook; use the callback with that updated
       // preference rather than the muted callback captured by this click.
       void currentSpeakRef.current(fullReadingText, 'full-reading', emotion);
