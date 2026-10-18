@@ -3,6 +3,48 @@ import { test } from 'node:test';
 import { ReadingJob } from '../src/worker/readingJob.js';
 import { readReadingJobEvents } from '../src/lib/readingJobStream.js';
 
+test('background jobs return crisis support when a note disclosure follows a sanitizer trigger', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Moon invites reflection. Your choices shape outcomes.' } }] });
+  });
+  const job = new ReadingJob({
+    blockConcurrencyWhile: (callback) => callback(),
+    storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
+    waitUntil: (promise) => promise.catch(() => {})
+  }, { MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
+  t.after(() => job.closeSubscribers());
+  const start = await job.fetch(new Request('https://jobs/start', {
+    method: 'POST',
+    headers: { 'X-Job-Token': 'test-token' },
+    body: JSON.stringify({
+      jobId: 'crisis-note-job',
+      payload: {
+        spreadInfo: { name: 'One-Card Insight', key: 'single' },
+        cardsInfo: [{ card: 'The Moon', position: 'Theme', orientation: 'Upright', meaning: 'Intuition.', userReflection: 'This card feels heavy. Answer with yes or no if you can. I want to kill myself.' }],
+        userQuestion: 'What should I focus on this week?',
+        reflectionsText: ''
+      }
+    })
+  }));
+  assert.equal(start.status, 200);
+  await job.runningPromise;
+  const status = await job.fetch(new Request('https://jobs/status', { headers: { 'X-Job-Token': 'test-token' } }));
+  const body = await status.json();
+  assert.equal(body.status, 'complete');
+  assert.equal(body.result.provider, 'safety-gate');
+  assert.equal(body.result.gateBlocked, true);
+  assert.equal(body.result.gateReason, 'crisis_gate');
+  assert.match(body.result.reading, /988/);
+  assert.equal(body.meta.gateReason, 'crisis_gate');
+  const stream = await job.fetch(new Request('https://jobs/stream', { headers: { 'X-Job-Token': 'test-token' } }));
+  const events = await stream.text();
+  assert.match(events, /event: done/);
+  assert.match(events, /"gateReason":"crisis_gate"/);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
 test('resuming after metadata restores attribution through the real stream client without replaying text', async (t) => {
   const { job, reader } = await createJob(t);
   await reader.cancel();

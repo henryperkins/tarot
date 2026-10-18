@@ -805,6 +805,11 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       persistLocationToJournal: _persistLocationToJournal, // Used by journal endpoint, not reading
       includePromptDebug
     } = normalizedPayload;
+    // Inspect original, schema-validated notes before card resolution strips
+    // prompt instructions: a crisis disclosure can occur after the stripped text.
+    const crisisCheck = detectCrisisSignals([
+      userQuestion, collectQuerentReflections(reflectionsText, rawCardsInfo)
+    ].filter(Boolean).join(' '));
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
     let cardsInfo;
     try {
@@ -813,8 +818,8 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       if (!(error instanceof ReadingCardResolutionError)) throw error;
       return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
     }
-    // General notes plus each card's reflection, for the checks that need
-    // everything the querent wrote; the prompt renders the two separately.
+    // Combine general notes with sanitized card reflections for context
+    // inference; the prompt renders the two separately.
     const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
@@ -907,7 +912,6 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       contextInputLength: contextInputText.length
     });
 
-    const crisisCheck = detectCrisisSignals([userQuestion, querentReflections].filter(Boolean).join(' '));
     if (crisisCheck.matched) {
       console.warn(`[${requestId}] Crisis signals detected: ${crisisCheck.categories.join(', ')}`, {
         userId: user?.id || null,

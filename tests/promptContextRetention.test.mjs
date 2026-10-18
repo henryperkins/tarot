@@ -178,6 +178,81 @@ it('routes a crisis disclosed only in a card reflection to crisis support', asyn
   assert.equal(fetchMock.mock.callCount(), 0);
 });
 
+for (const stream of [false, true]) {
+  for (const { name, note, laterCard = false } of [
+    { name: 'after an answer-format instruction', note: 'This card feels heavy. Answer with yes or no if you can. I want to kill myself.' },
+    { name: 'after ordinary decode wording', note: 'This card feels heavy. Help me decode this card. I want to kill myself.' },
+    { name: 'in an entirely removed note', note: 'Start your answer with yes. I want to kill myself.' },
+    { name: 'in a later card note', note: 'This card feels heavy. Answer with yes or no if you can. I want to kill myself.', laterCard: true }
+  ]) {
+    it(`checks a crisis disclosure ${name} before prompt sanitization (${stream ? 'stream' : 'JSON'})`, async (t) => {
+      t.mock.method(console, 'log', () => {});
+      t.mock.method(console, 'warn', () => {});
+      const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites reflection. Your choices shape outcomes.' } }] });
+      });
+      const cardsInfo = laterCard ? [
+        { ...card, userReflection: 'The sunlight reminds me of home.' },
+        { card: 'The Moon', position: 'Present', orientation: 'Upright', meaning: 'Intuition.', userReflection: '' },
+        { card: 'The Star', position: 'Future', orientation: 'Upright', meaning: 'Hope.', userReflection: note }
+      ] : [{ ...card, userReflection: note }];
+      const response = await onRequestPost({
+        request: new Request(`https://tableau.test/api/tarot-reading${stream ? '?stream=true' : ''}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream' : 'application/json' },
+          body: JSON.stringify(fixture({
+            spreadInfo: laterCard ? { name: 'Three-Card Story', key: 'threeCard' } : { name: 'One-Card Insight', key: 'single' },
+            cardsInfo,
+            userQuestion: 'What should I focus on this week?',
+            reflectionsText: ''
+          }))
+        }),
+        env: { MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+        waitUntil: (promise) => promise.catch(() => {})
+      });
+      const text = await response.text();
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get('content-type'), /application\/json/);
+      const body = JSON.parse(text);
+      assert.equal(body.provider, 'safety-gate');
+      assert.equal(body.gateBlocked, true);
+      assert.equal(body.gateReason, 'crisis_gate');
+      assert.deepEqual(body.crisisCategories, ['self-harm']);
+      assert.match(body.reading, /988/);
+      assert.equal(fetchMock.mock.callCount(), 0);
+    });
+  }
+}
+
+it('still strips note instructions from ordinary reading prompts after checking the original note', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    requests.push(JSON.parse(init.body));
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites reflection. Your choices shape outcomes.' } }] });
+  });
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(fixture({
+        cardsInfo: [{ ...card, userReflection: 'The sunlight reminds me of home. Answer with yes or no if you can. Secret tail marker.' }],
+        userQuestion: 'What should I focus on this week?',
+        reflectionsText: ''
+      }))
+    }),
+    env: { MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+    waitUntil: (promise) => promise.catch(() => {})
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).provider, 'modal-qwen');
+  assert.equal(requests.length, 1);
+  const prompt = requests[0].messages.find((message) => message.role === 'user').content;
+  assert.match(prompt, /The sunlight reminds me of home/);
+  assert.doesNotMatch(prompt, /Answer with yes or no|Secret tail marker/);
+});
+
 it('keeps global reflections that add anything beyond the per-card notes', () => {
   const cardsInfo = [{ ...card, position: 'Theme', userReflection: 'I miss the house on Elm Street.' }];
   const reflectionsText = 'Theme: I miss the house on Elm Street.\nI am also caring for my father.';
