@@ -68,8 +68,12 @@ function uniqueList(items = []) {
   return output;
 }
 
-export function buildSymbolElementCue({ reading, themes, maxSymbols = 3 } = {}) {
+export function buildSymbolElementCue({ reading, themes, maxSymbols = 3, deckStyleId = themes?.deckStyle || 'rws-1909' } = {}) {
   if (!themes) return null;
+  // The symbol annotations describe RWS artwork. Other traditions need their
+  // own verified imagery. A changed preference must not override a known
+  // non-RWS reading, and a source/current imagery mismatch stays unclaimed.
+  if (deckStyleId !== 'rws-1909' || (themes.deckStyle && themes.deckStyle !== 'rws-1909')) return null;
 
   const dominantElement = getDominantEntry(themes.elementCounts);
   const dominantSuit = getDominantEntry(themes.suitCounts, { minTotal: 3, minRatio: 0.5, minCount: 3 });

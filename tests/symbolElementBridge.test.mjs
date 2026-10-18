@@ -11,6 +11,20 @@ import {
 } from '../src/lib/symbolElementBridge.js';
 
 describe('symbolElementBridge', () => {
+  test('RWS imagery is not asserted for Thoth or Marseille cards', () => {
+    const reading = ['Page of Cups', 'Ten of Cups', 'Five of Cups'].map(name => ({ name }));
+    const themes = { suitCounts: { Cups: 3 }, elementCounts: { Water: 3 } };
+    assert.match(buildSymbolElementCue({ reading, themes }).text, /fish|spilled cups/);
+    for (const deckStyleId of ['thoth-a1', 'marseille-classic']) {
+      assert.equal(buildSymbolElementCue({ reading, themes, deckStyleId }), null);
+      assert.equal(buildSymbolElementCue({ reading, themes: { ...themes, deckStyle: deckStyleId } }), null);
+      assert.equal(buildSymbolElementCue({ reading, themes: { ...themes, deckStyle: deckStyleId }, deckStyleId: 'rws-1909' }), null,
+        'a current RWS preference must not override a known non-RWS reading');
+      assert.equal(buildSymbolElementCue({ reading, themes: { ...themes, deckStyle: 'rws-1909' }, deckStyleId }), null,
+        'suppress artwork claims when current imagery differs from the reading');
+    }
+  });
+
   test('buildSymbolElementCue returns cue for dominant suit with matching symbols', () => {
     const reading = [{ name: 'Ace of Wands' }];
     const themes = {

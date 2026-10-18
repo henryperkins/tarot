@@ -17,6 +17,7 @@
 import { parseMinorName } from './minorMeta.js';
 import { sanitizeReadingCard } from './readingCardContext.js';
 import { getLeadingKeys, getUniqueLeader } from '../../shared/utils.js';
+import { getDeckSuitAlias } from '../../shared/vision/deckAssets.js';
 
 /**
  * Traditional elemental correspondences for Major Arcana
@@ -419,7 +420,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
     // Suit analysis (a tie for the top count has no dominant suit)
     suitCounts,
     dominantSuit: getUniqueLeader(suitCounts)?.key ?? null,
-    suitFocus: getSuitFocusDescription(suitCounts),
+    suitFocus: getSuitFocusDescription(suitCounts, deckStyle),
 
     // Elemental analysis
     elementCounts,
@@ -723,22 +724,23 @@ function formatNameList(names) {
  * @param {Object} suitCounts - Suit count map
  * @returns {string|null} Description or null if no clear focus
  */
-function getSuitFocusDescription(suitCounts) {
+function getSuitFocusDescription(suitCounts, deckStyle) {
   const { keys: leadingSuits, count: topCount } = getLeadingKeys(suitCounts);
 
   if (leadingSuits.length === 0 || topCount < 2) return null;
 
   if (leadingSuits.length > 1) {
-    return `Balanced focus between ${formatNameList(leadingSuits)}, each surfacing ${topCount} times.`;
+    return `Balanced focus between ${formatNameList(leadingSuits.map(suit => getDeckSuitAlias(suit, deckStyle)))}, each surfacing ${topCount} times.`;
   }
 
   const topSuit = leadingSuits[0];
+  const suitLabel = getDeckSuitAlias(topSuit, deckStyle);
 
   const descriptions = {
-    Wands: `${topCount} Wands cards suggest a strong focus on action, creativity, passion, drive, and personal will.`,
-    Cups: `${topCount} Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.`,
-    Swords: `${topCount} Swords cards point to mental processes, communication, truth-seeking, conflict resolution, and clarity of thought as key themes.`,
-    Pentacles: `${topCount} Pentacles cards highlight practical matters, material resources, work, physical health, and tangible results.`
+    Wands: `${topCount} ${suitLabel} cards suggest a strong focus on action, creativity, passion, drive, and personal will.`,
+    Cups: `${topCount} ${suitLabel} cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.`,
+    Swords: `${topCount} ${suitLabel} cards point to mental processes, communication, truth-seeking, conflict resolution, and clarity of thought as key themes.`,
+    Pentacles: `${topCount} ${suitLabel} cards highlight practical matters, material resources, work, physical health, and tangible results.`
   };
 
   return descriptions[topSuit] || null;

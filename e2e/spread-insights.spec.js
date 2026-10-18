@@ -10,10 +10,10 @@ test.use({ serviceWorkers: 'block' });
 // This seed draws The Star, Temperance/Art, and Death through the real UI.
 const DRAW_TIME = 1790500049291;
 
-async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices } = {}, check) {
+async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices, drawTime = DRAW_TIME } = {}, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.clock.setFixedTime(DRAW_TIME);
+  await page.clock.setFixedTime(drawTime);
   await page.addInitScript(deck => localStorage.setItem('tarot-deck-style', deck), deck);
   const sourceUsage = structuredClone(SOURCE_USAGE.reference);
   const fixture = await createNarrativeFixture(page, { sourceUsage });
@@ -72,6 +72,38 @@ const completeReference = {
   id: 'complete-reference', type: 'triad', title: 'Complete reference',
   text: 'Death, Temperance, and The Star form the complete healing arc.'
 };
+
+for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
+  test(`restored ${deckStyle} analysis cannot use the current RWS preference for Symbol cues`, async ({ page }) => {
+    // This real draw has Five, Six, and Two of Cups, with an RWS water cue.
+    await withInsights(page, { drawTime: 1790500049689 }, async (panel, fixture) => {
+      await openSupportingSections(panel);
+      await expect(panel).toContainText('three spilled cups');
+      const cards = fixture.requests.reading[0].cardsInfo;
+      expect(cards.every(card => card.suit === 'Cups')).toBe(true);
+      const themes = await analyzeSpreadThemes(cards, { deckStyle });
+      const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('tarot:reading-snapshot')));
+      saved.analysis.themes = themes;
+      saved.analysis.readingMeta.deckStyle = deckStyle;
+      // Reproduce a completed reading restored under a different preference.
+      // Leave the page before seeding storage so pagehide cannot overwrite it.
+      await page.route('**/__reading-restore-test', route => route.fulfill({
+        contentType: 'text/html', body: '<!doctype html><title>Restore fixture</title>'
+      }));
+      await page.goto('/__reading-restore-test');
+      await page.addInitScript(value => sessionStorage.setItem('tarot:reading-snapshot', JSON.stringify(value)), saved);
+      await page.goto('/');
+      await openReadingSupport(page);
+      const restored = page.locator('.spread-patterns-panel');
+      const toggle = restored.getByRole('button', { name: /^Spread Insights/ });
+      if (await toggle.count()) await toggle.click();
+      await openSupportingSections(restored);
+      await expect(restored).toContainText('Suit Focus:');
+      await expect(restored).not.toContainText('Symbol Cue:');
+      await expect(restored).not.toContainText('three spilled cups');
+    });
+  });
+}
 
 test('only retained references appear and survive a completed-reading reload', async ({ page }) => {
   const dropped = { id: 'dropped', text: 'This retrieved reference was removed for budget.' };

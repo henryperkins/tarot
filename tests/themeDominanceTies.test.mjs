@@ -19,6 +19,21 @@ const TIED_TWO_WAY = [
 ];
 
 describe('theme dominance with tied counts', () => {
+  for (const [deckStyle, earthSuit, fireSuit] of [
+    ['rws-1909', 'Pentacles', 'Wands'], ['thoth-a1', 'Disks', 'Wands'], ['marseille-classic', 'Coins', 'Batons']
+  ]) {
+    it(`uses ${deckStyle} suit labels without changing canonical counts`, async () => {
+      const cards = [minor('Two of Pentacles', 'Pentacles'), minor('Three of Pentacles', 'Pentacles')];
+      const themes = await analyzeSpreadThemes(cards, { deckStyle });
+      assert.match(themes.suitFocus, new RegExp(`^2 ${earthSuit} cards`));
+      assert.equal(themes.suitCounts.Pentacles, 2);
+      assert.equal(themes.dominantSuit, 'Pentacles');
+      const tied = await analyzeSpreadThemes([...cards, minor('Two of Wands', 'Wands'), minor('Three of Wands', 'Wands')], { deckStyle });
+      assert.equal(tied.suitFocus, `Balanced focus between ${fireSuit} and ${earthSuit}, each surfacing 2 times.`);
+      assert.equal(tied.dominantSuit, null);
+    });
+  }
+
   it('names no dominant suit when every suit appears once', async () => {
     // The reviewed reading: one card per suit plus Strength (Leo → Fire).
     const themes = await analyzeSpreadThemes([

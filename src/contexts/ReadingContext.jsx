@@ -1541,7 +1541,7 @@ export function ReadingProvider({ children }) {
                 if (themes.elementalBalance) {
                     notes.push({ key: 'elemental-balance', icon: '⚡', title: 'Elemental Balance:', text: themes.elementalBalance });
                 }
-                const symbolCue = buildSymbolElementCue?.({ reading, themes });
+                const symbolCue = buildSymbolElementCue?.({ reading, themes, deckStyleId });
                 if (symbolCue) {
                     notes.push({ key: 'symbol-cue', icon: '✦', title: 'Symbol Cue:', text: symbolCue.text });
                 }
@@ -1587,7 +1587,7 @@ export function ReadingProvider({ children }) {
             return notes;
         }
         return null;
-    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread, buildSymbolElementCue]);
+    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread, deckStyleId, buildSymbolElementCue]);
 
     const fallbackHighlights = useMemo(() => {
         if (!reading) return [];
