@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow, openReadingSupport, openReadingAbout, SOURCE_USAGE } from './helpers/narrativeFixtures.js';
-import { analyzeSpreadThemes, analyzeThreeCard } from '../functions/lib/spreadAnalysis.js';
+import { analyzeSpreadThemes, analyzeThreeCard, analyzeDecision, analyzeRelationship, analyzeCelticCross } from '../functions/lib/spreadAnalysis.js';
 import { retrievePassages } from '../functions/lib/graphRAG.js';
 
 test.setTimeout(60000);
@@ -10,7 +10,7 @@ test.use({ serviceWorkers: 'block' });
 // This seed draws The Star, Temperance/Art, and Death through the real UI.
 const DRAW_TIME = 1790500049291;
 
-async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices, spreadName, drawTime = DRAW_TIME } = {}, check) {
+async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices, spreadName, analysisBuilder = analyzeThreeCard, drawTime = DRAW_TIME } = {}, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(drawTime);
@@ -31,7 +31,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false, passage
       await fixture.emit('reading', 'meta', {
         themes,
         sourceUsage,
-        spreadAnalysis: analyzeThreeCard(request.cardsInfo),
+        spreadAnalysis: analysisBuilder(request.cardsInfo),
         requestId: 'spread-insights-test'
       });
     }
@@ -318,3 +318,26 @@ test('one reversed card has one singular orientation insight', async ({ page }) 
     await expect(panel.getByRole('listitem').filter({ hasText: /Revers/ })).toHaveCount(1);
   });
 });
+
+
+for (const [spreadName, analysisBuilder, labels] of [
+  ['Decision / Two-Path', analyzeDecision, ['Decision Guidance']],
+  ['Relationship Snapshot', analyzeRelationship, ['Shared Connection']],
+  ['Celtic Cross', analyzeCelticCross, ['Advice ↔ Outcome']]
+]) {
+  test(`${spreadName} relationships have accurate labels and no repeated advice connection`, async ({ page }) => {
+    await withInsights(page, { spreadName, analysisBuilder }, async (panel, fixture) => {
+      await openSupportingSections(panel);
+      for (const label of labels) await expect(panel).toContainText(label);
+      if (spreadName.startsWith('Decision')) await expect(panel).not.toContainText('Story Flow');
+      if (spreadName.startsWith('Relationship')) await expect(panel.getByRole('listitem').filter({ hasText: /^Pattern / })).toHaveCount(0);
+      if (spreadName.startsWith('Celtic')) {
+        const analysis = analysisBuilder(fixture.requests.reading[0].cardsInfo);
+        const repeated = analysis.relationships.find(rel => rel.key === 'adviceVsOutcome');
+        await expect(panel).not.toContainText(repeated.summary);
+        const other = analysis.relationships.find(rel => rel.key === 'subconsciousVsHopesFears');
+        await expect(panel).toContainText(other.summary);
+      }
+    });
+  });
+}

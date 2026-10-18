@@ -1557,9 +1557,11 @@ export function ReadingProvider({ children }) {
             // Track cross-checks separately to limit them (reduces information overload)
             let crossCheckCount = 0;
             const MAX_CROSS_CHECKS = 2;
+            const hasAdviceAxis = spreadAnalysis.relationships.some(rel => rel?.type === 'staff-axis' && rel.summary);
 
             spreadAnalysis.relationships.forEach((rel, index) => {
                 if (!rel || !rel.summary) return;
+                if (hasAdviceAxis && rel.type === 'cross-check' && rel.key === 'adviceVsOutcome') return;
 
                 // Limit cross-checks to the 2 most important to reduce density
                 if (rel.type === 'cross-check') {
@@ -1570,7 +1572,10 @@ export function ReadingProvider({ children }) {
                 let title = 'Pattern';
                 let icon = '•';
                 const typeMap = {
-                    'sequence': { title: 'Story Flow', icon: '→' },
+                    'sequence': { title: selectedSpread === 'decision' ? 'Decision Guidance' : 'Story Flow', icon: '→' },
+                    'connection': { title: 'Shared Connection', icon: '↔' },
+                    'guidance': { title: 'Relationship Guidance', icon: '→' },
+                    'outcome': { title: 'Possible Outcome', icon: '→' },
                     'elemental-run': { title: 'Elemental Pattern', icon: '⚡' },
                     'elemental': { title: 'Elemental Pattern', icon: '⚡' },
                     'axis': { title: rel.axis || 'Axis Insight', icon: '⇄' },
