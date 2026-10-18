@@ -242,7 +242,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
           <button
             type="button"
             onClick={() => setShowTips(!showTips)}
-            className="flex items-center justify-between w-full text-left py-2 text-sm text-accent hover:text-main transition sm:cursor-default"
+            className={`flex items-center justify-between w-full min-h-touch text-left py-2 rounded-lg text-sm text-accent hover:text-main transition sm:cursor-default touch-manipulation ${FOCUS_RING_ACCENT}`}
             aria-expanded={showTips}
           >
             <span className="flex items-center gap-2">
@@ -405,7 +405,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         <button
           type="button"
           onClick={onBack}
-          className={`flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition motion-reduce:transition-none motion-reduce:transform-none touch-manipulation ${secondaryRingWithOffset}`}
+          className={`flex items-center justify-center gap-1 min-h-cta px-4 py-3 rounded-xl border border-secondary/40 text-muted hover:text-main hover:border-secondary/60 transition touch-manipulation ${secondaryRingWithOffset}`}
         >
           <ArrowLeft className="w-4 h-4" />
           <span className="hidden xs:inline">Back</span>
@@ -413,7 +413,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
         <button
           type="button"
           onClick={onNext}
-          className={`flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation ${accentRingWithOffset}`}
+          className={`flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 motion-safe:active:scale-[0.98] touch-manipulation ${accentRingWithOffset}`}
         >
           {question.trim() ? 'Continue' : 'Skip'}
           <ArrowRight className="w-5 h-5" weight="bold" />

@@ -134,6 +134,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     fallbackFocusSelector: '[aria-label="Replay tutorial"]',
     fallbackFocusPreventScroll: true,
     closeOnEscape: !isExitConfirmOpen,
+    isolateBackground: true,
   });
 
   useEffect(() => {
@@ -412,7 +413,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   return (
     <>
       <div
-        className={`fixed inset-0 z-toast flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm px-safe pt-safe pb-safe ${
+        className={`fixed inset-0 z-toast flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm ${
           prefersReducedMotion ? '' : 'animate-fade-in'
         }`}
         // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
@@ -438,16 +439,9 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Mystical background gradient */}
+            {/* Ambient candlelight background gradient */}
             <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: `
-                  radial-gradient(ellipse at 20% 0%, rgba(244, 207, 150, 0.08) 0%, transparent 50%),
-                  radial-gradient(ellipse at 80% 100%, rgba(169, 146, 255, 0.06) 0%, transparent 50%),
-                  radial-gradient(ellipse at 50% 50%, rgba(240, 143, 177, 0.04) 0%, transparent 60%)
-                `,
-              }}
+              className="absolute inset-0 pointer-events-none onboarding-modal__ambient"
               aria-hidden="true"
             />
 
@@ -457,7 +451,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                 isLandscape ? 'pb-1.5' : 'pb-3 xs:pb-4'
               }`}
             >
-              <div className="flex flex-wrap items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe pr-safe">
+              <div className="flex items-center gap-2 xs:gap-3 px-2 xxs:px-3 sm:px-6 pl-safe pr-safe">
                 <h1 id={titleId} className="sr-only">
                   Welcome to Tableu
                 </h1>
@@ -465,12 +459,12 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                   ref={closeButtonRef}
                   type="button"
                   onClick={handleSkipRequest}
-                  className="order-1 sm:order-2 self-start sm:self-center ml-auto sm:ml-0 flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+                  className="order-2 self-center ml-auto shrink-0 flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                   aria-label="Skip onboarding"
                 >
                   <X className="w-5 h-5" weight="bold" />
                 </button>
-                <div className="order-2 sm:order-1 flex-1 min-w-0 w-full sm:w-auto">
+                <div className="order-1 flex-1 min-w-0">
                   <OnboardingProgress
                     currentStep={currentStep}
                     totalSteps={totalSteps}
@@ -499,7 +493,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                     <button
                       type="button"
                       onClick={handleResumeRequest}
-                      className="min-h-touch rounded-full bg-linear-to-r from-accent to-primary px-3 text-xs-plus font-semibold text-surface shadow-md shadow-primary/30 hover:from-primary hover:to-primary transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                      className="min-h-touch rounded-full border border-primary/35 bg-primary/10 px-3 text-xs-plus font-semibold text-main hover:bg-primary/20 hover:border-primary/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                     >
                       Save & resume later
                     </button>
@@ -511,12 +505,10 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
             {/* Step content area - scrollable with swipe navigation */}
             <div
               ref={stepContentRef}
-              className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pt-safe pb-safe pl-safe pr-safe onboarding-modal__scroll"
+              className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pb-safe pl-safe pr-safe onboarding-modal__scroll scrollbar-themed"
               style={{
                 scrollPaddingTop: 'calc(4.5rem + var(--safe-pad-top))',
                 scrollPaddingBottom: 'calc(2rem + var(--safe-pad-bottom))',
-                scrollbarGutter: 'stable both-edges',
-                overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch'
               }}
               {...swipeHandlers}

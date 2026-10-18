@@ -144,7 +144,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onBack}
-          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+          className="min-h-touch min-w-touch px-4 py-3 text-muted flex items-center gap-1 transition hover:text-main touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
           aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" weight="bold" aria-hidden="true" />
@@ -153,7 +153,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
         <button
           type="button"
           onClick={onNext}
-          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 motion-safe:active:scale-[0.98] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           {hasQuestion ? 'Continue' : 'Skip for now'}
         </button>

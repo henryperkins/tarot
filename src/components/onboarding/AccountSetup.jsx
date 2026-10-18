@@ -105,7 +105,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="button"
             onClick={onNext}
-            className={`flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
+            className={`flex-1 flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 motion-safe:active:scale-[0.98] touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
           >
             Continue
             <ArrowRight className="w-5 h-5" weight="bold" />
@@ -242,7 +242,7 @@ export function AccountSetup({ onNext, onBack }) {
           <button
             type="submit"
             disabled={isSubmitting || authLoading}
-            className={`w-full flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
+            className={`w-full flex items-center justify-center gap-2 min-h-cta px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 motion-safe:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${ACCENT_RING_WITH_OFFSET}`}
           >
             {isSubmitting ? (
               <>
@@ -265,7 +265,7 @@ export function AccountSetup({ onNext, onBack }) {
                 <button
                   type="button"
                   onClick={toggleMode}
-                  className={`text-accent hover:underline ${FOCUS_RING_ACCENT}`}
+                  className={`inline-flex items-center min-h-touch px-2 rounded-lg text-accent hover:underline transition touch-manipulation ${FOCUS_RING_ACCENT}`}
                 >
                   Sign in
                 </button>
@@ -276,7 +276,7 @@ export function AccountSetup({ onNext, onBack }) {
                 <button
                   type="button"
                   onClick={toggleMode}
-                  className={`text-accent hover:underline ${FOCUS_RING_ACCENT}`}
+                  className={`inline-flex items-center min-h-touch px-2 rounded-lg text-accent hover:underline transition touch-manipulation ${FOCUS_RING_ACCENT}`}
                 >
                   Create an account
                 </button>

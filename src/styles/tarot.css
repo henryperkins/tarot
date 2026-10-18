@@ -3070,41 +3070,116 @@ input[type="range"]:focus::-webkit-slider-thumb {
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
-  /* Disable all animations */
+  /* Shorten timing tokens so non-spatial state feedback stays gentle and brief */
+  :root {
+    --duration-fast: 120ms;
+    --duration-normal: 150ms;
+    --duration-medium: 150ms;
+    --duration-slow: 180ms;
+    --duration-slower: 200ms;
+  }
+
+  /* Disable smooth scroll camera motion */
+  html,
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
 
-  /* Specifically target common animated classes */
+  /* Settle keyframe entrances and loops to their immediate end-states */
+  .animate-spin,
+  .animate-ping,
   .animate-pulse,
+  .animate-pulse-slow,
   .animate-fade-in,
+  .animate-fade-in-up,
   .animate-slide-up,
+  .animate-slide-down,
   .animate-slide-in-right,
-  .animate-pop-in {
+  .animate-pop-in,
+  .animate-ink-spread,
+  .animate-float-gentle,
+  .card-dealing,
+  .card-info-popover,
+  .card-placeholder-next,
+  .swipe-hint {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+    translate: none !important;
+    scale: none !important;
+    rotate: none !important;
+    filter: none !important;
   }
 
-  /* Disable card flip and hover transforms */
+  /* Collapse ephemeral particle and ripple bursts to their finished end-state */
+  .knock-ripple,
+  .slot-reveal-bloom,
+  .slot-reveal-burst__spark,
+  [data-slot-reveal-spark] {
+    animation: none !important;
+    opacity: 0;
+    transform: none;
+  }
+
+  /* Preserve opacity, color, border, background, and shadow feedback without spatial movement */
+  .transition,
+  .transition-all,
+  .transition-colors,
+  .transition-opacity,
+  .transition-shadow,
+  .mobile-stable-mode .transition-all,
+  .tarot-card-shell,
+  .spread-card,
+  .deck-card,
+  .prepare-card,
+  .deck-ritual-knock-badge {
+    transition-property: opacity, color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow !important;
+    transition-duration: var(--duration-fast, 120ms) !important;
+    transition-timing-function: var(--ease-out) !important;
+  }
+
+  .transition-transform,
+  .deck-stack,
+  .header-sticky,
+  .header-condensed .mystic-heading-wrap,
+  .header-sticky__user,
+  input[type="range"]::-webkit-slider-thumb,
+  .gesture-companion,
+  .gesture-companion *,
+  .restored-reading-gestures,
+  .restored-reading-gestures *,
+  .reading-gesture-association {
+    transition: none !important;
+  }
+
+  .duration-300,
+  .duration-500,
+  .duration-700,
+  .duration-1000 {
+    transition-duration: var(--duration-normal, 150ms) !important;
+  }
+
+  /* Disable spatial card flip, press, and hover transforms */
+  [data-layout-card]:active:not(:disabled) {
+    scale: var(--layout-card-scale, 1);
+  }
+
   .tarot-card-shell:hover,
   .tarot-card-shell:active {
     transform: none;
   }
 
-  /* Disable spread/deck card hover effects */
+  /* Disable spread/deck card hover and knock badge scale transforms */
   .spread-card:hover,
   .deck-card:hover,
-  .prepare-card:hover {
+  .prepare-card:hover,
+  .deck-ritual-knock-badge.is-active {
     transform: none;
   }
 
-  /* Keep focus indicators visible but remove animation */
+  /* Keep focus indicators visible and immediate */
   button:focus-visible,
   [role="button"]:focus-visible,
   a:focus-visible,
@@ -3921,19 +3996,35 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 /* Fullscreen onboarding modal support */
 .onboarding-modal {
-  min-height: 100vh;
+  min-height: 100%;
+  max-height: 100vh;
 }
 
-@supports (min-height: 100svh) {
+@supports (max-height: 100svh) {
   .onboarding-modal {
-    min-height: 100svh;
+    max-height: 100svh;
   }
 }
 
-@supports (min-height: 100dvh) {
+@supports (max-height: 100dvh) {
   .onboarding-modal {
-    min-height: 100dvh;
+    max-height: 100dvh;
   }
+}
+
+.onboarding-modal__ambient {
+  background:
+    radial-gradient(ellipse at 20% 0%, var(--glow-gold) 0%, transparent 52%),
+    radial-gradient(
+      ellipse at 80% 100%,
+      color-mix(in srgb, var(--brand-secondary) 10%, transparent) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      color-mix(in srgb, var(--brand-primary) 6%, transparent) 0%,
+      transparent 60%
+    );
 }
 
 .onboarding-modal__scroll {
@@ -4173,11 +4264,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
   .narrative-skeleton__step.is-current .narrative-skeleton__step-dot {
     animation: skeleton-step-pulse 2.6s ease-in-out infinite;
-  }
-
-  /* Staggered bounce for dots */
-  .narrative-skeleton [class*="animate-bounce"] {
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 

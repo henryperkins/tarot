@@ -95,8 +95,7 @@
 
 .governance-critique-page__update {
   background: var(--bg-surface);
-  border: 1px solid var(--gc-line);
-  border-left: 3px solid var(--gc-good);
+  border: 1px solid rgb(var(--status-success-rgb) / 0.35);
   border-radius: 5px;
   margin-top: 22px;
   padding: 14px 16px;
@@ -168,14 +167,13 @@
 .governance-critique-page__card {
   background: var(--bg-surface);
   border: 1px solid var(--gc-line);
-  border-left: 3px solid var(--gc-accent);
   border-radius: 5px;
   margin: 14px 0;
   padding: 18px 20px;
 }
 
 .governance-critique-page__card--shipped {
-  border-left-color: var(--gc-good);
+  border-color: rgb(var(--status-success-rgb) / 0.35);
 }
 
 .governance-critique-page__card-title {
@@ -241,7 +239,7 @@
 }
 
 .governance-critique-page__quote {
-  border-left: 3px solid var(--gc-accent);
+  border-left: 1px solid var(--gc-line);
   color: var(--gc-ink);
   font-family: var(--gc-font-serif);
   font-size: 19px;

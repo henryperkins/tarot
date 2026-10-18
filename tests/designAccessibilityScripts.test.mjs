@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const indexHtmlPath = path.resolve(__dirname, '../index.html');
 const packageJsonPath = path.resolve(__dirname, '../package.json');
 const themeCssPath = path.resolve(__dirname, '../src/styles/theme.css');
+const tarotCssPath = path.resolve(__dirname, '../src/styles/tarot.css');
 const tailwindCssPath = path.resolve(__dirname, '../src/styles/tailwind.css');
 const tailwindConfigPath = path.resolve(__dirname, '../tailwind.config.js');
 
@@ -93,5 +94,19 @@ describe('Design accessibility scripts', () => {
     assert.strictEqual(shouldSkipAuthCheckForPath('/design'), true);
     assert.strictEqual(shouldSkipAuthCheckForPath('/design/'), true);
     assert.strictEqual(shouldSkipAuthCheckForPath('/account'), false);
+  });
+
+  it('preserves state feedback under prefers-reduced-motion without a global 0.01ms kill or bounce utilities', async () => {
+    const tarotCssSource = await fs.readFile(tarotCssPath, 'utf8');
+    const tailwindCssSource = await fs.readFile(tailwindCssPath, 'utf8');
+
+    assert.doesNotMatch(tarotCssSource, /animation-duration:\s*0\.01ms\s*!important/);
+    assert.doesNotMatch(tarotCssSource, /transition-duration:\s*0s\s*!important/);
+    assert.doesNotMatch(tarotCssSource, /animate-bounce/);
+    assert.doesNotMatch(tailwindCssSource, /animate-bounce/);
+    assert.match(
+      tarotCssSource,
+      /transition-property:\s*opacity,\s*color,\s*background-color,\s*border-color,\s*text-decoration-color,\s*fill,\s*stroke,\s*box-shadow/
+    );
   });
 });

@@ -155,7 +155,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
           type="button"
           onClick={handleContinue}
           disabled={!selectedSpread}
-          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 min-h-cta rounded-xl bg-accent text-surface font-semibold transition hover:bg-accent/90 motion-safe:active:scale-[0.98] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

@@ -105,7 +105,7 @@ export function WelcomeStep({ onNext }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setExperience(opt.value)}
-                className={`flex-1 basis-24 min-h-touch py-3 px-2 rounded-xl text-sm font-medium transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-28 min-h-touch py-3 px-3 rounded-xl text-sm font-medium break-normal transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   experience === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -133,7 +133,7 @@ export function WelcomeStep({ onNext }) {
                 key={opt.value}
                 type="button"
                 onClick={() => setTone(opt.value)}
-                className={`flex-1 basis-24 min-h-touch py-2.5 px-2 rounded-xl text-left transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
+                className={`flex-1 basis-24 min-h-touch py-2.5 px-2.5 rounded-xl text-left break-normal transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main ${
                   tone === opt.value
                     ? 'bg-accent text-surface'
                     : 'bg-surface border border-secondary/30 text-muted hover:border-accent/50'
@@ -160,7 +160,7 @@ export function WelcomeStep({ onNext }) {
         <button
           type="button"
           onClick={handleContinue}
-          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-primary active:scale-[0.98] motion-reduce:transition-none motion-reduce:transform-none touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full min-h-cta rounded-xl bg-accent text-surface font-semibold text-lg transition hover:bg-primary motion-safe:active:scale-[0.98] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
         </button>

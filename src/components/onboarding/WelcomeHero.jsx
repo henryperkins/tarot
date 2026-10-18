@@ -198,7 +198,7 @@ export function WelcomeHero({ onNext, onSkip }) {
         <button
           type="button"
           onClick={onNext}
-          className="w-full flex items-center justify-center gap-2 min-h-cta px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 active:scale-[0.98] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="w-full flex items-center justify-center gap-2 min-h-cta px-4 xxs:px-5 py-3 rounded-xl bg-accent text-surface font-semibold text-sm xxs:text-base transition hover:bg-accent/90 motion-safe:active:scale-[0.98] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />
@@ -207,7 +207,7 @@ export function WelcomeHero({ onNext, onSkip }) {
           <button
             type="button"
             onClick={onSkip}
-            className="w-full min-h-cta px-4 xxs:px-5 py-2.5 rounded-xl border border-accent/50 text-accent font-semibold text-sm xxs:text-base bg-transparent hover:bg-accent/10 active:scale-[0.99] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+            className="w-full min-h-cta px-4 xxs:px-5 py-2.5 rounded-xl border border-accent/50 text-accent font-semibold text-sm xxs:text-base bg-transparent transition hover:bg-accent/10 motion-safe:active:scale-[0.99] touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
           >
             Jump in now – start reading
           </button>

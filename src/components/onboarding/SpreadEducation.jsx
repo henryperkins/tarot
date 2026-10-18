@@ -106,21 +106,10 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
             const tagline = description.tagline || spread?.tag || '';
             const explanation = description.explanation || spread?.description || '';
 
-            // Handle clicks on the card container - select spread unless clicking positions toggle
-            const handleCardClick = (e) => {
-              // Don't select if user clicked the positions toggle button
-              if (e.target.closest('[data-positions-toggle]')) return;
-              handleSpreadClick(spreadKey);
-            };
-
             return (
               <div
                 key={spreadKey}
-                role="button"
-                tabIndex={0}
-                onClick={handleCardClick}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick(e); } }}
-                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition touch-manipulation cursor-pointer has-focus-visible:outline-hidden has-focus-visible:ring-2 has-focus-visible:ring-accent has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-main ${
+                className={`relative flex flex-col text-left rounded-2xl border overflow-hidden transition has-focus-visible:outline-hidden has-focus-visible:ring-2 has-focus-visible:ring-accent has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-main ${
                   isSelected
                     ? 'border-accent bg-accent/10 ring-1 ring-accent/50'
                     : 'border-secondary/30 bg-surface/50 hover:border-accent/50 hover:bg-surface/70'
@@ -129,7 +118,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
               >
                 {/* Selection indicator */}
                 {isSelected && (
-                  <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-accent flex items-center justify-center">
+                  <div className="absolute top-3 right-3 z-10 w-6 h-6 rounded-full bg-accent flex items-center justify-center pointer-events-none">
                     <Check className="w-4 h-4 text-surface" weight="bold" />
                   </div>
                 )}
@@ -137,7 +126,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
                 <button
                   type="button"
                   onClick={() => handleSpreadClick(spreadKey)}
-                  className="flex flex-col text-left focus-visible:outline-hidden touch-manipulation"
+                  className="flex-1 w-full flex flex-col text-left transition focus-visible:outline-hidden touch-manipulation"
                   aria-pressed={isSelected}
                 >
                   {/* Spread artwork */}
@@ -326,7 +315,7 @@ export function SpreadEducation({ selectedSpread, onSelectSpread, onNext, onBack
           type="button"
           onClick={onNext}
           disabled={!selectedSpread}
-          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-4 xs:px-5 sm:px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
+          className="flex-1 flex items-center justify-center gap-2 min-h-cta px-4 xs:px-5 sm:px-6 py-3 rounded-xl bg-accent text-surface font-semibold text-base transition hover:bg-accent/90 motion-safe:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
         >
           Continue
           <ArrowRight className="w-5 h-5" weight="bold" />
