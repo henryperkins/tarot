@@ -648,6 +648,7 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       mode: graphRAGMode,
       passagesProvided,
       passagesUsedInPrompt,
+      passageIndices: graphRAGVisibleInOutput ? (graphRAGPayload?.passages || []).map((_, index) => index) : [],
       skippedReason: graphRAGSkippedReason
     },
     ephemeris: {

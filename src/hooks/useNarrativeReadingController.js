@@ -39,6 +39,7 @@ export function useNarrativeReadingController({
   isReadingStreamActive,
   narrativePhase,
   themes,
+  readingMeta,
   reasoning,
   emotionalTone,
   highlightItems,
@@ -157,6 +158,7 @@ export function useNarrativeReadingController({
     isReadingStreaming,
     narrativePhase,
     themes,
+    readingMeta,
     highlightItems,
     visibleCount,
     revealedCardsSize: revealedCards?.size ?? revealedCards?.length ?? 0,
@@ -190,6 +192,7 @@ export function useNarrativeReadingController({
     revealedCards,
     storyArtCards,
     themes,
+    readingMeta,
     visibleCount
   ]);
 

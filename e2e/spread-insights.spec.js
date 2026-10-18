@@ -1,6 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow, openReadingSupport, openReadingAbout } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, badgeContrast, expectTarget, expectNoHorizontalOverflow, openReadingSupport, openReadingAbout, SOURCE_USAGE } from './helpers/narrativeFixtures.js';
 import { analyzeSpreadThemes, analyzeThreeCard } from '../functions/lib/spreadAnalysis.js';
 import { retrievePassages } from '../functions/lib/graphRAG.js';
 
@@ -10,12 +10,13 @@ test.use({ serviceWorkers: 'block' });
 // This seed draws The Star, Temperance/Art, and Death through the real UI.
 const DRAW_TIME = 1790500049291;
 
-async function withInsights(page, { deck = 'rws-1909', fallback = false, passages } = {}, check) {
+async function withInsights(page, { deck = 'rws-1909', fallback = false, passages, passageIndices } = {}, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(DRAW_TIME);
   await page.addInitScript(deck => localStorage.setItem('tarot-deck-style', deck), deck);
-  const fixture = await createNarrativeFixture(page);
+  const sourceUsage = structuredClone(SOURCE_USAGE.reference);
+  const fixture = await createNarrativeFixture(page, { sourceUsage });
   try {
     await startReading(page, fixture, { complete: false });
     await expect.poll(() => fixture.requests.reading.length).toBe(1);
@@ -23,8 +24,13 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false, passage
       const request = fixture.requests.reading[0];
       const themes = await analyzeSpreadThemes(request.cardsInfo, { deckStyle: deck, env: { GRAPHRAG_ENABLED: 'true' } });
       themes.knowledgeGraph.graphRAGPayload = { passages: passages ?? retrievePassages(themes.knowledgeGraph.graphKeys, { maxPassages: 2 }) };
+      const candidates = themes.knowledgeGraph.graphRAGPayload.passages;
+      const retained = passageIndices ?? candidates.map((_, index) => index);
+      sourceUsage.graphRAG = { requested: true, used: retained.length > 0, mode: retained.length ? 'full' : 'none',
+        passagesProvided: candidates.length, passagesUsedInPrompt: retained.length, passageIndices: retained };
       await fixture.emit('reading', 'meta', {
         themes,
+        sourceUsage,
         spreadAnalysis: analyzeThreeCard(request.cardsInfo),
         requestId: 'spread-insights-test'
       });
@@ -66,6 +72,31 @@ const completeReference = {
   id: 'complete-reference', type: 'triad', title: 'Complete reference',
   text: 'Death, Temperance, and The Star form the complete healing arc.'
 };
+
+test('only retained references appear and survive a completed-reading reload', async ({ page }) => {
+  const dropped = { id: 'dropped', text: 'This retrieved reference was removed for budget.' };
+  await withInsights(page, { passages: [dropped, completeReference, partialReference], passageIndices: [1, 2] }, async panel => {
+    await openSupportingSections(panel);
+    await expect(panel.locator('blockquote')).toHaveCount(1);
+    await expect(panel.locator('blockquote')).toContainText(completeReference.text);
+    await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem('tarot:reading-snapshot') || 'null')?.analysis?.readingMeta?.sourceUsage?.graphRAG?.passageIndices)).toEqual([1, 2]);
+    await page.reload();
+    await openReadingSupport(page);
+    const restored = page.locator('.spread-patterns-panel');
+    const toggle = restored.getByRole('button', { name: /^Spread Insights/ });
+    if (await toggle.count()) await toggle.click();
+    await openSupportingSections(restored);
+    await expect(restored.locator('blockquote')).toHaveCount(1);
+    await expect(restored.locator('blockquote')).toContainText(completeReference.text);
+  });
+});
+
+test('unused references leave no empty Traditional wisdom section', async ({ page }) => {
+  await withInsights(page, { passages: [completeReference], passageIndices: [] }, async panel => {
+    await expect(panel.getByRole('button', { name: /^Traditional wisdom/ })).toHaveCount(0);
+    await expect(panel.locator('blockquote')).toHaveCount(0);
+  });
+});
 
 for (const mobile of [false, true]) {
   test(`partial-pattern quotations are excluded while complete references remain${mobile ? ' @mobile' : ''}`, async ({ page }) => {

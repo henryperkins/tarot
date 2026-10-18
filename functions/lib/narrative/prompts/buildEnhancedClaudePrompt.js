@@ -1167,6 +1167,15 @@ export function buildEnhancedClaudePrompt({
     }
   }
 
+  // Ranking can reorder candidates during slimming. Preserve their original
+  // positions so the client can select exactly what survived the final block.
+  const retainedPassages = graphRAGMode === 'full' && promptMeta.graphRAG?.parseStatus === 'complete'
+    ? (controls.graphRAGPayload?.passages || []).slice(0, promptMeta.graphRAG.passagesUsedInPrompt || 0)
+    : [];
+  const passageIndices = retainedPassages
+    .map(passage => effectiveGraphRAGPayload?.passages?.indexOf(passage) ?? -1)
+    .filter(index => index >= 0);
+
   promptMeta.sourceUsage = {
     spreadCards: {
       requested: true,
@@ -1197,6 +1206,7 @@ export function buildEnhancedClaudePrompt({
       mode: graphRAGMode,
       passagesProvided: promptMeta.graphRAG?.passagesProvided ?? 0,
       passagesUsedInPrompt: promptMeta.graphRAG?.passagesUsedInPrompt ?? 0,
+      passageIndices,
       skippedReason: hasGraphRAGSource
         ? (
           promptMeta.graphRAG?.skippedReason ||

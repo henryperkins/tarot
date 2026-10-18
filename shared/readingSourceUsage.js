@@ -59,6 +59,10 @@ export function sanitizeSourceUsage(value) {
     if (input.skippedReason != null) entry.skippedReason = reasonCode(input.skippedReason);
     copyCounts(entry, input, countKeys);
     if (['full', 'summary', 'none'].includes(input.mode)) entry.mode = input.mode;
+    if (key === 'graphRAG' && Array.isArray(input.passageIndices)) {
+      entry.passageIndices = [...new Set(input.passageIndices
+        .filter(index => Number.isInteger(index) && index >= 0 && index < 100))].slice(0, 30);
+    }
     if (key === 'userContext') {
       copyFlags(entry, input, USER_INPUT_KEYS.flatMap(name => [`${name}Provided`, `${name}Used`]));
       for (const list of ['usedInputs', 'providedInputs']) {

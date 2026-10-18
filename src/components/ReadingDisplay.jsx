@@ -353,6 +353,7 @@ export function ReadingDisplay({
         isReadingStreamActive,
         narrativePhase,
         themes,
+        readingMeta,
         reasoning,
         emotionalTone,
         displayName,

@@ -144,10 +144,23 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
   });
 }
 
-export function getTraditionalPassages(themes) {
-  return getVisibleTraditionalPassages(themes?.knowledgeGraph?.graphRAGPayload?.passages
+export function getTraditionalPassages(themes, readingMeta) {
+  if (readingMeta?.provider === 'safe-fallback') return [];
+  const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages
     || themes?.knowledgeGraph?.retrievedPassages
-    || []);
+    || [];
+  if (!Array.isArray(candidates)) return [];
+  const usage = readingMeta?.sourceUsage?.graphRAG;
+  if (usage?.used === false || usage?.mode === 'none' || usage?.mode === 'summary' || usage?.passagesUsedInPrompt === 0) return [];
+  if (Array.isArray(usage?.passageIndices)) {
+    return getVisibleTraditionalPassages([...new Set(usage.passageIndices)]
+      .filter(index => Number.isInteger(index) && index >= 0 && index < candidates.length)
+      .map(index => candidates[index]));
+  }
+  // Older trimmed snapshots record only a count, which cannot identify the
+  // retained references after ranking. Do not guess which candidates survived.
+  if (Number.isFinite(usage?.passagesUsedInPrompt) && usage.passagesUsedInPrompt !== candidates.length) return [];
+  return getVisibleTraditionalPassages(candidates);
 }
 
 export function deriveNarrativeVisibility({
@@ -156,6 +169,7 @@ export function deriveNarrativeVisibility({
   isReadingStreaming,
   narrativePhase,
   themes,
+  readingMeta,
   highlightItems = [],
   visibleCount,
   revealedCardsSize,
@@ -170,7 +184,7 @@ export function deriveNarrativeVisibility({
   storyArtCards = [],
   cinematicCard
 }) {
-  const traditionalPassages = getTraditionalPassages(themes);
+  const traditionalPassages = getTraditionalPassages(themes, readingMeta);
   const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
   const hasTraditionalInsights = traditionalPassages.length > 0;
   const hasHighlightPanel = Boolean(highlightItems.length && visibleCount > 0 && revealedCardsSize === visibleCount);
