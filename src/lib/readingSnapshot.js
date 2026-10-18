@@ -56,6 +56,7 @@ export function buildReadingSnapshot({
   spreadKey,
   hasUserSelectedSpread = false,
   reading,
+  drawIncludeMinors = null,
   isSpreadDealt = false,
   revealedCards,
   dealIndex = 0,
@@ -78,6 +79,7 @@ export function buildReadingSnapshot({
     spreadKey,
     hasUserSelectedSpread: Boolean(hasUserSelectedSpread),
     reading: cards,
+    drawIncludeMinors: typeof drawIncludeMinors === 'boolean' ? drawIncludeMinors : null,
     isSpreadDealt: Boolean(isSpreadDealt),
     revealed,
     dealIndex: Number.isInteger(dealIndex) && dealIndex >= 0 ? dealIndex : 0,
@@ -136,7 +138,7 @@ export function loadReadingSnapshot({ owner = null, storage = getSessionStorage(
       return null;
     }
     if (owner && !snapshotBelongsTo(snapshot, owner)) return null;
-    return snapshot;
+    return { ...snapshot, drawIncludeMinors: typeof snapshot.drawIncludeMinors === 'boolean' ? snapshot.drawIncludeMinors : null };
   } catch {
     return null;
   }

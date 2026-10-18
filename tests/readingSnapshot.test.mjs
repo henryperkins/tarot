@@ -71,6 +71,21 @@ describe('reading snapshot', () => {
     assert.equal(restored.narrative, null);
   });
 
+  it('preserves draw scope even when a full-deck draw contains only Major cards', () => {
+    for (const drawIncludeMinors of [true, false]) {
+      saveReadingSnapshot(snapshot({ reading: [cards[0]], drawIncludeMinors }), { storage });
+      assert.equal(loadReadingSnapshot({ storage, now: NOW }).drawIncludeMinors, drawIncludeMinors);
+    }
+  });
+
+  it('keeps missing or malformed legacy draw scope unknown', () => {
+    for (const drawIncludeMinors of [undefined, null, 'false', 0]) {
+      const old = { ...snapshot(), drawIncludeMinors };
+      storage.setItem(READING_SNAPSHOT_STORAGE_KEY, JSON.stringify(old));
+      assert.equal(loadReadingSnapshot({ storage, now: NOW }).drawIncludeMinors, null);
+    }
+  });
+
   it('keeps a finished narrative with its analysis', () => {
     saveReadingSnapshot(snapshot({
       narrative: { raw: '## Opening\nA steady rhythm.', provider: 'claude-api', requestId: 'req-1', isStreaming: false },

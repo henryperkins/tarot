@@ -11,6 +11,7 @@ import { publicVisualSnapshot } from '../lib/readingVisualStorage.js';
 export function useSaveReading() {
     const {
         reading,
+        drawIncludeMinors,
         personalReading,
         themes,
         reflections,
@@ -38,7 +39,7 @@ export function useSaveReading() {
     const { canUseCloudJournal } = useSubscription();
     // Include original content as well as seed: regenerating within a spread is
     // a new save target, and an account change must never inherit Saved state.
-    const readingKey = JSON.stringify([readingMeta?.readingResultId || null, sessionSeed, selectedSpread, deckStyleId, userQuestion,
+    const readingKey = JSON.stringify([readingMeta?.readingResultId || null, sessionSeed, selectedSpread, deckStyleId, drawIncludeMinors, userQuestion,
         personalReading?.raw || personalReading?.normalized || '', reflections,
         reading?.map(card => [card.name, card.isReversed]),
         isAuthenticated ? user?.id : 'guest', Boolean(isAuthenticated && canUseCloudJournal)]);
@@ -98,7 +99,7 @@ export function useSaveReading() {
                 orientation: card.isReversed ? 'Reversed' : 'Upright'
             })),
             personalReading: personalReading?.raw || personalReading?.normalized || '',
-            themes: themes || null,
+            themes: typeof drawIncludeMinors === 'boolean' ? { ...themes, drawIncludeMinors } : themes || null,
             reflections: reflections || {},
             context: contextValue,
             provider: personalReading?.provider || readingMeta?.provider || 'local',
@@ -178,7 +179,7 @@ export function useSaveReading() {
             inFlight.current.delete(readingKey);
         }
     }, [
-        readingKey, sessionSeed, reading, personalReading, selectedSpread,
+        readingKey, sessionSeed, reading, drawIncludeMinors, personalReading, selectedSpread,
         userQuestion, themes, reflections, analysisContext, readingMeta,
         deckStyleId, personalization, saveEntry, setJournalStatus, incrementJournalSaveCount,
         locationEnabled, cachedLocation, persistLocationToJournal, followUps, setSaveState, visualResume

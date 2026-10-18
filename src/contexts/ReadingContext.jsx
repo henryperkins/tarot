@@ -61,6 +61,7 @@ export function ReadingProvider({ children }) {
     const tarotState = useTarotState(speak);
     const {
         reading,
+        drawIncludeMinors,
         selectedSpread,
         userQuestion,
         revealedCards,
@@ -76,7 +77,6 @@ export function ReadingProvider({ children }) {
     } = tarotState;
     const {
         deckStyleId,
-        includeMinors,
         reversalFramework,
         personalization,
         autoNarrate,
@@ -306,6 +306,7 @@ export function ReadingProvider({ children }) {
                 spreadKey: selectedSpread,
                 hasUserSelectedSpread,
                 reading,
+                drawIncludeMinors,
                 isSpreadDealt,
                 revealedCards,
                 dealIndex,
@@ -324,7 +325,7 @@ export function ReadingProvider({ children }) {
         const timer = setTimeout(save, 250);
         return () => clearTimeout(timer);
     }, [
-        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, isSpreadDealt, revealedCards,
+        restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, isSpreadDealt, revealedCards,
         dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
         userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
         readingMeta, lastCardsForFeedback
@@ -1529,10 +1530,12 @@ export function ReadingProvider({ children }) {
         if (spreadAnalysis && Array.isArray(spreadAnalysis.relationships)) {
             const notes = [];
             if (themes) {
-                const deckScope = includeMinors
-                    ? 'Full deck (Major + Minor Arcana).'
-                    : 'Major Arcana focus (archetypal themes).';
-                notes.push({ key: 'deck-scope', icon: '-', title: 'Deck scope:', text: deckScope });
+                if (typeof drawIncludeMinors === 'boolean') {
+                    const deckScope = drawIncludeMinors
+                        ? 'Full deck (Major + Minor Arcana).'
+                        : 'Major Arcana focus (archetypal themes).';
+                    notes.push({ key: 'deck-scope', icon: '-', title: 'Deck scope:', text: deckScope });
+                }
                 // suitFocus covers every repeated suit (including ties); a bare dominantSuit
                 // may be a single card, so it never becomes a dominance claim on its own.
                 if (themes.suitFocus) {
@@ -1587,7 +1590,7 @@ export function ReadingProvider({ children }) {
             return notes;
         }
         return null;
-    }, [reading, revealedCards, spreadAnalysis, themes, includeMinors, selectedSpread, deckStyleId, buildSymbolElementCue]);
+    }, [reading, revealedCards, spreadAnalysis, themes, drawIncludeMinors, selectedSpread, deckStyleId, buildSymbolElementCue]);
 
     const fallbackHighlights = useMemo(() => {
         if (!reading) return [];
@@ -1599,12 +1602,14 @@ export function ReadingProvider({ children }) {
         }
         const visibleReading = maxCards ? reading.slice(0, maxCards) : reading;
         const items = [];
-        items.push({
-            key: 'deck-scope',
-            icon: '-',
-            title: 'Deck scope:',
-            text: includeMinors ? 'Full deck (Major + Minor Arcana).' : 'Major Arcana focus (archetypal themes).'
-        });
+        if (typeof drawIncludeMinors === 'boolean') {
+            items.push({
+                key: 'deck-scope',
+                icon: '-',
+                title: 'Deck scope:',
+                text: drawIncludeMinors ? 'Full deck (Major + Minor Arcana).' : 'Major Arcana focus (archetypal themes).'
+            });
+        }
         const reversedIdx = visibleReading.map((card, index) => (card.isReversed ? index : -1)).filter(index => index >= 0);
         if (reversedIdx.length > 0) {
             const hasCluster = reversedIdx.some((idx, j) => j > 0 && idx === reversedIdx[j - 1] + 1);
@@ -1632,7 +1637,7 @@ export function ReadingProvider({ children }) {
             items.push({ key: `relationship-${relationship.type || 'pattern'}-${index}`, icon: meta.icon, title: meta.title, text: relationship.text });
         });
         return items;
-    }, [reading, revealedCards, includeMinors, relationships, selectedSpread]);
+    }, [reading, revealedCards, drawIncludeMinors, relationships, selectedSpread]);
 
     const highlightItems = useMemo(() => {
         if (Array.isArray(derivedHighlights) && derivedHighlights.length > 0) return derivedHighlights;

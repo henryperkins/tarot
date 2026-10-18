@@ -414,7 +414,7 @@ export default function TarotReading() {
       }))
       : [];
 
-    setReading(normalizedCards);
+    setReading(normalizedCards, entryThemes?.drawIncludeMinors);
     setIsSpreadDealt(true);
     setRevealedCards(new Set(normalizedCards.map((_, index) => index)));
     setDealIndex(normalizedCards.length);

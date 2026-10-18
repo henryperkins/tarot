@@ -41,7 +41,19 @@ export function useTarotState(speak) {
   const setSelectedSpread = useCallback((nextKey) => {
     setSelectedSpreadState(normalizeSpreadKey(nextKey));
   }, []);
-  const [reading, setReading] = useState(() => initialSnapshot?.reading ?? null);
+  const [draw, setDraw] = useState(() => ({
+    reading: initialSnapshot?.reading ?? null,
+    drawIncludeMinors: initialSnapshot?.drawIncludeMinors ?? null
+  }));
+  const { reading, drawIncludeMinors } = draw;
+  // Keep scope and cards atomic. Imported/legacy readings have unknown scope
+  // unless their saved metadata explicitly records it.
+  const setReading = useCallback((cards, includeMinorsAtDraw = null) => {
+    setDraw(current => ({
+      reading: typeof cards === 'function' ? cards(current.reading) : cards,
+      drawIncludeMinors: typeof includeMinorsAtDraw === 'boolean' ? includeMinorsAtDraw : null
+    }));
+  }, []);
   const [isShuffling, setIsShuffling] = useState(false);
   const [revealedCards, setRevealedCards] = useState(() => new Set(initialSnapshot?.revealed || []));
   const [isSpreadDealt, setIsSpreadDealt] = useState(() => Boolean(initialSnapshot?.isSpreadDealt));
@@ -120,7 +132,7 @@ export function useTarotState(speak) {
       knockTimesRef.current = [];
       setSnapshotRevision(revision => revision + 1);
     }
-  }, [authLoading, questionDraftOwner, initialSnapshot]);
+  }, [authLoading, questionDraftOwner, initialSnapshot, setReading]);
 
   useEffect(() => {
     if (!questionDraftSyncRef.current.restored) return;
@@ -216,7 +228,7 @@ export function useTarotState(speak) {
     if (resetQuestion) {
       setUserQuestion('');
     }
-  }, []);
+  }, [setReading]);
 
   const selectSpread = useCallback((key) => {
     setHasUserSelectedSpread(true);
@@ -287,7 +299,7 @@ export function useTarotState(speak) {
         setIsShuffling(false);
         return;
       }
-      setReading(cards);
+      setReading(cards, includeMinors);
       setIsShuffling(false);
       setSessionSeed(nextSessionSeed);
 
@@ -297,7 +309,7 @@ export function useTarotState(speak) {
         setHasCut(true);
       }
     }, 1200);
-  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, resetReadingState, shouldSkipRitual, deckSize]);
+  }, [selectedSpread, hasConfirmedSpread, hasKnocked, hasCut, userQuestion, cutIndex, includeMinors, resetReadingState, shouldSkipRitual, deckSize, setReading]);
 
   const shortLineForCard = useCallback((card, position) => {
     const meaning = card.isReversed ? card.reversed : card.upright;
@@ -310,10 +322,10 @@ export function useTarotState(speak) {
     // Ritual choices made at the table are applied when its cards are committed.
     const useSeed = Boolean(hasKnocked || hasCut || userQuestion.trim() || shouldSkipRitual);
     const seed = computeSeed({ cutIndex, knockTimes: knockTimesRef.current, userQuestion });
-    setReading(drawSpread({ spreadKey: selectedSpread, useSeed, seed, includeMinors }));
+    setReading(drawSpread({ spreadKey: selectedSpread, useSeed, seed, includeMinors }), includeMinors);
     setSessionSeed(useSeed ? seed : null);
     setIsSpreadDealt(true);
-  }, [reading, isShuffling, isSpreadDealt, hasKnocked, hasCut, userQuestion, shouldSkipRitual, cutIndex, selectedSpread, includeMinors]);
+  }, [reading, isShuffling, isSpreadDealt, hasKnocked, hasCut, userQuestion, shouldSkipRitual, cutIndex, selectedSpread, includeMinors, setReading]);
 
   const resetReveals = useCallback(() => {
     setRevealedCards(new Set());
@@ -377,6 +389,7 @@ export function useTarotState(speak) {
     setSelectedSpread,
     selectSpread,
     reading,
+    drawIncludeMinors,
     setReading,
     isShuffling,
     isSpreadDealt,
