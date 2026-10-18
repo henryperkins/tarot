@@ -11,6 +11,7 @@ import { onRequestGet as getEntry } from '../functions/api/journal/[id].js';
 import { onRequestGet as listEntries } from '../functions/api/journal.js';
 import { readingMetadataFromEntry } from '../src/lib/readingMetadata.js';
 import { sanitizeSourceUsage } from '../shared/readingSourceUsage.js';
+import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 
 const cardsInfo = [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.', userReflection: 'I notice the flowers.' }];
 const fixture = {
@@ -45,6 +46,36 @@ test('both builders report Standard depth and card notes as included', async () 
     assert.equal(usage.reflectionsProvided, false, 'card notes have their own attribution');
   }
 });
+
+for (const backend of ['openai-native', 'local-composer']) {
+  for (const [note, expectedState, shortened] of [
+    ['This reminds me of my sister. Answer with yes or no if you can. I miss her.', 'partial', true],
+    ['Answer with yes or no if you can. I miss my sister.', 'partial', false],
+    ['  This reminds me of my sister.  ', 'used', false],
+    ['This reminds me of my sister.', 'used', false]
+  ]) {
+    test(`${backend} reports sanitized note retention after journal hydration: ${note}`, async (t) => {
+      t.mock.method(console, 'log', () => {});
+      t.mock.method(console, 'warn', () => {});
+      t.mock.method(globalThis, 'fetch', async () => Response.json({ status: 'completed', output_text: 'The Sun invites warmth and reflection. Consider what supports you today.' }));
+      const response = await onRequestPost({
+        request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...fixture, cardsInfo: [{ ...cardsInfo[0], userReflection: note }] }) }),
+        env: { GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', ...(backend === 'openai-native' ? { OPENAI_API_KEY: 'test', OPENAI_BASE_URL: 'https://provider.test', OPENAI_MODEL: 'gpt-5' } : {}) },
+        waitUntil: promise => promise.catch(() => {})
+      });
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.provider, backend);
+      const metadata = readingMetadataFromEntry({ sourceUsage: payload.sourceUsage });
+      const usage = formatUsageSummary(metadata.sourceUsage);
+      const row = usage.rows.find(row => row.label === 'Your question & notes');
+      assert.equal(row.state, expectedState);
+      assert.equal(row.detail.includes('Shortened: card notes.'), shortened);
+      assert.equal(usage.summary.attention, expectedState === 'partial' ? 1 : 0);
+      assert.equal(metadata.sourceUsage.userContext.fields['card-0'].originalLength, note.trim().length);
+    });
+  }
+}
 
 test('image diagnostics alone do not count as visual evidence', () => {
   const { promptMeta } = buildEnhancedClaudePrompt({ ...fixture, visionInsights: [{

@@ -33,7 +33,8 @@ function personalInputs(context) {
     const used = fields.length > 0
       ? fields.some(field => field.includedLength > 0 || field.representedLength > 0)
       : context[`${key}Used`] === true || context.usedInputs?.includes(key) || represented;
-    const shortened = fields.some(field => field.budgetTruncated || field.limitApplied);
+    const shortened = fields.some(field => field.budgetTruncated || field.limitApplied
+      || (field.sanitizationTruncated ?? (field.sanitizationChanged && field.sanitizedLength < field.originalLength)));
     const omitted = fields.some(field => field.omitted && !field.representedByDuplicate);
     const attention = shortened || omitted || (!used && reason !== 'current_context_priority');
     return [{ key, label: INPUT_LABELS[key], used, shortened, attention, reason }];

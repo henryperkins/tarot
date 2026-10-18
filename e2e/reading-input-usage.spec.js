@@ -112,7 +112,6 @@ for (const hasSnapshot of [false, true]) {
       await openReadingSupport(page);
       const region = page.getByRole('region', { name: panelName });
       if (hasSnapshot) {
-        await page.getByText('Explore this reading', { exact: true }).click();
         await region.getByRole('button', { name: panelName }).click();
         await expect(region.getByText('Uploaded images', { exact: true })).toBeVisible();
         await expect(region).not.toContainText('Traditional wisdom');

@@ -498,7 +498,6 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
   const rawReflections = collectQuerentReflections(payload?.reflectionsText, payload?.cardsInfo);
   const generalReflections = typeof payload?.reflectionsText === 'string' ? payload.reflectionsText.trim() : '';
-  const cardReflections = (payload?.cardsInfo || []).map(card => card?.userReflection).filter(note => typeof note === 'string' && note.trim());
   // Match collectQuerentReflections' case/whitespace-insensitive deduplication.
   const normalizeReflection = text => text.toLowerCase().replace(/\s+/g, ' ').trim();
   const includedReflections = normalizeReflection(prepareReflectionsText(rawReflections));
@@ -507,6 +506,8 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
     ...(payload?.cardsInfo || []).map((card, index) => [`card-${index}`, card?.userReflection || ''])
   ].map(([key, value]) => {
     const text = typeof value === 'string' ? value : '';
+    const inputStats = payload?.userContextInputStats?.[key];
+    const originalLength = inputStats?.originalLength ?? text.length;
     const prepared = normalizeReflection(prepareReflectionsText(text, { maxLength: text.length || 1 }));
     // Measure the retained prefix, including a partially clipped last note.
     // Matching notes intentionally count as represented once.
@@ -516,10 +517,12 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       while (includedLength < prepared.length && prepared[includedLength] === includedReflections[start + includedLength]) includedLength += 1;
     }
     return [key, {
-      originalLength: text.length, sanitizedLength: prepared.length, includedLength,
+      originalLength, sanitizedLength: text.length, includedLength,
+      sanitizationChanged: Boolean(inputStats?.sanitizationChanged),
+      sanitizationTruncated: Boolean(inputStats?.sanitizationTruncated),
       limitApplied: Boolean(prepared && includedLength < prepared.length),
-      omitted: Boolean(text && includedLength === 0),
-      reason: text && !prepared ? 'sanitized_empty' : prepared && includedLength < prepared.length ? 'input_limit' : null
+      omitted: Boolean(originalLength && includedLength === 0),
+      reason: originalLength && !prepared ? 'sanitized_empty' : prepared && includedLength < prepared.length ? 'input_limit' : null
     }];
   }));
   const cardFields = Object.entries(reflectionFields).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
@@ -545,12 +548,12 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       skippedReason: rawUserQuestion.trim().length > 0 && !sanitizedQuestion ? 'sanitized_empty' : null
     },
     reflections: {
-      provided: generalReflections.length > 0,
+      provided: reflectionFields.reflections.originalLength > 0,
       used: reflectionFields.reflections.includedLength > 0,
       skippedReason: reflectionFields.reflections.reason
     },
     cardReflections: {
-      provided: cardReflections.length > 0,
+      provided: cardFields.some(field => field.originalLength > 0),
       used: cardFields.some(field => field.includedLength > 0),
       skippedReason: cardFields.some(field => field.limitApplied) ? 'input_limit' : 'sanitized_empty'
     },

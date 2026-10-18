@@ -34,7 +34,7 @@ const reasonCode = value => typeof value === 'string' && Object.hasOwn(USAGE_REA
 const sourceKeys = ['spreadCards', 'vision', 'userContext', 'graphRAG', 'ephemeris', 'forecast'];
 const countKeys = ['eligibleUploads', 'telemetryOnlyUploads', 'evidencePacketsUsed', 'passagesProvided', 'passagesUsedInPrompt'];
 const fieldCounts = ['originalLength', 'sanitizedLength', 'eligibleLength', 'includedLength', 'representedLength'];
-const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
+const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'sanitizationTruncated', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
 
 function copyCounts(target, input, keys) {
   for (const key of keys) {

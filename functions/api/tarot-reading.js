@@ -16,6 +16,7 @@ import { buildContextInferenceInput, resolveContextSelection } from '../lib/cont
 import { parseMinorName } from '../lib/minorMeta.js';
 import { jsonResponse, readJsonBody } from '../lib/utils.js';
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
+import { getReadingContextInputStats } from '../lib/readingCardContext.js';
 import { verifyVisionProof } from '../lib/visionProof.js';
 import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import {
@@ -1176,7 +1177,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       userContextInputStats: Object.fromEntries([
         ['question', { originalLength: userQuestion?.length || 0 }],
         ['reflections', { originalLength: reflectionsText?.length || 0 }],
-        ...rawCardsInfo.map((card, index) => [`card-${index}`, { originalLength: card.userReflection?.length || 0, sanitizationChanged: (card.userReflection || '') !== (cardsInfo[index].userReflection || '') }])
+        ...rawCardsInfo.map((card, index) => [`card-${index}`, getReadingContextInputStats(card.userReflection, cardsInfo[index].userReflection)])
       ]),
       spreadInfo,
       cardsInfo,

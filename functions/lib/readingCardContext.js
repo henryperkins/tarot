@@ -5,6 +5,18 @@ import {
 } from './utils.js';
 import { detectPromptInjection } from './promptInjectionDetector.js';
 
+/** Distinguish content loss from ordinary whitespace/formatting cleanup. */
+export function getReadingContextInputStats(original, sanitized) {
+  const raw = typeof original === 'string' ? original : '';
+  const safe = typeof sanitized === 'string' ? sanitized : '';
+  const normalizedLength = text => sanitizeText(text, { stripMarkdown: true, stripControlChars: true }).length;
+  return {
+    originalLength: raw.length,
+    sanitizationChanged: raw !== safe,
+    sanitizationTruncated: normalizedLength(safe) < normalizedLength(raw)
+  };
+}
+
 /**
  * Clean card context without imposing a second length budget. Once an
  * instruction-like sentence starts, discard its continuation as well: replacing

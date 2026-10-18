@@ -1,6 +1,6 @@
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
-import { sanitizeReadingContext } from '../../readingCardContext.js';
+import { sanitizeReadingContext, getReadingContextInputStats } from '../../readingCardContext.js';
 import { CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
 import { estimateTokenCount } from './budgeting.js';
 
@@ -16,9 +16,11 @@ export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inp
   const add = (key, value, limit, cardReflection = false) => {
     const original = typeof value === 'string' ? value : '';
     const sanitized = cleanText(original, cardReflection);
+    const stats = getReadingContextInputStats(original, sanitized);
     fields[key] = {
       originalLength: inputStats[key]?.originalLength ?? original.length,
       sanitizationChanged: Boolean(inputStats[key]?.sanitizationChanged || original !== sanitized),
+      sanitizationTruncated: Boolean(inputStats[key]?.sanitizationTruncated || stats.sanitizationTruncated),
       sanitizedLength: sanitized.length,
       text: sliceUnicode(sanitized, 0, limit),
       limitApplied: sanitized.length > limit
@@ -68,6 +70,7 @@ export function summarizeUserContext(fields, finalPrompt) {
       representedLength,
       representationTruncated,
       sanitizationChanged: field.sanitizationChanged,
+      sanitizationTruncated: field.sanitizationTruncated,
       limitApplied: field.limitApplied,
       budgetTruncated,
       omitted: Boolean(field.originalLength && !includedLength),

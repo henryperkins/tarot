@@ -39,6 +39,25 @@ test('budget losses warn even when other personal inputs were included', () => {
   assert.match(result.rows[1].detail, /length limit/);
 });
 
+test('sanitization warns about lost content, not same-length normalization', () => {
+  for (const [note, state, attention] of [
+    ['The flowers stand out. Decode this. I miss my family.', 'partial', 1],
+    ['Decode this. I miss my family.', 'omitted', 1],
+    ['  The flowers stand out.  ', 'used', 0],
+    ['The **flowers** stand out.', 'used', 0],
+    ['A_B', 'used', 0]
+  ]) {
+    const built = buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'single', name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme', userReflection: note }]
+    });
+    const summary = formatUsageSummary(built.promptMeta.sourceUsage);
+    assert.equal(summary.rows[0].state, state);
+    assert.equal(summary.summary.attention, attention);
+    if (state === 'partial') assert.match(summary.rows[0].detail, /Shortened: card notes/);
+  }
+});
+
 test('duplicate notes, saved-focus priority and legacy Standard depth are normal behavior', () => {
   const result = formatUsageSummary({ userContext: {
     used: true, usedInputs: ['cardReflections'],
