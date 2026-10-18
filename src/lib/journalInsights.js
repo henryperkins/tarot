@@ -973,7 +973,7 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
 
       steps.forEach((stepText, i) => {
         if (typeof stepText === 'string' && stepText.trim()) {
-          allSteps.push({ text: stepText.trim(), weight: recencyWeight });
+          allSteps.push({ text: stepText.trim(), weight: recencyWeight, entryId: entry.id });
           allEmbeddings.push(embeddings[i]);
         }
       });
@@ -1045,6 +1045,14 @@ export function computeCoachSuggestionWithEmbeddings(entries, options = {}) {
     question,
     theme: topCluster.theme,
     relatedSteps: topCluster.steps,
+    // The theme can paraphrase the narrative. Navigate by the entries that
+    // contributed to this cluster instead of searching its generated wording.
+    journalFilter: {
+      type: 'entries',
+      entryIds: [...new Set(topCluster.indices.map(index => allSteps[index].entryId)
+        .filter(id => id != null).map(String))],
+      label: 'Gentle next steps',
+    },
     clusterSize: topCluster.steps.length,
     spread: topCluster.steps.length > 2 ? 'threeCard' : 'single',
     sourceLabel: getCoachSourceLabel('embeddings'),
@@ -1479,7 +1487,7 @@ const MIN_ENTRIES_FOR_DRIFT = 3;
 const MIN_DRIFT_COUNT = 2;
 const MIN_DRIFT_RATIO = 0.3;
 
-function normalizeContextKey(value) {
+export function normalizeContextKey(value) {
   if (!value || typeof value !== 'string') return '';
   const cleaned = value.trim().toLowerCase();
   if (!cleaned) return '';

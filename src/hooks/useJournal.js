@@ -80,7 +80,7 @@ function readLocalJournalArray(key) {
  *
  * This provides backward compatibility while enabling cloud sync for auth users
  */
-export function useJournal({ autoLoad = true } = {}) {
+export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
   const gestureStudyEnabled = readingGesturesEnabled();
   const visualRequestsEnabled = readingVisualRequestsEnabled();
   const { isAuthenticated, user } = useAuth();
@@ -241,13 +241,14 @@ export function useJournal({ autoLoad = true } = {}) {
 
   const buildApiUrl = useCallback((cursor) => {
     const params = new URLSearchParams();
-    params.set('limit', String(PAGE_SIZE));
+    if (completeHistory) params.set('all', 'true');
+    else params.set('limit', String(PAGE_SIZE));
     params.set('includeFollowups', 'true');
     if (cursor) {
       params.set('cursor', String(cursor));
     }
     return `/api/journal?${params.toString()}`;
-  }, []);
+  }, [completeHistory]);
 
   const loadEntries = useCallback(async () => {
     if (isDeletedAccount(userId)) return;

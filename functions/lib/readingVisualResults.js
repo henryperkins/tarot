@@ -1,3 +1,4 @@
+import { journeyRebuildStatements } from './journeyAnalytics.js';
 import { canonicalVisualCueJSON, hashVisualCueText, sameVisualCueBinding, visualCueBindingSchema } from '../../shared/contracts/visualCueBatches.js';
 import { createVisualCueLedger } from '../../shared/reading/visualCueLedger.js';
 import { fingerprintVisualSource, normalizeVisualSource } from '../../shared/reading/visualSourceIdentity.js';
@@ -563,7 +564,10 @@ export async function deleteJournalVisualLink({ db, env, userId, entryId, delete
   db.prepare('DELETE FROM journal_visual_state WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId));
   const linkDeleteIndex = statements.length;
   statements.push(db.prepare('DELETE FROM journal_visual_links WHERE journal_entry_id = ? AND user_id = ?').bind(entryId, userId));
-  if (deleteEntry) statements.push(db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryId, userId));
+  if (deleteEntry) statements.push(
+    db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryId, userId),
+    ...journeyRebuildStatements(db, userId)
+  );
   const results = await db.batch(statements);
   const ids = new Set([...results[0].results.map(row => row.visual_job_id), ...results[1].results.map(row => row.reading_result_id)].filter(Boolean));
   for (const id of ids) {

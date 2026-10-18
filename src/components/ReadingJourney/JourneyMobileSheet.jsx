@@ -27,7 +27,7 @@ import CoachSuggestionSwitcher from './CoachSuggestionSwitcher';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { recordCoachQuestion } from '../../lib/coachStorage';
-import { getCoachSuggestionSearchQuery } from '../../lib/coachSuggestionUtils';
+import { getCoachSuggestionJournalState } from '../../lib/coachSuggestionUtils';
 import CardsCallingYou from './sections/CardsCallingYou';
 import ContextBreakdown from './sections/ContextBreakdown';
 import PatternsSnapshotPanel from './sections/PatternsSnapshotPanel';
@@ -219,12 +219,8 @@ export default function JourneyMobileSheet({
   }, [activeCoachSuggestion, clearSaveTimeout, userId]);
 
   const handleOpenJournal = useCallback((suggestion = activeCoachSuggestion) => {
-    const query = getCoachSuggestionSearchQuery(suggestion);
-    if (query) {
-      navigate('/journal', { state: { prefillQuery: query } });
-      return;
-    }
-    navigate('/journal');
+    setIsSheetOpen(false);
+    navigate('/journal', { state: getCoachSuggestionJournalState(suggestion) });
   }, [activeCoachSuggestion, navigate]);
 
   const handleStartReading = useCallback(() => {
@@ -339,6 +335,21 @@ export default function JourneyMobileSheet({
     setShowAllPatterns((prev) => !prev);
   }, []);
 
+  // Exporting saved readings does not require analytics consent.
+  const exportSection = (
+    <ExportSection
+      isAuthenticated={isAuthenticated}
+      onCreateShareLink={onCreateShareLink}
+      scopeEntries={scopeEntries}
+      filteredEntries={filteredEntries}
+      allEntries={allEntries}
+      stats={exportStats}
+      preferenceDrift={preferenceDrift}
+      scopeLabel={scopeLabel}
+      filtersApplied={filtersApplied}
+    />
+  );
+
   // Show loading skeleton
   if (isLoading) {
     return (
@@ -355,7 +366,7 @@ export default function JourneyMobileSheet({
   }
 
   // Show "no results for filter" when filters yield empty but user has entries
-  if (isFilteredEmpty) {
+  if (isFilteredEmpty && !isAnalyticsDisabled) {
     return (
       <section
         className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
@@ -409,6 +420,10 @@ export default function JourneyMobileSheet({
           >
             Go to Settings
           </button>
+        </div>
+        <div className="relative z-10 border-t border-(--border-warm-subtle) pt-4">
+          <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-high">Export &amp; Share</h4>
+          {exportSection}
         </div>
       </section>
     );
@@ -784,19 +799,7 @@ export default function JourneyMobileSheet({
                 />
               )}
 
-              {activeTab === 'export' && (
-                <ExportSection
-                  isAuthenticated={isAuthenticated}
-                  onCreateShareLink={onCreateShareLink}
-                  scopeEntries={scopeEntries}
-                  filteredEntries={filteredEntries}
-                  allEntries={allEntries}
-                  stats={exportStats}
-                  preferenceDrift={preferenceDrift}
-                  scopeLabel={scopeLabel}
-                  filtersApplied={filtersApplied}
-                />
-              )}
+              {activeTab === 'export' && exportSection}
             </div>
           </div>
         </div>

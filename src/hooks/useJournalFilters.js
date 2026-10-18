@@ -5,6 +5,7 @@
 import { useDeferredValue, useCallback, useMemo, useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAccountStorage.js';
 import { filterDeletedJournalEntries, subscribeToDeletedJournalEntries } from '../lib/deletedJournalEntryStorage.js';
+import { matchesJourneyFilter } from '../lib/coachSuggestionUtils';
 import { formatContextName } from '../lib/journalInsights';
 import {
   CONTEXT_FILTERS,
@@ -20,7 +21,7 @@ const IDLE_SERVER_SEARCH = Object.freeze({
 });
 
 export function useJournalFilters(sourceEntries, options = {}) {
-  const { isAuthenticated = false, canUseCloudJournal = false, userId = null } = options;
+  const { isAuthenticated = false, canUseCloudJournal = false, userId = null, completeHistory = false } = options;
   const namespace = isAuthenticated && userId ? `user:${encodeURIComponent(userId)}` : 'anon';
   const namespaceRef = useRef(namespace);
   const entries = filterDeletedJournalEntries(namespace, sourceEntries);
@@ -85,9 +86,10 @@ export function useJournalFilters(sourceEntries, options = {}) {
         decks: [...filters.decks].sort(),
         timeframe: filters.timeframe,
         onlyReversals: filters.onlyReversals,
-        serverSearchEnabled: isAuthenticated && canUseCloudJournal && entries?.length >= SERVER_SEARCH_THRESHOLD
+        journeyFilter: filters.journeyFilter,
+        serverSearchEnabled: isAuthenticated && canUseCloudJournal && !completeHistory && entries?.length >= SERVER_SEARCH_THRESHOLD
       }),
-    [filters, namespace, isAuthenticated, canUseCloudJournal, entries]
+    [filters, namespace, isAuthenticated, canUseCloudJournal, completeHistory, entries]
   );
 
   const serverFilterSignature = useMemo(
@@ -106,6 +108,10 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const shouldUseServerSearch = isAuthenticated
     && Boolean(userId) && !isDeletedAccount(userId)
     && canUseCloudJournal
+    // Complete history can be filtered locally without truncating matches to
+    // the server search page size. Paginated callers retain server search.
+    && !completeHistory
+    && !filters.journeyFilter
     && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
     && entries?.length >= SERVER_SEARCH_THRESHOLD;
 
@@ -230,6 +236,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     })();
 
     return entries.filter((entry) => {
+      if (!matchesJourneyFilter(entry, filters.journeyFilter)) return false;
       if (contextSet.size > 0 && !contextSet.has(entry?.context)) {
         return false;
       }
@@ -271,7 +278,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
       }
       return true;
     });
-  }, [entries, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
+  }, [entries, filters.journeyFilter, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
 
   // Check if any filters are active
   const filtersActive = Boolean(filters.query.trim()) ||
@@ -279,11 +286,14 @@ export function useJournalFilters(sourceEntries, options = {}) {
     filters.spreads.length > 0 ||
     filters.decks.length > 0 ||
     filters.timeframe !== 'all' ||
-    filters.onlyReversals;
+    filters.onlyReversals || Boolean(filters.journeyFilter);
 
   // Build active filter chips for display
   const activeFilterChips = useMemo(() => {
     const chips = [];
+    if (filters.journeyFilter) {
+      chips.push({ key: 'journey', label: filters.journeyFilter.label || 'Journey readings' });
+    }
     const trimmedQuery = filters.query.trim();
     if (trimmedQuery) {
       chips.push({ key: 'query', label: `"${trimmedQuery}"` });
@@ -317,6 +327,8 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const handleRemoveFilter = useCallback((chipKey) => {
     setFilters((prev) => {
       switch (chipKey) {
+        case 'journey':
+          return { ...prev, journeyFilter: null };
         case 'query':
           return { ...prev, query: '' };
         case 'contexts':

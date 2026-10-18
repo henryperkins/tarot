@@ -1,60 +1,24 @@
-function stripCountSuffix(value) {
-  if (!value || typeof value !== 'string') return '';
-  return value.replace(/\s*\([^)]*\)\s*$/, '').trim();
+import { safeJsonParse } from '../../shared/journal/utils.js';
+import { normalizeContextKey } from './journalInsights.js';
+
+const normalize = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+// Navigation carries source data, never prose parsed from a display caption.
+export function getCoachSuggestionJournalState(suggestion) {
+  return { focusJournal: true, journeyFilter: suggestion?.journalFilter || null };
 }
 
-function getSignalDetail(suggestion, type) {
-  if (!suggestion?.signalsUsed?.length) return '';
-  const match = suggestion.signalsUsed.find((signal) => signal?.type === type);
-  return typeof match?.detail === 'string' ? match.detail : '';
-}
-
-function pickDriftQuery(detail) {
-  if (!detail) return '';
-  const lines = detail
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const preferredLine = lines.find((line) => line.startsWith('Drift:'))
-    || lines.find((line) => line.startsWith('Most read:'))
-    || lines.find((line) => line.startsWith('Expected focus:'))
-    || lines[0];
-  if (!preferredLine) return '';
-  const value = preferredLine.split(':').slice(1).join(':').trim();
-  return stripCountSuffix(value);
-}
-
-export function getCoachSuggestionSearchQuery(suggestion) {
-  if (!suggestion) return '';
-  const source = suggestion.source;
-
-  if (source === 'badge') {
-    return stripCountSuffix(getSignalDetail(suggestion, 'badge'));
+export function matchesJourneyFilter(entry, filter) {
+  if (!filter) return true;
+  if (filter.type === 'entries') return filter.entryIds?.includes(String(entry?.id)) || false;
+  const value = normalize(filter.value);
+  if (!value) return false;
+  if (filter.type === 'context') return normalizeContextKey(entry?.context) === normalizeContextKey(value);
+  if (filter.type === 'card') return (entry?.cards || []).some(card => normalize(card?.name) === value);
+  if (filter.type === 'theme') {
+    const themes = safeJsonParse(entry?.themes || entry?.themes_json, {});
+    return [themes?.archetypeDescription, themes?.suitFocus, themes?.elementalBalance, themes?.reversalDescription?.name]
+      .some(theme => normalize(theme) === value);
   }
-  if (source === 'topCard') {
-    return stripCountSuffix(getSignalDetail(suggestion, 'topCard'));
-  }
-  if (source === 'context') {
-    return stripCountSuffix(getSignalDetail(suggestion, 'context'));
-  }
-  if (source === 'theme') {
-    return (suggestion.theme || getSignalDetail(suggestion, 'theme') || '').trim();
-  }
-  if (source === 'drift') {
-    return pickDriftQuery(getSignalDetail(suggestion, 'drift'));
-  }
-  if (source === 'emergingDrift') {
-    return stripCountSuffix(getSignalDetail(suggestion, 'emergingDrift'));
-  }
-  if (source === 'majorArcana') {
-    return stripCountSuffix(getSignalDetail(suggestion, 'majorArcana'));
-  }
-  if (source === 'streak') {
-    return '';
-  }
-  if (source === 'embeddings' || source === 'nextSteps' || source === 'extractedSteps') {
-    return (suggestion.theme || suggestion.relatedSteps?.[0] || '').trim();
-  }
-
-  return '';
+  return false;
 }

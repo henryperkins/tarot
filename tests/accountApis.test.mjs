@@ -11,6 +11,7 @@ function createMockDb({ prefsRow = { archetype_journey_enabled: 1, show_badges: 
   const calls = [];
   return {
     calls,
+    async batch(statements) { return Promise.all(statements.map(statement => statement.run())); },
     prepare(query) {
       return {
         bind: (...args) => {

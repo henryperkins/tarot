@@ -36,7 +36,7 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     (filters.spreads?.length > 0) ||
     (filters.decks?.length > 0) ||
     filters.timeframe !== 'all' ||
-    filters.onlyReversals;
+    filters.onlyReversals || Boolean(filters.journeyFilter);
 
   // Scope change handlers
   const handleScopeSelect = useCallback((value) => {

@@ -46,7 +46,7 @@ for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, '
       expect(drawn.isError).toBeUndefined();
       expect(drawn.structuredContent.cardsInfo.map(({ card, position, orientation }) => ({ card, position, orientation }))).toEqual(cardsInfo);
       await jobs.settle();
-      const job = { jobId: drawn.structuredContent.jobId, jobToken: drawn.structuredContent.jobToken };
+      const job = { jobId: drawn.structuredContent.jobId };
       const finished = await call('get_tarot_reading_status', job);
       expect(finished.structuredContent.status).toBe('complete');
       const saved = await call('save_reading_to_journal', job);

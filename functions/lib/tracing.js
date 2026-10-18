@@ -4,11 +4,20 @@ import {
   isRootErrorSpan,
   multiTailSampler,
 } from '@microlabs/otel-cf-workers';
+import { suppressTracing } from '@sentry/cloudflare';
 
 export { withSpan, withSpanSync } from './tracingSpans.js';
 import { setExporterActive } from './tracingSpans.js';
 
 const DEFAULT_DEV_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
+
+class TelemetryExporter extends OTLPExporter {
+  export(spans, resultCallback) {
+    // OTEL unwraps its own fetch instrumentation, but Sentry is underneath it.
+    // Export traffic must not create spans attached to an ended request scope.
+    return suppressTracing(() => super.export(spans, resultCallback));
+  }
+}
 
 /** Satisfies the SpanProcessor interface without allocating or exporting. */
 const noopSpanProcessor = {
@@ -120,7 +129,7 @@ export function createTracingConfig(overrides = {}) {
     setExporterActive(true);
     return {
       ...baseConfig,
-      exporter: new OTLPExporter({
+      exporter: new TelemetryExporter({
         url: endpoint,
         headers,
       })

@@ -226,6 +226,7 @@ function computeEnhancedCoachSuggestions({
         : `You've been reading about ${driftContextName.toLowerCase()} quite a bit (${drift.count} times). Something on your mind?`;
       suggestions.push(buildSuggestion({
         source: 'drift',
+        journalFilter: { type: 'context', value: drift.context, label: driftContextName },
         text: question,
         question,
         spread: 'threeCard',
@@ -247,6 +248,7 @@ function computeEnhancedCoachSuggestions({
       const statusMessage = `${emergingContextName} has come up ${emerging.count} time${emerging.count === 1 ? '' : 's'} recently — a pattern starting to form.`;
       suggestions.push(buildSuggestion({
         source: 'emergingDrift',
+        journalFilter: { type: 'context', value: emerging.context, label: emergingContextName },
         text: question,
         question,
         spread: 'single',
@@ -265,6 +267,7 @@ function computeEnhancedCoachSuggestions({
     const question = `What is ${topCard.name} trying to teach me?`;
     suggestions.push(buildSuggestion({
       source: 'badge',
+      journalFilter: { type: 'card', value: topCard.name, label: topCard.name },
       text: question,
       question,
       spread: 'single',
@@ -280,6 +283,7 @@ function computeEnhancedCoachSuggestions({
     const question = `What is ${topCard.name} asking me to notice?`;
     suggestions.push(buildSuggestion({
       source: 'topCard',
+      journalFilter: { type: 'card', value: topCard.name, label: topCard.name },
       text: question,
       question,
       spread: 'single',
@@ -297,6 +301,7 @@ function computeEnhancedCoachSuggestions({
       const question = `What is ${topMajor.name} asking me to notice?`;
       suggestions.push(buildSuggestion({
         source: 'majorArcana',
+        journalFilter: { type: 'card', value: topMajor.name, label: topMajor.name },
         text: question,
         question,
         spread: 'single',
@@ -314,6 +319,7 @@ function computeEnhancedCoachSuggestions({
     if (themeQuestion) {
       suggestions.push(buildSuggestion({
         source: 'theme',
+        journalFilter: { type: topThemeSignal?.type === 'context' ? 'context' : 'theme', value: topTheme, label: topTheme },
         text: themeQuestion,
         question: themeQuestion,
         spread: 'threeCard',
@@ -349,6 +355,7 @@ function computeEnhancedCoachSuggestions({
       || `What do I need to understand about my ${contextKey || 'current'} situation right now?`;
     suggestions.push(buildSuggestion({
       source: 'context',
+      journalFilter: { type: 'context', value: contextKey, label: formatContextName(contextKey) },
       text: question,
       question,
       spread: 'threeCard',
@@ -391,6 +398,7 @@ export function useJourneyData({
   filteredEntries,
   filtersActive: filtersActiveProp,
   isAuthenticated,
+  canUseCloudJournal = false,
   userId,
   focusAreas = [],
   seasonWindow,
@@ -420,16 +428,17 @@ export function useJourneyData({
 
   // Determine if we should fetch server data
   // Gate the fetch to avoid wasted network calls and telemetry skew
-  const shouldFetchServerData = isAuthenticated && !filtersActive && !seasonWindow;
+  const shouldFetchAnalytics = Boolean(isAuthenticated && canUseCloudJournal && userId);
+  const shouldFetchServerData = shouldFetchAnalytics && !filtersActive && !seasonWindow;
 
   // Determine which entries to use for stats
   const activeEntries = filtersActive ? filteredEntries : entries;
 
-  // Server-side data - ONLY fetch when we'll actually use it
+  // Fetch diagnostics independently of the scope used to display statistics.
   // Pass enabled flag to prevent unnecessary API calls
   const archetypeData = useArchetypeJourney(
     userId,
-    shouldFetchServerData // Only fetch when auth'd AND unfiltered
+    shouldFetchAnalytics // Diagnostics/preferences are independent of display scope
   ) ?? EMPTY_ARCHETYPE;
 
   const analyticsNeedsBackfill = archetypeData?.stats?.needsBackfill;
@@ -816,29 +825,11 @@ export function useJourneyData({
 
   const coachSuggestion = useMemo(() => coachSuggestions[0] || null, [coachSuggestions]);
 
-  // Backfill state with loading guard.
-  // Intentionally *not* wrapped in useMemo: React Compiler lint requires manual memoization
-  // to be perfectly preservable, and this boolean is cheap to compute.
-  const needsBackfill = (() => {
-    // Don't show backfill prompt for filtered views - backfill is for D1 server data
-    // which isn't used when filters are active. Filtered views use client-side stats.
-    if (filtersActive) return false;
-    // Don't show backfill prompt while still loading
-    if (archetypeData.isLoading) return false;
-    // Only authenticated users can backfill
-    if (!isAuthenticated) return false;
-    // Respect user's analytics opt-out preference (403 from API)
-    if (archetypeData.isDisabled) return false;
-
-    // Prefer explicit server diagnostic when available.
-    const explicitNeedsBackfill = archetypeData?.stats?.needsBackfill;
-    if (typeof explicitNeedsBackfill === 'boolean') {
-      return explicitNeedsBackfill;
-    }
-
-    // Fallback heuristic: if we have entries but archetype data isn't populated.
-    return !archetypeData.hasBackfilled && entries?.length > 0;
-  })();
+  // Only an explicit, current server diagnostic can offer a rebuild. Loaded
+  // local entries and failed/disabled requests are never evidence of missing data.
+  const needsBackfill = shouldFetchAnalytics && !filtersActive
+    && !archetypeData.isLoading && !archetypeData.error && !archetypeData.isDisabled
+    && archetypeData.stats?.needsBackfill === true;
 
   // Analytics disabled state (user opted out)
   const isAnalyticsDisabled = archetypeData.isDisabled;

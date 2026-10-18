@@ -18,17 +18,20 @@ export async function onRequestGet(context) {
 
   try {
     const recurring = await env.DB.prepare(`
-      SELECT pattern_type, pattern_id, COUNT(*) as occurrence_count,
-             MAX(created_at) as last_seen
-      FROM pattern_occurrences
-      WHERE user_id = ? AND year_month >= ?
+      SELECT pattern_type, pattern_id, COUNT(DISTINCT p.entry_id) as occurrence_count,
+             MAX(p.created_at) as last_seen, json_group_array(DISTINCT p.entry_id) AS entry_ids_json
+      FROM pattern_occurrences p
+      JOIN journal_entries j ON j.id = p.entry_id AND j.user_id = p.user_id
+      WHERE p.user_id = ? AND year_month >= ?
       GROUP BY pattern_type, pattern_id
-      HAVING COUNT(*) >= 3
+      HAVING COUNT(DISTINCT p.entry_id) >= 3
       ORDER BY occurrence_count DESC
     `).bind(user.id, startMonth).all();
 
     return new Response(JSON.stringify({
-      alerts: recurring.results || []
+      alerts: (recurring.results || []).map(({ entry_ids_json, ...alert }) => ({
+        ...alert, entryIds: JSON.parse(entry_ids_json)
+      }))
     }), {
       headers: { 'Content-Type': 'application/json' }
     });

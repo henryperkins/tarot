@@ -14,6 +14,8 @@ import { trackPatterns } from '../lib/patternTracking.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildCorsHeaders } from '../lib/utils.js';
 import { isApiKeyUser, isMachineCredential } from '../lib/entitlements.js';
+import { checkJournalAccess } from '../lib/journalAccess.js';
+import { journeyRebuildStatements, getJourneyBackfillStatus } from '../lib/journeyAnalytics.js';
 
 const defaultDeps = { getUserFromRequest };
 
@@ -150,6 +152,10 @@ export async function onRequest(context, deps = defaultDeps) {
     } else if (url.pathname === '/api/archetype-journey/preferences' && method === 'GET') {
       return await handleGetPreferences(env.DB, user.id, corsHeaders);
     } else if (url.pathname === '/api/archetype-journey/track' && method === 'POST') {
+      const denied = checkJournalAccess(user);
+      if (denied) return new Response(JSON.stringify(denied.body), {
+        status: denied.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
       const body = await request.json();
       return await handleTrackCards(env.DB, user.id, body, corsHeaders);
     } else if (url.pathname === '/api/archetype-journey/preferences' && method === 'PUT') {
@@ -374,18 +380,7 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
     const lastTrackedMonth = appearancesMeta?.last_tracked_month || null;
     const lastAnalyzedAt = appearancesMeta?.last_analyzed_at || null;
 
-    // Determine if backfill is needed.
-    // - If the user has journal entries but no tracked rows, backfill is required.
-    // - If we have tracked rows but the earliest tracked month is later than the
-    //   earliest journal month, we are missing historical data.
-    let needsBackfill = false;
-    if (totalEntries > 0) {
-      if (!trackedRows) {
-        needsBackfill = true;
-      } else if (firstJournalMonth && firstTrackedMonth && firstTrackedMonth > firstJournalMonth) {
-        needsBackfill = true;
-      }
-    }
+    const needsBackfill = await getJourneyBackfillStatus(db, userId);
 
     // If we're confident tracking covers history, expose entriesProcessed as
     // a “best effort” count for UI captions.
@@ -440,110 +435,28 @@ async function handleGetAnalytics(db, userId, corsHeaders) {
  * Track card appearances from a reading
  */
 async function handleTrackCards(db, userId, body, corsHeaders) {
-  const { cards, timestamp, entryId, themes } = body;
-
-  if (!Array.isArray(cards) || cards.length === 0) {
-    return new Response(JSON.stringify({
-      error: 'Invalid cards data'
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  const { entryId } = body;
+  if (typeof entryId !== 'string' || !entryId) {
+    return new Response(JSON.stringify({ error: 'Saved entry ID required' }), {
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-
-  const now = Math.floor((timestamp || Date.now()) / 1000);
-  const yearMonth = new Date(now * 1000).toISOString().slice(0, 7);
-
-  try {
-    // Track each card
-    for (const card of cards) {
-      const cardName = card.name;
-      const cardNumber = card.number !== undefined ? card.number : null;
-
-      // Upsert card appearance
-      await db.prepare(`
-        INSERT INTO card_appearances (user_id, card_name, card_number, year_month, count, last_seen, first_seen)
-        VALUES (?, ?, ?, ?, 1, ?, ?)
-        ON CONFLICT(user_id, card_name, year_month) DO UPDATE SET
-          count = count + 1,
-          last_seen = ?
-      `).bind(userId, cardName, cardNumber, yearMonth, now, now, now).run();
-    }
-
-    // Track archetypal patterns
-    if (entryId && themes) {
-      await trackPatterns(db, userId, entryId, themes);
-    }
-
-    // Check for new badges (streaks)
-    await checkAndAwardBadges(db, userId, yearMonth, now);
-
-    return new Response(JSON.stringify({
-      success: true,
-      tracked: cards.length
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (error) {
-    console.error('Failed to track cards:', error);
-    return new Response(JSON.stringify({
-      error: 'Failed to track cards',
-      message: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  const entry = await db.prepare('SELECT cards_json, themes_json FROM journal_entries WHERE id = ? AND user_id = ?')
+    .bind(entryId, userId).first();
+  if (!entry) {
+    return new Response(JSON.stringify({ error: 'Entry not found' }), {
+      status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-}
-
-/**
- * Check for and award new badges based on card frequencies
- *
- * NOTE: This incremental version differs intentionally from the backfill version:
- * - Awards ONLY when count === 3 (exact match) to trigger badge once
- * - Checks for existing badge before awarding to prevent duplicates
- *
- * The backfill version (archetype-journey-backfill.js) uses count >= 3 and
- * skips the existence check because it deletes all badges first for idempotency.
- * Both produce the same badges when run correctly, but use different strategies
- * suited to their use cases (incremental tracking vs bulk reconstruction).
- */
-async function checkAndAwardBadges(db, userId, yearMonth, now) {
-  // Get current month's card counts
-  const cardsQuery = await db.prepare(`
-    SELECT card_name, count
-    FROM card_appearances
-    WHERE user_id = ? AND year_month = ?
-  `).bind(userId, yearMonth).all();
-
-  const cards = cardsQuery.results || [];
-
-  // Award streak badges for cards appearing 3+ times
-  for (const card of cards) {
-    if (card.count === 3) {
-      const badgeKey = `streak_3x_${card.card_name.toLowerCase().replace(/\s+/g, '_')}_${yearMonth}`;
-
-      // Check if badge already exists
-      const existingBadge = await db.prepare(`
-        SELECT id FROM archetype_badges WHERE user_id = ? AND badge_key = ?
-      `).bind(userId, badgeKey).first();
-
-      if (!existingBadge) {
-        // Award new badge
-        const metadata = JSON.stringify({
-          count: card.count,
-          month: yearMonth,
-          context: `${card.card_name} appeared ${card.count} times in ${yearMonth}`
-        });
-
-        await db.prepare(`
-          INSERT INTO archetype_badges (user_id, badge_type, badge_key, card_name, earned_at, metadata_json)
-          VALUES (?, 'streak', ?, ?, ?, ?)
-        `).bind(userId, badgeKey, card.card_name, now, metadata).run();
-      }
-    }
-  }
+  // Legacy clients still call this after saving. Reconciliation is idempotent;
+  // client-supplied cards can no longer inflate counts or resurrect deletions.
+  await db.batch(journeyRebuildStatements(db, userId));
+  let themes;
+  try { themes = JSON.parse(entry.themes_json || 'null'); } catch { themes = null; }
+  if (themes) await trackPatterns(db, userId, entryId, themes);
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
 }
 
 /**
@@ -623,8 +536,10 @@ async function handleGetPreferences(db, userId, corsHeaders) {
  */
 async function handleResetAnalytics(db, userId, corsHeaders) {
   try {
-    await db.prepare(`DELETE FROM card_appearances WHERE user_id = ?`).bind(userId).run();
-    await db.prepare(`DELETE FROM archetype_badges WHERE user_id = ?`).bind(userId).run();
+    await db.batch([
+      db.prepare('DELETE FROM card_appearances WHERE user_id = ?').bind(userId),
+      db.prepare('DELETE FROM archetype_badges WHERE user_id = ?').bind(userId)
+    ]);
 
     return new Response(JSON.stringify({
       success: true,

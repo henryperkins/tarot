@@ -144,8 +144,8 @@ function failingInsertDb(d1, { landThenThrow = false, failVerify = false } = {})
   return {
     prepare(sql) {
       const statement = d1.prepare(sql);
-      const isInsert = /INSERT INTO journal_entries/.test(sql);
       const isVerify = /idempotency_key = \?/.test(sql);
+      if (!failVerify || !isVerify) return statement;
       return {
         bind(...args) {
           const bound = statement.bind(...args);
@@ -153,17 +153,15 @@ function failingInsertDb(d1, { landThenThrow = false, failVerify = false } = {})
             first: (...rest) => (failVerify && isVerify
               ? Promise.reject(new Error('D1_ERROR: Network connection lost.'))
               : bound.first(...rest)),
-            all: () => bound.all(),
-            run: async () => {
-              if (!isInsert) return bound.run();
-              if (landThenThrow) await bound.run();
-              throw new Error('D1_ERROR: Network connection lost.');
-            }
+            all: () => bound.all()
           };
         }
       };
     },
-    batch: (statements) => d1.batch(statements)
+    batch: async (statements) => {
+      if (landThenThrow) await d1.batch(statements);
+      throw new Error('D1_ERROR: Network connection lost.');
+    }
   };
 }
 

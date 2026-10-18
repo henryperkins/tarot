@@ -14,6 +14,7 @@ function createJournalDb(initialRows = []) {
   const rows = [...initialRows];
   return {
     rows,
+    async batch(statements) { return Promise.all(statements.map(statement => statement.run())); },
     prepare(sql) {
       let args = [];
       return {

@@ -425,16 +425,21 @@ function addCorsHeaders(response, request) {
  * @property {string} EVAL_GATEWAY_ID - AI Gateway id for routing eval calls
  */
 
+// Sentry mutates and caches bindings by identity. Keep it outside OTEL, whose
+// env proxy returns fresh D1 proxies, so warm requests cannot stack wrappers on
+// the same underlying binding. Both layers still trace requests and queries.
 const sentryHandler = Sentry.withSentry(
   (env) => ({
     dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
     tracesSampleRate: 1.0,
     enableLogs: true,
     sendDefaultPii: false,
+    // OTEL owns the global provider; Sentry retains its native request/DB spans.
+    skipOpenTelemetrySetup: true,
     // Use Cloudflare version metadata for release tracking
     release: env.CF_VERSION_METADATA?.id,
   }),
-  {
+  instrument({
     /**
      * Scheduled handler for cron triggers
      * @param {ScheduledController} controller - Cron controller
@@ -493,16 +498,10 @@ const sentryHandler = Sentry.withSentry(
             ), request);
           }
 
-          // Instrument D1 with Sentry for query tracing
-          const instrumentedEnv = {
-            ...env,
-            DB: env.DB ? Sentry.instrumentD1WithSentry(env.DB) : env.DB,
-          };
-
           // Build context object similar to Pages Functions
           const context = {
             request,
-            env: instrumentedEnv,
+            env,
             params,
             waitUntil: ctx.waitUntil.bind(ctx),
             passThroughOnException: () => { }, // Not applicable in Workers
@@ -542,10 +541,10 @@ const sentryHandler = Sentry.withSentry(
       // The ASSETS binding handles SPA fallback via not_found_handling config
       return env.ASSETS.fetch(request);
     },
-  }
+  }, createTracingConfig())
 );
 
-export default instrument(sentryHandler, createTracingConfig());
+export default sentryHandler;
 
 export const ReadingJob = instrumentDO(ReadingJobBase, createDOTracingConfig('ReadingJob'));
 export const ReadingVisualJob = instrumentDO(ReadingVisualJobBase, createDOTracingConfig('ReadingVisualJob'));

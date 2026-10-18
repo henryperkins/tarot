@@ -30,6 +30,7 @@ import { JournalEmptyState } from './journal/JournalEmptyState';
 import { JournalFloatingControls } from './journal/JournalFloatingControls';
 import { JournalStatusBanner } from './journal/JournalStatusBanner';
 import {
+  DEFAULT_FILTERS,
   CONTEXT_FILTERS,
   SPREAD_FILTERS,
   DECK_FILTERS,
@@ -74,7 +75,7 @@ export default function Journal() {
     lastLocalSaveAt,
     syncSource,
     reload: reloadJournal
-  } = useJournal();
+  } = useJournal({ completeHistory: true });
 
   // Layout detection
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
@@ -96,7 +97,7 @@ export default function Journal() {
     handleRemoveFilter,
     serverSearchState,
     refreshServerSearch
-  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id });
+  } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id, completeHistory: syncSource === 'api' });
 
   const {
     analyticsScope,
@@ -236,6 +237,7 @@ export default function Journal() {
 
   // Allow other pages (e.g. Card Collection) to deep-link into the journal.
   // Supported state:
+  //  - focusJournal + journeyFilter: opens history with explicit Journey criteria
   //  - prefillQuery: string -> sets the journal search query
   //  - highlightEntryId: string/number -> scrolls to and briefly highlights a specific entry
   useEffect(() => {
@@ -243,9 +245,14 @@ export default function Journal() {
     const prefillQuery = typeof state?.prefillQuery === 'string' ? state.prefillQuery : '';
     const highlightEntryId = state?.highlightEntryId ?? null;
 
-    if (!prefillQuery && !highlightEntryId) return;
+    if (!prefillQuery && !highlightEntryId && !state.focusJournal) return;
 
-    if (prefillQuery) {
+    if (state.focusJournal) {
+      setFilters({ ...DEFAULT_FILTERS, journeyFilter: state.journeyFilter || null });
+      handleScopeSelect(state.journeyFilter ? 'filters' : 'all');
+      searchInputRef.current?.focus();
+      document.getElementById('journal-history-filters')?.scrollIntoView({ block: 'start' });
+    } else if (prefillQuery) {
       setFilters((prev) => ({
         ...prev,
         query: prefillQuery,
@@ -254,7 +261,7 @@ export default function Journal() {
 
     // Clear the navigation state so back/forward doesn't keep re-applying.
     navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, { replace: true, state: null });
-  }, [location.key, location.pathname, location.search, location.hash, location.state, navigate, setFilters]);
+  }, [location.key, location.pathname, location.search, location.hash, location.state, navigate, setFilters, handleScopeSelect]);
 
   const registerHistoryFiltersEl = useCallback((node) => {
     setHistoryFiltersEl(node);
@@ -638,6 +645,8 @@ export default function Journal() {
             analyticsScope={analyticsScope}
             onScopeSelect={handleScopeSelect}
             isAuthenticated={isAuthenticated}
+            canUseCloudJournal={canUseCloudJournal}
+            historyComplete={syncSource !== 'cache'}
             userId={user?.id}
             focusAreas={personalization?.focusAreas}
             locale={locale}
@@ -748,6 +757,8 @@ export default function Journal() {
           analyticsScope={analyticsScope}
           onScopeSelect={handleScopeSelect}
           isAuthenticated={isAuthenticated}
+          canUseCloudJournal={canUseCloudJournal}
+          historyComplete={syncSource !== 'cache'}
           userId={user?.id}
           focusAreas={personalization?.focusAreas}
           locale={locale}

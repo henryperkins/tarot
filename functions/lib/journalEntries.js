@@ -1,3 +1,4 @@
+import { journeyRebuildStatements } from './journeyAnalytics.js';
 /**
  * Journal entry persistence shared by POST /api/journal (the app, API keys,
  * bearer sessions) and the ChatGPT MCP tools.
@@ -175,7 +176,8 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
   if (resultKey && storedSeed && await findEntryBySeed(env.DB, user.id, storedSeed)) storedSeed = null;
   const identityColumn = resultKey ? 'idempotency_key' : 'session_seed';
   const identity = resultKey || storedSeed;
-  const insert = seed => env.DB.prepare(`
+  const insert = async seed => {
+    const statement = env.DB.prepare(`
       INSERT INTO journal_entries (
         id,
         user_id,
@@ -232,8 +234,10 @@ export async function saveAppJournalEntry({ env, user, body, waitUntil }) {
         resultKey,
         user.id,
         identity
-      )
-      .run();
+      );
+    const [result] = await env.DB.batch([statement, ...journeyRebuildStatements(env.DB, user.id)]);
+    return result;
+  };
   try {
     let inserted;
     try { inserted = await insert(storedSeed); }
@@ -331,7 +335,7 @@ function entryRef(row) {
 }
 
 async function insertReadingEntry(db, { entryId, userId, now, entry, sessionSeed, idempotencyKey }) {
-  await db.prepare(`
+  const statement = db.prepare(`
     INSERT INTO journal_entries (
       id, user_id, created_at, updated_at, spread_key, spread_name, question, cards_json,
       narrative, themes_json, reflections_json, context, provider, session_seed,
@@ -357,7 +361,8 @@ async function insertReadingEntry(db, { entryId, userId, now, entry, sessionSeed
     entry.deckId ?? null,
     entry.requestId,
     idempotencyKey
-  ).run();
+  );
+  await db.batch([statement, ...journeyRebuildStatements(db, userId)]);
 }
 
 async function verifyAfterError(db, userId, idempotencyKey, fingerprint, error) {

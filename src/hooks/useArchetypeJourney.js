@@ -9,7 +9,7 @@
  * - POST /api/archetype-journey-backfill - Backfill from journal entries
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { normalizeAnalyticsShape, getCardTrends, computeMonthlyTotals } from '../lib/archetypeJourney';
 import { safeStorage, invalidateNarrativeCache } from '../lib/safeStorage';
 import { normalizeTimestamp } from '../../shared/journal/utils.js';
@@ -64,6 +64,7 @@ function formatTimestampLabel(value) {
  */
 export function useArchetypeJourney(userId, enabled = true) {
   const [analytics, setAnalytics] = useState(null);
+  const [analyticsOwner, setAnalyticsOwner] = useState(userId);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const [isDisabled, setIsDisabled] = useState(false);
@@ -71,8 +72,31 @@ export function useArchetypeJourney(userId, enabled = true) {
   const [backfillResult, setBackfillResult] = useState(null);
   const [runMeta, setRunMeta] = useState(() => loadRunMeta(userId));
   const [runMetaOwner, setRunMetaOwner] = useState(userId);
-  const reloadControllerRef = useRef(null);
+  const analyticsRequestRef = useRef(0);
   const fetchControllerRef = useRef(null);
+  const requestScopeRef = useRef(null);
+  const backfillControllerRef = useRef(null);
+  const [stateScope, setStateScope] = useState({ userId, enabled });
+
+  if (stateScope.userId !== userId || stateScope.enabled !== enabled) {
+    setStateScope({ userId, enabled });
+    setAnalyticsOwner(userId);
+    setAnalytics(null);
+    setLoading(enabled);
+    setError(null);
+    setIsDisabled(false);
+    setIsBackfilling(false);
+    setBackfillResult(null);
+  }
+
+  useLayoutEffect(() => {
+    requestScopeRef.current = { userId, enabled };
+    return () => {
+      requestScopeRef.current = null;
+      backfillControllerRef.current?.abort();
+      backfillControllerRef.current = null;
+    };
+  }, [userId, enabled]);
 
   if (runMetaOwner !== userId) {
     setRunMetaOwner(userId);
@@ -111,6 +135,13 @@ export function useArchetypeJourney(userId, enabled = true) {
   }, [userId]);
 
   const loadAnalytics = useCallback(async (signal) => {
+    const scope = requestScopeRef.current;
+    if (!enabled || !userId || scope?.userId !== userId || !scope.enabled || signal?.aborted) return;
+    const requestId = ++analyticsRequestRef.current;
+    const ownsRequest = () => scope && scope === requestScopeRef.current && requestId === analyticsRequestRef.current;
+    const isCurrent = () => ownsRequest() && scope.enabled && !signal?.aborted;
+    setAnalyticsOwner(userId);
+    setAnalytics(null);
     setLoading(true);
     setError(null);
     setIsDisabled(false);
@@ -120,6 +151,7 @@ export function useArchetypeJourney(userId, enabled = true) {
         credentials: 'include',
         signal
       });
+      if (!isCurrent()) return;
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -134,6 +166,7 @@ export function useArchetypeJourney(userId, enabled = true) {
       }
 
       const data = await response.json();
+      if (!isCurrent()) return;
       // Normalize to ensure all arrays exist
       const normalized = normalizeAnalyticsShape(data.analytics);
       setAnalytics(normalized);
@@ -143,15 +176,23 @@ export function useArchetypeJourney(userId, enabled = true) {
       });
     } catch (err) {
       // Don't set error state for abort
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError' || !isCurrent()) return;
       console.error('Failed to load archetype journey:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (ownsRequest()) setLoading(false);
     }
-  }, [updateRunMeta]);
+  }, [enabled, userId, updateRunMeta]);
 
   const handleBackfill = useCallback(async (signal) => {
+    const scope = requestScopeRef.current;
+    if (!enabled || !userId || scope?.userId !== userId || !scope.enabled || backfillControllerRef.current) return;
+    const controller = new AbortController();
+    backfillControllerRef.current = controller;
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) controller.abort();
+    const isCurrent = () => scope === requestScopeRef.current && !controller.signal.aborted;
     setIsBackfilling(true);
     setBackfillResult(null);
 
@@ -159,12 +200,17 @@ export function useArchetypeJourney(userId, enabled = true) {
       const response = await fetch('/api/archetype-journey-backfill', {
         method: 'POST',
         credentials: 'include',
-        signal
+        signal: controller.signal
       });
 
       const data = await response.json();
+      if (!isCurrent()) return;
 
       if (!response.ok) {
+        if (response.status === 403 && data.enabled === false) {
+          setAnalytics(null);
+          setIsDisabled(true);
+        }
         setBackfillResult({ success: false, message: data.error || 'Backfill failed' });
         return;
       }
@@ -178,38 +224,24 @@ export function useArchetypeJourney(userId, enabled = true) {
       // Invalidate narrative cache since analytics data has changed
       invalidateNarrativeCache(userId);
 
-      // Reload analytics after successful backfill
-      if (data.stats?.cardsTracked > 0) {
-        // Reload with slight delay to let DB settle
-        await new Promise(resolve => setTimeout(resolve, 300));
-        if (!signal?.aborted) {
-          if (reloadControllerRef.current) {
-            reloadControllerRef.current.abort();
-          }
-          const reloadController = new AbortController();
-          reloadControllerRef.current = reloadController;
-          try {
-            await loadAnalytics(reloadController.signal);
-          } finally {
-            if (reloadControllerRef.current === reloadController) {
-              reloadControllerRef.current = null;
-            }
-          }
-        }
-      }
+      // The batch is committed before the response; even an empty rebuild
+      // must refresh diagnostics. No settling delay is needed.
+      if (isCurrent()) await loadAnalytics(controller.signal);
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError' || !isCurrent()) return;
       console.error('Backfill failed:', err);
       setBackfillResult({ success: false, message: err.message });
     } finally {
-      setIsBackfilling(false);
+      signal?.removeEventListener('abort', abort);
+      if (backfillControllerRef.current === controller) backfillControllerRef.current = null;
+      if (scope === requestScopeRef.current) setIsBackfilling(false);
     }
-  }, [loadAnalytics, updateRunMeta, userId]);
+  }, [enabled, loadAnalytics, updateRunMeta, userId]);
 
   // Fetch analytics on mount when enabled
   useEffect(() => {
     // Don't fetch if not enabled
-    if (!enabled) return;
+    if (!enabled || !userId) return;
 
     // Abort any previous fetch
     if (fetchControllerRef.current) {
@@ -226,25 +258,18 @@ export function useArchetypeJourney(userId, enabled = true) {
       controller.abort();
       fetchControllerRef.current = null;
     };
-  }, [enabled, loadAnalytics]);
+  }, [enabled, userId, loadAnalytics]);
 
-  // Cleanup reload controller on unmount
-  useEffect(() => {
-    return () => {
-      if (reloadControllerRef.current) {
-        reloadControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  // Compute derived data
-  const topCards = analytics?.topCards || [];
-  const streaks = analytics?.streaks || [];
-  const badges = analytics?.badges || [];
-  const majorArcanaFrequency = analytics?.majorArcanaFrequency || {};
-  const trends = analytics?.trends || [];
-  const stats = analytics?.stats || {};
-  const currentMonth = analytics?.currentMonth || '';
+  // Do not expose an earlier account's data while the new request starts.
+  const isCurrentOwner = enabled && analyticsOwner === userId;
+  const currentAnalytics = isCurrentOwner ? analytics : null;
+  const topCards = currentAnalytics?.topCards || [];
+  const streaks = currentAnalytics?.streaks || [];
+  const badges = currentAnalytics?.badges || [];
+  const majorArcanaFrequency = currentAnalytics?.majorArcanaFrequency || {};
+  const trends = currentAnalytics?.trends || [];
+  const stats = currentAnalytics?.stats || {};
+  const currentMonth = currentAnalytics?.currentMonth || '';
 
   // Compute six-month cadence data
   const monthlyTotals = computeMonthlyTotals(trends).slice(-6);
@@ -258,19 +283,19 @@ export function useArchetypeJourney(userId, enabled = true) {
   });
 
   // Compute current streak from analytics
-  const currentStreak = analytics?.stats?.currentStreak || 0;
+  const currentStreak = currentAnalytics?.stats?.currentStreak || 0;
 
   // Check if analytics has backfilled data.
   // Prefer explicit server signal when present (helps detect partial rollouts / historical imports).
   const hasBackfilled = (() => {
-    const needsBackfill = analytics?.stats?.needsBackfill;
+    const needsBackfill = currentAnalytics?.stats?.needsBackfill;
     if (typeof needsBackfill === 'boolean') {
       return needsBackfill === false;
     }
 
     // Fallback heuristic (legacy API shape): treat presence of any analytics payload
     // as “backfilled enough” to avoid nagging users.
-    return !!(analytics && (topCards.length > 0 || trends.length > 0 || badges.length > 0));
+    return !!(currentAnalytics && (topCards.length > 0 || trends.length > 0 || badges.length > 0));
   })();
 
   // Run caption for display
@@ -282,7 +307,7 @@ export function useArchetypeJourney(userId, enabled = true) {
 
   return {
     // Raw analytics data
-    analytics,
+    analytics: currentAnalytics,
 
     // Normalized data arrays
     topCards,
@@ -296,11 +321,11 @@ export function useArchetypeJourney(userId, enabled = true) {
     currentStreak,
 
     // State
-    isLoading: enabled && loading,
-    error,
-    isDisabled,
-    isBackfilling,
-    backfillResult,
+    isLoading: enabled && (!isCurrentOwner || loading),
+    error: isCurrentOwner ? error : null,
+    isDisabled: isCurrentOwner && isDisabled,
+    isBackfilling: isCurrentOwner && isBackfilling,
+    backfillResult: isCurrentOwner ? backfillResult : null,
     hasBackfilled,
 
     // Run metadata

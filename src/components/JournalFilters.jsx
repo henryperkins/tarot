@@ -16,6 +16,7 @@ import {
 } from './JournalIcons';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 import { safeStorage } from '../lib/safeStorage';
+import { DEFAULT_FILTERS } from '../lib/journal/constants';
 
 const TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'All time' },
@@ -24,7 +25,6 @@ const TIMEFRAME_OPTIONS = [
   { value: 'ytd', label: 'This year' }
 ];
 
-const DEFAULT_FILTERS = { query: '', contexts: [], spreads: [], decks: [], timeframe: 'all', onlyReversals: false };
 const SAVED_FILTERS_KEY = 'journal_saved_filters_v1';
 const ADVANCED_FILTERS_KEY = 'journal_filters_advanced_v1';
 const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-medium transition-all ${FOCUS_RING_DEFAULT}`;
@@ -269,6 +269,7 @@ export function JournalFilters({
     spreads: Array.isArray(filters.spreads) ? [...filters.spreads] : [],
     decks: Array.isArray(filters.decks) ? [...filters.decks] : [],
     timeframe: filters.timeframe || 'all',
+    journeyFilter: filters.journeyFilter || null,
     onlyReversals: Boolean(filters.onlyReversals)
   });
 
@@ -279,10 +280,11 @@ export function JournalFilters({
       || snapshot.decks.length > 0
       || snapshot.timeframe !== 'all'
       || snapshot.onlyReversals
+      || Boolean(snapshot.journeyFilter)
   );
 
   const countActiveFilters = (snapshot = normalizedFilters()) => {
-    let count = 0;
+    let count = snapshot.journeyFilter ? 1 : 0;
     if (snapshot.query.trim()) count += 1;
     if (snapshot.timeframe !== 'all') count += 1;
     if (snapshot.onlyReversals) count += 1;

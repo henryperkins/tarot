@@ -20,6 +20,8 @@ export default function JourneyContent({
   filtersActive,
   filtersApplied,
   isAuthenticated,
+  canUseCloudJournal = false,
+  historyComplete = true,
   userId,
   focusAreas = [],
   variant = 'sidebar',
@@ -39,6 +41,7 @@ export default function JourneyContent({
     filteredEntries,
     filtersActive,
     isAuthenticated,
+    canUseCloudJournal: canUseCloudJournal && historyComplete,
     userId,
     focusAreas,
     seasonWindow,
@@ -308,7 +311,7 @@ export default function JourneyContent({
 
   // Persist coach snapshot for GuidedIntentionCoach to consume
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !historyComplete) return;
     const entryCount = scopedEntries?.length ?? 0;
     const totalEntries = Array.isArray(entries) ? entries.length : null;
     persistCoachStatsSnapshot(exportStats, {
@@ -324,6 +327,7 @@ export default function JourneyContent({
       coachSuggestionKey: coachSuggestionKey || null,
     }, userId);
   }, [
+    historyComplete,
     exportStats,
     _dataSource,
     journeyFiltersActive,
@@ -335,6 +339,12 @@ export default function JourneyContent({
     coachSuggestionIndex,
     coachSuggestionKey,
   ]);
+
+  if (!historyComplete) {
+    return <p role="status" className="rounded-xl border border-secondary/20 p-4 text-sm text-muted">
+      Journey insights and exports need your complete journal. Reconnect and refresh your journal to continue.
+    </p>;
+  }
 
   // Render appropriate variant
   if (variant === 'mobile') {

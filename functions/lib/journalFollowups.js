@@ -160,6 +160,16 @@ export async function loadFollowUpsByEntry(db, userId, entryIds, { limitPerEntry
   const uniqueIds = Array.from(new Set(entryIds.filter(Boolean)));
   if (!uniqueIds.length) return resultMap;
 
+  // D1 allows 100 bound parameters; reserve one for the owner. Complete
+  // journal exports must retain follow-ups beyond the first batch of IDs.
+  if (uniqueIds.length > 99) {
+    for (let offset = 0; offset < uniqueIds.length; offset += 99) {
+      const chunk = await loadFollowUpsByEntry(db, userId, uniqueIds.slice(offset, offset + 99), { limitPerEntry, includeCanonical });
+      for (const [id, turns] of chunk) resultMap.set(id, turns);
+    }
+    return resultMap;
+  }
+
   const placeholders = uniqueIds.map(() => '?').join(', ');
   try {
     let rows;

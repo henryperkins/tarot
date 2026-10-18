@@ -359,11 +359,10 @@ export async function onRequestGet(context) {
         provider: entry.provider
       }];
     } else {
-      // Export all entries (with limit)
-      const rawLimit = parseInt(url.searchParams.get('limit') || '50', 10);
-      const limit = Number.isFinite(rawLimit) && rawLimit > 0
-        ? Math.min(rawLimit, 100)
-        : 50;
+      // Omitted limit means the complete journal. A caller can explicitly
+      // request a smaller export; never silently cap an all-history export.
+      const rawLimit = Number(url.searchParams.get('limit'));
+      const limit = Number.isSafeInteger(rawLimit) && rawLimit > 0 ? rawLimit : -1;
       const result = await env.DB.prepare(`
         SELECT
           id, created_at, spread_key, spread_name, question,

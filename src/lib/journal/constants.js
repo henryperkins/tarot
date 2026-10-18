@@ -28,7 +28,8 @@ export const DEFAULT_FILTERS = {
   spreads: [],
   decks: [],
   timeframe: 'all',
-  onlyReversals: false
+  onlyReversals: false,
+  journeyFilter: null
 };
 
 // Scope/analytics options

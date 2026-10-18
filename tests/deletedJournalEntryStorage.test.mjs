@@ -310,7 +310,7 @@ test('retained server aggregate prose cannot be cached with falsely complete sur
   const keep = { ...entry('aggregate-star'), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] };
   seed(storage, owner, [removed, keep]);
   const aggregate = { topCards: [{ card_name: 'The Moon', count: 1 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
-  const hook = await journeyHook(aggregate); const props = { entries: [removed, keep], filteredEntries: [removed, keep], filtersActive: false, isAuthenticated: true, userId: owner, timezone: 'UTC' };
+  const hook = await journeyHook(aggregate); const props = { entries: [removed, keep], filteredEntries: [removed, keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
   assert.equal(hook(props)._dataSource, 'server');
   const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
   const stale = hook({ ...props, entries: [keep], filteredEntries: [keep] }); assert.equal(stale._dataSource, 'server');
@@ -330,7 +330,7 @@ test('the actual delayed JourneyContent snapshot effect rejects retained server 
     for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value?.type) visit(value); }
   }
   visit(ast); assert.ok(callback, 'actual coach snapshot effect exists');
-  const dependencies = { persistCoachStatsSnapshot, scopedEntries: [keep], entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
+  const dependencies = { historyComplete: true, persistCoachStatsSnapshot, scopedEntries: [keep], entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
     journeyFiltersActive: false, scopeLabel: null, coachSuggestionSnapshot: { question: 'Old Moon guidance' }, coachSuggestionIndex: 0, coachSuggestionKey: 'old-moon', userId: owner, _dataSource: 'server' };
   const effect = new Function(...Object.keys(dependencies), `return (${source.slice(callback.start, callback.end)});`)(...Object.values(dependencies));
   const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage }); effect();

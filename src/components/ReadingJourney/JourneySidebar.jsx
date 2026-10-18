@@ -34,7 +34,7 @@ import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import { recordCoachQuestion } from '../../lib/coachStorage';
-import { getCoachSuggestionSearchQuery } from '../../lib/coachSuggestionUtils';
+import { getCoachSuggestionJournalState } from '../../lib/coachSuggestionUtils';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 /**
@@ -198,12 +198,7 @@ export default function JourneySidebar({
   }, [activeCoachSuggestion, clearSaveTimeout, userId]);
 
   const handleOpenJournal = useCallback((suggestion = activeCoachSuggestion) => {
-    const query = getCoachSuggestionSearchQuery(suggestion);
-    if (query) {
-      navigate('/journal', { state: { prefillQuery: query } });
-      return;
-    }
-    navigate('/journal');
+    navigate('/journal', { state: getCoachSuggestionJournalState(suggestion) });
   }, [activeCoachSuggestion, navigate]);
 
   const handleSetFocusAreas = useCallback(() => {
@@ -238,6 +233,28 @@ export default function JourneySidebar({
     setShowAllPatterns((prev) => !prev);
   }, []);
 
+  // Journal exports remain available when journey analytics are disabled.
+  const exportSection = (
+    <CollapsibleSection
+      isOpen={openSections.export}
+      onToggle={() => toggleSection('export')}
+      icon={Export}
+      label="Export & Share"
+    >
+      <ExportSection
+        isAuthenticated={isAuthenticated}
+        onCreateShareLink={onCreateShareLink}
+        scopeEntries={scopeEntries}
+        filteredEntries={filteredEntries}
+        allEntries={allEntries}
+        stats={exportStats}
+        preferenceDrift={preferenceDrift}
+        scopeLabel={scopeLabel}
+        filtersApplied={filtersApplied}
+      />
+    </CollapsibleSection>
+  );
+
   // Show loading skeleton
   if (isLoading) {
     return (
@@ -257,7 +274,7 @@ export default function JourneySidebar({
   }
 
   // Show "no results for filter" when filters yield empty but user has entries
-  if (isFilteredEmpty) {
+  if (isFilteredEmpty && !isAnalyticsDisabled) {
     return (
       <section
         className="panel-mystic bg-gradient-ambient rounded-3xl p-5"
@@ -312,6 +329,7 @@ export default function JourneySidebar({
             Go to Settings
           </button>
         </div>
+        <div className="relative z-10">{exportSection}</div>
       </section>
     );
   }
@@ -593,24 +611,7 @@ export default function JourneySidebar({
           )}
 
           {/* Export Section */}
-          <CollapsibleSection
-            isOpen={openSections.export}
-            onToggle={() => toggleSection('export')}
-            icon={Export}
-            label="Export & Share"
-          >
-          <ExportSection
-            isAuthenticated={isAuthenticated}
-            onCreateShareLink={onCreateShareLink}
-            scopeEntries={scopeEntries}
-            filteredEntries={filteredEntries}
-            allEntries={allEntries}
-            stats={exportStats}
-            preferenceDrift={preferenceDrift}
-            scopeLabel={scopeLabel}
-            filtersApplied={filtersApplied}
-          />
-        </CollapsibleSection>
+          {exportSection}
         </div>
       </div>
     </section>

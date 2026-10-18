@@ -1,34 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Sparkle, X } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { getAllCards, getCanonicalCard } from '../lib/cardLookup';
 
 const DISMISS_KEY = 'journal_pattern_alert_dismissed_v1';
 const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
-const CARD_KEYS = getAllCards()
-  .map((card) => ({
-    name: card.name,
-    key: card.name.toLowerCase().replace(/\s+/g, '-')
-  }))
-  .sort((a, b) => b.key.length - a.key.length);
-
-function derivePatternQuery(patternId, patternName) {
-  if (!patternId) return patternName || '';
-  const canonical = getCanonicalCard(patternId);
-  if (canonical?.name) return canonical.name;
-
-  const normalized = patternId.toLowerCase();
-  const matches = CARD_KEYS.filter((card) => {
-    const regex = new RegExp(`(^|-)${card.key}(-|$)`);
-    return regex.test(normalized);
-  });
-  if (matches.length === 0) {
-    return patternName ? patternName.replace(/\s*\+\s*/g, ' ') : '';
-  }
-  matches.sort((a, b) => normalized.indexOf(a.key) - normalized.indexOf(b.key));
-  return matches[0]?.name || patternName || '';
-}
-
 export default function PatternAlertBanner({ isAuthenticated }) {
   const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
@@ -62,7 +37,6 @@ export default function PatternAlertBanner({ isAuthenticated }) {
     .split('-')
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' + ');
-  const patternQuery = derivePatternQuery(topAlert.pattern_id, patternName);
   const handleDismiss = () => {
     setVisible(false);
     if (typeof window !== 'undefined') {
@@ -72,7 +46,8 @@ export default function PatternAlertBanner({ isAuthenticated }) {
   const handleViewReadings = () => {
     navigate('/journal', {
       state: {
-        prefillQuery: patternQuery || patternName
+        focusJournal: true,
+        journeyFilter: { type: 'entries', entryIds: topAlert.entryIds || [], label: `Pattern: ${patternName}` }
       }
     });
   };
@@ -95,7 +70,7 @@ export default function PatternAlertBanner({ isAuthenticated }) {
             type="button"
             onClick={handleViewReadings}
             className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-accent hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
-            title={patternQuery ? `Filter journal by ${patternQuery}` : 'View readings in your journal'}
+            title="View the readings containing this pattern"
           >
             View readings
           </button>
