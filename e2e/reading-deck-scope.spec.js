@@ -55,6 +55,43 @@ async function openDetails(page) {
   return panel;
 }
 
+for (const [savedDeck, expectedDeck] of [
+  ['legacy-unknown', 'thoth-a1'],
+  [null, 'thoth-a1'],
+  ['marseille-classic', 'marseille-classic']
+]) {
+  test(`journal resume resolves recognized deck metadata when deckId is ${savedDeck}`, async ({ page }) => {
+    const fixture = await createNarrativeFixture(page);
+    const savedEntry = {
+      id: 'legacy-deck-entry', ts: Math.floor(Date.now() / 1000), spread: 'One-Card Insight', spreadKey: 'single',
+      question: 'How can I prepare for a change?',
+      cards: [{ name: 'The Fool', number: 0, position: 'Theme', orientation: 'Upright' }],
+      personalReading: '## Opening\n\nA saved reflection from yesterday.\n\n## Reflection\n\nPrepare one small next step.',
+      deckId: savedDeck, themes: { deckStyle: 'thoth-a1' }, provider: 'local-composer', followUps: [], context: 'general'
+    };
+    await page.route('**/api/journal**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname === '/api/journal') return route.fulfill({ json: {
+        entries: [savedEntry], pagination: { hasMore: false, total: 1 }
+      } });
+      if (pathname === '/api/journal/legacy-deck-entry') return route.fulfill({ json: { entry: savedEntry } });
+      return route.fallback();
+    });
+    try {
+      await openSetup(page);
+      await page.goto('/journal');
+      const entry = page.getByRole('article').first();
+      const expand = entry.locator('button[title="Expand entry"]');
+      await expect(entry).toBeVisible();
+      if (await expand.count()) await expand.click();
+      await entry.getByRole('button', { name: 'Ask a follow-up', exact: true }).click();
+      await page.getByRole('button', { name: 'Close follow-up chat', exact: true }).click();
+      await expect.poll(async () => (await snapshot(page))?.drawDeckStyleId).toBe(expectedDeck);
+      await expect(page.locator(`img[src*="/${expectedDeck === 'thoth-a1' ? 'thoth' : 'marseille'}/"]`).first()).toBeVisible();
+    } finally { await fixture.close(); }
+  });
+}
+
 test('a restored Thoth draw keeps its reveal artwork and request edition under an RWS preference', async ({ page }) => {
   await page.addInitScript(() => {
     if (!sessionStorage.getItem('deck-identity-test-started')) {

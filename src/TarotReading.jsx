@@ -8,6 +8,7 @@ import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
 import { readingMetadataFromEntry } from './lib/readingMetadata';
+import { getKnownDeckStyleId } from './lib/readingDeck';
 import { QuickIntentionCard } from './components/QuickIntentionCard';
 import { Header } from './components/Header';
 import { InstallFooter } from './components/InstallFooter';
@@ -414,7 +415,7 @@ export default function TarotReading() {
       }))
       : [];
 
-    setReading(normalizedCards, entryThemes?.drawIncludeMinors, followUpEntry.deckId || entryThemes?.deckStyle);
+    setReading(normalizedCards, entryThemes?.drawIncludeMinors, getKnownDeckStyleId(followUpEntry.deckId, entryThemes?.deckStyle));
     setIsSpreadDealt(true);
     setRevealedCards(new Set(normalizedCards.map((_, index) => index)));
     setDealIndex(normalizedCards.length);
