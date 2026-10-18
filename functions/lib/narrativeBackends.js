@@ -501,6 +501,8 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   // Match collectQuerentReflections' case/whitespace-insensitive deduplication.
   const normalizeReflection = text => text.toLowerCase().replace(/\s+/g, ' ').trim();
   const includedReflections = normalizeReflection(prepareReflectionsText(rawReflections));
+  const completeReflections = normalizeReflection(prepareReflectionsText(rawReflections, { maxLength: rawReflections.length || 1 }));
+  let nextReflectionOffset = 0;
   const reflectionFields = Object.fromEntries([
     ['reflections', generalReflections],
     ...(payload?.cardsInfo || []).map((card, index) => [`card-${index}`, card?.userReflection || ''])
@@ -509,9 +511,12 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
     const inputStats = payload?.userContextInputStats?.[key];
     const originalLength = inputStats?.originalLength ?? text.length;
     const prepared = normalizeReflection(prepareReflectionsText(text, { maxLength: text.length || 1 }));
-    // Measure the retained prefix, including a partially clipped last note.
-    // Matching notes intentionally count as represented once.
-    const start = prepared ? includedReflections.indexOf(prepared.slice(0, 32)) : -1;
+    // Locate each complete note in composition order before measuring the cap.
+    // A shared prefix in an earlier note is not evidence for a later note.
+    const representedByGeneral = key !== 'reflections' && prepared
+      && normalizeReflection(generalReflections).includes(normalizeReflection(text));
+    const start = prepared ? completeReflections.indexOf(prepared, representedByGeneral ? 0 : nextReflectionOffset) : -1;
+    if (start >= 0 && !representedByGeneral) nextReflectionOffset = start + prepared.length;
     let includedLength = 0;
     if (start >= 0) {
       while (includedLength < prepared.length && prepared[includedLength] === includedReflections[start + includedLength]) includedLength += 1;

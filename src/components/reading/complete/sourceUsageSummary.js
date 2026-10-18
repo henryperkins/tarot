@@ -37,7 +37,7 @@ function personalInputs(context) {
       || (field.sanitizationTruncated ?? (field.sanitizationChanged && field.sanitizedLength < field.originalLength)));
     const omitted = fields.some(field => field.omitted && !field.representedByDuplicate);
     const attention = shortened || omitted || (!used && reason !== 'current_context_priority');
-    return [{ key, label: INPUT_LABELS[key], used, shortened, attention, reason }];
+    return [{ key, label: INPUT_LABELS[key], used, shortened, omitted, attention, reason }];
   });
 }
 
@@ -65,10 +65,10 @@ export function formatUsageSummary(rawUsage) {
     const shortened = members.filter(input => input.shortened && input.used);
     if (shortened.length) details.push(`Shortened: ${list(shortened.map(input => input.label))}.`);
     for (const input of members.filter(input => !input.used)) {
-      details.push(`${input.label[0].toUpperCase()}${input.label.slice(1)}: ${reasonCopy(input.reason)}`);
+      details.push(`${input.label[0].toUpperCase()}${input.label.slice(1)}: ${input.reason === 'input_limit' ? 'Not included because the input limit was reached.' : reasonCopy(input.reason)}`);
     }
     // A subset of card notes may be missing while other notes survived.
-    if (members.some(input => input.used && input.attention && !input.shortened)) details.push('Some notes could not be included.');
+    if (members.some(input => input.used && input.omitted)) details.push('Some notes were not included.');
     const personalSummary = used.some(input => input.key === 'question')
       ? (used.length > 1 ? 'your question and notes' : 'your question')
       : 'your notes';

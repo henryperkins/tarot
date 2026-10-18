@@ -172,3 +172,46 @@ for (const [events, budget, expected] of [
     assert.equal(formatUsageSummary(built.promptMeta.sourceUsage).rows.some(row => row.label === 'Timing outlook'), expected);
   });
 }
+
+async function localNotes(notes, reflectionsText = '') {
+  const cards = ['The Sun', 'The Star', 'The Moon'].map((card, index) => ({
+    card, number: [19, 17, 18][index], orientation: 'Upright', position: `Position ${index + 1}`,
+    userReflection: notes[index] || '', meaning: 'An invitation to reflect.'
+  }));
+  return composeReadingEnhanced({ spreadInfo: { key: 'threeCard', name: 'Three cards' }, cardsInfo: cards,
+    userQuestion: 'What supports me today?', reflectionsText, context: 'general',
+    analysis: { spreadKey: 'threeCard', themes: await analyzeSpreadThemes(cards) }
+  });
+}
+
+test('local notes with a shared prefix retain their distinct full texts', async () => {
+  const prefix = 'This familiar image reminds me of a time when ';
+  const notes = [prefix + 'I felt hopeful.', prefix + 'I felt uncertain.'];
+  const built = await localNotes(notes);
+  for (const [index, note] of notes.entries()) {
+    assert.ok(built.reading.includes(note));
+    const field = built.promptMeta.sourceUsage.userContext.fields[`card-${index}`];
+    assert.equal(field.includedLength, note.length);
+    assert.equal(field.limitApplied, false);
+  }
+  assert.doesNotMatch(formatUsageSummary(built.promptMeta.sourceUsage).rows[0].detail, /Shortened/);
+});
+
+test('a dropped local note cannot borrow a retained note with the same prefix', async () => {
+  const prefix = 'This familiar image reminds me of a time when ';
+  const built = await localNotes([prefix + 'I felt hopeful.', 'Another memory of the garden. '.repeat(15), prefix + 'I felt uncertain.'], 'A memory of the garden. '.repeat(300).slice(0, 4800));
+  const fields = built.promptMeta.sourceUsage.userContext.fields;
+  assert.doesNotMatch(built.reading, /I felt uncertain/);
+  assert.equal(fields['card-2'].includedLength, 0);
+  assert.equal(fields['card-2'].omitted, true);
+  assert.equal(fields['card-1'].limitApplied, true);
+  assert.ok(fields['card-1'].includedLength > 0);
+  assert.match(formatUsageSummary(built.promptMeta.sourceUsage).rows[0].detail, /notes.*not.*included/i);
+});
+
+test('fully omitted local notes are described as not included, not shortened', async () => {
+  const built = await localNotes(['I notice the flowers.'], 'A memory of the garden. '.repeat(300).slice(0, 5000));
+  const row = formatUsageSummary(built.promptMeta.sourceUsage).rows.find(row => row.label === 'Your question & notes');
+  assert.match(row.detail, /Card notes: .*not included/i);
+  assert.doesNotMatch(row.detail, /Card notes: Shortened/i);
+});
