@@ -213,22 +213,29 @@ test('insights remain recoverable when focus mode crosses the handset breakpoint
   });
 });
 
-test('completion precedes optional tools, which share a readable column and focus style', async ({ page }) => {
+test('completion stays available and optional tools keep their order, column and focus style', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await withInsights(page, {}, async panel => {
     const inputs = page.getByRole('region', { name: 'Reading Inputs Used' });
     await expect(inputs).toBeVisible();
-    // Complete the reading, then explore tools, feedback and starting over.
-    const tops = [];
-    for (const locator of [
-      page.locator('[data-reading-completion]').filter({ visible: true }),
-      panel,
-      inputs,
-      page.getByRole('heading', { name: 'Recent media', exact: true, level: 2 }),
-      page.getByRole('heading', { name: /How did this reading land/, level: 2 }),
-      page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true })
-    ]) tops.push((await locator.boundingBox()).y);
-    expect(tops).toEqual([...tops].sort((a, b) => a - b));
+    // The shared-panel layout intentionally puts feedback before conversation/media.
+    const expectReadingOrder = async () => {
+      const tops = [];
+      const completion = page.locator('[data-reading-completion]').filter({ visible: true });
+      await expect(completion).toBeVisible();
+      const handset = page.viewportSize().width < 769;
+      if (handset) await expect(completion).toBeInViewport();
+      for (const locator of [
+        ...(!handset ? [completion] : []),
+        panel,
+        inputs,
+        page.getByRole('heading', { name: /How did this reading land/, level: 2 }),
+        page.getByRole('heading', { name: 'Recent media', exact: true, level: 2 }),
+        page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true })
+      ]) tops.push((await locator.boundingBox()).y);
+      expect(tops).toEqual([...tops].sort((a, b) => a - b));
+    };
+    await expectReadingOrder();
     const focusRing = async button => {
       await button.press('Enter');
       return button.evaluate(async element => {
@@ -243,6 +250,7 @@ test('completion precedes optional tools, which share a readable column and focu
     expect(insightsRing).toEqual(await focusRing(page.getByRole('button', { name: 'Reading Inputs Used', exact: true })));
     for (const width of [1440, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
+      await expectReadingOrder();
       const columns = await Promise.all([panel, inputs].map(locator => locator.evaluate(node => {
         const box = node.getBoundingClientRect();
         return `${Math.round(box.x)}+${Math.round(box.width)}`;
