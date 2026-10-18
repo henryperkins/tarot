@@ -84,7 +84,7 @@ function UpgradeCTA() {
             Discover patterns, recurring themes, and guidance for your journey.
           </p>
           <button
-            onClick={() => navigate('/settings/subscription')}
+            onClick={() => navigate('/pricing')}
             className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-main transition-colors"
           >
             Upgrade to Plus

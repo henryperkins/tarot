@@ -149,7 +149,7 @@ export function JournalStatusBanner({
               <div className="flex flex-col gap-2 pt-1">
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => navigate('/settings/subscription')}
+                    onClick={() => navigate('/pricing')}
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-primary/15 hover:border-primary/35 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     Upgrade to Cloud Journal

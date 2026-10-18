@@ -132,7 +132,10 @@ function ExportSection({
   }, [normalizedAllEntries, normalizedFilteredEntries, normalizedScopeEntries, shareScope]);
 
   const shareEntries = useMemo(
-    () => shareSourceEntries.filter((entry) => entry?.id).slice(0, effectiveShareLimit),
+    () => shareSourceEntries.filter((entry) => {
+      const id = entry?.id ? String(entry.id).trim() : '';
+      return id && !id.startsWith('local-');
+    }).slice(0, effectiveShareLimit),
     [effectiveShareLimit, shareSourceEntries]
   );
 
@@ -641,7 +644,7 @@ function ExportSection({
                 <p>No entries available to share for this scope.</p>
                 {shareHasLocalOnlyEntries && (
                   <p>
-                    These readings are stored locally only. Save a cloud journal entry to create a share link.
+                    These readings are stored locally only. Cloud links require readings saved to Cloud Journal. You can still copy a summary or download your readings.
                   </p>
                 )}
               </div>
