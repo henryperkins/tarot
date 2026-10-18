@@ -139,7 +139,7 @@ test('journal list and detail restore the reading snapshot; older entries have n
   await seedUser(d1);
   await seedSession(d1);
   await seedEntry(d1, { id: 'older-entry' });
-  const sourceUsage = buildEnhancedClaudePrompt(fixture).promptMeta.sourceUsage;
+  const sourceUsage = buildEnhancedClaudePrompt({ ...fixture, themes: patternThemes }).promptMeta.sourceUsage;
   const saved = await saveAppJournalEntry({ env: { DB: d1 }, user: { id: 'user-1' }, body: {
     spread: 'One-Card Insight', spreadKey: 'single', cards: [], personalReading: 'A reading.',
     sourceUsage: { ...sourceUsage, privateText: 'Must not be stored' }
@@ -150,6 +150,7 @@ test('journal list and detail restore the reading snapshot; older entries have n
   const payload = await detail.json();
   assert.equal(detail.status, 200);
   assert.deepEqual(payload.entry.sourceUsage.userContext.usedInputs, sourceUsage.userContext.usedInputs);
+  assert.deepEqual(payload.entry.sourceUsage.patterns, sanitizeSourceUsage(sourceUsage).patterns);
   assert.doesNotMatch(JSON.stringify(payload.entry.sourceUsage), /Must not be stored|privateText/);
   const list = await listEntries({ env: { DB: d1 }, request: request('https://tableau.test/api/journal') });
   const entries = (await list.json()).entries;
@@ -214,4 +215,29 @@ test('fully omitted local notes are described as not included, not shortened', a
   const row = formatUsageSummary(built.promptMeta.sourceUsage).rows.find(row => row.label === 'Your question & notes');
   assert.match(row.detail, /Card notes: .*not included/i);
   assert.doesNotMatch(row.detail, /Card notes: Shortened/i);
+});
+
+const patternThemes = { knowledgeGraph: { narrativeHighlights: [
+  { text: 'The Sun and The Star connect hope with renewed confidence.' }
+] } };
+
+test('retained detected patterns have their own persisted attribution without reference passages', () => {
+  const built = buildEnhancedClaudePrompt({ ...fixture, themes: patternThemes });
+  assert.match(built.userPrompt, /Archetypal Patterns/);
+  const usage = readingMetadataFromEntry({ sourceUsage: built.promptMeta.sourceUsage }).sourceUsage;
+  assert.equal(usage.patterns?.used, true);
+  assert.equal(usage.patterns.patternsUsedInPrompt, 1);
+  const summary = formatUsageSummary(usage);
+  assert.ok(summary.rows.some(row => row.label === 'Detected patterns'));
+  assert.ok(!summary.rows.some(row => row.label === 'Traditional wisdom'));
+});
+
+test('discarded detected-pattern metadata cannot become a source claim', async () => {
+  const themes = { ...patternThemes, archetypeDescription: 'A derived archetypal context. '.repeat(15000) };
+  const built = buildEnhancedClaudePrompt({ ...fixture, themes, budgetTarget: 'openai' });
+  assert.doesNotMatch(built.userPrompt, /The Sun and The Star connect hope/);
+  assert.equal(built.promptMeta.sourceUsage.patterns?.used, false);
+  assert.ok(!formatUsageSummary(built.promptMeta.sourceUsage).rows.some(row => row.label === 'Detected patterns'));
+  const local = await composeReadingEnhanced({ ...fixture, analysis: { spreadKey: 'single', themes: patternThemes } });
+  assert.ok(!formatUsageSummary(local.promptMeta.sourceUsage).rows.some(row => row.label === 'Detected patterns'));
 });

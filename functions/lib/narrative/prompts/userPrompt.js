@@ -178,7 +178,9 @@ export function buildUserPrompt(
     activeThemes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, _index) => {
       const label = highlight?.text || '';
       if (!label) return;
-      prompt += `- ${label}\n`;
+      const line = `- ${label}`;
+      prompt += `${line}\n`;
+      promptOptions.sourceUsageSignals?.patternLines?.push(line);
     });
     prompt += '\n';
   }

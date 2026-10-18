@@ -32,8 +32,8 @@ export const USAGE_REASON_COPY = Object.freeze({
 
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const reasonCode = value => typeof value === 'string' && Object.hasOwn(USAGE_REASON_COPY, value) ? value : 'not_used';
-const sourceKeys = ['spreadCards', 'vision', 'userContext', 'graphRAG', 'ephemeris', 'forecast'];
-const countKeys = ['eligibleUploads', 'telemetryOnlyUploads', 'evidencePacketsUsed', 'passagesProvided', 'passagesUsedInPrompt'];
+const sourceKeys = ['spreadCards', 'vision', 'userContext', 'graphRAG', 'patterns', 'ephemeris', 'forecast'];
+const countKeys = ['eligibleUploads', 'telemetryOnlyUploads', 'evidencePacketsUsed', 'passagesProvided', 'passagesUsedInPrompt', 'patternsProvided', 'patternsUsedInPrompt'];
 const fieldCounts = ['originalLength', 'sanitizedLength', 'eligibleLength', 'includedLength', 'representedLength'];
 const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'sanitizationTruncated', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
 

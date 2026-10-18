@@ -1,5 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
+import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import { createNarrativeFixture, startReading, SOURCE_USAGE, expectNoHorizontalOverflow, expectForeground, openReadingSupport } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
@@ -141,3 +142,27 @@ for (const explicit of [false, true]) {
     } finally { await fixture.close(); }
   });
 }
+
+
+test('retained detected patterns are a separate source through reload and journal save', async ({ page }) => {
+  const sourceUsage = buildEnhancedClaudePrompt({ spreadInfo: { key: 'single', name: 'One card' },
+    cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme' }],
+    themes: { knowledgeGraph: { narrativeHighlights: [{ text: 'The Sun connects vitality with renewed confidence.' }] } }
+  }).promptMeta.sourceUsage;
+  const fixture = await createNarrativeFixture(page, { sourceUsage });
+  try {
+    await startReading(page, fixture);
+    for (const reload of [false, true]) {
+      if (reload) await page.reload();
+      await openReadingSupport(page);
+      const region = page.getByRole('region', { name: panelName });
+      await region.getByRole('button', { name: panelName, exact: true }).click();
+      await expect(region).toContainText('Detected patterns');
+      await expect(region).toContainText('1 card pattern supplied as reading context.');
+      await expect(region).not.toContainText('Traditional wisdom');
+    }
+    await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
+    await expect.poll(() => fixture.requests.journal.length).toBe(1);
+    expect(fixture.requests.journal[0].sourceUsage.patterns.patternsUsedInPrompt).toBe(1);
+  } finally { await fixture.close(); }
+});

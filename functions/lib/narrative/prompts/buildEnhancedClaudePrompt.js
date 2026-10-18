@@ -616,6 +616,7 @@ export function buildEnhancedClaudePrompt({
       visionCardCuesUsed: false,
       visionEvidencePacketHeadings: [],
       visionEvidenceDetailLines: [],
+      patternLines: [],
       userContext: {}
     };
     const systemPrompt = buildSystemPrompt(
@@ -1182,6 +1183,8 @@ export function buildEnhancedClaudePrompt({
     .map(passage => effectiveGraphRAGPayload?.passages?.indexOf(passage) ?? -1)
     .filter(index => index >= 0);
 
+  const patternLines = built.sourceUsageSignals?.patternLines || [];
+  const patternsUsedInPrompt = patternLines.filter(line => finalUser.includes(line)).length;
   promptMeta.sourceUsage = {
     spreadCards: {
       requested: true,
@@ -1220,6 +1223,13 @@ export function buildEnhancedClaudePrompt({
           (graphRAGBudgetTrimmed && graphRAGMode === 'none' ? 'removed_for_budget' : null)
         )
         : 'not_requested'
+    },
+    patterns: {
+      requested: patternLines.length > 0,
+      used: patternsUsedInPrompt > 0,
+      patternsProvided: patternLines.length,
+      patternsUsedInPrompt,
+      skippedReason: patternLines.length ? (patternsUsedInPrompt ? null : 'removed_for_budget') : 'not_requested'
     },
     ephemeris: {
       requested: Boolean(ephemerisContext),

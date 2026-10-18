@@ -100,6 +100,10 @@ export function formatUsageSummary(rawUsage) {
       : `${count} reference passage${count === 1 ? '' : 's'} on the cards and their patterns.`;
     addRow('Traditional wisdom', 'used', detail, 'sources', 'traditional wisdom');
   }
+  if (sourceUsage?.patterns?.used) {
+    const count = sourceUsage.patterns.patternsUsedInPrompt || 0;
+    addRow('Detected patterns', 'used', `${count} card pattern${count === 1 ? '' : 's'} supplied as reading context.`, 'sources', 'detected patterns');
+  }
   if (sourceUsage?.ephemeris?.used) addRow('Astrological context', 'used', 'Lunar and planetary positions at the time of the reading.', 'sources', 'astrological context');
   if (sourceUsage?.forecast?.used) addRow('Timing outlook', 'used', 'Upcoming lunar and planetary events.', 'sources', 'a timing outlook');
 
