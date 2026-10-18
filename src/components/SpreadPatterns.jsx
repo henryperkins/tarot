@@ -1,7 +1,7 @@
 import { memo, useId, useState } from 'react';
 import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown } from '@phosphor-icons/react';
 import { useHandsetLayout } from '../hooks/useHandsetLayout';
-import { buildSpreadInsightSections } from '../lib/spreadInsights.js';
+import { buildSpreadInsightSections, getVisibleTraditionalPassages } from '../lib/spreadInsights.js';
 import { getPassageSource } from '../../shared/passageSource.js';
 import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { READING_PANEL_CLASS, READING_PANEL_DISCLOSURE_CLASS, READING_PANEL_TITLE_CLASS } from '../styles/panelClasses';
@@ -73,8 +73,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
   const { highlights, spreadDetails, archetypes } = buildSpreadInsightSections(
     spreadHighlights, themes?.knowledgeGraph?.narrativeHighlights
   );
-  const references = (Array.isArray(passages) ? passages : [])
-    .filter(passage => passage && typeof passage.text === 'string' && passage.text.trim());
+  const references = getVisibleTraditionalPassages(passages);
   const totalCount = highlights.length + spreadDetails.length + archetypes.length + references.length;
   const selectedDeck = DECK_CATALOG[themes?.deckStyle];
   const otherSources = [...new Set(references.map(getPassageSource)

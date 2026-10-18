@@ -5,6 +5,15 @@ const asInsights = (items, kind) => (Array.isArray(items) ? items : [])
   .filter(item => item && typeof item.text === 'string' && item.text.trim())
   .map(item => ({ ...item, kind }));
 
+// Partial-pattern quotations can name undrawn cards. Keep them as guarded
+// backend context, but omit them from the reader's spread evidence and counts.
+export function getVisibleTraditionalPassages(passages) {
+  return (Array.isArray(passages) ? passages : []).filter(passage => (
+    passage && typeof passage.text === 'string' && passage.text.trim()
+    && !passage.isPartialPattern && passage.metadata?.isComplete !== false
+  ));
+}
+
 function spreadPriority(item) {
   const key = item.key || '';
   if (key.startsWith('rel-') || key.startsWith('relationship-')) return 0;

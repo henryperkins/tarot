@@ -4,6 +4,7 @@ import { extractShortLabel } from '../components/readingBoardUtils.js';
 import { getGestureArtworkAsset } from '../data/cardGestureAssets.js';
 import { isServerNarrationProvider } from '../../shared/narrationProviders.js';
 import { getReadingSections } from '../lib/narrativeSections.js';
+import { getVisibleTraditionalPassages } from '../lib/spreadInsights.js';
 
 export function getResolvedQuestion(userQuestion) {
   if (typeof userQuestion !== 'string') return 'General guidance';
@@ -144,9 +145,9 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
 }
 
 export function getTraditionalPassages(themes) {
-  return themes?.knowledgeGraph?.graphRAGPayload?.passages
+  return getVisibleTraditionalPassages(themes?.knowledgeGraph?.graphRAGPayload?.passages
     || themes?.knowledgeGraph?.retrievedPassages
-    || [];
+    || []);
 }
 
 export function deriveNarrativeVisibility({

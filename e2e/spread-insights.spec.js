@@ -10,7 +10,7 @@ test.use({ serviceWorkers: 'block' });
 // This seed draws The Star, Temperance/Art, and Death through the real UI.
 const DRAW_TIME = 1790500049291;
 
-async function withInsights(page, { deck = 'rws-1909', fallback = false } = {}, check) {
+async function withInsights(page, { deck = 'rws-1909', fallback = false, passages } = {}, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(DRAW_TIME);
@@ -22,7 +22,7 @@ async function withInsights(page, { deck = 'rws-1909', fallback = false } = {}, 
     if (!fallback) {
       const request = fixture.requests.reading[0];
       const themes = await analyzeSpreadThemes(request.cardsInfo, { deckStyle: deck, env: { GRAPHRAG_ENABLED: 'true' } });
-      themes.knowledgeGraph.graphRAGPayload = { passages: retrievePassages(themes.knowledgeGraph.graphKeys, { maxPassages: 2 }) };
+      themes.knowledgeGraph.graphRAGPayload = { passages: passages ?? retrievePassages(themes.knowledgeGraph.graphKeys, { maxPassages: 2 }) };
       await fixture.emit('reading', 'meta', {
         themes,
         spreadAnalysis: analyzeThreeCard(request.cardsInfo),
@@ -56,6 +56,42 @@ async function openSupportingSections(panel) {
     }
   }
 }
+
+const partialReference = {
+  id: 'partial-reference', type: 'triad', title: 'Incomplete reference',
+  text: 'The Magician appears in this incomplete reference, but was not drawn.',
+  isPartialPattern: true
+};
+const completeReference = {
+  id: 'complete-reference', type: 'triad', title: 'Complete reference',
+  text: 'Death, Temperance, and The Star form the complete healing arc.'
+};
+
+for (const mobile of [false, true]) {
+  test(`partial-pattern quotations are excluded while complete references remain${mobile ? ' @mobile' : ''}`, async ({ page }) => {
+    await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 });
+    await withInsights(page, { passages: [partialReference, completeReference] }, async (panel, fixture) => {
+      expect(fixture.requests.reading[0].cardsInfo.map(card => card.card)).not.toContain('The Magician');
+      await openSupportingSections(panel);
+      const passages = panel.getByRole('list', { name: 'Traditional wisdom passages' });
+      await expect(passages.getByRole('listitem')).toHaveCount(1);
+      await expect(passages).toContainText(completeReference.text);
+      await expect(panel.locator('blockquote').filter({ hasText: partialReference.text })).toHaveCount(0);
+      if (mobile) {
+        const displayedItems = await panel.getByRole('listitem').count();
+        await expect(panel.getByRole('button', { name: /^Spread Insights/ })).toHaveText(`Spread Insights (${displayedItems})`);
+      }
+    });
+  });
+}
+
+test('partial-pattern quotations alone leave no empty Traditional wisdom disclosure', async ({ page }) => {
+  await withInsights(page, { passages: [partialReference] }, async panel => {
+    await expect(panel.getByRole('list', { name: 'Spread highlights' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: /^Traditional wisdom/ })).toHaveCount(0);
+    await expect(panel.locator('blockquote')).toHaveCount(0);
+  });
+});
 
 for (const mobile of [false, true]) {
   for (const theme of ['dark', 'light']) {

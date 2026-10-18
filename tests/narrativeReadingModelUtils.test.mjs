@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { validatePassageAssociationsPayload } from '../shared/contracts/readingPassageAssociations.js';
+import { retrievePassages } from '../functions/lib/graphRAG.js';
 
 import {
   buildNarrativePanelModel,
@@ -8,8 +9,74 @@ import {
   buildSpreadCompanionCards,
   buildStoryArtCards,
   deriveNarrativeVisibility,
+  getTraditionalPassages,
   selectCinematicCard
 } from '../src/hooks/narrativeReadingModelUtils.js';
+
+describe('traditional passage display', () => {
+  const passages = Object.freeze([
+    Object.freeze({ id: 'complete', text: 'A complete arc.', isPartialPattern: false, metadata: { isComplete: true } }),
+    Object.freeze({ id: 'partial', text: 'An arc mentioning an undrawn card.', isPartialPattern: true }),
+    Object.freeze({ id: 'legacy-partial', text: 'An older incomplete arc.', metadata: { isComplete: false } }),
+    Object.freeze({ id: 'ordinary', text: 'A reference without pattern metadata.' })
+  ]);
+
+  for (const location of ['graphRAGPayload', 'retrievedPassages']) {
+    test(`omits partial quotations from ${location} without changing the stored references`, () => {
+      const knowledgeGraph = location === 'graphRAGPayload' ? { graphRAGPayload: { passages } } : { retrievedPassages: passages };
+      assert.deepEqual(getTraditionalPassages({ knowledgeGraph }).map(passage => passage.id), ['complete', 'ordinary']);
+      assert.equal(passages.length, 4);
+      assert.equal(passages[1].text, 'An arc mentioning an undrawn card.');
+    });
+  }
+
+  test('hides the real partial Healing Arc quotation that names absent Temperance', () => {
+    // Death and The Star match two cards; Temperance is not drawn.
+    const retrieved = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: [] });
+    assert.equal(retrieved.length, 1);
+    assert.match(retrieved[0].text, /Temperance/);
+    assert.deepEqual(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: retrieved } } }), []);
+
+    const complete = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: ['death-temperance-star'] });
+    assert.equal(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: complete } } }).length, 1);
+  });
+
+  test('partial-only references do not create an empty panel or focus toggle', () => {
+    const state = deriveNarrativeVisibility({
+      themes: { knowledgeGraph: { graphRAGPayload: { passages: [passages[1]] } } },
+      visibleCount: 2,
+      revealedCardsSize: 2,
+      canShowVisionPanel: false
+    });
+    assert.deepEqual(state.traditionalPassages, []);
+    assert.equal(state.hasTraditionalInsights, false);
+    assert.equal(state.shouldShowSpreadInsights, false);
+    assert.equal(state.focusToggleAvailable, false);
+  });
+
+  test('keeps detected partial-pattern summaries when their quotations are hidden', () => {
+    const state = deriveNarrativeVisibility({
+      themes: { knowledgeGraph: {
+        narrativeHighlights: [{ type: 'partial-triad', text: 'Death and The Star: an ending and renewed hope (partial).' }],
+        graphRAGPayload: { passages: [passages[1]] }
+      } },
+      visibleCount: 2,
+      revealedCardsSize: 2
+    });
+    assert.equal(state.hasTraditionalInsights, false);
+    assert.equal(state.shouldShowSpreadInsights, true);
+    assert.equal(state.hasPatternHighlights, true);
+  });
+
+  test('empty or malformed references cannot create a traditional wisdom section', () => {
+    for (const value of [undefined, null, {}, [null, {}, { text: ' ' }]]) {
+      assert.deepEqual(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: value } } }), []);
+    }
+    assert.deepEqual(getTraditionalPassages({ knowledgeGraph: {
+      graphRAGPayload: { passages: [] }, retrievedPassages: [passages[0]]
+    } }), [], 'An explicitly empty current payload must not revive older references');
+  });
+});
 
 describe('narration controls for server voices', () => {
   for (const ttsProvider of ['elevenlabs', 'deepgram']) {
