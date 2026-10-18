@@ -1143,6 +1143,7 @@ export function buildEnhancedClaudePrompt({
   const forecastRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-forecast' || step === 'hard-cap-drop-forecast'
   );
+  const forecastUsed = built.sourceUsageSignals?.forecastEventLines?.some(line => finalSystem.includes(line)) === true;
   const graphRAGMode = promptMeta.graphRAG?.injectionMode || 'none';
 
   const contextRetention = summarizeUserContext(userContextFields, finalUser);
@@ -1225,9 +1226,9 @@ export function buildEnhancedClaudePrompt({
     },
     forecast: {
       requested: Boolean(ephemerisForecast),
-      used: Boolean(promptMeta.forecast?.available && controls.includeForecast),
+      used: forecastUsed,
       skippedReason: promptMeta.forecast?.available
-        ? (controls.includeForecast ? null : (forecastRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
+        ? (forecastUsed ? null : (forecastRemovedForBudget ? 'removed_for_budget' : 'not_relevant'))
         : (ephemerisForecast
           ? (ephemerisForecast.available ? 'not_relevant' : 'unavailable')
           : 'not_requested')

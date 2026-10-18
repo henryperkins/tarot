@@ -166,6 +166,9 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
       const forecastSection = buildForecastSection(options.ephemerisForecast);
       if (forecastSection) {
         lines.push('', forecastSection, '');
+        if (options.sourceUsageSignals) {
+          options.sourceUsageSignals.forecastEventLines = forecastSection.split('\n').filter(line => line.startsWith('- **'));
+        }
       }
     } catch (err) {
       console.error('[Ephemeris] Forecast section build failed:', err.message);

@@ -156,3 +156,19 @@ test('journal list and detail restore the reading snapshot; older entries have n
   assert.deepEqual(entries.find(entry => entry.id === saved.body.entry.id).sourceUsage, payload.entry.sourceUsage);
   assert.equal(entries.find(entry => entry.id === 'older-entry').sourceUsage, null);
 });
+
+for (const [events, budget, expected] of [
+  [[], 16000, false],
+  [[{ description: 'Full Moon in Aries', dayOffset: 2, guidance: 'Reflect on priorities.' }], 16000, true],
+  [[{ description: 'Full Moon in Aries', dayOffset: 2 }], 1000, false]
+]) {
+  test(`timing attribution follows retained forecast events: ${events.length}/${budget}`, () => {
+    const built = buildEnhancedClaudePrompt({ ...fixture,
+      ephemerisForecast: { available: true, forecastDays: 14, events },
+      promptBudgetEnv: { PROMPT_BUDGET_DEFAULT: budget, ENABLE_PROMPT_SLIMMING: budget < 16000 }
+    });
+    assert.equal(built.systemPrompt.includes('**Full Moon in Aries**'), expected);
+    assert.equal(built.promptMeta.sourceUsage.forecast.used, expected);
+    assert.equal(formatUsageSummary(built.promptMeta.sourceUsage).rows.some(row => row.label === 'Timing outlook'), expected);
+  });
+}
