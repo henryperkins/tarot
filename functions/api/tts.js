@@ -3,7 +3,7 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTtsLimits, reserveNarration, settleNarration, releaseNarration, MAX_NARRATION_CHARS, NARRATION_DEADLINE_MS } from '../lib/ttsLimits.js';
-import { NARRATION_PROVIDERS, isServerNarrationProvider } from '../../shared/narrationProviders.js';
+import { DEFAULT_NARRATION_PROVIDER, NARRATION_PROVIDERS, isServerNarrationProvider } from '../../shared/narrationProviders.js';
 
 const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
@@ -19,7 +19,7 @@ const MIN_CHECKED_CHARS = 100;
 
 function getNarrationProvider(env, requestedProvider) {
   const apiKey = typeof env?.ELEVENLABS_API_KEY === 'string' ? env.ELEVENLABS_API_KEY.trim() : '';
-  const providerId = requestedProvider || (apiKey ? 'elevenlabs' : 'deepgram');
+  const providerId = requestedProvider || DEFAULT_NARRATION_PROVIDER;
   if (providerId === 'elevenlabs') {
     if (!apiKey) return null;
     const model = env.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL;

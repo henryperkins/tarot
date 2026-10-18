@@ -121,7 +121,7 @@ export function PreferencesProvider({ children }) {
     safeStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
   }, [autoNarrate]);
 
-  // Older saved engines migrate to ElevenLabs. Keep the safe
+  // Retired saved engines migrate to the default narrator. Keep the safe
   // storage wrapper: blocked localStorage must not break preferences.
   const [ttsProviderState, setTtsProviderState] = useState(() => {
     return normalizeTtsProvider(safeStorage.getItem('tarot-tts-provider'));

@@ -53,6 +53,7 @@ test('stopping an earlier narration does not suppress the next completed reading
 
 test('changing the narrator keeps auto narration enabled for the next reading', async ({ page }) => {
   await enableNarration(page);
+  await page.addInitScript(() => localStorage.setItem('tarot-tts-provider', 'elevenlabs'));
   const fixture = await createNarrativeFixture(page);
   const requests = await recordSpeech(page);
   try {

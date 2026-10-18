@@ -126,22 +126,52 @@ test('switching narrator uses separate caches and preserves the actual provider 
   assert.equal(Object.keys(storage).filter(key => key.startsWith('tts_cache_')).length, 2);
 });
 
-test('legacy narrator preferences migrate to the ElevenLabs request and reuse its cache', async t => {
+test('legacy narrator preferences use the Deepgram request and reuse its cache', async t => {
   browser(t);
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push({ url, body: JSON.parse(options.body) });
-    return Response.json({ audio: 'data:audio/mpeg;base64,SUQz', provider: 'elevenlabs' });
+    return Response.json({ audio: 'data:audio/mpeg;base64,SUQz', provider: 'workers-ai-aura-2' });
   });
   const narration = { text: 'A migrated provider reading.', enabled: true };
-  for (const provider of ['azure', 'azure-sdk', 'hume', undefined, 'elevenlabs']) {
+  for (const provider of ['azure', 'azure-sdk', 'hume', undefined, 'deepgram']) {
     await speakText({ ...narration, provider });
-    assert.equal(getCurrentTTSState().provider, 'elevenlabs');
+    assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/tts');
-  assert.equal(calls[0].body.provider, 'elevenlabs');
+  assert.equal(calls[0].body.provider, 'deepgram');
   assert.equal(getCurrentTTSState().source, 'cache');
+});
+
+test('streaming narration without a selected provider requests Deepgram', async t => {
+  browser(t);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': 'workers-ai-aura-2' } });
+  });
+  await speakText({ text: 'A default narrated reading.', enabled: true, stream: true, context: 'full-reading' });
+  assert.deepEqual(calls.map(call => [call.url, call.body.provider]), [['/api/tts?stream=true', 'deepgram']]);
+  assert.equal(getCurrentTTSState().status, 'playing');
+  assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
+});
+
+test('queued narration without a selected provider requests Deepgram', async t => {
+  const { players } = browser(t);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': 'workers-ai-aura-2' } });
+  });
+  assert.equal(enqueueTTSChunk({ text: 'A default queued reading.' }), true);
+  finalizeTTSStream();
+  await waitFor(() => getCurrentTTSState().status === 'playing');
+  assert.deepEqual(calls.map(call => [call.url, call.body.provider]), [['/api/tts?stream=true', 'deepgram']]);
+  assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
+  players.at(-1).ended = true;
+  players.at(-1).dispatchEvent(new Event('ended'));
+  await waitFor(() => getCurrentTTSState().status === 'completed');
 });
 
 test('unscoped reader cache entries from the previous release never override the selected narrator', async t => {
@@ -186,7 +216,7 @@ test('queued narration retains each segment narrator until its own network reque
     return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': body.provider === 'deepgram' ? 'workers-ai-aura-2' : 'elevenlabs' } });
   });
   assert.equal(enqueueTTSChunk({ text: 'The first queued reading.', provider: 'deepgram' }), true);
-  assert.equal(enqueueTTSChunk({ text: 'The second queued reading.', provider: 'azure-sdk' }), true);
+  assert.equal(enqueueTTSChunk({ text: 'The second queued reading.', provider: 'elevenlabs' }), true);
   finalizeTTSStream();
   await waitFor(() => calls.length === 1 && getCurrentTTSState().status === 'playing');
   assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');

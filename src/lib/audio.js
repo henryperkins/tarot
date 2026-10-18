@@ -2,7 +2,7 @@ import { normalizeReadingText, prepareForTTS } from './formatting.js';
 import { djb2Hash } from './utils.js';
 import { safeStorage } from './safeStorage.js';
 import { streamAudioToMediaSource } from './streamingAudio.js';
-import { normalizeTtsProvider } from '../../shared/narrationProviders.js';
+import { DEFAULT_NARRATION_PROVIDER, normalizeTtsProvider } from '../../shared/narrationProviders.js';
 
 export { normalizeTtsProvider };
 
@@ -273,7 +273,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {Object} options
  * @param {string} options.text - Text to speak (can be Markdown)
  * @param {boolean} options.enabled - Whether TTS is enabled
- * @param {string} [options.provider='elevenlabs'] - Selected narration provider
+ * @param {string} [options.provider='deepgram'] - Selected narration provider
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
  * @param {string} [options.voice='verse'] - Voice name; the server currently uses one voice for all narration
  * @param {number} [options.speed] - Playback speed, applied by the player (1 is normal)
@@ -281,7 +281,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis for voice styling
  */
-export async function speakText({ text, enabled, provider: requestedProvider = 'elevenlabs', context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
+export async function speakText({ text, enabled, provider: requestedProvider = DEFAULT_NARRATION_PROVIDER, context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
   ensureGlobalCleanupListeners();
 
   if (!enabled) {
@@ -567,7 +567,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
   }
 }
 
-export function enqueueTTSChunk({ text, provider: requestedProvider = 'elevenlabs', context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
+export function enqueueTTSChunk({ text, provider: requestedProvider = DEFAULT_NARRATION_PROVIDER, context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
   if (!text || typeof text !== 'string') return false;
   ensureGlobalCleanupListeners();
 

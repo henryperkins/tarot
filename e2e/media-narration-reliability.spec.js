@@ -46,7 +46,7 @@ for (const width of [1440, 390]) {
         const engines = page.getByRole('radiogroup', { name: 'Select voice engine' });
         const elevenlabs = engines.getByRole('radio', { name: 'ElevenLabs Eleven v4' });
         const deepgram = engines.getByRole('radio', { name: 'Deepgram Aura-2' });
-        await expect(savedProvider === 'deepgram' ? deepgram : elevenlabs).toHaveAttribute('aria-checked', 'true');
+        await expect(deepgram).toHaveAttribute('aria-checked', 'true');
         await expect(engines.getByRole('radio')).toHaveCount(2);
         await expect(page.getByText(/Azure SDK|Word-Sync/)).toHaveCount(0);
         await elevenlabs.focus();

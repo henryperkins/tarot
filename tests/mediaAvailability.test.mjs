@@ -25,12 +25,10 @@ test('a paid completed reading does not offer video when the server says unavail
   assert.equal(result.shouldShowCinematicReveal, false);
 });
 
-test('saved retired voice preferences migrate to ElevenLabs and Deepgram remains selectable', () => {
+test('missing and retired voice preferences use Deepgram while saved selections remain intact', () => {
   assert.equal(typeof audio.normalizeTtsProvider, 'function');
-  for (const value of [null, 'hume', 'azure', 'azure-sdk', 'elevenlabs']) {
-    assert.equal(audio.normalizeTtsProvider(value), 'elevenlabs');
-  }
-  for (const value of ['deepgram', 'workers-ai-aura-2']) {
+  for (const value of [undefined, null, '', 'unknown', 'hume', 'azure', 'azure-sdk', 'deepgram', 'workers-ai-aura-2']) {
     assert.equal(audio.normalizeTtsProvider(value), 'deepgram');
   }
+  assert.equal(audio.normalizeTtsProvider('elevenlabs'), 'elevenlabs');
 });

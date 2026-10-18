@@ -13,17 +13,18 @@ with Cora through Cloudflare Workers AI. Explicit provider selections never
 silently switch engines on configuration or synthesis failure. A user can choose
 the other engine and try again.
 
-Saved `deepgram` preferences remain Deepgram, and `workers-ai-aura-2` preferences
-migrate to Deepgram. Retired Azure/Hume values and missing or unknown preferences
-migrate to the default ElevenLabs option. The normalized value is persisted using
-the existing `tarot-tts-provider` device preference.
+Deepgram is the default while ElevenLabs is unavailable. Saved `elevenlabs` and
+`deepgram` selections remain unchanged, and `workers-ai-aura-2` preferences migrate
+to Deepgram. Retired Azure/Hume values and missing or unknown preferences also use
+Deepgram. The normalized value is persisted using the existing
+`tarot-tts-provider` device preference.
 
 Requests select the engine with `provider: 'elevenlabs'` or `provider: 'deepgram'`.
 Unsupported explicit values return 400 before accounting or synthesis; a selected
-engine with missing configuration returns 503. Older clients that omit `provider`
-retain the configured default: ElevenLabs when its key exists, otherwise Deepgram
-when the Workers AI binding exists. Response provider metadata remains `elevenlabs`
-or `workers-ai-aura-2` for compatibility.
+engine with missing configuration returns 503. Clients that omit `provider` use
+Deepgram even when an ElevenLabs key exists. A missing Workers AI binding returns
+503 without switching to ElevenLabs. Response provider metadata remains
+`elevenlabs` or `workers-ai-aura-2` for compatibility.
 
 ## ElevenLabs setup
 
