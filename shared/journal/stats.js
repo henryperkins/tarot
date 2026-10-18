@@ -1,4 +1,5 @@
 import { getTimestamp, safeJsonParse } from './utils.js';
+import { normalizeThemeLabel } from './themes.js';
 
 export const REVERSED_PATTERN = /reversed/i;
 
@@ -45,7 +46,7 @@ function buildThemeSignals(entries, limit = 4) {
     let hasTheme = false;
 
     for (const candidate of candidates) {
-      const text = typeof candidate.text === 'string' ? candidate.text.trim() : '';
+      const text = normalizeThemeLabel(candidate.text);
       if (!text) continue;
       if (seenInEntry.has(`${candidate.type}:${text}`)) continue;
       seenInEntry.add(`${candidate.type}:${text}`);
@@ -116,7 +117,7 @@ export function extractRecentThemes(entries, limit = 4) {
   return buildThemeSignals(entries, limit).themes;
 }
 
-export function computeJournalStats(entries) {
+export function computeJournalStats(entries, { dateWindow } = {}) {
   const safeEntries = normalizeEntriesArray(entries);
   if (safeEntries.length === 0) {
     return null;
@@ -171,10 +172,26 @@ export function computeJournalStats(entries) {
 
   const contextBreakdown = Array.from(contextMap.entries()).map(([name, count]) => ({ name, count }));
 
-  const monthlyCadence = Array.from(monthMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6)
-    .map(([, data]) => data);
+  // Consecutive calendar buckets include quiet months. Card draws are never
+  // substituted for reading counts, and an all-time span is not clipped to six.
+  const monthlyCadence = [];
+  const months = [...monthMap.keys()].sort();
+  if (months.length) {
+    const monthDate = key => {
+      const [year, month] = key.split('-').map(Number);
+      return new Date(year, month - 1, 1);
+    };
+    const start = dateWindow?.start || monthDate(months[0]);
+    const end = dateWindow?.end || monthDate(months[months.length - 1]);
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cursor <= end) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      monthlyCadence.push(monthMap.get(key) || {
+        label: cursor.toLocaleString('default', { month: 'short', year: 'numeric' }), count: 0,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+  }
 
   const reversalRate = totalCards === 0 ? 0 : Math.round((reversalCount / totalCards) * 100);
   const { themes: recentThemes, signals: themeSignals } = buildThemeSignals(safeEntries);

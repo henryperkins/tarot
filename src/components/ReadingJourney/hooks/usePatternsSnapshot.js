@@ -37,7 +37,9 @@ export function usePatternsSnapshot({
   const formattedSeasonWindow = useMemo(() => {
     if (!seasonWindow) return null;
     const formatter = new Intl.DateTimeFormat(locale, dateFormatOptions);
-    return `${formatter.format(seasonWindow.start)} – ${formatter.format(seasonWindow.end)}`;
+    const start = formatter.format(seasonWindow.start);
+    const end = formatter.format(seasonWindow.end);
+    return start === end ? start : `${start} – ${end}`;
   }, [seasonWindow, locale, dateFormatOptions]);
 
   const hasMoreContexts = contextBreakdown.length > 4;

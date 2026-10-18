@@ -38,6 +38,7 @@ import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
 import EmptyState from './sections/EmptyState';
+import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
@@ -93,7 +94,6 @@ export default function JourneyMobileSheet({
   locale = 'default',
   timezone,
   seasonTimezone,
-  _dataSource,
   scopeLabel,
   filtersApplied,
   analyticsScope,
@@ -119,7 +119,7 @@ export default function JourneyMobileSheet({
   const abortControllerRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+  const sourceLabel = 'Journal';
 
   // Use shared patterns snapshot hook
   const {
@@ -140,7 +140,7 @@ export default function JourneyMobileSheet({
     themes,
   });
 
-  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
   const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
@@ -448,7 +448,7 @@ export default function JourneyMobileSheet({
   const topCard = cardFrequency[0];
   const topCardScopeLabel = filtersActive
     ? 'in filtered view'
-    : (_dataSource === 'server' ? 'this month' : 'in your journal');
+    : (analyticsScope === 'month' ? 'this month' : 'in this scope');
 
   return (
     <>
@@ -508,13 +508,12 @@ export default function JourneyMobileSheet({
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
             <p className="text-2xs text-muted">
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.start)}
-              {' – '}
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.end)}
+              {formattedSeasonWindow}
             </p>
           )}
 
           {/* Top Card Feature */}
+          {totalReadings === 0 && <EmptyScopeNotice onScopeSelect={onScopeSelect} />}
           {topCard && (
             <div className="rounded-xl bg-gradient-ambient p-4 border border-(--border-warm-light) text-center">
               <div className="text-2xl mb-1">🃏</div>

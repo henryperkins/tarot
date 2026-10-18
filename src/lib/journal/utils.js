@@ -33,31 +33,32 @@ export function getTopContext(stats) {
 }
 
 /**
- * Get current month's date window
+ * Get the current local calendar month, including the entire last day.
+ * All journal windows use inclusive instants; callers must not add another day.
  */
 export function getCurrentMonthWindow(now = new Date()) {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const end = new Date(new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime() - 1);
   return { start, end };
 }
 
 /**
- * Parse date input string to Date object
+ * Parse an HTML date input as a local calendar date, never UTC midnight.
  */
 export function parseDateInput(value) {
-  if (!value) return null;
-  const ts = Date.parse(value);
-  if (Number.isNaN(ts)) return null;
-  const date = new Date(ts);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  // Date constructors silently roll invalid inputs such as February 30 forward.
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
 }
 
 /**
- * Get date window for predefined timeframe filters
+ * Get inclusive instants for predefined timeframe filters. 30/90-day windows
+ * are rolling elapsed days, so their boundaries keep the same meaning at DST.
  */
-export function getTimeframeWindow(timeframe) {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+export function getTimeframeWindow(timeframe, now = new Date()) {
+  const end = new Date(now);
   switch (timeframe) {
     case '30d': {
       const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);

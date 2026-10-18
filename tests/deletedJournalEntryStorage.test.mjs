@@ -286,11 +286,12 @@ test('a low-level cloud retry cannot commit after another tab deletes the entry 
 async function journeyHook(archetypeData) {
   const source = await readFile(new URL('../src/hooks/useJourneyData.js', import.meta.url), 'utf8');
   const ast = parse(source, { sourceType: 'module' }); const removed = [];
-  const dependencies = { useMemo: callback => callback(), useCallback: callback => callback, useArchetypeJourney: () => archetypeData };
+  const dependencies = { useMemo: callback => callback(), useCallback: callback => callback,
+    useLocalCalendarDate: () => new Date(), useArchetypeJourney: () => archetypeData };
   for (const node of ast.program.body) {
     if (node.type === 'ImportDeclaration') {
       removed.push([node.start, node.end]);
-      if (node.source.value === 'react' || node.source.value.includes('useArchetypeJourney')) continue;
+      if (node.source.value === 'react' || node.source.value.includes('useArchetypeJourney') || node.source.value.includes('useLocalCalendarDate')) continue;
       let target = node.source.value; if (!target.endsWith('.js')) target += '.js';
       const imported = await import(new URL(target, new URL('../src/hooks/useJourneyData.js', import.meta.url)));
       for (const specifier of node.specifiers) dependencies[specifier.local.name] = imported[specifier.imported.name];
@@ -304,23 +305,25 @@ async function journeyHook(archetypeData) {
   return new Function(...Object.keys(dependencies), `${program}; return useJourneyData;`)(...Object.values(dependencies));
 }
 
-test('retained server aggregate prose cannot be cached with falsely complete survivor entry provenance', async t => {
+test('retained server aggregates cannot restore deleted prose or persist a stale narrative', async t => {
   const owner = 'entry-retained-aggregate'; const { storage } = storageFixture(t);
   const removed = { ...entry('aggregate-moon'), ts: Date.now(), cards: [{ name: 'The Moon', position: 'Present' }] };
   const keep = { ...entry('aggregate-star'), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] };
   seed(storage, owner, [removed, keep]);
   const aggregate = { topCards: [{ card_name: 'The Moon', count: 1 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
   const hook = await journeyHook(aggregate); const props = { entries: [removed, keep], filteredEntries: [removed, keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
-  assert.equal(hook(props)._dataSource, 'server');
+  assert.match(hook(props).seasonNarrative, /Moon/);
   const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
-  const stale = hook({ ...props, entries: [keep], filteredEntries: [keep] }); assert.equal(stale._dataSource, 'server');
-  assert.equal(Object.keys(read(storage, 'journey_narrative_cache')).some(key => key.startsWith(`${owner}:`)), false, 'retained aggregate must not claim surviving IDs are all its inputs');
-  aggregate.isDisabled = true; hook({ ...props, entries: [keep], filteredEntries: [keep] });
-  const narratives = Object.values(read(storage, 'journey_narrative_cache'));
-  assert.equal(narratives.length, 1); assert.deepEqual(narratives[0].sourceEntryIds, [keep.id]); assert.match(narratives[0].narrative, /Star/);
+  const current = hook({ ...props, entries: [keep], filteredEntries: [keep] });
+  assert.match(current.seasonNarrative, /Star/);
+  assert.doesNotMatch(current.seasonNarrative, /Moon/);
+  aggregate.isDisabled = true;
+  assert.match(hook({ ...props, entries: [keep], filteredEntries: [keep] }).seasonNarrative, /Star/);
+  assert.equal(Object.keys(read(storage, 'journey_narrative_cache')).some(key => key.startsWith(`${owner}:`)), false,
+    'template summaries must not persist stale journal derivations');
 });
 
-test('the actual delayed JourneyContent snapshot effect rejects retained server aggregate inputs after deletion', async t => {
+test('the actual delayed JourneyContent snapshot effect rejects deleted inputs', async t => {
   const owner = 'entry-delayed-coach-effect'; const { storage } = storageFixture(t); const removed = entry('effect-remove'); const keep = entry('effect-keep'); seed(storage, owner, [removed, keep]);
   const source = await readFile(new URL('../src/components/ReadingJourney/JourneyContent.jsx', import.meta.url), 'utf8');
   const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] }); let callback;
@@ -330,11 +333,14 @@ test('the actual delayed JourneyContent snapshot effect rejects retained server 
     for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value?.type) visit(value); }
   }
   visit(ast); assert.ok(callback, 'actual coach snapshot effect exists');
-  const dependencies = { historyComplete: true, persistCoachStatsSnapshot, scopedEntries: [keep], entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
-    journeyFiltersActive: false, scopeLabel: null, coachSuggestionSnapshot: { question: 'Old Moon guidance' }, coachSuggestionIndex: 0, coachSuggestionKey: 'old-moon', userId: owner, _dataSource: 'server' };
-  const effect = new Function(...Object.keys(dependencies), `return (${source.slice(callback.start, callback.end)});`)(...Object.values(dependencies));
-  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage }); effect();
-  assert.equal(storage.getItem(`tarot_coach_stats_snapshot_${owner}`), null);
+  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
+  for (const sourceInputs of [{ _dataSource: 'client', scopedEntries: [removed, keep] }, { _dataSource: 'server', scopedEntries: [keep] }]) {
+    const dependencies = { historyComplete: true, scopeError: '', persistCoachStatsSnapshot, entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
+      journeyFiltersActive: false, scopeLabel: null, coachSuggestionSnapshot: { question: 'Old Moon guidance' }, coachSuggestionIndex: 0, coachSuggestionKey: 'old-moon', userId: owner, ...sourceInputs };
+    const effect = new Function(...Object.keys(dependencies), `return (${source.slice(callback.start, callback.end)});`)(...Object.values(dependencies));
+    effect();
+    assert.equal(storage.getItem(`tarot_coach_stats_snapshot_${owner}`), null, `retained ${sourceInputs._dataSource} inputs must not restore deleted prose`);
+  }
 });
 
 async function filterDriver(owner, loadedEntries, fetchImpl) {

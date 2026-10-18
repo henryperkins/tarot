@@ -91,6 +91,7 @@ export default function Journal() {
     setFilters,
     filterSignature,
     filteredEntries,
+    timeframeWindow,
     filtersActive,
     activeFilterChips,
     handleResetFilters,
@@ -118,7 +119,7 @@ export default function Journal() {
     statNodeMap,
     scopedStatsEntries,
     journeyFiltersActive
-  } = useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary });
+  } = useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary, timeframeWindow });
 
   const {
     shareLinks,
@@ -657,6 +658,7 @@ export default function Journal() {
             showStartReadingCta={false}
             seasonWindow={scopeWindow}
             scopeLabel={scopeLabel}
+            scopeError={scopeError}
           />
         </InsightsErrorBoundary>
       </div>
@@ -769,6 +771,7 @@ export default function Journal() {
           showStartReadingCta={false}
           seasonWindow={scopeWindow}
           scopeLabel={scopeLabel}
+          scopeError={scopeError}
         />
       </InsightsErrorBoundary>
     </section>

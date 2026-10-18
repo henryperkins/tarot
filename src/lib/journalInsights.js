@@ -1701,13 +1701,11 @@ export function computeMajorArcanaMapFromEntries(entries) {
  * Example: If today is Dec 10 with no reading, but Dec 9, 8, 7 all have readings,
  * the streak is 3 (not 0).
  *
- * Note: This may differ from backend `currentStreak` calculations. When displaying
- * streak values, prefer server data for authenticated unfiltered views.
- *
  * @param {Array} entries - Journal entries (should have ts or created_at field)
+ * @param {Date} today - Current local calendar date
  * @returns {number} Current streak in days (0 if no consecutive days found)
  */
-export function computeStreakFromEntries(entries) {
+export function computeStreakFromEntries(entries, today = new Date()) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return 0;
   }
@@ -1731,7 +1729,6 @@ export function computeStreakFromEntries(entries) {
 
   // Check streak from today backwards
   let streak = 0;
-  const today = new Date();
 
   for (let i = 0; i < 365; i++) { // Check up to a year
     const checkDate = new Date(today);
@@ -1869,8 +1866,7 @@ export function generateJourneyStory(entries, options = {}) {
   }
 
   if (themes.length > 0) {
-    const themeText = themes.slice(0, 2).join(' and ');
-    parts.push(`Themes of ${themeText.toLowerCase()} weave through your recent readings.`);
+    parts.push(`Themes in this scope: ${themes.slice(0, 2).join('; ')}.`);
   }
 
   if (parts.length < 2) {

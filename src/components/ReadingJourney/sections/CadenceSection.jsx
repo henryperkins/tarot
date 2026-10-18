@@ -15,7 +15,7 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
 
   // Calculate average readings per month
   const total = data.reduce((sum, item) => sum + (item.count || 0), 0);
-  const avg = Math.round(total / data.length);
+  const avg = Number((total / data.length).toFixed(1));
 
   // Use larger height on mobile for better touch targets
   const chartHeight = variant === 'mobile' ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;

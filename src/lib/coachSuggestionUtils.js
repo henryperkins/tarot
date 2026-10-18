@@ -1,5 +1,6 @@
 import { safeJsonParse } from '../../shared/journal/utils.js';
 import { normalizeContextKey } from './journalInsights.js';
+import { normalizeThemeLabel } from '../../shared/journal/themes.js';
 
 const normalize = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 
@@ -18,7 +19,7 @@ export function matchesJourneyFilter(entry, filter) {
   if (filter.type === 'theme') {
     const themes = safeJsonParse(entry?.themes || entry?.themes_json, {});
     return [themes?.archetypeDescription, themes?.suitFocus, themes?.elementalBalance, themes?.reversalDescription?.name]
-      .some(theme => normalize(theme) === value);
+      .some(theme => normalize(theme) === value || normalize(normalizeThemeLabel(theme)) === value);
   }
   return false;
 }

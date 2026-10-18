@@ -1,9 +1,8 @@
 /**
  * useJourneyData - Unified data hook for Reading Journey dashboard.
  *
- * Merges data from:
- * - Server: D1 card_appearances via useArchetypeJourney (unfiltered views)
- * - Client: computeJournalStats from entries (filtered views)
+ * Computes displayed statistics from the complete journal and selected scope.
+ * Server analytics supply backfill diagnostics and the tracking preference.
  *
  * CLIENT-ONLY: Uses localStorage, do not call during SSR.
  * Wrap usage in a client boundary or guard with `typeof window !== 'undefined'`.
@@ -11,8 +10,9 @@
  * Design spec: docs/unified-journey-design.md
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useArchetypeJourney } from './useArchetypeJourney';
+import { useLocalCalendarDate } from './useLocalCalendarDate';
 import {
   computeJournalStats,
   computePreferenceDrift,
@@ -27,11 +27,7 @@ import {
   COACH_SOURCE_PRIORITY,
 } from '../lib/journalInsights';
 import { buildThemeQuestion } from '../lib/themeText';
-import {
-  buildSeasonKey,
-  getCachedNarrative,
-  setCachedNarrative,
-} from '../lib/safeStorage';
+import { filterEntriesToWindow, getAllTimeWindow, getCurrentMonthWindow } from '../lib/journal/utils';
 
 // Empty stats fallback (computeJournalStats returns null for empty entries)
 const EMPTY_STATS = {
@@ -70,7 +66,7 @@ const EMPTY_ARCHETYPE = {
  * @param {Object} options.topCard - Top card { name, count }
  * @param {Object} options.topContext - Top context { name, count }
  * @param {string} options.topTheme - Top theme string
- * @param {Array} options.badges - Badges array
+ * @param {number} options.totalReadings - Readings in this scope
  * @param {Object} options.seasonWindow - { start: Date, end: Date }
  * @param {string} options.locale - Locale for date formatting (e.g., 'en-US', 'fr-FR')
  * @param {string} options.timezone - IANA timezone (e.g., 'America/New_York')
@@ -80,7 +76,7 @@ function generateSeasonNarrative({
   topCard,
   topContext,
   topTheme,
-  badges,
+  totalReadings,
   seasonWindow,
   locale = 'en-US',
   timezone,
@@ -120,27 +116,12 @@ function generateSeasonNarrative({
   };
 
   const period = formatPeriod(seasonWindow);
-  const hasBadge = badges?.some(b => b.card_name === topCard?.name);
-
-  let narrative = `Your ${period} `;
-
-  if (topTheme) {
-    narrative += `has been shaped by themes of ${topTheme.toLowerCase()}. `;
-  }
-
-  if (topCard) {
-    narrative += `${topCard.name} appeared ${topCard.count}x - your most persistent messenger`;
-    if (hasBadge) {
-      narrative += `, earning you a streak badge`;
-    }
-    narrative += `. `;
-  }
-
+  const parts = [`In your ${period} readings, ${topCard.name} appeared ${topCard.count}x.`];
+  if (topTheme) parts.push(`${totalReadings > 1 ? 'Recurring theme' : 'Theme'}: ${topTheme}.`);
   if (topContext) {
-    narrative += `${topContext.name} readings dominated, signaling where your energy flows.`;
+    parts.push(`${formatContextName(topContext.name)} was the focus of ${topContext.count} reading${topContext.count === 1 ? '' : 's'}.`);
   }
-
-  return narrative;
+  return parts.join(' ');
 }
 
 /**
@@ -402,6 +383,7 @@ export function useJourneyData({
   userId,
   focusAreas = [],
   seasonWindow,
+  scopeEntries,
   locale = 'en-US',
   timezone,
 }) {
@@ -426,126 +408,21 @@ export function useJourneyData({
     return true;
   }, [filtersActiveProp]);
 
-  // Determine if we should fetch server data
-  // Gate the fetch to avoid wasted network calls and telemetry skew
+  const calendarDate = useLocalCalendarDate();
   const shouldFetchAnalytics = Boolean(isAuthenticated && canUseCloudJournal && userId);
-  const shouldFetchServerData = shouldFetchAnalytics && !filtersActive && !seasonWindow;
-
-  // Determine which entries to use for stats
+  const archetypeData = useArchetypeJourney(userId, shouldFetchAnalytics) ?? EMPTY_ARCHETYPE;
   const activeEntries = filtersActive ? filteredEntries : entries;
 
-  // Fetch diagnostics independently of the scope used to display statistics.
-  // Pass enabled flag to prevent unnecessary API calls
-  const archetypeData = useArchetypeJourney(
-    userId,
-    shouldFetchAnalytics // Diagnostics/preferences are independent of display scope
-  ) ?? EMPTY_ARCHETYPE;
+  // The Journal supplies its resolved scope so counts, summaries and exports
+  // share exactly the same readings. Standalone callers can supply a window.
+  const scopedEntries = useMemo(() => Array.isArray(scopeEntries)
+    ? scopeEntries
+    : filterEntriesToWindow(activeEntries, seasonWindow), [scopeEntries, activeEntries, seasonWindow]);
 
-  const analyticsNeedsBackfill = archetypeData?.stats?.needsBackfill;
-
-  // Decide whether to use D1 server data or client-side computation
-  // D1 data is only valid for unfiltered "current month" view
-  const useServerData = useMemo(() => {
-    if (!shouldFetchServerData) return false;
-    if (archetypeData.isLoading || archetypeData.error || archetypeData.isDisabled) return false;
-    if (analyticsNeedsBackfill === true) return false;
-    return true;
-  }, [
-    shouldFetchServerData,
-    archetypeData.isLoading,
-    archetypeData.error,
-    archetypeData.isDisabled,
-    analyticsNeedsBackfill,
-  ]);
-
-  const seasonTimezone = useMemo(() => (useServerData ? 'UTC' : timezone), [useServerData, timezone]);
-
-  // Derive season window from data if not explicit
-  const effectiveSeasonWindow = useMemo(() => {
-    if (seasonWindow) return seasonWindow;
-
-    // If filtered entries exist, derive window from their date range
-    if (filtersActive && filteredEntries?.length) {
-      const timestamps = filteredEntries
-        .map(e => e.ts || (e.created_at ? e.created_at * 1000 : null))
-        .filter(Boolean);
-      if (timestamps.length) {
-        return {
-          start: new Date(Math.min(...timestamps)),
-          end: new Date(Math.max(...timestamps)),
-        };
-      }
-    }
-
-    // When using server analytics (unfiltered, current month), keep window scoped to month
-    // and align to UTC to match D1 year_month bucketing.
-    if (useServerData) {
-      const now = new Date();
-      const year = now.getUTCFullYear();
-      const month = now.getUTCMonth();
-      return {
-        start: new Date(Date.UTC(year, month, 1)),
-        end: new Date(Date.UTC(year, month + 1, 0)),
-      };
-    }
-
-    // Otherwise derive window from the active entries range to avoid labeling all-time data as current month
-    const rangeSource = activeEntries?.length ? activeEntries : entries;
-    if (rangeSource?.length) {
-      const timestamps = rangeSource
-        .map(e => e.ts || (e.created_at ? e.created_at * 1000 : null))
-        .filter(Boolean);
-      if (timestamps.length) {
-        return {
-          start: new Date(Math.min(...timestamps)),
-          end: new Date(Math.max(...timestamps)),
-        };
-      }
-    }
-
-    // Fallback to current calendar month when no data
-    const now = new Date();
-    return {
-      start: new Date(now.getFullYear(), now.getMonth(), 1),
-      end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-    };
-  }, [seasonWindow, filtersActive, filteredEntries, useServerData, activeEntries, entries]);
-
-  // Helper to filter entries to a date range
-  const filterEntriesToWindow = (entriesToFilter, window) => {
-    if (!entriesToFilter?.length || !window) return entriesToFilter;
-    const windowStart = window.start.getTime();
-    const windowEnd = window.end.getTime() + (24 * 60 * 60 * 1000); // Include end date
-
-    return entriesToFilter.filter(entry => {
-      const ts = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
-      if (!ts) return false;
-      return ts >= windowStart && ts <= windowEnd;
-    });
-  };
-
-  // When using D1 server data, scope client-side stats to the same time window
-  // to avoid mixing current-month D1 data with all-time client stats
-  const scopedEntries = useMemo(() => {
-    // If custom seasonWindow is provided, filter entries to that window
-    // This fixes the bug where seasonWindow was ignored
-    if (seasonWindow) {
-      return filterEntriesToWindow(activeEntries, seasonWindow);
-    }
-
-    // If filters are active, use activeEntries directly (already filtered)
-    if (filtersActive) {
-      return activeEntries;
-    }
-
-    // When using D1 server data, filter entries to current month
-    // so context/themes match the D1 card frequency time scope
-    if (useServerData && entries?.length) {
-      return filterEntriesToWindow(entries, effectiveSeasonWindow);
-    }
-
-    return activeEntries || [];
-  }, [filtersActive, seasonWindow, useServerData, entries, activeEntries, effectiveSeasonWindow]);
+  const effectiveSeasonWindow = useMemo(() => seasonWindow
+    || getAllTimeWindow(scopedEntries)
+    || getCurrentMonthWindow(calendarDate), [seasonWindow, scopedEntries, calendarDate]);
+  const seasonTimezone = timezone;
 
   // Export entries: for exports, use the full journal when unfiltered to preserve
   // the previous behavior. Users expect "Export Journal" to export everything
@@ -559,12 +436,11 @@ export function useJourneyData({
     return entries || [];
   }, [filtersActive, scopedEntries, entries]);
 
-  // Client-side stats with null guard
-  // Uses scopedEntries to match the time window of D1 data when applicable
+  // Every displayed statistic is derived from the selected journal entries.
   const insightsStats = useMemo(() => {
-    const stats = computeJournalStats(scopedEntries);
+    const stats = computeJournalStats(scopedEntries, { dateWindow: effectiveSeasonWindow });
     return stats ?? EMPTY_STATS;
-  }, [scopedEntries]);
+  }, [scopedEntries, effectiveSeasonWindow]);
 
   // Preference drift - computed on SCOPED entries to match the time window
   // Compares user's stated focus areas with actual reading contexts
@@ -575,132 +451,21 @@ export function useJourneyData({
     return computePreferenceDrift(scopedEntries, focusAreas);
   }, [scopedEntries, focusAreas]);
 
-  // Badges - use server data when unfiltered, otherwise compute from entries
-  // Note: Client-side badge computation is a subset (only cards in scoped entries)
-  const sortedBadges = useMemo(() => {
-    if (useServerData) {
-      // Unfiltered: use D1 badges, sorted by earned_at DESC
-      const badges = archetypeData.badges || [];
-      return [...badges].sort((a, b) => (b.earned_at || 0) - (a.earned_at || 0));
-    }
+  const sortedBadges = useMemo(() => computeBadgesFromEntries(scopedEntries), [scopedEntries]);
+  const majorArcanaMap = useMemo(() => computeMajorArcanaMapFromEntries(scopedEntries), [scopedEntries]);
 
-    // Filtered/scoped: compute "virtual" badges from scoped entries
-    // These are cards that appear 3+ times in the current view
-    // Note: These aren't persisted badges, just indicators of frequency
-    return computeBadgesFromEntries(scopedEntries);
-  }, [useServerData, archetypeData.badges, scopedEntries]);
+  // A daily practice streak spans the journal, including yesterday when the
+  // selected month has just begun. Scope filters never erase reading history.
+  const currentStreak = useMemo(() => computeStreakFromEntries(entries, calendarDate), [entries, calendarDate]);
 
-  // Major Arcana heatmap - must match the current view (scoped to time window)
-  const majorArcanaMap = useMemo(() => {
-    if (useServerData) {
-      // Unfiltered: use D1 data - convert object to array format
-      const freq = archetypeData.majorArcanaFrequency || {};
-      return Object.entries(freq).map(([name, count]) => ({
-        cardNumber: null, // Would need lookup
-        name,
-        count: typeof count === 'number' ? count : 0,
-      }));
-    }
-
-    // Filtered/scoped: compute from scoped entries
-    return computeMajorArcanaMapFromEntries(scopedEntries);
-  }, [useServerData, archetypeData.majorArcanaFrequency, scopedEntries]);
-
-  // Current streak - must reflect the data view
-  const currentStreak = useMemo(() => {
-    if (useServerData) {
-      // Unfiltered: use D1 streak
-      return archetypeData.currentStreak || 0;
-    }
-
-    // Filtered/scoped: compute streak from scoped entries (consecutive days with readings)
-    return computeStreakFromEntries(scopedEntries);
-  }, [useServerData, archetypeData.currentStreak, scopedEntries]);
-
-  // Normalize D1 card data to unified shape
-  const normalizeD1Card = useCallback((d1Card, badges) => ({
-    name: d1Card.card_name,
-    count: d1Card.count,
-    reversedCount: 0, // D1 doesn't track reversals
-    trend: d1Card.trend || 'stable',
-    hasBadge: badges?.some(b => b.card_name === d1Card.card_name) ?? false,
-  }), []);
-
-  // Normalize client-side card data to unified shape
-  const normalizeClientCard = useCallback((clientCard, badges) => ({
-    name: clientCard.name,
-    count: clientCard.count,
-    reversedCount: clientCard.reversed || 0,
-    trend: 'stable', // Client-side doesn't compute trends
-    hasBadge: badges?.some(b => b.card_name === clientCard.name) ?? false,
-  }), []);
-
-  // Card frequency - respects filter/window selection
-  const cardFrequency = useMemo(() => {
-    // When filters active or custom window, ALWAYS use client-side data
-    // to ensure consistency with the filtered journal view
-    if (!useServerData) {
-      return (insightsStats.frequentCards || []).map(c =>
-        normalizeClientCard(c, sortedBadges)
-      );
-    }
-
-    // Unfiltered view: use D1 data, enrich with client reversals
-    return archetypeData.topCards.map(d1Card => {
-      const normalized = normalizeD1Card(d1Card, sortedBadges);
-
-      // Attach trend data for sparklines
-      if (archetypeData.getCardTrends) {
-        normalized.trendData = archetypeData.getCardTrends(d1Card.card_name);
-      }
-
-      // Enrich with client-side reversal data if available
-      const clientMatch = insightsStats.frequentCards?.find(
-        c => c.name === normalized.name
-      );
-      if (clientMatch) {
-        normalized.reversedCount = clientMatch.reversed || 0;
-      }
-      return normalized;
-    });
-  }, [
-    useServerData,
-    archetypeData,
-    sortedBadges,
-    insightsStats.frequentCards,
-    normalizeD1Card,
-    normalizeClientCard,
-  ]);
-
-  // Cadence data - respects filter/window selection
-  const cadence = useMemo(() => {
-    // When filters active, use client-side cadence
-    if (!useServerData) {
-      return insightsStats.monthlyCadence || [];
-    }
-
-    // Unfiltered: prefer server data if richer
-    const archetypeCadence = archetypeData.cadenceData || [];
-    const insightsCadence = insightsStats.monthlyCadence || [];
-
-    if (archetypeCadence.length >= insightsCadence.length) {
-      return archetypeCadence;
-    }
-    return insightsCadence;
-  }, [useServerData, archetypeData.cadenceData, insightsStats.monthlyCadence]);
-
-  // Build cache key for narrative
-  const cacheKey = useMemo(() => {
-    if (!userId) return null;
-    return buildSeasonKey({
-      userId,
-      filtersActive,
-      filteredEntries: activeEntries,
-      seasonWindow: effectiveSeasonWindow,
-      locale,
-      timezone: seasonTimezone,
-    });
-  }, [userId, filtersActive, activeEntries, effectiveSeasonWindow, locale, seasonTimezone]);
+  const cardFrequency = useMemo(() => (insightsStats.frequentCards || []).map(card => ({
+    name: card.name,
+    count: card.count,
+    reversedCount: card.reversed || 0,
+    trend: 'stable',
+    hasBadge: sortedBadges.some(badge => badge.card_name === card.name),
+  })), [insightsStats.frequentCards, sortedBadges]);
+  const cadence = insightsStats.monthlyCadence || [];
 
   const topContext = useMemo(() => {
     if (!insightsStats.contextBreakdown?.length) return undefined;
@@ -708,57 +473,22 @@ export function useJourneyData({
     return [...insightsStats.contextBreakdown].sort((a, b) => b.count - a.count)[0];
   }, [insightsStats.contextBreakdown]);
 
-  // Generate season narrative using effective window
+  // This is a cheap deterministic template. Derive it from current inputs;
+  // persistent, date-only caching can outlive saves, edits and account changes.
   const seasonNarrative = useMemo(() => {
     const topCard = cardFrequency[0];
-    const topTheme = insightsStats.topTheme
-      || insightsStats.themeSignals?.[0]?.label
-      || insightsStats.recentThemes?.[0];
-
     if (!topCard) return null;
-
-    // Try cache first (only for authenticated, unfiltered views)
-    if (cacheKey && !filtersActive) {
-      const cached = getCachedNarrative(userId, cacheKey);
-      if (cached) return cached;
-    }
-
-    const narrative = generateSeasonNarrative({
+    return generateSeasonNarrative({
       topCard,
       topContext,
-      topTheme,
-      badges: sortedBadges,
+      topTheme: insightsStats.topTheme,
       totalReadings: insightsStats.totalReadings,
       seasonWindow: effectiveSeasonWindow,
       locale,
       timezone: seasonTimezone,
     });
-
-    // Cache for authenticated, unfiltered views
-    if (cacheKey && !filtersActive && narrative) {
-      // Server aggregates do not expose their contributing entry IDs. Do not
-      // claim the current local page completely identifies those inputs.
-      setCachedNarrative(userId, cacheKey, narrative, useServerData ? undefined : (scopedEntries || []).map(entry => entry?.id).filter(Boolean));
-    }
-
-    return narrative;
-  }, [
-    cardFrequency,
-    scopedEntries,
-    useServerData,
-    topContext,
-    insightsStats.recentThemes,
-    insightsStats.themeSignals,
-    insightsStats.topTheme,
-    insightsStats.totalReadings,
-    sortedBadges,
-    effectiveSeasonWindow,
-    locale,
-    seasonTimezone,
-    cacheKey,
-    filtersActive,
-    userId,
-  ]);
+  }, [cardFrequency, topContext, insightsStats.topTheme, insightsStats.totalReadings,
+    effectiveSeasonWindow, locale, seasonTimezone]);
 
   // Journey story prose - returns null when insufficient data
   // Uses scopedEntries to match the time window of other stats
@@ -868,7 +598,7 @@ export function useJourneyData({
     filtersActive,
 
     // State
-    isLoading: archetypeData.isLoading && shouldFetchServerData,
+    isLoading: false,
     hasBackfilled: archetypeData.hasBackfilled,
     needsBackfill,
     isAnalyticsDisabled,
@@ -884,10 +614,9 @@ export function useJourneyData({
     handleBackfill: archetypeData.handleBackfill,
 
     // Data source indicator (for debugging/testing)
-    _dataSource: useServerData ? 'server' : 'client',
+    _dataSource: 'client',
 
-    // Scoped entries for stats (matches the displayed stats time window)
-    // Use this for stats consistency - entries match the D1 card frequency scope
+    // Same scope used for all displayed statistics and current-scope exports
     scopedEntries,
 
     // Export entries - preserves old behavior: full journal when unfiltered,

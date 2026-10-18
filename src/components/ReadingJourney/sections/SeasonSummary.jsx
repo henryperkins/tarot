@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { Fire } from '@phosphor-icons/react';
 import { CoachSuggestion } from '../../CoachSuggestion';
 import CoachSuggestionSwitcher from '../CoachSuggestionSwitcher';
+import EmptyScopeNotice from './EmptyScopeNotice';
 
 function SeasonSummary({
   narrative,
@@ -33,6 +34,8 @@ function SeasonSummary({
   timezone,
   filtersActive,
   scopeLabel,
+  hasHistory = false,
+  onScopeSelect,
 }) {
   // Format the season window for display
   const formatSeasonLabel = () => {
@@ -92,9 +95,11 @@ function SeasonSummary({
         <p className="text-base sm:text-sm text-muted-high leading-relaxed mb-3">
           {narrative}
         </p>
+      ) : hasHistory && totalReadings === 0 ? (
+        <EmptyScopeNotice onScopeSelect={onScopeSelect} />
       ) : (
         <p className="text-base sm:text-sm text-muted mb-3">
-          Start tracking your journey with more readings.
+          {totalReadings > 0 ? 'No card data in this scope yet.' : 'Start tracking your journey with more readings.'}
         </p>
       )}
 
@@ -118,7 +123,7 @@ function SeasonSummary({
           {currentStreak > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main"
-              title="Counts from yesterday if no reading today (grace period)."
+              title="Across your journal. Counts from yesterday if no reading today (grace period)."
             >
               <Fire className="h-3 w-3 text-accent" />
               {currentStreak}-day streak
@@ -132,7 +137,7 @@ function SeasonSummary({
         </div>
         {currentStreak > 0 && (
           <p className="text-2xs text-muted/70">
-            Counts from yesterday if no reading today (grace period).
+            Across your journal. Counts from yesterday if no reading today (grace period).
           </p>
         )}
       </div>

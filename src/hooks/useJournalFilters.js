@@ -7,6 +7,8 @@ import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAcco
 import { filterDeletedJournalEntries, subscribeToDeletedJournalEntries } from '../lib/deletedJournalEntryStorage.js';
 import { matchesJourneyFilter } from '../lib/coachSuggestionUtils';
 import { formatContextName } from '../lib/journalInsights';
+import { getTimestamp } from '../../shared/journal/utils.js';
+import { filterEntriesToWindow, getTimeframeWindow } from '../lib/journal/utils';
 import {
   CONTEXT_FILTERS,
   SPREAD_FILTERS,
@@ -54,12 +56,16 @@ export function useJournalFilters(sourceEntries, options = {}) {
     setServerSearchNonce((prev) => prev + 1);
   }, []);
 
-  // Capture timestamp when filters change (in event handler context, not during render)
+  // This clock owns both the filtered readings and the window used by analytics.
   const [filterTimestamp, setFilterTimestamp] = useState(Date.now);
   const setFilters = useCallback((update) => {
     setFilterTimestamp(Date.now());
     setFiltersInternal(update);
   }, []);
+  const timeframeWindow = useMemo(
+    () => getTimeframeWindow(filters.timeframe, new Date(filterTimestamp)),
+    [filters.timeframe, filterTimestamp]
+  );
 
   // Label maps for display
   const contextLabelMap = useMemo(
@@ -99,9 +105,11 @@ export function useJournalFilters(sourceEntries, options = {}) {
         spreads: [...filters.spreads].sort(),
         decks: [...filters.decks].sort(),
         timeframe: filters.timeframe,
+        windowStart: timeframeWindow?.start.getTime(),
+        windowEnd: timeframeWindow?.end.getTime(),
         onlyReversals: filters.onlyReversals
       }),
-    [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]
+    [filters.contexts, filters.spreads, filters.decks, filters.timeframe, timeframeWindow, filters.onlyReversals]
   );
 
   const trimmedDeferredQuery = deferredQuery.trim();
@@ -125,6 +133,44 @@ export function useJournalFilters(sourceEntries, options = {}) {
 
   // Returning to a previous query starts fresh, including after a cleared search.
   if (serverSearchResult.searchKey !== searchKey) setServerSearch(serverSearch);
+
+  // Wake when a reading enters/exits the window or either calendar endpoint
+  // changes day. This also catches midnight/year rollover without polling.
+  const nextTimeframeRefresh = useMemo(() => {
+    if (!timeframeWindow) return null;
+    const now = timeframeWindow.end;
+    let next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    const rolling = filters.timeframe === '30d' || filters.timeframe === '90d';
+    const duration = rolling ? filterTimestamp - timeframeWindow.start.getTime() : null;
+    if (rolling) {
+      const start = timeframeWindow.start;
+      const nextStartDay = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).getTime();
+      next = Math.min(next, nextStartDay + duration);
+    }
+    for (const entry of [...entries, ...serverSearch.results]) {
+      const ts = getTimestamp(entry);
+      if (ts === null) continue;
+      if (ts > filterTimestamp) next = Math.min(next, ts);
+      // The lower endpoint is inclusive, so expiry is one millisecond later.
+      if (rolling && ts + duration + 1 > filterTimestamp) {
+        next = Math.min(next, ts + duration + 1);
+      }
+    }
+    return next;
+  }, [entries, serverSearch.results, timeframeWindow, filters.timeframe, filterTimestamp]);
+
+  useEffect(() => {
+    if (nextTimeframeRefresh === null) return;
+    const refresh = () => setFilterTimestamp(Date.now());
+    const timer = setTimeout(refresh, Math.max(0, nextTimeframeRefresh - Date.now()));
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [nextTimeframeRefresh, filterTimestamp]);
 
   useEffect(() => {
     if (!shouldUseServerSearch) return;
@@ -206,7 +252,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {
       if (serverSearch.status === 'success') {
-        return serverSearch.results;
+        return filterEntriesToWindow(serverSearch.results, timeframeWindow);
       }
       if (serverSearch.status === 'loading') {
         return [];
@@ -219,23 +265,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     const contextSet = new Set(filters.contexts);
     const spreadSet = new Set(filters.spreads);
     const deckSet = new Set(filters.decks);
-    const timeframeCutoff = (() => {
-      const now = filterTimestamp;
-      switch (filters.timeframe) {
-        case '30d':
-          return now - 30 * 24 * 60 * 60 * 1000;
-        case '90d':
-          return now - 90 * 24 * 60 * 60 * 1000;
-        case 'ytd': {
-          const yearStart = new Date(new Date(now).getFullYear(), 0, 1).getTime();
-          return yearStart;
-        }
-        default:
-          return null;
-      }
-    })();
-
-    return entries.filter((entry) => {
+    return filterEntriesToWindow(entries, timeframeWindow).filter((entry) => {
       if (!matchesJourneyFilter(entry, filters.journeyFilter)) return false;
       if (contextSet.size > 0 && !contextSet.has(entry?.context)) {
         return false;
@@ -244,10 +274,6 @@ export function useJournalFilters(sourceEntries, options = {}) {
         return false;
       }
       if (deckSet.size > 0 && !deckSet.has(entry?.deckId)) {
-        return false;
-      }
-      const entryTs = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
-      if (timeframeCutoff && entryTs && entryTs < timeframeCutoff) {
         return false;
       }
       if (filters.onlyReversals) {
@@ -278,7 +304,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
       }
       return true;
     });
-  }, [entries, filters.journeyFilter, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
+  }, [entries, filters.journeyFilter, filters.contexts, filters.spreads, filters.decks, filters.onlyReversals, timeframeWindow, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
 
   // Check if any filters are active
   const filtersActive = Boolean(filters.query.trim()) ||
@@ -352,6 +378,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     setFilters,
     filterSignature,
     filteredEntries,
+    timeframeWindow,
     filtersActive,
     activeFilterChips,
     handleResetFilters,

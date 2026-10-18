@@ -3,6 +3,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { useLocalCalendarDate } from './useLocalCalendarDate';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { getCardImage } from '../lib/cardLookup';
@@ -15,7 +16,6 @@ import {
   getTopContext,
   getCurrentMonthWindow,
   parseDateInput,
-  getTimeframeWindow,
   filterEntriesToWindow,
   formatWindowLabel,
   getAllTimeWindow,
@@ -23,12 +23,12 @@ import {
   formatSummaryDate
 } from '../lib/journal/utils';
 
-export function useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary = false } = {}) {
+export function useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary = false, timeframeWindow = null } = {}) {
+  const calendarDate = useLocalCalendarDate();
   // Scope selection state
   const [analyticsScope, setAnalyticsScope] = useState('month');
   const [customScope, setCustomScope] = useState({ start: '', end: '' });
   const [hasUserSelectedScope, setHasUserSelectedScope] = useState(false);
-  const [scopeError, setScopeError] = useState('');
   const [expandedCardIndex, setExpandedCardIndex] = useState(null);
 
   const filtersActive = Boolean(filters.query?.trim()) ||
@@ -64,40 +64,30 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   }
 
   // Compute date windows
-  const monthWindow = useMemo(() => getCurrentMonthWindow(), []);
-  const timeframeWindow = useMemo(
-    () => (filters.timeframe !== 'all' ? getTimeframeWindow(filters.timeframe) : null),
-    [filters.timeframe]
-  );
+  const monthWindow = useMemo(() => getCurrentMonthWindow(calendarDate), [calendarDate]);
   const allTimeWindow = useMemo(() => getAllTimeWindow(entries), [entries]);
   const customWindow = useMemo(() => {
     if (analyticsScope !== 'custom') return null;
     const start = parseDateInput(customScope.start);
     const end = parseDateInput(customScope.end);
-    if (!start || !end) return null;
-    const normalizedEnd = end.getTime() < start.getTime() ? start : end;
-    return { start, end: normalizedEnd };
+    if (!start || !end || end < start) return null;
+    // Calendar arithmetic includes 23/25-hour days across DST changes.
+    return { start, end: new Date(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1).getTime() - 1) };
   }, [analyticsScope, customScope]);
 
   // Compute scope error as derived state (avoids setState in useEffect)
-  const computedScopeError = useMemo(() => {
+  const scopeError = useMemo(() => {
     if (analyticsScope !== 'custom') {
       return '';
     }
     const start = parseDateInput(customScope.start);
     const end = parseDateInput(customScope.end);
-    if (start && end) {
-      return '';
-    } else if (customScope.start || customScope.end) {
+    if (!start || !end) {
       return 'Select a valid start and end date for custom scope.';
     }
+    if (end < start) return 'The end date must be on or after the start date.';
     return '';
   }, [analyticsScope, customScope]);
-
-  // Update scopeError state when computed value changes (render-time pattern)
-  if (scopeError !== computedScopeError) {
-    setScopeError(computedScopeError);
-  }
 
   // Determine active scope window
   const scopeWindow = useMemo(() => {
@@ -105,6 +95,7 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
       case 'month':
         return monthWindow;
       case 'filters':
+        // Use the exact window that selected filteredEntries.
         return timeframeWindow;
       case 'custom':
         return customWindow;
@@ -117,16 +108,17 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
 
   // Compute scoped entries for stats
   const scopedStatsEntries = useMemo(() => {
+    if (analyticsScope === 'custom' && !customWindow) return [];
     if (analyticsScope === 'filters' && filtersActive) {
       return filteredEntries;
     }
     return filterEntriesToWindow(entries, scopeWindow);
-  }, [analyticsScope, filtersActive, filteredEntries, entries, scopeWindow]);
+  }, [analyticsScope, customWindow, filtersActive, filteredEntries, entries, scopeWindow]);
 
   // Compute stats
   const scopeStats = useMemo(
-    () => computeJournalStats(scopedStatsEntries) ?? EMPTY_STATS,
-    [scopedStatsEntries]
+    () => computeJournalStats(scopedStatsEntries, { dateWindow: scopeWindow }) ?? EMPTY_STATS,
+    [scopedStatsEntries, scopeWindow]
   );
   const baselineStats = useMemo(
     () => computeJournalStats(entries) ?? EMPTY_STATS,

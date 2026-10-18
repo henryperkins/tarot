@@ -126,7 +126,6 @@ export default function JourneySidebar({
   locale = 'default',
   timezone,
   seasonTimezone,
-  _dataSource,
   variant: _variant = 'sidebar',
   scopeLabel,
   filtersApplied,
@@ -135,7 +134,7 @@ export default function JourneySidebar({
 }) {
   const navigate = useNavigate();
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
-  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
     'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
   // Section open/close state
@@ -208,7 +207,7 @@ export default function JourneySidebar({
   }, [navigate, resetOnboarding, setShowPersonalizationBanner]);
 
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+  const sourceLabel = 'Journal';
 
   // Use shared patterns snapshot hook
   const {
@@ -427,6 +426,8 @@ export default function JourneySidebar({
         {/* Season Summary (always visible) */}
         <SeasonSummary
           narrative={seasonNarrative}
+          hasHistory={!isEmpty}
+          onScopeSelect={onScopeSelect}
           topCard={cardFrequency[0]}
           cardFrequencyReliable={cardFrequencyReliable}
           currentStreak={currentStreak}
