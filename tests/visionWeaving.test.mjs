@@ -325,6 +325,30 @@ test('counts only rendered packets when uploads exceed the evidence preview limi
   assert.equal(promptMeta.sourceUsage.vision.evidenceMode, 'uploaded_image');
 });
 
+for (const visionInsights of [undefined, null, []]) {
+  test(`accepts evidence-only prompt context with ${JSON.stringify(visionInsights)} insights`, () => {
+    const { userPrompt, promptMeta } = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'The Sun', number: 19, position: 'Focus', orientation: 'Upright' }],
+      visionInsights,
+      visionEvidence: [{
+        label: 'sun-photo',
+        card: 'The Sun',
+        confidence: 0.92,
+        evidenceMode: 'uploaded_image',
+        visualClaimMode: 'verified_visual_evidence',
+        verifiedUploadedEvidence: [{ literalObservation: 'A gold border surrounds the sunlit garden.' }]
+      }]
+    });
+
+    assert.match(userPrompt, /A gold border surrounds the sunlit garden\./);
+    assert.equal(promptMeta.sourceUsage.vision.requested, true);
+    assert.equal(promptMeta.sourceUsage.vision.used, true);
+    assert.equal(promptMeta.sourceUsage.vision.imageDetailsUsed, true);
+    assert.equal(promptMeta.sourceUsage.vision.skippedReason, null);
+  });
+}
+
 test('counts only evidence packet headings retained after hard-cap truncation', () => {
   const packets = Array.from({ length: 5 }, (_, index) => ({
     card: 'The Sun',

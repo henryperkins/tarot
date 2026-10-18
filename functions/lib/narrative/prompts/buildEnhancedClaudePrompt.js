@@ -1137,7 +1137,7 @@ export function buildEnhancedClaudePrompt({
   const visionUsed = visionCardCuesIncluded || visionEvidencePacketsUsed > 0;
   const imageDetailsUsed = visionCardCuesIncluded || (visionEvidencePacketsUsed > 0
     && built.sourceUsageSignals?.visionEvidenceDetailLines?.some(line => finalUser.includes(line)) === true);
-  const allImagesMismatch = hasVisionSource
+  const allImagesMismatch = Array.isArray(visionInsights) && visionInsights.length > 0
     && visionPromptEligibility.suppressionReasons?.card_mismatch === visionInsights.length;
   const visionRemovedForBudget = slimmingSteps.some((step) =>
     step === 'drop-diagnostics' || step === 'hard-cap-drop-diagnostics'
