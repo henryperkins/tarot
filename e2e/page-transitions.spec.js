@@ -86,12 +86,12 @@ for (const size of [
         await page.emulateMedia({ reducedMotion });
         await page.goto('/');
         await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
-        const journal = page.getByRole('button', { name: 'Journal', exact: true });
+        const journal = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true });
         await journal.focus();
         await expect(journal).toBeFocused();
         await journal.press('Enter');
         await expectPainted(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true }));
-        await page.getByRole('button', { name: 'Reading', exact: true }).press('Enter');
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).press('Enter');
         await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
         await expectSettled(page);
         await page.screenshot({ path: testInfo.outputPath(`reading-${reducedMotion}.png`) });
@@ -104,7 +104,7 @@ for (const size of [
         await page.goto('/');
         await expectSettled(page);
         const interrupted = await interruptNextPageEntrance(page, interruption);
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await interrupted();
         await expect(page).toHaveURL(/\/journal$/);
         await expectPainted(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true }), 0.95);
@@ -114,7 +114,7 @@ for (const size of [
         await galleryInterrupted();
         await expectPainted(page.getByRole('heading', { name: 'Card Collection', exact: true }), 0.95);
         // Even a paused decorative effect must leave navigation usable.
-        await page.getByRole('button', { name: 'Reading', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).click();
         await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
         await expectSettled(page);
       });
@@ -124,13 +124,13 @@ for (const size of [
       await page.goto('/');
       await expectSettled(page);
       const interrupted = await interruptNextPageEntrance(page, 'pause');
-      await page.getByRole('button', { name: 'Journal', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
       await interrupted();
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await expectPainted(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true }));
       await expectSettled(page);
       await page.emulateMedia({ reducedMotion: 'no-preference' });
-      await page.getByRole('button', { name: 'Reading', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).click();
       await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
       await expectSettled(page);
     });
@@ -138,7 +138,7 @@ for (const size of [
     test('rapid back and forward navigation settles on the latest route', async ({ page }) => {
       await page.goto('/');
       await expectSettled(page);
-      await page.getByRole('button', { name: 'Journal', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
       await expect(page).toHaveURL(/\/journal$/);
       await page.goBack();
       await page.goForward();
@@ -156,7 +156,7 @@ for (const size of [
       await expectSettled(page);
       const session = await context.newCDPSession(page);
       const interrupted = await interruptNextPageEntrance(page, 'pause');
-      await page.getByRole('button', { name: 'Journal', exact: true }).click();
+      await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
       await interrupted();
       try {
         // Playwright forces visibility, so use the actual lifecycle suspension
@@ -165,7 +165,7 @@ for (const size of [
         await session.send('Page.setWebLifecycleState', { state: 'active' });
         await expectPainted(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true }), 0.95);
         await page.screenshot({ path: testInfo.outputPath('journal-resumed.png') });
-        await page.getByRole('button', { name: 'Reading', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).click();
         await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
       } finally {
         await session.send('Page.setWebLifecycleState', { state: 'active' });

@@ -107,7 +107,7 @@ test('page remains painted when motion preference changes or its animation is pa
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect.poll(() => effectiveOpacity(page.locator('#main-content'))).toBe(1);
-    await page.getByRole('button', { name: 'Journal', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
     await expect(page).toHaveURL(/\/journal$/);
     await page.goBack();
     await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();

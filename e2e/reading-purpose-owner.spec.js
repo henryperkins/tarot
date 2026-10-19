@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createNarrativeFixture, startReading } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
@@ -17,6 +17,7 @@ for (const status of [200, 503]) {
       await page.getByRole('button', { name: /^Step 2:/ }).click();
       await page.getByRole('button', { name: 'User menu for fixture', exact: true }).click();
       await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
+      await openAccountOptions(page);
       await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
       const completion = page.waitForResponse(response => new URL(response.url()).pathname === '/api/journal' && response.request().method() === 'POST');
       fixture.releaseJournal();

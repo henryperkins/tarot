@@ -1,90 +1,35 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { Sparkle } from './icons';
-import { Icon } from './Icon';
-import { ICON_SIZES } from './iconConstants';
-import { UserMenu } from './UserMenu';
 import { JournalBookIcon } from './JournalIcons';
+import { TableuLogo } from './TableuLogo';
+import { UserMenu } from './UserMenu';
+import '../styles/navigation.css';
 
-export function GlobalNav({ condensed = false, withUserChip = false, onRequestExit }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const goTo = (target) => {
-    if (onRequestExit) onRequestExit(() => navigate(target));
-    else navigate(target);
-  };
-
-  // Precise route detection: only mark active when on actual route
-  const isJournal = location.pathname.startsWith('/journal');
-  const isReading = location.pathname === '/' || location.pathname === '';
-  // Don't mark either as active on other pages (pricing, account, share, etc.)
-  const showActiveState = isReading || isJournal;
-
-  const baseButtonClasses = `
-    inline-flex items-center justify-center gap-1.5
-    rounded-full font-semibold
-    transition-all touch-manipulation
-    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/80
-    focus-visible:ring-offset-2 focus-visible:ring-offset-main
-    active:scale-[0.97]
-    min-h-touch
-  `;
-
-  const buttonPadding = condensed
-    ? 'px-3 sm:px-3.5 py-2 text-xs-plus'
-    : 'px-3.5 sm:px-5 py-2.5 text-sm';
-  // Reserve readable destinations; guest actions wrap below them when space is tight.
-  const buttonWidth = condensed
-    ? 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-36 sm:basis-auto'
-    : 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-40 sm:basis-auto';
-
-  const activeClasses = 'bg-primary text-surface shadow-sm shadow-primary/30 active:bg-primary/90';
-  const inactiveClasses = `
-    bg-surface text-main border border-secondary/50
-    hover:bg-surface-muted hover:text-main hover:border-secondary/60
-    active:bg-surface-muted
-  `;
-
+/** Shared chrome for reading, journal, account, and the supporting routes. */
+export function GlobalNav({ condensed = false, withUserChip = false, installInMenu = false, onRequestExit }) {
   return (
-    <nav
-      aria-label="Primary navigation"
-      className={`flex ${condensed ? 'justify-start mb-1.5' : 'justify-center mb-3'} animate-fade-in w-full`}
-    >
-      <div className={`w-full max-w-full ${withUserChip ? 'flex flex-wrap items-center gap-2' : ''} sm:block`}>
-        <div
-          className={`
-            grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] items-center w-full max-w-full
-            ${withUserChip ? 'flex-[1_1_14rem]' : ''}
-            sm:inline-flex sm:flex-nowrap
-            ${condensed ? 'gap-1 sm:gap-1.5 px-1.5 py-1 shadow-inner shadow-main/20' : 'gap-1.5 sm:gap-2 px-1.5 py-1'}
-            rounded-full sm:bg-surface/80 bg-surface/60 border border-transparent sm:border-accent/20
-          `}
-        >
-          <button
-            type="button"
-            onClick={() => goTo('/')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isReading ? activeClasses : inactiveClasses}`}
-            aria-current={showActiveState && isReading ? 'page' : undefined}
-          >
-            <Icon icon={Sparkle} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
-            <span>Reading</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => goTo('/journal')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isJournal ? activeClasses : inactiveClasses}`}
-            aria-current={showActiveState && isJournal ? 'page' : undefined}
-          >
-            <Icon icon={JournalBookIcon} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
-            <span>Journal</span>
-          </button>
-        </div>
+    <div className={['site-nav', condensed && 'site-nav--condensed'].filter(Boolean).join(' ')}>
+      <Link to="/" className="site-nav__brand" aria-label="Tableu home">
+        <TableuLogo variant="icon" size={32} decorative />
+        <span className="site-nav__wordmark" aria-hidden="true">Tableu</span>
+      </Link>
 
-        {withUserChip && (
-          <div className="ml-auto max-w-full sm:hidden">
-            <UserMenu condensed onRequestExit={onRequestExit} />
-          </div>
-        )}
-      </div>
-    </nav>
+      <nav className="site-nav__destinations" aria-label="Primary navigation">
+        <NavLink to="/" end className="site-nav__link">
+          <Sparkle className="site-nav__icon" aria-hidden="true" />
+          <span>Reading</span>
+        </NavLink>
+        <NavLink to="/journal" className="site-nav__link">
+          <JournalBookIcon className="site-nav__icon" aria-hidden="true" />
+          <span>Journal</span>
+        </NavLink>
+      </nav>
+
+      {withUserChip && (
+        <div className="site-nav__account">
+          <UserMenu condensed compactGuest installInMenu={installInMenu} onRequestExit={onRequestExit} />
+        </div>
+      )}
+    </div>
   );
 }

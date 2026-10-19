@@ -1,4 +1,5 @@
 import { InstallControl } from './InstallControl';
+import { GuestAccountMenu } from './GuestAccountMenu';
 import { lazy, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@phosphor-icons/react';
@@ -10,7 +11,7 @@ import { DeferredDialog } from './DeferredDialog';
 
 const AuthModal = lazy(() => import('./AuthModal'));
 
-export function UserMenu({ condensed = false, installInMenu = false, onRequestExit }) {
+export function UserMenu({ condensed = false, installInMenu = false, compactGuest = false, onRequestExit }) {
   const { isAuthenticated, user, logout } = useAuth();
   const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
@@ -161,6 +162,62 @@ export function UserMenu({ condensed = false, installInMenu = false, onRequestEx
 
   const nextTier = tier === 'free' ? 'plus' : tier === 'plus' ? 'pro' : null;
   const nextTierConfig = nextTier ? SUBSCRIPTION_TIERS[nextTier] : null;
+
+  const renderGuestActions = (close) => (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <button
+        type="button"
+        onClick={() => { close(); setShowAuthModal(true); }}
+        className="
+          flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
+          rounded-full bg-primary text-surface
+          hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
+          shadow-xs shadow-primary/20 transition
+          text-xs-plus font-semibold touch-manipulation
+          focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60
+          focus-visible:ring-offset-2 focus-visible:ring-offset-main
+        "
+      >
+        <SignIn className="w-4 h-4" aria-hidden="true" />
+        <span>Sign In</span>
+      </button>
+      <Link
+        to="/account"
+        onClick={() => close()}
+        className="
+          flex items-center gap-1.5 px-3 sm:px-4 min-h-touch min-w-touch
+          rounded-full border border-accent/30 text-accent
+          hover:bg-surface hover:border-accent/50 active:bg-surface-muted
+          transition text-xs-plus font-semibold touch-manipulation
+          focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
+          focus-visible:ring-offset-2 focus-visible:ring-offset-main
+        "
+        aria-label="Open settings"
+      >
+        <Gear className="w-4 h-4" aria-hidden="true" />
+        <span className="hidden xs:inline">Settings</span>
+      </Link>
+      {onboardingComplete && (
+        <button
+          type="button"
+          onClick={() => { close(); handleReplayTutorial(); }}
+          className="
+            flex items-center justify-center min-w-touch min-h-touch
+            rounded-full bg-surface/50 border border-accent/20
+            text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
+            transition touch-manipulation
+            focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
+            focus-visible:ring-offset-2 focus-visible:ring-offset-main
+          "
+          aria-label="Replay tutorial"
+          title="Replay Tutorial"
+        >
+          <BookOpen className="w-4 h-4" aria-hidden="true" />
+          {compactGuest && <span>Replay tutorial</span>}
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <>
@@ -390,55 +447,7 @@ export function UserMenu({ condensed = false, installInMenu = false, onRequestEx
             )}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {onboardingComplete && (
-              <button
-                onClick={handleReplayTutorial}
-                className="
-                  flex items-center justify-center min-w-touch min-h-touch
-                  rounded-full bg-surface/50 border border-accent/20
-                  text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
-                  transition touch-manipulation
-                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
-                  focus-visible:ring-offset-2 focus-visible:ring-offset-main
-                "
-                aria-label="Replay tutorial"
-                title="Replay Tutorial"
-              >
-                <BookOpen className="w-4 h-4" aria-hidden="true" />
-              </button>
-            )}
-            <Link
-              to="/account"
-              className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch min-w-touch
-                rounded-full border border-accent/30 text-accent
-                hover:bg-surface hover:border-accent/50 active:bg-surface-muted
-                transition text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
-              aria-label="Open settings"
-            >
-              <Gear className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden xs:inline">Settings</span>
-            </Link>
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
-                rounded-full bg-primary text-surface
-                hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
-                shadow-xs shadow-primary/20 transition
-                text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
-            >
-              <SignIn className="w-4 h-4" aria-hidden="true" />
-              <span>Sign In</span>
-            </button>
-          </div>
+          compactGuest ? <GuestAccountMenu>{renderGuestActions}</GuestAccountMenu> : renderGuestActions(() => {})
         )}
         {installInMenu ? <AppUtilities /> : null}
       </div>

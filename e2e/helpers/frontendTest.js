@@ -1,6 +1,17 @@
 import { test as base, expect } from '@playwright/test';
 
 export { expect };
+
+/** Open the shared guest disclosure without toggling an already-open panel. */
+export async function openAccountOptions(page) {
+  const summary = page.locator('summary[aria-label="Account options"]');
+  await expect(summary).toBeVisible();
+  const disclosure = summary.locator('..');
+  if (!await disclosure.evaluate(element => element.open)) await summary.click();
+  await expect(disclosure).toHaveAttribute('open', '');
+  return summary;
+}
+
 export const test = base.extend({
   verifiedMotion: [async ({ page, context, contextOptions }, use, testInfo) => {
     const expected = contextOptions.reducedMotion || 'no-preference';

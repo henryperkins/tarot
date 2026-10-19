@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createNarrativeFixture, expectNoHorizontalOverflow, openSetup, startReading, QUESTION } from './helpers/narrativeFixtures.js';
 
 test.use({ serviceWorkers: 'block' });
@@ -36,6 +36,7 @@ for (const width of [1440, 390]) {
       try {
         await openSetup(page);
         if (width === 390) {
+          await openAccountOptions(page);
           await page.getByRole('link', { name: 'Open settings', exact: true }).click();
           await page.getByRole('navigation', { name: 'Jump to section' }).getByRole('link', { name: 'Audio', exact: true }).click();
         } else {

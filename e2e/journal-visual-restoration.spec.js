@@ -663,7 +663,7 @@ test('leaving the journal and signing out while a retry response is pending leav
     expect(claim?.reserved_at).toBeGreaterThan(0);
     expect(backend.db.rows('SELECT id FROM visual_retry_claims')).toHaveLength(1);
     // Client-side navigation unmounts the journal while the response is in flight.
-    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Reading' }).first().click();
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).first().click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.locator('main.journal-page')).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Reading setup', exact: true })).toBeVisible();

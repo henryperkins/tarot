@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, QUESTION } from './helpers/narrativeFixtures.js';
 
@@ -72,6 +72,7 @@ for (const width of [320, 390, 1280]) {
         await page.setViewportSize({ width, height: 900 });
         await prepare(page, theme);
         await page.goto('/');
+        await openAccountOptions(page);
         await page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first().click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await screenshot(page, testInfo, 'auth');
@@ -293,13 +294,13 @@ test('route navigation updates titles, focuses content and announces the destina
     await route.continue();
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Journal', exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).filter({ visible: true }).first().click();
   await requestStarted;
   releaseJournal();
   await expect(page).toHaveTitle('Journal — Tableu');
   await expect(page.locator('#main-content')).toBeFocused();
   await expect(page.getByRole('status').filter({ hasText: 'Journal page loaded' })).toBeAttached();
-  const reading = page.getByRole('button', { name: 'Reading', exact: true }).filter({ visible: true }).first();
+  const reading = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).filter({ visible: true }).first();
   await reading.focus();
   await page.evaluate(() => {
     history.pushState(null, '', '/journal?view=cards');

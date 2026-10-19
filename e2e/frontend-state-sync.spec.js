@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 
 const entries = [
@@ -57,6 +57,7 @@ for (const width of [390, 1280]) {
     test('auth mode changes preserve email, clear local errors, and mask passwords', async ({ page }) => {
       await prepare(page);
       await page.goto('/');
+      await openAccountOptions(page);
       const signIn = page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first();
       await signIn.click();
       const dialog = page.getByRole('dialog');
@@ -84,6 +85,7 @@ for (const width of [390, 1280]) {
       await expect(dialog.getByLabel('Password', { exact: true })).toHaveAttribute('type', 'password');
       await dialog.getByRole('button', { name: "Don't have an account? Register" }).click();
       await dialog.getByRole('button', { name: 'Close dialog' }).click();
+      await openAccountOptions(page);
       await signIn.click();
       await expect(dialog.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
       await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
@@ -103,6 +105,7 @@ for (const width of [390, 1280]) {
       });
       try {
         await page.goto('/');
+        await openAccountOptions(page);
         const opener = page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first();
         await opener.click();
         const dialog = page.getByRole('dialog');
@@ -111,6 +114,7 @@ for (const width of [390, 1280]) {
         await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
         await expect(dialog.getByRole('alert')).toContainText('Fixture sign-in failed');
         await dialog.getByRole('button', { name: 'Close dialog' }).click();
+        await openAccountOptions(page);
         await opener.click();
         await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
         await expect(dialog.getByLabel('Password', { exact: true })).toHaveValue('');
@@ -120,6 +124,7 @@ for (const width of [390, 1280]) {
         await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
         await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
         await dialog.getByRole('button', { name: 'Close dialog' }).click();
+        await openAccountOptions(page);
         await opener.click();
         release();
         await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('reader@example.test');
@@ -131,6 +136,7 @@ for (const width of [390, 1280]) {
         await expect(dialog).toBeHidden();
         await page.getByRole('button', { name: 'User menu for reader', exact: true }).filter({ visible: true }).first().click();
         await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
+        await openAccountOptions(page);
         await opener.click();
         await expect(dialog.getByLabel('Email', { exact: true })).toHaveValue('');
       } finally { release(); }

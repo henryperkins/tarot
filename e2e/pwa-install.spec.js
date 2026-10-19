@@ -176,7 +176,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       test('standalone iOS hides installation guidance', async ({ page }) => {
         await page.addInitScript(() => Object.defineProperty(navigator, 'standalone', { value: true }));
         await page.goto('/pricing');
-        await expect(page.getByRole('button', { name: 'Reading', exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
       });
 
@@ -188,7 +188,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.getByRole('dialog').getByRole('button', { name: 'Later', exact: true }).click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await expect(page).toHaveURL(/\/journal$/);
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
         await page.clock.setFixedTime(started + 6 * 86_400_000);
@@ -206,7 +206,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.getByRole('dialog').getByRole('button', { name: 'Already added', exact: true }).click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await expect(page).toHaveURL(/\/journal$/);
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
         await page.reload();
@@ -235,7 +235,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           const notice = page.locator('[data-toast]').filter({ hasText: 'Hidden for this visit' });
           await expect(notice).toBeInViewport();
           await expect(notice).toContainText('could not save this choice');
-          await page.getByRole('button', { name: 'Journal', exact: true }).click();
+          await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
           await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
           await page.reload();
           await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toBeVisible();
@@ -607,7 +607,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       test('unsupported browsers keep the navigation free of install controls', async ({ page }) => {
         await page.goto('/pricing');
-        await expect(page.getByRole('button', { name: 'Reading', exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Install Tableu', exact: true })).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Add to Home Screen', exact: true })).toHaveCount(0);
       });
@@ -771,10 +771,10 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       test('a deferred prompt survives route navigation and runs once', async ({ page }) => {
         await page.goto('/pricing');
-        await expect(page.getByRole('button', { name: 'Journal', exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true })).toBeVisible();
         await offerInstall(page, 'accepted');
         await expect(page.getByRole('button', { name: 'Install Tableu', exact: true })).toBeVisible();
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await expect(page).toHaveURL(/\/journal$/);
         await expect(page.locator('main.journal-page')).toBeFocused();
         await expect(page.locator('[data-pwa-footer]').getByRole('button', { name: 'Install Tableu', exact: true })).toBeVisible();
@@ -788,10 +788,10 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       test('dismissal consumes the prompt until the browser offers another', async ({ page }) => {
         await page.goto('/pricing');
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await expect(page).toHaveURL(/\/journal$/);
         await expect(page.locator('main.journal-page')).toBeFocused();
-        await expect(page.getByRole('button', { name: 'Reading', exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true })).toBeVisible();
         await offerInstall(page);
         await page.getByRole('button', { name: 'Install Tableu', exact: true }).click();
         await expect(page.getByRole('button', { name: 'Install Tableu', exact: true })).toHaveCount(0);
@@ -827,14 +827,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       test('prompt failures announce a dismissible toast that expires across navigation', async ({ page }) => {
         await page.goto('/pricing');
-        await expect(page.getByRole('button', { name: 'Reading', exact: true })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true })).toBeVisible();
         await offerInstall(page, 'dismissed', true);
         await page.getByRole('button', { name: 'Install Tableu', exact: true }).click();
         const toast = installErrorToast(page);
         await expect(toast).toBeInViewport({ ratio: 1 });
         await expect(toast.getByRole('button', { name: 'Dismiss notification', exact: true })).toBeVisible();
         await expect(toast).not.toContainText('Fixture prompt failure');
-        await page.getByRole('button', { name: 'Journal', exact: true }).click();
+        await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
         await expect(page).toHaveURL(/\/journal$/);
         await expect(toast).toHaveCount(0, { timeout: 7000 });
         await offerInstall(page);

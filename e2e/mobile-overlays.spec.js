@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, settleReadingLayout, startReading } from './helpers/narrativeFixtures.js';
 
 // Phone overlays, gestures and safe areas (2026-10-19 mobile verification):
@@ -195,6 +195,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await openSetup(page);
       await page.goto('/?from=back-test');
       await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+      await openAccountOptions(page);
       await page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first().click();
       await page.getByRole('dialog').getByRole('button', { name: 'Continue with Google', exact: true }).click();
       await expect(page).toHaveURL(/from=oauth-test/);

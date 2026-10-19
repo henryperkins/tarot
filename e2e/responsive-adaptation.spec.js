@@ -1,5 +1,5 @@
-import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, openSetup } from './helpers/narrativeFixtures.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
+import { createNarrativeFixture, openSetup, startReading } from './helpers/narrativeFixtures.js';
 
 async function expectTouchTarget(locator) {
   const box = await locator.boundingBox();
@@ -12,21 +12,21 @@ async function expectTouchTarget(locator) {
 async function expectNavigationFits(page) {
   const nav = page.getByRole('navigation', { name: 'Primary navigation' });
   for (const name of ['Reading', 'Journal']) {
-    const button = nav.getByRole('button', { name, exact: true });
-    await expectTouchTarget(button);
-    const bounds = await button.evaluate(element => {
-      const buttonBox = element.getBoundingClientRect();
+    const link = nav.getByRole('link', { name, exact: true });
+    await expectTouchTarget(link);
+    const bounds = await link.evaluate(element => {
+      const linkBox = element.getBoundingClientRect();
       const labelBox = element.querySelector('span').getBoundingClientRect();
       return {
-        left: labelBox.left - buttonBox.left,
-        right: buttonBox.right - labelBox.right
+        left: labelBox.left - linkBox.left,
+        right: linkBox.right - labelBox.right
       };
     });
-    expect(bounds.left, `${name} label extends beyond its button`).toBeGreaterThanOrEqual(0);
-    expect(bounds.right, `${name} label extends beyond its button`).toBeGreaterThanOrEqual(0);
+    expect(bounds.left, `${name} label extends beyond its link`).toBeGreaterThanOrEqual(0);
+    expect(bounds.right, `${name} label extends beyond its link`).toBeGreaterThanOrEqual(0);
   }
-  const reading = await nav.getByRole('button', { name: 'Reading', exact: true }).boundingBox();
-  const journal = await nav.getByRole('button', { name: 'Journal', exact: true }).boundingBox();
+  const reading = await nav.getByRole('link', { name: 'Reading', exact: true }).boundingBox();
+  const journal = await nav.getByRole('link', { name: 'Journal', exact: true }).boundingBox();
   const overlapX = Math.min(reading.x + reading.width, journal.x + journal.width) - Math.max(reading.x, journal.x);
   const overlapY = Math.min(reading.y + reading.height, journal.y + journal.height) - Math.max(reading.y, journal.y);
   expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0);
@@ -48,16 +48,58 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             await page.getByRole('navigation', { name: 'Primary navigation' }).waitFor();
             await page.evaluate(() => document.fonts.ready);
             await expectNavigationFits(page);
-            await expectTouchTarget(page.getByRole('link', { name: 'Open settings', exact: true }));
+            const accountOptions = await openAccountOptions(page);
+            await expectTouchTarget(accountOptions);
+            const settings = page.getByRole('link', { name: 'Open settings', exact: true });
+            await expectTouchTarget(settings);
+            await settings.focus();
+            await page.keyboard.press('Escape');
+            await expect(page.getByRole('group', { name: 'Account options', exact: true })).toBeHidden();
+            await expect(accountOptions).toBeFocused();
           }
         }
         const nav = page.getByRole('navigation', { name: 'Primary navigation' });
-        await nav.getByRole('button', { name: 'Reading', exact: true }).press('Enter');
+        await nav.getByRole('link', { name: 'Reading', exact: true }).press('Enter');
         await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
-        await nav.getByRole('button', { name: 'Journal', exact: true }).press('Enter');
+        await nav.getByRole('link', { name: 'Journal', exact: true }).press('Enter');
         await expect(page).toHaveURL(/\/journal$/);
-        await nav.getByRole('button', { name: 'Sign In', exact: true }).click();
+        await openAccountOptions(page);
+        await page.getByRole('group', { name: 'Account options', exact: true })
+          .getByRole('button', { name: 'Sign In', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('reading navigation returns to the same cards, question, notes, and interpretation', async ({ page }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      const note = 'Keep this reflection while visiting the journal.';
+      const readingSnapshot = () => page.evaluate(() => {
+        const snapshot = JSON.parse(sessionStorage.getItem('tarot:reading-snapshot') || 'null');
+        if (!snapshot) return null;
+        const { reading, question, reflections, narrative } = snapshot;
+        return { reading, question, reflections, narrative };
+      });
+      try {
+        await startReading(page, fixture, { reflection: note });
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        await expect.poll(async () => (await readingSnapshot())?.narrative?.raw).toBe(fixture.narrative);
+        const before = await readingSnapshot();
+        expect(before.reading.length).toBeGreaterThan(0);
+        expect(Object.values(before.reflections)).toContain(note);
+        const nav = page.getByRole('navigation', { name: 'Primary navigation', exact: true });
+        await expect(nav).toHaveCount(1);
+        await expectNavigationFits(page);
+        await expect(nav.getByRole('link', { name: 'Reading', exact: true })).toHaveAttribute('aria-current', 'page');
+        await nav.getByRole('link', { name: 'Journal', exact: true }).click();
+        await expect(page).toHaveURL(/\/journal$/);
+        await expect(nav.getByRole('link', { name: 'Journal', exact: true })).toHaveAttribute('aria-current', 'page');
+        await nav.getByRole('link', { name: 'Reading', exact: true }).click();
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
+        await expect.poll(readingSnapshot).toEqual(before);
+        expect(fixture.requests.reading).toHaveLength(1);
       } finally {
         await fixture.close();
       }
@@ -102,8 +144,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.setViewportSize(viewport);
           await page.evaluate(() => document.fonts.ready);
           await expectNavigationFits(page);
-          const overlaps = await page.locator('.header-sticky__row').evaluate(row => {
-            const controls = [...row.querySelectorAll('button,a')].filter(element => element.getClientRects().length);
+          await expectTouchTarget(page.locator('summary[aria-label="Account options"]'));
+          const overlaps = await page.locator('.header-sticky .site-nav').evaluate(row => {
+            const controls = [...row.querySelectorAll('button,a,summary')].filter(element => element.getClientRects().length);
             return controls.flatMap((control, index) => controls.slice(index + 1).flatMap(other => {
               const a = control.getBoundingClientRect();
               const b = other.getBoundingClientRect();
@@ -114,6 +157,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           });
           expect(overlaps).toEqual([]);
         }
+        await openAccountOptions(page);
         await page.getByRole('button', { name: 'Sign In', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
       } finally {

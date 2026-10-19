@@ -1,0 +1,218 @@
+/* Shared chrome keeps the existing theme and each route's sticky measurement. */
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  padding-block: 0.5rem;
+}
+
+.site-nav__brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 0.75rem;
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+
+.site-nav__wordmark {
+  display: none;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site-nav__destinations {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.site-nav__link {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.site-nav__link:hover { background: var(--bg-surface-muted); color: var(--text-main); }
+.site-nav__link[aria-current='page'] {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: var(--text-on-brand);
+}
+
+.site-nav__icon { display: none; flex-shrink: 0; width: 1.125rem; height: 1.125rem; }
+.site-nav__account { flex: 0 0 auto; max-width: 100%; margin-left: auto; }
+
+.site-nav__brand:focus-visible,
+.site-nav__link:focus-visible,
+.guest-account__trigger:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 3px;
+}
+
+.tableu-header {
+  top: 0;
+  z-index: var(--z-sticky-nav);
+  margin-bottom: 1.25rem;
+  padding-top: var(--safe-pad-top, 0px);
+  padding-left: max(1rem, var(--safe-pad-left, 0px));
+  padding-right: max(1rem, var(--safe-pad-right, 0px));
+  border-bottom: 1px solid var(--border-warm);
+  background: var(--bg-main);
+  box-shadow: none;
+  /* Transforms also change the containing block of fixed menu backdrops. */
+  transform: none;
+  transition: none;
+}
+
+.tableu-header:has([aria-expanded='true']),
+.tableu-header:has(details[open]) { z-index: var(--z-tooltip-portal); }
+.tableu-header__inner { width: 100%; max-width: 77rem; margin-inline: auto; }
+.app-shell #main-content:has(> .tableu-header) { padding-top: 0; }
+
+.tableu-header .tableu-header__progress {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  border-top: 1px solid var(--border-warm);
+}
+
+.tableu-header__progress nav { flex: 1; min-width: 0; }
+.tableu-header__progress ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tableu-header__progress li { flex: 1 1 0; min-width: max-content; }
+.tableu-header .tableu-header__progress button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 0.375rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  touch-action: manipulation;
+}
+.tableu-header .tableu-header__progress [aria-current='step'] {
+  position: relative;
+  color: var(--text-main);
+  font-weight: 600;
+}
+.tableu-header .tableu-header__progress [aria-current='step']::after {
+  position: absolute;
+  right: 25%;
+  bottom: 0;
+  left: 25%;
+  width: auto;
+  height: 2px;
+  background: var(--brand-primary);
+  content: '';
+}
+.tableu-header .tableu-header__progress .reading-settings { flex: 0 0 44px; width: 44px; }
+.tableu-header__progress button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: -3px; }
+.tableu-header__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.guest-account { position: relative; }
+.guest-account__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--brand-secondary);
+  border-radius: 9999px;
+  color: var(--text-main);
+  cursor: pointer;
+  list-style: none;
+  touch-action: manipulation;
+}
+.guest-account__trigger::-webkit-details-marker { display: none; }
+.guest-account__trigger > span { display: none; }
+.guest-account__panel {
+  position: absolute;
+  top: 100%;
+  right: var(--account-panel-right, 0px);
+  z-index: var(--z-tooltip-portal);
+  width: 17rem;
+  max-width: min(var(--account-panel-width, 100vw), calc(100vw - 2rem - var(--safe-pad-left, 0px) - var(--safe-pad-right, 0px)));
+  max-height: var(--account-panel-height, 60dvh);
+  margin-top: var(--account-panel-offset, 0.25rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 0.5rem;
+  border: 1px solid var(--border-warm);
+  border-radius: 0.875rem;
+  background: var(--bg-surface);
+  box-shadow: var(--ui-elevated-shadow);
+}
+.guest-account__panel > div { flex-direction: column; align-items: stretch; }
+.guest-account__panel > div > a,
+.guest-account__panel > div > button { justify-content: flex-start; width: 100%; padding-inline: 0.75rem; border-radius: 0.625rem; }
+.guest-account__panel span { display: inline; }
+
+@media (min-width: 375px) {
+  .site-nav__icon { display: block; }
+}
+@media (min-width: 640px) {
+  .site-nav { gap: 1rem; }
+  .site-nav__brand { justify-content: flex-start; }
+  .site-nav__wordmark { display: inline; }
+  .site-nav__destinations { flex: 0 1 auto; justify-content: flex-start; }
+  .site-nav__link { flex: 0 0 auto; padding-inline: 1rem; }
+  .guest-account__trigger { width: auto; padding-inline: 0.875rem; }
+  .guest-account__trigger > span { display: inline; }
+  .tableu-header { padding-left: max(1.25rem, var(--safe-pad-left, 0px)); padding-right: max(1.25rem, var(--safe-pad-right, 0px)); }
+}
+@media (min-width: 1024px) {
+  .site-nav { gap: 1.5rem; }
+  .tableu-header { padding-left: max(1.5rem, var(--safe-pad-left, 0px)); padding-right: max(1.5rem, var(--safe-pad-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-nav__link { transition: none; }
+}

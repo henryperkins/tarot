@@ -47,7 +47,7 @@ for (const fault of ['getItem-denied', 'setItem-full', 'localStorage-getter-deni
     await expect(page.locator('html')).toHaveClass(/\blight\b/);
     // A route change keeps the live preference even when no storage read/write
     // can retain it. A full page reload intentionally falls back to defaults.
-    await page.getByRole('button', { name: 'Reading', exact: true }).first().click();
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).first().click();
     if (fault === 'getItem-denied' || fault === 'localStorage-getter-denied') {
       await page.getByRole('button', { name: 'Skip onboarding', exact: true }).click();
     }

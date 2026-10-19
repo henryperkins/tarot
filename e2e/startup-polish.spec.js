@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createChunkFailurePreview } from './helpers/chunkFailurePreview.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, expectTarget, openSetup, QUESTION, startReading } from './helpers/narrativeFixtures.js';
@@ -30,7 +30,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     });
 
     for (const feature of ['sign in', 'question coach']) {
-      test(`a slow ${feature} keeps focus, can be canceled, and returns to its opener`, async ({ page }, testInfo) => {
+      test(`a slow ${feature} keeps focus, can be canceled, and restores its available trigger`, async ({ page }, testInfo) => {
         const name = feature === 'sign in' ? 'AuthModal' : 'GuidedIntentionCoach';
         let release;
         const held = new Promise(resolve => { release = resolve; });
@@ -45,9 +45,11 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk timing.');
           await page.waitForLoadState('networkidle');
           expect(requested).toBe(false);
+          const accountOptions = feature === 'sign in' ? await openAccountOptions(page) : null;
           const opener = feature === 'sign in'
             ? page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first()
             : page.getByRole('button', { name: /Refine.*question|Open.*coach|Craft.*question/i }).filter({ visible: true }).first();
+          const returnTarget = accountOptions || opener;
           await opener.focus();
           await opener.press('Enter');
           const pending = page.getByRole('dialog', { name: `Opening ${feature}…`, exact: true });
@@ -63,7 +65,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           expect(await pending.evaluate(element => element.contains(document.activeElement))).toBe(true);
           await page.keyboard.press('Escape');
           await expect(pending).toHaveCount(0);
-          await expect(opener).toBeFocused();
+          await expect(returnTarget).toBeFocused();
+          if (feature === 'sign in') await openAccountOptions(page);
           await opener.press('Enter');
           await expect(pending).toBeVisible();
           release();
@@ -72,7 +75,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await expect(pending).toHaveCount(0);
           await page.keyboard.press('Escape');
           await expect(page.getByRole('dialog')).toHaveCount(0);
-          await expect(opener).toBeFocused();
+          await expect(returnTarget).toBeFocused();
         } finally {
           release();
         }
@@ -83,13 +86,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await page.route(/\/assets\/AuthModal-[^/]+\.js(?:\?|$)/, route => route.abort('failed'));
       await openSetup(page);
       test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk failure.');
+      const accountOptions = await openAccountOptions(page);
       const opener = page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first();
       await opener.focus();
       await opener.press('Enter');
       await expect(page.getByRole('alert')).toContainText('Check your connection');
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog')).toHaveCount(0);
-      await expect(opener).toBeFocused();
+      await expect(accountOptions).toBeFocused();
       await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
     });
 
