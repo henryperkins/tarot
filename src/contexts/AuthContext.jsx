@@ -8,6 +8,7 @@ import {
   normalizeRoutePath,
   shouldSkipAuthCheckForPath
 } from '../lib/authRouteUtils';
+import { leavePage } from '../hooks/useAndroidBackGuard';
 
 const AuthContext = createContext(null);
 
@@ -345,7 +346,9 @@ export function AuthProvider({ children }) {
         return { success: false, error: errorMessage };
       }
 
-      window.location.assign(authorizeUrl);
+      // Usually started from the sign-in dialog: the provider replaces its
+      // Back entry instead of stacking above it.
+      leavePage(authorizeUrl);
       return { success: true };
     } catch (err) {
       const errorMessage = err?.message || 'Unable to start social login';

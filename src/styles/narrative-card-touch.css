@@ -564,7 +564,13 @@
   padding: 12px;
   background: rgb(0 0 0 / .65);
 }
+/* Pointer shortcut behind the dialog; Escape and the close button serve everyone else. */
+.reading-personal-context__backdrop {
+  position: absolute;
+  inset: 0;
+}
 .reading-personal-context__dialog {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(100%, 40rem);

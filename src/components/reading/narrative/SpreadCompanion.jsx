@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { createBackdropHandler, useModalA11y } from '../../../hooks/useModalA11y';
+import { useModalA11y } from '../../../hooks/useModalA11y';
 import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 import { railColumns } from './spreadCompanionLayout';
@@ -261,7 +261,8 @@ function GestureCompanion({ focus, api }) {
     </ol>
     {mobileInspection ? <div className="gesture-inspection-placeholder" aria-hidden="true" /> : null}
     {mobileInspection ? createPortal(
-      <div className="reading-personal-context__overlay" onClick={createBackdropHandler(closeInspection)}>
+      <div className="reading-personal-context__overlay">
+        <div data-modal-backdrop aria-hidden="true" className="reading-personal-context__backdrop" onClick={closeInspection} />
         <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}
           className="reading-personal-context__dialog gesture-inspection-dialog">
           <div className="reading-personal-context__header">

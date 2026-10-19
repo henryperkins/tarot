@@ -14,7 +14,6 @@ import {
 } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
-import { useAndroidBackGuard } from '../../hooks/useAndroidBackGuard';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../../hooks/useSwipeDismiss';
@@ -158,6 +157,9 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     trapFocus: false,
     initialFocusRef: closeButtonRef,
     returnFocusRef,
+    // Back closes the innermost layer first, like Escape.
+    onBack: () => (isTemplatePanelOpen ? closeTemplatePanel() : onClose()),
+    backGuardId: 'intentionCoach',
   });
 
   const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({
@@ -170,13 +172,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     if (!isOpen) return;
     setSuggestionsExpanded(!isSmallScreen);
   }, [isOpen, isSmallScreen, setSuggestionsExpanded]);
-
-  // Back closes the innermost layer first, like Escape.
-  useAndroidBackGuard(isOpen, {
-    onBack: () => (isTemplatePanelOpen ? closeTemplatePanel() : onClose()),
-    enabled: isSmallScreen,
-    guardId: 'intentionCoach'
-  });
 
   const [showExcellentBurst, setShowExcellentBurst] = useState(false);
   const prevQualityScoreRef = useRef(questionQuality.score);

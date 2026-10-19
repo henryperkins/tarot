@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Warning, X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 /**
  * Confirmation Modal
@@ -22,7 +22,9 @@ export function ConfirmModal({
   error = null,
   closeOnConfirm = true,
   renderInPortal = false,
-  fallbackFocusSelector = null
+  fallbackFocusSelector = null,
+  // A confirmation opened by its parent's own Back handler leaves Back to it.
+  closeOnBack
 }) {
   const cancelButtonRef = useRef(null);
   const modalRef = useRef(null);
@@ -33,6 +35,8 @@ export function ConfirmModal({
     containerRef: modalRef,
     initialFocusRef: cancelButtonRef,
     fallbackFocusSelector,
+    closeOnBack,
+    backGuardId: 'confirm',
   });
 
   if (!isOpen) return null;
@@ -59,8 +63,9 @@ export function ConfirmModal({
   const content = (
     <div
       className="fixed inset-0 z-auth flex items-stretch sm:items-center justify-center bg-main/70 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the buttons serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"

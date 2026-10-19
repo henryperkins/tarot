@@ -3,6 +3,7 @@ import { Info, Sparkle, Scissors } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext.jsx';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 
 export function RitualControls({
   hasKnocked,
@@ -77,6 +78,9 @@ export function RitualControls({
       duration: 700
     });
   }, [knockCadenceResetAt, publishToast]);
+
+  // Back closes this confirmation before the drawer around it.
+  useAndroidBackGuard(showSkipConfirm, { onBack: () => setShowSkipConfirm(false), guardId: 'skipRitual' });
 
   useEffect(() => {
     if (!showSkipConfirm) return;

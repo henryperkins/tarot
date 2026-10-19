@@ -1,7 +1,7 @@
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useModalA11y, createBackdropHandler } from '../../../hooks/useModalA11y';
+import { useModalA11y } from '../../../hooks/useModalA11y';
 import { buildReadingPersonalContext } from '../../../lib/readingPersonalContext.js';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 import '../../../styles/narrative-card-touch.css';
@@ -44,7 +44,8 @@ export function NarrativePersonalContext({ question = '', reflections = null, ca
       aria-haspopup="dialog" aria-expanded={active} aria-controls={active ? dialogId : undefined}
       onClick={() => setOpenedIdentity(identity)}>Your question and notes</button>
     {active && typeof document !== 'undefined' ? createPortal(
-      <div className="reading-personal-context__overlay" onClick={createBackdropHandler(close)}>
+      <div className="reading-personal-context__overlay">
+        <div data-modal-backdrop aria-hidden="true" className="reading-personal-context__backdrop" onClick={close} />
         <section ref={dialogRef} id={dialogId} role="dialog" aria-modal="true" aria-labelledby={titleId}
           className="reading-personal-context__dialog" tabIndex={-1}>
           <div className="reading-personal-context__header">

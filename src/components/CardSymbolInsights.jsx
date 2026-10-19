@@ -1,4 +1,4 @@
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Info, X } from '@phosphor-icons/react';
@@ -26,17 +26,6 @@ const ELEMENT_BADGE_CONFIG = {
     className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
   }
 };
-
-// Focusable element selectors for focus trap
-const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  '[contenteditable]'
-].join(', ');
 
 function mergeClassNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -174,65 +163,28 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
 /**
  * Mobile bottom sheet for symbol insights
  */
-function BottomSheet({ isOpen, onClose, children }) {
+function BottomSheet({ isOpen, onClose, nested = false, children }) {
   const sheetRef = useRef(null);
-  const previousFocusRef = useRef(null);
 
-  // Use shared scroll lock hook
-  useBodyScrollLock(isOpen, { strategy: 'simple' });
-
-  // Focus management
-  useEffect(() => {
-    if (isOpen) {
-      previousFocusRef.current = document.activeElement;
-      requestAnimationFrame(() => {
-        sheetRef.current?.focus();
-      });
-    } else {
-      if (previousFocusRef.current?.focus) {
-        previousFocusRef.current.focus();
-      }
-    }
-  }, [isOpen]);
-
-  // Keyboard handling with focus trap
-  const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-
-    // Focus trap on Tab key
-    if (event.key === 'Tab' && sheetRef.current) {
-      const focusable = sheetRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-      if (!focusable.length) {
-        event.preventDefault();
-        sheetRef.current.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      }
-    }
-  }, [onClose]);
+  // A layer of the shared modal stack, so it owns Escape, Tab and Back while
+  // open (each closes the sheet before a card dialog underneath) and returns
+  // focus to its opener. Inside the card dialog, which already locks the page,
+  // it takes no lock of its own: two locks released together froze the page.
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: sheetRef,
+    scrollLockStrategy: 'simple',
+    lockScroll: !nested,
+    backGuardId: 'symbolSheet'
+  });
 
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
 
+  // The card dialog layer (z-toast) or above, so the modal stack ranks the
+  // sheet on top of the card it opens from.
   const sheetMarkup = (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onKeyDown={handleKeyDown}
-    >
+    <div className="fixed inset-0 z-toast flex items-end justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-main/70 backdrop-blur-sm motion-safe:animate-fade-in"
@@ -270,7 +222,9 @@ export function CardSymbolInsights({
   triggerClassName,
   triggerProps,
   triggerRef,
-  openOnHover = true
+  openOnHover = true,
+  // Opened from inside another dialog that already locks page scroll.
+  nested = false
 }) {
   const insights = useMemo(() => buildCardInsights(card), [card]);
   const [isOpen, setIsOpen] = useState(false);
@@ -433,7 +387,7 @@ export function CardSymbolInsights({
     return (
       <>
         {triggerButton}
-        <BottomSheet isOpen={isOpen} onClose={handleCloseImmediate}>
+        <BottomSheet isOpen={isOpen} onClose={handleCloseImmediate} nested={nested}>
           <SymbolContent
             insights={insights}
             onClose={handleCloseImmediate}

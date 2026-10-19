@@ -163,7 +163,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
       className={`w-full ${shouldAnimateProgress ? 'animate-fade-in' : ''}`}
     >
       <ol
-        className={`flex ${condensed ? 'gap-1 xs:gap-1.5 py-1' : 'gap-1.5 xs:gap-2 sm:gap-3 pb-1'} overflow-x-auto snap-x snap-mandatory`}
+        className={`flex ${condensed ? 'gap-1 xs:gap-1.5 py-1' : 'gap-1.5 xs:gap-2 sm:gap-3 pb-1'} overflow-x-auto overscroll-x-contain snap-x snap-mandatory`}
         role="list"
       >
         {steps.map((step, index) => {

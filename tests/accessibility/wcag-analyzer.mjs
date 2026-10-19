@@ -212,6 +212,13 @@ function isStopPropagationShell(tag) {
   return /onClick\s*=\s*\{\s*\(?\w+\)?\s*=>\s*(?:\{\s*)?\w+\.stopPropagation\(\)\s*;?\s*(?:\}\s*)?\}/i.test(tag);
 }
 
+// A backdrop hidden from assistive technology is a pointer shortcut, not a
+// control (4.1.2 covers what is exposed); its dialog closes with Escape and a
+// visible button.
+function isHiddenBackdrop(tag) {
+  return /aria-hidden\s*=\s*(?:["']true["']|\{\s*true\s*\})/i.test(tag);
+}
+
 function findDivAsButtonIssues(content, relativePath) {
   const issues = [];
   const divStartRe = /<div\b/g;
@@ -222,6 +229,7 @@ function findDivAsButtonIssues(content, relativePath) {
     if (hasKeyboardButtonSemantics(tag)) continue;
     if (isDialogBackdrop(tag)) continue;
     if (isStopPropagationShell(tag)) continue;
+    if (isHiddenBackdrop(tag)) continue;
 
     issues.push(buildIssue({
       relativePath,

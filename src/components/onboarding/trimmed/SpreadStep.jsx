@@ -61,7 +61,7 @@ export function SpreadStep({ selectedSpread, onSelectSpread, onNext, onBack }) {
       <div className={`flex-1 overflow-y-auto ${isLandscape ? 'space-y-3' : 'space-y-4'}`}>
         {/* Spread cards - horizontal scroll */}
         <div
-          className={`flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none ${
+          className={`flex gap-3 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory scrollbar-none ${
             prefersReducedMotion ? '' : 'animate-fade-in-up'
           }`}
           style={{ animationDelay: '0.1s' }}

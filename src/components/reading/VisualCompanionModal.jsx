@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { Sparkle, X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
 
 export const VISUAL_COMPANION_MODAL_TITLE_ID = 'visual-companion-modal-title';
@@ -62,8 +62,9 @@ export function VisualCompanionModal({
     <div
       className={overlayClasses}
       aria-hidden={!isOpen}
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"

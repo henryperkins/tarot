@@ -24,6 +24,19 @@ export function TactileLensButton({
   const buttonRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
 
+  // Keyboard press-and-hold: holding Space or Enter shows the meanings as a
+  // held pointer does; releasing the key or leaving the button hides them.
+  const handleKeyDown = (event) => {
+    if ((event.key !== ' ' && event.key !== 'Enter') || event.repeat) return;
+    event.preventDefault();
+    onPointerDown?.(event);
+  };
+  const handleKeyUp = (event) => {
+    if (event.key !== ' ' && event.key !== 'Enter') return;
+    event.preventDefault();
+    onPointerUp?.(event);
+  };
+
   // Tutorial pulse animation — scope-managed for automatic cleanup
   useLayoutEffect(() => {
     const node = buttonRef.current;
@@ -69,6 +82,9 @@ export function TactileLensButton({
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
         onPointerCancel={onPointerUp}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+        onBlur={onPointerLeave}
         onContextMenu={(e) => e.preventDefault()}
         disabled={disabled}
         className={`

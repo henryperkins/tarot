@@ -194,8 +194,10 @@ function ToastViewport({ toasts, onDismiss, onRemove, toastRefs, positionsRef })
     };
   }, [toasts, prefersReducedMotion, positionsRef, toastRefs]);
 
+  // Clear the status bar, notch or Dynamic Island in the installed app
+  // (viewport-fit=cover) and the side insets of a landscape phone.
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-toast flex flex-col items-center gap-3 px-4 sm:top-6 sm:items-end sm:px-6">
+    <div className="pointer-events-none fixed inset-x-0 top-[max(1rem,var(--safe-pad-top))] z-toast flex flex-col items-center gap-3 pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:top-[max(1.5rem,var(--safe-pad-top))] sm:items-end sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))]">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}

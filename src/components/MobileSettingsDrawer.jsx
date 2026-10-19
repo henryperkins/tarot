@@ -1,7 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { MOBILE_SETTINGS_DIALOG_ID } from './mobileActionBarConstants';
@@ -17,19 +16,15 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     : { paddingBottom: 'calc(1rem + var(--safe-pad-bottom))' };
   const prefersReducedMotion = useReducedMotion();
 
-  // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+  // Shared modal accessibility: scroll lock, escape key, focus trap, focus
+  // restoration, and Back (mobile-only component, so always enabled)
   useModalA11y(isOpen, {
     onClose,
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
     scrollLockStrategy: 'simple', // Simple strategy for drawers
-  });
-
-  // Android back button dismisses drawer (mobile-only component, always enabled)
-  useAndroidBackGuard(isOpen, {
-    onBack: onClose,
-    enabled: true,
-    guardId: 'settingsDrawer'
+    closeOnBack: true,
+    backGuardId: 'settingsDrawer',
   });
 
   // Handle swipe-to-dismiss with velocity and visual feedback

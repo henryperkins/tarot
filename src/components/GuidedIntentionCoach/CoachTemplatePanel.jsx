@@ -31,10 +31,12 @@ export function CoachTemplatePanel({
   // A layer of its own: it owns Escape and Tab while open, returns focus to
   // whichever control opened it, and hides the coach behind it from assistive
   // tech. The coach already locks page scroll, and that lock is not reentrant.
+  // The coach's Back handler closes this panel first.
   useModalA11y(isOpen, {
     onClose,
     containerRef: panelRef,
     lockScroll: false,
+    closeOnBack: false,
     isolateBackground: true,
     initialFocusSelector: intent === 'save' ? '[data-initial-focus="save"]' : '[data-initial-focus="browse"]'
   });
@@ -55,15 +57,16 @@ export function CoachTemplatePanel({
   return (
     <div
       className={`absolute inset-0 z-sticky-elevated flex items-stretch bg-surface/70 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
-      onClick={onClose}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
         tabIndex={-1}
-        className={`ml-auto h-full w-full sm:w-104 bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-(--ui-elevated-shadow) focus:outline-hidden ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
+        className={`relative ml-auto h-full w-full sm:w-104 bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-(--ui-elevated-shadow) focus:outline-hidden ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
         onClick={event => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">

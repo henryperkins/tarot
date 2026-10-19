@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { AmberStarfield } from './AmberStarfield';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 
@@ -33,8 +33,9 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
   return createPortal(
     <div
       className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"

@@ -1,12 +1,11 @@
 import { useState, useRef, useId, useMemo, useEffect, useCallback } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { useSwipeNavigation } from '../../hooks/useSwipeNavigation';
-import { useAndroidBackGuard } from '../../hooks/useAndroidBackGuard';
 // Control variant components (7 steps)
 import { WelcomeHero } from './WelcomeHero';
 import { SpreadEducation } from './SpreadEducation';
@@ -135,6 +134,10 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     fallbackFocusPreventScroll: true,
     closeOnEscape: !isExitConfirmOpen,
     isolateBackground: true,
+    // Back asks before leaving onboarding; the guard keeps its history entry
+    // while onboarding stays open and removes it once onboarding closes.
+    onBack: () => setExitIntent(intent => intent || 'resume'),
+    backGuardId: 'onboarding',
   });
 
   useEffect(() => {
@@ -212,14 +215,6 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
   const handleResumeRequest = useCallback(() => {
     setExitIntent('resume');
   }, []);
-
-  // Back asks before leaving onboarding; the guard keeps its history entry
-  // while onboarding stays open and removes it once onboarding closes.
-  useAndroidBackGuard(isOpen, {
-    onBack: () => setExitIntent(intent => intent || 'resume'),
-    enabled: isSmallScreen,
-    guardId: 'onboarding'
-  });
 
   const handleSpreadSelect = useCallback((spreadKey) => {
     setSelectedSpread(spreadKey);
@@ -416,9 +411,11 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         className={`fixed inset-0 z-toast flex items-stretch sm:items-center justify-center bg-main/95 backdrop-blur-sm ${
           prefersReducedMotion ? '' : 'animate-fade-in'
         }`}
-        // eslint-disable-next-line react-hooks/refs -- handleSkipRequest only reads ref when invoked (event handler), not during render
-        onClick={isSmallScreen ? undefined : createBackdropHandler(handleSkipRequest)}
       >
+        {/* Desktop pointer shortcut only: Escape and Skip serve everyone else. */}
+        {!isSmallScreen && (
+          <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={() => handleSkipRequest()} />
+        )}
         <FocusTrap
           active={isOpen && !isExitConfirmOpen}
           focusTrapOptions={{
@@ -530,6 +527,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         confirmText={exitConfirmText}
         cancelText="Stay here"
         fallbackFocusSelector='[aria-label="Replay tutorial"]'
+        closeOnBack={false}
       />
     </>
   );

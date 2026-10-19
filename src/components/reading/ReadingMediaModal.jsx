@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { X } from '@phosphor-icons/react';
 import { MediaGallery } from '../MediaGallery';
-import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
 
 export const READING_MEDIA_MODAL_TITLE_ID = 'reading-media-modal-title';
@@ -56,8 +56,9 @@ export function ReadingMediaModal({
   return createPortal(
     <div
       className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 px-safe pt-safe pb-safe"
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"

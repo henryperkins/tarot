@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useAndroidBackGuard } from './useAndroidBackGuard';
 import { useBodyScrollLock } from './useBodyScrollLock';
 
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -40,8 +41,11 @@ function isolateBackground() {
   // Isolate siblings along the active dialog's ancestor path, never its ancestor.
   for (let node = topModal()?.container; node && node !== document.body; node = node.parentElement) {
     for (const sibling of node.parentElement?.children || []) {
+      // A dialog's own backdrop is already hidden from assistive technology
+      // and must stay clickable; inert would let taps fall through it.
       if (sibling === node || !(sibling instanceof HTMLElement)
-        || ['SCRIPT', 'STYLE', 'LINK'].includes(sibling.tagName)) continue;
+        || ['SCRIPT', 'STYLE', 'LINK'].includes(sibling.tagName)
+        || sibling.hasAttribute('data-modal-backdrop')) continue;
       isolatedElements.set(sibling, {
         inert: sibling.inert,
         ariaHidden: sibling.getAttribute('aria-hidden')
@@ -105,13 +109,21 @@ export function useModalA11y(isOpen, {
   fallbackFocusRef = null,
   getFallbackFocus = null,
   fallbackFocusPreventScroll = true,
-  isolateBackground: shouldIsolateBackground = false
+  isolateBackground: shouldIsolateBackground = false,
+  // Back (the Android button or gesture, the iOS edge swipe) closes the dialog
+  // instead of leaving the page behind it: on by default for handset layouts.
+  // `onBack` closes an inner layer first; a layer whose parent already handles
+  // Back passes closeOnBack: false.
+  closeOnBack,
+  onBack = null,
+  backGuardId = 'dialog'
 } = {}) {
   const previousFocusRef = useRef(null);
   const optionsRef = useRef({});
   const restoreTimerRef = useRef(null);
 
   useBodyScrollLock(isOpen && lockScroll, { strategy: scrollLockStrategy });
+  useAndroidBackGuard(isOpen, { onBack: onBack || onClose, enabled: closeOnBack, guardId: backGuardId });
 
   useClientLayoutEffect(() => {
     optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector, fallbackFocusRef, getFallbackFocus, fallbackFocusPreventScroll };

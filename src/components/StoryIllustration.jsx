@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { animate } from '../lib/motionAdapter';
 import { getMediaTierConfig } from '../../shared/monetization/media.js';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { leavePage, useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 
 // Style options with labels and descriptions
 const STYLE_OPTIONS = [
@@ -365,6 +366,9 @@ export default function StoryIllustration({
       if (isUpgradePromptOpen) onNestedOverlayChange?.(false);
     };
   }, [isUpgradePromptOpen, onNestedOverlayChange]);
+
+  // Back closes the prompt first, as Escape does, not the studio behind it.
+  useAndroidBackGuard(isUpgradePromptOpen, { onBack: () => setShowUpgrade(false), guardId: 'storyUpgrade' });
 
   // Because the enclosing dialog yields Escape to us, we have to handle it.
   useEffect(() => {
@@ -731,7 +735,7 @@ export default function StoryIllustration({
                 Maybe Later
               </button>
               <button
-                onClick={() => window.location.href = '/pricing'}
+                onClick={() => leavePage('/pricing')}
                 className="flex-1 px-4 py-2 bg-linear-to-r from-primary to-accent
                            text-surface rounded-lg hover:from-primary/90 hover:to-accent/90
                            focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"

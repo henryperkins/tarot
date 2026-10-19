@@ -362,6 +362,13 @@ test('anchors handset Celtic orientation overlays to the compact coordinates', a
   await page.mouse.up();
   await expect(lensOverlay).toBeHidden();
 
+  // The same hold from the keyboard.
+  await lensButton.focus();
+  await page.keyboard.down('Space');
+  await expect(lensOverlay).toBeVisible();
+  await page.keyboard.up('Space');
+  await expect(lensOverlay).toBeHidden();
+
   await page.getByRole('button', { name: 'Show Celtic Cross position map' }).click();
   const mapOverlay = page.getByRole('dialog', { name: 'Celtic Cross position map' });
   await expect(mapOverlay).toBeVisible();

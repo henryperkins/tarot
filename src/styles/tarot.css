@@ -4054,6 +4054,13 @@ input[type="range"]:focus::-webkit-slider-thumb {
   -webkit-overflow-scrolling: touch;
 }
 
+/* A swipe that runs past the first or last card stops at the carousel instead
+   of chaining into the page or the browser's swipe navigation. */
+.spread-selector-grid,
+.deck-selector-grid {
+  overscroll-behavior-x: contain;
+}
+
 .spread-selector-grid > * {
   scroll-snap-stop: always;
 }

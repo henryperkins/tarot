@@ -5,11 +5,14 @@ import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLooku
 import { CardSymbolInsights } from './CardSymbolInsights';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
+
+// Swipes that start this close to the screen edge belong to the browser's
+// Back/Forward gesture (iOS Safari), not to card navigation.
+const SWIPE_EDGE_PX = 24;
 
 function toMillis(ts) {
     if (!ts) return null;
@@ -191,7 +194,8 @@ export function CardModal({
         });
     }, [onClose, prefersReducedMotion]);
 
-    // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+    // Shared modal accessibility: scroll lock, escape key, focus trap, focus
+    // restoration, and Back on phones (closes the card instead of the page)
     useModalA11y(isOpen, {
         onClose: handleClose,
         containerRef: dialogRef,
@@ -201,38 +205,51 @@ export function CardModal({
         returnFocusRef,
         getFallbackFocus,
         fallbackFocusPreventScroll: true,
+        backGuardId: 'cardModal',
     });
 
-    // Android back button dismisses modal on mobile
     const isSmallScreen = useSmallScreen();
-    useAndroidBackGuard(isOpen, {
-        onBack: handleClose,
-        enabled: isSmallScreen,
-        guardId: 'cardModal'
-    });
 
-    // Swipe gesture tracking for navigation
-    const touchStartX = useRef(null);
-    const touchStartTime = useRef(null);
+    // Swipe gesture tracking for navigation. Only a quick one-finger swipe that
+    // is clearly horizontal changes the card: scrolling the details (often a
+    // diagonal flick), pinching, selecting text, pressing a control, and the
+    // browser's own edge gestures are left alone.
+    const swipeRef = useRef(null);
 
     const handleTouchStart = useCallback((event) => {
-        touchStartX.current = event.touches[0].clientX;
-        touchStartTime.current = Date.now();
+        swipeRef.current = null;
+        if (event.touches.length !== 1 || window.getSelection?.()?.toString()) return;
+        if (event.target.closest?.('button, a, input, textarea, select, [role="button"]')) return;
+        const touch = event.touches[0];
+        if (touch.clientX < SWIPE_EDGE_PX || touch.clientX > window.innerWidth - SWIPE_EDGE_PX) return;
+        swipeRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: Date.now() };
+    }, []);
+
+    const handleTouchMove = useCallback((event) => {
+        const start = swipeRef.current;
+        if (!start) return;
+        const touch = Array.from(event.touches).find(candidate => candidate.identifier === start.id);
+        if (event.touches.length !== 1 || !touch) {
+            swipeRef.current = null;
+            return;
+        }
+        // Once the finger is plainly scrolling, the gesture belongs to the scroll.
+        const dx = Math.abs(touch.clientX - start.x);
+        const dy = Math.abs(touch.clientY - start.y);
+        if (dy > 10 && dy > dx) swipeRef.current = null;
     }, []);
 
     const handleTouchEnd = useCallback((event) => {
-        if (touchStartX.current === null || touchStartTime.current === null) return;
+        const start = swipeRef.current;
+        swipeRef.current = null;
+        if (!start || event.touches.length) return;
+        const touch = Array.from(event.changedTouches).find(candidate => candidate.identifier === start.id);
+        if (!touch) return;
+        const deltaX = touch.clientX - start.x;
+        const deltaY = touch.clientY - start.y;
 
-        const touchEndX = event.changedTouches[0].clientX;
-        const deltaX = touchEndX - touchStartX.current;
-        const elapsed = Date.now() - touchStartTime.current;
-
-        // Reset refs
-        touchStartX.current = null;
-        touchStartTime.current = null;
-
-        // Check if swipe is valid: >50px horizontal, <300ms
-        if (Math.abs(deltaX) > 50 && elapsed < 300) {
+        // Check if swipe is valid: >50px, mostly horizontal, <300ms
+        if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && Date.now() - start.time < 300) {
             if (deltaX > 0 && canNavigatePrev) {
                 onNavigate?.('prev');
             } else if (deltaX < 0 && canNavigateNext) {
@@ -240,6 +257,10 @@ export function CardModal({
             }
         }
     }, [canNavigatePrev, canNavigateNext, onNavigate]);
+
+    const handleTouchCancel = useCallback(() => {
+        swipeRef.current = null;
+    }, []);
 
     // Shared-element animation is only wired for the in-reading flow where:
     // - Card.jsx uses `layoutId={\`card-image-${index}\`}`
@@ -331,7 +352,9 @@ export function CardModal({
                 tabIndex={-1}
                 role="document"
                 onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
             >
                 {/* Compact header with integrated navigation and close */}
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">
@@ -488,7 +511,7 @@ export function CardModal({
                     {/* Symbol insights - collapsed by default */}
                     <CollapsibleSection title="Symbols" icon={Sparkle}>
                         <div className="flex justify-center">
-                            <CardSymbolInsights card={card} position={position} />
+                            <CardSymbolInsights card={card} position={position} nested />
                         </div>
                     </CollapsibleSection>
 
