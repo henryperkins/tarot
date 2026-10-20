@@ -1,5 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, openSetup, startReading } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, openSetup, settleReadingLayout, startReading } from './helpers/narrativeFixtures.js';
 
 // Phone overlays, gestures and safe areas (2026-10-19 mobile verification):
 // Back (the Android button or gesture, the iOS edge swipe) closes the open
@@ -32,15 +32,42 @@ async function openStudio(page) {
 // last one removes it a moment later; Back closing an inner layer restores it.
 const overlayEntryIsCurrent = page => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard));
 
-async function openSymbolSheet(page) {
-  await page.getByRole('button', { name: /^Past — .*Open card$/ }).click();
-  await expect(cardDetail(page)).toBeVisible();
-  await cardDetail(page).getByRole('button', { name: /^Symbols/ }).click();
-  const opener = cardDetail(page).getByRole('button', { name: 'Card symbols', exact: true });
+const bodyStyles = page => page.locator('body').evaluate(element => Object.fromEntries(
+  ['position', 'overflow', 'top', 'left', 'right', 'width', 'paddingRight'].map(key => [key, element.style[key]])
+));
+
+async function openInlineSymbols(page) {
+  const opener = page.getByRole('button', { name: /^Past\b.*Open card$/ });
+  await opener.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await settleReadingLayout(page);
+  const scrollBeforeOpen = await page.evaluate(() => scrollY);
+  const stylesBeforeOpen = await bodyStyles(page);
+  const readingURL = page.url();
   await opener.click();
-  const sheet = page.getByRole('dialog', { name: 'Card symbol insights' });
-  await expect(sheet).toBeVisible();
-  return { sheet, opener };
+  await expect(cardDetail(page)).toBeVisible();
+  const disclosure = cardDetail(page).getByRole('button', { name: /^Symbols$/ });
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  const contentId = await disclosure.getAttribute('aria-controls');
+  const symbols = cardDetail(page).locator(`[id="${contentId}"]`);
+  await expect(symbols).toBeVisible();
+  await expect(symbols.getByRole('list').first()).toBeVisible();
+  await expect(page.getByRole('dialog').filter({ visible: true })).toHaveCount(1);
+  return { opener, scrollBeforeOpen, stylesBeforeOpen, readingURL };
+}
+
+async function expectReadingRestored(page, { opener, scrollBeforeOpen, stylesBeforeOpen, readingURL }) {
+  await expect(cardDetail(page)).toBeHidden();
+  await expect(page).toHaveURL(readingURL);
+  await expect(opener).toBeFocused();
+  await expect.poll(() => bodyStyles(page)).toEqual(stylesBeforeOpen);
+  await expect.poll(async () => Math.abs(await page.evaluate(() => scrollY) - scrollBeforeOpen)).toBeLessThanOrEqual(8);
+  await expect.poll(() => overlayEntryIsCurrent(page)).toBe(false);
+  await expectPageScrolls(page);
+  // The inspector and its inline disclosure consumed only one history entry.
+  // After dismissal, the next Back must leave this reading immediately.
+  await page.goBack();
+  await expect(page).not.toHaveURL(/from=back-test/);
 }
 
 async function expectPageScrolls(page) {
@@ -102,32 +129,20 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await expect(page).not.toHaveURL(/from=back-test/);
     });
 
-    test('Back closes the symbol sheet before its card, and the reading still scrolls', async ({ page }) => {
+    test('one Back closes a card with inline Symbols and restores the reading', async ({ page }) => {
       await readingWithHistory(page, fixture);
-      const { sheet } = await openSymbolSheet(page);
+      const inspection = await openInlineSymbols(page);
 
       await page.goBack();
-      await expect(sheet).toBeHidden();
-      await expect(cardDetail(page)).toBeVisible();
-      await expect.poll(() => overlayEntryIsCurrent(page)).toBe(true);
-      await page.goBack();
-      await expect(cardDetail(page)).toBeHidden();
-      await expect(page).toHaveURL(/from=back-test/);
-      await expectPageScrolls(page);
+      await expectReadingRestored(page, inspection);
     });
 
-    test('Escape closes the symbol sheet before its card, and the reading still scrolls', async ({ page }) => {
-      await startReading(page, fixture);
-      const { sheet, opener } = await openSymbolSheet(page);
-      await expect(sheet).toBeFocused();
+    test('one Escape closes a card with inline Symbols and leaves no dead Back', async ({ page }) => {
+      await readingWithHistory(page, fixture);
+      const inspection = await openInlineSymbols(page);
 
       await page.keyboard.press('Escape');
-      await expect(sheet).toBeHidden();
-      await expect(cardDetail(page)).toBeVisible();
-      await expect(opener).toBeFocused();
-      await page.keyboard.press('Escape');
-      await expect(cardDetail(page)).toBeHidden();
-      await expectPageScrolls(page);
+      await expectReadingRestored(page, inspection);
     });
 
     test('Back closes the template library before the coach', async ({ page }) => {
@@ -205,7 +220,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         // Sideways, a phone is wider than the small-screen breakpoint but is
         // still a handset with a Back gesture.
         await page.setViewportSize({ width: 844, height: 390 });
-        await page.getByRole('button', { name: /^Past — .*Open card$/ }).click();
+        await page.getByRole('button', { name: /^Past\b.*Open card$/ }).click();
         await expect(cardDetail(page)).toBeVisible();
         await page.goBack();
         await expect(cardDetail(page)).toBeHidden();
@@ -229,9 +244,17 @@ test.describe('Phone card gestures and safe areas — Chromium', () => {
 
   test('scrolling a card never changes it; a deliberate swipe does', async ({ page }) => {
     await startReading(page, fixture);
-    await page.getByRole('button', { name: /^Present — .*Open card$/ }).click();
+    await page.getByRole('button', { name: /^Present\b.*Open card$/ }).click();
     const title = cardDetail(page).locator('[id^="card-modal-title"]');
     const first = await title.textContent();
+    const readingURL = page.url();
+    const artwork = cardDetail(page).locator('[data-reading-full-artwork]');
+    const artworkBounds = async () => {
+      await artwork.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      const box = await artwork.boundingBox();
+      expect(box).not.toBeNull();
+      return box;
+    };
     const cdp = await page.context().newCDPSession(page);
     const flick = async (x, y, dx, dy, duration = 90) => {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
@@ -243,16 +266,31 @@ test.describe('Phone card gestures and safe areas — Chromium', () => {
       await page.waitForTimeout(400);
     };
 
-    // A quick scroll that drifts sideways, either way.
-    await flick(260, 560, -70, -260);
+    // Start each scroll inside the actual artwork, where navigation is allowed,
+    // so vertical drift and a diagonal flick exercise gesture discrimination.
+    let box = await artworkBounds();
+    await flick(box.x + box.width * 0.8, box.y + box.height * 0.85, -70, -Math.min(260, box.height * 0.65));
     await expect(title).toHaveText(first);
-    await flick(150, 300, 60, 240, 120);
+    box = await artworkBounds();
+    await flick(box.x + box.width * 0.25, box.y + box.height * 0.2, 60, Math.min(240, box.height * 0.6), 120);
     await expect(title).toHaveText(first);
-    // A swipe from the screen edge (on the card, inside the edge zone) belongs
-    // to the browser's Back gesture.
-    await flick(20, 420, 140, 0);
+    box = await artworkBounds();
+    await flick(box.x + box.width * 0.8, box.y + box.height * 0.75, -100, -90);
     await expect(title).toHaveText(first);
-    await flick(300, 420, -140, -10);
+    // A horizontal gesture outside the artwork must leave the card alone.
+    box = await artworkBounds();
+    await flick(box.x - 30, box.y + box.height / 2, 140, 0);
+    await expect(title).toHaveText(first);
+    // A screen-edge start belongs to browser navigation, never card browsing.
+    // CDP does not establish native Back-gesture behavior on a physical phone.
+    box = await artworkBounds();
+    await flick(20, box.y + box.height / 2, 140, 0);
+    await expect(title).toHaveText(first);
+    await expect(page).toHaveURL(readingURL);
+    await expect(cardDetail(page)).toBeVisible();
+    // Both ends of this deliberate horizontal swipe are inside the artwork.
+    box = await artworkBounds();
+    await flick(box.x + box.width * 0.85, box.y + box.height / 2, -Math.min(140, box.width * 0.65), -10);
     await expect(title).not.toHaveText(first);
   });
 

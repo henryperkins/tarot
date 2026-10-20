@@ -1,18 +1,16 @@
-import { useCallback, useMemo, useRef, useState, useLayoutEffect, lazy, Suspense } from 'react';
-import { animate, set } from '../lib/motionAdapter';
+import { useCallback, useMemo, useRef, useState, useLayoutEffect, useId, lazy, Suspense } from 'react';
+import { animate } from '../lib/motionAdapter';
 import { X, CaretLeft, CaretRight, CaretDown, Clock, Sparkle } from '@phosphor-icons/react';
-import { FALLBACK_IMAGE, getCardImage, getCanonicalCard } from '../lib/cardLookup';
-import { CardSymbolInsights } from './CardSymbolInsights';
+import { getCardImage, getCanonicalCard } from '../lib/cardLookup';
+import { CardSymbolDetails } from './CardSymbolInsights';
+import { CardInspectionArtwork } from './CardInspectionArtwork';
 import { InteractiveCardOverlay } from './InteractiveCardOverlay';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import '../styles/card-inspector.css';
 
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
-
-// Swipes that start this close to the screen edge belong to the browser's
-// Back/Forward gesture (iOS Safari), not to card navigation.
-const SWIPE_EDGE_PX = 24;
 
 function toMillis(ts) {
     if (!ts) return null;
@@ -39,7 +37,7 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
     const [isRendered, setIsRendered] = useState(defaultOpen);
     const prefersReducedMotion = useReducedMotion();
     const contentRef = useRef(null);
-    const contentId = `collapsible-${title.replace(/\s+/g, '-').toLowerCase()}`;
+    const contentId = useId();
 
     useLayoutEffect(() => {
         if (isOpen) {
@@ -63,22 +61,26 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
         }
 
         if (isOpen) {
-            const targetHeight = node.scrollHeight;
-            set(node, { height: 0, opacity: 0 });
+            Object.assign(node.style, { height: '0px', opacity: '0' });
+            let sectionActive = true;
             const enterAnim = animate(node, {
-                height: [0, targetHeight],
+                // Keep Motion's final value responsive too: a numeric target
+                // would be committed again after our completion callback.
+                height: [0, 'auto'],
                 opacity: [0, 1],
                 duration: 200,
                 ease: 'outQuad'
             });
             enterAnim
                 .then(() => {
-                    node.style.height = 'auto';
+                    if (!sectionActive) return;
+                    Object.assign(node.style, { height: 'auto', opacity: '1' });
+                    enterAnim.cancel?.();
                 })
                 .catch(() => {
-                    node.style.height = 'auto';
+                    if (sectionActive) Object.assign(node.style, { height: 'auto', opacity: '1' });
                 });
-            return () => enterAnim?.pause?.();
+            return () => { sectionActive = false; enterAnim.cancel?.(); };
         }
 
         const currentHeight = node.scrollHeight;
@@ -93,7 +95,7 @@ function CollapsibleSection({ title, icon: Icon, badge, children, defaultOpen = 
             .then(() => { if (sectionActive) setIsRendered(false); })
             .catch(() => { if (sectionActive) setIsRendered(false); });
 
-        return () => { sectionActive = false; exitAnim?.pause?.(); };
+        return () => { sectionActive = false; exitAnim?.cancel?.(); };
     }, [isOpen, isRendered, prefersReducedMotion]);
 
     return (
@@ -157,13 +159,14 @@ export function CardModal({
 }) {
     const dialogRef = useRef(null);
     const modalRef = useRef(null);
+    const bodyRef = useRef(null);
     const overlayRef = useRef(null);
     const closingRef = useRef(false);
-    const [failedImage, setFailedImage] = useState(null);
     const titleId = `card-modal-title-${layoutId || 'default'}`;
     const descId = `card-modal-desc-${layoutId || 'default'}`;
     const prefersReducedMotion = useReducedMotion();
     const isModalActiveRef = useRef(true);
+    const hasCard = Boolean(card);
     const handleClose = useCallback(() => {
         if (closingRef.current) return;
         if (prefersReducedMotion) {
@@ -205,51 +208,51 @@ export function CardModal({
         returnFocusRef,
         getFallbackFocus,
         fallbackFocusPreventScroll: true,
+        // Native Back has already consumed the history entry. Release the
+        // dialog in this commit so an exit animation cannot reinsert it.
+        onBack: onClose,
+        closeOnBack: artworkMode === 'full' ? true : undefined,
         backGuardId: 'cardModal',
     });
 
     const isSmallScreen = useSmallScreen();
 
-    // Swipe gesture tracking for navigation. Only a quick one-finger swipe that
-    // is clearly horizontal changes the card: scrolling the details (often a
-    // diagonal flick), pinching, selecting text, pressing a control, and the
-    // browser's own edge gestures are left alone.
-    const swipeRef = useRef(null);
+    // Swipe gesture tracking for navigation
+    const gestureRef = useRef(null);
 
     const handleTouchStart = useCallback((event) => {
-        swipeRef.current = null;
-        if (event.touches.length !== 1 || window.getSelection?.()?.toString()) return;
-        if (event.target.closest?.('button, a, input, textarea, select, [role="button"]')) return;
+        gestureRef.current = null;
+        if (event.touches.length !== 1 || !event.currentTarget.contains(event.target)
+            || event.target.closest('button, a, input, textarea, select, [role="button"]')
+            || window.getSelection()?.toString()) return;
         const touch = event.touches[0];
-        if (touch.clientX < SWIPE_EDGE_PX || touch.clientX > window.innerWidth - SWIPE_EDGE_PX) return;
-        swipeRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, time: Date.now() };
+        // Leave the browser's edge gestures alone.
+        if (touch.clientX < 24 || touch.clientX > window.innerWidth - 24) return;
+        gestureRef.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY, at: performance.now() };
     }, []);
 
     const handleTouchMove = useCallback((event) => {
-        const start = swipeRef.current;
-        if (!start) return;
-        const touch = Array.from(event.touches).find(candidate => candidate.identifier === start.id);
-        if (event.touches.length !== 1 || !touch) {
-            swipeRef.current = null;
+        const start = gestureRef.current;
+        const touch = Array.from(event.touches).find(candidate => candidate.identifier === start?.id);
+        if (!start || event.touches.length !== 1 || !touch) {
+            gestureRef.current = null;
             return;
         }
-        // Once the finger is plainly scrolling, the gesture belongs to the scroll.
         const dx = Math.abs(touch.clientX - start.x);
         const dy = Math.abs(touch.clientY - start.y);
-        if (dy > 10 && dy > dx) swipeRef.current = null;
+        if (dy > 10 && dy > dx) gestureRef.current = null;
     }, []);
 
     const handleTouchEnd = useCallback((event) => {
-        const start = swipeRef.current;
-        swipeRef.current = null;
-        if (!start || event.touches.length) return;
+        const start = gestureRef.current;
+        gestureRef.current = null;
+        if (!start || event.touches.length || window.getSelection()?.toString()) return;
         const touch = Array.from(event.changedTouches).find(candidate => candidate.identifier === start.id);
         if (!touch) return;
         const deltaX = touch.clientX - start.x;
         const deltaY = touch.clientY - start.y;
-
-        // Check if swipe is valid: >50px, mostly horizontal, <300ms
-        if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && Date.now() - start.time < 300) {
+        if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5
+            && performance.now() - start.at < 300) {
             if (deltaX > 0 && canNavigatePrev) {
                 onNavigate?.('prev');
             } else if (deltaX < 0 && canNavigateNext) {
@@ -258,9 +261,13 @@ export function CardModal({
         }
     }, [canNavigatePrev, canNavigateNext, onNavigate]);
 
-    const handleTouchCancel = useCallback(() => {
-        swipeRef.current = null;
-    }, []);
+    const cancelTouch = useCallback(() => { gestureRef.current = null; }, []);
+    const cardImage = getCardImage(card);
+    const cardIdentity = `${layoutId || ''}:${cardImage}:${Boolean(card?.isReversed)}`;
+    useLayoutEffect(() => {
+        gestureRef.current = null;
+        bodyRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }, [cardIdentity]);
 
     // Shared-element animation is only wired for the in-reading flow where:
     // - Card.jsx uses `layoutId={\`card-image-${index}\`}`
@@ -287,19 +294,21 @@ export function CardModal({
     useLayoutEffect(() => {
         isModalActiveRef.current = true;
         closingRef.current = false;
-        if (!isOpen || !card) return undefined;
+        if (!isOpen || !hasCard) return undefined;
         const modalNode = modalRef.current;
         const overlayNode = overlayRef.current;
         if (!modalNode || !overlayNode) return undefined;
 
         if (prefersReducedMotion) {
-            set(overlayNode, { opacity: 1 });
-            set(modalNode, { opacity: 1, translateY: 0, scale: 1 });
+            overlayNode.style.opacity = '1';
+            Object.assign(modalNode.style, { opacity: '1', transform: 'none' });
             return () => { isModalActiveRef.current = false; };
         }
 
-        set(overlayNode, { opacity: 0 });
-        set(modalNode, { opacity: 0, translateY: 8, scale: 0.98 });
+        // Inline defaults remain visible after animation cancellation. Opening
+        // belongs to this dialog instance, not to each selected card.
+        overlayNode.style.opacity = '1';
+        modalNode.style.opacity = '1';
         const overlayAnim = animate(overlayNode, {
             opacity: [0, 1],
             duration: 200,
@@ -315,31 +324,37 @@ export function CardModal({
 
         return () => {
             isModalActiveRef.current = false;
-            overlayAnim?.pause?.();
-            modalAnim?.pause?.();
+            overlayAnim?.cancel?.();
+            modalAnim?.cancel?.();
         };
-    }, [card, isOpen, prefersReducedMotion]);
+    }, [hasCard, isOpen, prefersReducedMotion]);
 
     if (!isOpen || !card) return null;
 
     const originalCard = getCanonicalCard(card);
     const meaning = card.isReversed ? originalCard.reversed : originalCard.upright;
-    const cardImage = getCardImage(card);
+    const cardFrame = card.frame || (cardImage.includes('/marseille/') ? '16 / 31' : cardImage.includes('/thoth/') ? '3 / 5' : '100 / 172');
     const hasNavigation = canNavigatePrev || canNavigateNext;
     const resolvedQuestion = (question || '').trim() || 'General guidance';
 
     return (
         <div
             ref={dialogRef}
-            className="fixed inset-0 z-toast flex items-center justify-center p-2 sm:p-4 px-safe pt-safe pb-safe"
+            className="card-inspector-layer fixed inset-0 z-toast"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descId}
+            onTouchStartCapture={event => {
+                // A second finger outside the artwork still cancels its swipe.
+                if (event.touches.length > 1) cancelTouch();
+            }}
+            onTouchCancelCapture={cancelTouch}
         >
             <div
                 ref={overlayRef}
                 data-card-modal-backdrop
+                data-modal-backdrop
                 className="absolute inset-0 bg-main/85 backdrop-blur-sm"
                 onClick={handleClose}
                 aria-hidden="true"
@@ -348,94 +363,44 @@ export function CardModal({
             <div
                 data-layout-id={layoutId || undefined}
                 ref={modalRef}
-                className={`relative w-full max-w-md max-h-[80dvh] overflow-y-auto bg-surface border border-primary/30 rounded-xl shadow-2xl shadow-black/50 flex flex-col pt-[max(0.75rem,var(--safe-pad-top))] pr-[max(0.75rem,var(--safe-pad-right))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] ${artworkMode === 'full' ? '[&_.text-xs]:text-sm [&_.text-2xs]:text-sm' : ''}`}
+                className={`card-inspector${artworkMode === 'full' ? ' card-inspector--full' : ''}`}
                 tabIndex={-1}
                 role="document"
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchCancel}
             >
-                {/* Compact header with integrated navigation and close */}
-                <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 border-b border-primary/10">
-                    {hasNavigation ? (
-                        <>
-                            <button
-                                type="button"
-                                onClick={() => onNavigate?.('prev')}
-                                disabled={!canNavigatePrev}
-                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch min-w-touch px-1"
-                                aria-label="Previous card"
-                            >
-                                <CaretLeft className="w-4 h-4" />
-                                <span className="hidden xs:inline">Prev</span>
-                            </button>
-                            <span className="text-2xs text-muted font-medium">{navigationLabel}</span>
-                            <button
-                                type="button"
-                                onClick={() => onNavigate?.('next')}
-                                disabled={!canNavigateNext}
-                                className="flex items-center gap-1 text-xs text-muted hover:text-main disabled:opacity-30 disabled:cursor-not-allowed transition touch-manipulation min-h-touch min-w-touch px-1"
-                                aria-label="Next card"
-                            >
-                                <span className="hidden xs:inline">Next</span>
-                                <CaretRight className="w-4 h-4" />
-                            </button>
-                        </>
-                    ) : (
-                        <div className="flex-1" />
-                    )}
-                    <button
-                        onClick={handleClose}
-                        className="min-h-touch min-w-touch inline-flex items-center justify-center p-1.5 text-accent/70 hover:text-main hover:bg-surface-muted/50 rounded-full transition-colors touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary ml-auto"
-                        aria-label={artworkMode === 'full' ? 'Back to reading' : 'Close modal'}
-                    >
-                        {artworkMode === 'full' ? <span className="mr-2 text-sm">Back to reading</span> : null}
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {/* Compact horizontal layout: image left, content right */}
-                <div className={`p-3 flex gap-4 ${artworkMode === 'full' ? 'flex-col items-center' : ''}`}>
-                    {/* Card image - smaller and on the left */}
-                    <div
-                        data-layout-id={imageLayoutId || undefined}
-                        data-reading-full-artwork={artworkMode === 'full' ? 'true' : undefined}
-                        className={`relative shrink-0 ${artworkMode === 'full' ? 'w-[216px] max-w-full' : 'w-20 sm:w-28 aspect-2/3'} rounded-lg shadow-lg border border-primary/20 overflow-hidden ${card.isReversed ? 'rotate-180' : ''}`}
-                    >
-                        <img
-                            src={cardImage}
-                            alt={card.name}
-                            className={artworkMode === 'full' ? 'block w-full h-auto object-contain' : 'block w-full h-full object-cover'}
-                            loading="lazy"
-                            onError={(event) => {
-                                setFailedImage(cardImage);
-                                if (!event.currentTarget.src.endsWith(FALLBACK_IMAGE)) event.currentTarget.src = FALLBACK_IMAGE;
-                            }}
-                        />
-                        {/* Interactive symbol overlay - only on larger screens where it's usable */}
-                        {!isSmallScreen && artworkMode !== 'full' && <InteractiveCardOverlay card={card} />}
-                    </div>
-
-                    {/* Card info - right side */}
-                    <div className="flex-1 min-w-0 w-full">
-                        {failedImage === cardImage ? <p role="status" className="mb-2 text-sm text-muted">Artwork unavailable. The card details are still here.</p> : null}
-                        <p className="text-sm text-muted">{position}</p>
-                        <h2 id={titleId} className="text-base sm:text-lg font-serif text-main leading-tight wrap-anywhere">
-                            {card.name}
-                            {card.isReversed && (
-                                <span className="text-sm text-primary font-normal">{' '}(Reversed)</span>
-                            )}
+                <header className="card-inspector__header">
+                    <div className="card-inspector__identity" aria-live="polite" aria-atomic="true">
+                        <h2 id={titleId}>
+                            {card.name}{' '}
+                            <span className="card-inspector__orientation">{card.isReversed ? 'Reversed' : 'Upright'}</span>
                         </h2>
-                        {inspectionContext?.phrase ? <blockquote className="mt-3 text-base text-main">“{inspectionContext.phrase}”</blockquote> : null}
-                        <p id={descId} className={`mt-2 text-main/90 leading-relaxed ${artworkMode === 'full' ? 'text-base' : 'text-sm'}`}>
-                            {meaning}
-                        </p>
+                        <p>{position}</p>
                     </div>
-                </div>
+                    <button type="button" onClick={handleClose} className="card-inspector__return"
+                        aria-label={artworkMode === 'full' ? 'Back to reading' : 'Close modal'}>
+                        <span>{artworkMode === 'full' ? 'Back to reading' : 'Close'}</span>
+                        <X className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                </header>
+
+                <div ref={bodyRef} className="card-inspector__body">
+                    {inspectionContext?.phrase ? <blockquote className="card-inspector__phrase">“{inspectionContext.phrase}”</blockquote> : null}
+                    <p id={descId} className="card-inspector__meaning">{meaning}</p>
+                    <CardInspectionArtwork
+                        key={cardIdentity}
+                        card={card}
+                        frame={cardFrame}
+                        full={artworkMode === 'full'}
+                        data-layout-id={imageLayoutId || undefined}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={cancelTouch}
+                    >
+                        {!isSmallScreen && artworkMode !== 'full' && <InteractiveCardOverlay card={card} />}
+                    </CardInspectionArtwork>
 
                 {/* Collapsible sections */}
-                <div className="px-3 pb-3 space-y-2">
+                <div className="card-inspector__sections space-y-3">
                     {/* History section - collapsed by default */}
                     {hasHistory && (
                         <CollapsibleSection
@@ -509,10 +474,8 @@ export function CardModal({
                     )}
 
                     {/* Symbol insights - collapsed by default */}
-                    <CollapsibleSection title="Symbols" icon={Sparkle}>
-                        <div className="flex justify-center">
-                            <CardSymbolInsights card={card} position={position} nested />
-                        </div>
+                    <CollapsibleSection key={cardIdentity} title="Symbols" icon={Sparkle}>
+                        <CardSymbolDetails card={card} />
                     </CollapsibleSection>
 
                     {enableCinematic && (
@@ -529,6 +492,16 @@ export function CardModal({
                         </CollapsibleSection>
                     )}
                 </div>
+                </div>
+                {(hasNavigation || navigationLabel) && <nav className="card-inspector__navigation" aria-label="Card navigation">
+                    <button type="button" onClick={() => onNavigate?.('prev')} disabled={!canNavigatePrev} aria-label="Previous card">
+                        <CaretLeft className="w-5 h-5" aria-hidden="true" /><span>Previous</span>
+                    </button>
+                    <span className="card-inspector__counter">Card {navigationLabel}{artworkMode === 'full' ? ' · Your spread' : ''}</span>
+                    <button type="button" onClick={() => onNavigate?.('next')} disabled={!canNavigateNext} aria-label="Next card">
+                        <span>Next</span><CaretRight className="w-5 h-5" aria-hidden="true" />
+                    </button>
+                </nav>}
             </div>
         </div>
     );

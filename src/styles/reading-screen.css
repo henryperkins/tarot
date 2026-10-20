@@ -47,21 +47,27 @@
   margin: -.75rem 0 .75rem;
 }
 .reading-spread { min-width: 0; margin-block: 1.25rem 1.5rem; }
-.reading-spread__cards--small { display: flex; justify-content: center; gap: 12px; }
-.reading-spread__cards--small .reading-card { flex: 1 1 0; max-width: 10rem; }
+.reading-spread__cards--small { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.reading-spread__cards--small .reading-card { flex: 1 1 7rem; max-width: 10rem; }
 .reading-spread__cards--small[data-card-count="1"] .reading-card { flex: none; width: 9rem; }
-.reading-card { margin: 0; min-width: 0; text-align: center; }
+.reading-card { position: relative; margin: 0; min-width: 0; text-align: center; overflow-wrap: normal; word-break: normal; hyphens: none; }
 .reading-card__art {
   display: block;
   width: 100%;
-  position: relative;
+  position: static;
   padding: 0;
-  aspect-ratio: var(--reading-card-ratio, 100 / 172);
+  border: 0;
   border-radius: 5px;
-  background: var(--bg-surface-muted);
+  background: transparent;
   overflow: visible;
   cursor: pointer;
 }
+/* Keep real headings in the sibling caption while giving the native button
+   the whole reference as its pointer and keyboard-focus target. */
+.reading-card__art::after { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: 5px; }
+.reading-screen .reading-card__art:focus-visible { outline: none; }
+.reading-card__art:focus-visible::after { outline: 2px solid var(--focus-ring-color); outline-offset: 4px; }
+.reading-card__frame { display: block; position: relative; aspect-ratio: var(--reading-card-ratio, 100 / 172); border-radius: inherit; background: var(--bg-surface-muted); }
 .reading-card__art img {
   display: block;
   width: 100%; height: 100%;
@@ -70,7 +76,7 @@
   margin: 0;
 }
 .reading-card__image--reversed { transform: rotate(180deg); }
-.reading-card figcaption { display: flex; flex-direction: column; gap: 3px; padding-top: .625rem; color: var(--text-main); }
+.reading-card figcaption { display: flex; flex-direction: column; min-width: 0; gap: 3px; padding-top: .625rem; color: var(--text-main); }
 .reading-card__position { color: var(--text-accent); font-size: .875rem; letter-spacing: .08em; text-transform: uppercase; }
 .reading-card__name { font-family: var(--font-serif); font-size: 1rem; line-height: 1.3; }
 .reading-card__orientation { font-family: var(--font-serif); font-size: .9375rem; font-style: italic; color: var(--text-muted); }
@@ -150,6 +156,9 @@
 .reading-chapter__cards .reading-card--compact { flex: 1 1 145px; margin-block: .5rem 1rem; gap: 10px; }
 .reading-chapter__cards .reading-card__art { width: 60px; flex-basis: 60px; }
 .reading-chapter__cards .reading-card__name { font-size: 1.125rem; }
+@media (max-width: 480px) {
+  .reading-chapter__cards .reading-card--compact { flex-basis: 100%; }
+}
 .reading-prose .card-touch-plate { width: 80px; max-width: 30%; margin: 0 1rem .75rem 0; }
 .reading-completion-actions { display: flex; gap: 12px; margin: 2rem 0 1rem; }
 .reading-screen__primary, .reading-screen__secondary { display: flex; align-items: center; justify-content: center; min-height: 52px; width: 100%; padding: 10px 16px; border-radius: 10px; font-size: .9375rem; font-weight: 600; line-height: 1.35; }

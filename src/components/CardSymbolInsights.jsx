@@ -1,7 +1,7 @@
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, X } from '@phosphor-icons/react';
+import { Info, X, Flame, Drop, Wind, Leaf } from '@phosphor-icons/react';
 import { buildCardInsights } from '../lib/cardInsights';
 import { titleCase } from '../lib/textUtils';
 import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
@@ -10,20 +10,20 @@ import { getSymbolFamily } from '../../shared/symbols/symbolIndex';
 // Element icons and colors for badges
 const ELEMENT_BADGE_CONFIG = {
   Fire: {
-    icon: '🔥',
-    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+    icon: Flame,
+    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
   },
   Water: {
-    icon: '💧',
-    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+    icon: Drop,
+    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
   },
   Air: {
-    icon: '💨',
-    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+    icon: Wind,
+    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
   },
   Earth: {
-    icon: '🌍',
-    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+    icon: Leaf,
+    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
   }
 };
 
@@ -41,7 +41,7 @@ function useIsMobile(breakpoint = 640, debounceMs = 100) {
     let timeoutId = null;
 
     function checkMobile() {
-      setIsMobile(window.innerWidth < breakpoint);
+      setIsMobile(window.innerWidth < breakpoint || window.matchMedia('(hover: none), (pointer: coarse)').matches);
     }
 
     function handleResize() {
@@ -69,7 +69,7 @@ function useIsMobile(breakpoint = 640, debounceMs = 100) {
 /**
  * Symbol content display - shared between tooltip and bottom sheet
  */
-function SymbolContent({ insights, onClose, showCloseButton = false }) {
+function SymbolContent({ insights, onClose, showCloseButton = false, inline = false }) {
   const orientationLabel = insights.isReversed ? 'Reversed' : 'Upright';
   const keywordsPreview = insights.keywords.slice(0, 3).join(', ');
 
@@ -77,9 +77,9 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
     <div className="text-left">
       {showCloseButton && (
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-main">
+          <p className="text-base font-semibold text-main">
             {insights.name}
-            <span className="ml-2 text-xs uppercase tracking-widest text-secondary/80">
+            <span className="ml-2 text-sm text-muted">
               {orientationLabel}
             </span>
           </p>
@@ -93,45 +93,45 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
           </button>
         </div>
       )}
-      {!showCloseButton && (
-        <p className="text-sm font-semibold text-main">
+      {!showCloseButton && !inline && (
+        <p className="text-base font-semibold text-main">
           {insights.name}
-          <span className="ml-2 text-xs uppercase tracking-widest text-secondary/80">
+          <span className="ml-2 text-sm text-muted">
             {orientationLabel}
           </span>
         </p>
       )}
-      {keywordsPreview && (
-        <p className="mt-1 text-xs text-accent/80">
+      {keywordsPreview && !inline && (
+        <p className="mt-1 text-base text-muted">
           <span className="font-medium">Keywords:</span> {keywordsPreview}
         </p>
       )}
       {insights.archetype && (
-        <p className="mt-2 text-xs text-secondary/80">
+        <p className="mt-2 text-base text-muted">
           <span className="font-medium">Archetype:</span> {insights.archetype}
         </p>
       )}
       {insights.symbols.length > 0 && (
         <div className="mt-3">
-          <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Symbols</h4>
-          <ul className="mt-2 space-y-2 text-xs text-main/90" role="list">
+          <h4 className="text-base font-semibold text-main">Symbols</h4>
+          <ul className="mt-2 space-y-2 text-base text-main" role="list">
             {insights.symbols.map((symbol, index) => {
               const family = getSymbolFamily(symbol.object);
               const element = getElementForSymbolFamily(family);
               const badge = element ? ELEMENT_BADGE_CONFIG[element] : null;
               return (
                 <li key={`${symbol.object}-${index}`} className="flex flex-col">
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-semibold text-accent">{titleCase(symbol.object)}</span>
-                    {symbol.position && (
-                      <span className="text-accent/60">({symbol.position})</span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-main">{titleCase(symbol.object)}</span>
+                    {symbol.position && !insights.isReversed && (
+                      <span className="text-muted">({symbol.position})</span>
                     )}
                     {badge && (
                       <span
-                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-2xs ${badge.className}`}
+                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm ${badge.className}`}
                         title={`${element} element`}
                       >
-                        <span aria-hidden="true">{badge.icon}</span>
+                        <badge.icon className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>{element}</span>
                       </span>
                     )}
@@ -145,12 +145,12 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
       )}
       {insights.colors.length > 0 && (
         <div className="mt-3">
-          <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Palette</h4>
-          <ul className="mt-2 space-y-1 text-xs text-muted" role="list">
+          <h4 className="text-base font-semibold text-main">Palette</h4>
+          <ul className="mt-2 space-y-1 text-base text-muted" role="list">
             {insights.colors.map((color, index) => (
               <li key={`${color.color}-${index}`}>
-                <span className="font-semibold text-secondary">{color.color}</span>
-                <span className="ml-1 text-accent/70">— {color.meaning}</span>
+                <span className="font-semibold text-main">{color.color}</span>
+                <span className="ml-1 text-muted">— {color.meaning}</span>
               </li>
             ))}
           </ul>
@@ -201,8 +201,6 @@ function BottomSheet({ isOpen, onClose, nested = false, children }) {
         className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl motion-safe:animate-slide-up focus:outline-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle indicator */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-secondary/30" aria-hidden="true" />
         <div className="mt-2">
           {children}
         </div>
@@ -211,6 +209,12 @@ function BottomSheet({ isOpen, onClose, nested = false, children }) {
   );
 
   return createPortal(sheetMarkup, document.body);
+}
+
+/** Details embedded in an inspector share its focus, history and scroll owner. */
+export function CardSymbolDetails({ card }) {
+  const insights = useMemo(() => buildCardInsights(card, { includeAllSymbols: true }), [card]);
+  return insights ? <SymbolContent insights={insights} inline /> : null;
 }
 
 export function CardSymbolInsights({

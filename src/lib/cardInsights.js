@@ -14,7 +14,7 @@ const CARD_LOOKUP = (() => {
 
 function getCanonicalCard(card) {
   if (!card?.name) return null;
-  return CARD_LOOKUP.get(card.name.toLowerCase()) || card;
+  return CARD_LOOKUP.get((card.canonicalName || card.name).toLowerCase()) || card;
 }
 
 function getAnnotation(card) {
@@ -36,7 +36,7 @@ function splitKeywords(text) {
     .filter(Boolean);
 }
 
-export function buildCardInsights(card, { orientationOverride } = {}) {
+export function buildCardInsights(card, { orientationOverride, includeAllSymbols = false } = {}) {
   if (!card) return null;
   const baseCard = getCanonicalCard(card);
   if (!baseCard) return null;
@@ -51,7 +51,7 @@ export function buildCardInsights(card, { orientationOverride } = {}) {
 
   const annotation = getAnnotation(baseCard);
   const dominantSymbols = Array.isArray(annotation?.symbols)
-    ? annotation.symbols.slice(0, 3)
+    ? annotation.symbols.slice(0, includeAllSymbols ? undefined : 3)
     : [];
   const dominantColors = Array.isArray(annotation?.dominantColors)
     ? annotation.dominantColors.slice(0, 3)

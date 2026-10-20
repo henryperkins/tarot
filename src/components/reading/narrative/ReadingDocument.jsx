@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { StreamingNarrative } from '../../StreamingNarrative';
 import { NarrativeSafetyNotice } from '../../NarrativeSafetyNotice';
 import { NarrativePanelHeader } from './NarrativePanelHeader';
@@ -13,6 +13,7 @@ const nodeText = node => node.value ?? node.children?.map(nodeText).join('') ?? 
 
 export function ReadingDocument({ model, callbacks }) {
   const root = useRef(null);
+  const [hasViewedOverview, setHasViewedOverview] = useState(false);
   const sections = useMemo(() => getReadingSections(model.narrativeText), [model.narrativeText]);
   const starts = useMemo(() => new Set(sections.filter(section => section.depth !== null).map(section => section.headingStart)), [sections]);
   const cards = model.displayCards || model.spreadCards || EMPTY_CARDS;
@@ -48,9 +49,10 @@ export function ReadingDocument({ model, callbacks }) {
           </div>;
         })}
       </details>}
-    {cards.length <= 3 ? <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} /> : <details className="reading-spread-disclosure">
+    {cards.length <= 3 ? <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} /> : <details className="reading-spread-disclosure"
+      onToggle={event => { if (event.currentTarget.open) setHasViewedOverview(true); }}>
       <summary>View drawn cards <span>{cards.length} cards</span></summary>
-      <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />
+      {hasViewedOverview && <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />}
     </details>}
     <ReadingContents sections={sections} readingRef={root} controlsModel={model.controlsModel}
       onNarrate={callbacks.onNarrationStart} onStopNarration={callbacks.onStopNarration} compactTabs={cards.length <= 3} />

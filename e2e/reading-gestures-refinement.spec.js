@@ -430,19 +430,66 @@ test('long questions and linked phrases remain readable through mobile card insp
       await phrase.press('Enter');
       const dialog = page.getByRole('dialog').filter({ visible: true });
       await expect(dialog).toHaveCount(1);
-      await expect(dialog.getByRole('heading', { level: 2 })).toHaveText(/The Empress\s*\(Reversed\)/);
+      const heading = dialog.getByRole('heading', { level: 2 });
+      await expect(heading).toHaveText(/^The Empress\s+Reversed$/);
+      await expect(heading.locator('.card-inspector__orientation')).toHaveText('Reversed');
       const quote = dialog.locator('blockquote');
       await expect(quote).toHaveText(`“${cue.passage.quote}”`);
       await quote.scrollIntoViewIfNeeded();
-      const dimensions = await dialog.getByRole('document').evaluate(element => ({
-        height: element.clientHeight, contentHeight: element.scrollHeight,
-        width: element.clientWidth, contentWidth: element.scrollWidth
-      }));
-      expect(dimensions.height).toBeLessThanOrEqual(size.height * .8 + 1);
-      expect(dimensions.contentHeight).toBeGreaterThan(dimensions.height);
-      expect(dimensions.contentWidth).toBeLessThanOrEqual(dimensions.width + 1);
+      const body = dialog.locator('.card-inspector__body');
+      const dimensions = await dialog.getByRole('document').evaluate(element => {
+        const body = element.querySelector('.card-inspector__body');
+        const panel = element.getBoundingClientRect();
+        return {
+          panel: { top: panel.top, bottom: panel.bottom, left: panel.left, right: panel.right },
+          panelOverflow: element.scrollHeight - element.clientHeight,
+          panelWidth: element.clientWidth, panelContentWidth: element.scrollWidth,
+          bodyHeight: body.clientHeight, bodyContentHeight: body.scrollHeight,
+          bodyWidth: body.clientWidth, bodyContentWidth: body.scrollWidth,
+          bodyOverflowY: getComputedStyle(body).overflowY
+        };
+      });
+      expect(dimensions.panel.top).toBeGreaterThanOrEqual(0);
+      expect(dimensions.panel.bottom).toBeLessThanOrEqual(size.height + 1);
+      expect(dimensions.panel.left).toBeGreaterThanOrEqual(0);
+      expect(dimensions.panel.right).toBeLessThanOrEqual(size.width + 1);
+      expect(dimensions.panelOverflow).toBeLessThanOrEqual(1);
+      expect(dimensions.panelContentWidth).toBeLessThanOrEqual(dimensions.panelWidth + 1);
+      expect(dimensions.bodyHeight).toBeGreaterThan(0);
+      expect(dimensions.bodyContentHeight).toBeGreaterThan(dimensions.bodyHeight);
+      expect(dimensions.bodyContentWidth).toBeLessThanOrEqual(dimensions.bodyWidth + 1);
+      expect(dimensions.bodyOverflowY).toBe('auto');
       await expect(quote).toHaveCSS('font-size', '32px');
-      await dialog.getByRole('button', { name: 'Back to reading', exact: true }).click();
+      const back = dialog.getByRole('button', { name: 'Back to reading', exact: true });
+      const expectPersistentControls = async () => {
+        await expect.poll(() => heading.evaluate(element => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const lines = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+          const bounds = element.getBoundingClientRect();
+          return lines.length > 0 && lines.every(rect => {
+            const hit = document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
+            return rect.left >= Math.max(0, bounds.left) - 1 && rect.right <= Math.min(innerWidth, bounds.right) + 1
+              && rect.top >= 0 && rect.bottom <= innerHeight && Boolean(hit && element.contains(hit));
+          });
+        })).toBe(true);
+        await expect.poll(() => back.evaluate(element => {
+          const rect = element.getBoundingClientRect();
+          const hit = document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
+          return rect.width >= 44 && rect.height >= 44 && rect.left >= 0 && rect.right <= innerWidth
+            && rect.top >= 0 && rect.bottom <= innerHeight && Boolean(hit && element.contains(hit));
+        })).toBe(true);
+      };
+      await expectPersistentControls();
+      // The body owns the scroll, while identity and the return target stay
+      // exposed even at the far end of inspection on a short phone screen.
+      await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
+      await expect.poll(() => body.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+      await expectPersistentControls();
+      const inspectorScreenshot = testInfo.outputPath(`long-question-inspector-${size.width}x${size.height}.png`);
+      await page.screenshot({ path: inspectorScreenshot });
+      await testInfo.attach(`long-question-inspector-${size.width}x${size.height}`, { path: inspectorScreenshot, contentType: 'image/png' });
+      await back.click();
       await expect(dialog).toHaveCount(0);
       await expect(phrase).toBeFocused();
       await expect(originalQuestion).toHaveText(question);

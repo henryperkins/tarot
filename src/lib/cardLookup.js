@@ -58,6 +58,13 @@ export function getCardThumbnailSrcSet(src) {
   return `/images/cards/w360/${match[1]}.webp 360w, ${src} 825w`;
 }
 
+/** The selected card's small artwork while its full scan is loading. */
+export function getCardPreviewImage(card) {
+  const image = getCardImage(card);
+  const match = RWS_SCAN.exec(image);
+  return match ? `/images/cards/w360/${match[1]}.webp` : image;
+}
+
 /**
  * Get the canonical card data from the lookup table
  * @param {Object|string} card - Card object or name
