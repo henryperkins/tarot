@@ -169,23 +169,43 @@
 .reading-about summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .reading-screen__status { max-width: 42rem; margin-inline: auto; }
 .reading-screen__companion { display: none; }
-.reading-screen--preparing { max-width: 32rem; text-align: center; padding-block: 1rem; }
+.reading-screen--preparing { max-width: 42rem; padding-block: 1rem; container: reading-preparation / inline-size; }
+.reading-preparation__header { margin-bottom: 1rem; }
 .reading-screen--preparing .reading-screen__title { margin-bottom: .75rem; }
-.reading-preparation__status { padding: 2rem 0 1.5rem; }
-.reading-preparation__spinner { display: block; width: 54px; height: 54px; margin: 0 auto 1.25rem; border: 4px solid var(--border-warm); border-right-color: var(--brand-accent); border-bottom-color: var(--brand-accent); border-radius: 50%; animation: reading-preparation-turn 1.2s linear infinite; }
-.reading-preparation__status p { font-size: 1rem; line-height: 1.7; color: var(--text-muted); }
-.reading-preparation__wait { margin-top: 1rem; }
-.reading-rule { display: flex; align-items: center; gap: 14px; margin: .25rem 0 1.75rem; }
-.reading-rule::before, .reading-rule::after { content: ''; height: 1px; background: var(--border-warm); flex: 1; }
-.reading-rule > span { width: 7px; height: 7px; background: var(--brand-secondary); transform: rotate(45deg); }
-.reading-preparation__outline { text-align: left; }
-.reading-preparation__outline h3 { color: var(--text-accent); font-size: .875rem; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .75rem; }
-.reading-preparation__outline ol { list-style: none; margin: 0; padding: 0; }
-.reading-preparation__outline li { display: flex; align-items: center; gap: 12px; min-height: 39px; padding-block: 4px; font-size: 1rem; line-height: 1.4; }
-.reading-preparation__cards { display: block; min-height: 44px; margin: 1.25rem auto 1rem; text-decoration: underline; text-underline-offset: 4px; color: var(--text-accent); font-size: 1rem; }
-.reading-preparation__cancel { margin-top: 1.5rem; font-weight: 400; }
-.reading-screen--spread { max-width: 32rem; margin-inline: auto; }
-.reading-screen--spread .reading-screen__title { margin-bottom: .75rem; }
+.reading-preparation__waiting { position: sticky; top: calc(var(--sticky-header-height, 64px) + 8px); z-index: 20; display: grid; gap: .75rem; padding-block: 1rem; margin-bottom: 1.5rem; border-block: 1px solid var(--border-warm); background: var(--bg-main); }
+.reading-preparation__status { display: flex; align-items: flex-start; gap: .75rem; min-width: 0; }
+.reading-preparation__spinner { display: block; flex: 0 0 20px; width: 20px; height: 20px; margin-top: 3px; border: 2px solid var(--border-warm); border-right-color: var(--brand-accent); border-bottom-color: var(--brand-accent); border-radius: 50%; animation: reading-preparation-turn 1.2s linear infinite; }
+.reading-preparation__status p { font-size: 1rem; line-height: 1.5; }
+.reading-preparation__status .reading-preparation__guidance { margin-top: .25rem; font-size: .875rem; color: var(--text-muted); }
+.reading-preparation__cancel { min-height: 44px; font-weight: 400; }
+.reading-preparation__cancel-hint { color: var(--text-muted); font-size: .875rem; line-height: 1.5; }
+.reading-preparation__cards h3 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+.reading-preparation__draw { display: flex; gap: 12px; overflow-x: auto; padding: 4px 4px 12px; scrollbar-width: thin; }
+.reading-preparation__draw .reading-card { display: block; flex: 0 0 clamp(4.25rem, 22vw, 6.5rem); min-width: 0; margin: 0; text-align: center; }
+.reading-preparation__draw--many .reading-card { flex-basis: 6.5rem; }
+.reading-preparation__draw .reading-card__art { width: 64px; margin-inline: auto; }
+.reading-preparation__draw figcaption { padding-top: .5rem; overflow-wrap: anywhere; }
+.reading-preparation__draw .reading-card__position { font-size: .75rem; letter-spacing: .04em; }
+.reading-preparation__draw .reading-card__name { font-size: .9375rem; line-height: 1.4; }
+.reading-preparation__draw .reading-card__orientation { font-size: .8125rem; }
+.reading-preparation__card-hint { font-size: .875rem; line-height: 1.5; color: var(--text-muted); margin: .25rem 0 .75rem; }
+.reading-preparation__spread, .reading-preparation__outline { border-bottom: 1px solid var(--border-warm); }
+.reading-preparation__spread summary, .reading-preparation__outline summary { min-height: 48px; padding-block: .75rem; cursor: pointer; color: var(--text-accent); font-size: .9375rem; line-height: 1.5; }
+.reading-preparation__outline { margin-top: .5rem; }
+.reading-preparation__outline ul { list-style: disc; padding: 0 0 1rem 1.25rem; margin: 0; }
+.reading-preparation__outline li { padding-block: .25rem; font-size: 1rem; line-height: 1.5; }
+.reading-preparation__cards :is(button, summary, [tabindex]), .reading-preparation__outline > summary { scroll-margin-block: calc(var(--sticky-header-height, 64px) + 16rem) 1rem; }
+@container reading-preparation (max-width: 12em) {
+  .reading-preparation__waiting { position: static; }
+}
+@media (max-height: 500px) {
+  .reading-preparation__waiting { position: static; }
+}
+@media (min-width: 640px) {
+  .reading-preparation__waiting { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  .reading-preparation__cancel { width: auto; }
+  .reading-preparation__cancel-hint { grid-column: 1 / -1; }
+}
 .reading-screen :is(button, a, summary):focus-visible, .reading-screen [tabindex="-1"]:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 4px; border-radius: 4px; }
 .reading-screen :is(button, a, summary) { -webkit-tap-highlight-color: transparent; }
 .reading-screen ::selection { background: var(--brand-accent); color: var(--text-on-brand); }
@@ -202,6 +222,7 @@
 .reading-step-nav button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: -4px; }
 .app-shell--reading #main-content { padding-top: 0; }
 .app-shell--reading .scene-stage--complete, .app-shell--reading .scene-stage--narrative, .app-shell--reading .scene-stage--interlude { padding: 1rem 0; }
+.app-shell--reading .scene-stage--interlude { padding-inline: clamp(1rem, 3vw, 2rem); overflow: visible; }
 .app-shell--reading .scene-stage__panel--complete, .app-shell--reading .scene-stage__panel--narrative { padding: 0; background: transparent; border: 0; box-shadow: none; }
 .app-shell--reading .header-sticky { background: var(--bg-main); border: 0; border-bottom: 1px solid var(--border-warm); box-shadow: none; backdrop-filter: none; margin-bottom: .5rem; }
 .app-shell--reading .scene-shell--reading { border: 0; border-radius: 0; background: transparent; overflow: visible; box-shadow: none; }

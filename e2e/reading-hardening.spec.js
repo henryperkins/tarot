@@ -214,7 +214,7 @@ test('a delayed request stays truthful and completion preserves focus chosen els
     await prepareNarrative(page);
     await generate(page);
     await expect(page.getByRole('heading', { name: 'Preparing your reading' })).toBeFocused();
-    await expect(page.locator('.narrative-skeleton [role="status"]')).toContainText('taking longer than usual', { timeout: 16000 });
+    await expect(page.locator('.reading-preparation__status')).toContainText('Your reading is still being prepared.', { timeout: 16000 });
     await expect(page.getByText(/Almost there|Step [123] of 3/)).toHaveCount(0);
     const readingStep = page.getByRole('button', { name: 'Step 4: Reading', exact: true });
     await readingStep.focus();
@@ -234,7 +234,7 @@ test('mobile retry and motion changes remain usable through generation and failu
     await prepareNarrative(page);
     await generate(page);
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect.poll(() => effectiveOpacity(page.locator('.narrative-skeleton'))).toBe(1);
+    await expect.poll(() => effectiveOpacity(page.locator('.reading-screen--preparing'))).toBe(1);
     await jobs.emit('error', { message: 'The connection was interrupted.' });
     await expect(page.getByRole('alert')).toContainText('connection was interrupted');
     await page.getByRole('button', { name: /Retry interpretation/ }).press('Enter');

@@ -50,7 +50,8 @@ test('Celtic Cross spread, card list and inspection retain ten original occurren
     await openSetup(page);
     await page.getByRole('radio', { name: /Celtic Cross/ }).click();
     await startReading(page, fixture, { setup: false, complete: false });
-    await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+    const fullSpread = page.locator('details.reading-preparation__spread > summary');
+    await fullSpread.click();
     const overview = page.locator('[data-reading-overview]');
     await expect(overview.locator('img')).toHaveCount(10);
     const names = await overview.locator('img').evaluateAll(images => images.map(image => image.alt));
@@ -66,7 +67,7 @@ test('Celtic Cross spread, card list and inspection retain ten original occurren
     await expect(overview.locator('.reading-spread__cards--list')).toBeVisible();
     expect(await overview.locator('img').evaluateAll(images => images.map(image => image.alt))).toEqual(names);
     await expectNoHorizontalOverflow(page, '.reading-screen');
-    await page.getByRole('button', { name: 'View reading status', exact: true }).click();
+    await fullSpread.click();
     await fixture.emit('reading', 'done', { provider: 'fixture', requestId: 'reference-celtic', fullText:
       `## Opening\n\nA reflection on your question.\n\n## The Heart of It\n\n**${names[0]}** and **${names[1]}** invite you to consider what is happening now.\n\n## Closing\n\nTake one useful reflection with you.` });
     await expect(page.locator('.reading-chapter__cards img')).toHaveCount(2);
@@ -147,17 +148,11 @@ test('preparation can show the drawn cards and cancel without replacing the spre
   try {
     await startReading(page, fixture, { complete: false });
     await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+    await page.locator('details.reading-preparation__spread > summary').click();
     await expect(page.locator('[data-reading-overview] img')).toHaveCount(3);
-    await page.getByRole('button', { name: 'View reading status', exact: true }).click();
-    let cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
-    if (page.viewportSize().width < 769) {
-      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
-      const settings = page.getByRole('dialog').filter({ visible: true });
-      await expect(settings).toBeVisible();
-      cancel = settings.getByRole('button', { name: 'Cancel generation', exact: true });
-      await expect(cancel).toBeEnabled();
-    }
+    const cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
+    await expect(page.locator('.reading-preparation__status')).toBeVisible();
+    await expect(cancel).toBeEnabled();
     const cancelRequest = page.waitForRequest(request => request.url().endsWith('/cancel') && request.method() === 'POST');
     await cancel.click();
     await cancelRequest;
@@ -175,9 +170,10 @@ test.describe('reading with normal motion', () => {
     const fixture = await createNarrativeFixture(page);
     try {
       await startReading(page, fixture, { complete: false });
-      await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+      const fullSpread = page.locator('details.reading-preparation__spread > summary');
+      await fullSpread.click();
       const names = await page.locator('[data-reading-overview] img').evaluateAll(images => images.map(image => image.alt));
-      await page.getByRole('button', { name: 'View reading status', exact: true }).click();
+      await fullSpread.click();
       const fullText = '## Opening\n\nA quiet beginning.\n\n## The Story\n\n### The Past: ' + names[0]
         + ' Upright\n\nA place to begin.\n\n### The Present: ' + names[1]
         + ' Reversed\n\nA moment to notice.\n\n### The Future: ' + names[2]
