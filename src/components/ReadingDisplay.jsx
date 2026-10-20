@@ -12,6 +12,7 @@ import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCinematicBeat } from '../hooks/useCinematicBeat';
 import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
+import { useReadingSceneFocus } from '../hooks/useReadingSceneFocus';
 import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
@@ -161,18 +162,7 @@ export function ReadingDisplay({
         reading
     });
 
-    useEffect(() => {
-        // Restore focus only when the previous control disappeared or was disabled.
-        // A user who moved elsewhere while waiting keeps their chosen focus.
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
-        const target = sectionRef.current?.querySelector('[data-reading-focus-target]');
-        if (!target) return;
-        target.focus({ preventScroll: true });
-        // A failed reading replaces the narrative in place; bring its title out
-        // from under the pinned header (the page's scroll-padding reserves it).
-        if (personalReading?.isError) target.scrollIntoView({ block: 'nearest' });
-    }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
+    useReadingSceneFocus(sectionRef, sceneOrchestrator.activeScene, Boolean(personalReading?.isError));
 
     useEffect(() => {
         const isNarrativeDeliveryActive = Boolean(isReadingStreamActive || personalReading?.isStreaming);

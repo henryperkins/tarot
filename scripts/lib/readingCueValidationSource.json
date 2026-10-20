@@ -859,6 +859,7 @@
     "src/hooks/usePwaInstall.js",
     "src/hooks/useReadingGestureRuntime.js",
     "src/hooks/useReadingMediaGallery.js",
+    "src/hooks/useReadingSceneFocus.js",
     "src/hooks/useReadingSelection.js",
     "src/hooks/useReadingVisualJob.js",
     "src/hooks/useReducedMotion.js",

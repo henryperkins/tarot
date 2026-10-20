@@ -2,6 +2,31 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, expectNoHorizontalOverflow } from './helpers/narrativeFixtures.js';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__readingFocusTrace = [];
+    for (const type of ['focusin', 'focusout', 'visibilitychange']) {
+      document.addEventListener(type, event => {
+        const element = event.target;
+        window.__readingFocusTrace.push({ type, time: performance.now(), tag: element.tagName,
+          id: element.id, label: element.getAttribute?.('aria-label'), visibility: document.visibilityState });
+        if (window.__readingFocusTrace.length > 60) window.__readingFocusTrace.shift();
+      }, true);
+    }
+  });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus || page.isClosed()) return;
+  const focus = await page.evaluate(() => {
+    const active = document.activeElement;
+    return { active: { tag: active?.tagName, id: active?.id, label: active?.getAttribute('aria-label'),
+      disabled: active?.matches(':disabled'), unavailableAncestor: Boolean(active?.closest('[hidden], [inert], [aria-hidden="true"]')) },
+    visibility: document.visibilityState, documentHasFocus: document.hasFocus(), trace: window.__readingFocusTrace };
+  });
+  await testInfo.attach('reading-focus', { body: JSON.stringify(focus, null, 2), contentType: 'application/json' });
+});
+
 test('generation keeps the question and draw visible and receives keyboard focus', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const fixture = await createNarrativeFixture(page);
@@ -19,6 +44,91 @@ test('generation keeps the question and draw visible and receives keyboard focus
     await expect(preparation.getByRole('status')).toBeVisible();
     await fixture.completeReading();
     await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeFocused();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('preparation receives focus after its reading region becomes available', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture, { complete: false, spreadName: 'Celtic Cross' });
+    await page.getByRole('button', { name: 'Cancel generation', exact: true }).click();
+    const readingRegion = page.locator('#step-reading');
+    // A closing overlay can leave the new scene temporarily inert. The mobile
+    // interpretation control is outside this region and remains operable.
+    await readingRegion.evaluate(element => { element.inert = true; });
+    await page.getByRole('button', { name: 'Interpret cards', exact: true }).press('Enter');
+    const preparation = page.locator('.reading-screen--preparing');
+    await preparation.waitFor({ state: 'attached' });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(preparation.locator('h2')).not.toBeFocused();
+    await readingRegion.evaluate(element => { element.inert = false; });
+    await expect(preparation.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeFocused();
+    await preparation.getByRole('button', { name: 'Cancel generation', exact: true }).click();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('late preparation focus preserves a control chosen elsewhere', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture, { complete: false });
+    await page.getByRole('button', { name: 'Cancel generation', exact: true }).click();
+    const readingRegion = page.locator('#step-reading');
+    await readingRegion.evaluate(element => { element.inert = true; });
+    await page.getByRole('button', { name: 'Interpret cards', exact: true }).press('Enter');
+    await page.locator('.reading-screen--preparing').waitFor({ state: 'attached' });
+    const readingStep = page.getByRole('button', { name: 'Step 4: Reading', exact: true });
+    await readingStep.focus();
+    await readingRegion.evaluate(element => { element.inert = false; });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(readingStep).toBeFocused();
+    await expect.poll(() => fixture.connectionGeneration('reading')).toBeGreaterThanOrEqual(2);
+    await fixture.emit('reading', 'done', { fullText: fixture.narrative, requestId: 'late-focus-reading', provider: 'fixture' });
+    await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
+    await expect(readingStep).toBeFocused();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('completion recovers focus from a control hidden from assistive technology', async ({ page }) => {
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture, { complete: false });
+    const readingStep = page.getByRole('button', { name: 'Step 4: Reading', exact: true });
+    await readingStep.focus();
+    // aria-hidden alone does not blur an active control. Scene restoration
+    // must distinguish that unavailable target from a reader's usable choice.
+    await readingStep.evaluate(element => element.setAttribute('aria-hidden', 'true'));
+    await fixture.completeReading();
+    await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeFocused();
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('completion preserves an open card inspector and restores a usable target on close', async ({ page }) => {
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture, { complete: false });
+    await page.locator('.reading-preparation__draw').getByRole('button', { name: /Open card/ }).first().press('Enter');
+    const inspector = page.getByRole('dialog').filter({ visible: true });
+    await expect(inspector).toBeVisible();
+    await fixture.completeReading();
+    await expect(inspector).toBeVisible();
+    expect(await inspector.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(inspector).not.toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const active = document.activeElement;
+      return active !== document.body && !active.closest('[hidden], [inert], [aria-hidden="true"]')
+        && active.getClientRects().length > 0;
+    })).toBe(true);
   } finally {
     await fixture.close();
   }
