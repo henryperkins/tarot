@@ -1,0 +1,39 @@
+{
+  "id": "three-card-transition",
+  "spreadKey": "threeCard",
+  "spreadName": "Three-Card Story (Past · Present · Future)",
+  "userQuestion": "How can I navigate the transition after leaving my hometown?",
+  "cardsInfo": [
+    {
+      "position": "Past — influences that led here",
+      "card": "Six of Cups",
+      "orientation": "Reversed",
+      "meaning": "Living in the past, rose-colored views, difficulty moving on",
+      "suit": "Cups",
+      "rank": "Six",
+      "rankValue": 6
+    },
+    {
+      "position": "Present — where you stand now",
+      "card": "The Tower",
+      "orientation": "Upright",
+      "meaning": "Sudden change, upheaval, chaos, revelation, awakening",
+      "number": 16,
+      "suit": null,
+      "rank": null,
+      "rankValue": null
+    },
+    {
+      "position": "Future — trajectory if nothing shifts",
+      "card": "The Star",
+      "orientation": "Upright",
+      "meaning": "Hope, faith, purpose, renewal, spirituality",
+      "number": 17,
+      "suit": null,
+      "rank": null,
+      "rankValue": null
+    }
+  ],
+  "deckStyle": "rws-1909",
+  "reading": "### Opening\n\nYou might recognize a kind of split screen right now: one window showing streets and faces you know by heart, the other a blank page you actually want to write on. That pull in two directions doesn't mean you're doing the transition wrong. It may simply be what this chapter feels like from the inside.\n\nYour question, how to navigate the transition after leaving your hometown, gets a clear arc here: **Six of Cups** reversed, then **The Tower**, then **The Star**. The elements move from Water to Fire to Air. The first handoff grinds a little, since feeling and upheaval don't mix gently. The second flows, because Fire and Air tend to feed each other.\n\n### The Past: Six of Cups Reversed\n\nIn the Rider-Waite-Smith image, a child offers a flower-filled cup in a sunlit courtyard. It's home as a gift, sweetness handed over freely. Reversed in the past position, the card can point to a time when your hometown had started to live more in memory than in the present. Maybe the place you loved was partly the place you remembered.\n\nThat doesn't make your nostalgic side wrong. The cup may be real, but it was being clutched instead of carried. A question to sit with: which memories still nourish you, and which ones mostly keep you looking over your shoulder?\n\n### The Present: The Tower\n\nHere's the friction. In The Tower, lightning hits the crown, figures fall, and flaming debris crosses a gray sky. In the present position, this can look like the move knocking out structures you didn't know were holding you up. Think of the usual coffee spot, the people who knew your history without needing it explained, or the role you played in your family or friend group.\n\nUpright, this is upheaval doing its job: clearing out what was scaffolding rather than foundation. You might feel disoriented on days that look fine on paper, and that vertigo doesn't have to mean leaving was a mistake. The Tower isn't asking you to rebuild the same tower in a new zip code. It's inviting you to notice what you don't want to stack back up.\n\n### The Future: The Star\n\nIf things keep moving as they are, the path bends toward The Star. A figure kneels by a pool, pouring water into it and onto the land, with a large star overhead and a bird in a nearby tree. After the Tower's noise, this card is quiet. Hope comes back as steady replenishment rather than a big announcement.\n\nWater returns here, the same element as the Six of Cups. Your emotional ties to home aren't lost. They get poured out on purpose instead of held tight. This is where your nostalgic side and your ready-for-reinvention side can start working together. Clarity here tends to show up one step at a time, so it's fine if the full map isn't visible yet.\n\n### Guidance\n\nThe Waxing Gibbous Moon in Aquarius, The Star's traditional sign, fits this mood of gradual building over one dramatic leap. Treat that as symbolic color, not a timetable. Navigating this may be less about choosing between nostalgia and reinvention and more about deciding what you carry and what you let fall.\n\n- **Pick one keeper and one release.** Name a hometown ritual you want to bring with you, like a Sunday call or a family recipe. Then name one old role or habit you're glad the Tower knocked loose.\n- **Run a rose-colored check.** When a homesick wave hits, jot down the memory plus one honest detail it leaves out. The point isn't to spoil the memory but to see it whole.\n- **Pour on purpose.** Set regular times to reach out to people back home, so connection is something you offer and not only something you grab for in low moments.\n- **Find a new courtyard.** Choose one café, park, or class in your new place and go three times before deciding how you feel about it.\n\n### Closing\n\nThe cup from your past, the shake-up of now, and the star ahead are a story still being written, not a verdict. How this transition unfolds will be shaped by your choices about what to keep, what to release, and where you pour your energy next."
+}

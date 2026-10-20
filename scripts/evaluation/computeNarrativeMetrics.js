@@ -16,7 +16,7 @@ const DETERMINISTIC_PATTERNS = [
   /\bwill definitely\b/i,
   /\bfated to\b/i,
   /\bdestined to\b/i,
-  /\bno choice\b/i,
+  /\bno choices?\b/i,
   /\bset in stone\b/i,
   /\binescapable\b/i,
   /\bcannot fail\b/i,
@@ -49,7 +49,8 @@ const AGENCY_PATTERNS = [
 ];
 
 const SUPPORTIVE_TONE_PATTERNS = [
-  /\bgentle\b/i,
+  // Recognize ordinary forms of existing cues while retaining whole-word matching.
+  /\bgentl(?:e(?:ness)?|y)\b/i,
   /\bcompassion\b/i,
   /\bself-compassion\b/i,
   /\bkindness\b/i,
@@ -59,9 +60,9 @@ const SUPPORTIVE_TONE_PATTERNS = [
   /\bpermission\b/i,
   /\bsoften\b/i,
   /\bbreath\b/i,
-  /\binvite\b/i,
+  /\binvit(?:e[sd]?|ing)\b/i,
   /\bconsider\b/i,
-  /\bchoice\b/i,
+  /\bchoices?\b/i,
   /\bagency\b/i,
   /\bsuave(?:s|mente)?\b/i,
   /\bcuid(?:ar|ado|arte|arte a ti|arse)\b/i,
@@ -78,7 +79,7 @@ const SUPPORTIVE_TONE_PATTERNS = [
 const HARSH_TONE_PATTERNS = [
   /\byou must\b/i,
   /\byou should\b/i,
-  /\bno choice\b/i,
+  /\bno choices?\b/i,
   /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?never\s+(?:again|do|ignore|allow)\b/im,
   /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?always\s+(?:do|avoid)\b/im,
   /\bonly way\b/i,

@@ -34,9 +34,10 @@ async function computeMetrics(samples, { includeReview = false } = {}) {
 async function verifyGate(metrics) {
   const dir = await mkdtemp(path.join(tmpdir(), 'narrative-gate-'));
   const metricsPath = path.join(dir, 'metrics.json');
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^NARRATIVE_(?:MIN|MAX)_/.test(key)));
   try {
     await writeFile(metricsPath, JSON.stringify(metrics));
-    return await execFileAsync(process.execPath, ['scripts/evaluation/verifyNarrativeGate.js', metricsPath]);
+    return await execFileAsync(process.execPath, ['scripts/evaluation/verifyNarrativeGate.js', metricsPath], { env });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -61,6 +62,122 @@ function sampleWithGuidance(id, guidance) {
     ].join('\n\n')
   };
 }
+
+function sampleWithTone(id, tone) {
+  return {
+    id,
+    spreadKey: 'single',
+    spreadName: 'One-Card Insight',
+    userQuestion: 'What deserves attention?',
+    cardsInfo: [{ card: 'The Fool', position: 'Present', orientation: 'Upright' }],
+    reading: [
+      '### Opening',
+      'This reading explores what deserves attention.',
+      '### The Fool — Present',
+      '**The Fool** suggests a fresh beginning. Because starting small can reveal what works, you can choose one reversible step before going further.',
+      '### Guidance', tone,
+      '### Closing',
+      'Your decisions shape the path ahead.'
+    ].join('\n\n')
+  };
+}
+
+test('narrative gate accepts the saved transition reading without base-form tone keywords', async () => {
+  // Preserve the reading that failed the 2026-10-20 subscription gate verbatim.
+  const sample = JSON.parse(await readFile(new URL('./fixtures/narrative-supportive-transition.json', import.meta.url), 'utf8'));
+  const metrics = await computeMetrics([sample]);
+
+  assert.equal(metrics.perSample[0].hasSupportiveTone, true);
+  assert.deepEqual(metrics.perSample[0].rubric, { accuracy: 1, coherence: 1, agency: 1, compassion: 1 });
+  assert.deepEqual(metrics.perSample[0].issueFlags, []);
+  assert.equal(metrics.missingSupportiveToneCount, 0);
+  assert.equal(metrics.flaggedSampleCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative tone recognition accepts ordinary forms of existing supportive cues', async () => {
+  const cues = [
+    'A gentle pace may help.',
+    'Move **gently** as you begin.',
+    'Meet this moment with gentleness.',
+    'Invite yourself to pause.',
+    'This invites you to pause.',
+    'You are invited to pause.',
+    'This is inviting you to pause.',
+    'You retain a choice about the pace.',
+    'Your choices about the pace matter.'
+  ];
+  const metrics = await computeMetrics(cues.map((cue, index) => sampleWithTone(`supportive-form-${index}`, cue)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.hasSupportiveTone, true, cues[index]);
+    assert.equal(result.rubric.compassion, 1, cues[index]);
+    assert.deepEqual(result.issueFlags, [], cues[index]);
+  }
+  await verifyGate(metrics);
+});
+
+test('narrative gate still rejects missing supportive tone and unrelated word fragments', async () => {
+  const neutralPhrases = [
+    'Name one reversible step.',
+    'A gentleman waits by the door.',
+    'The room looks uninviting.',
+    'The organizer disinvited a guest.',
+    'The choicest date appears on the calendar.'
+  ];
+
+  for (const [index, phrase] of neutralPhrases.entries()) {
+    const metrics = await computeMetrics([sampleWithTone(`unsupported-form-${index}`, phrase)]);
+    assert.equal(metrics.perSample[0].hasAgencyLanguage, true, phrase);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, false, phrase);
+    assert.equal(metrics.perSample[0].rubric.compassion, 0, phrase);
+    assert.deepEqual(metrics.perSample[0].issueFlags, ['missing-supportive-tone'], phrase);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /Missing supportive tone issues 1 > limit 0/);
+      return true;
+    });
+  }
+});
+
+test('newly recognized supportive cues do not bypass harsh, deterministic or agency failures', async () => {
+  const cases = [
+    { tone: 'Move gently. You must ignore your limits.', flag: 'harsh-tone', gateFailure: /Harsh-tone issues 1 > limit 0/ },
+    { tone: 'Your choices matter. Success is guaranteed.', flag: 'deterministic-language', gateFailure: /Deterministic language issues 1 > limit 0/ },
+    { tone: 'This is inviting you to pause.', flag: 'missing-agency-language', gateFailure: /Missing agency language issues 1 > limit 0/, removeAgency: true }
+  ];
+
+  for (const { tone, flag, gateFailure, removeAgency } of cases) {
+    const sample = sampleWithTone(`supportive-with-${flag}`, tone);
+    if (removeAgency) {
+      sample.reading = sample.reading.replace('you can choose', 'you can take').replace('Your decisions shape the path ahead.', 'The path remains open.');
+    }
+    const metrics = await computeMetrics([sample]);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, true, flag);
+    assert.deepEqual(metrics.perSample[0].issueFlags, [flag]);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, gateFailure);
+      return true;
+    });
+  }
+});
+
+test('narrative gate rejects denied choice in both singular and plural forms', async () => {
+  for (const claim of ['You have no choice.', 'You have no choices.']) {
+    const metrics = await computeMetrics([sampleWithTone('denied-choice', claim)]);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, true, claim);
+    assert.equal(metrics.perSample[0].deterministicLanguage, true, claim);
+    assert.equal(metrics.perSample[0].hasHarshTone, true, claim);
+    assert.deepEqual(metrics.perSample[0].issueFlags, ['deterministic-language', 'harsh-tone'], claim);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /Deterministic language issues 1 > limit 0/);
+      assert.match(error.stderr, /Harsh-tone issues 1 > limit 0/);
+      return true;
+    });
+  }
+});
 
 test('narrative metrics do not flag neutral never/always phrasing as harsh tone', async () => {
   const metrics = await computeMetrics([
