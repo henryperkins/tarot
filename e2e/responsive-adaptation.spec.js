@@ -165,6 +165,71 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       }
     });
 
+    test('desktop header has readable scale and grouped progress without changing tablet sizing', async ({ page }) => {
+      test.setTimeout(60000);
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        await openSetup(page);
+        for (const width of [1023, 1024, 1440, 1920]) {
+          await page.setViewportSize({ width, height: 1000 });
+          await page.evaluate(() => document.fonts.ready);
+          await expectNavigationFits(page);
+          const desktop = width >= 1024;
+          const dimensions = await page.locator('.tableu-header').evaluate(header => {
+            const measure = selector => {
+              const element = header.querySelector(selector);
+              const box = element.getBoundingClientRect();
+              return { width: box.width, height: box.height, x: box.x, fontSize: parseFloat(getComputedStyle(element).fontSize) };
+            };
+            return {
+              inner: measure('.tableu-header__inner'),
+              logo: measure('.tableu-logo'),
+              wordmark: measure('.site-nav__wordmark'),
+              link: measure('.site-nav__link'),
+              progress: measure('.tableu-header__progress nav'),
+              step: measure('.tableu-header__progress button'),
+              scrollWidth: document.documentElement.scrollWidth,
+              viewportWidth: document.documentElement.clientWidth
+            };
+          });
+          expect(dimensions.logo.width).toBe(desktop ? 44 : 32);
+          expect(dimensions.wordmark.fontSize).toBe(desktop ? 22 : 16);
+          expect(dimensions.link.fontSize).toBe(desktop ? 16 : 14);
+          expect(dimensions.step.fontSize).toBe(desktop ? 16 : 13);
+          expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+          if (desktop) {
+            expect(dimensions.inner.width).toBeLessThanOrEqual(1024);
+            expect(dimensions.progress.width).toBeLessThanOrEqual(640);
+            const innerCenter = dimensions.inner.x + dimensions.inner.width / 2;
+            const progressCenter = dimensions.progress.x + dimensions.progress.width / 2;
+            expect(Math.abs(innerCenter - progressCenter)).toBeLessThanOrEqual(1);
+          }
+          const progress = page.getByRole('navigation', { name: 'Tarot reading progress' });
+          const currentStep = progress.locator('[aria-current="step"]');
+          await expect(currentStep).toHaveCount(1);
+          for (const button of await progress.getByRole('button').all()) await expectTouchTarget(button);
+          await page.keyboard.press('Tab');
+          await currentStep.focus();
+          await expect(currentStep).toBeFocused();
+          await expect(currentStep).toHaveCSS('outline-style', 'solid');
+          await expect(currentStep).toHaveCSS('outline-width', '2px');
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await startReading(page, fixture);
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        const readingProgress = page.locator('.tableu-header__progress nav');
+        // Reading styles load lazily and must not stretch the compact step group.
+        await expect(readingProgress).toHaveCSS('flex-grow', '0');
+        expect((await readingProgress.boundingBox()).width).toBeLessThanOrEqual(640);
+        for (const button of await readingProgress.getByRole('button').all()) await expectTouchTarget(button);
+        const settings = page.getByRole('button', { name: 'Reading settings', exact: true });
+        await expectTouchTarget(settings);
+        expect((await settings.locator('svg').boundingBox()).width).toBeGreaterThanOrEqual(21);
+      } finally {
+        await fixture.close();
+      }
+    });
+
     test('enlarged text leaves pricing and account controls reachable and restores sticky navigation', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       try {
