@@ -10,6 +10,17 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL('../', import.meta.url));
 
+test('Gate 2 Vite lanes own separate dependency caches and keep visual flags scoped', async () => {
+  const { default: config } = await import('../playwright.navigation-gate2.config.js');
+  const caches = config.webServer.map(server => server.env?.NAV_GATE2_VITE_CACHE_DIR);
+  assert.ok(caches.every(value => typeof value === 'string' && path.isAbsolute(value)), 'each lane needs an explicit private cache');
+  assert.equal(new Set(caches).size, config.webServer.length, 'normal and visual lanes must never rewrite the same cache');
+  assert.ok(config.webServer.every(server => server.command.includes('--config vite.navigation-gate2.config.js')));
+  assert.equal(config.webServer[0].env.VITE_READING_GESTURES, undefined);
+  assert.equal(config.webServer[1].env.VITE_READING_GESTURES, 'true');
+  assert.equal(config.webServer[1].env.VITE_READING_MODEL_ANNOTATIONS, 'true');
+});
+
 test('default frontend collection keeps ordinary specs and leaves owned reading-cue lanes explicit', async t => {
   const directory = await mkdtemp(path.join(tmpdir(), 'playwright-frontend-collection-'));
   t.after(() => rm(directory, { recursive: true, force: true }));

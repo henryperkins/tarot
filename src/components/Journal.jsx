@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { GlobalNav } from './GlobalNav';
+import { AppHeader } from './AppHeader';
+import { AppBottomRegion } from './AppBottomRegion';
 import { InstallFooter } from './InstallFooter';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,7 +18,6 @@ import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { getTimestamp } from '../../shared/journal/utils.js';
@@ -81,7 +81,6 @@ export default function Journal() {
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(SMALL_SCREEN_MAX);
   const prefersReducedMotion = useReducedMotion();
-  const headerRef = useResponsiveSticky();
   const shellClass = isMobileLayout ? AMBER_SHELL_MOBILE_CLASS : AMBER_SHELL_CLASS;
   const cardClass = isMobileLayout ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS;
 
@@ -705,7 +704,7 @@ export default function Journal() {
 
   const renderedHistoryEntries = monthSections.map((section) => (
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
-      <div className="sticky top-24 z-20">
+      <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
           <span className="text-2xs uppercase tracking-[0.3em] text-muted">{section.label}</span>
           <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -779,18 +778,10 @@ export default function Journal() {
 
   return (
     <>
-      <div className="min-h-screen bg-main text-main">
-        {/* Sticky navigation header with safe-area padding */}
-        <header
-          ref={headerRef}
-          className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-            <GlobalNav withUserChip />
-          </div>
-        </header>
+      <div data-app-chrome className="min-h-screen bg-main text-main">
+        <AppHeader />
 
-        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-[calc(2rem+var(--journal-controls-inset,0px))]">
+        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-8">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             {fromReading && (
@@ -996,6 +987,19 @@ export default function Journal() {
                           />
                         )}
 
+                        <JournalFloatingControls
+                          hasEntries={hasEntries}
+                          hasScrolled={hasScrolled}
+                          historyFiltersEl={historyFiltersEl}
+                          historyFiltersInView={historyFiltersInView}
+                          filtersActive={filtersActive}
+                          activeFilterChips={activeFilterChips}
+                          onResetFilters={handleResetFilters}
+                          onRemoveFilter={handleRemoveFilter}
+                          onScrollToFilters={scrollToHistoryFilters}
+                          onStartReading={handleStartReading}
+                          isMobileLayout={isMobileLayout}
+                        />
                         <div
                           id="journal-history-filters"
                           ref={registerHistoryFiltersEl}
@@ -1093,7 +1097,7 @@ export default function Journal() {
 
               {hasEntries && hasRailContent && desktopRailContent && (
                 <aside className="hidden min-w-0 lg:block lg:flex-[1_1_24rem]">
-                  <div className="lg:sticky lg:top-6 lg:w-full">
+                  <div data-app-secondary="3" className="lg:sticky lg:top-6 lg:w-full">
                     {desktopRailContent}
                   </div>
                 </aside>
@@ -1103,19 +1107,8 @@ export default function Journal() {
           <InstallFooter />
         </main>
 
-        <JournalFloatingControls
-          hasEntries={hasEntries}
-          hasScrolled={hasScrolled}
-          historyFiltersEl={historyFiltersEl}
-          historyFiltersInView={historyFiltersInView}
-          filtersActive={filtersActive}
-          activeFilterChips={activeFilterChips}
-          onResetFilters={handleResetFilters}
-          onRemoveFilter={handleRemoveFilter}
-          onScrollToFilters={scrollToHistoryFilters}
-          onStartReading={handleStartReading}
-          isMobileLayout={isMobileLayout}
-        />
+
+        <AppBottomRegion />
       </div>
 
       <ConfirmModal

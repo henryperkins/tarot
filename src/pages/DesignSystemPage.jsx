@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { CheckCircle, MoonStars, Sun, WarningCircle, XCircle } from '@phosphor-icons/react';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
+import { AppBottomRegion } from '../components/AppBottomRegion';
 import { InstallFooter } from '../components/InstallFooter';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -61,12 +62,8 @@ export default function DesignSystemPage() {
   ]), []);
 
   return (
-    <div className="min-h-screen bg-main text-main">
-      <header className="sticky top-0 z-sticky-nav border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]">
-        <div className="mx-auto max-w-5xl px-4 py-3">
-          <GlobalNav condensed withUserChip />
-        </div>
-      </header>
+    <div data-app-chrome className="min-h-screen bg-main text-main">
+      <AppHeader />
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-8 space-y-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -243,6 +240,7 @@ export default function DesignSystemPage() {
         </section>
         <InstallFooter />
       </main>
+      <AppBottomRegion />
     </div>
   );
 }

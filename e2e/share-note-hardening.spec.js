@@ -75,7 +75,7 @@ test.describe('Shared note hardening', () => {
         await page.evaluate(() => { document.documentElement.style.setProperty('--safe-pad-top', '44px'); });
       }
 
-      const headerAccount = page.getByRole('link', { name: 'Account', exact: true });
+      const headerAccount = page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true });
       await headerAccount.focus();
       await expectUsableControl(headerAccount);
       if (width < 1024) {

@@ -78,6 +78,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     trapFocus: false,
     initialFocusRef: firstInputRef,
     returnFocusRef,
+    isolateBackground: true,
+    fallbackFocusSelector: '.guest-signin-button, .account-trigger',
     backGuardId: 'authModal'
   });
 

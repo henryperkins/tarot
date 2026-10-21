@@ -49,6 +49,8 @@ export function SpreadCompanion({ variant = 'rail' }) {
   return (
     <aside
       className={`spread-companion spread-companion--${variant}`}
+      data-app-secondary={variant === 'rail' ? '2' : undefined}
+      data-chrome-min-width="1180"
       aria-label="Your cards"
       data-count={cards.length}
       data-cols={variant === 'rail' ? railColumns(cards.length) : undefined}
@@ -237,7 +239,7 @@ function GestureCompanion({ focus, api }) {
         }}>Open {card.name}</button>;
     })}
   </div> : null;
-  return <aside ref={root} className="gesture-companion" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
+  return <aside ref={root} className="gesture-companion" data-app-secondary="2" data-chrome-min-width="1100" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
     <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length, '--shelf-columns': Math.min(cards.length, 5) }}>
       {cards.map(card => {
         const introduced = state.introduced.includes(card.occurrenceId);

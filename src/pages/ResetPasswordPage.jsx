@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, LockKey, WarningCircle } from '@phosphor-icons/react';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
 import { InstallFooter } from '../components/InstallFooter';
-import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -18,7 +17,6 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState('');
   const passwordRef = useRef(null);
   const confirmPasswordRef = useRef(null);
-  const headerRef = useResponsiveSticky();
 
   const tokenMissing = !token;
 
@@ -86,15 +84,8 @@ export default function ResetPasswordPage() {
   const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent';
 
   return (
-    <div className="min-h-screen bg-main text-main">
-      <header
-        ref={headerRef}
-        className="sticky top-0 z-sticky-nav border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-      >
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <GlobalNav condensed withUserChip />
-        </div>
-      </header>
+    <div data-app-chrome className="min-h-screen bg-main text-main">
+      <AppHeader destinations={false} />
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-10 short:py-6">
         <button

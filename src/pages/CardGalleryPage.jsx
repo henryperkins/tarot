@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { BookOpen, CaretLeft, Check, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
+import { AppBottomRegion } from '../components/AppBottomRegion';
 import { InstallFooter } from '../components/InstallFooter';
 import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
@@ -220,8 +221,6 @@ export default function CardGalleryPage() {
   const { stats: remoteStats, loading: remoteLoading, analyticsDisabled } = remoteState;
   const [loadingFullHistory, setLoadingFullHistory] = useState(false);
   const pageRef = useRef(null);
-  const headerRef = useRef(null);
-  const toolbarRef = useRef(null);
 
   const entriesLengthRef = useRef(entries.length);
   const hasMoreEntriesRef = useRef(hasMoreEntries);
@@ -231,41 +230,6 @@ export default function CardGalleryPage() {
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
   const [filterStatus, setFilterStatus] = useState('all'); // all, found, missing
   const [sortBy, setSortBy] = useState('deck'); // deck, count_desc, count_asc, recency
-
-  // Pin chrome only when the real border boxes leave room for the collection.
-  useEffect(() => {
-    const page = pageRef.current;
-    const header = headerRef.current;
-    const toolbar = toolbarRef.current;
-    if (!page || !header || !toolbar) return undefined;
-    const root = document.documentElement;
-    const previousScrollPadding = root.style.getPropertyValue('scroll-padding-top');
-    const previousPriority = root.style.getPropertyPriority('scroll-padding-top');
-    const measure = () => {
-      const headerHeight = header.getBoundingClientRect().height;
-      const toolbarHeight = toolbar.getBoundingClientRect().height;
-      const gap = parseFloat(getComputedStyle(root).fontSize) || 16;
-      const maxPinnedHeight = window.innerHeight * 0.4;
-      const pinHeader = headerHeight <= maxPinnedHeight;
-      const desktop = window.matchMedia('(min-width: 1024px) and (min-height: 700px)').matches;
-      const pinToolbar = desktop && pinHeader && headerHeight + toolbarHeight + gap <= maxPinnedHeight;
-      header.dataset.pinned = String(pinHeader);
-      toolbar.dataset.pinned = String(pinToolbar);
-      page.style.setProperty('--gallery-header-height', `${pinHeader ? headerHeight : 0}px`);
-      root.style.scrollPaddingTop = `${(pinHeader ? headerHeight : 0) + (pinToolbar ? toolbarHeight : 0) + gap}px`;
-    };
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    [header, toolbar].forEach(element => observer?.observe(element, { box: 'border-box' }));
-    window.addEventListener('resize', measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', measure);
-      page.style.removeProperty('--gallery-header-height');
-      if (previousScrollPadding) root.style.setProperty('scroll-padding-top', previousScrollPadding, previousPriority);
-      else root.style.removeProperty('scroll-padding-top');
-    };
-  }, []);
 
   useEffect(() => {
     entriesLengthRef.current = entries.length;
@@ -459,17 +423,9 @@ export default function CardGalleryPage() {
   }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
-      <div ref={pageRef} className="min-h-screen bg-main text-main">
+      <div data-app-chrome ref={pageRef} className="min-h-screen bg-main text-main">
         {/* Sticky navigation header with safe-area padding */}
-        <header
-          ref={headerRef}
-          data-pinned="false"
-          className="gallery-header sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-        >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <GlobalNav withUserChip />
-        </div>
-      </header>
+        <AppHeader />
 
       <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] py-8">
         {/* Header */}
@@ -528,7 +484,7 @@ export default function CardGalleryPage() {
         )}
 
         {/* Toolbar */}
-        <div ref={toolbarRef} data-pinned="false" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
+        <div data-app-secondary="1" data-chrome-min-width="1024" data-chrome-min-height="700" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
           <div className="relative group min-w-0 max-w-full">
             <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
@@ -677,6 +633,7 @@ export default function CardGalleryPage() {
           onOpenEntry={(entry) => handleOpenEntry(entry, selected.card?.name)}
         />
       )}
+      <AppBottomRegion />
     </div>
   );
 }

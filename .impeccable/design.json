@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-12T15:59:33.829Z",
+  "generatedAt": "2026-10-21T09:02:47.573Z",
   "title": "Design System: Tableu",
   "extensions": {
     "colorMeta": {
@@ -497,6 +497,14 @@
       "step-label": {
         "displayName": "Step Label",
         "purpose": "Uppercase coach step chips."
+      },
+      "brand-wordmark": {
+        "displayName": "Brand Wordmark",
+        "purpose": "Compact 17px serif brand in the shared application frame."
+      },
+      "step-annotation": {
+        "displayName": "Step Annotation",
+        "purpose": "Supplemental 11px skipped-ritual annotation on compact handsets; accessible step names include the same state."
       }
     },
     "shadows": [
@@ -627,7 +635,11 @@
         "button-journey": "src/styles/buttonClasses.js",
         "input-default": "src/pages/DesignSystemPage.jsx",
         "chip-selected": "src/components/GuidedIntentionCoach/GuidedIntentionCoachView.jsx",
-        "nav-active": "src/components/GlobalNav.jsx",
+        "nav-active": [
+          "src/components/AppHeader.jsx",
+          "src/components/DestinationNav.jsx",
+          "src/styles/navigation.css"
+        ],
         "surface-card": "src/pages/DesignSystemPage.jsx",
         "mystic-panel": "src/styles/tarot.css",
         "spread-card": [
@@ -682,12 +694,12 @@
       "css": ".ds-chip { min-height: 44px; min-width: 44px; padding: 4px 12px; border: 0; border-radius: 9999px; background: var(--brand-accent, #E8DAC3); color: var(--text-on-brand, #1C1A22); font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; box-shadow: 0 10px 15px -3px rgb(var(--brand-accent-rgb, 232 218 195) / 0.20), 0 4px 6px -4px rgb(var(--brand-accent-rgb, 232 218 195) / 0.20); } .ds-chip:focus-visible { outline: 2px solid rgb(var(--brand-accent-rgb, 232 218 195) / 0.70); outline-offset: 2px; } @media (forced-colors: active) { .ds-chip[aria-selected=\"true\"] { text-decoration: underline; text-underline-offset: 4px; } } @media (prefers-reduced-motion: reduce) { .ds-chip { transition-duration: 0.01ms !important; animation: none !important; transform: none !important; translate: none !important; } }"
     },
     {
-      "name": "Active Navigation Segment",
+      "name": "Active Destination Link",
       "kind": "nav",
       "refersTo": "nav-active",
-      "description": "The active destination in the pill-based application navigation.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Primary navigation\"><button type=\"button\" class=\"ds-nav-item ds-nav-item-active\" aria-current=\"page\">Reading</button><button type=\"button\" class=\"ds-nav-item\">Journal</button></nav>",
-      "css": ".ds-nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border: 1px solid transparent; border-radius: 9999px; background: rgb(var(--bg-surface-rgb, 28 26 34) / 0.60); } .ds-nav-item { flex: 1 1 7rem; min-width: 0; min-height: 44px; padding: 10px 14px; border: 1px solid rgb(var(--brand-secondary-rgb, 168 157 146) / 0.50); border-radius: 9999px; background: var(--bg-surface, #1C1A22); color: var(--text-main, #E8E6E3); font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); font-size: 14px; line-height: 20px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease; } .ds-nav-item:hover { background: var(--bg-surface-muted, #2A2730); border-color: rgb(var(--brand-secondary-rgb, 168 157 146) / 0.60); } .ds-nav-item-active, .ds-nav-item-active:hover { border-color: transparent; background: var(--brand-primary, #D4B896); color: var(--text-on-brand, #1C1A22); box-shadow: 0 1px 3px rgb(var(--brand-primary-rgb, 212 184 150) / 0.30); } .ds-nav-item:active { transform: scale(0.97); } .ds-nav-item:focus-visible { outline: 2px solid rgb(var(--brand-primary-rgb, 212 184 150) / 0.80); outline-offset: 2px; } @media (min-width: 640px) { .ds-nav { flex-wrap: nowrap; gap: 8px; background: rgb(var(--bg-surface-rgb, 28 26 34) / 0.80); border-color: rgb(var(--brand-accent-rgb, 232 218 195) / 0.20); } .ds-nav-item { padding-inline: 20px; } } @media (prefers-reduced-motion: reduce) { .ds-nav, .ds-nav-item, .ds-nav-item-active { transition-duration: 0.01ms !important; animation: none !important; transform: none !important; translate: none !important; } }"
+      "description": "Plain-text destination with a brass underline and dot in the shared 56px application frame; no active fill. Handsets place the same links in the single bottom region.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary navigation\"><a href=\"/\" class=\"ds-nav-item\" aria-current=\"page\">Reading</a><a href=\"/journal\" class=\"ds-nav-item\">Journal</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 4px; font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); } .ds-nav-item { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted, #CCC5B9); font-size: 14px; line-height: 1.4; font-weight: 500; text-decoration: none; touch-action: manipulation; } .ds-nav-item:hover { color: var(--text-main, #E8E6E3); background: var(--bg-surface-muted, #2A2730); } .ds-nav-item[aria-current=\"page\"] { color: var(--text-main, #E8E6E3); font-weight: 600; background: transparent; } .ds-nav-item[aria-current=\"page\"]::after { content: \"\"; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 9999px; background: var(--brand-primary, #D4B896); } .ds-nav-item[aria-current=\"page\"]::before { content: \"\"; position: absolute; left: 50%; bottom: 2px; width: 5px; height: 5px; border-radius: 9999px; background: var(--brand-primary, #D4B896); transform: translateX(-50%); } .ds-nav-item:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 3px; }"
     },
     {
       "name": "Surface Card",
@@ -716,9 +728,9 @@
     {
       "name": "Reading Progress",
       "kind": "nav",
-      "description": "Four text steps and an underline keep the reading in its quiet, continuous document flow.",
-      "html": "<nav class=\"ds-reading-progress\" aria-label=\"Tarot reading progress\"><button type=\"button\">Spread</button><button type=\"button\">Intent</button><button type=\"button\">Ritual</button><button type=\"button\" aria-current=\"step\">Read</button></nav>",
-      "css": ".ds-reading-progress { display: flex; width: 100%; gap: 4px; background: var(--bg-main, #0F0E13); border-bottom: 1px solid var(--border-warm, rgba(232,218,195,.14)); font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); } .ds-reading-progress button { flex: 1; position: relative; min-height: 54px; padding: 8px; background: transparent; border: 0; color: var(--text-muted, #CCC5B9); font: inherit; font-size: .875rem; cursor: pointer; } .ds-reading-progress [aria-current=\"step\"] { color: var(--text-main, #E8E6E3); font-weight: 600; } .ds-reading-progress [aria-current=\"step\"]::after { content: \"\"; position: absolute; height: 2px; width: 36px; bottom: 6px; left: calc(50% - 18px); background: var(--brand-accent, #E8DAC3); } .ds-reading-progress button:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: -4px; }"
+      "description": "Canvas-local ordered steps, with checks for completed steps, a strong numbered current step, muted numbered upcoming steps, and a numbered skipped ritual. State comes from reading milestones, including when revisiting a step; no destination-style underline.",
+      "html": "<nav class=\"ds-reading-progress\" aria-label=\"Tarot reading progress\"><ol><li data-step-state=\"completed\"><button type=\"button\" aria-label=\"Step 1: Spread, completed\"><span class=\"ds-step-label\"><svg class=\"ds-step-check\" aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m5 12 4 4L19 6\"/></svg><span>Spread</span></span></button></li><li data-step-state=\"completed\"><button type=\"button\" aria-label=\"Step 2: Intention, completed\"><span class=\"ds-step-label\"><svg class=\"ds-step-check\" aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m5 12 4 4L19 6\"/></svg><span>Intent</span></span></button></li><li data-step-state=\"skipped\"><button type=\"button\" aria-label=\"Step 3: Ritual, skipped\"><span class=\"ds-step-label\"><span aria-hidden=\"true\">3</span><span>Ritual</span></span><small>(skipped)</small></button></li><li data-step-state=\"current\"><button type=\"button\" aria-current=\"step\" aria-label=\"Step 4: Reading\"><span class=\"ds-step-label\"><span aria-hidden=\"true\">4</span><span>Read</span></span></button></li></ol></nav>",
+      "css": ".ds-reading-progress { min-width: 0; font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); } .ds-reading-progress ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; padding: 0; list-style: none; } .ds-reading-progress li { display: inline-flex; min-width: 0; } .ds-reading-progress button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; font-size: 14px; line-height: 1.4; font-weight: 400; cursor: pointer; } .ds-reading-progress [data-step-state=\"completed\"] button { color: var(--text-main); } .ds-reading-progress [aria-current=\"step\"] { color: var(--text-main); font-weight: 600; } .ds-step-label { display: inline-flex; align-items: center; gap: 6px; } .ds-step-check { width: 16px; height: 16px; fill: none; stroke: var(--brand-primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ds-reading-progress small { color: var(--text-muted); font-size: 12px; } .ds-reading-progress button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; } @media (max-width: 768px) { .ds-reading-progress ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; } .ds-reading-progress button { width: 100%; flex-direction: column; gap: 0; padding-inline: 0; font-size: 12px; } .ds-step-label { gap: 2px; } .ds-reading-progress small { font-size: 11px; } }"
     }
   ],
   "narrative": {
@@ -772,6 +784,11 @@
       {
         "name": "The Quiet Ceremony Rule",
         "body": "Preserve the focal hierarchy of an approved surface composition; reserve the strongest light and slower motion for decisions that advance or reveal a reading, and keep the interpretation surface quiet.",
+        "section": "components"
+      },
+      {
+        "name": "One Quiet App Frame",
+        "body": "AppHeader uses a 56px minimum row plus top safe area and a 64rem inner cap across consumer routes. Desktop destinations sit after the linked brand; guests keep Settings and Sign in at 320px, with tutorial replay in Settings. Quiet reset/verify/share routes suppress destinations. Inactive mounted groups are hidden and inert. One handset bottom region owns actions, destinations, safe area, keyboard offset and measured clearance. Reading progress stays in the canvas with truthful completed/current/upcoming/skipped states. Height budgets are provisional; controls return to flow rather than clipping and recover when space returns. Chrome resizing preserves deliberate page scrolling; prospective fixed-size measurement also preserves document and nested scroll positions. The 56px row plus safe area applies in short landscape. Final-section wayfinding retains a stable row height with its unavailable continuation invisible and inert.",
         "section": "components"
       }
     ],

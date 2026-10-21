@@ -236,12 +236,16 @@ test.describe('Phone card gestures and safe areas — Chromium', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: 'block' });
   let fixture;
 
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== 'chromium', 'Touch and safe-area synthesis require Chromium CDP; WebKit layout and overlay cases run separately.');
+  });
+
   test.beforeEach(async ({ page }) => {
     fixture = await createNarrativeFixture(page, { signedOut: true });
   });
 
   test.afterEach(async () => {
-    await fixture.close();
+    await fixture?.close();
   });
 
   test('scrolling a card never changes it; a deliberate swipe does', async ({ page }) => {

@@ -462,28 +462,30 @@ function renderActions(mode, options) {
   }
 }
 
-export function MobileActionBar({ isOverlayActive = false, ...props }) {
+export function MobileActionBar({ isOverlayActive = false, embedded = false, ...props }) {
   const barRef = useRef(null);
   const readingHasText = Boolean(props.personalReading?.raw && !props.personalReading?.isError);
   const viewportOffset = useKeyboardOffset();
-  const effectiveOffset = Math.max(0, viewportOffset);
+  const effectiveOffset = embedded ? 0 : Math.max(0, viewportOffset);
 
-  // Smooth animation for keyboard avoidance with cubic-bezier easing
-  const barStyle = useMemo(() => ({
+  // Smooth animation for keyboard avoidance with cubic-bezier easing.
+  // Embedded mode delegates positioning and keyboard handling to AppBottomRegion.
+  const barStyle = useMemo(() => (embedded ? {} : {
     bottom: 0,
     transform: effectiveOffset > 0 ? `translateY(-${effectiveOffset}px)` : 'none',
     transition: 'transform 280ms var(--ease-out), opacity var(--duration-fast) var(--ease-out)',
     willChange: effectiveOffset > 0 ? 'transform' : 'auto'
-  }), [effectiveOffset]);
+  }), [effectiveOffset, embedded]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return undefined;
+    if (embedded || typeof document === 'undefined') return undefined;
     return () => {
       document.documentElement.style.setProperty('--mobile-action-bar-height', '0px');
     };
-  }, []);
+  }, [embedded]);
 
   useEffect(() => {
+    if (embedded) return undefined;
     if (typeof window === 'undefined' || !barRef.current) return undefined;
     const bar = barRef.current;
     const viewport = window.visualViewport;
@@ -534,7 +536,20 @@ export function MobileActionBar({ isOverlayActive = false, ...props }) {
       window.removeEventListener('resize', scheduleHeight);
       viewport?.removeEventListener('resize', scheduleHeight);
     };
-  }, [readingHasText]);
+  }, [readingHasText, embedded]);
+
+  if (embedded) {
+    return (
+      <div
+        className={`app-bottom-action-contents ${isOverlayActive ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+        hidden={props.isGenerating && !props.personalReading}
+        aria-hidden={isOverlayActive}
+        inert={isOverlayActive}
+      >
+        <MobileActionContents {...props} />
+      </div>
+    );
+  }
 
   return (
     <nav

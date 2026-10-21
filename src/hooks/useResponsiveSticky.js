@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { observeAppChrome } from '../lib/observeAppChrome.js';
 
 // Pinned chrome may use up to this share of the visible height. Short views
 // (landscape phones, an open on-screen keyboard) get a smaller share.
@@ -25,7 +26,7 @@ export function shouldPin(height, visibleHeight) {
 // Oversized navigation should scroll with the page, leaving room for its content.
 // `rootVar` also publishes the pinned height on the document root, where root
 // scroll-padding can keep focused controls clear of it.
-export function useResponsiveSticky(enabled = true, { rootVar = null } = {}) {
+export function useResponsiveSticky(enabled = true, { rootVar = null, coordinated = false } = {}) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function useResponsiveSticky(enabled = true, { rootVar = null } = {}) {
     const element = ref.current;
     const parent = element?.parentElement;
     if (!element || !parent) return undefined;
+    if (coordinated) return observeAppChrome(element);
     const root = document.documentElement;
 
     const measure = () => {
@@ -55,7 +57,7 @@ export function useResponsiveSticky(enabled = true, { rootVar = null } = {}) {
       parent.style.removeProperty('--sticky-header-height');
       if (rootVar) root.style.removeProperty(rootVar);
     };
-  }, [enabled, rootVar]);
+  }, [enabled, rootVar, coordinated]);
 
   return ref;
 }

@@ -61,7 +61,7 @@ for (const width of [320, 390, 1280]) {
         await expect(page.getByRole('heading', { name: 'A shared reading' })).toBeVisible();
         await screenshot(page, testInfo, 'share');
         await expectAccessible(page);
-        await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
         const card = page.getByRole('button', { name: /Past: Queen of Cups/ }).filter({ visible: true });
         await expect(card).toHaveAttribute('aria-pressed', 'true');
         await card.click();
@@ -169,6 +169,7 @@ for (const width of [320, 390, 1280]) {
       await page.keyboard.press('Enter');
       await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
       await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();

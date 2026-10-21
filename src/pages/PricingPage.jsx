@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Crown,
@@ -26,10 +26,10 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
+import { AppBottomRegion } from '../components/AppBottomRegion';
 import { InstallFooter } from '../components/InstallFooter';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
@@ -728,41 +728,12 @@ export default function PricingPage() {
 
   // Only show sticky CTA for confirmed free-tier users (not during loading)
   const showMobileSticky = !subscriptionLoading && effectiveTier === 'free';
-  const headerRef = useResponsiveSticky();
   const pageRef = useRef(null);
-  const upgradeBarRef = useRef(null);
-
-  // Reserve the dock's actual height when billing copy or larger text reflows.
-  useEffect(() => {
-    const page = pageRef.current;
-    const bar = upgradeBarRef.current;
-    if (!page || !bar) return undefined;
-    const measure = () => page.style.setProperty('--pricing-upgrade-height', `${bar.getBoundingClientRect().height}px`);
-    measure();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
-    // Safe-area padding is part of the space covered by the fixed dock.
-    observer?.observe(bar, { box: 'border-box' });
-    if (!observer) window.addEventListener('resize', measure);
-    return () => {
-      observer?.disconnect();
-      if (!observer) window.removeEventListener('resize', measure);
-      page.style.removeProperty('--pricing-upgrade-height');
-    };
-  }, [showMobileSticky]);
-
   return (
-    <div ref={pageRef} className="min-h-screen bg-main text-main">
-      {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
-      <header
-        ref={headerRef}
-        className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-      >
-        <div className="mx-auto max-w-6xl px-4 py-3">
-          <GlobalNav condensed withUserChip />
-        </div>
-      </header>
+    <div data-app-chrome ref={pageRef} className="min-h-screen bg-main text-main">
+      <AppHeader />
 
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] pb-[max(6rem,calc(var(--pricing-upgrade-height,0px)+1.5rem))] pt-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] pb-8 pt-8">
         {/* Hero */}
         <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="min-w-0 space-y-6 wrap-anywhere">
@@ -1139,8 +1110,9 @@ export default function PricingPage() {
       </main>
 
       {/* Sticky mobile CTA */}
+      <AppBottomRegion>
       {showMobileSticky && (
-        <section ref={upgradeBarRef} aria-label="Plan upgrade" tabIndex={-1} className="fixed inset-x-0 bottom-0 z-sticky-nav border-t border-secondary/40 bg-main/95 px-safe pt-3 pb-[max(0.75rem,var(--safe-pad-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,0.6)] lg:hidden">
+        <section aria-label="Plan upgrade" tabIndex={-1} className="py-2">
           <div className="mx-auto flex max-w-6xl items-end gap-2">
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2">
               <div className="min-w-0 flex-[1_1_8rem] text-xs text-muted wrap-anywhere">
@@ -1168,6 +1140,8 @@ export default function PricingPage() {
           </div>
         </section>
       )}
+
+      </AppBottomRegion>
 
       {/* Auth Modal */}
       <AuthModal isOpen={showAuthModal} onClose={handleAuthModalClose} />

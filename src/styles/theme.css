@@ -25,6 +25,10 @@
   --color-silver: #A8A39E;
   --color-silver-rgb: 168 163 158;
 
+  /* Fixed logo variants retain their colors across themes and contrast preferences. */
+  --brand-logo-ink: #1A1A1A;
+  --brand-logo-ivory: #E8DAC3;
+
   /* Suit Colors (Subtle & Harmonious) */
   --color-wands: #C9A876;
   /* Warm gold */

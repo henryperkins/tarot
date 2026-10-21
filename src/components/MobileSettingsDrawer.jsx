@@ -5,7 +5,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { MOBILE_SETTINGS_DIALOG_ID } from './mobileActionBarConstants';
 
-export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
+export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null, keepMounted = false }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const viewportOffset = useKeyboardOffset();
@@ -22,6 +22,8 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     onClose,
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
+    isolateBackground: true,
+    fallbackFocusSelector: '.reading-settings',
     scrollLockStrategy: 'simple', // Simple strategy for drawers
     closeOnBack: true,
     backGuardId: 'settingsDrawer',
@@ -58,7 +60,9 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
       target.closest('.mobile-drawer__header');
 
     // Allow anywhere if at scroll top, or specifically on handle/header
-    const scrollContainer = drawerRef.current?.querySelector('.mobile-drawer__body');
+    const drawer = drawerRef.current;
+    const scrollContainer = drawer && getComputedStyle(drawer).overflowY === 'auto'
+      ? drawer : drawer?.querySelector('.mobile-drawer__body');
     const isAtScrollTop = !scrollContainer || scrollContainer.scrollTop <= 0;
 
     if (isHandleOrHeader || isAtScrollTop) {
@@ -123,15 +127,19 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     setDragOffset(0);
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen && !keepMounted) return null;
 
   return (
     <div
+      data-reading-settings-drawer
+      hidden={!isOpen}
+      inert={!isOpen || undefined}
       className="fixed inset-0 z-70 flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
       style={wrapperStyle}
     >
       <div
         className="mobile-drawer-overlay absolute inset-0 motion-safe:animate-fade-in"
+        data-modal-backdrop
         onClick={onClose}
         aria-hidden="true"
       />

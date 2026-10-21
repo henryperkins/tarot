@@ -130,7 +130,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     initialFocusRef: closeButtonRef,
     // Replay opens through a confirmation whose button disappears. Return to
     // the stable header opener when that transient activation target is gone.
-    fallbackFocusSelector: '.guest-account__trigger, [aria-label="Replay tutorial"], [aria-haspopup="menu"][aria-label^="User menu for"]',
+    fallbackFocusSelector: '.guest-signin-button, .reading-settings, .guest-account__trigger, [aria-label="Replay tutorial"], [aria-haspopup="menu"][aria-label^="User menu for"]',
     fallbackFocusPreventScroll: true,
     closeOnEscape: !isExitConfirmOpen,
     isolateBackground: true,
@@ -526,7 +526,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         message={exitMessage}
         confirmText={exitConfirmText}
         cancelText="Stay here"
-        fallbackFocusSelector='.guest-account__trigger, [aria-label="Replay tutorial"], [aria-haspopup="menu"][aria-label^="User menu for"]'
+        fallbackFocusSelector='.guest-signin-button, .reading-settings, .guest-account__trigger, [aria-label="Replay tutorial"], [aria-haspopup="menu"][aria-label^="User menu for"]'
         closeOnBack={false}
       />
     </>

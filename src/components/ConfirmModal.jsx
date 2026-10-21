@@ -34,6 +34,7 @@ export function ConfirmModal({
     onClose,
     containerRef: modalRef,
     initialFocusRef: cancelButtonRef,
+    isolateBackground: true,
     fallbackFocusSelector,
     closeOnBack,
     backGuardId: 'confirm',

@@ -160,12 +160,12 @@ test.describe('Question field hardening', () => {
     await expect(progress.getByRole('button', { name: 'Step 1: Spread', exact: true })).toHaveAttribute('aria-current', 'step');
 
     await page.getByRole('textbox', { name: PROMPT }).fill('What can I learn from this change at work?');
-    await expect(progress.getByRole('button', { name: 'Step 2: Question', exact: true })).toHaveAttribute('aria-current', 'step');
+    await expect(progress.getByRole('button', { name: 'Step 2: Intent (question)', exact: true })).toHaveAttribute('aria-current', 'step');
     await expect(page.getByText('Your intention is ready', { exact: true })).toBeVisible();
     await expect(selectedSpread).toHaveText(spreadName);
 
     await page.reload();
-    await expect(progress.getByRole('button', { name: 'Step 2: Question', exact: true })).toHaveAttribute('aria-current', 'step');
+    await expect(progress.getByRole('button', { name: 'Step 2: Intent (question)', exact: true })).toHaveAttribute('aria-current', 'step');
     await expect(selectedSpread).toHaveText(spreadName);
   });
 });
@@ -194,7 +194,7 @@ test.describe('Question card hardening @mobile', () => {
     await seedApp(page);
     await gotoReading(page);
 
-    const actions = page.getByRole('navigation', { name: 'Primary mobile actions' });
+    const actions = page.locator('[data-app-bottom-actions]');
     const draw = actions.getByRole('button', { name: /^Draw cards/ });
     await expect(draw).toHaveText('Draw cards');
     await expect(draw).toHaveAccessibleName('Draw cards');
@@ -252,7 +252,7 @@ test.describe('Question card hardening @mobile', () => {
     await seedApp(page);
     await gotoReading(page);
 
-    await page.getByRole('button', { name: 'Step 2: Question' }).click();
+    await page.getByRole('button', { name: 'Step 2: Intent (question)' }).click();
     await expect(page.locator('#quick-intention')).toBeInViewport();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -269,7 +269,7 @@ test.describe('Question card hardening @mobile', () => {
     // page, where the compact navigation remains available.
     await page.evaluate(() => window.scrollTo(0, document.scrollingElement.scrollHeight));
     await expect(page.locator('.header-sticky')).toBeInViewport({ ratio: 1 });
-    await page.getByRole('button', { name: 'Step 2: Question', exact: true }).click();
+    await page.getByRole('button', { name: 'Step 2: Intent (question)', exact: true }).click();
     await field.fill('What can I learn from this change at work?');
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 

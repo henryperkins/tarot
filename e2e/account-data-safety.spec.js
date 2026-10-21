@@ -414,6 +414,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         const dialog = page.getByRole('dialog', { name: 'Discard your changes?' });
         await expect(dialog).toBeVisible();
         expect(fixture.logoutRequests()).toBe(0);
+        await expect(page.locator('[data-app-header]')).toHaveAttribute('inert', '');
+        await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('inert', '');
         await dialog.getByRole('button', { name: 'Keep editing', exact: true }).click();
         await expect(page.getByLabel('Username', { exact: true })).toHaveValue('ChangedReader');
         await leave();

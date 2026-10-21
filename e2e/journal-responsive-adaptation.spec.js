@@ -168,7 +168,10 @@ function journalSavedMarkdownThemeTests() {
   test.setTimeout(60000);
 
   for (const theme of ['light', 'dark']) {
-    test(`saved Markdown headings and expanded question follow the ${theme} theme`, async ({ page }, testInfo) => {
+    test(`saved Markdown headings and expanded question follow the ${theme} theme`, async ({ page, browserName }, testInfo) => {
+      // Thirteen individual painted contrast samples and the final artifact can
+      // exceed one minute in WebKit. Preserve every sample and assertion.
+      if (browserName === 'webkit') test.setTimeout(120000);
       await page.addInitScript(value => {
         localStorage.setItem('tarot-theme', value);
         localStorage.removeItem('tarot_journal');

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { GridFour, Question, Sparkle, Eye } from '@phosphor-icons/react';
+import { GridFour, Question, Sparkle, Eye, Check } from '@phosphor-icons/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSmallScreen, TABLET_SCREEN_MAX } from '../hooks/useSmallScreen';
 
@@ -21,7 +21,7 @@ const STEP_SHORT_LABELS = {
 // Steps that are optional (shown with indicator)
 const OPTIONAL_STEPS = new Set(['ritual']);
 
-export function StepProgress({ steps = [], activeStep, onSelect, condensed = false, readingView = false, quiet = false }) {
+export function StepProgress({ steps = [], activeStep, onSelect, condensed = false, readingView = false, quiet = false, completedIds = [], skippedIds = [], canvas = false }) {
   const [activeTooltip, setActiveTooltip] = useState(null);
   const tooltipTimeoutRef = useRef(null);
   const buttonRefs = useRef({});
@@ -149,6 +149,42 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
     const frameId = window.requestAnimationFrame(() => setActiveTooltip(null));
     return () => window.cancelAnimationFrame(frameId);
   }, [showTooltips]);
+
+  if (canvas) {
+    const completed = new Set(completedIds);
+    const skipped = new Set(skippedIds);
+    return (
+      <nav aria-label="Tarot reading progress" className="step-progress-canvas">
+        <ol className="step-progress-canvas__list">
+          {steps.map((step, index) => {
+            const isCurrent = step.id === activeStep;
+            const isCompleted = !isCurrent && completed.has(step.id);
+            const isSkipped = !isCurrent && !isCompleted && skipped.has(step.id);
+            const shortLabel = STEP_SHORT_LABELS[step.id] || step.label;
+            const stateNote = isCompleted ? ', completed' : isSkipped ? ', skipped' : '';
+            return (
+              <li key={step.id} className="step-progress-canvas__item" data-step-state={isCurrent ? 'current' : isCompleted ? 'completed' : isSkipped ? 'skipped' : 'upcoming'}>
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(step.id)}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  aria-label={`Step ${index + 1}: ${step.label}${stateNote}`}
+                  className={`step-progress-canvas__button ${isCurrent ? 'is-current' : ''} ${isCompleted ? 'is-completed' : ''}`}
+                >
+                  <span className="step-progress-canvas__label">{isCompleted
+                    ? <Check className="step-progress-canvas__check" aria-hidden="true" />
+                    : <span className="step-progress-canvas__number" aria-hidden="true">{index + 1}</span>}
+                  <span>{shortLabel}</span></span>
+                  {isSkipped && <span className="step-progress-canvas__skipped">(skipped)</span>}
+                </button>
+                {index < steps.length - 1 && <span className="step-progress-canvas__sep" aria-hidden="true">—</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+    );
+  }
 
   if (readingView || quiet) return <nav aria-label="Tarot reading progress"><ol>
     {steps.map((step, index) => <li key={step.id}><button type="button" onClick={() => onSelect?.(step.id)}

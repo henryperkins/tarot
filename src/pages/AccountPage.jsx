@@ -33,7 +33,8 @@ import {
   CaretDown
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
+import { AppBottomRegion } from '../components/AppBottomRegion';
 import { InstallFooter } from '../components/InstallFooter';
 import AuthModal from '../components/AuthModal';
 import { MemoryManager } from '../components/MemoryManager';
@@ -43,7 +44,6 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext';
 import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { formatRelativeDay, getTimestamp } from '../../shared/journal/utils.js';
 import { REVERSAL_FRAMEWORK_OPTIONS } from '../lib/preferenceStorage.js';
@@ -320,7 +320,6 @@ export default function AccountPage() {
   const analyticsRequestRef = useRef(null);
   const usageRequestRef = useRef(null);
   const pageRef = useRef(null);
-  const headerRef = useResponsiveSticky(!authLoading);
   const sectionNavRef = useRef(null);
   const themeRadioRefs = useRef({});
 
@@ -343,22 +342,6 @@ export default function AccountPage() {
     setTheme(nextTheme);
     themeRadioRefs.current[nextTheme]?.focus();
   };
-
-  // Keep sticky sections and anchor targets clear of headers that wrap or scale with text.
-  useEffect(() => {
-    if (authLoading) return undefined;
-    const page = pageRef.current;
-    const sectionNav = sectionNavRef.current;
-    if (!page || !sectionNav) return undefined;
-
-    const measure = () => {
-      page.style.setProperty('--account-sections-height', `${sectionNav.getBoundingClientRect().height}px`);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(sectionNav);
-    return () => observer.disconnect();
-  }, [authLoading]);
 
   // Free and lapsed accounts keep readings on this device. Cloud accounts
   // only need the aggregate count and latest reading timestamp.
@@ -1183,8 +1166,12 @@ export default function AccountPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-main flex items-center justify-center">
-        <CircleNotch className="h-8 w-8 text-accent animate-spin" />
+      <div data-app-chrome className="min-h-screen bg-main text-main">
+        <AppHeader />
+        <main id="main-content" tabIndex={-1} className="flex min-h-[50vh] items-center justify-center" aria-label="Loading account">
+          <CircleNotch className="h-8 w-8 text-accent animate-spin" />
+        </main>
+        <AppBottomRegion />
       </div>
     );
   }
@@ -1363,16 +1350,8 @@ export default function AccountPage() {
   ].filter(Boolean).join('\n\n');
 
   return (
-    <div ref={pageRef} onClickCapture={handleInternalLinkClick} className="min-h-screen bg-main text-main">
-      {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
-      <header
-        ref={headerRef}
-        className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-      >
-        <div className="mx-auto max-w-2xl px-4 py-3">
-          <GlobalNav condensed withUserChip onRequestExit={requestAccountExit} />
-        </div>
-      </header>
+    <div data-app-chrome ref={pageRef} onClickCapture={handleInternalLinkClick} className="min-h-screen bg-main text-main">
+      <AppHeader onRequestExit={requestAccountExit} />
 
       <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] py-8 space-y-6">
         {/* Page Title */}
@@ -1395,6 +1374,7 @@ export default function AccountPage() {
         {/* Section Navigation Chips */}
         <nav
           ref={sectionNavRef}
+          data-app-secondary="1" data-chrome-height-var="--account-sections-height"
           className="sticky z-sticky-nav -mx-4 px-4 py-2 bg-main/95 backdrop-blur-sm border-b border-secondary/20 overflow-x-auto top-(--sticky-header-height,6rem)"
           aria-label="Jump to section"
           style={{
@@ -1410,7 +1390,7 @@ export default function AccountPage() {
               { id: 'display', label: 'Display', authOnly: false },
               { id: 'reading', label: 'Reading', authOnly: false },
               { id: 'privacy', label: 'Privacy', authOnly: true },
-              { id: 'actions', label: 'Actions', authOnly: true },
+              { id: 'actions', label: 'Actions', authOnly: false },
             ]
               .filter(section => !section.authOnly || isAuthenticated)
               .map(section => (
@@ -2571,8 +2551,7 @@ export default function AccountPage() {
 
         {/* Reader Memory now lives inside the leading "Your practice" card */}
 
-        {/* Actions Section - Auth only */}
-        {isAuthenticated && (
+        {/* Tutorial access is also available to guests from Settings. */}
         <SectionCard id="actions" title="Actions" highlighted={highlightedSection === 'actions'}>
           <div className="space-y-1">
             <button
@@ -2589,7 +2568,7 @@ export default function AccountPage() {
               <CaretRight className="h-4 w-4 text-muted ml-auto" />
             </button>
 
-            <button
+            {isAuthenticated && <button
               type="button"
               onClick={handleLogout}
               className="
@@ -2601,10 +2580,9 @@ export default function AccountPage() {
               <SignOut className="h-5 w-5 text-accent" />
               <span>Sign Out</span>
               <CaretRight className="h-4 w-4 text-muted ml-auto" />
-            </button>
+            </button>}
           </div>
         </SectionCard>
-        )}
 
         <ConfirmModal
           isOpen={deleteModalOpen}
@@ -2669,6 +2647,7 @@ export default function AccountPage() {
         </div>
         <InstallFooter />
       </main>
+      <AppBottomRegion />
     </div>
   );
 }

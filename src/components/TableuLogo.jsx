@@ -4,7 +4,7 @@ import {
   tableuMarkPaths, tableuWordmarkPaths
 } from '../../shared/brand/tableuMark';
 
-/** The shared vector emblem and horizontal wordmark, colored by the active theme. */
+/** The shared vector emblem and horizontal wordmark with themed or fixed brand colors. */
 export function TableuLogo({
   variant = 'primary',
   size = 160,
@@ -15,7 +15,7 @@ export function TableuLogo({
 }) {
   const full = variant === 'full';
   const numericSize = typeof size === 'number';
-  const resolvedColor = color || (variant === 'mono' ? '#1A1A1A' : variant === 'dark' ? '#E8DAC3' : undefined);
+  const resolvedColor = color || (variant === 'mono' ? 'var(--brand-logo-ink)' : variant === 'dark' ? 'var(--brand-logo-ivory)' : undefined);
 
   return (
     <svg

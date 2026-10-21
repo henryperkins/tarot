@@ -2,34 +2,32 @@ import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, startReading } from './helpers/narrativeFixtures.js';
 
 async function expectTouchTarget(locator) {
-  const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
   // Browsers can report transformed 44px edges a few millionths below the integer.
-  expect(box.width).toBeGreaterThanOrEqual(43.99);
-  expect(box.height).toBeGreaterThanOrEqual(43.99);
+  // Resolve the visible placement again while a breakpoint handoff completes.
+  await expect.poll(async () => {
+    const box = await locator.boundingBox();
+    return box ? Math.min(box.width, box.height) : 0;
+  }).toBeGreaterThanOrEqual(43.99);
 }
 
 async function expectNavigationFits(page) {
   const nav = page.getByRole('navigation', { name: 'Primary navigation' });
-  for (const name of ['Reading', 'Journal']) {
-    const link = nav.getByRole('link', { name, exact: true });
-    await expectTouchTarget(link);
-    const bounds = await link.evaluate(element => {
-      const linkBox = element.getBoundingClientRect();
-      const labelBox = element.querySelector('span').getBoundingClientRect();
-      return {
-        left: labelBox.left - linkBox.left,
-        right: linkBox.right - labelBox.right
-      };
-    });
-    expect(bounds.left, `${name} label extends beyond its link`).toBeGreaterThanOrEqual(0);
-    expect(bounds.right, `${name} label extends beyond its link`).toBeGreaterThanOrEqual(0);
-  }
-  const reading = await nav.getByRole('link', { name: 'Reading', exact: true }).boundingBox();
-  const journal = await nav.getByRole('link', { name: 'Journal', exact: true }).boundingBox();
-  const overlapX = Math.min(reading.x + reading.width, journal.x + journal.width) - Math.max(reading.x, journal.x);
-  const overlapY = Math.min(reading.y + reading.height, journal.y + journal.height) - Math.max(reading.y, journal.y);
-  expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0);
+  // Read both destinations atomically while the responsive copy is settling.
+  // Separate boundingBox calls can straddle its hidden/inert handoff.
+  await expect.poll(() => nav.evaluate(element => {
+    const links = [...element.querySelectorAll('a')];
+    if (links.length !== 2) return null;
+    const boxes = links.map(link => link.getBoundingClientRect());
+    const labels = links.map(link => link.querySelector('span').getBoundingClientRect());
+    const [reading, journal] = boxes;
+    const overlapX = Math.min(reading.right, journal.right) - Math.max(reading.left, journal.left);
+    const overlapY = Math.min(reading.bottom, journal.bottom) - Math.max(reading.top, journal.top);
+    return {
+      targets: boxes.every(box => Math.min(box.width, box.height) >= 43.99),
+      labels: labels.every((box, index) => box.left >= boxes[index].left && box.right <= boxes[index].right),
+      overlap: Math.max(0, overlapX) * Math.max(0, overlapY)
+    };
+  })).toEqual({ targets: true, labels: true, overlap: 0 });
 }
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
@@ -48,14 +46,13 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             await page.getByRole('navigation', { name: 'Primary navigation' }).waitFor();
             await page.evaluate(() => document.fonts.ready);
             await expectNavigationFits(page);
-            const accountOptions = await openAccountOptions(page);
-            await expectTouchTarget(accountOptions);
-            const settings = page.getByRole('link', { name: 'Open settings', exact: true });
+            const signIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+            await expectTouchTarget(signIn);
+            const settings = page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true });
             await expectTouchTarget(settings);
             await settings.focus();
-            await page.keyboard.press('Escape');
-            await expect(page.getByRole('group', { name: 'Account options', exact: true })).toBeHidden();
-            await expect(accountOptions).toBeFocused();
+            await page.keyboard.press('Tab');
+            await expect(signIn).toBeFocused();
           }
         }
         const nav = page.getByRole('navigation', { name: 'Primary navigation' });
@@ -63,10 +60,15 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
         await nav.getByRole('link', { name: 'Journal', exact: true }).press('Enter');
         await expect(page).toHaveURL(/\/journal$/);
+        await expect(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true })).toBeVisible();
         await openAccountOptions(page);
-        await page.getByRole('group', { name: 'Account options', exact: true })
-          .getByRole('button', { name: 'Sign In', exact: true }).click();
+        const signIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+        await signIn.focus();
+        await signIn.press('Enter');
         await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.locator('#auth-email')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(signIn).toBeFocused();
       } finally {
         await fixture.close();
       }
@@ -144,7 +146,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.setViewportSize(viewport);
           await page.evaluate(() => document.fonts.ready);
           await expectNavigationFits(page);
-          await expectTouchTarget(page.locator('summary[aria-label="Account options"]'));
+          await expectTouchTarget(page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true }));
+          await expectTouchTarget(page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true }));
           const overlaps = await page.locator('.header-sticky .site-nav').evaluate(row => {
             const controls = [...row.querySelectorAll('button,a,summary')].filter(element => element.getClientRects().length);
             return controls.flatMap((control, index) => controls.slice(index + 1).flatMap(other => {
@@ -165,7 +168,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       }
     });
 
-    test('desktop header has readable scale and grouped progress without changing tablet sizing', async ({ page }) => {
+    test('desktop header stays quiet and progress remains operable inside the canvas', async ({ page }) => {
       test.setTimeout(60000);
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       try {
@@ -174,36 +177,32 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.setViewportSize({ width, height: 1000 });
           await page.evaluate(() => document.fonts.ready);
           await expectNavigationFits(page);
-          const desktop = width >= 1024;
-          const dimensions = await page.locator('.tableu-header').evaluate(header => {
+          const dimensions = await page.locator('[data-app-header]').evaluate(header => {
             const measure = selector => {
-              const element = header.querySelector(selector);
+              const element = document.querySelector(selector);
               const box = element.getBoundingClientRect();
-              return { width: box.width, height: box.height, x: box.x, fontSize: parseFloat(getComputedStyle(element).fontSize) };
+              return { width: box.width, height: box.height, x: box.x, y: box.y, fontSize: parseFloat(getComputedStyle(element).fontSize) };
             };
             return {
-              inner: measure('.tableu-header__inner'),
+              inner: measure('.app-header__inner'),
               logo: measure('.tableu-logo'),
               wordmark: measure('.site-nav__wordmark'),
               link: measure('.site-nav__link'),
-              progress: measure('.tableu-header__progress nav'),
-              step: measure('.tableu-header__progress button'),
+              header: header.getBoundingClientRect().toJSON(),
+              progress: measure('.step-progress-canvas'),
+              step: measure('.step-progress-canvas button'),
               scrollWidth: document.documentElement.scrollWidth,
               viewportWidth: document.documentElement.clientWidth
             };
           });
-          expect(dimensions.logo.width).toBe(desktop ? 44 : 32);
-          expect(dimensions.wordmark.fontSize).toBe(desktop ? 22 : 16);
-          expect(dimensions.link.fontSize).toBe(desktop ? 16 : 14);
-          expect(dimensions.step.fontSize).toBe(desktop ? 16 : 13);
+          expect(dimensions.logo.width).toBe(30);
+          expect(dimensions.wordmark.fontSize).toBe(17);
+          expect(dimensions.link.fontSize).toBe(14);
+          expect(dimensions.step.fontSize).toBe(14);
+          expect(dimensions.header.height).toBe(56);
+          expect(dimensions.progress.y).toBeGreaterThanOrEqual(dimensions.header.bottom);
           expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
-          if (desktop) {
-            expect(dimensions.inner.width).toBeLessThanOrEqual(1024);
-            expect(dimensions.progress.width).toBeLessThanOrEqual(640);
-            const innerCenter = dimensions.inner.x + dimensions.inner.width / 2;
-            const progressCenter = dimensions.progress.x + dimensions.progress.width / 2;
-            expect(Math.abs(innerCenter - progressCenter)).toBeLessThanOrEqual(1);
-          }
+          expect(dimensions.inner.width).toBeLessThanOrEqual(1024);
           const progress = page.getByRole('navigation', { name: 'Tarot reading progress' });
           const currentStep = progress.locator('[aria-current="step"]');
           await expect(currentStep).toHaveCount(1);
@@ -217,10 +216,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.setViewportSize({ width: 1440, height: 1000 });
         await startReading(page, fixture);
         await expect(page.locator('.app-shell--reading')).toBeVisible();
-        const readingProgress = page.locator('.tableu-header__progress nav');
-        // Reading styles load lazily and must not stretch the compact step group.
-        await expect(readingProgress).toHaveCSS('flex-grow', '0');
-        expect((await readingProgress.boundingBox()).width).toBeLessThanOrEqual(640);
+        const readingProgress = page.locator('main .step-progress-canvas');
+        await expect(page.locator('[data-app-header] .step-progress-canvas')).toHaveCount(0);
+        expect((await readingProgress.boundingBox()).width).toBeLessThanOrEqual((await page.locator('main').boundingBox()).width);
         for (const button of await readingProgress.getByRole('button').all()) await expectTouchTarget(button);
         const settings = page.getByRole('button', { name: 'Reading settings', exact: true });
         await expectTouchTarget(settings);
