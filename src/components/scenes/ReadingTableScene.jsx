@@ -43,7 +43,14 @@ export function ReadingTableScene({ sceneModels = {} }) {
     <section className="reading-table" data-scene={isSpreadDealt ? 'reveal' : 'ritual'} aria-labelledby="reading-table-title">
       <header className="reading-table__header">
         <div>
-          <h2 id="reading-table-title">{spreadName?.split(' (')[0]}</h2>
+          <h2
+            id="reading-table-title"
+            tabIndex={isHandset ? -1 : undefined}
+            data-reading-focus-target={isHandset ? true : undefined}
+            data-reading-focus-scroll={isHandset ? true : undefined}
+          >
+            {spreadName?.split(' (')[0]}
+          </h2>
           {userQuestion ? <p className="reading-table__question" dir="auto">{userQuestion}</p> : null}
         </div>
         {!isHandset && action ? (

@@ -31,7 +31,7 @@ export function useReadingSceneFocus(sectionRef, scene, isError) {
       }
       const target = section.querySelector('[data-reading-focus-target]');
       if (!isAvailable(target)) return;
-      target.focus({ preventScroll: true });
+      target.focus({ preventScroll: !target.hasAttribute('data-reading-focus-scroll') });
       if (document.activeElement !== target) return;
       if (isError) target.scrollIntoView({ block: 'nearest' });
       stop();
