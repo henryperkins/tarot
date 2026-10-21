@@ -72,7 +72,7 @@ function SavedReadingCompanion({ entry, namespace, onHandlesChanged }) {
     <div className="restored-reading-gestures narrative-panel__layout narrative-panel__layout--with-spread" data-testid="restored-reading-gestures">
       <SpreadCompanion />
       <div className="narrative-panel__column min-w-0">
-      <StreamingNarrative text={entry.personalReading} useMarkdown headingBaseLevel={3}
+      <StreamingNarrative text={entry.personalReading} useMarkdown headingBaseLevel={4}
         isStreamingEnabled={false} isReadingStreaming={false} cardLinks={links} gestureSource={source} onDone={noop} />
       </div>
     </div>

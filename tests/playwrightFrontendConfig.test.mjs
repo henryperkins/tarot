@@ -31,4 +31,18 @@ test('default frontend collection keeps ordinary specs and leaves owned reading-
   for (const file of ['reading-cue-qualification.spec.js', 'reading-cue-runtime-lane.spec.js', 'reading-cue-artwork-performance.spec.js']) {
     assert.ok(!files.has(file), `owned reading-cue spec requires its explicit lane: ${file}`);
   }
+
+  const mobileThemes = [];
+  const collect = suite => {
+    for (const spec of suite.specs || []) {
+      if (!spec.title.startsWith('saved Markdown headings')) continue;
+      if (spec.tests.some(item => item.projectName === 'mobile')) mobileThemes.push(spec.title);
+    }
+    suite.suites?.forEach(collect);
+  };
+  report.suites.forEach(collect);
+  assert.deepEqual(mobileThemes.sort(), [
+    'saved Markdown headings and expanded question follow the dark theme',
+    'saved Markdown headings and expanded question follow the light theme'
+  ], 'default frontend collection must keep both WebKit Journal theme regressions');
 });

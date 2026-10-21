@@ -1,6 +1,16 @@
 import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, startReading, QUESTION, NARRATIVE } from './helpers/narrativeFixtures.js';
 
+const SAVED_MARKDOWN_NARRATIVE = [
+  NARRATIVE,
+  'Protect a **sustainable boundary** before saying yes.',
+  '> Rest is part of the practice.',
+  '- Keep one quiet pause.',
+  'Use `quiet-time` as a reminder.',
+  '---',
+  'Carry this intention into one quiet moment before your next decision.'
+].join('\n\n');
+
 const entry = {
   id: 'responsive-reading', ts: Date.now(), spread: 'Celtic Cross', spreadKey: 'celtic',
   question: 'What should I focus on right now?',
@@ -89,8 +99,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
   });
 }
 
-async function measureJournalHeading(page, heading) {
-  const text = await heading.evaluate(element => {
+async function measureJournalText(page, textElement) {
+  const text = await textElement.evaluate(element => {
     const style = getComputedStyle(element);
     const probe = document.createElement('span');
     probe.style.cssText = 'display: none; color: var(--text-main);';
@@ -109,16 +119,16 @@ async function measureJournalHeading(page, heading) {
   });
   // Sample the actual painted gradient/halo surface, without the text pixels.
   // Canvas decodes the screenshot in both engines; no image-library dependency.
-  const originalStyle = await heading.getAttribute('style');
+  const originalStyle = await textElement.getAttribute('style');
   let surface;
   try {
-    await heading.evaluate(element => {
+    await textElement.evaluate(element => {
       element.style.setProperty('color', 'transparent', 'important');
       element.style.setProperty('text-shadow', 'none', 'important');
     });
-    surface = await heading.screenshot({ animations: 'disabled', scale: 'css' });
+    surface = await textElement.screenshot({ animations: 'disabled', scale: 'css' });
   } finally {
-    await heading.evaluate((element, original) => {
+    await textElement.evaluate((element, original) => {
       if (original === null) element.removeAttribute('style');
       else element.setAttribute('style', original);
     }, originalStyle);
@@ -153,7 +163,7 @@ async function measureJournalHeading(page, heading) {
   return { ...text, backgrounds, minimumContrast: Math.min(...ratios) };
 }
 
-test.describe('Journal saved Markdown themes', () => {
+function journalSavedMarkdownThemeTests() {
   test.use({ viewport: { width: 390, height: 900 }, serviceWorkers: 'block', contextOptions: { reducedMotion: 'reduce' } });
   test.setTimeout(60000);
 
@@ -163,20 +173,22 @@ test.describe('Journal saved Markdown themes', () => {
         localStorage.setItem('tarot-theme', value);
         localStorage.removeItem('tarot_journal');
       }, theme);
-      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      const fixture = await createNarrativeFixture(page, { signedOut: true, narrative: SAVED_MARKDOWN_NARRATIVE });
       try {
         await startReading(page, fixture);
-        const save = page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).first();
+        const completion = page.locator('[data-reading-completion]').filter({ visible: true }).first();
+        const save = completion.getByRole('button', { name: 'Save to journal', exact: true });
         await save.press('Enter');
-        await expect(page.getByText('Saved to your journal.', { exact: true })).toBeVisible();
+        await expect(completion.getByRole('status')).toHaveText('Saved');
         const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_journal') || '[]'));
         expect(saved).toHaveLength(1);
         expect(saved[0].question).toBe(QUESTION);
-        expect(saved[0].personalReading).toBe(NARRATIVE);
+        expect(saved[0].personalReading).toBe(SAVED_MARKDOWN_NARRATIVE);
 
-        await page.getByRole('button', { name: /^View (entry|Journal)$/i }).filter({ visible: true }).first().press('Enter');
+        await completion.getByRole('button', { name: /^View (saved entry|journal)$/i }).press('Enter');
         await expect(page).toHaveURL(/\/journal(?:\?|$)/);
         const title = page.getByRole('heading', { name: saved[0].spread, exact: true });
+        await expect(title).toHaveJSProperty('tagName', 'H3');
         const article = page.getByRole('article').filter({ has: title });
         await expect(article).toHaveCount(1);
         const expand = article.getByRole('button').filter({ has: title });
@@ -201,23 +213,49 @@ test.describe('Journal saved Markdown themes', () => {
         const measurements = [];
         for (const heading of await headings.all()) {
           await heading.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
-          const measured = await measureJournalHeading(page, heading);
+          const measured = await measureJournalText(page, heading);
           measurements.push(measured);
           expect(measured.color, `${measured.tag} ${measured.text} should use the ${theme} text color`).toBe(measured.expectedColor);
           expect(measured.minimumContrast, `${measured.tag} ${measured.text} on its painted surface`).toBeGreaterThanOrEqual(4.5);
           expect(measured.contained, `${measured.tag} ${measured.text} should remain inside the narrative`).toBe(true);
         }
-        // Restored reading sections nest below the entry's H2; deeper source
+        const proseMeasurements = [];
+        for (const textElement of [
+          body.locator('strong').first(), body.locator('blockquote').first(),
+          body.locator('p code').first(), body.locator('ul > li').first()
+        ]) {
+          await textElement.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+          const measured = await measureJournalText(page, textElement);
+          proseMeasurements.push(measured);
+          expect(measured.color, `${measured.tag} ${measured.text} should use the ${theme} text color`).toBe(measured.expectedColor);
+          expect(measured.minimumContrast, `${measured.tag} ${measured.text} on its painted surface`).toBeGreaterThanOrEqual(4.5);
+          expect(measured.contained).toBe(true);
+        }
+        const separator = await body.locator('hr').evaluate(element => {
+          const probe = document.createElement('span');
+          probe.style.cssText = 'display: none; border-top: 1px solid var(--border-warm-light);';
+          element.parentElement.append(probe);
+          const expected = getComputedStyle(probe).borderTopColor;
+          probe.remove();
+          return { color: getComputedStyle(element).borderTopColor, expected };
+        });
+        expect(separator.color).toBe(separator.expected);
+        // Saved reading sections nest below the entry's H3; deeper source
         // headings retain their hierarchy through H6.
-        expect(measurements.map(heading => heading.tag)).toEqual(['H3', 'H3', 'H4', 'H5', 'H6', 'H6', 'H3', 'H3', 'H3']);
+        expect(measurements.map(heading => heading.tag)).toEqual(['H4', 'H4', 'H5', 'H6', 'H6', 'H6', 'H4', 'H4', 'H4']);
         await testInfo.attach(`journal-heading-colors-${theme}`, { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' });
+        await testInfo.attach(`journal-prose-colors-${theme}`, { body: JSON.stringify(proseMeasurements, null, 2), contentType: 'application/json' });
         await headings.first().screenshot({ path: testInfo.outputPath(`journal-heading-${theme}.png`), animations: 'disabled' });
       } finally {
         await fixture.close();
       }
     });
   }
-});
+}
+
+for (const platform of ['Chromium', 'WebKit @mobile']) {
+  test.describe(`Journal saved Markdown themes — ${platform}`, journalSavedMarkdownThemeTests);
+}
 
 test.describe('Spread carousel touch adaptation', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });

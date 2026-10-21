@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
+import { MemoryRouter } from 'react-router-dom';
 
 let server;
 let MarkdownRenderer;
@@ -13,6 +14,10 @@ let NarrativePanelHeader;
 let SpreadPatterns;
 let FeedbackPanel;
 let CardTouchArt;
+let NarrativeSection;
+let JournalEntryCard;
+let AuthProvider;
+let SubscriptionProvider;
 
 before(async () => {
   server = await createServer({
@@ -29,6 +34,10 @@ before(async () => {
   ({ SpreadPatterns } = await server.ssrLoadModule('/src/components/SpreadPatterns.jsx'));
   ({ FeedbackPanel } = await server.ssrLoadModule('/src/components/FeedbackPanel.jsx'));
   ({ CardTouchArt } = await server.ssrLoadModule('/src/components/reading/narrative/CardTouchArt.jsx'));
+  ({ NarrativeSection } = await server.ssrLoadModule('/src/components/journal/entry-card/EntrySections/NarrativeSection.jsx'));
+  ({ JournalEntryCard } = await server.ssrLoadModule('/src/components/journal/entry-card/JournalEntryCard.jsx'));
+  ({ AuthProvider } = await server.ssrLoadModule('/src/contexts/AuthContext.jsx'));
+  ({ SubscriptionProvider } = await server.ssrLoadModule('/src/contexts/SubscriptionContext.jsx'));
 });
 
 test('unsupported artwork editions retain whole-card context without vector details', () => {
@@ -57,6 +66,39 @@ function headings(markup) {
 }
 
 const ALL_HEADINGS = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six';
+
+test('plain saved journal headings nest under the entry, preserving parsed Markdown and both expansion modes', () => {
+  const narrativeText = '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail';
+  for (const collapsible of [true, false]) {
+    const markup = render(NarrativeSection, { narrativeText, narrativeId: 'saved-reading', collapsible, defaultExpanded: true });
+    assert.deepEqual(headings(markup), [
+      { level: 4, text: 'Opening' },
+      { level: 5, text: 'Reflection' },
+      { level: 6, text: 'Detail' },
+      { level: 6, text: 'More detail' }
+    ]);
+    assert.match(markup, /# Not a heading/);
+  }
+});
+
+for (const gestureStudyEnabled of [false, true]) {
+  test(`saved journal card nests narrative headings below its title (restored cues: ${gestureStudyEnabled})`, () => {
+    const entry = { id: 'heading-card', ts: 0, spread: 'Journal entry', question: 'A reflection',
+      cards: [{ name: 'The Fool', position: 'Present', orientation: 'Upright' }],
+      personalReading: '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail' };
+    const card = createElement(JournalEntryCard, { entry, defaultExpanded: true, gestureStudyEnabled });
+    const markup = renderToStaticMarkup(createElement(MemoryRouter, null,
+      createElement(AuthProvider, null, createElement(SubscriptionProvider, null, card))));
+    assert.deepEqual(headings(markup), [
+      { level: 3, text: 'Journal entry' },
+      { level: 4, text: 'Opening' },
+      { level: 5, text: 'Reflection' },
+      { level: 6, text: 'Detail' },
+      { level: 6, text: 'More detail' }
+    ]);
+    assert.match(markup, /# Not a heading/);
+  });
+}
 
 test('shared Markdown keeps all six original heading levels for chat and journal', () => {
   assert.deepEqual(headings(render(MarkdownRenderer, { content: ALL_HEADINGS })), [

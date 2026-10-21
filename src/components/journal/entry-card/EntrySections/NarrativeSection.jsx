@@ -35,6 +35,21 @@ function getNarrativePreviewText(text, maxChars = 260) {
   return truncated;
 }
 
+// Both saved-reading paths nest sections beneath the journal entry's H3.
+// Walk parsed headings so fenced code and setext syntax keep their meaning.
+function remarkJournalHeadings() {
+  return (tree) => {
+    const headings = [];
+    const collect = (node) => {
+      if (node.type === 'heading') headings.push(node);
+      node.children?.forEach(collect);
+    };
+    collect(tree);
+    const sourceBase = Math.min(6, ...headings.map(heading => heading.depth));
+    headings.forEach(heading => { heading.depth = Math.min(6, 4 + heading.depth - sourceBase); });
+  };
+}
+
 const MARKDOWN_COMPONENTS = {
   a: ({ node: _node, ...props }) => (
     <a
@@ -124,8 +139,8 @@ export const NarrativeSection = memo(function NarrativeSection({
       handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
   ) : null;
   const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
-    <div className="prose prose-invert prose-base max-w-none text-(--text-main) prose-p:leading-relaxed wrap-anywhere">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml components={MARKDOWN_COMPONENTS}>
+    <div className="journal-narrative-prose prose prose-base max-w-none text-(--text-main) prose-p:leading-relaxed wrap-anywhere">
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkJournalHeadings]} skipHtml components={MARKDOWN_COMPONENTS}>
         {narrativeText}
       </ReactMarkdown>
     </div>

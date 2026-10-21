@@ -1,6 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
-import { createNarrativeFixture, startReading } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, settleReadingLayout, startReading } from './helpers/narrativeFixtures.js';
 
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1';
 const DESKTOP_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/144.0.0.0 Safari/537.36';
@@ -284,7 +284,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       test('closing an enlarged landscape guide restores its page-end opener without another scroll', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 568 });
-        await startReading(page, fixture);
+        // Supporting pages retain the footer; completed readings use App options.
+        await page.goto('/pricing');
         await page.setViewportSize({ width: 844, height: 390 });
         await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
         const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Add to Home Screen', exact: true });
@@ -555,14 +556,16 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await startReading(page, fixture);
           await page.setViewportSize({ width: 844, height: 390 });
           const dock = page.getByRole('navigation', { name: 'Primary mobile actions', exact: true });
-          const save = dock.getByRole('button', { name: 'Save to journal', exact: true });
-          const ask = dock.getByRole('button', { name: 'Ask about this reading', exact: true });
+          const save = dock.getByRole('button', { name: /^Save (to journal|this reading in your personal journal)$/ });
+          const ask = dock.getByRole('button', { name: /^Ask (about this reading|a follow-up about this reading and your next reflection)$/ });
           await offerInstall(page);
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
-          await save.locator('span').evaluate(element => { element.textContent = 'Save this reading in your personal journal'; });
-          await ask.locator('span').evaluate(element => { element.textContent = 'Ask a follow-up about this reading and your next reflection'; });
+          await save.evaluate(element => { element.textContent = 'Save this reading in your personal journal'; });
+          await ask.evaluate(element => { element.textContent = 'Ask a follow-up about this reading and your next reflection'; });
           const tasks = save.locator('..');
-          await page.evaluate(() => document.fonts.ready);
+          await settleReadingLayout(page);
+          await expect(dock).toHaveAttribute('data-reading-flow', 'true');
+          await tasks.scrollIntoViewIfNeeded();
           expect(await tasks.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
           await expect(save).toBeInViewport({ ratio: 1 });
           await expect(ask).toBeInViewport({ ratio: 1 });
