@@ -28,7 +28,9 @@ import {
   Trash,
   PencilSimple,
   Lock,
-  ArrowClockwise
+  ArrowClockwise,
+  ArrowLeft,
+  CaretDown
 } from '@phosphor-icons/react';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { GlobalNav } from '../components/GlobalNav';
@@ -42,6 +44,9 @@ import { useToast } from '../contexts/ToastContext';
 import { useJournal } from '../hooks/useJournal';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
+import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { formatRelativeDay, getTimestamp } from '../../shared/journal/utils.js';
+import { REVERSAL_FRAMEWORK_OPTIONS } from '../lib/preferenceStorage.js';
 import { computeJournalStats, exportJournalEntriesToCsv } from '../lib/journalInsights';
 import { purgeDeletedAccountStorage } from '../lib/deletedAccountStorage.js';
 import {
@@ -175,6 +180,24 @@ function SectionCard({ title, icon: Icon, children, id, highlighted = false, bad
   );
 }
 
+function isCompleteAccountExport(data, ownerId) {
+  const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const isRecordList = value => Array.isArray(value) && value.every(isRecord);
+  const isCollection = (value, key) => isRecord(value) && Number.isSafeInteger(value.count)
+    && value.count >= 0 && isRecordList(value[key]) && value.count === value[key].length;
+  return isRecord(data) && data.exportVersion === 1
+    && typeof data.exportedAt === 'string' && Number.isFinite(Date.parse(data.exportedAt))
+    && isRecord(data.account) && data.account.id === ownerId
+    && (data.analyticsPreferences === null || isRecord(data.analyticsPreferences))
+    && isCollection(data.journal, 'entries')
+    && isCollection(data.followUpConversations, 'conversations')
+    && isCollection(data.readerMemories, 'memories')
+    && isRecord(data.archetypeJourney)
+    && ['cardAppearances', 'badges', 'patternOccurrences'].every(key => isRecordList(data.archetypeJourney[key]))
+    && isRecord(data.sharedJournals)
+    && ['links', 'entries', 'notes'].every(key => isRecordList(data.sharedJournals[key]));
+}
+
 /**
  * AccountPage - User account and subscription management
  */
@@ -183,7 +206,7 @@ export default function AccountPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { user, isAuthenticated, logout, loading: authLoading, checkAuth, resendVerification } = useAuth();
-  const { tier, subscription: _subscription, loading: _subLoading } = useSubscription();
+  const { tier, subscription: _subscription, canUseCloudJournal } = useSubscription();
   const {
     resetOnboarding,
     // Audio settings
@@ -208,13 +231,11 @@ export default function AccountPage() {
   const { publish } = useToast();
   const prefersReducedMotion = useReducedMotion();
   const {
-    entries: journalEntries,
     loading: journalLoading,
     error: journalError,
-    hasMoreEntries: hasMoreJournalEntries,
     loadEntries: loadJournalEntries,
-    loadMoreEntries: loadMoreJournalEntries
-  } = useJournal({ autoLoad: false });
+    loadDeviceEntries
+  } = useJournal({ autoLoad: false, completeHistory: true });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const accountOwner = isAuthenticated ? String(user?.id || '') : null;
@@ -276,6 +297,18 @@ export default function AccountPage() {
   const [journeyResetLoading, setJourneyResetLoading] = useState(false);
   const [journeyResetError, setJourneyResetError] = useState(null);
   const [tutorialResetOpen, setTutorialResetOpen] = useState(false);
+  const [planExpanded, setPlanExpanded] = useState(null);
+  const [discardExitOpen, setDiscardExitOpen] = useState(false);
+  const pendingExitRef = useRef(null);
+  const practiceKey = JSON.stringify([accountOwner, tier, canUseCloudJournal]);
+  const [practiceState, setPracticeStats] = useState({
+    key: practiceKey,
+    loading: isAuthenticated, total: null, lastReadingAt: null, error: null
+  });
+  const practiceStats = practiceState.key === practiceKey ? practiceState
+    : { loading: isAuthenticated, total: null, lastReadingAt: null, error: null };
+  const [exportAllLoading, setExportAllLoading] = useState(false);
+  const [exportAllError, setExportAllError] = useState(null);
   const [highlightHash, setHighlightHash] = useState(location.hash);
   const [highlightedSection, setHighlightedSection] = useState(location.hash.slice(1) || null);
   if (highlightHash !== location.hash) {
@@ -283,8 +316,6 @@ export default function AccountPage() {
     setHighlightedSection(location.hash.slice(1) || null);
   }
 
-  const journalEntriesRef = useRef(journalEntries);
-  const hasMoreEntriesRef = useRef(hasMoreJournalEntries);
   const highlightTimeoutRef = useRef(null);
   const analyticsRequestRef = useRef(null);
   const usageRequestRef = useRef(null);
@@ -329,6 +360,60 @@ export default function AccountPage() {
     return () => observer.disconnect();
   }, [authLoading]);
 
+  // Free and lapsed accounts keep readings on this device. Cloud accounts
+  // only need the aggregate count and latest reading timestamp.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPracticeStats({ key: practiceKey, loading: false, total: null, lastReadingAt: null, error: null });
+      return undefined;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    setPracticeStats({ key: practiceKey, loading: true, total: null, lastReadingAt: null, error: null });
+
+    (async () => {
+      try {
+        if (!canUseCloudJournal) {
+          const result = await loadJournalEntries();
+          if (cancelled) return;
+          if (!result?.success) throw new Error(result?.error || 'Unable to load your journal');
+          const latest = result.entries.reduce((timestamp, entry) => Math.max(timestamp, getTimestamp(entry) ?? 0), 0);
+          setPracticeStats({
+            key: practiceKey, loading: false, total: result.entries.length,
+            lastReadingAt: latest || null, error: null
+          });
+          return;
+        }
+        const response = await fetch('/api/journal?summary=true', {
+          credentials: 'include',
+          signal: controller.signal
+        });
+        const data = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error(data.error || 'Unable to load your journal');
+        }
+        setPracticeStats({
+          key: practiceKey,
+          loading: false,
+          total: Number.isFinite(data?.summary?.total)
+            ? data.summary.total
+            : null,
+          lastReadingAt: data?.summary?.lastReadingAt ?? null,
+          error: null
+        });
+      } catch {
+        if (cancelled || controller.signal.aborted) return;
+        setPracticeStats({ key: practiceKey, loading: false, total: null, lastReadingAt: null, error: 'Unable to load your journal.' });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [isAuthenticated, practiceKey, canUseCloudJournal, loadJournalEntries]);
+
   // Handle upgrade success from Stripe redirect
   useEffect(() => {
     if (searchParams.get('upgrade') === 'success') {
@@ -347,6 +432,7 @@ export default function AccountPage() {
     if (!location.hash) return undefined;
     const id = location.hash.replace('#', '');
     if (!id) return undefined;
+    if (id === 'subscription') setPlanExpanded(true);
     const target = document.getElementById(id);
     if (!target) return undefined;
 
@@ -371,7 +457,7 @@ export default function AccountPage() {
       cancelAnimationFrame(raf);
       clearTimeout(highlightTimeoutRef.current);
     };
-  }, [location.hash, prefersReducedMotion]);
+  }, [location.hash, prefersReducedMotion, authLoading]);
 
   useEffect(() => {
     return () => {
@@ -380,14 +466,6 @@ export default function AccountPage() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    journalEntriesRef.current = journalEntries;
-  }, [journalEntries]);
-
-  useEffect(() => {
-    hasMoreEntriesRef.current = hasMoreJournalEntries;
-  }, [hasMoreJournalEntries]);
 
   // No redirect - guests can access settings sections
 
@@ -656,27 +734,20 @@ export default function AccountPage() {
   }, [passwordSaving, passwordForm]);
 
   const loadAllJournalEntries = useCallback(async () => {
-    if (journalLoading) return journalEntriesRef.current;
+    if (journalLoading) throw new Error('Your journal is still loading. Please try again.');
     setExportLoading(true);
     setExportError(null);
     setExportEntryCount(null);
     try {
-      await loadJournalEntries();
-      await new Promise(resolve => setTimeout(resolve, 0));
-      let safety = 0;
-      while (hasMoreEntriesRef.current && safety < 20) {
-        const result = await loadMoreJournalEntries();
-        if (!result?.appended) break;
-        safety += 1;
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-      const entries = journalEntriesRef.current || [];
+      const result = await loadJournalEntries();
+      if (!result?.success) throw new Error(result?.error || 'Unable to load your journal.');
+      const entries = result.entries;
       setExportEntryCount(entries.length);
       return entries;
     } finally {
       setExportLoading(false);
     }
-  }, [journalLoading, loadJournalEntries, loadMoreJournalEntries]);
+  }, [journalLoading, loadJournalEntries]);
 
   const handleExportPdf = useCallback(async () => {
     try {
@@ -714,77 +785,98 @@ export default function AccountPage() {
   }, [loadAllJournalEntries, publish]);
 
   const handleExportCsv = useCallback(async () => {
-    const entries = await loadAllJournalEntries();
-    if (!entries?.length) {
-      setExportError('No journal entries available to export.');
-      return;
+    try {
+      const entries = await loadAllJournalEntries();
+      if (!entries?.length) {
+        setExportError('No journal entries available to export.');
+        return;
+      }
+      const success = exportJournalEntriesToCsv(entries);
+      if (!success) {
+        setExportError('CSV export failed.');
+        return;
+      }
+      publish({
+        title: 'CSV export started',
+        description: 'Your journal export is downloading.',
+        type: 'success'
+      });
+    } catch (error) {
+      setExportError(error.message || 'CSV export failed.');
     }
-    const success = exportJournalEntriesToCsv(entries);
-    if (!success) {
-      setExportError('CSV export failed.');
-      return;
-    }
-    publish({
-      title: 'CSV export started',
-      description: 'Your journal export is downloading.',
-      type: 'success'
-    });
   }, [loadAllJournalEntries, publish]);
 
-  const handleDownloadAccountData = useCallback(() => {
-    if (typeof document === 'undefined') return;
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      user: {
-        id: user?.id || null,
-        email: user?.email || null,
-        username: user?.username || null
-      },
-      subscription: {
-        tier,
-        status: _subscription?.status || null,
-        provider: _subscription?.provider || null
-      },
-      preferences: {
-        theme,
-        includeMinors,
-        reversalFramework,
-        voiceOn,
-        autoNarrate,
-        ambienceOn,
-        ttsProvider
-      }
-    };
-
+  const handleExportAllData = useCallback(async () => {
+    if (exportAllLoading) return;
+    setExportAllLoading(true);
+    setExportAllError(null);
     try {
+      const response = await fetch('/api/account/export', { credentials: 'include' });
+      const data = await response.json().catch(() => {
+        throw new Error('Unable to read a complete account export. Please try again.');
+      });
+      if (!response.ok) {
+        throw new Error(data?.error || 'Unable to export your data');
+      }
+      if (!isCompleteAccountExport(data, user?.id)) {
+        throw new Error('Unable to read a complete account export. Please try again.');
+      }
+      const localEntries = await loadDeviceEntries();
+
+      // Device-scoped preferences live only in this browser, so they are
+      // merged in here rather than read from the server.
+      const payload = {
+        ...data,
+        devicePreferences: {
+          theme,
+          includeMinors,
+          reversalFramework: reversalFramework || 'auto',
+          voiceOn,
+          autoNarrate,
+          ambienceOn,
+          ttsProvider,
+          ttsSpeed
+        }
+      };
+      const entries = new Map(data.journal.entries.map((entry, index) => [entry.id || `server-${index}`, entry]));
+      localEntries.forEach((entry, index) => {
+        const key = entry.id || `device-${index}`;
+        entries.set(key, { ...entries.get(key), ...entry });
+      });
+      payload.journal = { count: entries.size, entries: [...entries.values()] };
+
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'tableu-account-data.json');
+      link.setAttribute('download', `tableu-export-${new Date().toISOString().slice(0, 10)}.json`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      const readings = payload.journal?.count ?? 0;
+      const memories = data?.readerMemories?.count ?? 0;
       publish({
-        title: 'Account summary ready',
-        description: 'Your profile, plan details and device preferences are downloading as JSON.',
+        title: 'Export ready',
+        description: `${readings} ${readings === 1 ? 'reading' : 'readings'} and ${memories} ${memories === 1 ? 'memory' : 'memories'} are downloading as JSON.`,
         type: 'success'
       });
-    } catch {
+    } catch (error) {
+      const message = error.message || 'Unable to export your data.';
+      setExportAllError(message);
       publish({
-        title: 'Download failed',
-        description: 'Unable to download your account summary.',
+        title: 'Export failed',
+        description: message,
         type: 'error'
       });
+    } finally {
+      setExportAllLoading(false);
     }
   }, [
+    exportAllLoading,
     user?.id,
-    user?.email,
-    user?.username,
-    tier,
-    _subscription?.status,
-    _subscription?.provider,
+    loadDeviceEntries,
     theme,
     includeMinors,
     reversalFramework,
@@ -792,6 +884,7 @@ export default function AccountPage() {
     autoNarrate,
     ambienceOn,
     ttsProvider,
+    ttsSpeed,
     publish
   ]);
 
@@ -966,12 +1059,14 @@ export default function AccountPage() {
   }, [user, verificationSending, resendVerification, publish]);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/', { replace: true });
+    requestAccountExit(async () => {
+      await logout();
+      navigate('/', { replace: true });
+    });
   };
 
   const handleReplayTutorial = () => {
-    setTutorialResetOpen(true);
+    requestAccountExit(() => setTutorialResetOpen(true));
   };
 
   const confirmReplayTutorial = useCallback(() => {
@@ -1007,6 +1102,85 @@ export default function AccountPage() {
   }, [journeyResetLoading, publish]);
 
   // Loading state - only wait for auth, not subscription (guests don't need it)
+  // Unsaved profile edits must survive the exits, not just the Save button.
+  const hasProfileChanges = Boolean(
+    (profileForm.username.trim() && profileForm.username.trim() !== user?.username) ||
+    (profileForm.email.trim() && profileForm.email.trim().toLowerCase() !== user?.email)
+  );
+  const hasUnsavedProfileEdits = profileEditing && hasProfileChanges;
+
+  useEffect(() => {
+    if (!hasUnsavedProfileEdits) return undefined;
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedProfileEdits]);
+
+  const requestAccountExit = useCallback((action) => {
+    if (!hasUnsavedProfileEdits) {
+      void action();
+      return;
+    }
+    pendingExitRef.current = action;
+    setDiscardExitOpen(true);
+  }, [hasUnsavedProfileEdits]);
+
+  const handleInternalLinkClick = useCallback((event) => {
+    if (!hasUnsavedProfileEdits || event.defaultPrevented || event.button !== 0
+      || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest?.('a[href]');
+    if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+    const target = new URL(link.href, window.location.href);
+    if (target.origin !== window.location.origin) return;
+    if (target.pathname === location.pathname && target.search === location.search) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (target.hash === '#subscription') setPlanExpanded(true);
+      // Native hash clicks emit popstate. Replace the section through the
+      // router while preserving the page's guard entry, so only Back is an exit.
+      const guard = window.history.state?.tableuOverlayGuard;
+      navigate(`${target.pathname}${target.search}${target.hash}`, { replace: true });
+      if (guard) {
+        window.history.replaceState({ ...window.history.state, tableuOverlayGuard: guard }, '');
+      }
+      return;
+    }
+    if (target.pathname === location.pathname) return;
+    event.preventDefault();
+    event.stopPropagation();
+    requestAccountExit(() => navigate(`${target.pathname}${target.search}${target.hash}`));
+  }, [hasUnsavedProfileEdits, location.pathname, location.search, navigate, requestAccountExit]);
+
+  useAndroidBackGuard(hasUnsavedProfileEdits, {
+    enabled: true,
+    guardId: 'account-profile',
+    onBack: () => {
+      if (discardExitOpen) {
+        setDiscardExitOpen(false);
+        pendingExitRef.current = null;
+        return;
+      }
+      // The page guard restores its extra history entry while the dialog is
+      // open. Discard must pass both that entry and the current account route.
+      requestAccountExit(() => navigate(window.history.state?.tableuOverlayGuard ? -2 : -1));
+    }
+  });
+
+  const confirmDiscardAndExit = useCallback(async () => {
+    setDiscardExitOpen(false);
+    const action = pendingExitRef.current;
+    pendingExitRef.current = null;
+    // An asynchronous action must take over the guard entry before cleanup
+    // can pop it; otherwise logout can land back on Account after navigating.
+    await action?.();
+    setProfileEditing(false);
+    setProfileForm({ username: user?.username || '', email: user?.email || '' });
+  }, [user?.username, user?.email]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-main flex items-center justify-center">
@@ -1089,7 +1263,7 @@ export default function AccountPage() {
   const subscriptionStatusLine = shouldShowStatusLine ? statusLineParts.join(' · ') : null;
   const needsPaymentUpdate = ['past_due', 'unpaid'].includes(statusValue);
   const needsResubscribe = statusValue === 'canceled';
-  const hasActiveSubscription = ['active', 'trialing'].includes(statusValue);
+  const hasActiveSubscription = isPaid && ['active', 'trialing'].includes(statusValue);
   const billingIntervalSource = subscriptionDetails?.billingInterval
     || subscriptionDetails?.plan?.interval
     || stripeMeta?.plan?.interval
@@ -1161,10 +1335,6 @@ export default function AccountPage() {
   const nextEmail = profileForm.email.trim();
   const isUsernameValid = !nextUsername || usernameRule.test(nextUsername);
   const isEmailValid = !nextEmail || emailRule.test(nextEmail);
-  const hasProfileChanges = Boolean(
-    (nextUsername && nextUsername !== user?.username) ||
-    (nextEmail && nextEmail.toLowerCase() !== user?.email)
-  );
   const profileSaveDisabled = profileSaving || !hasProfileChanges || !isUsernameValid || !isEmailValid;
   const passwordLengthValid = !passwordForm.next || passwordForm.next.length >= 8;
   const passwordMatch = !passwordForm.confirm || passwordForm.next === passwordForm.confirm;
@@ -1173,28 +1343,34 @@ export default function AccountPage() {
   );
   const passwordSaveDisabled = passwordSaving || !passwordReady;
   const isSocialAuth = Boolean(user?.auth_provider && user.auth_provider !== 'session');
-  const reversalDescriptions = {
-    auto: 'Balances context, card meaning, and spread position.',
-    blocked: 'Reversals highlight blocked or resisted energy.',
-    delayed: 'Reversals point to timing issues and delays.',
-    internalized: 'Reversals indicate inward or private processing.',
-    contextual: 'Reversals adapt to your question context.',
-    shadow: 'Reversals reveal shadow work and integration.',
-    mirror: 'Reversals reflect your current state back to you.',
-    potentialBlocked: 'Reversals show unrealized potential or hesitations.'
-  };
   const reversalKey = reversalFramework || 'auto';
-  const reversalDescription = reversalDescriptions[reversalKey] || reversalDescriptions.auto;
+  const reversalDescription = (REVERSAL_FRAMEWORK_OPTIONS.find(option => option.value === reversalKey)
+    || REVERSAL_FRAMEWORK_OPTIONS[0]).description;
+
+  // Plan collapses to one summary row unless the account needs attention.
+  const planOpen = planExpanded === null ? (showStatusBanner || location.hash === '#subscription') : planExpanded;
+  const planSummaryLine = isPaid ? statusLabel : 'Free plan';
+  const practiceLastLabel = formatRelativeDay(practiceStats.lastReadingAt);
+  const deleteBillingMessage = !hasActiveSubscription ? null
+    : isStoreProvider
+      ? `Deleting your account does not cancel your ${providerLabel} subscription. Cancel it separately in ${providerLabel} to avoid future charges.`
+      : subscriptionProvider === 'stripe'
+        ? 'Account deletion requests cancellation of your Stripe subscription. You can manage billing first to confirm cancellation.'
+        : 'Manage your subscription through your billing provider before deleting your account to avoid future charges.';
+  const deleteAccountMessage = [
+    deleteBillingMessage,
+    'This permanently deletes your journal, analytics, shared content, and memories. Use Export all data (JSON) first if you want a copy.'
+  ].filter(Boolean).join('\n\n');
 
   return (
-    <div ref={pageRef} className="min-h-screen bg-main text-main">
+    <div ref={pageRef} onClickCapture={handleInternalLinkClick} className="min-h-screen bg-main text-main">
       {/* Unified header with GlobalNav (includes UserMenu via withUserChip) - sticky with safe-area padding */}
       <header
         ref={headerRef}
         className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
       >
         <div className="mx-auto max-w-2xl px-4 py-3">
-          <GlobalNav condensed withUserChip />
+          <GlobalNav condensed withUserChip onRequestExit={requestAccountExit} />
         </div>
       </header>
 
@@ -1209,9 +1385,10 @@ export default function AccountPage() {
           </div>
           <Link
             to="/"
-            className="min-h-touch min-w-touch inline-flex items-center justify-center rounded-full border border-secondary/40 px-3 py-2 text-xs font-semibold text-muted hover:text-main hover:border-secondary/60 transition"
+            className="min-h-touch inline-flex items-center gap-1.5 self-start rounded-full px-1 py-2 text-xs font-medium text-muted hover:text-main transition sm:self-auto"
           >
-            Done
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Back to reading
           </Link>
         </div>
 
@@ -1228,7 +1405,7 @@ export default function AccountPage() {
           <div className="flex items-center gap-2 min-w-max">
             {[
               { id: 'profile', label: 'Profile', authOnly: true },
-              { id: 'subscription', label: 'Subscription', authOnly: true },
+              { id: 'subscription', label: 'Plan', authOnly: true },
               { id: 'audio', label: 'Audio', authOnly: false },
               { id: 'display', label: 'Display', authOnly: false },
               { id: 'reading', label: 'Reading', authOnly: false },
@@ -1318,6 +1495,49 @@ export default function AccountPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Your Practice - the lead card: continuity first, billing later */}
+        {isAuthenticated && (
+        <SectionCard title="Your practice" icon={Sparkle} id="practice" highlighted={highlightedSection === 'practice'}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-baseline gap-x-8 gap-y-3">
+              <div>
+                <p className="font-serif text-3xl leading-none text-main tabular-nums">
+                  {practiceStats.loading ? '—' : (practiceStats.total ?? '—')}
+                </p>
+                <p className="text-xs text-muted mt-1.5">
+                  {(practiceStats.total ?? 0) === 1 ? 'reading kept' : 'readings kept'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-main">
+                  {practiceStats.loading || practiceStats.total === null ? '—' : (practiceLastLabel || 'None yet')}
+                </p>
+                <p className="text-xs text-muted mt-1.5">Last reading</p>
+              </div>
+            </div>
+            <Link
+              to="/journal"
+              className="min-h-touch inline-flex items-center gap-1.5 rounded-full border border-secondary/40 px-3 py-2 text-xs font-semibold text-main hover:border-secondary/60 hover:bg-secondary/10 transition"
+            >
+              Open journal
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
+          </div>
+
+          {practiceStats.error && (
+            <p className="text-xs text-error mt-3">{practiceStats.error}</p>
+          )}
+
+          {!practiceStats.loading && practiceStats.total === 0 && !practiceStats.error && (
+            <p className="text-sm text-muted mt-3">
+              No readings yet. Your first spread will appear here.
+            </p>
+          )}
+
+          <MemoryManager variant="embedded" />
+        </SectionCard>
         )}
 
         {/* Profile Section - Auth only */}
@@ -1603,40 +1823,36 @@ export default function AccountPage() {
         </SectionCard>
         )}
 
-        {/* Subscription Section - Auth only */}
+        {/* Plan & Usage Section - Auth only. Collapsed to one row by default
+            so billing never outranks the practice or the preferences. */}
         {isAuthenticated && (
-        <SectionCard title="Subscription" icon={CreditCard} id="subscription" highlighted={highlightedSection === 'subscription'}>
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            <div className={`h-12 w-12 shrink-0 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
-              <TierIcon className={`h-6 w-6 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
+        <SectionCard title="Plan & usage" icon={CreditCard} id="subscription" highlighted={highlightedSection === 'subscription'}>
+          <button
+            type="button"
+            onClick={() => setPlanExpanded(!planOpen)}
+            aria-expanded={planOpen}
+            aria-controls="plan-usage-details"
+            className={`w-full min-h-touch flex flex-wrap items-center gap-3 rounded-xl text-left transition hover:bg-secondary/5 ${ACCENT_SOFT_RING_WITH_SURFACE_OFFSET}`}
+          >
+            <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${isPaid ? 'bg-accent/20' : 'bg-secondary/20'}`}>
+              <TierIcon className={`h-5 w-5 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
             </div>
-            <div className="min-w-0 flex-[1_1_10rem] wrap-anywhere">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-lg font-semibold text-main">{tierConfig.name}</p>
-                <span className="text-xs uppercase tracking-wider text-muted bg-secondary/20 px-2 py-0.5 rounded-full">
-                  {tierConfig.label}
-                </span>
-              </div>
-              <p className="text-sm text-muted">
-                {isPaid ? (
-                  <>${tierConfig.price}/month</>
-                ) : (
-                  'Free plan'
-                )}
+            <div className="min-w-[min(100%,8rem)] flex-1">
+              <p className="text-sm font-semibold text-main">{tierConfig.name}</p>
+              <p className="text-xs text-muted">
+                {subscriptionDetailsLoading ? 'Loading plan…' : planSummaryLine}
               </p>
-              {billingLine && (
-                <p className="text-xs text-muted mt-1">Billing: {billingLine}</p>
-              )}
-              {subscriptionDetailsLoading ? (
-                <p className="text-xs text-muted mt-1">Loading subscription status…</p>
-              ) : subscriptionStatusLine ? (
-                <p className="text-xs text-muted mt-1">{subscriptionStatusLine}</p>
-              ) : null}
-              {subscriptionDetailsError && (
-                <p className="text-xs text-error mt-1">{subscriptionDetailsError}</p>
-              )}
             </div>
-          </div>
+            <span className="text-xs font-semibold text-muted">{planOpen ? 'Hide' : 'Details'}</span>
+            <CaretDown
+              className={`h-4 w-4 shrink-0 text-muted transition-transform ${planOpen ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+
+          {subscriptionDetailsError && (
+            <p className="text-xs text-error mt-2">{subscriptionDetailsError}</p>
+          )}
 
           {showStatusBanner && (
             <div
@@ -1684,6 +1900,11 @@ export default function AccountPage() {
               )}
             </div>
           )}
+
+          <div id="plan-usage-details" hidden={!planOpen} className="mt-4 border-t border-secondary/20 pt-4">
+          <p className="text-xs text-muted mb-1">{isPaid ? `$${tierConfig.price}/month` : 'Free plan'}</p>
+          {billingLine && <p className="text-xs text-muted mb-1">Billing: {billingLine}</p>}
+          {subscriptionStatusLine && <p className="text-xs text-muted mb-4">{subscriptionStatusLine}</p>}
 
           {/* Current plan features */}
           <div className="border-t border-secondary/20 pt-4 mb-4">
@@ -1951,6 +2172,7 @@ export default function AccountPage() {
               Use this if you upgraded on another device or storefront.
             </p>
           </div>
+          </div>
         </SectionCard>
         )}
 
@@ -2110,7 +2332,7 @@ export default function AccountPage() {
         </SectionCard>
 
         {/* Reading Preferences Section */}
-        <SectionCard title="Reading Preferences" icon={Sparkle} id="reading" highlighted={highlightedSection === 'reading'}>
+        <SectionCard title="Reading Preferences" icon={Sparkle} id="reading" highlighted={highlightedSection === 'reading'} badge={<DeviceOnlyChip />}>
           <div className="divide-y divide-secondary/20">
             <SettingsToggle
               id="deck-toggle"
@@ -2139,18 +2361,13 @@ export default function AccountPage() {
               "
               aria-describedby="reversal-description"
             >
-              <option value="auto">Auto (recommended)</option>
-              <option value="blocked">Blocked energy</option>
-              <option value="delayed">Timing & delays</option>
-              <option value="internalized">Internal process</option>
-              <option value="contextual">Context-based</option>
-              <option value="shadow">Shadow Integration (Jungian)</option>
-              <option value="mirror">Mirror / reflection</option>
-              <option value="potentialBlocked">Unrealized potential</option>
+              {REVERSAL_FRAMEWORK_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
             <p id="reversal-description" className="mt-2 text-xs text-muted">
               {reversalDescription}
-              <span className="block">Applies to future readings only.</span>
+              <span className="block">Saved on this device. Applies to future readings only.</span>
             </p>
           </div>
         </SectionCard>
@@ -2160,8 +2377,8 @@ export default function AccountPage() {
         <SectionCard title="Privacy & Data" icon={ShieldCheck} id="privacy" highlighted={highlightedSection === 'privacy'}>
           <div className="space-y-4">
             <p className="text-xs text-muted">
-              We store your readings and analytics to sync across devices. Theme and audio settings stay on this device.
-              You can export or delete your data anytime.
+              Your journal may be stored in this browser or synced with Plus or Pro. Device preferences stay in this browser.
+              {' '}Use the export controls below to keep a copy before deleting data.
             </p>
 
             <div className="divide-y divide-secondary/20">
@@ -2229,8 +2446,30 @@ export default function AccountPage() {
                 data-section-heading="true"
                 className="text-xs uppercase tracking-wider text-muted mb-2"
               >
-                Export
+                Export your data
               </h3>
+              <button
+                type="button"
+                onClick={handleExportAllData}
+                disabled={exportAllLoading || exportLoading || journalLoading}
+                className={`
+                  min-h-touch min-w-touch w-full inline-flex items-center justify-center gap-2 rounded-full
+                  border border-accent/60 bg-accent/10 px-4 py-2.5 text-xs font-semibold text-main
+                  hover:bg-accent/20 transition
+                  ${exportAllLoading || exportLoading || journalLoading ? 'opacity-70 cursor-not-allowed' : ''}
+                `}
+              >
+                <DownloadSimple className="h-4 w-4" />
+                {exportAllLoading ? 'Preparing export…' : 'Export all data (JSON)'}
+                {exportAllLoading && <CircleNotch className="h-3.5 w-3.5 animate-spin" />}
+              </button>
+              <p className="text-xs text-muted mt-2">
+                Your readings, follow-up conversations, memories, Journey history, share links and notes, profile, and plan in one file.
+                <span className="block">Includes your readings saved in this browser.</span>
+              </p>
+              {exportAllError && <p className="text-xs text-error mt-2" role="alert">{exportAllError}</p>}
+
+              <p className="text-xs uppercase tracking-wider text-muted mt-4 mb-2">Journal only</p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
@@ -2261,6 +2500,7 @@ export default function AccountPage() {
                   Export CSV
                 </button>
               </div>
+              <p className="text-xs text-muted mt-2">PDF and CSV include journal entries only.</p>
               {(exportLoading || journalLoading) && (
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted">
                   <CircleNotch className="h-3.5 w-3.5 animate-spin text-accent" />
@@ -2275,20 +2515,8 @@ export default function AccountPage() {
             </div>
 
             <div className="pt-4 border-t border-secondary/20">
-              <p className="text-xs uppercase tracking-wider text-muted mb-2">Account data</p>
+              <p className="text-xs uppercase tracking-wider text-muted mb-2">Account removal</p>
               <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={handleDownloadAccountData}
-                  className="
-                    min-h-touch min-w-touch w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full
-                    border border-secondary/50 bg-transparent px-4 py-2.5 text-xs font-semibold text-main
-                    hover:bg-secondary/10 transition
-                  "
-                >
-                  <DownloadSimple className="h-4 w-4" />
-                  Download account summary
-                </button>
                 <div className="space-y-2">
                   {hasActiveSubscription && (
                     <div
@@ -2315,6 +2543,7 @@ export default function AccountPage() {
                           Manage subscription
                         </button>
                       </div>
+                      {portalError && <p className="mt-2 text-error" role="alert">{portalError}</p>}
                     </div>
                   )}
                   <button
@@ -2331,7 +2560,7 @@ export default function AccountPage() {
                     Delete account
                   </button>
                   <p id="account-delete-description" className="text-xs text-muted">
-                    Deleting your account removes your synced journal, analytics, and memories. This cannot be undone.
+                    Deleting your account removes your journal, analytics, shared content, and memories. This cannot be undone.
                   </p>
                 </div>
               </div>
@@ -2340,8 +2569,7 @@ export default function AccountPage() {
         </SectionCard>
         )}
 
-        {/* Reader Memory Section - Auth only */}
-        {isAuthenticated && <MemoryManager />}
+        {/* Reader Memory now lives inside the leading "Your practice" card */}
 
         {/* Actions Section - Auth only */}
         {isAuthenticated && (
@@ -2383,11 +2611,7 @@ export default function AccountPage() {
           onClose={() => setDeleteModalOpen(false)}
           onConfirm={handleDeleteAccount}
           title="Delete account?"
-          message={
-            hasActiveSubscription
-              ? `⚠️ Deleting your account does not cancel your subscription billing. Please manage your subscription ${isStoreProvider ? `in ${providerLabel}` : 'first'} to avoid future charges.\n\nThis permanently deletes your synced journal, analytics, and memories.`
-              : "This permanently deletes your synced journal, analytics, and memories. You will lose access immediately."
-          }
+          message={deleteAccountMessage}
           confirmText={deleteLoading ? 'Deleting...' : 'Delete account'}
           cancelText="Keep account"
           variant="danger"
@@ -2408,6 +2632,21 @@ export default function AccountPage() {
         />
 
         <ConfirmModal
+          isOpen={discardExitOpen}
+          onClose={() => {
+            setDiscardExitOpen(false);
+            pendingExitRef.current = null;
+          }}
+          onConfirm={confirmDiscardAndExit}
+          title="Discard your changes?"
+          message="You edited your profile but haven't saved. Leaving now discards those edits."
+          confirmText="Discard and leave"
+          cancelText="Keep editing"
+          variant="danger"
+          closeOnBack={false}
+        />
+
+        <ConfirmModal
           isOpen={tutorialResetOpen}
           onClose={() => setTutorialResetOpen(false)}
           onConfirm={confirmReplayTutorial}
@@ -2425,7 +2664,7 @@ export default function AccountPage() {
             to="/"
             className="min-h-touch min-w-touch inline-flex items-center text-sm text-muted hover:text-accent transition"
           >
-            Back to Reading
+            Back to reading
           </Link>
         </div>
         <InstallFooter />

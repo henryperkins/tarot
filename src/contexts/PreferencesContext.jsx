@@ -4,7 +4,7 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience, normalizeTtsProvider } from '../lib/audio';
 import { safeStorage } from '../lib/safeStorage';
-import { migrateLegacyPersonalization, safeSessionStorage } from '../lib/preferenceStorage';
+import { migrateLegacyPersonalization, REVERSAL_FRAMEWORK_KEYS, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
 import {
   DEFAULT_PERSONALIZATION,
@@ -188,7 +188,15 @@ export function PreferencesProvider({ children }) {
   }, [deckStyleId]);
 
   // --- Deck Scope & Composition ---
-  const [includeMinors, setIncludeMinors] = useState(true); // Default to full 78 cards
+  // Device-scoped: survives reload and is labelled "Device only" in settings.
+  const [includeMinors, setIncludeMinors] = useState(() => {
+    const stored = safeStorage.getItem('tarot-include-minors');
+    return stored === null ? true : stored !== 'false'; // Default to full 78 cards
+  });
+
+  useEffect(() => {
+    safeStorage.setItem('tarot-include-minors', includeMinors.toString());
+  }, [includeMinors]);
 
   // Computed deck properties
   const { deckSize, minorsDataIncomplete } = useMemo(() => {
@@ -200,8 +208,20 @@ export function PreferencesProvider({ children }) {
   }, [includeMinors]);
 
   // --- Reversal Framework ---
-  // Not persisted by default in original code, but kept as state
-  const [reversalFramework, setReversalFramework] = useState(null);
+  // Device-scoped. `null` means "Auto"; every other value is a named lens.
+  const [reversalFramework, setReversalFramework] = useState(() => {
+    const stored = safeStorage.getItem('tarot-reversal-framework');
+    if (!stored || stored === 'auto') return null;
+    return REVERSAL_FRAMEWORK_KEYS.includes(stored) ? stored : null;
+  });
+
+  useEffect(() => {
+    if (reversalFramework) {
+      safeStorage.setItem('tarot-reversal-framework', reversalFramework);
+    } else {
+      safeStorage.removeItem('tarot-reversal-framework');
+    }
+  }, [reversalFramework]);
 
   // --- Personalization Preferences ---
   const [personalization, setPersonalizationState] = useState(() =>

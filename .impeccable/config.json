@@ -57,6 +57,42 @@
         ],
         "createdAt": "2026-10-07T15:09:21.007Z",
         "reason": "Claude triage: DESIGN.md declares Inter Variable as the body family; the legal pages mirror the app's type system"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "source serif 4",
+        "files": [
+          "public/support.html"
+        ],
+        "createdAt": "2026-10-21T02:34:56.649Z",
+        "reason": "Codex triage: public/legal.css uses the static Source Serif 4 family matching DESIGN.md's Source Serif 4 Variable; preserve the shared legal-page typography."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "inter",
+        "files": [
+          "public/support.html"
+        ],
+        "createdAt": "2026-10-21T02:34:56.706Z",
+        "reason": "Codex triage: public/legal.css uses the static Inter family matching DESIGN.md's Inter Variable body font; preserve the shared legal-page typography."
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "public/support.html"
+        ],
+        "createdAt": "2026-10-21T02:34:56.759Z",
+        "reason": "Codex triage: detector pairs dark hover #E8DAC3 with light #FFFFFF. legal.css keeps dark hover on #0F0E13/#1C1A22 and light hover #5F4A2C on #FAFAFA/#FFFFFF. Verified all actual text/link/hover pairs: dark minimum 9.09:1, light minimum 5.46:1."
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "public/support.html"
+        ],
+        "createdAt": "2026-10-21T02:34:56.824Z",
+        "reason": "Codex triage: DESIGN.md intentionally specifies Inter Variable for body text. Support shares the established legal.css typography with Privacy."
       }
     ]
   }

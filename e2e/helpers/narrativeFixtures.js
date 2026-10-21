@@ -176,6 +176,7 @@ export async function createNarrativeFixture(page, options = {}) {
       const defaults = {
         '/api/subscription': { subscription: { tier: options.tier || 'pro', status: 'active', provider: 'stripe' } },
         '/api/memories': { memories: [] },
+        '/api/archetype-journey': { analytics: { topCards: [], badges: [], monthlyTotals: [] } },
         '/api/share': { shares: [] },
         '/api/journal/pattern-alerts': { alerts: [] }
       };
@@ -194,6 +195,12 @@ export async function createNarrativeFixture(page, options = {}) {
       return route.fulfill({ json: { entry, deduplicated } });
     }
     if (pathname === '/api/journal') {
+      if (requestUrl.searchParams.get('summary') === 'true') {
+        return route.fulfill({ json: { summary: {
+          total: entries.length,
+          lastReadingAt: entries.length ? Math.max(...entries.map(entry => entry.ts * 1000)) : null
+        } } });
+      }
       const id = requestUrl.searchParams.get('entryId');
       return route.fulfill({ json: id ? { entry: entries.find(entry => entry.id === id) } : { entries, pagination: { hasMore: false, total: entries.length } } });
     }

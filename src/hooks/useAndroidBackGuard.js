@@ -33,6 +33,7 @@ const SELF_POP_WINDOW_MS = 1500;
 let sequence = 0;
 let installed = false;
 let pushState = null;
+let syncingLocation = false;
 
 function entryIsCurrent() {
   return overlayEntry.live && window.history.state?.tableuOverlayGuard === overlayEntry.id;
@@ -58,7 +59,12 @@ function releaseEntry() {
   const isCurrent = entryIsCurrent();
   overlayEntry.live = false;
   if (!isCurrent) return;
-  selfPops.push(Date.now());
+  const state = { ...window.history.state };
+  delete state.tableuOverlayGuard;
+  // A section jump may have replaced the guard's URL/state. Carry that latest
+  // location onto the page entry when removing the temporary guard entry.
+  selfPops.push({ at: Date.now(), href: window.location.href, state,
+    focusedElement: document.activeElement, scrollX: window.scrollX, scrollY: window.scrollY });
   window.history.back();
 }
 
@@ -72,10 +78,31 @@ function restoreEntrySoon() {
 }
 
 function handlePopState() {
+  if (syncingLocation) return;
   const now = Date.now();
-  while (selfPops.length && now - selfPops[0] > SELF_POP_WINDOW_MS) selfPops.shift();
+  while (selfPops.length && now - selfPops[0].at > SELF_POP_WINDOW_MS) selfPops.shift();
   if (selfPops.length) {
-    selfPops.shift();
+    const closing = selfPops.shift();
+    const locationChanged = window.location.href !== closing.href || window.history.state?.key !== closing.state.key;
+    window.history.replaceState(closing.state, document.title, closing.href);
+    if (locationChanged) {
+      // Window POP listeners may already have read the old location. Publish
+      // the repaired one as well, without treating it as another Back gesture.
+      syncingLocation = true;
+      try {
+        window.dispatchEvent(new PopStateEvent('popstate', { state: closing.state }));
+      } finally {
+        syncingLocation = false;
+      }
+      // Browsers restore persisted focus/scroll after the POP event. Retain the
+      // current view instead of the one saved before the section jump.
+      requestAnimationFrame(() => {
+        if (openGuards.length || window.location.href !== closing.href) return;
+        if (closing.focusedElement === document.body) document.activeElement?.blur();
+        else if (closing.focusedElement?.isConnected) closing.focusedElement.focus({ preventScroll: true });
+        window.scrollTo(closing.scrollX, closing.scrollY);
+      });
+    }
     return;
   }
   const innermost = openGuards[openGuards.length - 1];

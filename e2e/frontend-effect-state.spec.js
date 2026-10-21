@@ -16,6 +16,9 @@ async function prepare(page, user = null, entries = []) {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/auth/me') return route.fulfill({ status: currentUser ? 200 : 401, json: { user: currentUser } });
     if (path === '/api/subscription') return route.fulfill({ json: { subscription: { tier: currentUser?.subscription_tier, status: 'active' } } });
+    if (path === '/api/journal' && new URL(route.request().url()).searchParams.get('summary') === 'true') {
+      return route.fulfill({ json: { summary: { total: 0, lastReadingAt: null } } });
+    }
     if (path === '/api/archetype-journey/preferences') return route.fulfill({ json: { preferences: { archetype_journey_enabled: false } } });
     if (path === '/api/usage') return route.fulfill({ json: { trackingAvailable: true, readings: { used: 2, limit: 10, source: 'fixture' } } });
     return route.fulfill({ json: { success: true, entries: [], cards: [], items: [] } });
@@ -56,42 +59,92 @@ test.describe('State ownership through effects', () => {
     await expect(entries).toHaveCount(10);
   });
 
-  test('repeating a full-history query waits for its new result instead of reusing a previous answer', async ({ page }) => {
-    await prepare(page, READER);
-    const entries = journalEntries(200);
-    await page.route('**/api/journal?*', route => route.fulfill({
-      json: { entries, pagination: { hasMore: false, total: entries.length } }
-    }));
-    let searchRequests = 0;
-    let release;
-    const gate = new Promise(resolve => { release = resolve; });
-    await page.route('**/api/journal/search?*', async route => {
-      searchRequests += 1;
-      const repeated = searchRequests > 1;
-      if (repeated) await gate;
-      await route.fulfill({ json: { entries: [{
-        ...entries[0], id: repeated ? 'new-search-answer' : 'old-search-answer',
-        question: repeated ? 'Alpha refreshed result' : 'Alpha cached result'
-      }] } });
+  for (const platform of ['Chromium', 'WebKit @mobile']) {
+    test(`repeating a full-history query from a saved copy waits for its new result (${platform})`, async ({ page }) => {
+      await prepare(page, READER);
+      if (platform.includes('@mobile')) await page.setViewportSize({ width: 390, height: 844 });
+      const entries = journalEntries(200);
+      // The complete cloud journal filters locally. A saved copy may be
+      // incomplete, so this real-page fallback keeps full-history search enabled.
+      await page.addInitScript(({ userId, entries }) => {
+        localStorage.setItem(`tarot_journal_cache_${userId}`, JSON.stringify(entries));
+      }, { userId: READER.id, entries });
+      await page.route('**/api/journal?*', route => route.fulfill({
+        status: 503, json: { error: 'Cloud journal list temporarily unavailable.' }
+      }));
+      let searchRequests = 0;
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      await page.route('**/api/journal/search?*', async route => {
+        searchRequests += 1;
+        const repeated = searchRequests > 1;
+        if (repeated) await gate;
+        await route.fulfill({ json: { entries: [{
+          ...entries[0], id: repeated ? 'new-search-answer' : 'old-search-answer',
+          question: repeated ? 'Alpha refreshed result' : 'Alpha cached result'
+        }] } });
+      });
+      try {
+        await page.goto('/journal');
+        await expect(page.getByText('Cloud journal couldn’t load. Showing a saved copy from this device.', { exact: true })).toBeVisible();
+        await expect(page.getByText('Loaded: 200 of 200', { exact: true })).toBeVisible();
+        const search = page.getByPlaceholder('Search readings...');
+        await search.fill('alpha');
+        await expect(page.locator('#journal-entry-old-search-answer')).toBeVisible();
+        await search.fill('');
+        await expect(page.locator('#journal-entry-effect-entry-0')).toBeVisible();
+        await search.fill('alpha');
+        await expect.poll(() => searchRequests).toBe(2);
+        await expect(page.getByText('Searching your full journal history...', { exact: true })).toBeVisible();
+        await expect(page.locator('#journal-entry-old-search-answer')).toHaveCount(0);
+        release();
+        await expect(page.locator('#journal-entry-new-search-answer')).toBeVisible();
+        expect(searchRequests).toBe(2);
+      } finally {
+        release();
+      }
     });
-    try {
+
+    test(`the complete journal filters repeated queries locally beyond 25 matches (${platform})`, async ({ page }) => {
+      await prepare(page, READER);
+      if (platform.includes('@mobile')) await page.setViewportSize({ width: 390, height: 844 });
+      const entries = journalEntries(200).map((entry, index) => index < 26
+        ? { ...entry, question: `Alpha reflection ${index + 1}` }
+        : entry);
+      const journalQueries = [];
+      const serverSearches = [];
+      await page.route('**/api/journal?*', route => {
+        journalQueries.push(new URL(route.request().url()).searchParams.toString());
+        return route.fulfill({ json: { entries, pagination: {
+          hasMore: false, nextCursor: null, total: 200, limit: 200, offset: 0
+        } } });
+      });
+      await page.route('**/api/journal/search?*', route => {
+        serverSearches.push(route.request().url());
+        return route.fulfill({ status: 500, json: { error: 'Complete history must be filtered locally.' } });
+      });
       await page.goto('/journal');
+      await expect(page.getByText('Loaded: 200 of 200', { exact: true })).toBeVisible();
       const search = page.getByPlaceholder('Search readings...');
       await search.fill('alpha');
-      await expect(page.locator('#journal-entry-old-search-answer')).toBeVisible();
+      await expect(page.getByText('Filtered: 26', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Load 10 more', exact: true }).click();
+      await page.getByRole('button', { name: 'Load 6 more', exact: true }).click();
+      await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(26);
+      await expect(page.locator('#journal-entry-effect-entry-25')).toBeVisible();
       await search.fill('');
-      await expect(page.locator('#journal-entry-effect-entry-0')).toBeVisible();
+      await expect(page.getByText('Filtered: 200', { exact: true })).toBeVisible();
+      await expect(page.locator('[id^="journal-entry-effect-entry-"]')).toHaveCount(10);
       await search.fill('alpha');
-      await expect.poll(() => searchRequests).toBe(2);
-      await expect(page.getByText('Searching your full journal history...', { exact: true })).toBeVisible();
-      await expect(page.locator('#journal-entry-old-search-answer')).toHaveCount(0);
-      release();
-      await expect(page.locator('#journal-entry-new-search-answer')).toBeVisible();
-      expect(searchRequests).toBe(2);
-    } finally {
-      release();
-    }
-  });
+      await expect(page.getByText('Filtered: 26', { exact: true })).toBeVisible();
+      expect(journalQueries.length).toBeGreaterThan(0);
+      for (const query of journalQueries) {
+        expect(new URLSearchParams(query).get('all')).toBe('true');
+        expect(new URLSearchParams(query).get('includeFollowups')).toBe('true');
+      }
+      expect(serverSearches).toEqual([]);
+    });
+  }
 
   test('a deep-linked entry beyond the first batch stays rendered after its highlight expires', async ({ page }) => {
     // Pause before navigation so rendering time cannot consume the brief highlight.
@@ -262,6 +315,7 @@ test.describe('State ownership through effects', () => {
     preferencesRecover = true;
     await page.locator('#analytics').getByRole('button', { name: 'Retry', exact: true }).click();
     await expect(page.getByRole('switch', { name: 'Toggle Archetype Journey', exact: true })).toHaveAttribute('aria-checked', 'true');
+    await page.locator('button[aria-controls="plan-usage-details"]').click();
     usageRecovers = true;
     await page.locator('#subscription').getByRole('button', { name: 'Try again', exact: true }).click();
     await expect(page.locator('#subscription')).not.toContainText('Usage unavailable');

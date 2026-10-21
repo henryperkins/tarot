@@ -10,7 +10,7 @@ import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
  * Allows users to view, add, and delete memories that personalize
  * their follow-up conversations with the tarot reader.
  */
-export function MemoryManager({ className = '' }) {
+export function MemoryManager({ className = '', variant = 'panel' }) {
   const { isAuthenticated } = useAuth();
   const {
     memories,
@@ -46,6 +46,10 @@ export function MemoryManager({ className = '' }) {
 
   const controlShellClass =
     'rounded-[1.75rem] border border-secondary/40 bg-surface/75 p-3 xs:p-4 shadow-lg shadow-secondary/20 backdrop-blur-xl';
+  const isEmbedded = variant === 'embedded';
+  const shellClass = isEmbedded
+    ? 'mt-5 border-t border-secondary/20 pt-5'
+    : controlShellClass;
 
   const handleAddMemory = useCallback(async (e) => {
     e.preventDefault();
@@ -104,8 +108,9 @@ export function MemoryManager({ className = '' }) {
   }, {});
 
   if (!isAuthenticated) {
+    if (isEmbedded) return null;
     return (
-      <div className={`${controlShellClass} ${className}`}>
+      <div className={`${shellClass} ${className}`}>
         <div className="text-center py-4">
           <Brain className="w-8 h-8 mx-auto mb-2 text-muted/60" />
           <p className="text-sm text-muted">Sign in to manage your reading memories</p>
@@ -115,11 +120,17 @@ export function MemoryManager({ className = '' }) {
   }
 
   return (
-    <div ref={panelRef} className={`${controlShellClass} ${className}`}>
+    <div ref={panelRef} className={`${shellClass} ${className}`}>
       {/* Header */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xs sm:text-sm font-serif text-accent uppercase tracking-[0.12em] flex items-center gap-2">
-          <Brain className="w-4 h-4" aria-hidden="true" />
+        <h3
+          className={
+            isEmbedded
+              ? 'text-sm font-semibold text-main flex items-center gap-2'
+              : 'text-xs sm:text-sm font-serif text-accent uppercase tracking-[0.12em] flex items-center gap-2'
+          }
+        >
+          <Brain className={`w-4 h-4 ${isEmbedded ? 'text-accent' : ''}`} aria-hidden="true" />
           Reader Memory
         </h3>
         <div className="flex items-center gap-2">

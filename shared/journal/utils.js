@@ -80,3 +80,23 @@ export function getTimestampSeconds(entry) {
   const ms = getTimestamp(entry);
   return ms !== null ? Math.floor(ms / 1000) : null;
 }
+
+/** Journal dates follow the reader's local calendar, including DST changes. */
+export function formatRelativeDay(value, now = Date.now()) {
+  const timestamp = normalizeTimestamp(value);
+  if (timestamp === null) return null;
+  const date = new Date(timestamp);
+  const today = new Date(now);
+  if (!Number.isFinite(date.getTime()) || !Number.isFinite(today.getTime())) return null;
+
+  const calendarDay = day => Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()) / 86400000;
+  const days = calendarDay(today) - calendarDay(date);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days > 1 && days < 30) return `${days} days ago`;
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() === today.getFullYear() ? {} : { year: 'numeric' })
+  });
+}

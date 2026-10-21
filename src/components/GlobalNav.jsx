@@ -5,9 +5,13 @@ import { ICON_SIZES } from './iconConstants';
 import { UserMenu } from './UserMenu';
 import { JournalBookIcon } from './JournalIcons';
 
-export function GlobalNav({ condensed = false, withUserChip = false }) {
+export function GlobalNav({ condensed = false, withUserChip = false, onRequestExit }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const goTo = (target) => {
+    if (onRequestExit) onRequestExit(() => navigate(target));
+    else navigate(target);
+  };
 
   // Precise route detection: only mark active when on actual route
   const isJournal = location.pathname.startsWith('/journal');
@@ -57,7 +61,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
         >
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => goTo('/')}
             className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isReading ? activeClasses : inactiveClasses}`}
             aria-current={showActiveState && isReading ? 'page' : undefined}
           >
@@ -66,7 +70,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/journal')}
+            onClick={() => goTo('/journal')}
             className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isJournal ? activeClasses : inactiveClasses}`}
             aria-current={showActiveState && isJournal ? 'page' : undefined}
           >
@@ -77,7 +81,7 @@ export function GlobalNav({ condensed = false, withUserChip = false }) {
 
         {withUserChip && (
           <div className="ml-auto max-w-full sm:hidden">
-            <UserMenu condensed />
+            <UserMenu condensed onRequestExit={onRequestExit} />
           </div>
         )}
       </div>

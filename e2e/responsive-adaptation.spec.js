@@ -171,13 +171,25 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.evaluate(() => document.fonts.ready);
         const sectionLinks = page.getByRole('navigation', { name: 'Jump to section' }).getByRole('link');
         for (const link of await sectionLinks.all()) await expectTouchTarget(link);
+        const returnLinks = page.locator('main').getByRole('link', { name: 'Back to reading', exact: true });
+        await expect(returnLinks).toHaveCount(2);
+        for (const link of await returnLinks.all()) await expectTouchTarget(link);
+        for (const name of ['Open journal', 'Forgot password?']) {
+          await expectTouchTarget(page.locator('main').getByRole('link', { name, exact: true }));
+        }
         for (const name of [
-          'Done', 'Edit', 'Password', 'Resend verification', 'Forgot password?',
-          'Refresh', 'Try again', 'Restore purchases', 'Reset Journey data',
-          'Export PDF', 'Export CSV', 'Download account summary', 'Manage subscription', 'Back to Reading'
+          'Edit', 'Password', 'Resend verification', 'Reset Journey data',
+          'Export PDF', 'Export CSV', 'Export all data (JSON)', 'Manage subscription'
         ]) {
-          const control = page.locator('main').getByRole(/Done|Forgot password\?|Back to Reading/.test(name) ? 'link' : 'button', { name, exact: true });
-          await expectTouchTarget(control);
+          await expectTouchTarget(page.locator('main').getByRole('button', { name, exact: true }));
+        }
+        const planToggle = page.locator('button[aria-controls="plan-usage-details"]');
+        await expectTouchTarget(planToggle);
+        await expect(planToggle).toHaveAttribute('aria-expanded', 'false');
+        await planToggle.click();
+        await expect(planToggle).toHaveAttribute('aria-expanded', 'true');
+        for (const name of ['Refresh', 'Try again', 'Restore purchases']) {
+          await expectTouchTarget(page.locator('#subscription').getByRole('button', { name, exact: true }));
         }
         await expectTouchTarget(page.locator('#reversal-framework-select'));
       } finally {

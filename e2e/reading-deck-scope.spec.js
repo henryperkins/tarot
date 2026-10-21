@@ -126,7 +126,7 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     const fullDeck = page.getByRole('switch', { name: 'Toggle Full Deck', exact: true });
     await expect(fullDeck).toHaveAttribute('aria-checked', 'true');
     await fullDeck.click();
-    await page.getByRole('link', { name: 'Back to Reading', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
     await startReading(page, fixture, { setup: false });
     let panel = await openDetails(page);
     await expect(panel).toContainText('Major Arcana focus');
@@ -135,7 +135,7 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
     await expect(fullDeck).toHaveAttribute('aria-checked', 'false');
     await fullDeck.click();
-    await page.getByRole('link', { name: 'Back to Reading', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
     panel = await openDetails(page);
     await expect(panel).toContainText('Major Arcana focus');
     await page.reload();

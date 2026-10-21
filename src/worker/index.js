@@ -53,6 +53,7 @@ import * as subscriptionRestore from '../../functions/api/subscription/restore.j
 import * as accountProfile from '../../functions/api/account/profile.js';
 import * as accountPassword from '../../functions/api/account/password.js';
 import * as accountDelete from '../../functions/api/account/delete.js';
+import * as accountExport from '../../functions/api/account/export.js';
 
 // Auth handlers
 import * as authLogin from '../../functions/api/auth/login.js';
@@ -239,6 +240,7 @@ const routes = [
   { pattern: /^\/api\/account\/profile$/, handlers: accountProfile },
   { pattern: /^\/api\/account\/password$/, handlers: accountPassword },
   { pattern: /^\/api\/account\/delete$/, handlers: accountDelete },
+  { pattern: /^\/api\/account\/export$/, handlers: accountExport },
   { pattern: /^\/api\/journal$/, handlers: journal },
   { pattern: /^\/api\/journal\/search$/, handlers: journalSearch },
   { pattern: /^\/api\/journal\/pattern-alerts$/, handlers: journalPatternAlerts },

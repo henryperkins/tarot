@@ -88,6 +88,27 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
   const { canUseCloudJournal } = useSubscription();
   const namespace = visualStorageNamespace(isAuthenticated ? user?.id : null);
   const namespaceRef = useRef(namespace);
+  // Account exports must include unmigrated device readings on paid tiers too.
+  // Read only this signed-in owner's bucket and fail instead of hiding damage.
+  const loadDeviceEntries = useCallback(() => {
+    if (!isAuthenticated || !userId || isDeletedAccount(userId) || namespaceRef.current !== namespace) {
+      throw new Error('This account is no longer available. Please sign in again.');
+    }
+    try {
+      if (typeof localStorage === 'undefined') throw new Error('Storage unavailable.');
+      const stored = localStorage.getItem(getLocalJournalKey(userId));
+      if (stored === null) return [];
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed) || parsed.some(entry => !entry || typeof entry !== 'object' || Array.isArray(entry))) {
+        throw new Error('Expected a journal entry list.');
+      }
+      // Backup every saved record. Display deduplication can collapse distinct
+      // legacy entries with the same timestamp, spread and cards.
+      return filterDeletedJournalEntries(namespace, parsed).map(projectJournalEntryVisuals);
+    } catch (error) {
+      throw new Error('Unable to read your saved journal.', { cause: error });
+    }
+  }, [isAuthenticated, userId, namespace]);
   const [entryState, setEntryState] = useState({ namespace: visualStorageNamespace(isAuthenticated ? user?.id : null), entries: [] });
   const entries = !isDeletedAccount(userId) && entryState.namespace === visualStorageNamespace(isAuthenticated ? user?.id : null)
     ? filterDeletedJournalEntries(entryState.namespace, entryState.entries) : EMPTY_ENTRIES;
@@ -251,7 +272,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
   }, [completeHistory]);
 
   const loadEntries = useCallback(async () => {
-    if (isDeletedAccount(userId)) return;
+    if (isDeletedAccount(userId)) return { success: false, error: 'This account has been deleted.' };
     prefetchedOnceRef.current = false;
     setLoading(true);
     setError(null);
@@ -261,6 +282,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       total: null
     });
 
+    let loadedEntries = [];
     try {
       if (isAuthenticated && canUseCloudJournal) {
         // Try loading from API first
@@ -281,6 +303,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
           const apiEntries = filterDeletedJournalEntries(namespace, dedupeEntries(data.entries || []))
             .map(item => mergeCachedJournalVisuals(projectJournalEntryVisuals(item), cachedById.get(item.id)));
           setEntries(apiEntries);
+          loadedEntries = apiEntries;
           setPagination({
             hasMore: Boolean(data?.pagination?.hasMore),
             nextCursor: data?.pagination?.nextCursor || null,
@@ -311,6 +334,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
             if (cached) {
               const parsedCache = filterDeletedJournalEntries(namespace, dedupeEntries(JSON.parse(cached))).map(projectJournalEntryVisuals);
               setEntries(parsedCache);
+              loadedEntries = parsedCache;
               persistInsights(parsedCache);
               // Don't set error if we have cache, just warn
               setPagination({
@@ -341,8 +365,10 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
           if (stored) {
             try {
               const parsed = JSON.parse(stored);
-              const safeEntries = filterDeletedJournalEntries(namespace, dedupeEntries(Array.isArray(parsed) ? parsed : [])).map(projectJournalEntryVisuals);
+              if (!Array.isArray(parsed)) throw new Error('Expected a journal entry list.');
+              const safeEntries = filterDeletedJournalEntries(namespace, dedupeEntries(parsed)).map(projectJournalEntryVisuals);
               setEntries(safeEntries);
+              loadedEntries = safeEntries;
               if (typeof window !== 'undefined') {
                 persistInsights(safeEntries);
               }
@@ -353,16 +379,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
               });
             } catch (err) {
               if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
-              console.error('Failed to parse localStorage journal:', err);
-              setEntries([]);
-              if (typeof window !== 'undefined') {
-                persistInsights([]);
-              }
-              setPagination({
-                hasMore: false,
-                nextCursor: null,
-                total: 0
-              });
+              throw new Error('Unable to read your saved journal.', { cause: err });
             }
           } else {
             setEntries([]);
@@ -377,6 +394,8 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
           }
         }
       }
+      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return { success: false, error: 'Account changed.' };
+      return { success: true, entries: loadedEntries };
     } catch (err) {
       if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return;
       console.error('Failed to load journal entries:', err);
@@ -387,6 +406,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
         nextCursor: null,
         total: 0
       });
+      return { success: false, error: err.message };
     } finally {
       if (!isDeletedAccount(userId) && namespaceRef.current === namespace) setLoading(false);
     }
@@ -1046,6 +1066,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
     importLegacyLocalEntries,
     reload: loadEntries,
     loadEntries,
+    loadDeviceEntries,
     loadMoreEntries,
     fetchEntryById
   };

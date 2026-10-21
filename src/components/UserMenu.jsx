@@ -10,7 +10,7 @@ import { DeferredDialog } from './DeferredDialog';
 
 const AuthModal = lazy(() => import('./AuthModal'));
 
-export function UserMenu({ condensed = false, installInMenu = false }) {
+export function UserMenu({ condensed = false, installInMenu = false, onRequestExit }) {
   const { isAuthenticated, user, logout } = useAuth();
   const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
@@ -39,13 +39,21 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    closeDropdown();
+    const action = async () => {
+      await logout();
+      closeDropdown();
+    };
+    if (onRequestExit) onRequestExit(action);
+    else await action();
   };
 
   const handleReplayTutorial = () => {
-    closeDropdown();
-    setTutorialResetOpen(true);
+    const action = () => {
+      closeDropdown();
+      setTutorialResetOpen(true);
+    };
+    if (onRequestExit) onRequestExit(action);
+    else action();
   };
 
   const confirmReplayTutorial = useCallback(() => {

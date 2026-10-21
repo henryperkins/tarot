@@ -29,7 +29,7 @@ for (const [saved, expected] of [[null, 'deepgram'], ['azure-sdk', 'deepgram'], 
       await page.reload();
       await expect(selected).toHaveAttribute('aria-checked', 'true');
       await expect(page.getByRole('switch', { name: 'Toggle Reader Voice' })).toHaveAttribute('aria-checked', 'true');
-      await page.getByRole('link', { name: 'Done', exact: true }).click();
+      await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
       await startReading(page, fixture, { setup: false });
       await expect.poll(() => requests.filter(request => request.context === 'full-reading').length).toBe(1);
       const fullReading = requests.find(request => request.context === 'full-reading');

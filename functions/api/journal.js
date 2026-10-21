@@ -25,6 +25,7 @@ function isMissingColumnError(err) {
  * Returns journal entries for the authenticated user with optional pagination
  *
  * Query params:
+ *   - summary: If "true", returns only total count and latest reading timestamp (ms)
  *   - limit: Max entries to return (default: 100, max: 500)
  *   - offset: Number of entries to skip (default: 0)
  *   - cursor: Optional timestamp (ms) to fetch entries created before this time (descending)
@@ -42,8 +43,24 @@ export async function onRequestGet(context) {
     const denied = journalAccessDenied(user);
     if (denied) return denied;
 
-    // Parse pagination params
     const url = new URL(request.url);
+    if (url.searchParams.get('summary') === 'true') {
+      const summary = await env.DB.prepare(
+        'SELECT COUNT(*) AS total, MAX(created_at) AS last_reading_at FROM journal_entries WHERE user_id = ?'
+      ).bind(user.id).first();
+
+      return new Response(JSON.stringify({
+        summary: {
+          total: summary?.total ?? 0,
+          lastReadingAt: summary?.last_reading_at != null ? summary.last_reading_at * 1000 : null
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+      });
+    }
+
+    // Parse pagination params
     const allParam = url.searchParams.get('all');
     const fetchAll = allParam === 'true' || allParam === '1';
     const includeFollowups = url.searchParams.get('includeFollowups') === 'true';

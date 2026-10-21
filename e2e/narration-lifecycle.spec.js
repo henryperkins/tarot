@@ -60,7 +60,7 @@ test('changing the narrator keeps auto narration enabled for the next reading', 
     await openSetup(page);
     await page.goto('/account#audio');
     await page.getByRole('radio', { name: 'Deepgram Aura-2' }).click();
-    await page.getByRole('link', { name: 'Done', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
     await startReading(page, fixture, { setup: false });
     await expect.poll(() => requests.length).toBe(1);
     expect(requests[0].provider).toBe('deepgram');
