@@ -533,11 +533,14 @@ test('keyboard inspection of an automatic personal quotation pauses queued turns
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const companion = document.querySelector('.gesture-companion').getBoundingClientRect();
         const header = document.querySelector('.header-sticky')?.getBoundingClientRect();
-        const top = Math.max(0, companion.bottom, header?.top <= 1 ? header.bottom : 0);
+        const headerBottom = header?.top <= 1 ? header.bottom : 0;
         const bottom = readableBottom();
         return sources.map(source => {
           const lines = sourceRects(source);
           return lines.length > 0 && lines.every(rect => {
+            // A desktop sidebar beside the prose does not cover its lines.
+            const overlapsCompanion = rect.left < companion.right && rect.right > companion.left;
+            const top = Math.max(0, headerBottom, overlapsCompanion ? companion.bottom : 0);
             const hit = document.elementFromPoint((rect.left + rect.right) / 2, (rect.top + rect.bottom) / 2);
             return rect.left >= 0 && rect.right <= innerWidth && rect.top >= top && rect.bottom <= bottom
               && Boolean(hit && (source.contains(hit) || hit.contains(source)));

@@ -163,11 +163,11 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
   const nextTier = tier === 'free' ? 'plus' : tier === 'plus' ? 'pro' : null;
   const nextTierConfig = nextTier ? SUBSCRIPTION_TIERS[nextTier] : null;
 
-  const renderGuestActions = (close) => (
+  const renderGuestActions = () => (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <button
         type="button"
-        onClick={() => { close(); setShowAuthModal(true); }}
+        onClick={() => setShowAuthModal(true)}
         className="
           flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
           rounded-full bg-primary text-surface
@@ -183,7 +183,6 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
       </button>
       <Link
         to="/account"
-        onClick={() => close()}
         className="
           flex items-center gap-1.5 px-3 sm:px-4 min-h-touch min-w-touch
           rounded-full border border-accent/30 text-accent
@@ -200,7 +199,7 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
       {onboardingComplete && (
         <button
           type="button"
-          onClick={() => { close(); handleReplayTutorial(); }}
+          onClick={handleReplayTutorial}
           className="
             flex items-center justify-center min-w-touch min-h-touch
             rounded-full bg-surface/50 border border-accent/20
@@ -447,7 +446,7 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
             )}
           </div>
         ) : (
-          compactGuest ? <GuestAccountMenu>{renderGuestActions}</GuestAccountMenu> : renderGuestActions(() => {})
+          compactGuest ? <GuestAccountMenu>{renderGuestActions()}</GuestAccountMenu> : renderGuestActions()
         )}
         {installInMenu ? <AppUtilities /> : null}
       </div>

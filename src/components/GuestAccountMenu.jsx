@@ -98,8 +98,18 @@ export function GuestAccountMenu({ children }) {
         <User size={18} aria-hidden="true" />
         <span aria-hidden="true">Account</span>
       </summary>
-      <div ref={panelRef} id={panelId} className="guest-account__panel" role="group" aria-label="Account options">
-        {children(close)}
+      <div
+        ref={panelRef}
+        id={panelId}
+        className="guest-account__panel"
+        role="group"
+        aria-label="Account options"
+        onClickCapture={event => {
+          // Close before a dialog opens so it records the stable trigger.
+          if (event.target.closest?.('button, a[href]')) close();
+        }}
+      >
+        {children}
       </div>
     </details>
   );

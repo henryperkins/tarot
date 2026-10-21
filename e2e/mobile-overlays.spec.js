@@ -206,11 +206,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await expect(page).not.toHaveURL(/from=back-test/);
     });
 
-    test('carousels keep a swipe that runs past their ends', async ({ page }) => {
+    test('spread carousel contains swipes and progress steps wrap within the viewport', async ({ page }) => {
       await openSetup(page);
       await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toHaveCSS('overscroll-behavior-x', 'contain');
-      await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).getByRole('list'))
-        .toHaveCSS('overscroll-behavior-x', 'contain');
+      const steps = page.getByRole('navigation', { name: 'Tarot reading progress' }).getByRole('list');
+      await expect(steps).toHaveCSS('flex-wrap', 'wrap');
+      expect(await steps.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
     });
 
     test.describe('in landscape', () => {

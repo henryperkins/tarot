@@ -377,7 +377,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
     }
 
-    for (const exit of ['journal link', 'global navigation', 'pricing link', 'back link', 'menu plan link', 'sign out', 'menu sign out', 'tutorial', 'menu tutorial', 'browser Back']) {
+    for (const exit of ['journal link', 'global navigation', 'home link', 'pricing link', 'back link', 'menu plan link', 'sign out', 'menu sign out', 'tutorial', 'menu tutorial', 'browser Back']) {
       test(`unsaved profile changes survive ${exit} until discard is confirmed`, async ({ page }) => {
         const fixture = await prepare(page, exit === 'menu plan link' ? {} : {
           subscription_tier: 'pro', subscription_status: 'active', subscription_provider: 'stripe'
@@ -391,7 +391,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await editProfile(page);
         const leave = async () => {
           if (exit === 'journal link') await page.getByRole('link', { name: 'Open journal', exact: true }).click();
-          if (exit === 'global navigation') await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Journal', exact: true }).click();
+          if (exit === 'global navigation') await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
+          if (exit === 'home link') await page.getByRole('link', { name: 'Tableu home', exact: true }).click();
           if (exit === 'back link') await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
           if (exit.startsWith('menu')) {
             await page.getByRole('button', { name: 'User menu for Reader', exact: true }).click();
@@ -421,7 +422,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await expect(page.getByRole('dialog', { name: 'Replay tutorial?' })).toBeVisible();
         } else {
           await expect(page).toHaveURL(exit.includes('journal') || exit === 'global navigation' ? /\/journal$/
-            : ['sign out', 'back link'].includes(exit) ? /\/$/ : exit === 'menu sign out' ? /\/account/ : /\/pricing$/);
+            : ['sign out', 'back link', 'home link'].includes(exit) ? /\/$/ : exit === 'menu sign out' ? /\/account/ : /\/pricing$/);
         }
         if (exit.includes('sign out')) expect(fixture.logoutRequests()).toBe(1);
       });
