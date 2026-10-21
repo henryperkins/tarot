@@ -258,7 +258,7 @@ describe('buildSpreadCompanionCards', () => {
 });
 
 describe('deriveNarrativeVisibility', () => {
-  test('enables desktop insight controls and auto visuals for eligible completed readings', () => {
+  test('keeps eligible completed-reading visuals manual even with the legacy auto flag', () => {
     const state = deriveNarrativeVisibility({
       personalReading: { raw: 'Completed reading' },
       isPersonalReadingError: false,
@@ -289,7 +289,9 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.shouldShowSpreadInsights, true);
     assert.equal(state.canUseMediaGallery, true);
     assert.equal(state.shouldShowVisualCompanion, true);
-    assert.equal(state.visualCompanionModeLabel, 'Auto generation on');
+    assert.equal(state.autoGenerateVisuals, false);
+    assert.equal(state.visualCompanionModeLabel, 'Generate on demand');
+    assert.equal(state.visualCompanionMessage, 'Generate artwork that stays anchored to this reading.');
   });
 
   test('keeps insight controls available on handset layouts', () => {
@@ -321,7 +323,7 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.focusToggleAvailable, true);
   });
 
-  test('can restore insights after entering focus mode and narrowing the viewport', () => {
+  test('keeps insight content available while the completion container hides extra panels', () => {
     const state = deriveNarrativeVisibility({
       themes: { knowledgeGraph: { narrativeHighlights: [{ text: 'A pattern' }] } },
       visibleCount: 3,
@@ -329,7 +331,7 @@ describe('deriveNarrativeVisibility', () => {
       isNarrativeFocus: true,
       isHandset: true
     });
-    assert.equal(state.shouldShowSpreadInsights, false);
+    assert.equal(state.shouldShowSpreadInsights, true);
     assert.equal(state.focusToggleAvailable, true);
   });
 });

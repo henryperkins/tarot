@@ -23,7 +23,7 @@
 .reading-screen__subtitle { color: var(--text-muted); font-size: 1rem; }
 .reading-screen__header { position: relative; }
 .reading-options { margin: -1rem 0 1rem; font-size: .875rem; color: var(--text-muted); }
-.reading-options summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.reading-options summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .reading-options button { margin-bottom: .75rem; }
 .reading-question { margin: 0 0 1.5rem; }
 .reading-question > span {
@@ -166,7 +166,7 @@
 .reading-screen__secondary { color: var(--text-main); border: 1px solid var(--brand-secondary); background: transparent; }
 .reading-screen__primary:disabled { opacity: .65; cursor: wait; }
 .reading-about { margin: 2rem 0 .5rem; color: var(--text-muted); font-size: .875rem; }
-.reading-about summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.reading-about summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .reading-screen__status { max-width: 42rem; margin-inline: auto; }
 .reading-screen__companion { display: none; }
 .reading-screen--preparing { max-width: 42rem; padding-block: 1rem; container: reading-preparation / inline-size; }
@@ -233,13 +233,17 @@
 .app-shell--reading .reading-dock button { font-size: .9375rem; box-shadow: none; }
 .app-shell--reading .reading-dock button > span { font-size: .9375rem; }
 .reading-support { max-width: 42rem; margin: 2rem auto 1rem; border-top: 1px solid var(--border-warm); }
-.reading-support > summary { display: flex; align-items: center; min-height: 52px; font-size: 1rem; cursor: pointer; color: var(--text-muted); }
+.reading-support > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; font-size: 1rem; cursor: pointer; color: var(--text-muted); }
+.reading-support-layout__main { width: 100%; max-width: 42rem; min-width: 0; margin-inline: auto; }
+/* Supporting sections share the prose edge and its quiet surface. The studio
+   and media dialogs are portaled outside this scope and retain overlay styles. */
+.reading-support .panel-mystic { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+.reading-support .panel-mystic::before, .reading-support .panel-mystic::after { display: none; }
+.reading-disclosure__icon { width: 20px; height: 20px; flex-shrink: 0; }
+details[open] > summary > .reading-disclosure__icon { transform: rotate(180deg); }
 @keyframes reading-preparation-turn { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .reading-preparation__spinner { animation: none; } }
 @media (min-width: 1024px) {
-  .reading-screen--with-companion { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 42rem); gap: 3rem; justify-content: center; }
-  .reading-screen__companion { display: block; min-width: 0; }
-  .reading-screen__companion .gesture-companion { position: sticky; top: calc(var(--sticky-header-height, 64px) + 24px); }
   .reading-prose p, .reading-prose li { font-size: 1.125rem; }
   .reading-screen--preparing { padding-top: 2rem; }
   .reading-spread__cards--small { gap: 18px; }
@@ -248,7 +252,8 @@
 .reading-screen__companion { display: none; }
 .reading-screen__mobile-companion { min-width: 0; }
 @media (min-width: 1100px) {
-  .reading-screen--with-companion { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 42rem); gap: 3rem; justify-content: center; }
+  .reading-screen--with-companion, .reading-support-layout--with-companion { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 42rem); gap: 3rem; justify-content: center; }
+  .reading-support-layout--with-companion > .reading-support-layout__main { grid-column: 2; }
   .reading-screen__companion { display: block; min-width: 0; }
   .reading-screen__companion .gesture-companion { position: sticky; top: calc(var(--sticky-header-height, 64px) + 24px); }
   .reading-screen__mobile-companion { display: none; }

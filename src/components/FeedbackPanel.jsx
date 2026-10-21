@@ -69,6 +69,7 @@ export function FeedbackPanel({
   const statusId = useId();
   const errorId = useId();
   const panelId = useId();
+  const notesId = useId();
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   const hasSubmitted = status === 'success';
@@ -124,7 +125,7 @@ export function FeedbackPanel({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full py-3"
+      className="w-full border-t border-secondary/30 py-4"
       aria-describedby={error ? errorId : undefined}
     >
       <h2>
@@ -133,10 +134,10 @@ export function FeedbackPanel({
           onClick={() => setIsCollapsed((prev) => !prev)}
           aria-expanded={!isCollapsed}
           aria-controls={panelId}
-          className="w-full flex items-center justify-between gap-3 rounded-lg border-t border-accent/30 px-1 py-3 hover:border-accent transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="w-full flex items-center justify-between gap-3 rounded-md py-3 text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           <span className="min-w-0 text-left">
-            <span className="block text-sm font-semibold text-main">How did this reading land?</span>
+            <span className="block text-base font-semibold text-main">How did this reading land?</span>
             <span className="block text-sm text-muted">
               Share quick ratings to tune quality.
             </span>
@@ -161,6 +162,7 @@ export function FeedbackPanel({
       <div id={panelId} hidden={isCollapsed} className="mt-3 xs:mt-4 space-y-3 xs:space-y-4">
         {!isCollapsed && (
           <>
+          <p className="text-sm text-muted">1 = Poor · 5 = Excellent</p>
           {RATING_FIELDS.map((field) => {
             const groupId = `${panelId}-rating-group-${field.key}`;
             return (
@@ -204,11 +206,11 @@ export function FeedbackPanel({
           })}
 
           <div className="mt-2">
-            <label htmlFor="feedback-notes" className="block text-sm text-muted mb-1">
+            <label htmlFor={notesId} className="block text-sm text-muted mb-1">
               Additional notes (optional)
             </label>
             <textarea
-              id="feedback-notes"
+              id={notesId}
               value={notes}
               onChange={(event) => dispatch({ type: 'SET_NOTES', value: event.target.value })}
               rows={3}

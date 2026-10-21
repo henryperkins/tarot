@@ -16,15 +16,15 @@ function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
       <div className="panel-mystic rounded-2xl border border-(--border-warm-light) p-4 sm:p-5">
         <div className="flex flex-wrap items-start sm:items-center justify-between gap-4">
           <div className="flex-1 basis-64 min-w-0 max-w-full space-y-1 wrap-anywhere">
-            <p className="flex min-w-0 max-w-full items-center gap-2 text-sm font-semibold text-main">
+            <h2 className="flex min-w-0 max-w-full items-center gap-2 text-base font-semibold text-main">
               <Sparkle className="w-4 h-4 shrink-0 text-secondary" aria-hidden="true" />
               <span className="min-w-0">Visual Companion Studio</span>
-            </p>
-            <p className="text-xs text-muted">{message}</p>
+            </h2>
+            <p className="text-sm text-muted">{message}</p>
           </div>
           <div className="flex min-w-0 max-w-full items-center gap-3 shrink-0 flex-wrap">
             {modeLabel ? (
-              <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted wrap-anywhere">
+              <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-sm font-semibold uppercase tracking-[0.08em] text-muted wrap-anywhere">
                 {modeLabel}
               </span>
             ) : null}
@@ -114,10 +114,14 @@ export function NarrativeReadingSurface({
   const narrativeForIllustration = fullReadingText || narrativeText;
 
   const [isCompanionOpen, setIsCompanionOpen] = useState(false);
+  const [hasOpenedCompanion, setHasOpenedCompanion] = useState(false);
   // The studio's children open dialogs of their own; track them so the studio
   // dialog can stand down while a nested one is on screen.
   const [nestedOverlays, setNestedOverlays] = useState({});
-  const handleOpenCompanion = useCallback(() => setIsCompanionOpen(true), []);
+  const handleOpenCompanion = useCallback(() => {
+    setHasOpenedCompanion(true);
+    setIsCompanionOpen(true);
+  }, []);
   const handleCloseCompanion = useCallback(() => {
     setIsCompanionOpen(false);
     // Nested overlays live inside the studio, so closing it dismisses them too.
@@ -151,7 +155,7 @@ export function NarrativeReadingSurface({
             isOpen={isCompanionOpen}
             onOpen={handleOpenCompanion}
           />
-          <VisualCompanionModal
+          {hasOpenedCompanion ? <VisualCompanionModal
             isOpen={isCompanionOpen}
             onClose={handleCloseCompanion}
             modeLabel={visualCompanionModeLabel}
@@ -202,7 +206,7 @@ export function NarrativeReadingSurface({
                 />
               </VisualCompanionModule>
             ) : null}
-          </VisualCompanionModal>
+          </VisualCompanionModal> : null}
         </>
       ) : null}
 
@@ -221,6 +225,7 @@ export function NarrativeReadingSurface({
             passages={traditionalPassages}
             cards={insightCards}
             onSelectCard={onSelectCard}
+            embedded
           />
         </div>
       ) : null}

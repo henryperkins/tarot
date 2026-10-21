@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { CaretDown } from '@phosphor-icons/react';
 import { StreamingNarrative } from '../../StreamingNarrative';
 import { NarrativeSafetyNotice } from '../../NarrativeSafetyNotice';
 import { NarrativePanelHeader } from './NarrativePanelHeader';
@@ -40,7 +41,7 @@ export function ReadingDocument({ model, callbacks }) {
     <NarrativePanelHeader />
     {model.question && <div className="reading-question"><span>Your question</span><p>{model.question}</p></div>}
     {Object.values(model.originalContext?.reflections || {}).some(value => typeof value === 'string' && value.trim())
-      && <details className="reading-options"><summary>Your notes</summary>
+      && <details className="reading-options"><summary>Your notes<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
         {Object.entries(model.originalContext.reflections).filter(([, value]) => typeof value === 'string' && value.trim()).map(([key, value]) => {
           const card = /^\d+$/.test(key) ? cards.find(card => card.index === Number(key)) : null;
           return <div key={key} className="mb-4">
@@ -51,7 +52,7 @@ export function ReadingDocument({ model, callbacks }) {
       </details>}
     {cards.length <= 3 ? <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} /> : <details className="reading-spread-disclosure"
       onToggle={event => { if (event.currentTarget.open) setHasViewedOverview(true); }}>
-      <summary>View drawn cards <span>{cards.length} cards</span></summary>
+      <summary>View drawn cards <span>{cards.length} cards</span><CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
       {hasViewedOverview && <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />}
     </details>}
     <ReadingContents sections={sections} readingRef={root} controlsModel={model.controlsModel}
@@ -77,7 +78,7 @@ export function ReadingDocument({ model, callbacks }) {
       {callbacks.onOpenFollowUp && <button type="button" className="reading-screen__secondary" onClick={callbacks.onOpenFollowUp}>Ask about this reading</button>}
       </>}
     </div>}
-    <details className="reading-about"><summary>About this reading</summary><NarrativeSafetyNotice compact />
+    <details className="reading-about"><summary>About this reading<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary><NarrativeSafetyNotice compact />
       {model.focusToggleAvailable && <button type="button" className="min-h-touch text-sm" aria-pressed={model.isNarrativeFocus}
         onClick={callbacks.onToggleNarrativeFocus}>Hide extra panels: {model.isNarrativeFocus ? 'on' : 'off'}</button>}
     </details>

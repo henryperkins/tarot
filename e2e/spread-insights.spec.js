@@ -141,8 +141,8 @@ for (const mobile of [false, true]) {
       await expect(passages).toContainText(completeReference.text);
       await expect(panel.locator('blockquote').filter({ hasText: partialReference.text })).toHaveCount(0);
       if (mobile) {
-        const displayedItems = await panel.getByRole('listitem').count();
-        await expect(panel.getByRole('button', { name: /^Spread Insights/ })).toHaveText(`Spread Insights (${displayedItems})`);
+        await expect(panel.getByRole('button', { name: /^Spread Insights/ })).toHaveCount(0);
+        await expect(panel.getByRole('heading', { name: 'Spread Insights', exact: true })).toBeVisible();
       }
     });
   });
@@ -183,9 +183,9 @@ for (const mobile of [false, true]) {
           await page.setViewportSize({ width: 320, height: 844 });
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
           await expectNoHorizontalOverflow(page, '.spread-patterns-panel');
-          const disclosure = panel.getByRole('button', { name: /^Spread Insights/ });
+          const disclosure = page.locator('.reading-support > summary');
           await disclosure.press(' ');
-          await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+          expect(await page.locator('.reading-support').evaluate(element => element.open)).toBe(false);
           await expect(disclosure).toBeFocused();
           await expect(panel.getByRole('list')).toHaveCount(0);
         }
@@ -199,15 +199,13 @@ test('insights remain recoverable when focus mode crosses the handset breakpoint
   await withInsights(page, {}, async () => {
     await openReadingAbout(page);
     await page.getByRole('button', { name: 'Hide extra panels: off', exact: true }).press('Enter');
-    await expect(page.locator('.spread-patterns-panel')).toHaveCount(0);
+    await expect(page.locator('.spread-patterns-panel')).toBeHidden();
     for (const width of [768, 390, 320]) {
       await page.setViewportSize({ width, height: 844 });
       await expect(page.getByRole('button', { name: 'Hide extra panels: on', exact: true })).toBeVisible();
     }
     await page.getByRole('button', { name: 'Hide extra panels: on', exact: true }).press('Enter');
     await expect(page.getByRole('button', { name: 'Hide extra panels: off', exact: true })).toBeFocused();
-    const disclosure = page.getByRole('button', { name: /^Spread Insights/ });
-    await disclosure.press('Enter');
     await expect(page.getByRole('list', { name: 'Spread highlights' })).toBeVisible();
     await expectNoHorizontalOverflow(page, '.spread-patterns-panel');
   });

@@ -174,11 +174,9 @@ export function deriveNarrativeVisibility({
   visibleCount,
   revealedCardsSize,
   isShuffling,
-  isNarrativeFocus,
   canShowVisionPanel,
   effectiveTier,
   isAuthenticated,
-  autoGenerateVisualsEnabled,
   cardVideoEnabled = false,
   isGenerating,
   storyArtCards = [],
@@ -193,7 +191,6 @@ export function deriveNarrativeVisibility({
   const focusToggleAvailable = hasInsightPanels;
   const shouldShowSpreadInsights = cardsFullyRevealed
     && !isShuffling
-    && !isNarrativeFocus
     && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
   const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
   const canUseMediaGallery = Boolean(isAuthenticated && canAutoGenerateVisuals);
@@ -201,15 +198,9 @@ export function deriveNarrativeVisibility({
     personalReading && !isPersonalReadingError
     && narrativePhase === 'complete' && !isReadingStreaming && !isGenerating
   );
-  const autoGenerateVisuals = Boolean(
-    autoGenerateVisualsEnabled
-    && canAutoGenerateVisuals
-    && personalReading
-    && !isPersonalReadingError
-    && narrativePhase === 'complete'
-    && !isReadingStreaming
-    && !isGenerating
-  );
+  // Media generation starts only from an explicit studio action. Legacy build
+  // flags must not advertise or enable background generation.
+  const autoGenerateVisuals = false;
   const shouldShowStoryIllustration = Boolean(
     isReadingComplete
     && storyArtCards.length > 0
@@ -237,15 +228,11 @@ export function deriveNarrativeVisibility({
     shouldShowStoryIllustration,
     shouldShowCinematicReveal,
     shouldShowVisualCompanion,
-    cinematicRevealMessage: autoGenerateVisuals
-      ? 'Auto-generating a short cinematic reveal from your completed reading.'
-      : 'Generate a short cinematic reveal of this card.',
-    visualCompanionMessage: autoGenerateVisuals
-      ? 'Visual generation is running from your completed narrative.'
-      : shouldShowCinematicReveal
-        ? 'Generate artwork and cinematic motion that stay anchored to this reading.'
-        : 'Generate artwork that stays anchored to this reading.',
-    visualCompanionModeLabel: autoGenerateVisuals ? 'Auto generation on' : 'Generate on demand'
+    cinematicRevealMessage: 'Generate a short cinematic reveal of this card.',
+    visualCompanionMessage: shouldShowCinematicReveal
+      ? 'Generate artwork and cinematic motion that stay anchored to this reading.'
+      : 'Generate artwork that stays anchored to this reading.',
+    visualCompanionModeLabel: 'Generate on demand'
   };
 }
 

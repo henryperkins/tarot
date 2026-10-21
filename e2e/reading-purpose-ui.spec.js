@@ -1,5 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, startReading, QUESTION } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, openReadingAbout, QUESTION } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
 
@@ -8,14 +8,12 @@ test('question, original context and listening precede the uninterrupted reading
   try {
     await startReading(page, fixture);
     await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
-    const context = page.getByText('Your question and notes', { exact: true });
-    await context.click();
-    await expect(context.locator('..')).toContainText(QUESTION);
-    const audio = page.getByRole('group', { name: 'Listen to your reading' });
+    await expect(page.locator('.reading-question')).toContainText(QUESTION);
+    const audio = page.locator('.reading-toolbar__audio');
     await expect(audio).toHaveCount(1);
     expect(await audio.evaluate(element => Boolean(element.compareDocumentPosition(document.querySelector('.narrative-stream')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
-    await page.getByText('Reading options', { exact: true }).click();
-    const focus = page.getByRole('button', { name: 'Hide extra panels', exact: true });
+    await openReadingAbout(page);
+    const focus = page.getByRole('button', { name: /^Hide extra panels:/ });
     await focus.click();
     await expect(focus).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.narrative-stream')).toContainText('What would enough look like today?');
@@ -29,21 +27,23 @@ test('phone text, long original notes and trailing actions remain readable above
   const note = '  A note I want to keep exactly.\n' + 'My own words matter. '.repeat(20);
   try {
     await startReading(page, fixture, { reflection: note });
-    await page.getByText('Your question and notes', { exact: true }).click();
-    const noteText = page.locator('.reading-context p').filter({ hasText: 'A note I want' });
+    await page.getByText('Your notes', { exact: true }).click();
+    const noteText = page.locator('details.reading-options p').filter({ hasText: 'A note I want' });
     expect(await noteText.textContent()).toBe(note);
-    const sizes = await page.locator('.narrative-panel .text-muted, .card-caption__position').evaluateAll(elements => elements.filter(element => element.getClientRects().length && element.textContent.trim())
+    const sizes = await page.locator('.reading-prose p').evaluateAll(elements => elements.filter(element => element.getClientRects().length && element.textContent.trim())
       .map(element => parseFloat(getComputedStyle(element).fontSize)));
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(14);
+    expect(sizes.length).toBeGreaterThan(0);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(16);
     for (const [width, height, percent] of [[320, 740, 100], [428, 926, 100], [844, 390, 200]]) {
       await page.setViewportSize({ width, height });
       await page.evaluate(percent => { document.documentElement.style.fontSize = `${percent}%`; }, percent);
       const reset = page.getByRole('button', { name: 'Start a new reading and reset this spread' });
+      await expect(reset).toBeVisible();
       await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
       await expect.poll(() => reset.evaluate(element => {
         const rect = element.getBoundingClientRect();
         const dock = document.querySelector('.mobile-action-bar');
-        return rect.bottom <= (dock ? dock.getBoundingClientRect().top : innerHeight) && rect.left >= 0 && rect.right <= innerWidth;
+        return rect.width > 0 && rect.height > 0 && rect.bottom <= (dock ? dock.getBoundingClientRect().top : innerHeight) && rect.left >= 0 && rect.right <= innerWidth;
       })).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
@@ -85,21 +85,28 @@ test('save errors remain retryable', async ({ page }) => {
   } finally { await fixture.close(); }
 });
 
-test('optional tools follow completion and installation is available in app options', async ({ page }) => {
+test('optional tools follow completion and installation stays in app chrome', async ({ page }) => {
   const fixture = await createNarrativeFixture(page);
   try {
     await startReading(page, fixture);
     const explore = page.getByText('Explore this reading', { exact: true });
     await expect(explore).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Create images or video', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Open visual studio', exact: true })).toBeHidden();
     await explore.click();
-    await expect(page.getByRole('button', { name: 'Create images or video', exact: true })).toBeVisible();
-    await expect(page.locator('main [data-pwa-footer]')).toHaveCount(0);
-    await expect(page.getByText('App options', { exact: true })).toBeAttached();
-    await page.getByRole('button', { name: 'Create images or video', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Open visual studio', exact: true })).toBeVisible();
+    if (page.viewportSize().width < 768) {
+      await expect(page.locator('main [data-pwa-footer]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+      await expect(page.locator('[data-reading-settings-drawer]')).toBeVisible();
+      await page.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+    } else {
+      await expect(page.locator('main [data-pwa-footer]')).toBeAttached();
+    }
+    await expect(page.locator('.reading-support [data-pwa-footer]')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open visual studio', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Visual Companion Studio' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('button', { name: 'Create images or video', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Open visual studio', exact: true })).toBeFocused();
     expect(fixture.requests.reading).toHaveLength(1);
   } finally { await fixture.close(); }
 });

@@ -1,5 +1,5 @@
+import { CaretDown } from '@phosphor-icons/react';
 import {
-  ContinueConversationSection,
   ReadingInputUsageSection,
   ReadingMediaSection,
   ReadingFeedbackSection,
@@ -18,8 +18,6 @@ export function CompleteScene({
     personalReading,
     isNarrativeFocus,
     isPersonalReadingError,
-    narrativePhase,
-    isHandset,
     userQuestion,
     isShuffling,
     shuffle,
@@ -35,68 +33,59 @@ export function CompleteScene({
     mediaLoading,
     mediaError,
     onRefreshMedia,
-    onDeleteMedia,
-    followUpOpen,
-    setFollowUpOpen,
-    followUpAutoFocus
+    onDeleteMedia
   } = completionModel;
   const narrativePanel = narrativeModel?.narrativePanel || null;
   const narrativeCompanion = narrativeModel?.secondaryContent || null;
   const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeCompanion);
-  const secondaryContent = isComplete ? (
-    <details className="reading-support"><summary>Explore this reading</summary>
-      {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
+  const showSupport = Boolean(isComplete && personalReading && !isPersonalReadingError && !isNarrativeFocus);
+  const withCompanion = narrativeModel.hasSpreadCompanion && !isPersonalReadingError;
+  // Keep the same subtree through streaming and completion. Hidden support must
+  // not interrupt delivery or discard disclosure state when extra panels hide.
+  const secondaryContent = (
+    <div className={`reading-support-layout${withCompanion ? ' reading-support-layout--with-companion' : ''}`}>
+      <div className="reading-support-layout__main">
+        <details className="reading-support" hidden={!showSupport} inert={!showSupport || undefined}>
+          <summary>Explore this reading<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
+          {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
 
-      {/* Reading Inputs sits under Spread Insights: both describe how the reading was built. */}
-      {!isNarrativeFocus && (
-        <ReadingInputUsageSection
-          key={readingMeta?.requestId || readingMeta?.readingId}
-          personalReading={personalReading}
-          isPersonalReadingError={isPersonalReadingError}
-          provider={readingMeta?.provider}
-          sourceUsage={readingMeta?.sourceUsage}
-        />
-      )}
+          {/* Reading Inputs sits under Spread Insights: both describe how the reading was built. */}
+          <ReadingInputUsageSection
+            key={readingMeta?.requestId || readingMeta?.readingId}
+            personalReading={personalReading}
+            isPersonalReadingError={isPersonalReadingError}
+            provider={readingMeta?.provider}
+            sourceUsage={readingMeta?.sourceUsage}
+          />
 
-      <ReadingFeedbackSection
-        personalReading={personalReading}
-        readingMeta={readingMeta}
-        selectedSpread={selectedSpread}
-        spreadName={spreadName}
-        deckStyleId={deckStyleId}
-        userQuestion={userQuestion}
-        lastCardsForFeedback={lastCardsForFeedback}
-        feedbackVisionSummary={feedbackVisionSummary}
-      />
+          <ReadingFeedbackSection
+            personalReading={personalReading}
+            readingMeta={readingMeta}
+            selectedSpread={selectedSpread}
+            spreadName={spreadName}
+            deckStyleId={deckStyleId}
+            userQuestion={userQuestion}
+            lastCardsForFeedback={lastCardsForFeedback}
+            feedbackVisionSummary={feedbackVisionSummary}
+          />
 
-      <ContinueConversationSection
-        personalReading={personalReading}
-        isPersonalReadingError={isPersonalReadingError}
-        narrativePhase={narrativePhase}
-        isHandset={isHandset}
-        followUpOpen={followUpOpen}
-        setFollowUpOpen={setFollowUpOpen}
-        followUpAutoFocus={followUpAutoFocus}
-      />
+          <ReadingMediaSection
+            personalReading={personalReading}
+            isPersonalReadingError={isPersonalReadingError}
+            canUseMediaGallery={canUseMediaGallery}
+            mediaItems={mediaItems}
+            mediaTotal={mediaTotal}
+            mediaLoading={mediaLoading}
+            mediaError={mediaError}
+            onRefreshMedia={onRefreshMedia}
+            onDeleteMedia={onDeleteMedia}
+          />
 
-      <ReadingMediaSection
-        personalReading={personalReading}
-        isPersonalReadingError={isPersonalReadingError}
-        canUseMediaGallery={canUseMediaGallery}
-        mediaItems={mediaItems}
-        mediaTotal={mediaTotal}
-        mediaLoading={mediaLoading}
-        mediaError={mediaError}
-        onRefreshMedia={onRefreshMedia}
-        onDeleteMedia={onDeleteMedia}
-      />
-
-      <NewReadingSection
-        isShuffling={isShuffling}
-        shuffle={shuffle}
-      />
-    </details>
-  ) : narrativeCompanion;
+        </details>
+        {isComplete ? <NewReadingSection isShuffling={isShuffling} shuffle={shuffle} /> : null}
+      </div>
+    </div>
+  );
 
   return (
     <NarrativeStageLayout
@@ -104,7 +93,7 @@ export function CompleteScene({
       panelVariant={isComplete ? 'complete' : 'narrative'}
       narrativePanel={narrativePanel}
       secondaryContent={secondaryContent}
-      wrapSecondaryWithTopSpacing={!isComplete}
+      wrapSecondaryWithTopSpacing={false}
     />
   );
 }

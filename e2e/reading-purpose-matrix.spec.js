@@ -1,5 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, startReading, openChat, QUESTION, NARRATIVE } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, openChat, openReadingSupport, QUESTION, NARRATIVE } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
 
@@ -34,23 +34,21 @@ for (const tier of ['guest', 'free', 'plus', 'pro']) {
       await page.getByRole('button', { name: 'Ask a follow-up', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: 'Follow-up chat' });
       await expect(dialog).toBeVisible();
-      if (tier === 'guest') {
-        await expect(dialog).toContainText('Sign in to ask follow-up questions');
-        await expect(dialog.getByRole('textbox')).toBeDisabled();
-      } else {
-        await dialog.getByRole('textbox').fill('How can I take this next step?');
-        await dialog.getByRole('button', { name: 'Send question' }).click();
-        await fixture.emit('followup', 'done', { fullText: 'Choose a small, specific action today.' });
-        await expect(dialog.getByRole('log')).toContainText('Choose a small, specific action today.');
-        expect(fixture.requests.followup).toHaveLength(1);
-      }
+      await dialog.getByRole('textbox').fill('How can I take this next step?');
+      await dialog.getByRole('button', { name: 'Send question' }).click();
+      await fixture.emit('followup', 'done', { fullText: 'Choose a small, specific action today.' });
+      await expect(dialog.getByRole('log')).toContainText('Choose a small, specific action today.');
+      expect(fixture.requests.followup).toHaveLength(1);
       await dialog.getByRole('button', { name: 'Close follow-up chat' }).click();
+      await page.getByRole('navigation', { name: 'Primary navigation' })
+        .getByRole('link', { name: 'Reading', exact: true }).filter({ visible: true }).click();
+      await expect(page).toHaveURL(/\/$/);
       await expect(page.locator('.narrative-stream')).toContainText('What would enough look like today?');
       await expect(page.locator('[data-tracing="true"]')).toHaveCount(0);
-      await page.getByText('Your question and notes', { exact: true }).click();
-      expect(await page.locator('.reading-context p').filter({ hasText: 'My original note' }).textContent()).toBe(note);
-      await page.getByText('Explore this reading', { exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Create images or video' })).toBeVisible();
+      await page.getByText('Your notes', { exact: true }).click();
+      expect(await page.locator('details.reading-options p').filter({ hasText: 'My original note' }).textContent()).toBe(note);
+      await openReadingSupport(page);
+      await expect(page.getByRole('button', { name: 'Open visual studio' })).toBeVisible();
       expect(fixture.requests.reading).toHaveLength(1);
     } finally { await fixture.close(); }
   });
@@ -66,25 +64,40 @@ for (const [spreadName, count, deck] of [
     const fixture = await createNarrativeFixture(page);
     try {
       await startReading(page, fixture, { spreadName });
-      const cards = page.locator('.spread-companion--row .spread-companion__card');
+      if (count > 3) await page.locator('.reading-spread-disclosure > summary').click();
+      const overview = page.locator('[data-reading-overview]');
+      if (count === 10) await overview.getByRole('button', { name: 'Card list', exact: true }).click();
+      const cards = overview.locator('.reading-card');
       await expect(cards).toHaveCount(count);
       for (const width of [320, 390, 428]) {
         await page.setViewportSize({ width, height: 844 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         const image = cards.first().locator('img');
+        await expect(image).toBeVisible();
         const rect = await image.boundingBox();
-        expect(rect.width).toBeGreaterThanOrEqual(88);
-        expect(rect.width).toBeLessThanOrEqual(108);
+        expect(rect.width).toBeGreaterThanOrEqual(count === 10 ? 64 : 88);
+        expect(rect.width).toBeLessThanOrEqual(160);
+        expect(await image.evaluate(element => getComputedStyle(element).objectFit)).toBe('contain');
       }
-      await cards.last().scrollIntoViewIfNeeded();
-      await cards.last().click();
+      for (const card of await cards.all()) {
+        await expect(card.locator('.reading-card__position')).not.toBeEmpty();
+        await expect(card.locator('.reading-card__name')).not.toBeEmpty();
+        await expect(card.locator('.reading-card__orientation')).toHaveText(/^(Upright|Reversed)$/);
+      }
+      const opener = cards.last().getByRole('button');
+      await opener.scrollIntoViewIfNeeded();
+      const preview = await opener.locator('img').boundingBox();
+      await opener.click();
       const dialog = page.getByRole('dialog');
       const artwork = dialog.locator('img').first();
       await expect(artwork).toBeVisible();
       expect(await artwork.evaluate(img => getComputedStyle(img).objectFit)).toBe('contain');
-      expect((await artwork.boundingBox()).width).toBeGreaterThanOrEqual(200);
+      const enlarged = await artwork.boundingBox();
+      expect(enlarged.width).toBeGreaterThan(preview.width);
+      expect(enlarged.height).toBeGreaterThan(preview.height);
+      expect(enlarged.height).toBeGreaterThanOrEqual(300);
       await dialog.getByRole('button', { name: 'Back to reading' }).click();
-      await expect(cards.last()).toBeFocused();
+      await expect(opener).toBeFocused();
     } finally { await fixture.close(); }
   });
 }
@@ -162,7 +175,7 @@ test('short enlarged inspection retains readable controls while artwork is delay
   try {
     await page.setViewportSize({ width: 390, height: 844 });
     await startReading(page, fixture);
-    const opener = page.locator('.spread-companion--row .spread-companion__card').first();
+    const opener = page.locator('[data-reading-overview] .reading-card__art').first();
     await opener.click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

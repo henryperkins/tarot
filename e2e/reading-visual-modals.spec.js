@@ -217,7 +217,7 @@ test.describe('Reading visual modals @desktop', () => {
     await waitForAppReady(page);
     await completeReading(page);
 
-    const trigger = page.getByRole('button', { name: /create images or video/i });
+    const trigger = page.getByRole('button', { name: /open visual studio/i });
     await expect(trigger).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -226,7 +226,7 @@ test.describe('Reading visual modals @desktop', () => {
     // aria-hidden subtree, so it would report "hidden" even if the panel were
     // painted and clickable. This asserts real CSS visibility.
     const dialog = page.locator('[role="dialog"][aria-labelledby="visual-companion-modal-title"]');
-    await expect(dialog).toHaveCount(1);
+    await expect(dialog).toHaveCount(0);
     await expect(dialog).toBeHidden();
 
     await trigger.click();
@@ -248,7 +248,7 @@ test.describe('Reading visual modals @desktop', () => {
     await completeReading(page);
 
     const dialog = page.locator('[role="dialog"][aria-labelledby="visual-companion-modal-title"]');
-    await page.getByRole('button', { name: /create images or video/i }).click();
+    await page.getByRole('button', { name: /open visual studio/i }).click();
     await expect(dialog).toBeVisible();
 
     // Free tier: the illustration module renders a tier upsell whose button
@@ -268,7 +268,7 @@ test.describe('Reading visual modals @desktop', () => {
     await expect(dialog).toBeHidden();
 
     // Reopening must not come back degraded.
-    await page.getByRole('button', { name: /create images or video/i }).click();
+    await page.getByRole('button', { name: /open visual studio/i }).click();
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
     await page.keyboard.press('Escape');

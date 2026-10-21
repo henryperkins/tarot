@@ -35,9 +35,9 @@ export function ReadingMediaSection({
                             Recent media
                         </h2>
                         {mediaError ? (
-                            <p className="text-xs text-error">{mediaError}</p>
+                            <p className="text-sm text-error">{mediaError}</p>
                         ) : (
-                            <p className="text-xs text-muted">
+                            <p className="text-sm text-muted">
                                 Saved visuals from this reading flow &middot; {countLabel}
                             </p>
                         )}

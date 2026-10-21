@@ -65,11 +65,12 @@ function InsightSection({ title, children }) {
 }
 
 /** A short reading summary with supporting patterns and reference passages. */
-export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard }) {
+export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard, embedded = false }) {
   const headingId = useId();
   const contentId = useId();
   const [isExpanded, setIsExpanded] = useState(false);
   const isHandset = useHandsetLayout();
+  const collapsible = isHandset && !embedded;
   const { highlights, spreadDetails, archetypes } = buildSpreadInsightSections(
     spreadHighlights, themes?.knowledgeGraph?.narrativeHighlights
   );
@@ -84,7 +85,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
 
   return (
     <section className={`${READING_PANEL_CLASS} spread-patterns-panel`} aria-labelledby={headingId}>
-      {isHandset ? (
+      {collapsible ? (
         <h2 id={headingId} className={READING_PANEL_TITLE_CLASS}>
           <button
             type="button"
@@ -106,7 +107,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
         </h2>
       )}
 
-      <div id={contentId} hidden={isHandset && !isExpanded} className="mt-4">
+      <div id={contentId} hidden={collapsible && !isExpanded} className="mt-4">
         {highlights.length > 0 ? (
           <div className="pb-5 space-y-3">
             <h3 className="text-base font-semibold text-accent">Highlights</h3>

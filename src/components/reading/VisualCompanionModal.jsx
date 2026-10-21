@@ -12,12 +12,9 @@ const DESCRIPTION_ID = 'visual-companion-modal-description';
 /**
  * Dialog shell for the Visual Companion Studio.
  *
- * Stays mounted while `shouldShowVisualCompanion` is true and toggles visibility
- * instead of unmounting, the same way FollowUpModal does. That matters here: the
- * studio's children auto-start paid generation on mount, portal the hero
- * background into #app-bg, and poll long-running video jobs with no way to
- * cancel them server-side. Unmounting on close would orphan those jobs and
- * re-trigger generation on every reopen.
+ * The caller mounts the studio on its first explicit open. It then toggles
+ * visibility so closing preserves the user's artwork, settings and any manual
+ * generation already in progress. Mounting never starts generation by itself.
  */
 export function VisualCompanionModal({
   isOpen,
@@ -106,12 +103,12 @@ export function VisualCompanionModal({
                 <span className="min-w-0">Visual Companion Studio</span>
               </h2>
               {modeLabel ? (
-                <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-sm font-semibold uppercase tracking-[0.08em] text-muted">
                   {modeLabel}
                 </span>
               ) : null}
             </div>
-            <p id={DESCRIPTION_ID} className="wrap-anywhere text-xs sm:text-sm text-muted mt-2">{message}</p>
+            <p id={DESCRIPTION_ID} className="wrap-anywhere text-sm text-muted mt-2">{message}</p>
           </div>
 
           <div

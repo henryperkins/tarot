@@ -470,6 +470,7 @@ export function useNarrativeReadingController({
     narrativeModel: {
       narrativePanel,
       secondaryContent,
+      hasSpreadCompanion: Boolean(gestureStudyEnabled && spreadCards.length),
       personalReading,
       spreadCards
     }
