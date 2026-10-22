@@ -57,16 +57,19 @@ export default function FollowUpChat({
     sessionSeed,
     selectedSpread,
     followUps,
-    setFollowUps
+    followUpIdentity,
+    setFollowUps,
+    followUpDraft: inputValue,
+    setFollowUpDraft: setInputValue,
+    includeJournalContext: includeJournal,
+    setIncludeJournalContext: setIncludeJournal
   } = useReading();
   const { isAuthenticated } = useAuth();
   const { effectiveTier } = useSubscription();
 
   const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [includeJournal, setIncludeJournal] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionRotation, setSuggestionRotation] = useState(0);
   const [serverTurn, setServerTurn] = useState(null); // Synced from meta.turn
@@ -145,6 +148,7 @@ export default function FollowUpChat({
         answer,
         turnNumber: turnNumber || (current.length + 1),
         journalContext: payload?.journalContext || null,
+        isInterrupted: Boolean(payload?.isInterrupted),
         createdAt: payload?.createdAt || Date.now()
       };
 
@@ -159,8 +163,7 @@ export default function FollowUpChat({
   }, [setFollowUps]);
 
   // Reset chat state when reading changes (prevents stale context leaking across readings)
-  // Use requestId as primary signal, sessionSeed as fallback for offline/error paths
-  const resetKey = readingMeta?.requestId || sessionSeed || null;
+  const resetKey = followUpIdentity;
   const [hydrationSource, setHydrationSource] = useState({ resetKey, followUps: null });
   const prevResetKeyRef = useRef(resetKey);
   const followUpsKeyRef = useRef(resetKey);
@@ -183,7 +186,6 @@ export default function FollowUpChat({
       setIsLoading(false);
       setMessages([]);
       setError(null);
-      setInputValue('');
       setShowSuggestions(false);
       setServerTurn(null); // Reset server turn on new reading
       setIsAtBottom(true);
@@ -229,6 +231,7 @@ export default function FollowUpChat({
           id: `followup-${turnNumber}-a`,
           role: 'assistant',
           content: turn.answer,
+          isInterrupted: Boolean(turn?.isInterrupted),
           journalContext: turn?.journalContext || null
         });
       }
@@ -355,7 +358,9 @@ export default function FollowUpChat({
     setError(null);
     setIsLoading(true);
     setIsSlow(false);
-    setInputValue('');
+    // Keep the question recoverable while awaiting an answer. The read-only
+    // composer displays its loading placeholder; restoration never submits it.
+    setInputValue(trimmedQuestion);
     setShowSuggestions(false);
     setIsAtBottom(true);
     setAnnouncement('Question sent. The reader is reflecting.');
@@ -472,6 +477,7 @@ export default function FollowUpChat({
           upsertFollowUp({ question: trimmedQuestion, answer, turnNumber: turn, journalContext, createdAt: Date.now() });
         }
         setAnnouncement(turn === null ? 'The reader shared support resources.' : 'The reader has answered.');
+        setInputValue('');
         return;
       }
 
@@ -539,6 +545,7 @@ export default function FollowUpChat({
             } else if (eventType === 'done') {
               // Stream complete - finalize the message
               streamCompleted = true;
+              setInputValue('');
               const finalText = data.fullText || streamedText;
               const isEmpty = data.isEmpty || (!finalText || !finalText.trim());
 
@@ -621,8 +628,10 @@ export default function FollowUpChat({
           answer: streamedText,
           turnNumber: turnNumberForSave,
           journalContext,
+          isInterrupted: true,
           createdAt: Date.now()
         });
+        setInputValue('');
         setAnnouncement('The connection dropped, so this answer may be incomplete.');
       }
 
@@ -654,7 +663,7 @@ export default function FollowUpChat({
   }, [
     isActive, isLoading, canAskMore, hasValidReading, readingMeta, messages, reading,
     userQuestion, reflections, personalReading, themes, includeJournal, canUseJournal, isAuthenticated,
-    selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed, sessionSeed
+    selectedSpread, followUpLimit, upsertFollowUp, serverTurn, turnsUsed, sessionSeed, setInputValue
   ]);
 
   const handleSubmit = (e) => {
@@ -695,6 +704,7 @@ export default function FollowUpChat({
   };
 
   const canSend = isAuthenticated && !isLoading && Boolean(inputValue.trim());
+  const composerValue = isLoading ? '' : inputValue;
   const canChooseSuggestion = isAuthenticated && !isLoading && canAskMore;
   const showIdeas = suggestions.length > 0 && canAskMore && !isLoading;
   const visibleSuggestions = showSuggestions
@@ -857,7 +867,7 @@ export default function FollowUpChat({
           {isAuthenticated && (
             <p id={`${titleId}-allowance-hint`} className="sr-only">Limits reset for each reading.</p>
           )}
-          <div className={clsx('follow-up-composer__input-row', canUseJournal && 'follow-up-composer__input-row--journal')}>
+          <div className="follow-up-composer__input-row">
             {/* Read-only (not disabled) while the reader answers, so focus stays put. */}
             <textarea
               id={`${titleId}-question`}
@@ -865,7 +875,7 @@ export default function FollowUpChat({
               rows={1}
               dir="auto"
               enterKeyHint="send"
-              value={inputValue}
+              value={composerValue}
               onChange={(e) => setInputValue(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
               onKeyDown={handleKeyDown}
               placeholder={!isAuthenticated
@@ -878,21 +888,6 @@ export default function FollowUpChat({
               maxLength={MAX_MESSAGE_LENGTH}
             />
 
-            {canUseJournal && (
-              <label className="follow-up-chat__history-label" title="Use journal insights">
-                <input
-                  type="checkbox"
-                  aria-label="Use journal insights"
-                  checked={includeJournal}
-                  onChange={(e) => setIncludeJournal(e.target.checked)}
-                  onKeyDown={(e) => {
-                    // Choosing context must not implicitly submit the form.
-                    if (e.key === 'Enter') e.preventDefault();
-                  }}
-                />
-              </label>
-            )}
-
             {/* aria-disabled keeps the button focusable after a click-to-send. */}
             <button
               type="submit"
@@ -904,7 +899,21 @@ export default function FollowUpChat({
               <PaperPlaneTilt className="w-5 h-5" weight="fill" aria-hidden="true" />
             </button>
           </div>
-          <div className="follow-up-composer__meta" data-empty={!inputValue.length} data-authenticated={isAuthenticated}>
+          {canUseJournal && (
+            <label className="follow-up-chat__history-label">
+              <input
+                type="checkbox"
+                checked={includeJournal}
+                onChange={(e) => setIncludeJournal(e.target.checked)}
+                onKeyDown={(e) => {
+                  // Choosing context must not implicitly submit the form.
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
+              />
+              <span>Use journal insights</span>
+            </label>
+          )}
+          <div className="follow-up-composer__meta" data-empty={!composerValue.length} data-authenticated={isAuthenticated}>
             {isAuthenticated && (
               <span id={`${titleId}-usage`} className="follow-up-chat__usage">
                 {questionsLeft} {questionsLeft === 1 ? 'question' : 'questions'} left
@@ -912,7 +921,7 @@ export default function FollowUpChat({
             )}
             <p id={`${titleId}-hint`} className="follow-up-composer__keyboard-hint">Shift+Enter for a new line</p>
             <span id={`${titleId}-counter`} className="follow-up-composer__counter tabular-nums">
-              {inputValue.length}/{MAX_MESSAGE_LENGTH}
+              {composerValue.length}/{MAX_MESSAGE_LENGTH}
             </span>
           </div>
         </form>

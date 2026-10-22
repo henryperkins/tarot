@@ -176,7 +176,29 @@ export function ReadingProvider({ children }) {
     const [analysisContext, setAnalysisContext] = useState(() => restoredAnalysis?.analysisContext ?? null);
     const [reasoningSummary, setReasoningSummary] = useState(null);
     const [reasoning, setReasoning] = useState(null);
-    const [followUps, setFollowUps] = useState([]);
+    const [followUps, setFollowUps] = useState(() => initialSnapshot?.followUp?.turns || []);
+    // Composer recovery belongs to the same owner and reading as the snapshot.
+    // Include the seed as well as the request ID so drawing again retires drafts
+    // before the next narrative has received its request ID.
+    const followUpOwner = restoreReady ? tarotState.snapshotOwner : initialSnapshot?.owner ?? tarotState.snapshotOwner;
+    const followUpIdentity = JSON.stringify([followUpOwner, readingMeta?.requestId, sessionSeed, readingMeta?.readingId]);
+    const [followUpComposer, setFollowUpComposer] = useState(() => ({
+        owner: followUpOwner,
+        identity: followUpIdentity,
+        draft: initialSnapshot?.followUp?.draft || '',
+        includeJournal: initialSnapshot?.followUp?.includeJournal ?? true
+    }));
+    if (followUpComposer.owner !== followUpOwner || followUpComposer.identity !== followUpIdentity) {
+        setFollowUpComposer({ owner: followUpOwner, identity: followUpIdentity, draft: '', includeJournal: true });
+    }
+    const setFollowUpDraft = useCallback(draft => {
+        setFollowUpComposer(current => current.owner === followUpOwner && current.identity === followUpIdentity
+            ? { ...current, draft } : current);
+    }, [followUpOwner, followUpIdentity]);
+    const setIncludeJournalContext = useCallback(includeJournal => {
+        setFollowUpComposer(current => current.owner === followUpOwner && current.identity === followUpIdentity
+            ? { ...current, includeJournal } : current);
+    }, [followUpOwner, followUpIdentity]);
     const acceptVisualStatus = useCallback(({ binding, status }) => {
         const current = gestureSourceRef.current;
         if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
@@ -319,6 +341,7 @@ export function ReadingProvider({ children }) {
                 question: userQuestion,
                 reflections,
                 narrative: finishedReading,
+                followUp: { draft: followUpComposer.draft, includeJournal: followUpComposer.includeJournal, turns: followUps },
                 analysis: finishedReading
                     ? { themes, emotionalTone, spreadAnalysis, analysisContext, readingMeta, lastCardsForFeedback }
                     : null
@@ -331,7 +354,7 @@ export function ReadingProvider({ children }) {
         restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, drawDeckStyleId, isSpreadDealt, revealedCards,
         dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
         userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
-        readingMeta, lastCardsForFeedback
+        readingMeta, lastCardsForFeedback, followUpComposer, followUps
     ]);
 
     // A reload, a discarded background tab or a sign-in redirect can come
@@ -1727,6 +1750,9 @@ export function ReadingProvider({ children }) {
         journalStatus, setJournalStatus,
         reflections, setReflections,
         followUps, setFollowUps,
+        followUpIdentity,
+        followUpDraft: followUpComposer.draft, setFollowUpDraft,
+        includeJournalContext: followUpComposer.includeJournal, setIncludeJournalContext,
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
@@ -1758,6 +1784,7 @@ export function ReadingProvider({ children }) {
         journalStatus,
         reflections,
         followUps,
+        followUpIdentity, followUpComposer, setFollowUpDraft, setIncludeJournalContext,
         lastCardsForFeedback,
         showAllHighlights,
         generatePersonalReading,

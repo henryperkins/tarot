@@ -48,6 +48,28 @@ function toReflections(reflections) {
     .filter(([, text]) => typeof text === 'string' && text.length > 0));
 }
 
+function toFollowUp(value) {
+  const turns = (Array.isArray(value?.turns) ? value.turns : [])
+    .filter(turn => isPlainObject(turn) && typeof turn.question === 'string' && turn.question.trim()
+      && typeof turn.answer === 'string' && turn.answer.trim() && !turn.isStreaming)
+    .slice(-50)
+    .map((turn, index) => ({
+      question: turn.question.slice(0, 800),
+      answer: turn.answer.slice(0, 16_000),
+      turnNumber: Number.isInteger(turn.turnNumber) && turn.turnNumber > 0 ? turn.turnNumber : index + 1,
+      createdAt: Number.isFinite(turn.createdAt) ? turn.createdAt : null,
+      isInterrupted: Boolean(turn.isInterrupted) || turn.answer.length > 16_000,
+      journalContext: isPlainObject(turn.journalContext) ? turn.journalContext : null
+    }));
+  // Keep the latest turns without crowding the original reading out of storage.
+  while (turns.length && JSON.stringify(turns).length > 200_000) turns.shift();
+  return {
+    draft: typeof value?.draft === 'string' ? value.draft.slice(0, 500) : '',
+    includeJournal: typeof value?.includeJournal === 'boolean' ? value.includeJournal : true,
+    turns
+  };
+}
+
 /**
  * Builds the snapshot for the current reading, or null when there is nothing
  * worth restoring (no cards drawn yet).
@@ -69,6 +91,7 @@ export function buildReadingSnapshot({
   reflections,
   narrative = null,
   analysis = null,
+  followUp = null,
   now = Date.now()
 }) {
   const cards = toCards(reading);
@@ -106,7 +129,8 @@ export function buildReadingSnapshot({
         requestId: typeof narrative.requestId === 'string' ? narrative.requestId : null
       }
       : null,
-    analysis: isPlainObject(analysis) ? analysis : null
+    analysis: isPlainObject(analysis) ? analysis : null,
+    followUp: toFollowUp(narrative ? followUp : null)
   };
   return snapshot;
 }
@@ -142,6 +166,7 @@ export function loadReadingSnapshot({ owner = null, storage = getSessionStorage(
     }
     if (owner && !snapshotBelongsTo(snapshot, owner)) return null;
     return { ...snapshot,
+      followUp: toFollowUp(snapshot.narrative ? snapshot.followUp : null),
       drawIncludeMinors: typeof snapshot.drawIncludeMinors === 'boolean' ? snapshot.drawIncludeMinors : null,
       drawDeckStyleId: getSnapshotDeckStyleId(snapshot) };
   } catch {

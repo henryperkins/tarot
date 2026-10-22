@@ -231,7 +231,9 @@
   display: flex;
   flex: none;
   align-items: center;
-  justify-content: center;
+  align-self: flex-start;
+  gap: 8px;
+  max-width: 100%;
   min-height: 48px;
   min-width: 44px;
   padding-inline: 4px;
@@ -308,13 +310,6 @@
 .follow-up-overlay--handset .follow-up-composer__keyboard-hint,
 .follow-up-overlay--handset .follow-up-composer__meta[data-empty="true"] .follow-up-composer__counter,
 .follow-up-overlay--handset .follow-up-composer__meta[data-empty="true"][data-authenticated="false"] { display: none; }
-
-/* Enlarged text needs a useful typing width; normal handsets keep one row. */
-@container follow-up (max-width: 14rem) {
-  .follow-up-composer__input-row--journal { flex-wrap: wrap; }
-  .follow-up-composer__input-row--journal textarea { flex-basis: 100%; }
-  .follow-up-composer__input-row--journal .follow-up-chat__send { margin-inline-start: auto; }
-}
 
 /* At extreme height/text enlargement, let the whole dialog scroll. The middle
    must not collapse to an inaccessible zero-height viewport. No JS measuring

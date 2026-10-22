@@ -12,10 +12,9 @@ import '../styles/follow-up.css';
 export default function FollowUpModal({
   isOpen, onClose, isVisible = true, isHandset = false, autoFocusInput = true, returnFocusRef
 }) {
-  const { readingMeta, sessionSeed } = useReading();
-  // Start with the incoming saved turns when a different reading is opened.
-  // Older journal entries may have neither a request ID nor a session seed.
-  const readingIdentity = readingMeta?.requestId || sessionSeed || readingMeta?.readingId || 'unidentified-reading';
+  // Retire pending work as soon as the owner or draw changes, even before a
+  // replacement narrative receives its request ID.
+  const { followUpIdentity: readingIdentity } = useReading();
   const modalRef = useRef(null);
   const active = Boolean(isOpen && isVisible);
   const viewport = useVisibleViewport(active);

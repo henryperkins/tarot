@@ -669,6 +669,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await page.getByRole('button', { name: 'Close follow-up chat' }).click();
     await openReadingSupport(page);
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await page.getByRole('button', { name: 'Start new reading', exact: true }).click();
     await page.getByRole('button', { name: /^Deal spread/ }).click();
     await page.getByRole('button', { name: /^Reveal next:/ }).click();
     await page.getByRole('button', { name: /^Interpret cards/ }).click();
@@ -727,6 +728,7 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
       await page.getByRole('button', { name: 'Close follow-up chat' }).click();
       await openReadingSupport(page);
       await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+      await page.getByRole('button', { name: 'Start new reading', exact: true }).click();
       await mockTarotReading(page, { requestId: 'second-reading-request' });
       await page.getByRole('button', { name: /^Deal spread/ }).click();
       await page.getByRole('button', { name: /^Reveal next:/ }).click();
@@ -772,6 +774,137 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
 
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('Rate limit exceeded');
+  });
+});
+
+test.describe('Follow-up recovery @mobile', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('reload restores draft, completed answer and explicit journal choice without another request', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    const requests = [];
+    await mockFollowUp(page, { responseText: 'Protect one quiet pause.', onRequest: body => requests.push(body) });
+    await completeReading(page);
+    await openFollowUpModal(page);
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+    const journal = page.getByRole('checkbox', { name: 'Use journal insights', exact: true });
+    await expect(journal.locator('..')).toHaveText('Use journal insights');
+    await journal.uncheck();
+    await input.fill('What can I practice?');
+    await input.press('Enter');
+    await expect(page.getByRole('log')).toContainText('Protect one quiet pause.');
+    await expect(input).toHaveValue('');
+    const draft = 'How can I rest — 明日? 🌙';
+    await input.fill(draft);
+    // Reload immediately: pagehide must flush the pending snapshot, not rely on a sleep.
+    await page.reload();
+    await openFollowUpModal(page);
+    await expect(input).toHaveValue(draft);
+    await expect(journal).not.toBeChecked();
+    await expect(page.getByRole('log')).toContainText('Protect one quiet pause.');
+    await expect(page.getByText('2 questions left', { exact: true })).toBeVisible();
+    expect(requests).toHaveLength(1);
+    expect(requests[0].options.includeJournalContext).toBe(false);
+
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    await expect(journal.locator('..')).toBeVisible();
+    const geometry = await journal.locator('..').evaluate(label => {
+      const rect = label.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, left: rect.left, right: rect.right,
+        overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+    expect(geometry.width).toBeGreaterThanOrEqual(44);
+    expect(geometry.height).toBeGreaterThanOrEqual(44);
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeLessThanOrEqual(320);
+    expect(geometry.overflow).toBe(false);
+  });
+
+  test('reload during an unanswered request restores its question without sending it again', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    let requests = 0;
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/reading-followup', async route => {
+      requests++;
+      await pending;
+      await route.abort().catch(() => {});
+    });
+    try {
+      await completeReading(page);
+      await openFollowUpModal(page);
+      const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+      await input.fill('Keep this pending question');
+      await input.press('Enter');
+      await expect.poll(() => requests).toBe(1);
+      await expect(input).toHaveAttribute('readonly', '');
+      await page.reload();
+      release();
+      await openFollowUpModal(page);
+      await expect(input).toHaveValue('Keep this pending question');
+      await expect(input).not.toHaveAttribute('readonly', '');
+      expect(requests).toBe(1);
+      await expect(page.getByRole('log')).toHaveCount(0);
+    } finally {
+      release();
+    }
+  });
+
+  test('an interrupted saved turn retains its warning after reload', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    await page.route('**/api/reading-followup', route => route.fulfill({
+      contentType: 'text/event-stream',
+      body: 'event: meta\ndata: {"turn":1}\n\nevent: delta\ndata: {"text":"A partial answer."}\n\n'
+    }));
+    await completeReading(page);
+    await openFollowUpModal(page);
+    const input = page.getByRole('textbox', { name: 'Your follow-up question', exact: true });
+    await input.fill('What can I practice?');
+    await input.press('Enter');
+    await expect(page.getByRole('log')).toContainText('this answer may be incomplete');
+    await page.reload();
+    await openFollowUpModal(page);
+    await expect(page.getByRole('log')).toContainText('A partial answer.');
+    await expect(page.getByRole('log')).toContainText('this answer may be incomplete');
+    await expect(page.getByText('2 questions left', { exact: true })).toBeVisible();
+  });
+
+  test('another account cannot restore the previous owner\'s follow-up work', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    await completeReading(page);
+    await openFollowUpModal(page);
+    await page.getByRole('textbox', { name: 'Your follow-up question', exact: true }).fill('Private owner draft');
+    await page.getByRole('checkbox', { name: 'Use journal insights', exact: true }).uncheck();
+    await mockAuth(page, 'pro');
+    await page.reload();
+    await waitForAppReady(page);
+    await expect(page.getByText('Private owner draft')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => sessionStorage.getItem('tarot:reading-snapshot'))).toBeNull();
+  });
+
+  test('signing out clears follow-up work from the current tab', async ({ page }) => {
+    await mockAuth(page, 'plus');
+    await mockTarotReading(page);
+    await completeReading(page);
+    await openFollowUpModal(page);
+    await page.getByRole('textbox', { name: 'Your follow-up question', exact: true }).fill('A private draft before sign-out');
+    await page.getByRole('checkbox', { name: 'Use journal insights', exact: true }).uncheck();
+    await page.getByRole('button', { name: 'Close follow-up chat', exact: true }).click();
+    await page.route('**/api/auth/logout', route => route.fulfill({ json: { success: true } }));
+    await page.route('**/api/auth/me', route => route.fulfill({ status: 401, json: { user: null } }));
+    await page.getByRole('button', { name: /^User menu for/ }).click();
+    await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('tarot:reading-snapshot'))).toBeNull();
+    await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true })).toHaveCount(0);
+    await page.reload();
+    await waitForAppReady(page);
+    expect(await page.evaluate(() => sessionStorage.getItem('tarot:reading-snapshot'))).toBeNull();
   });
 });
 
