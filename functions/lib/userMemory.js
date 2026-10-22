@@ -382,10 +382,21 @@ export async function getMemories(db, userId, options = {}) {
     // Update last_accessed_at for retrieved memories
     const memoryIds = safeResults.map(r => r.id);
     if (options.markAccess !== false && memoryIds.length > 0) {
-      const updatePlaceholders = memoryIds.map(() => '?').join(', ');
-      await db.prepare(`
-        UPDATE user_memories SET last_accessed_at = MAX(COALESCE(last_accessed_at, 0), ?) WHERE id IN (${updatePlaceholders}) AND user_id = ?
-      `).bind(nowSeconds, ...memoryIds, userId).run();
+      // D1 allows 100 bindings; timestamp and user ID leave room for 98 IDs.
+      const batchSize = 98;
+      for (let offset = 0; offset < memoryIds.length; offset += batchSize) {
+        const batch = memoryIds.slice(offset, offset + batchSize);
+        const updatePlaceholders = batch.map(() => '?').join(', ');
+        try {
+          const updateResult = await db.prepare(`
+            UPDATE user_memories SET last_accessed_at = MAX(COALESCE(last_accessed_at, 0), ?) WHERE id IN (${updatePlaceholders}) AND user_id = ?
+          `).bind(nowSeconds, ...batch, userId).run();
+          if (updateResult?.success === false) throw new Error('memory_access_failed');
+        } catch {
+          // Access metadata is best-effort and cannot invalidate loaded memories.
+          console.warn('[getMemories] Error marking memory access');
+        }
+      }
     }
 
     const memories = safeResults.map(row => ({

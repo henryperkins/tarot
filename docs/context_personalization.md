@@ -16,11 +16,15 @@ A specific current question leads topic inference. Current reflections and decis
 
 Decision labels are optional A/B facts. Explicit labels override legacy labels inferred from the corresponding custom positions; explicit empty values clear that path. One-sided labels remain one-sided. Current labels participate in retrieval, memory selection and evaluator facts. Sanitized labels render inside untrusted JSON data boundaries. Their content cannot become prompt instructions or be reinterpreted as another path prefix during provider fallback.
 
+The local fallback uses stable A/B position roles before folding card reflections into its notes section. This preserves each reflection without reintroducing a legacy option that an explicit label replaced or cleared. The normalized path facts supply the option names separately.
+
 The full source fields remain available to narrative assembly independently of retrieval excerpts. Budget-truncated fields can retain complete JSON representations containing head/tail fragments and an omission marker. Source metadata distinguishes original, sanitized, eligible, included and represented lengths, sanitization changes, source-limit application, duplication and final budget loss. It contains no source text.
 
 ## Loading candidates and selecting notes
 
 `resolveReadingPersonalizationContext` loads up to the store maximum of **100 global candidates** with `markAccess: false`. Candidate retrieval itself makes no access update. An older relevant note can therefore compete with recent unrelated notes. The existing unsafe-row retrieval filter retains private count-only diagnostics so candidate statistics still account for every fetched row.
+
+Ordinary memory-list reads retain their separate access-stamp behavior. Their updates stay scoped to the owner and use bounded batches within D1's parameter limit. An access-write failure leaves successfully loaded notes available to the caller; it does not turn the list into an empty result. `markAccess: false` continues to skip those writes entirely.
 
 `selectMemoriesForReading(candidates, { sources, displayName, limit, referenceTime })` is pure. It returns private `{ memories, selectedIds, stats }`, freezes the selected set and keeps it stable across attempts for that reading. Direct prompt builders run the same selector without database writes. Selection rejects malformed, unsafe, expired and non-global notes, ignores non-string keywords, and deduplicates IDs and normalized text.
 

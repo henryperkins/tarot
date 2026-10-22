@@ -1,4 +1,4 @@
-import { resolveDecisionPathContext } from './decisionPathContext.js';
+import { resolveDecisionPathContext, decisionPathRoleCards } from './decisionPathContext.js';
 /**
  * Narrative Backend Dispatch and Generation
  *
@@ -1301,13 +1301,19 @@ function buildGenericReading(
 export async function composeReadingEnhanced(payload, env = null) {
   const {
     spreadInfo,
-    cardsInfo,
+    cardsInfo: rawCardsInfo,
     userQuestion,
     analysis,
     context,
     personalization = null,
     visionInsights = []
   } = payload;
+  const { themes, spreadAnalysis, spreadKey } = analysis;
+  // Resolve legacy facts before replacing their positions with stable roles.
+  // Composition and usage must flatten the same copied card representation.
+  const decisionPathContext = resolveDecisionPathContext({ spreadKey, cardsInfo: rawCardsInfo, decisionPaths: payload.decisionPaths });
+  const decisionPaths = decisionPathContext.decisionPaths;
+  const cardsInfo = spreadKey === 'decision' ? decisionPathRoleCards(rawCardsInfo) : rawCardsInfo;
   // The composer has no per-card reflection slot, so its reflections section
   // carries the general notes and every card's reflection together.
   const reflectionsText = collectQuerentReflections(payload.reflectionsText, cardsInfo);
@@ -1322,7 +1328,6 @@ export async function composeReadingEnhanced(payload, env = null) {
     error.userFacingMessage = languageSupport.userFacingMessage;
     throw error;
   }
-  const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
   // The local composer currently renders no remembered notes. Never inherit a
   // discarded provider attempt's prompt retention.
@@ -1335,7 +1340,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     userQuestion,
     reflectionsText: payload.reflectionsText,
     cardsInfo,
-    decisionPaths: payload.decisionPaths,
+    decisionPaths,
     focusAreas: personalization?.focusAreas
   }, spreadKey);
   const hasCurrentTopic = contextSelection.source === 'question'
@@ -1347,7 +1352,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     : personalization;
 
   const composerOptions = {
-    decisionPaths: resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths: payload.decisionPaths }).decisionPaths,
+    decisionPaths,
     personalization: composerPersonalization,
     proseMode: true,
     collectValidation: (section) => {
@@ -1480,7 +1485,14 @@ export async function composeReadingEnhanced(payload, env = null) {
   };
 
   payload.promptMeta.sourceUsage = buildLocalComposerSourceUsage(
-    { ...payload, visionInsights, personalization },
+    {
+      ...payload,
+      cardsInfo,
+      decisionPaths,
+      userContextInputStats: { ...decisionPathContext.inputStats, ...payload.userContextInputStats },
+      visionInsights,
+      personalization
+    },
     payload.promptMeta,
     graphRAGPayload,
     { focusAreasSuppressed: hasCurrentTopic }
