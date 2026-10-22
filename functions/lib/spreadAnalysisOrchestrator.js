@@ -378,6 +378,7 @@ async function performSpreadAnalysisInner(
           : (options.userQuestion || '');
       const selection = resolveContextSelection(options.contextSources || {
         userQuestion: options.userQuestion,
+        ...(options.reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
         reflectionsText: options.reflectionsText,
         focusAreas: options.focusAreas,
         contextInputText
@@ -416,6 +417,7 @@ async function performSpreadAnalysisInner(
           console.log(`[${requestId}] Using quality-aware GraphRAG retrieval (semantic scoring requested)`);
           passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
             maxPassages,
+            deckStyle: options.deckStyle || 'rws-1909',
             userQuery: graphQuery,
             questionContext,
             minRelevanceScore: 0.3,
@@ -435,8 +437,10 @@ async function performSpreadAnalysisInner(
           // Fall back to standard retrieval (keyword-only)
           passages = graphRAG.retrievePassages(graphKeys, {
             maxPassages,
+            deckStyle: options.deckStyle || 'rws-1909',
             userQuery: graphQuery,
-            questionContext
+            questionContext,
+            env: options.env
           });
           retrievalSummary = graphRAG.buildRetrievalSummary(graphKeys, passages);
         }
@@ -445,7 +449,7 @@ async function performSpreadAnalysisInner(
         const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
         const semanticScoringFallbackReason = !semanticScoringFallback
           ? null
-          : !semanticAvailable
+          : retrievalSummary.semanticScoringFallbackReason || (!semanticAvailable
             ? 'embeddings-not-configured'
             : passages.length === 0
               ? 'no-passages'
@@ -453,7 +457,7 @@ async function performSpreadAnalysisInner(
                 ? 'quality-filtering-disabled'
                 : !retrievalSummary?.qualityMetrics?.semanticScoringAttempted
                   ? 'no-query'
-                  : 'embeddings-failed';
+                  : 'embeddings-failed');
 
         retrievalSummary = {
           ...retrievalSummary,
@@ -467,6 +471,7 @@ async function performSpreadAnalysisInner(
         };
 
         const formattedBlock = graphRAG.formatPassagesForPrompt(passages, {
+          deckStyle: options.deckStyle || 'rws-1909',
           includeSource: true,
           markdown: true
         });

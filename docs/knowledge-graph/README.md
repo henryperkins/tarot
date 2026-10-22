@@ -1,316 +1,83 @@
-# Knowledge Graph Documentation - Overview
+# Knowledge graph and reading context
 
 Type: index
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-22
 
-## Purpose
+Tableu detects relationships among drawn cards and supplies supporting context to narrative generation. Canonical card identity, orientation, deck and spread position remain authoritative. A graph pattern cannot establish that an absent card was drawn or that an unprovided fact about a person is true.
 
-These documents define the data structures and detection logic for the Tableu knowledge graph system. This system detects multi-card archetypal patterns that create synergistic meaning beyond individual card interpretations.
+The runtime passages are internally authored **Tableu Tarot Canon**, maintained in [knowledgeBase.js](../../functions/lib/knowledgeBase.js). Books cited in the pattern specifications are background reading, not the provenance of these passages. Do not describe a runtime passage as a quotation from a book or author.
 
-The pattern files are research and implementation references, not the provenance of runtime GraphRAG passages. Runtime passages come from the internally authored `Tableu Tarot Canon` in `functions/lib/knowledgeBase.js`; book and author citations in these documents are background reading only.
+## Two independent graph inputs
 
-## Documentation Files
+The generation prompt receives two graph-derived inputs. Each must be valid independently, and their retention is reported separately.
 
-### 1. [FOOLS_JOURNEY.md](./FOOLS_JOURNEY.md)
-**What It Detects:** Which stage of the Major Arcana journey dominates a spread
+| Input | Construction | Final accounting |
+| --- | --- | --- |
+| Archetypal highlights | Pattern detection over the actual drawn cards, then canonical highlight generation for the selected deck | `sourceUsage.patterns.patternsProvided` and `patternsUsedInPrompt` |
+| GraphRAG references | Detected graph keys → all eligible canon variants → deck projection → relevance scoring → selection → final prompt budget | `sourceUsage.graphRAG.mode`, passage counts and retained `passageIndices` |
 
-**Three Stages:**
-- **Initiation (0-7):** Building ego, learning, establishing in the world
-- **Integration (8-14):** Shadow work, surrender, transformation
-- **Culmination (15-21):** Confronting shadow, revelation, completion
+Filtering passages cannot repair an incorrect highlight. Enhanced and direct user-prompt builders regenerate highlights from the actual cards and selected deck. Provider rebuilds count only highlight lines present in the final prompt. The local composer has its own accounting and does not claim reference use simply because patterns were detected.
 
-**Reading Significance:** Tells you what developmental chapter the querent is navigating
+A two-card partial triad uses its exact authored partial narrative. Its highlight names the two drawn cards and marks the arc as partial. The missing card can remain private pattern metadata; it is not drawn-card evidence. Full-pattern passages and journey references, when retained as background, include a guardrail against asserting undrawn cards. A summary reports pattern signals and retains that guardrail without claiming that any full passage survived.
 
-**Implementation Priority:** Week 1
+## Current-source selection
 
----
+[readingContextSources.js](../../functions/lib/readingContextSources.js) preserves field identity before topic analysis. Current fields are `question`, `reflections`, `card-0` through `card-77`, and `pathA`/`pathB`. Saved focus has separate `focus-*` IDs.
 
-### 2. [ARCHETYPAL_TRIADS.md](./ARCHETYPAL_TRIADS.md)
-**What It Detects:** Complete three-card narrative arcs
+The topic selector analyzes each accepted field before constructing a bounded retrieval query. A specific current question leads. Current general/card reflections can supply or clarify the topic; named decision paths participate as current input. Saved focus is a fallback when current fields provide no usable topic. A relevant note on card 78 still participates when the general reflection already uses its own full allowance.
 
-**Five Core Triads:**
-1. **Healing Arc:** Death → Temperance → Star
-2. **Liberation Arc:** Devil → Tower → Sun
-3. **Inner Work Arc:** Hermit → Hanged Man → Moon
-4. **Mastery Arc:** Magician → Chariot → World
-5. **Values Arc:** Empress → Lovers → Hierophant
+Accepted limits remain 2,000 characters for the question, 5,000 for general reflections, 2,000 per card reflection, 80 per decision label and 78 cards. These are per-field limits, not a shared reflection concatenation budget. Decision labels preserve A/B identity. Explicit labels take precedence over labels inferred from the corresponding custom positions; explicit empty values clear that path. Omitted and one-sided labels remain valid. The normalized internal path map is reused rather than repeatedly interpreting its text as another position prefix.
 
-**Reading Significance:** Provides complete transformation narratives when all 3 cards present
+The retrieval query is a separate projection capped at **8,000 characters**, including labels and separators. It allocates question/path text and relevant excerpts, preserving offsets into original Unicode text. It does not replace the full current sources supplied to narrative generation. Query coverage reports lengths, omissions and bounded reasons; a source can influence topic selection yet be partly or wholly omitted from the smaller query.
 
-**Implementation Priority:** Week 1 (core triads), Week 3 (additional triads)
+## Candidate enumeration and final limits
 
----
+[graphRAGCandidates.js](../../functions/lib/graphRAGCandidates.js) enumerates every eligible context variant of every triggered pattern before applying a presentation cap. Stable private identity combines pattern type, pattern ID, context variant and source tradition. One strongest variant per pattern survives; full-content deduplication and the relevance threshold then precede the final cap.
 
-### 3. [ARCHETYPAL_DYADS.md](./ARCHETYPAL_DYADS.md)
-**What It Detects:** Powerful two-card synergies
+Semantic scoring, when enabled and available, embeds the bounded query and every projected candidate. It does not stop at twice the final allowance. The query vector is shared across batches of at most 100 texts. Scoring uses 30% lexical overlap and 70% cosine similarity. An invalid/missing vector makes that whole candidate ranking use one lexical scale; partial semantic and lexical scores are not mixed. Cache and batch counts describe the work performed without exposing embedding text or vectors.
 
-**15 Dyads Across Categories:**
-- **Transformation:** Death+Star, Tower+Sun, Hanged Man+Death, Moon+Sun
-- **Empowerment:** Fool+Magician, Strength+Justice
-- **Wisdom:** Hermit+High Priestess, High Priestess+Hierophant
-- **Challenge:** Devil+Lovers, Devil+Tower, Hierophant+Devil
-- **Cycles:** Wheel+Judgement
-- **Power:** Emperor+Empress
-- **Vision:** Star+Judgement, Chariot+World
+| Spread | Plus/Pro final maximum | Free final maximum |
+| --- | ---: | ---: |
+| Single | 1 | 1 |
+| Three-card | 2 | 1 |
+| Five-card | 3 | 1 |
+| Celtic Cross | 5 | 2 |
+| Decision | 3 | 1 |
+| Relationship | 2 | 1 |
+| General/custom | 3 | 1 |
 
-**Reading Significance:** Highlights meaningful pairings even when full triads aren't present
+These limits apply after candidate scoring. If relevance filtering removes every eligible pattern, the floor may retain one explicitly marked weak match. It is background about the spread, not evidence about the querent's circumstances or a basis for predictions. No query uses priority/context defaults without claiming measured semantic relevance. `DISABLE_QUALITY_FILTERING` keeps deterministic pattern priority and context defaults, skips embeddings and reports `bypassed`; it does not disable deck projection or provenance validation.
 
-**Implementation Priority:** Week 3 (extends existing 5 dyads to 15)
+## Source tradition and deck projection
 
----
+The base triad, journey, Major Arcana, dyad, suit-progression and court-lineage collections are RWS-sourced. Dedicated Thoth-suit and Marseille-numerology collections carry their own source traditions. The selected deck and a reference's source deck are different facts.
 
-### 4. [SUIT_PROGRESSIONS.md](./SUIT_PROGRESSIONS.md)
-**What It Detects:** Minor Arcana narrative arcs within each suit
+Each canon passage has authored `archetypalText`. Same-tradition generation can retain its authored quotation and supported visual anchors. Cross-deck generation uses the archetypal meaning projection and an empty visual-anchor list. The displayed authored quotation remains available separately. Cross-deck references identify their source tradition and state that its imagery is not evidence of the selected deck.
 
-**Four Suits × Three Stages:**
-- **Wands (Fire):** Ignition → Testing → Culmination (often with burden)
-- **Cups (Water):** Emotional Opening → Complexity → Maturity (fulfillment)
-- **Swords (Air):** Clarity → Struggle → Crisis & Liberation (dawn after darkness)
-- **Pentacles (Earth):** Foundation → Resource Management → Mastery (legacy)
+All 145 canon passages are projected against RWS, Thoth and Marseille in the deterministic gate. An unknown selected deck, unknown source tradition, or unverifiable cross-deck legacy prose cannot supply generation evidence. A legacy opaque `formattedBlock` can support only a qualified pattern summary when actual graph keys exist. It cannot establish quoted-passage provenance. No test-only projection bypass exists.
 
-**Reading Significance:** Shows what practical/emotional/mental/material phase the querent is in
+## Prompt retention, fallbacks and telemetry
 
-**Implementation Priority:** Week 2
+Prompt slimming remains opt-in with `ENABLE_PROMPT_SLIMMING=true`; `DISABLE_PROMPT_SLIMMING=true` wins. The existing hard caps still apply without slimming: Claude 25,000 estimated tokens, OpenAI 20,000 and the default target 15,000. Modal has no application prompt cap.
 
----
+`promptMeta.graphRAG.includedInPrompt` describes actual final inclusion, including summary-only inclusion. `passagesProvided` counts supplied references; `passagesUsedInPrompt` counts full retained passages. `parseStatus` and `referenceBlockClosed` distinguish a complete reference boundary from an absent/partial one. `sourceUsage.graphRAG.mode` is `full`, `summary` or `none`; only `full` can have retained passage indices. The indices address the original selected payload after budget ranking and support precise reader-facing quotation display.
 
-## How Patterns Work Together
+Candidate counts distinguish discovered, projected, scored, deduplicated, threshold-rejected and finally selected references. Projection rejection and semantic fallback have separate bounded reasons. These counts do not prove useful generated prose. Current-context coverage, graph references, direct highlights and memories each have their own retention metadata.
 
-### Priority Hierarchy (Most to Least Significant)
+A safe fallback exposes no source-usage attribution from discarded output. A local-composer result replaces prior provider retention; detected patterns or available passages alone do not establish reference use. Provider retries retain canonical cards and the frozen safe memory selection, while rebuilding and accounting for the actual final prompt.
 
-1. **Complete Triads** (all 3 cards present)
-   - Highest narrative significance
-   - Explicitly name the arc in readings
-   - Example: "Death, Temperance, and The Star form The Healing Arc..."
+Raw questions, reflections, labels, names, memory text/IDs and embedding inputs stay out of ordinary telemetry. Prompt persistence remains opt-in and redacted. Prompt debugging retains its existing authorization requirements. See [context and personalization](../context_personalization.md) for memory ownership and successful-use access updates.
 
-2. **Strong Fool's Journey Stage** (3+ Majors from same stage)
-   - High developmental significance
-   - Provides life chapter context
-   - Example: "Four cards from the Integration stage suggest you're in profound transformation work..."
+## Pattern references and qualification
 
-3. **Strong Suit Progression** (3+ cards from same suit+stage)
-   - High practical significance
-   - Shows which domain and phase are active
-   - Example: "Ace, Two, and Three of Wands show you're in the ignition phase of a creative endeavor..."
+- [Qualification status](QUALIFICATION_STATUS.md): passing local checks and the pending subscription and editorial requirements.
+- [Canon projection editorial checklist](CANON_PROJECTION_REVIEW.md): all 145 original/projection pairs awaiting human review.
+- [Fool's Journey](FOOLS_JOURNEY.md): dominant Major Arcana stage.
+- [Archetypal triads](ARCHETYPAL_TRIADS.md): ten complete arcs and thirty authored partial pairs.
+- [Archetypal dyads](ARCHETYPAL_DYADS.md): supporting two-card relationships.
+- [Suit progressions](SUIT_PROGRESSIONS.md): Minor Arcana developmental sequences.
 
-4. **High-Significance Dyads**
-   - Medium-high significance
-   - Mention when relevant to question
-   - Example: "Death and The Star suggest transformation clearing into hope..."
+Run `node scripts/evaluation/verifyNarrativePromptAssembly.js` for offline qualification, or add `--json` for the count/hash manifest. The gate uses the maintained synthetic corpus through real source preparation, pattern detection, complete candidate enumeration, projection, selection and final builders. It exercises provider budgets and fallback boundaries with external services stubbed. The eighteen paired case IDs, order and fixture bytes are frozen for a separate subscription quality comparison.
 
-5. **Partial Triads** (2 of 3 cards)
-   - Supporting significance
-   - Brief mention
-   - Example: "Death and The Star (from The Healing Arc) suggest transformation and renewal, though Temperance's integrative work may be happening quickly..."
-
-6. **Emerging Progressions / Medium Dyads**
-   - Low-medium significance
-   - Mention only if space permits
-
----
-
-## Integration Guidelines
-
-### When to Surface Patterns
-
-**High Priority Situations:**
-- Complete triads appear → Name explicitly, 2-3 sentences
-- 3+ Majors from same Journey stage → Name stage and developmental context
-- 3+ cards from same suit progression stage → Name suit, stage, practical arc
-
-**Medium Priority:**
-- 2 Majors from same Journey stage → Brief mention
-- High-significance dyads → 1 sentence
-- Emerging suit progressions → Brief mention
-
-**Low Priority:**
-- Scattered patterns → Don't force it
-- Multiple partial patterns → Choose most relevant to question
-
-### Don't Overwhelm
-
-**Maximum per reading:**
-- 1-2 complete triads (if present)
-- 1 Fool's Journey stage mention
-- 1-2 suit progressions
-- 1-2 dyads
-- **Total: 3-5 pattern mentions maximum**
-
-Prioritize quality over quantity. Choose patterns most relevant to the user's question and spread context.
-
----
-
-## Narrative Flow
-
-### Where Patterns Fit in Readings
-
-1. **Opening:** Question, spread type, context
-2. **Thematic Context:** Elemental balance, suit focus, reversal framework
-3. **Position-by-Position:** Individual card meanings (MOST IMPORTANT)
-4. **Pattern Synthesis:** "Deeper Patterns" section ← **KNOWLEDGE GRAPH GOES HERE**
-5. **Final Synthesis:** Actionable guidance, free will reminder
-
-### Pattern Section Template
-
-```markdown
-### Deeper Patterns
-
-Beyond the individual positions, your cards reveal larger archetypal movements:
-
-**[Pattern Name]:** [Narrative with card references]
-
-[2nd pattern if relevant]
-
-[Explain how patterns relate to the question]
-```
-
----
-
-## Technical Implementation
-
-### Detection Flow
-
-```javascript
-// In spreadAnalysis.js
-const patterns = detectAllPatterns(cardsInfo);
-
-if (patterns) {
-  themes.knowledgeGraph = {
-    patterns,  // Full detection results
-    narrativeHighlights: getPriorityPatternNarratives(patterns)  // Top 3-5 for narrative
-  };
-}
-```
-
-### Priority Ranking
-
-```javascript
-function getPriorityPatternNarratives(patterns) {
-  const narratives = [];
-
-  // Priority 1: Complete triads
-  patterns.triads?.filter(t => t.isComplete).forEach(triad => {
-    narratives.push({
-      priority: 1,
-      type: 'complete-triad',
-      text: `**${triad.theme}:** ${triad.narrative}`
-    });
-  });
-
-  // Priority 2: Strong Fool's Journey
-  if (patterns.foolsJourney?.significance === 'strong') {
-    narratives.push({
-      priority: 2,
-      type: 'fools-journey',
-      text: `**Fool's Journey - ${patterns.foolsJourney.stage}:** ${patterns.foolsJourney.narrative}`
-    });
-  }
-
-  // Priority 3: Strong suit progressions
-  patterns.suitProgressions?.filter(p => p.significance === 'strong-progression').forEach(prog => {
-    narratives.push({
-      priority: 3,
-      type: 'suit-progression',
-      text: `**${prog.suit} ${prog.stage}:** ${prog.narrative}`
-    });
-  });
-
-  // Sort by priority, return top 3-5
-  return narratives.sort((a, b) => a.priority - b.priority).slice(0, 5);
-}
-```
-
----
-
-## Validation & Quality
-
-### What Makes a Valid Pattern
-
-✅ **Do:**
-- Detect patterns that enhance understanding
-- Prioritize patterns most relevant to the question
-- Integrate patterns organically into narrative
-- Limit to 3-5 pattern mentions maximum
-
-❌ **Don't:**
-- Force patterns when cards aren't present
-- Overwhelm readings with pattern lists
-- Let patterns overshadow position meanings
-- Invent new patterns without traditional basis
-
-### Testing Checklist
-
-- [ ] Complete triads detect correctly (Death-Temperance-Star)
-- [ ] Partial triads acknowledge missing card
-- [ ] Fool's Journey stage reflects majority
-- [ ] Suit progressions require 2+ cards from stage
-- [ ] Priority ranking works correctly
-- [ ] Narrative templates are clear and non-mechanical
-- [ ] Integration doesn't disrupt existing reading flow
-- [ ] Maximum 3-5 pattern mentions enforced
-
----
-
-## Implementation Phases
-
-### Week 1: Foundation
-- Implement FOOLS_JOURNEY
-- Implement 5 core ARCHETYPAL_TRIADS
-- Basic detection functions
-- Unit tests
-
-### Week 2: Expansion
-- Implement SUIT_PROGRESSIONS (all 4 suits)
-- Integrate into spreadAnalysis.js
-- Update prompt building (prompts/ modules via prompts.js barrel)
-
-### Week 3: Enhancement
-- Extend ARCHETYPAL_DYADS (5 → 15)
-- Add COURT_PATTERNS and NUMERICAL_HARMONICS
-- Update spread builders (narrative/spreads/*.js)
-- Frontend SpreadPatterns component
-
-### Week 4: Polish & Deploy
-- Testing, performance optimization
-- Deploy to staging
-- Quality validation
-- Production deployment
-
----
-
-## Expected Outcomes
-
-### Before Knowledge Graph
-> "The Chariot in your advice position suggests willpower and focused action. The World in your outcome position shows completion and mastery. These cards say you're moving toward success."
-
-### After Knowledge Graph
-> "**Mastery Arc:** The Magician, The Chariot, and The World form a complete manifestation triad. You have the skill and resources (Magician), you're applying focused willpower (Chariot), and you're reaching complete achievement (World). This is the full arc from potential to mastery—a powerful affirmation that your sustained effort is culminating in real success."
-
-**Impact:** Readings become more cohesive, archetypal, and profound while remaining grounded in traditional meanings.
-
----
-
-## References
-
-All four documentation files include comprehensive references to:
-- Rachel Pollack (*Seventy-Eight Degrees of Wisdom*)
-- Mary K. Greer (*Tarot for Your Self*, *Tarot Constellations*)
-- Robert Place (*The Tarot: History, Symbolism, and Divination*)
-- Sallie Nichols (*Jung and Tarot*)
-- Golden Dawn esoteric correspondences
-- Professional reading practice consensus
-
----
-
-## Questions?
-
-This documentation should provide everything needed to implement the Knowledge Graph system. Each file includes:
-- Traditional foundation
-- Complete data structure schemas
-- Detection logic
-- Narrative templates
-- Usage guidelines
-- Examples
-
-Ready to proceed with implementation?
+Deterministic assembly, generated-reading review, subscription narrative gates, any authorized real Workers AI retrieval lane, deployment and live proof are separate evidence. A passing assembly gate establishes these structural contracts; it does not establish that generated prose is useful or that a release is deployed.

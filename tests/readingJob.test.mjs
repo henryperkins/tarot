@@ -48,7 +48,7 @@ test('background jobs return crisis support when a note disclosure follows a san
 test('resuming after metadata restores attribution through the real stream client without replaying text', async (t) => {
   const { job, reader } = await createJob(t);
   await reader.cancel();
-  const sourceUsage = { spreadCards: { used: true, requested: true } };
+  const sourceUsage = { spreadCards: { used: true, requested: true }, memories: { used: true, requested: true, candidatesProvided: 100, memoriesSelected: 3, memoriesUsedInPrompt: 2 } };
   job.appendEvent('meta', { provider: 'test', sourceUsage });
   job.appendEvent('delta', { text: 'Partial text.' });
   job.appendEvent('done', { fullText: 'Complete text.' });

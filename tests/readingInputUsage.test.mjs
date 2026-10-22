@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import { composeReadingEnhanced } from '../functions/lib/narrativeBackends.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
 import { analyzeSpreadThemes, analyzeSingleCard } from '../functions/lib/spreadAnalysis.js';
 import { onRequestPost } from '../functions/api/tarot-reading.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
@@ -219,9 +220,7 @@ test('fully omitted local notes are described as not included, not shortened', a
   assert.doesNotMatch(row.detail, /Card notes: Shortened/i);
 });
 
-const patternThemes = { knowledgeGraph: { narrativeHighlights: [
-  { text: 'The Sun and The Star connect hope with renewed confidence.' }
-] } };
+const patternThemes = { knowledgeGraph: buildGraphContext(cardsInfo) };
 
 test('retained detected patterns have their own persisted attribution without reference passages', () => {
   const built = buildEnhancedClaudePrompt({ ...fixture, themes: patternThemes });
@@ -237,7 +236,7 @@ test('retained detected patterns have their own persisted attribution without re
 test('discarded detected-pattern metadata cannot become a source claim', async () => {
   const themes = { ...patternThemes, archetypeDescription: 'A derived archetypal context. '.repeat(15000) };
   const built = buildEnhancedClaudePrompt({ ...fixture, themes, budgetTarget: 'openai' });
-  assert.doesNotMatch(built.userPrompt, /The Sun and The Star connect hope/);
+  assert.ok(patternThemes.knowledgeGraph.narrativeHighlights.every(highlight => !built.userPrompt.includes(highlight.text)));
   assert.equal(built.promptMeta.sourceUsage.patterns?.used, false);
   assert.ok(!formatUsageSummary(built.promptMeta.sourceUsage).rows.some(row => row.label === 'Detected patterns'));
   const local = await composeReadingEnhanced({ ...fixture, analysis: { spreadKey: 'single', themes: patternThemes } });

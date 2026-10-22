@@ -283,11 +283,19 @@ export function detectFoolsJourneyStage(cards, options = {}) {
  * const triads = detectArchetypalTriads(cards);
  * // Returns: [{ id: 'death-temperance-star', isComplete: true, ... }]
  */
+/** Return a stable numeric identity for exactly two distinct canonical Majors. */
+export function getMajorPairKey(cardNumbers) {
+  if (!Array.isArray(cardNumbers) || cardNumbers.length !== 2
+    || !cardNumbers.every((number) => Number.isInteger(number) && number >= 0 && number <= 21)
+    || cardNumbers[0] === cardNumbers[1]) return null;
+  return [...cardNumbers].sort((a, b) => a - b).join('-');
+}
+
 export function detectArchetypalTriads(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
   const numbers = cards
-    .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
+    .filter((c) => Number.isInteger(c.number) && c.number >= 0 && c.number <= 21)
     .map((c) => c.number);
 
   if (numbers.length < 2) return [];
@@ -305,22 +313,16 @@ export function detectArchetypalTriads(cards, options = {}) {
       // Generate narrative based on which cards are present
       let narrative = triad.description;
       if (!isComplete) {
-        // Build partial narrative key
-        const pairKey = matches
-          .map((n) => {
-            const index = triad.cards.indexOf(n);
-            return triad.names[index].toLowerCase().replace(/^the /, '');
-          })
-          .sort()
-          .join('-');
-
-        narrative = triad.partialNarrative[pairKey] || triad.description;
+        const pairKey = getMajorPairKey(matches);
+        narrative = triad.partialNarrative?.[pairKey]
+          || `${matches.map((n) => triad.names[triad.cards.indexOf(n)]).join(' and ')} form a partial pattern; interpret only these drawn cards.`;
       }
 
       detected.push({
         id: triad.id,
         theme: triad.theme,
         matchedCards: matches,
+        missingCards: triad.cards.filter((number) => !matches.includes(number)),
         matchedNames: matches.map((n) => {
           const index = triad.cards.indexOf(n);
           const fallbackName = triad.names[index];
@@ -365,7 +367,7 @@ export function detectArchetypalDyads(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
   const numbers = cards
-    .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
+    .filter((c) => Number.isInteger(c.number) && c.number >= 0 && c.number <= 21)
     .map((c) => c.number);
 
   if (numbers.length < 2) return [];

@@ -1240,7 +1240,7 @@ describe('Prompt budget telemetry', () => {
     const hugePassage = 'A'.repeat(140000);
     const graphRAGPayload = {
       passages: [
-        { title: 'Test Passage', text: hugePassage, source: 'Test Source' }
+        { type: 'major-arcana', patternId: '0', sourceDeck: 'rws-1909', title: 'Test Passage', text: hugePassage, archetypalText: hugePassage, source: 'Tableu Tarot Canon' }
       ],
       retrievalSummary: { graphKeysProvided: true },
       maxPassages: 1
@@ -1294,7 +1294,7 @@ describe('Prompt budget telemetry', () => {
 
     const graphRAGPayload = {
       passages: [
-        { title: 'Test Passage', text: 'Guidance grounded in tradition.', source: 'Test Source' }
+        { type: 'major-arcana', patternId: '0', sourceDeck: 'rws-1909', title: 'Test Passage', text: 'Guidance grounded in tradition.', archetypalText: 'Guidance grounded in tradition.', source: 'Tableu Tarot Canon' }
       ],
       retrievalSummary: { graphKeysProvided: true },
       maxPassages: 1
@@ -1530,7 +1530,7 @@ describe('Prompt budget telemetry', () => {
     const { userPrompt } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'One-Card Insight' },
       cardsInfo,
-      userQuestion: 'What pattern should I stay aware of?',
+      userQuestion: 'What pattern should I stay aware of during relocation?',
       reflectionsText: '',
       themes,
       spreadAnalysis: null,
@@ -1546,7 +1546,7 @@ describe('Prompt budget telemetry', () => {
 
     assert.ok(userPrompt.includes('**Returning Querent Context**:'));
     assert.ok(userPrompt.includes('long relocation season'));
-    assert.ok(userPrompt.includes('Current question, current reflections, and current onboarding preferences override remembered context.'));
+    assert.ok(userPrompt.includes('Current question, current reflections, named paths, and current preferences override older context.'));
   });
 
   it('marks duplicate global reflections as skipped instead of used', async () => {

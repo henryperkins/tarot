@@ -1,3 +1,4 @@
+import { resolveDecisionPathContext } from './decisionPathContext.js';
 /**
  * Narrative Backend Dispatch and Generation
  *
@@ -45,7 +46,8 @@ import {
   FRAME_VOCABULARY
 } from './narrative/styleHelpers.js';
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
-import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
+import { sanitizeQueryCoverage } from '../../shared/readingSourceUsage.js';
+import { buildMemorySourceUsage, buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildReadingRedactionOptions } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
@@ -407,7 +409,7 @@ const SPREAD_READING_BUILDERS = {
   relationship: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     buildRelationshipReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
   decision: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
-    buildDecisionReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
+    buildDecisionReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo, decisionPaths: options.decisionPaths }, options),
   single: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     buildSingleCardReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options)
 };
@@ -530,6 +532,18 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       reason: originalLength && !prepared ? 'sanitized_empty' : prepared && includedLength < prepared.length ? 'input_limit' : null
     }];
   }));
+  const pathContext = resolveDecisionPathContext({ spreadKey: analysis.spreadKey, cardsInfo: payload.cardsInfo, decisionPaths: payload.decisionPaths });
+  for (const [id, key] of [['pathA', 'a'], ['pathB', 'b']]) {
+    const stats = payload?.userContextInputStats?.[id] || pathContext.inputStats[id];
+    if (!stats) continue;
+    const text = pathContext.decisionPaths[key] || '';
+    reflectionFields[id] = {
+      ...stats, sanitizedLength: stats.sanitizedLength ?? text.length,
+      eligibleLength: text.length, includedLength: text.length,
+      omitted: Boolean(stats.originalLength && !text),
+      reason: !text && stats.originalLength ? 'sanitized_empty' : stats.limitApplied ? 'input_limit' : null
+    };
+  }
   const cardFields = Object.entries(reflectionFields).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
@@ -547,6 +561,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const depthProfile = getDepthProfile(depthKey);
   const hasSupportedDepth = Boolean(depthKey) && depthProfile.key === depthKey;
   const userContext = buildUserContextSourceUsage({
+    ...Object.fromEntries(['pathA', 'pathB'].map(key => [key, {
+      provided: Boolean(reflectionFields[key]?.originalLength),
+      used: Boolean(reflectionFields[key]?.includedLength),
+      skippedReason: reflectionFields[key]?.reason
+    }])),
     question: {
       provided: rawUserQuestion.trim().length > 0,
       used: Boolean(sanitizedQuestion),
@@ -699,7 +718,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     contextDiagnostics = []
   } = payload;
 
-  const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
+  const deckStyle = payload.deckStyle || spreadInfo?.deckStyle || cardsInfo?.[0]?.deckStyle || analysis?.themes?.deckStyle || 'rws-1909';
 
   const promptProvider = options.providerLabel || 'OpenAI Responses';
   const backendId = options.backendId || 'openai-native';
@@ -718,8 +737,9 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     null;
 
   // Build enhanced prompts using narrative builder
-  const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+  const { systemPrompt, userPrompt, promptMeta, memoryRetention, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
     userContextInputStats: payload.userContextInputStats,
+    decisionPaths: payload.decisionPaths,
     spreadInfo,
     cardsInfo,
     userQuestion,
@@ -740,6 +760,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     promptBudgetEnv: env,
     personalization: payload.personalization,
     memories: payload.memories,
+    memorySelection: payload.memorySelection,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
     variantOverrides: payload.variantPromptOverrides
@@ -748,6 +769,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
   if (promptMeta) {
     payload.promptMeta = promptMeta;
   }
+  payload.memoryRetention = memoryRetention;
 
   if (Array.isArray(promptDiagnostics) && promptDiagnostics.length) {
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
@@ -759,7 +781,8 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     personalization: payload.personalization,
     userQuestion,
     reflectionsText: querentReflections,
-    memories: payload.memories
+    memories: payload.memories,
+    decisionPaths: payload.decisionPaths
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
@@ -1301,23 +1324,30 @@ export async function composeReadingEnhanced(payload, env = null) {
   }
   const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
+  // The local composer currently renders no remembered notes. Never inherit a
+  // discarded provider attempt's prompt retention.
+  payload.memoryRetention = { retainedSlots: [], slotToId: {} };
 
   // A topic can be specific in the graph taxonomy (for example grief) while
   // its reading label remains general. Use the shared source decision instead
   // of the reading label to keep saved interests from steering any fallback.
   const contextSelection = resolveContextSelection({
     userQuestion,
-    reflectionsText,
+    reflectionsText: payload.reflectionsText,
+    cardsInfo,
+    decisionPaths: payload.decisionPaths,
     focusAreas: personalization?.focusAreas
   }, spreadKey);
   const hasCurrentTopic = contextSelection.source === 'question'
     || contextSelection.source === 'reflections'
+    || contextSelection.source === 'decisionPaths'
     || !canUseSavedFocus(context);
   const composerPersonalization = personalization && hasCurrentTopic
     ? { ...personalization, focusAreas: [] }
     : personalization;
 
   const composerOptions = {
+    decisionPaths: resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths: payload.decisionPaths }).decisionPaths,
     personalization: composerPersonalization,
     proseMode: true,
     collectValidation: (section) => {
@@ -1373,13 +1403,12 @@ export async function composeReadingEnhanced(payload, env = null) {
   payload.narrativeEnhancements = collectedSections;
 
   // Ensure promptMeta exists for telemetry
-  if (!payload.promptMeta) {
-    payload.promptMeta = {
-      backend: 'local-composer',
-      estimatedTokens: null,
-      slimmingSteps: []
-    };
-  }
+  payload.promptMeta = {
+    backend: 'local-composer',
+    queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
+    estimatedTokens: null,
+    slimmingSteps: []
+  };
 
   // GraphRAG is generation context, not a user-visible postscript.
   // For local-composer parity, we track GraphRAG telemetry but do not append
@@ -1391,6 +1420,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     const retrievalSummary = graphRAGPayload.retrievalSummary || {};
     payload.promptMeta.graphRAG = {
       ...retrievalSummary,
+      queryCoverage: payload.promptMeta.queryCoverage,
       includedInPrompt: false,
       injectedIntoPrompt: false,
       passagesProvided,
@@ -1442,12 +1472,21 @@ export async function composeReadingEnhanced(payload, env = null) {
     }
   }
 
+  payload.promptMeta.memories = {
+    candidateCount: payload.memorySelection?.candidateCount ?? payload.memories?.length ?? 0,
+    selectedCount: payload.memorySelection?.selectedCount ?? payload.memories?.length ?? 0,
+    retainedCount: 0,
+    exclusionReasons: payload.memorySelection?.exclusionReasons || {}
+  };
+
   payload.promptMeta.sourceUsage = buildLocalComposerSourceUsage(
     { ...payload, visionInsights, personalization },
     payload.promptMeta,
     graphRAGPayload,
     { focusAreasSuppressed: hasCurrentTopic }
   );
+
+  payload.promptMeta.sourceUsage.memories = buildMemorySourceUsage(payload.promptMeta.memories.candidateCount, payload.promptMeta.memories.selectedCount, 0, 'not_used_by_backend');
 
   // Return reading with null prompts (local composer doesn't use LLM prompts)
   return {

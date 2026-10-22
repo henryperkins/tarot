@@ -10,14 +10,16 @@ import {
   CARD_REFLECTION_MAX_LENGTH,
   USER_QUESTION_MAX_LENGTH,
   REFLECTIONS_TEXT_MAX_LENGTH,
-  MAXIMUM_CARD_COUNT
+  MAXIMUM_CARD_COUNT,
+  DECISION_PATH_MAX_LENGTH
 } from './readingRequestLimits.js';
 export {
   CARD_MEANING_MAX_LENGTH,
   CARD_REFLECTION_MAX_LENGTH,
   USER_QUESTION_MAX_LENGTH,
   REFLECTIONS_TEXT_MAX_LENGTH,
-  MAXIMUM_CARD_COUNT
+  MAXIMUM_CARD_COUNT,
+  DECISION_PATH_MAX_LENGTH
 } from './readingRequestLimits.js';
 
 const trimmedString = (label, maxLength = null) => {
@@ -124,6 +126,10 @@ export const readingRequestSchema = z.object({
     .max(MAXIMUM_CARD_COUNT, `cardsInfo must not exceed the ${MAXIMUM_CARD_COUNT}-card deck`),
   userQuestion: optionalCleanString(USER_QUESTION_MAX_LENGTH),
   reflectionsText: optionalCleanString(REFLECTIONS_TEXT_MAX_LENGTH),
+  decisionPaths: z.object({
+    a: z.string().max(DECISION_PATH_MAX_LENGTH).optional(),
+    b: z.string().max(DECISION_PATH_MAX_LENGTH).optional()
+  }).strict().optional(),
   reversalFrameworkOverride: optionalCleanString(),
   deckStyle: optionalCleanString(),
   visionProof: optionalVisionProofSchema.optional(),

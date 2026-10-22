@@ -1,3 +1,7 @@
+import { prepareReadingContextSources } from '../lib/readingContextSources.js';
+import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
+import { persistReadingMemoryAccess } from '../lib/userMemory.js';
+import { resolveDecisionPathContext } from '../lib/decisionPathContext.js';
 import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
 import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
@@ -466,11 +470,13 @@ async function finalizeReading({
     personalization,
     userQuestion,
     reflectionsText,
-    memories: narrativePayload.memories
+    memories: narrativePayload.memories,
+    decisionPaths: narrativePayload.decisionPaths
   });
 
   const evalParams = {
     signal: narrativePayload.signal,
+    decisionPaths: narrativePayload.decisionPaths,
     reading: originalReading,
     userQuestion,
     cardsInfo,
@@ -607,6 +613,7 @@ async function finalizeReading({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,
         response: finalReading,
+        decisionPaths: narrativePayload.decisionPaths,
         userQuestion,
         reflectionsText,
         personalization,
@@ -725,6 +732,24 @@ async function finalizeReading({
     }
   }
 
+  narrativePayload.signal?.throwIfAborted();
+  if (!wasGateBlocked && finalProvider !== 'safe-fallback' && narrativePayload.memoryAccessOwnerId) {
+    const retention = narrativePayload.memoryRetention;
+    const selectedIds = new Set((narrativePayload.memories || []).map(memory => memory.id).filter(Boolean));
+    const ids = [...new Set((retention?.retainedSlots || []).map(slot => retention.slotToId?.[slot]).filter(id => selectedIds.has(id)))];
+    if (ids.length) {
+      const usage = { userId: narrativePayload.memoryAccessOwnerId, ids, completedAt: Date.now() };
+      if (typeof narrativePayload.onReadingMemoryUsage === 'function') {
+        // Durable jobs commit only after their own cancellation/terminal guard.
+        narrativePayload.onReadingMemoryUsage(usage);
+      } else {
+        const accessPromise = persistReadingMemoryAccess(env.DB, usage);
+        if (typeof waitUntil === 'function') waitUntil(accessPromise);
+        else await accessPromise;
+      }
+    }
+  }
+
   return {
     responsePayload,
     evalGateResult,
@@ -764,7 +789,7 @@ export async function resolveReadingUser({ request, env, principal }) {
   return { user: await getUserFromRequest(request, env), unauthorized: false };
 }
 
-export const onRequestPost = async ({ request, env, waitUntil, principal = null }) => {
+export const onRequestPost = async ({ request, env, waitUntil, principal = null, onReadingMemoryUsage = null }) => {
   const startTime = Date.now();
   const taskDeadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env, 'reading') });
   const taskSignal = taskDeadline.signal;
@@ -798,6 +823,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       cardsInfo: rawCardsInfo,
       userQuestion,
       reflectionsText,
+      decisionPaths: rawDecisionPaths,
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle,
@@ -808,8 +834,14 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     } = normalizedPayload;
     // Inspect original, schema-validated notes before card resolution strips
     // prompt instructions: a crisis disclosure can occur after the stripped text.
+    const decisionPathContext = resolveDecisionPathContext({
+      spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
+      cardsInfo: rawCardsInfo,
+      decisionPaths: rawDecisionPaths
+    });
+    const decisionPaths = decisionPathContext.decisionPaths;
     const crisisCheck = detectCrisisSignals([
-      userQuestion, collectQuerentReflections(reflectionsText, rawCardsInfo)
+      userQuestion, collectQuerentReflections(reflectionsText, rawCardsInfo), decisionPathContext.rawSafetyText
     ].filter(Boolean).join(' '));
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
     let cardsInfo;
@@ -852,7 +884,9 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       locationTimezone: sanitizedLocation?.timezone || null
     });
 
-    const validationError = validatePayload({ ...normalizedPayload, cardsInfo });
+    // Crisis support takes precedence when filtering empties a custom position.
+    // Schema and canonical identity were already validated; no reading is generated.
+    const validationError = crisisCheck.matched ? null : validatePayload({ ...normalizedPayload, cardsInfo });
     if (validationError) {
       console.error(`[${requestId}] Validation failed:`, validationError);
       return jsonResponse(
@@ -886,15 +920,20 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     const {
       personalization,
       storedPersonalization,
-      memories
+      memories: memoryCandidates
     } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization);
     const contextDiagnostics = [];
     const contextSources = {
+      spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
+      decisionPaths,
       userQuestion,
-      reflectionsText: querentReflections,
+      reflectionsText,
+      cardsInfo,
       focusAreas: personalization?.focusAreas
     };
     const contextInputText = buildContextInferenceInput(contextSources);
+    const memorySelection = selectMemoriesForReading(memoryCandidates, { sources: prepareReadingContextSources(contextSources), displayName: personalization?.displayName, referenceTime: startTime });
+    const memories = memorySelection.memories;
 
     console.log(`[${requestId}] Subscription context:`, {
       tier: subscription.tier,
@@ -1150,6 +1189,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       env,
       context,
       languageSupport: localComposerLanguageSupport,
+      decisionPaths,
       userQuestion,
       reflectionsText: querentReflections
     });
@@ -1174,11 +1214,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle
     );
     const narrativePayload = {
-      userContextInputStats: Object.fromEntries([
+      userContextInputStats: { ...decisionPathContext.inputStats, ...Object.fromEntries([
         ['question', { originalLength: userQuestion?.length || 0 }],
         ['reflections', { originalLength: reflectionsText?.length || 0 }],
         ...rawCardsInfo.map((card, index) => [`card-${index}`, getReadingContextInputStats(card.userReflection, cardsInfo[index].userReflection)])
-      ]),
+      ]) },
+      decisionPaths,
       spreadInfo,
       cardsInfo,
       userQuestion,
@@ -1192,6 +1233,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle,
       personalization: personalization || null,
       memories,
+      memorySelection,
+      memoryAccessOwnerId: user?.id || null,
+      onReadingMemoryUsage,
       subscriptionTier,
       narrativeEnhancements: [],
       graphRAGPayload: analysis.graphRAGPayload || null,
@@ -1206,6 +1250,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
       && !evalGatePolicy.effectiveEvalGateEnabled;
     if (codexLiveEnabled) {
+      let acceptedMemoryUsage = null;
+      // Final checking can still be cancelled. Commit only when the stream
+      // accepts its terminal done event, after that last abort check.
+      narrativePayload.onReadingMemoryUsage = usage => { acceptedMemoryUsage = usage; };
       const streamProvider = 'codex-subscription';
       const { assignment: attemptAssignment, variantPromptOverrides } = resolveAttemptABAssignment(requestId, activeExperiments, {
         spreadKey: analysis.spreadKey, provider: streamProvider
@@ -1260,6 +1308,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           streamState = 'accepted';
           streamReason = null;
           return { requestId, model: result.model, modelSource: result.modelSource, usage: result.usage, gateBlocked: false, gateReason: null };
+        },
+        onAccepted: () => {
+          if (!acceptedMemoryUsage) return;
+          if (typeof onReadingMemoryUsage === 'function') onReadingMemoryUsage(acceptedMemoryUsage);
+          else {
+            const accessPromise = persistReadingMemoryAccess(env.DB, acceptedMemoryUsage);
+            if (typeof waitUntil === 'function') waitUntil(accessPromise);
+            else return accessPromise;
+          }
         },
         onError: async error => {
           streamState = error?.code === 'reading_stream_rejected' ? 'rejected' : 'failed';

@@ -146,11 +146,11 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
 
 export function getTraditionalPassages(themes, readingMeta) {
   if (readingMeta?.provider === 'safe-fallback') return [];
+  const usage = readingMeta?.sourceUsage?.graphRAG;
   const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages
-    || themes?.knowledgeGraph?.retrievedPassages
+    || (usage ? [] : themes?.knowledgeGraph?.retrievedPassages)
     || [];
   if (!Array.isArray(candidates)) return [];
-  const usage = readingMeta?.sourceUsage?.graphRAG;
   if (usage?.used === false || usage?.mode === 'none' || usage?.mode === 'summary' || usage?.passagesUsedInPrompt === 0) return [];
   if (Array.isArray(usage?.passageIndices)) {
     return getVisibleTraditionalPassages([...new Set(usage.passageIndices)]

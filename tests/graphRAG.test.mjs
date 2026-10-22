@@ -375,12 +375,12 @@ describe('GraphRAG Retrieval', () => {
       userQuery: query 
     });
 
-    assert.ok(passages.length >= 2);
+    assert.ok(passages.length >= 1);
     
     // The Dyad (Priority 3) should be boosted above Journey (Priority 2)
     // because it matches 'hope' and 'star'
     assert.strictEqual(passages[0].type, 'dyad', 'Dyad should be boosted to first position');
-    assert.strictEqual(passages[1].type, 'fools-journey', 'Journey should be second');
+    assert.ok(!passages.some(p => p.type === 'fools-journey'), 'A zero-overlap passage is excluded by the relevance threshold');
   });
 });
 
@@ -404,7 +404,8 @@ describe('GraphRAG Formatting', () => {
     assert.ok(formatted.includes('**Retrieved Wisdom from Tarot Tradition:**'));
     assert.ok(formatted.includes('**The Healing Arc**'));
     assert.ok(formatted.includes('"Death clears away what must die..."'));
-    assert.ok(formatted.includes('— Rachel Pollack'));
+    assert.ok(formatted.includes('— Tableu Tarot Canon'));
+    assert.ok(!formatted.includes('Rachel Pollack'));
   });
 
   test('formatPassagesForPrompt: plain text format', () => {
@@ -425,7 +426,7 @@ describe('GraphRAG Formatting', () => {
 
     assert.ok(formatted.includes('Retrieved Wisdom from Tarot Tradition:'));
     assert.ok(!formatted.includes('**'), 'Should not include markdown formatting');
-    assert.ok(formatted.includes('(Source: Test Source)'));
+    assert.ok(formatted.includes('(Source: Tableu Tarot Canon)'));
   });
 
   test('formatPassagesForPrompt: omits source when requested', () => {
@@ -455,9 +456,9 @@ describe('GraphRAG Formatting', () => {
 
   test('formatPassagesForPrompt: numbers passages correctly', () => {
     const passages = [
-      { priority: 1, title: 'First', text: 'Text 1' },
-      { priority: 2, title: 'Second', text: 'Text 2' },
-      { priority: 3, title: 'Third', text: 'Text 3' }
+      { type: 'major-arcana', patternId: '0', priority: 1, title: 'First', text: 'Text 1' },
+      { type: 'major-arcana', patternId: '1', priority: 2, title: 'Second', text: 'Text 2' },
+      { type: 'major-arcana', patternId: '2', priority: 3, title: 'Third', text: 'Text 3' }
     ];
 
     const formatted = formatPassagesForPrompt(passages);
@@ -660,7 +661,7 @@ describe('GraphRAG Quality Filtering', () => {
     assert.strictEqual(deduped.length, 2, 'Should preserve passages without text');
   });
 
-  test('deduplicatePassages: uses configurable fingerprint length', () => {
+  test('deduplicatePassages: preserves distinct full text regardless of legacy prefix option', () => {
     const passages = [
       { text: 'Short prefix but different ending one.', title: 'First' },
       { text: 'Short prefix but different ending two.', title: 'Second' }
@@ -671,7 +672,7 @@ describe('GraphRAG Quality Filtering', () => {
     // With long fingerprint (100 chars), they're unique
     const longFingerprint = deduplicatePassages(passages, { fingerprintLength: 100 });
 
-    assert.strictEqual(shortFingerprint.length, 1, 'Short fingerprint should detect as duplicates');
+    assert.strictEqual(shortFingerprint.length, 2, 'A shared prefix cannot remove a distinct full passage');
     assert.strictEqual(longFingerprint.length, 2, 'Long fingerprint should preserve unique passages');
   });
 
@@ -1093,7 +1094,7 @@ describe('Keyword Boost Edge Cases', () => {
 
     // Only "interpretation" should contribute to boost (if it matches)
     // Journey (P2) should still come before dyad (P3) without strong boost
-    assert.ok(passages.length >= 2, 'Should retrieve passages');
+    assert.equal(passages.length, 1, 'A wholly unmatched query retains the single best weak background');
   });
 
   test('retrievePassages: special characters in query handled', () => {
@@ -1125,13 +1126,13 @@ describe('Malformed Data Handling', () => {
 
     const formatted = formatPassagesForPrompt(passages);
 
-    assert.ok(formatted.includes('Test Title'), 'Should include title');
+    assert.equal(formatted, '', 'A malformed passage supplies no generation evidence');
     assert.ok(!formatted.includes('undefined'), 'Should not output "undefined"');
   });
 
   test('formatPassagesForPrompt: handles passage without source field', () => {
     const passages = [
-      { priority: 1, title: 'Test Title', text: 'Test text content' }
+      { type: 'triad', priority: 1, title: 'Test Title', text: 'Test text content' }
       // Note: no 'source' field
     ];
 
@@ -1144,7 +1145,7 @@ describe('Malformed Data Handling', () => {
 
   test('formatPassagesForPrompt: handles passage without title or theme', () => {
     const passages = [
-      { priority: 1, text: 'Just text, no title', source: 'Source' }
+      { type: 'triad', priority: 1, text: 'Just text, no title', source: 'Tableu Tarot Canon' }
     ];
 
     const formatted = formatPassagesForPrompt(passages);

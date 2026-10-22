@@ -2,11 +2,14 @@
 
 Type: spec
 Status: active reference
-Last reviewed: 2026-04-23
+Last reviewed: 2026-10-22
 
 ## Overview
 
 Archetypal Triads are powerful three-card combinations that form complete narrative arcs. When these cards appear together in a spread, they create a synergy greater than the sum of their parts—telling a specific, recognizable story of transformation, growth, or challenge.
+
+
+The runtime has ten complete definitions and thirty authored partial-pair narratives. The prose examples below illustrate archetypal interpretation; they are not claims that a particular future or personal circumstance is established. Canonical identity and actual spread positions remain authoritative.
 
 ## Traditional Foundation
 
@@ -181,21 +184,19 @@ Each triad includes:
 
 ---
 
-## Additional Triads (Expand as Needed)
+## Additional implemented triads
 
-### 6. The Crisis-Resilience Arc
-**Cards:** The Tower (16) → Strength (8) → Judgement (20)
-**Narrative:** "Upheaval revealing inner fortitude leading to rebirth."
+The runtime contains ten triads, each with three authored partial pairs. The additional five are:
 
-### 7. The Justice-Wisdom Arc
-**Cards:** Justice (11) → The Hermit (9) → The High Priestess (2)
-**Narrative:** "Truth-seeking through solitary wisdom accessing deep intuition."
+| ID | Cards | Arc |
+| --- | --- | --- |
+| `fool-magician-world` | Fool (0), Magician (1), World (21) | Innocent beginning → conscious skill → total integration |
+| `empress-emperor-hierophant` | Empress (3), Emperor (4), Hierophant (5) | Nurturing abundance → structure → traditional wisdom |
+| `wheel-justice-hangedman` | Wheel (10), Justice (11), Hanged Man (12) | Fate → accountability → surrender |
+| `tower-star-moon` | Tower (16), Star (17), Moon (18) | Upheaval → hope → navigating uncertainty |
+| `strength-hermit-wheel` | Strength (8), Hermit (9), Wheel (10) | Inner fortitude → solitary wisdom → accepting cycles |
 
-### 8. The Power Arc
-**Cards:** The Emperor (4) → Strength (8) → The World (21)
-**Narrative:** "Authority through compassionate power to mastery."
-
----
+The canonical definitions are in [knowledgeGraphData.js](../../src/data/knowledgeGraphData.js). The five detailed schemas below illustrate the same numeric-pair convention used by all ten. Historical exploratory triads outside that runtime list are not detected patterns.
 
 ## Data Structure Schema
 
@@ -215,9 +216,9 @@ export const ARCHETYPAL_TRIADS = [
       shadow: 'Releasing old patterns, integrating new self'
     },
     partialNarrative: {
-      'death-temperance': 'Transformation actively seeking balance',
-      'temperance-star': 'Patient integration leading to renewal',
-      'death-star': 'Dramatic shift from ending to rebirth (skipping integration)'
+      '13-14': 'Transformation actively seeking balance',
+      '14-17': 'Patient integration leading to renewal',
+      '13-17': 'Dramatic shift from ending to rebirth (skipping integration)'
     }
   },
 
@@ -236,9 +237,9 @@ export const ARCHETYPAL_TRIADS = [
       spiritual: 'Freedom from limiting beliefs'
     },
     partialNarrative: {
-      'devil-tower': 'Attachments meet necessary disruption',
-      'tower-sun': 'Upheaval clearing the path to clarity',
-      'devil-sun': 'From shadow to light (sudden liberation)'
+      '15-16': 'Attachments meet necessary disruption',
+      '16-19': 'Upheaval clearing the path to clarity',
+      '15-19': 'From shadow to light (sudden liberation)'
     }
   },
 
@@ -257,9 +258,9 @@ export const ARCHETYPAL_TRIADS = [
       grief: 'Internal mourning work'
     },
     partialNarrative: {
-      'hermit-hangedman': 'Introspection leading to necessary pause',
-      'hangedman-moon': 'Suspension opening to shadow realm',
-      'hermit-moon': 'Solo journey into the unconscious'
+      '9-12': 'Introspection leading to necessary pause',
+      '12-18': 'Suspension opening to shadow realm',
+      '9-18': 'Solo journey into the unconscious'
     }
   },
 
@@ -278,9 +279,9 @@ export const ARCHETYPAL_TRIADS = [
       manifestation: 'Bringing vision into reality'
     },
     partialNarrative: {
-      'magician-chariot': 'Potential directed into decisive movement',
-      'chariot-world': 'Determined effort reaching culmination',
-      'magician-world': 'From first spark to full realization'
+      '1-7': 'Potential directed into decisive movement',
+      '7-21': 'Determined effort reaching culmination',
+      '1-21': 'From first spark to full realization'
     }
   },
 
@@ -299,62 +300,43 @@ export const ARCHETYPAL_TRIADS = [
       values: 'Clarifying what merits dedication'
     },
     partialNarrative: {
-      'empress-lovers': 'Creative fertility meeting decisive choice',
-      'lovers-hierophant': 'Personal values versus collective tradition',
-      'empress-hierophant': 'Nurturing energy seeking formal structure'
+      '3-6': 'Creative fertility meeting decisive choice',
+      '5-6': 'Personal values versus collective tradition',
+      '3-5': 'Nurturing energy seeking formal structure'
     }
   }
 ];
 ```
 
-## Detection Logic
+## Detection and partial identity
+
+`getMajorPairKey` accepts exactly two distinct integer canonical Major IDs from 0 through 21. It sorts them numerically and joins them with a hyphen. Labels, deck aliases, orientation and input order do not form the lookup key. Duplicate or invalid IDs are rejected.
 
 ```javascript
-function detectArchetypalTriads(cards) {
-  const numbers = cards
-    .filter(c => c.number >= 0 && c.number <= 21)
-    .map(c => c.number);
+import {
+  detectArchetypalTriads,
+  getMajorPairKey
+} from '../../functions/lib/knowledgeGraph.js';
 
-  const detected = [];
+getMajorPairKey([17, 14]); // '14-17'
+getMajorPairKey([14, 14]); // null
 
-  ARCHETYPAL_TRIADS.forEach(triad => {
-    const matches = triad.cards.filter(num => numbers.includes(num));
-
-    if (matches.length >= 2) {
-      const completeness = matches.length / triad.cards.length;
-      const isComplete = matches.length === 3;
-
-      // Generate narrative based on which cards are present
-      let narrative = triad.narrative;
-      if (!isComplete) {
-        const pairKey = matches.map(n =>
-          triad.names[triad.cards.indexOf(n)].toLowerCase().replace(/^the /, '')
-        ).join('-');
-        narrative = triad.partialNarrative[pairKey] || triad.description;
-      }
-
-      detected.push({
-        id: triad.id,
-        theme: triad.theme,
-        matchedCards: matches,
-        matchedNames: matches.map(n => triad.names[triad.cards.indexOf(n)]),
-        completeness: completeness * 100,
-        isComplete,
-        narrative,
-        fullDescription: triad.description,
-        significance: isComplete ? 'complete-triad' : 'partial-triad',
-        strength: isComplete ? 'major' : 'supporting'
-      });
-    }
-  });
-
-  // Sort by completeness (complete triads first)
-  return detected.sort((a, b) => {
-    if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;
-    return b.matchedCards.length - a.matchedCards.length;
-  });
-}
+const triads = detectArchetypalTriads(resolvedCards, { deckStyle });
+const partial = triads.find(triad => !triad.isComplete);
+// partial.matchedCards and partial.matchedNames describe drawn cards only.
+// partial.missingCards remains internal pattern metadata.
+// partial.narrative is the exact authored numeric-pair interpretation.
 ```
+
+A complete result uses the complete description. A partial result uses its numeric pair's authored narrative. If an authored partial is unavailable, the fallback names only the matched cards and their partial status; it must not fall back to the full three-card story. The detector records `matchedCards`, `missingCards`, `isComplete` and completeness explicitly. All thirty partial pairs are checked in both orders/orientations by focused tests, and all ten complete arcs remain covered.
+
+## Two prompt paths and deck handling
+
+Direct archetypal highlights and retrieved GraphRAG references are independent inputs. Enhanced and direct prompt builders regenerate canonical highlights from the actual cards and selected deck; final usage counts only highlight lines that survive budgeting. A partial highlight is marked partial and names the drawn pair rather than implying that its third card appeared.
+
+Graph keys preserve partial/complete identity for candidate retrieval. Every triggered canon variant is projected for the selected deck and scored before final passage limits. Cross-deck references use authored archetypal meaning without incompatible concrete visual anchors, identify the source tradition, and state that source imagery is not evidence of the selected deck. Runtime passages are internally authored Tableu Tarot Canon; the background books below are not the provenance of those passages.
+
+A retained full-triad passage can describe the broader arc as background when only a pair was drawn, with an explicit partial-pattern guardrail. A weak relevance-floor passage and a summary remain background, not evidence that an absent card appeared or a personal circumstance is true. Passage removal cannot repair incorrect highlights, so the [qualification gate](../../scripts/evaluation/verifyNarrativePromptAssembly.js) checks both inputs separately through final provider budgets and fallback. See the [pipeline overview](README.md) for query projection, candidate/final limits, metadata and privacy rules.
 
 ## Narrative Templates
 
@@ -368,7 +350,7 @@ function detectArchetypalTriads(cards) {
 > "**{Theme} (partial):** {Card1} and {Card2} suggest {partial narrative}."
 
 **Example:**
-> "**The Healing Arc (partial):** Death and The Star suggest a dramatic shift from ending to rebirth. While Temperance (the middle card of this pattern) isn't present, the arc from release to renewal is clear—though you may be moving quickly through integration rather than lingering in that alchemical middle space."
+> "**The Healing Arc (partial):** Death and The Star connect release with renewed possibility. Consider what would help you absorb the change at a sustainable pace."
 
 ## Usage Guidelines
 
@@ -381,7 +363,7 @@ function detectArchetypalTriads(cards) {
 
 **Medium Priority:** Partial triads (2 of 3 cards)
 - Mention briefly
-- Name what's missing
+- Name only the drawn pair; do not turn a missing card into evidence
 - 1-2 sentences
 
 **Low Priority:** Multiple partial triads

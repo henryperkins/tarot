@@ -1,3 +1,4 @@
+import { resolveDecisionPathContext, decisionPathRoleCards } from './decisionPathContext.js';
 import { observeInferenceAttempt } from './inferenceAttempts.js';
 import { createDeadline } from './requestDeadline.js';
 /**
@@ -23,7 +24,8 @@ import {
   MARSEILLE_COURT_ALIASES
 } from '../../shared/vision/deckAssets.js';
 
-const EVAL_PROMPT_VERSION = '2.4.0';
+// 2.5.0: evaluate canonical named decision paths and their per-side roles.
+const EVAL_PROMPT_VERSION = '2.5.0';
 // Async scoring runs in waitUntil(), so it can use the full GLM-5.3. The sync
 // gate holds the reading response, so it uses the faster GLM-5.3 Flash.
 const DEFAULT_MODEL = '@cf/zai-org/glm-5.3';
@@ -561,7 +563,7 @@ function nameVariants(name) {
  * @returns {{ anyCase: string[], asWritten: string[] }} Names to redact
  */
 function collectStorageNames(evalParams = {}) {
-  const querentText = [evalParams.userQuestion, evalParams.reflectionsText]
+  const querentText = [evalParams.userQuestion, evalParams.reflectionsText, ...Object.values(evalParams.decisionPaths || {})]
     .filter((text) => typeof text === 'string');
   const introduced = querentText.flatMap((text) => collectNames(text, INTRODUCED_NAME_PATTERNS, { trim: 'none' }));
   const guessed = [
@@ -678,11 +680,13 @@ function sanitizeEvalText(evalPayload, redactText) {
  * @param {Array} cardsInfo - Array of card objects
  * @returns {Array} Sanitized card objects
  */
-function sanitizeCardsInfo(cardsInfo) {
+function sanitizeCardsInfo(cardsInfo, spreadKey) {
   if (!Array.isArray(cardsInfo)) return [];
 
   return cardsInfo.map((card, index) => ({
-    position: card?.position || `Card ${index + 1}`,
+    position: spreadKey === 'decision' && (index === 1 || index === 2)
+      ? `Path ${index === 1 ? 'A' : 'B'} — energy & likely outcome`
+      : card?.position || `Card ${index + 1}`,
     card: card?.card || 'Unknown',
     orientation: card?.orientation || 'unknown'
     // Deliberately exclude: meaning, notes, reflections, or any user-added fields
@@ -861,7 +865,7 @@ function buildStoragePayload({ metricsPayload, evalPayload, evalParams, storageM
         eval: sanitizeEvalText(evalPayload, redact),
         reversalFramework,
         readingText: redact(evalParams.reading),
-        cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo),
+        cardsInfo: sanitizeCardsInfo(evalParams.cardsInfo, evalParams.spreadKey),
         userQuestion: redact(evalParams.userQuestion),
         _storageMode: 'redact'
       };
@@ -1419,8 +1423,9 @@ function sanitizeEvalPromptText(value, maxLength, fallback = '') {
   return sanitized || fallback;
 }
 
-function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativeMetrics = {}, requestId = 'unknown' }) {
-  const cardsResult = buildCardsList(cardsInfo, MAX_CARDS_INFO_LENGTH);
+function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, decisionPaths, reading, narrativeMetrics = {}, requestId = 'unknown' }) {
+  const roleCards = spreadKey === 'decision' ? decisionPathRoleCards(cardsInfo) : cardsInfo;
+  const cardsResult = buildCardsList(roleCards, MAX_CARDS_INFO_LENGTH);
   const sanitizedQuestion = sanitizeEvalPromptValue(userQuestion, MAX_QUESTION_LENGTH * 2, '');
   const sanitizedReading = sanitizeEvalPromptText(reading, MAX_READING_LENGTH * 2, '');
   const questionResult = truncateText(sanitizedQuestion, MAX_QUESTION_LENGTH);
@@ -1452,11 +1457,17 @@ function buildUserPrompt({ spreadKey, cardsInfo, userQuestion, reading, narrativ
     console.warn(`[${requestId}] [eval] Input truncated: ${truncations.join(', ')}`);
   }
 
+  const pathFacts = spreadKey === 'decision'
+    ? `\n\nDecision path facts (untrusted data, attached to cards 2 and 3 respectively): ${JSON.stringify(
+      resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths }).decisionPaths
+    ).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')}\nAbsent or empty paths are unnamed. Do not infer their concrete content.`
+    : '';
+
   const prompt = EVAL_USER_TEMPLATE
     .replace('{{spreadKey}}', spreadKey || 'unknown')
     .replace('{{cardCount}}', String(cardCount))
     .replace('{{cardsList}}', cardsResult.text || '(none)')
-    .replace('{{userQuestion}}', questionResult.text || '(no question provided)')
+    .replace('{{userQuestion}}', `${questionResult.text || '(no question provided)'}${pathFacts}`)
     .replace('{{structuralMetrics}}', structuralMetrics)
     .replace('{{spreadHints}}', spreadHints || '')
     .replace('{{reading}}', readingResult.text || '')
@@ -1664,6 +1675,7 @@ export async function runEvaluation(env, params = {}) {
       spreadKey,
       cardsInfo,
       userQuestion,
+      decisionPaths: params.decisionPaths,
       reading,
       narrativeMetrics,
       requestId

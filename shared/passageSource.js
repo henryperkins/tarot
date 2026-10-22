@@ -2,7 +2,7 @@ import { DECK_CATALOG } from './vision/deckCatalog.js';
 
 // The base canon uses RWS names and visual references. The two dedicated
 // collections carry their own tradition. Infer these for older saved payloads.
-const SOURCE_DECKS = {
+export const PASSAGE_SOURCE_DECKS = {
   triad: 'rws-1909',
   'fools-journey': 'rws-1909',
   'major-arcana': 'rws-1909',
@@ -14,7 +14,7 @@ const SOURCE_DECKS = {
 };
 
 export function getPassageSource(passage) {
-  const deckStyle = passage?.sourceDeck || SOURCE_DECKS[passage?.type];
-  const deck = DECK_CATALOG[deckStyle];
+  const deckStyle = passage?.sourceDeck || PASSAGE_SOURCE_DECKS[passage?.type];
+  const deck = Object.hasOwn(DECK_CATALOG, deckStyle) ? DECK_CATALOG[deckStyle] : null;
   return deck ? { deckStyle, label: deck.label } : null;
 }
