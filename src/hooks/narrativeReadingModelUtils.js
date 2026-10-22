@@ -365,7 +365,11 @@ export function buildNarrativeSurfaceModel({
   insightCards,
   isLandscape
 }) {
+  const shouldShowSafetyNotice = !personalReading && !isGenerating;
+
   return {
+    hasSecondaryContent: Boolean(shouldShowVisualCompanion || shouldShowSpreadInsights || shouldShowSafetyNotice),
+    shouldShowSafetyNotice,
     shouldShowVisualCompanion,
     shouldShowCinematicReveal,
     shouldShowStoryIllustration,

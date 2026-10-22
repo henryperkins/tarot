@@ -154,21 +154,11 @@ async function drawCards(page) {
 }
 
 async function waitForCardsDealt(page) {
-  const revealPrompt = page.locator('[aria-label*="Tap to reveal"], [aria-label*="Click to reveal"]');
-  const revealedCard = page.locator('[aria-label*="position. Click to view details" i]');
-
-  await expect(async () => {
-    const pending = await revealPrompt.count();
-    const revealed = await revealedCard.count();
-    expect(pending + revealed).toBeGreaterThanOrEqual(1);
-  }).toPass({ timeout: 15000 });
-
-  // Some builds deal face-down; reveal anything still waiting on a tap.
-  const pending = await revealPrompt.count();
-  for (let index = 0; index < pending; index += 1) {
-    await revealPrompt.nth(index).click({ force: true });
-    await page.waitForTimeout(300);
-  }
+  // Wait for the deal to finish before revealing. A forced card click can land
+  // while the deal disables it, leaving the reading waiting for a reveal.
+  const revealAll = page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first();
+  await expect(revealAll).toBeVisible({ timeout: 15000 });
+  await revealAll.click();
 }
 
 async function generateNarrative(page) {
@@ -220,7 +210,7 @@ test.describe('Reading visual modals @desktop', () => {
     const trigger = page.getByRole('button', { name: /open visual studio/i });
     await expect(trigger).toBeVisible();
     await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).not.toHaveAttribute('aria-expanded');
 
     // A CSS locator, not getByRole: getByRole never matches inside an
     // aria-hidden subtree, so it would report "hidden" even if the panel were
@@ -231,14 +221,12 @@ test.describe('Reading visual modals @desktop', () => {
 
     await trigger.click();
     await expect(dialog).toBeVisible();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await expect(dialog).toHaveAttribute('aria-modal', 'true');
     // The studio's actual content, not just the dialog shell's own title.
     await expect(dialog.getByRole('heading', { name: /narrative illustration/i })).toBeVisible();
 
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
-    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await expect(trigger).toBeFocused();
   });
 

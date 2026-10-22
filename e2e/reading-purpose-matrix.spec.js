@@ -110,6 +110,7 @@ test('a late save cannot mark a new reading saved', async ({ page }) => {
     await page.getByRole('button', { name: 'Save to journal', exact: true }).click();
     await expect.poll(() => fixture.requests.journal.length).toBe(1);
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await page.getByRole('dialog', { name: 'Start a new reading?' }).getByRole('button', { name: 'Start new reading', exact: true }).click();
     fixture.releaseJournal();
     await expect(page.getByRole('button', { name: 'View saved entry', exact: true })).toHaveCount(0);
     await expect(page.getByText('Saved', { exact: true })).toHaveCount(0);

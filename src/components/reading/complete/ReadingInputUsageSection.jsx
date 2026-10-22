@@ -29,6 +29,7 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
   const headingId = useId();
   const descriptionId = useId();
   const contentId = useId();
+  const warningId = useId();
   const usage = formatUsageSummary(sourceUsage);
 
   if (!personalReading || personalReading.isError || isPersonalReadingError || personalReading.isStreaming
@@ -37,13 +38,12 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
   return (
     <section className={`${READING_PANEL_COLUMN_CLASS} mt-6`} aria-labelledby={headingId}>
       <div className="border-t border-secondary/30 py-4">
-        <h2 className={READING_PANEL_TITLE_CLASS}>
+        <h2 id={headingId} className={READING_PANEL_TITLE_CLASS}>
           <button
-            id={headingId}
             type="button"
             aria-expanded={isExpanded}
             aria-controls={contentId}
-            aria-describedby={descriptionId}
+            aria-describedby={`${descriptionId}${usage.summary.attention > 0 ? ` ${warningId}` : ''}`}
             onClick={() => setIsExpanded((expanded) => !expanded)}
             className={READING_PANEL_DISCLOSURE_CLASS}
           >
@@ -53,7 +53,7 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
         </h2>
         <p id={descriptionId} className="text-sm text-muted mt-1">{usage.summaryText}</p>
         {usage.summary.attention > 0 && (
-          <p className="mt-2 text-sm text-warning">
+          <p id={warningId} className="mt-2 text-sm text-warning">
             <WarningCircle className="inline h-4 w-4 align-middle" aria-hidden="true" />{' '}
             Some of your input was shortened or left out. {isExpanded ? 'See the details below.' : 'Expand for details.'}
           </p>

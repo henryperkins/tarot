@@ -881,14 +881,6 @@ export default function TarotReading() {
     setIsFollowUpOpen(true);
   }, [canShowFollowUp]);
 
-  const handleFollowUpOpenChange = useCallback((nextOpen, event) => {
-    if (nextOpen) {
-      followUpOpenerRef.current = event?.currentTarget || document.activeElement;
-      setFollowUpIntent('continue');
-    }
-    setIsFollowUpOpen(nextOpen);
-  }, []);
-
   const handleCloseFollowUp = useCallback(() => {
     setIsFollowUpOpen(false);
   }, []);
@@ -1194,9 +1186,6 @@ export default function TarotReading() {
                 onSaveReading={saveReading}
                 isSaving={isSaving}
                 savedEntryId={savedEntryId}
-                followUpOpen={isFollowUpOpen}
-                onFollowUpOpenChange={handleFollowUpOpenChange}
-                followUpAutoFocus={followUpIntent === 'ask'}
                 suppressInterruptions={suppressFocusInterruptions}
                 isMobileStableMode={shouldEnableMobileStableMode}
               />

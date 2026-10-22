@@ -18,7 +18,8 @@ export function ReadingMediaSection({
     const [isOpen, setIsOpen] = useState(false);
     const handleClose = useCallback(() => setIsOpen(false), []);
 
-    if (!personalReading || isPersonalReadingError || !canUseMediaGallery) return null;
+    if (!personalReading || personalReading.isError || personalReading.isStreaming
+        || isPersonalReadingError || !canUseMediaGallery) return null;
 
     const savedCount = Number.isFinite(Number(mediaTotal)) ? Number(mediaTotal) : 0;
     const countLabel = mediaLoading && savedCount === 0
@@ -38,7 +39,7 @@ export function ReadingMediaSection({
                             <p className="text-sm text-error">{mediaError}</p>
                         ) : (
                             <p className="text-sm text-muted">
-                                Saved visuals from this reading flow &middot; {countLabel}
+                                Saved visuals from your readings &middot; {countLabel}
                             </p>
                         )}
                     </div>
@@ -46,7 +47,6 @@ export function ReadingMediaSection({
                         type="button"
                         onClick={() => setIsOpen(true)}
                         aria-haspopup="dialog"
-                        aria-expanded={isOpen}
                         className={`${OUTLINE_BUTTON_CLASS} shrink-0`}
                     >
                         <ImagesSquare className="w-4 h-4" aria-hidden="true" />

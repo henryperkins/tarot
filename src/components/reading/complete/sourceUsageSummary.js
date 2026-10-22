@@ -45,11 +45,14 @@ export function formatUsageSummary(rawUsage) {
   const sourceUsage = sanitizeSourceUsage(rawUsage);
   const rows = [];
   const included = [];
-  if (sourceUsage?.spreadCards?.used) included.push('your cards');
   const addRow = (label, state, detail, group, summaryLabel) => {
     rows.push({ label, state, badgeText: BADGE_TEXT[state], detail, group });
     if (state === 'used' || state === 'partial') included.push(summaryLabel);
   };
+
+  if (sourceUsage?.spreadCards?.used) {
+    addRow('Your cards', 'used', 'The cards and their positions in your spread.', 'you', 'your cards');
+  }
 
   const inputs = personalInputs(sourceUsage?.userContext);
   for (const group of [
@@ -102,7 +105,10 @@ export function formatUsageSummary(rawUsage) {
   }
   if (sourceUsage?.patterns?.used) {
     const count = sourceUsage.patterns.patternsUsedInPrompt || 0;
-    addRow('Detected patterns', 'used', `${count} card pattern${count === 1 ? '' : 's'} supplied as reading context.`, 'sources', 'detected patterns');
+    const detail = count > 0
+      ? `${count} card pattern${count === 1 ? '' : 's'} supplied as reading context.`
+      : 'Card patterns supplied as reading context.';
+    addRow('Detected patterns', 'used', detail, 'sources', 'detected patterns');
   }
   if (sourceUsage?.ephemeris?.used) addRow('Astrological context', 'used', 'Lunar and planetary positions at the time of the reading.', 'sources', 'astrological context');
   if (sourceUsage?.forecast?.used) addRow('Timing outlook', 'used', 'Upcoming lunar and planetary events.', 'sources', 'a timing outlook');

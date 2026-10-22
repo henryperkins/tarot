@@ -5,6 +5,7 @@ import { retrievePassages } from '../functions/lib/graphRAG.js';
 
 import {
   buildNarrativePanelModel,
+  buildNarrativeSurfaceModel,
   buildNarrativeText,
   buildSpreadCompanionCards,
   buildStoryArtCards,
@@ -12,6 +13,18 @@ import {
   getTraditionalPassages,
   selectCinematicCard
 } from '../src/hooks/narrativeReadingModelUtils.js';
+
+test('secondary content is present only when a studio, insights or safety notice can render', () => {
+  const completed = { personalReading: { raw: 'A completed reading.' } };
+  assert.equal(buildNarrativeSurfaceModel(completed).hasSecondaryContent, false);
+  assert.equal(buildNarrativeSurfaceModel({ isGenerating: true }).hasSecondaryContent, false);
+  for (const flag of ['shouldShowVisualCompanion', 'shouldShowSpreadInsights']) {
+    assert.equal(buildNarrativeSurfaceModel({ ...completed, [flag]: true }).hasSecondaryContent, true);
+  }
+  const beforeReading = buildNarrativeSurfaceModel({ isGenerating: false });
+  assert.equal(beforeReading.shouldShowSafetyNotice, true);
+  assert.equal(beforeReading.hasSecondaryContent, true);
+});
 
 describe('traditional passage display', () => {
   const passages = Object.freeze([

@@ -195,7 +195,8 @@ test('local notes with a shared prefix retain their distinct full texts', async 
     assert.equal(field.includedLength, note.length);
     assert.equal(field.limitApplied, false);
   }
-  assert.doesNotMatch(formatUsageSummary(built.promptMeta.sourceUsage).rows[0].detail, /Shortened/);
+  const row = formatUsageSummary(built.promptMeta.sourceUsage).rows.find(row => row.label === 'Your question & notes');
+  assert.doesNotMatch(row.detail, /Shortened/);
 });
 
 test('a dropped local note cannot borrow a retained note with the same prefix', async () => {
@@ -207,7 +208,8 @@ test('a dropped local note cannot borrow a retained note with the same prefix', 
   assert.equal(fields['card-2'].omitted, true);
   assert.equal(fields['card-1'].limitApplied, true);
   assert.ok(fields['card-1'].includedLength > 0);
-  assert.match(formatUsageSummary(built.promptMeta.sourceUsage).rows[0].detail, /notes.*not.*included/i);
+  const row = formatUsageSummary(built.promptMeta.sourceUsage).rows.find(row => row.label === 'Your question & notes');
+  assert.match(row.detail, /notes.*not.*included/i);
 });
 
 test('fully omitted local notes are described as not included, not shortened', async () => {

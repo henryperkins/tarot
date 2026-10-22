@@ -18,6 +18,7 @@ export function CompleteScene({
     personalReading,
     isNarrativeFocus,
     isPersonalReadingError,
+    saveState,
     userQuestion,
     isShuffling,
     shuffle,
@@ -37,7 +38,9 @@ export function CompleteScene({
   } = completionModel;
   const narrativePanel = narrativeModel?.narrativePanel || null;
   const narrativeCompanion = narrativeModel?.secondaryContent || null;
-  const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeCompanion);
+  const shouldRenderNarrativeCompanion = Boolean(narrativePanel && personalReading && narrativeModel.hasSecondaryContent && narrativeCompanion);
+  const requiresResetConfirmation = Boolean(personalReading && !personalReading.isError
+    && !personalReading.isStreaming && !isPersonalReadingError && saveState?.status !== 'saved');
   const showSupport = Boolean(isComplete && personalReading && !isPersonalReadingError && !isNarrativeFocus);
   const withCompanion = narrativeModel.hasSpreadCompanion && !isPersonalReadingError;
   // Keep the same subtree through streaming and completion. Hidden support must
@@ -45,7 +48,7 @@ export function CompleteScene({
   const secondaryContent = (
     <div className={`reading-support-layout${withCompanion ? ' reading-support-layout--with-companion' : ''}`}>
       <div className="reading-support-layout__main">
-        <details className="reading-support" hidden={!showSupport} inert={!showSupport || undefined}>
+        <details className="reading-support" hidden={!showSupport}>
           <summary>Explore this reading<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
           {shouldRenderNarrativeCompanion ? <div className="mt-6 sm:mt-8">{narrativeCompanion}</div> : null}
 
@@ -82,7 +85,7 @@ export function CompleteScene({
           />
 
         </details>
-        {isComplete ? <NewReadingSection isShuffling={isShuffling} shuffle={shuffle} /> : null}
+        {isComplete ? <NewReadingSection isShuffling={isShuffling} shuffle={shuffle} requiresConfirmation={requiresResetConfirmation} /> : null}
       </div>
     </div>
   );

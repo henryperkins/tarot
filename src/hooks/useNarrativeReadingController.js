@@ -453,11 +453,11 @@ export function useNarrativeReadingController({
   const narrativePanel = personalReading
     ? createElement(NarrativePanel, { panelModel, callbacks: panelCallbacks })
     : null;
-  const secondaryContent = createElement(
+  const secondaryContent = surfaceModel.hasSecondaryContent ? createElement(
     'div',
     { className: surfaceModel.layoutClassName },
     createElement(NarrativeReadingSurface, { surfaceModel, callbacks: surfaceCallbacks })
-  );
+  ) : null;
 
   return {
     resolvedQuestion,
@@ -470,6 +470,7 @@ export function useNarrativeReadingController({
     narrativeModel: {
       narrativePanel,
       secondaryContent,
+      hasSecondaryContent: surfaceModel.hasSecondaryContent,
       hasSpreadCompanion: Boolean(gestureStudyEnabled && spreadCards.length),
       personalReading,
       spreadCards

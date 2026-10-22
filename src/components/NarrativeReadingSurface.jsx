@@ -10,7 +10,7 @@ import { READING_PANEL_COLUMN_CLASS } from '../styles/panelClasses';
 const AnimatedReveal = lazy(() => import('./AnimatedReveal'));
 const StoryIllustration = lazy(() => import('./StoryIllustration'));
 
-function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
+function VisualCompanionTrigger({ onOpen, message, modeLabel }) {
   return (
     <div className={READING_PANEL_COLUMN_CLASS}>
       <div className="panel-mystic rounded-2xl border border-(--border-warm-light) p-4 sm:p-5">
@@ -32,7 +32,6 @@ function VisualCompanionTrigger({ isOpen, onOpen, message, modeLabel }) {
               type="button"
               onClick={onOpen}
               aria-haspopup="dialog"
-              aria-expanded={isOpen}
               className={`${OUTLINE_BUTTON_CLASS} min-w-0 max-w-full wrap-anywhere`}
             >
               <Sparkle className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -99,17 +98,15 @@ export function NarrativeReadingSurface({
     storyArtCards = [],
     fullReadingText,
     narrativeText,
-    personalReading,
-    isGenerating,
     isHandset,
     shouldShowSpreadInsights,
+    shouldShowSafetyNotice,
     themes,
     highlightItems = [],
     traditionalPassages = [],
     insightCards = []
   } = surfaceModel;
   const { onCinematicMediaReady, onStoryArtMediaReady, onSelectCard } = callbacks;
-  const shouldShowSafetyNotice = !personalReading && !isGenerating;
   const shouldSplitCompanionGrid = shouldShowCinematicReveal && shouldShowStoryIllustration;
   const narrativeForIllustration = fullReadingText || narrativeText;
 
@@ -152,7 +149,6 @@ export function NarrativeReadingSurface({
           <VisualCompanionTrigger
             modeLabel={visualCompanionModeLabel}
             message={visualCompanionMessage}
-            isOpen={isCompanionOpen}
             onOpen={handleOpenCompanion}
           />
           {hasOpenedCompanion ? <VisualCompanionModal
@@ -225,7 +221,6 @@ export function NarrativeReadingSurface({
             passages={traditionalPassages}
             cards={insightCards}
             onSelectCard={onSelectCard}
-            embedded
           />
         </div>
       ) : null}
@@ -254,6 +249,7 @@ NarrativeReadingSurface.propTypes = {
     isGenerating: PropTypes.bool,
     isHandset: PropTypes.bool,
     shouldShowSpreadInsights: PropTypes.bool,
+    shouldShowSafetyNotice: PropTypes.bool,
     themes: PropTypes.object,
     highlightItems: PropTypes.array,
     traditionalPassages: PropTypes.array,

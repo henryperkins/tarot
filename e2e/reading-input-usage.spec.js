@@ -29,7 +29,8 @@ for (const width of [1440, 390, 320]) {
         await expect(region.getByText('Included: tone and reading depth.')).toBeVisible();
         await expect(region).not.toContainText(/requested not used|Skipped|telemetry|default profile/);
         await expectNoHorizontalOverflow(page);
-        const id = await trigger.getAttribute('id');
+        const id = await region.getByRole('heading', { name: panelName, exact: true }).getAttribute('id');
+        expect(id).toBeTruthy();
         const accessibility = await new AxeBuilder({ page }).include(`section[aria-labelledby="${id}"]`).analyze();
         expect(accessibility.violations).toEqual([]);
         await region.screenshot({ path: testInfo.outputPath(`inputs-${width}-${theme}-expanded.png`) });

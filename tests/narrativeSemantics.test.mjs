@@ -18,6 +18,8 @@ let NarrativeSection;
 let JournalEntryCard;
 let AuthProvider;
 let SubscriptionProvider;
+let ReadingFeedbackSection;
+let ReadingMediaSection;
 
 before(async () => {
   server = await createServer({
@@ -38,6 +40,8 @@ before(async () => {
   ({ JournalEntryCard } = await server.ssrLoadModule('/src/components/journal/entry-card/JournalEntryCard.jsx'));
   ({ AuthProvider } = await server.ssrLoadModule('/src/contexts/AuthContext.jsx'));
   ({ SubscriptionProvider } = await server.ssrLoadModule('/src/contexts/SubscriptionContext.jsx'));
+  ({ ReadingFeedbackSection } = await server.ssrLoadModule('/src/components/reading/complete/ReadingFeedbackSection.jsx'));
+  ({ ReadingMediaSection } = await server.ssrLoadModule('/src/components/reading/complete/ReadingMediaSection.jsx'));
 });
 
 test('unsupported artwork editions retain whole-card context without vector details', () => {
@@ -57,6 +61,24 @@ after(async () => {
 function render(Component, props = {}) {
   return renderToStaticMarkup(createElement(Component, props));
 }
+
+test('readings without a request ID omit the entire feedback section', () => {
+  for (const readingMeta of [undefined, {}, { requestId: null }]) {
+    assert.equal(render(ReadingFeedbackSection, { personalReading: { raw: 'Restored reading.' }, readingMeta }), '');
+  }
+  assert.match(render(ReadingFeedbackSection, {
+    personalReading: { raw: 'Current reading.' }, readingMeta: { requestId: 'current-reading' }
+  }), /How did this reading land/);
+});
+
+test('media section hides itself while a reading streams or has failed', () => {
+  for (const personalReading of [null, { isStreaming: true }, { isError: true }]) {
+    assert.equal(render(ReadingMediaSection, { personalReading, canUseMediaGallery: true }), '');
+  }
+  assert.match(render(ReadingMediaSection, {
+    personalReading: { raw: 'Complete reading.' }, canUseMediaGallery: true
+  }), /View recent media/);
+});
 
 function headings(markup) {
   return Array.from(markup.matchAll(/<h([1-6])\b[^>]*>(.*?)<\/h\1>/gs), ([, level, content]) => ({

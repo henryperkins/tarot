@@ -62,6 +62,69 @@ test('failed readings keep recovery outside hidden exploration tools', async ({ 
     await expect(page.getByRole('heading', { name: 'Your reading could not be completed' })).toBeVisible();
     await expect(page.getByText('Explore this reading', { exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: 'Start a new reading and reset this spread' })).toBeVisible();
+    await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await expect(page.getByRole('dialog', { name: 'Start a new reading?' })).toHaveCount(0);
+    await expect(page.locator('.narrative-stream')).toHaveCount(0);
+  } finally {
+    await fixture.close();
+  }
+});
+
+for (const saveStatus of ['idle', 'saving', 'error']) {
+  test(`an unsaved reading requires confirmation before reset (${saveStatus})`, async ({ page }) => {
+    const fixture = await createNarrativeFixture(page);
+    try {
+      await startReading(page, fixture);
+      if (saveStatus !== 'idle') {
+        if (saveStatus === 'saving') fixture.holdJournal();
+        else fixture.setJournalStatus(503);
+        await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
+        await expect.poll(() => fixture.requests.journal.length).toBe(1);
+        if (saveStatus === 'error') {
+          await expect(page.getByRole('alert').filter({ hasText: /save/i }).filter({ visible: true })).toBeVisible();
+        }
+      }
+      await openReadingSupport(page);
+      await page.getByRole('button', { name: /How did this reading land/ }).click();
+      const notes = page.getByRole('textbox', { name: 'Additional notes (optional)' });
+      await notes.fill('Keep this feedback with the reading.');
+      const reset = page.getByRole('button', { name: 'Start a new reading and reset this spread' });
+      const dialog = page.getByRole('dialog', { name: 'Start a new reading?' });
+      await reset.click();
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('button', { name: 'Keep reading', exact: true })).toBeFocused();
+      await dialog.getByRole('button', { name: 'Keep reading', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(reset).toBeFocused();
+      await expect(notes).toHaveValue('Keep this feedback with the reading.');
+      await reset.click();
+      await page.keyboard.press('Escape');
+      await expect(reset).toBeFocused();
+      await expect(notes).toHaveValue('Keep this feedback with the reading.');
+      await reset.click();
+      await dialog.getByRole('button', { name: 'Start new reading', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('.narrative-stream')).toHaveCount(0);
+      if (saveStatus === 'saving') {
+        fixture.releaseJournal();
+        await expect.poll(() => fixture.entries.length).toBe(1);
+        await expect(page.getByRole('button', { name: 'View saved entry', exact: true })).toHaveCount(0);
+      }
+    } finally {
+      await fixture.close();
+    }
+  });
+}
+
+test('a saved reading can start a new reading directly', async ({ page }) => {
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await startReading(page, fixture);
+    await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
+    await expect(page.getByRole('button', { name: 'View saved entry', exact: true }).filter({ visible: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await expect(page.getByRole('dialog', { name: 'Start a new reading?' })).toHaveCount(0);
+    await expect(page.locator('.narrative-stream')).toHaveCount(0);
   } finally {
     await fixture.close();
   }

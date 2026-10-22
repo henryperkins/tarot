@@ -20,7 +20,7 @@ test('real builder output includes Standard depth and card notes without warning
   });
   const usage = formatUsageSummary(built.promptMeta.sourceUsage);
   assert.equal(usage.summary.attention, 0);
-  assert.equal(usage.rows.length, 2);
+  assert.deepEqual(usage.rows.map(row => row.label), ['Your cards', 'Your question & notes', 'Your preferences']);
   const copy = JSON.stringify(usage);
   assert.match(copy, /card notes/);
   assert.match(copy, /reading depth/);
@@ -52,9 +52,10 @@ test('sanitization warns about lost content, not same-length normalization', () 
       cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme', userReflection: note }]
     });
     const summary = formatUsageSummary(built.promptMeta.sourceUsage);
-    assert.equal(summary.rows[0].state, state);
+    const notes = summary.rows.find(row => row.label === 'Your question & notes');
+    assert.equal(notes.state, state);
     assert.equal(summary.summary.attention, attention);
-    if (state === 'partial') assert.match(summary.rows[0].detail, /Shortened: card notes/);
+    if (state === 'partial') assert.match(notes.detail, /Shortened: card notes/);
   }
 });
 
@@ -92,4 +93,29 @@ test('local pattern summaries never imply that zero passages were used', () => {
   const result = formatUsageSummary({ graphRAG: { requested: true, used: true, mode: 'summary', passagesProvided: 1, passagesUsedInPrompt: 0 } });
   assert.match(result.rows[0].detail, /patterns/);
   assert.doesNotMatch(result.rows[0].detail, /0\/1|mode/);
+});
+
+test('cards-only provenance has a visible detail row as well as a summary', () => {
+  const result = formatUsageSummary({ spreadCards: { used: true } });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].label, 'Your cards');
+  assert.equal(result.rows[0].state, 'used');
+  assert.equal(result.rows[0].group, 'you');
+  assert.match(result.summaryText, /your cards/);
+  assert.equal(result.summary.used, 1);
+});
+
+test('used pattern sources with absent or zero counts use uncounted descriptions', () => {
+  for (const count of [undefined, 0]) {
+    const result = formatUsageSummary({
+      graphRAG: { used: true, passagesUsedInPrompt: count },
+      patterns: { used: true, patternsUsedInPrompt: count }
+    });
+    assert.equal(result.rows.length, 2);
+    for (const row of result.rows) {
+      assert.equal(row.state, 'used');
+      assert.match(row.detail, /patterns/i);
+      assert.doesNotMatch(row.detail, /\b0\b/);
+    }
+  }
 });

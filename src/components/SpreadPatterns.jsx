@@ -1,6 +1,5 @@
 import { memo, useId, useState } from 'react';
 import { Fire, Drop, Wind, Leaf, Star, Triangle, Path, Infinity as InfinityIcon, CaretDown } from '@phosphor-icons/react';
-import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { buildSpreadInsightSections, getVisibleTraditionalPassages } from '../lib/spreadInsights.js';
 import { getPassageSource } from '../../shared/passageSource.js';
 import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
@@ -65,12 +64,8 @@ function InsightSection({ title, children }) {
 }
 
 /** A short reading summary with supporting patterns and reference passages. */
-export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard, embedded = false }) {
+export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard }) {
   const headingId = useId();
-  const contentId = useId();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isHandset = useHandsetLayout();
-  const collapsible = isHandset && !embedded;
   const { highlights, spreadDetails, archetypes } = buildSpreadInsightSections(
     spreadHighlights, themes?.knowledgeGraph?.narrativeHighlights
   );
@@ -85,29 +80,12 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
 
   return (
     <section className={`${READING_PANEL_CLASS} spread-patterns-panel`} aria-labelledby={headingId}>
-      {collapsible ? (
-        <h2 id={headingId} className={READING_PANEL_TITLE_CLASS}>
-          <button
-            type="button"
-            onClick={() => setIsExpanded(expanded => !expanded)}
-            className={READING_PANEL_DISCLOSURE_CLASS}
-            aria-expanded={isExpanded}
-            aria-controls={contentId}
-          >
-            <span className="min-w-0 wrap-break-word">
-              Spread Insights <span className="text-sm font-normal text-muted">({totalCount})</span>
-            </span>
-            <CaretDown className={`h-5 w-5 shrink-0 ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </button>
-        </h2>
-      ) : (
-        // Keep the disclosure row height so this title lines up with Reading Inputs Used.
-        <h2 id={headingId} className={`${READING_PANEL_TITLE_CLASS} flex min-h-touch items-center`}>
-          Spread Insights
-        </h2>
-      )}
+      {/* Keep the title aligned with the Reading Inputs Used disclosure row. */}
+      <h2 id={headingId} className={`${READING_PANEL_TITLE_CLASS} flex min-h-touch items-center`}>
+        Spread Insights
+      </h2>
 
-      <div id={contentId} hidden={collapsible && !isExpanded} className="mt-4">
+      <div className="mt-4">
         {highlights.length > 0 ? (
           <div className="pb-5 space-y-3">
             <h3 className="text-base font-semibold text-accent">Highlights</h3>

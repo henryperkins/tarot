@@ -764,7 +764,6 @@
     "src/components/reading/ReadingSceneRouter.jsx",
     "src/components/reading/ReadingStart.jsx",
     "src/components/reading/VisualCompanionModal.jsx",
-    "src/components/reading/complete/ContinueConversationSection.jsx",
     "src/components/reading/complete/NewReadingSection.jsx",
     "src/components/reading/complete/ReadingCompletionActions.jsx",
     "src/components/reading/complete/ReadingFeedbackSection.jsx",

@@ -36,13 +36,10 @@ function inferElementFromSuit(suit) {
 export function ReadingDisplay({
     saveController,
     sectionRef,
-    followUpOpen,
-    onFollowUpOpenChange,
     onOpenFollowUp,
     onSaveReading: saveReading,
     isSaving = false,
     savedEntryId = null,
-    followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
     isMobileStableMode = false,
@@ -133,9 +130,6 @@ export function ReadingDisplay({
     }, [selectedSpread, sessionSeed, reading]);
 
     const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
-    const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
-    const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
-    const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const [heroStoryState, setHeroStoryState] = useState({ key: readingIdentity, value: false });
 
     const hasHeroStoryArt = heroStoryState.key === readingIdentity ? heroStoryState.value : false;
@@ -637,13 +631,10 @@ export function ReadingDisplay({
     };
 
     const completionModel = {
-        saveController,
-        onViewJournalEntry: handleOpenJournalEntry,
+        saveState: saveController?.saveState,
         personalReading,
         isNarrativeFocus,
         isPersonalReadingError,
-        narrativePhase,
-        isHandset,
         userQuestion,
         isShuffling,
         shuffle,
@@ -659,11 +650,7 @@ export function ReadingDisplay({
         mediaLoading,
         mediaError,
         onRefreshMedia: loadMediaGallery,
-        onDeleteMedia: deleteMediaById,
-        followUpOpen: isFollowUpOpen,
-        setFollowUpOpen: setIsFollowUpOpen,
-        followUpAutoFocus,
-        isMobileStableMode
+        onDeleteMedia: deleteMediaById
     };
     const sceneModels = {
         sceneVisuals,

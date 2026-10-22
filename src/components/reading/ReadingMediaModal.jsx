@@ -91,7 +91,7 @@ export function ReadingMediaModal({
             Recent media
           </h2>
           <p id={DESCRIPTION_ID} className="text-xs sm:text-sm text-muted mt-2">
-            Saved visuals from this reading flow.
+            Saved visuals from your readings.
           </p>
         </div>
 
