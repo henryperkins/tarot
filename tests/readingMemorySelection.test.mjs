@@ -441,3 +441,71 @@ test('age-specific continuations preserve supported shorthand without borrowing 
   }
   assert.deepEqual(choose('I am 42 furlongs from home and my child is 8', 'My child turns 8'), ['target']);
 });
+
+for (const text of [
+  'My child is 8 months old',
+  'My child is 2 weeks old',
+  'My child is 5 days old',
+  'My child turns 8 months old',
+  'My child is aged 2 weeks old',
+  'My child is turning 5 days old',
+  'My child turns 8.5 months old',
+  'My child is aged 8,5 months old',
+  'My child turns 8 and a half months old',
+  'My child turns 8 & 1/2 months old',
+  'My child turns 8 1/2 months old',
+  'My child is aged 8 ½ months old',
+  'My child turns 8½ months old',
+  'My child is aged 8-1/2 months old',
+  'My child turns 8–1/2 months old',
+  'My child turns 8-and-a-half months old',
+  'My child turns 8-9 months old',
+  'My child turns 8–9 months old',
+  'My child turns 8 to 9 months old',
+  'My child turns 8 or 9 months old',
+  'My 8-and-a-half-month-old child',
+  'My child is eight months old',
+  'My 8-month-old child',
+  'My 2-week-old child',
+  'My 5-day-old child'
+]) {
+  test(`non-year ages cannot bypass the personal-detail guard: ${text}`, () => {
+    const claims = selection.extractPersonalDetailClaims(text);
+    assert.equal(claims.hasPersonalDetails, true);
+    assert.equal(claims.ambiguous, true, 'unsupported age units must not become year-age claims');
+    assert.deepEqual(claims.claims, []);
+    for (const category of ['general', 'communication']) {
+      assert.deepEqual(selection.selectMemoriesForReading([
+        note('private-age', `${text}; I am considering a career change`, { category })
+      ], { sources: [{ id: 'question', text: 'Career change' }] }).selectedIds, []);
+    }
+    assert.deepEqual(choose(text, 'My child is 8 years old'), []);
+    assert.deepEqual(choose(text, 'My child is 81 years old'), []);
+    assert.deepEqual(choose('My child is 8 years old', text), []);
+    assert.deepEqual(choose(`${text}; I turn 42`, 'I am 42 years old'), ['target']);
+  });
+}
+
+test('ordinary durations remain eligible while infant ages stay ambiguous', () => {
+  for (const text of ['My child is 8 months away from graduation', 'I am 2 weeks into a career change', 'I am 5 days from a career change']) {
+    assert.equal(selection.extractPersonalDetailClaims(text).hasPersonalDetails, false, text);
+    assert.deepEqual(choose('Career change', `${text}; career change`), ['target']);
+  }
+});
+
+for (const fraction of [' & 1/2', '&1/2', ' & ½', ' & a half', ' & two thirds', ' & three-quarters']) {
+  test(`ampersand mixed fractions cannot authorize an age: 42${fraction}`, () => {
+    const measurement = `I am 42${fraction} miles from home`;
+    const claims = selection.extractPersonalDetailClaims(measurement);
+    assert.deepEqual(claims.claims, []);
+    assert.equal(claims.ambiguous, true);
+    assert.deepEqual(choose(measurement, 'I am 42 years old'), []);
+    assert.deepEqual(choose('Career change', `${measurement}; career change`), []);
+    assert.deepEqual(choose(`${measurement} & my child is 8`, 'My child turns 8'), ['target']);
+  });
+}
+
+test('ampersands still separate supported age predicates without joining subjects', () => {
+  assert.deepEqual(choose('I am 42 & my child is 8', 'I am 42 years old; my child turns 8'), ['target']);
+  assert.deepEqual(choose('Alice & Bob turn 42', 'Bob is 42 years old'), []);
+});

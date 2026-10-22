@@ -1186,7 +1186,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     );
     const localComposerLanguageSupport = getLocalComposerLanguageSupport({
       userQuestion,
-      reflectionsText: querentReflections
+      reflectionsText: querentReflections,
+      decisionPaths
     });
     const evalGatePolicy = buildSelectiveEvalGatePolicy({
       env,

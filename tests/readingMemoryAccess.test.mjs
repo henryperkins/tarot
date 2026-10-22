@@ -147,9 +147,27 @@ for (const [userQuestion, wrongPersonNote] of [
   ['I am 42,000 feet above the ground and considering a career change', 'I am 42 years old and considering a career change'],
   ['I am 42,5 kilometers from home and considering a career change', 'I am 42 years old and considering a career change'],
   ['I am 42 and a half miles from home and considering a career change', 'I am 42 years old and considering a career change'],
-  ['I am 42 and ½ miles from home and considering a career change', 'I am 42 years old and considering a career change']
+  ['I am 42 and ½ miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['How can I approach a career change?', 'My child is 8 months old; I am considering a career change'],
+  ['How can I approach a career change?', 'My child is 2 weeks old; I am considering a career change'],
+  ['How can I approach a career change?', 'My child is 5 days old; I am considering a career change'],
+  ['How can I approach a career change?', 'My 8-month-old child; I am considering a career change'],
+  ['How can I approach a career change?', 'My 8-and-a-half-month-old child; I am considering a career change'],
+  ['My child turns 8 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8.5 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8 & 1/2 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8 1/2 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child is aged 8 ½ months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8½ months old and I am considering a career change', 'My child is 81 years old; I am considering a career change'],
+  ['My child turns 8-and-a-half months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8-9 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['My child turns 8 to 9 months old and I am considering a career change', 'My child is 8 years old; I am considering a career change'],
+  ['I am 42 & 1/2 miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42&1/2 miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 & ½ miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 & a half miles from home and considering a career change', 'I am 42 years old and considering a career change']
 ]) {
-  test(`reading route excludes and never stamps an older unraised age note: ${userQuestion}`, async t => {
+  test(`reading route excludes and never stamps an older unraised age note: ${userQuestion} / ${wrongPersonNote}`, async t => {
     const { onRequestPost } = await import('../functions/api/tarot-reading.js');
     const db = routeDatabase();
     t.after(() => db.sqlite.close());

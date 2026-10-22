@@ -522,3 +522,114 @@ test('nested path prefixes remain the same fact through actual route, provider, 
   }
   assert.equal(JSON.stringify(routed.decisionPaths), '{"a":"Path B: Path A","b":""}', 'Internal normalization markers are never serialized');
 });
+
+const spanishPath = '¿Cómo puedo avanzar en mi trabajo?';
+const decisionLanguageCases = ['a', 'b'].flatMap(side => ['explicit', 'inferred', 'clear', 'replace'].map(mode => ({
+  name: `${side}: ${mode}`,
+  side,
+  mode,
+  blocked: mode === 'explicit' || mode === 'inferred',
+  cardsInfo: cards.map((card, index) => index === (side === 'a' ? 1 : 2) ? {
+    ...card,
+    ...(mode !== 'explicit' ? { position: `Path ${side.toUpperCase()}: ${spanishPath}` } : {}),
+    userReflection: 'I need enough time to collect my children.'
+  } : card),
+  decisionPaths: mode === 'inferred' ? {} : { a: '', b: '', [side]: mode === 'explicit' ? spanishPath : mode === 'replace' ? 'Keep this job' : '' }
+})));
+
+function mockEnglishDecisionProvider(t) {
+  const requests = [];
+  for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    assert.equal(String(url), 'https://modal.test/v1/chat/completions');
+    requests.push(JSON.parse(init.body));
+    return Response.json({ choices: [{ finish_reason: 'stop', message: {
+      content: 'The Fool, The Magician, The High Priestess, The Empress, and The Emperor invite reflection. Your choices shape outcomes.'
+    } }] });
+  });
+  return requests;
+}
+
+const decisionLanguageEnv = {
+  GPT_SERVICE_TOKEN: 'svc_0123456789abcdef0123456789abcdef01234567',
+  MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test',
+  GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false'
+};
+
+test('decision language screening requires evaluation only for effective path labels', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const requests = mockEnglishDecisionProvider(t);
+  for (const entry of decisionLanguageCases) {
+    await t.test(entry.name, async () => {
+      const tasks = [];
+      const input = { spreadInfo, cardsInfo: entry.cardsInfo, decisionPaths: entry.decisionPaths, userQuestion: 'Any guidance?' };
+      assert.equal(safeParseReadingRequest(input).success, true);
+      const response = await onRequestPost({
+        request: new Request('https://tableau.test/api/tarot-reading', {
+          method: 'POST', headers: { Authorization: `Bearer ${decisionLanguageEnv.GPT_SERVICE_TOKEN}` }, body: JSON.stringify(input)
+        }),
+        env: decisionLanguageEnv, waitUntil: promise => tasks.push(promise)
+      });
+      const result = await response.json();
+      await Promise.all(tasks);
+      const prompt = requests.at(-1).messages.find(message => message.role === 'user').content;
+      assert.equal(prompt.includes(spanishPath), entry.blocked);
+      assert.equal(response.status, entry.blocked ? 503 : 200, JSON.stringify(result));
+      if (entry.blocked) assert.equal(result.code, 'reading_safety_unavailable');
+      else {
+        assert.equal(result.provider, 'modal-qwen');
+        assert.equal(result.sourceUsage.userContext[`path${entry.side.toUpperCase()}Used`], entry.mode === 'replace');
+      }
+    });
+  }
+  assert.equal(requests.length, decisionLanguageCases.length);
+});
+
+test('local composer screens effective explicit and inferred path languages', async t => {
+  const { composeReadingEnhanced } = await import('../functions/lib/narrativeBackends.js');
+  const { analyzeDecision, analyzeSpreadThemes } = await import('../functions/lib/spreadAnalysis.js');
+  for (const entry of decisionLanguageCases) {
+    await t.test(entry.name, async () => {
+      const payload = {
+        spreadInfo, cardsInfo: entry.cardsInfo, decisionPaths: entry.decisionPaths, userQuestion: 'Any guidance?', context: 'decision',
+        analysis: { spreadKey: 'decision', spreadAnalysis: analyzeDecision(entry.cardsInfo), themes: await analyzeSpreadThemes(entry.cardsInfo) }
+      };
+      if (entry.blocked) {
+        await assert.rejects(composeReadingEnhanced(payload), { code: 'local_composer_unsupported_language', detectedLanguage: 'es' });
+      } else {
+        const result = await composeReadingEnhanced(payload);
+        assert.equal(result.reading.includes(spanishPath), false);
+        assert.ok(result.reading.includes(`### Path ${entry.side.toUpperCase()} — ${entry.mode === 'replace' ? 'Keep this job' : 'unnamed'}\n`));
+      }
+    });
+  }
+});
+
+test('reading jobs preserve decision language gating and explicit label overrides', async t => {
+  const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+  const { ReadingJob } = await import('../src/worker/readingJob.js');
+  const requests = mockEnglishDecisionProvider(t);
+  for (const entry of decisionLanguageCases.filter(entry => entry.side === 'a')) {
+    await t.test(entry.name, async () => {
+      const tasks = [];
+      const job = new ReadingJob({
+        blockConcurrencyWhile: callback => callback(),
+        storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
+        waitUntil: promise => tasks.push(promise)
+      }, decisionLanguageEnv);
+      t.after(() => job.closeSubscribers());
+      const started = await startReadingJob({
+        env: { READING_JOBS: { idFromName: id => id, get: () => ({ fetch: (url, init) => job.fetch(new Request(url, init)) }) } },
+        payload: { spreadInfo, cardsInfo: entry.cardsInfo, decisionPaths: entry.decisionPaths, userQuestion: 'Any guidance?' },
+        forwardHeaders: { authorization: `Bearer ${decisionLanguageEnv.GPT_SERVICE_TOKEN}` }
+      });
+      assert.equal(started.ok, true);
+      await job.runningPromise;
+      await Promise.all(tasks);
+      assert.equal(job.job.status, entry.blocked ? 'error' : 'complete');
+      if (entry.blocked) assert.equal(job.job.errorCode, 'reading_safety_unavailable');
+      else assert.equal(job.job.result.provider, 'modal-qwen');
+    });
+  }
+  assert.equal(requests.length, 4);
+});

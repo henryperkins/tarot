@@ -12,7 +12,7 @@ const COPULA_NUMBER = /\b(?:am|is|are|was|were)\s+(\d{1,3})(?!\d)|'(?:m|s|re)\s+
 const AGE_CONTINUATION = /^\s*(?:$|(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o|today|now|this\s+year)\b)/i;
 // NFKC expands Unicode fractions to digits separated by the fraction slash.
 const FRACTION_START = String.raw`(?:(?:(?:a|an|one|two|three|four|five|six|seven|eight|nine|\d+)(?:\s+|[-–]))?(?:half|halves|thirds?|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?)\b|\d+\s*[/⁄]\s*\d+\b)`;
-const DETAIL_CLAUSE_SEPARATOR = new RegExp(String.raw`,(?!\d)\s*(?:and\s+)?|\s+(?:and(?!\s+${FRACTION_START})|but)\s+|\s*&\s*`, 'i');
+const DETAIL_CLAUSE_SEPARATOR = new RegExp(String.raw`,(?!\d)\s*(?:and\s+)?|\s+(?:and(?!\s+${FRACTION_START})|but)\s+|\s*&(?!\s*${FRACTION_START})\s*`, 'i');
 const normalize = text => text.normalize('NFKC').replace(/[’‘]/g, "'").toLocaleLowerCase().replace(/\s+/g, ' ').trim();
 const claimKey = claim => `${claim.kind}:${claim.value}:${claim.subjectKey}`;
 const meaningfulTokens = text => new Set((normalize(text).match(/[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)*/gu) || []).filter(token => token.length >= 4 && !STOP_WORDS.has(token)));
@@ -113,7 +113,17 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
   for (const fragment of fragments) {
     const details = bareAgeDetails(fragment);
     const agePattern = /\b(?:turn(?:s|ing)?|aged?)\s+(\d{1,3})(?!\d)(?!\s+(?:cards?|pages?|degrees?|times?)\b)|\b(\d{1,3})(?!\d)\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b/gi;
-    for (const match of fragment.matchAll(agePattern)) details.push({ kind: 'age', value: Number(match[1] || match[2]), index: match.index });
+    // A prefixed number needs the same age continuation as bare shorthand;
+    // otherwise a fraction, range or non-year unit could become a year-age claim.
+    for (const match of fragment.matchAll(agePattern)) details.push({
+      kind: 'age', value: Number(match[1] || match[2]), index: match.index,
+      ambiguous: Boolean(match[1]) && !AGE_CONTINUATION.test(fragment.slice(match.index + match[0].length))
+    });
+    // These are ages, not ordinary durations. Their units are outside the
+    // year-age matcher, so fail closed instead of equating eight months to eight years.
+    for (const match of fragment.matchAll(/\b(?:days?|weeks?|months?)(?:\s+|[-–])old\b/gi)) {
+      details.push({ kind: 'age', value: null, index: match.index, ambiguous: true });
+    }
     for (const match of fragment.matchAll(/\bbirthdays?\b/gi)) details.push({ kind: 'birthday', value: null, index: match.index });
     for (const detail of details.sort((a, b) => a.index - b.index)) {
       result.hasPersonalDetails = true;

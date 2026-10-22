@@ -296,7 +296,9 @@ function normalizeLocalComposerLanguageInput(input) {
 
   return [
     input.userQuestion,
-    input.reflectionsText
+    input.reflectionsText,
+    input.decisionPaths?.a,
+    input.decisionPaths?.b
   ]
     .filter((value) => typeof value === 'string' && value.trim())
     .join('\n')
@@ -1319,7 +1321,8 @@ export async function composeReadingEnhanced(payload, env = null) {
   const reflectionsText = collectQuerentReflections(payload.reflectionsText, cardsInfo);
   const languageSupport = getLocalComposerLanguageSupport({
     userQuestion,
-    reflectionsText
+    reflectionsText,
+    decisionPaths
   });
   if (!languageSupport.supported) {
     const error = new Error(languageSupport.reason);

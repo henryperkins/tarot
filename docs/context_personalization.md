@@ -18,6 +18,8 @@ Decision labels are optional A/B facts. Explicit labels override legacy labels i
 
 The local fallback uses stable A/B position roles before folding card reflections into its notes section. This preserves each reflection without reintroducing a legacy option that an explicit label replaced or cleared. The normalized path facts supply the option names separately.
 
+Language screening in both the reading route and local fallback includes the effective A/B labels. At the route, explicit and inferred labels in an unsupported language require evaluation; an unavailable evaluator blocks the reading. The local fallback rejects unsupported path languages. Cleared or replaced legacy labels do not participate in these checks. Raw-position crisis screening remains in place before normalization.
+
 The full source fields remain available to narrative assembly independently of retrieval excerpts. Budget-truncated fields can retain complete JSON representations containing head/tail fragments and an omission marker. Source metadata distinguishes original, sanitized, eligible, included and represented lengths, sanitization changes, source-limit application, duplication and final budget loss. It contains no source text.
 
 ## Loading candidates and selecting notes
@@ -55,6 +57,10 @@ An unnamed singular relation supports only a role-level match, not real-world id
 Ambiguous pronouns, groups, unsupported ownership and unattributed stored fragments authorize nothing. A current standalone `Turning 42` may be self when it has no competing subject; the same unattributed stored fragment remains unknown. The supported age notations include `8 years old`, `42-year-old`, `42 y/o`, `aged 100` and `turning 42`; `turns 3 cards` is not an age. This bounded English recognizer may exclude unfamiliar phrasing. It does not claim general person recognition.
 
 Possessive age modifiers such as `my 42-year-old partner`, `my partner's 42-year-old friend` and `Alice's 42 y/o partner` have unresolved ownership and are excluded in either current input or stored notes. They cannot authorize the possessor's age or borrow an owner from another field. Explicit predicates such as `my partner turns 42`, `Alice's 42` and `Alice's a 42-year-old reader` remain supported. Route regressions verify that excluded notes reach neither the provider prompt nor successful-use access stamps.
+
+Explicit ages in days, weeks or months, including `8 months old` and `8-month-old`, are recognized as personal details but remain ambiguous in this year-based matcher. They cannot be treated as ordinary topical notes or converted into a year-age claim. Prefixed shorthand such as `turns 8` must have an age-compatible continuation; decimals, fractions and ranges cannot authorize an integer age. This includes `turns 8.5 months old`, `turns 8 & 1/2 months old` and `turns 8 to 9 months old`. Unsupported quantities such as `eight months old` and `8-and-a-half-month-old` also stay ambiguous. Ordinary durations such as `2 weeks into a career change` remain eligible as context.
+
+Numeric commas and mixed fractions remain intact during clause splitting, including ampersands in `42 & 1/2 miles` and Unicode fractions. A measurement cannot become a bare age merely because its fraction contains a conjunction. Separate supported age clauses still retain their own subjects.
 
 ## Rendering and callback guidance
 
