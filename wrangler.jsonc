@@ -17,6 +17,9 @@
   // Route management lives in the Cloudflare dashboard; keep Wrangler from
   // reconciling zone routes during deploys.
   "workers_dev": false,
+  // Preserve dashboard-only vars. npm run deploy also omits existing names from
+  // its upload so checked-in defaults cannot overwrite dashboard values.
+  "keep_vars": true,
   // Main worker entry point (unified router)
   "main": "./src/worker/index.js",
   // Static assets configuration (SPA fallback enabled)
@@ -48,7 +51,10 @@
   "logpush": true,
   // Observability
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "issues": {
+      "enabled": true
+    }
   },
   "tail_consumers": [
     {
