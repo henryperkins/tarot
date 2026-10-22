@@ -138,9 +138,18 @@ for (const [userQuestion, wrongPersonNote] of [
   ["My partner's 42-year-old friend wants a career change", 'My partner is 42 years old and considering a career change'],
   ['My partner turns 42 and is considering a career change', "My partner's 42-year-old friend enjoys hiking"],
   ["Alice's 42-year-old partner wants a career change", 'Alice is 42 years old and considering a career change'],
-  ['Alice turns 42 and is considering a career change', "Alice's 42-year-old partner enjoys hiking"]
+  ['Alice turns 42 and is considering a career change', "Alice's 42-year-old partner enjoys hiking"],
+  ['I am 42 miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 kilometers away from family and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 kg and seeking career guidance', 'I am 42 years old and considering a career change'],
+  ['I am 42 nautical miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 furlongs from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42,000 feet above the ground and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42,5 kilometers from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 and a half miles from home and considering a career change', 'I am 42 years old and considering a career change'],
+  ['I am 42 and ½ miles from home and considering a career change', 'I am 42 years old and considering a career change']
 ]) {
-  test(`reading route excludes and never stamps an older wrong-person age note: ${userQuestion}`, async t => {
+  test(`reading route excludes and never stamps an older unraised age note: ${userQuestion}`, async t => {
     const { onRequestPost } = await import('../functions/api/tarot-reading.js');
     const db = routeDatabase();
     t.after(() => db.sqlite.close());

@@ -7,6 +7,12 @@ const STOP_WORDS = new Set('about been from have into just right that their ther
 const CATEGORIES = new Set(['theme', 'card_affinity', 'communication', 'life_context', 'general']);
 const RELATIONS = 'child|kid|son|daughter|partner|spouse|husband|wife|mother|mom|mum|father|dad|parent|sister|brother|friend|grandmother|grandfather';
 const ALIASES = { kid: 'child', mom: 'mother', mum: 'mother', dad: 'father' };
+const MEASUREMENT_UNIT = /^\s*(?:(?:nautical|square|cubic|metric)\s+)*(?:miles?|yards?|feet|foot|inch(?:es)?|ounces?|stones?|ton(?:ne)?s?|(?:milli|centi|kilo)?met(?:er|re)s?|(?:milli|centi|kilo)?grams?|kilogrammes?|kilos?|(?:milli)?lit(?:er|re)s?|gallons?|mi|yds?|ft|[cmk]?m|kgs?|mg|g|lbs?|oz|ml|l|mph|kph)\b/i;
+const COPULA_NUMBER = /\b(?:am|is|are|was|were)\s+(\d{1,3})(?!\d)|'(?:m|s|re)\s+(\d{1,3})(?!\d)/i;
+const AGE_CONTINUATION = /^\s*(?:$|(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o|today|now|this\s+year)\b)/i;
+// NFKC expands Unicode fractions to digits separated by the fraction slash.
+const FRACTION_START = String.raw`(?:(?:(?:a|an|one|two|three|four|five|six|seven|eight|nine|\d+)(?:\s+|[-–]))?(?:half|halves|thirds?|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?)\b|\d+\s*[/⁄]\s*\d+\b)`;
+const DETAIL_CLAUSE_SEPARATOR = new RegExp(String.raw`,(?!\d)\s*(?:and\s+)?|\s+(?:and(?!\s+${FRACTION_START})|but)\s+|\s*&\s*`, 'i');
 const normalize = text => text.normalize('NFKC').replace(/[’‘]/g, "'").toLocaleLowerCase().replace(/\s+/g, ' ').trim();
 const claimKey = claim => `${claim.kind}:${claim.value}:${claim.subjectKey}`;
 const meaningfulTokens = text => new Set((normalize(text).match(/[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)*/gu) || []).filter(token => token.length >= 4 && !STOP_WORDS.has(token)));
@@ -41,13 +47,15 @@ function analyzeRoleMultiplicity(text) {
 // money and counts cannot establish an age merely by sharing that grammar.
 function bareAgeDetails(fragment) {
   const details = [];
-  const pattern = /\b(?:am|is|are|was|were)\s+(\d{1,3})(?!\d)|'(?:m|s|re)\s+(\d{1,3})(?!\d)/gi;
-  for (const match of fragment.matchAll(pattern)) {
+  for (const match of fragment.matchAll(new RegExp(COPULA_NUMBER, 'gi'))) {
     const numeric = match[1] || match[2];
     const index = match.index + match[0].length - numeric.length;
     const suffix = fragment.slice(index + numeric.length);
+    if (MEASUREMENT_UNIT.test(suffix)) continue;
     if (/^[.,]\d|^\s*(?:[%°$€£]|cards?\b|pages?\b|degrees?\b|times?\b|dollars?\b|euros?\b|pounds?\b|cents?\b|usd\b|eur\b|gbp\b|hours?\b|minutes?\b|seconds?\b|days?\b|weeks?\b|months?\b|percent\b|per\s+(?:hour|day|week|month|year)\b|(?:an?|each)\s+(?:hour|day|week|month|year)\b)/i.test(suffix)) continue;
-    details.push({ kind: 'age', value: Number(numeric), index });
+    // Unknown continuations cannot authorize an age. Keep them ambiguous so
+    // a stored bare age cannot evade the detail guard as an ordinary note.
+    details.push({ kind: 'age', value: Number(numeric), index, ambiguous: !AGE_CONTINUATION.test(suffix) });
   }
   return details;
 }
@@ -87,13 +95,15 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
   const normalizedText = text.normalize('NFKC').replace(/[’‘]/g, "'").replace(new RegExp(`\\bmy\\s+(${RELATIONS})\\b`, 'gi'), (_match, role) => `my ${role.toLowerCase()}`);
   const safeDisplayName = normalize(sanitizeDisplayName(displayName) || '');
   const fragments = normalizedText.split(/[;!?\n]+|(?<!\d)\.|\.(?!\d)/).flatMap(clause => {
-    const parts = clause.split(/,\s*(?:and\s+)?|\s+(?:and|but)\s+|\s*&\s*/i);
+    // Keep numeric commas and mixed fractions intact before recognizing ages;
+    // splitting '42,000 feet' or '42 and a half miles' would invent 'I am 42'.
+    const parts = clause.split(DETAIL_CLAUSE_SEPARATOR);
     const resolved = [];
     let pending = parts.shift() || '';
     for (const part of parts) {
       // Coordinated subjects ('Alice and Bob turn 42') stay together and
-      // ambiguous. Separate clauses only after a complete preceding detail.
-      if (/\bbirthday\b|\b(?:turn(?:s|ing)?|aged?)\s+\d{1,3}\b|\d{1,3}\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b/i.test(pending) || bareAgeDetails(pending).length) {
+      // ambiguous. Completed numeric predicates also split measurement clauses.
+      if (/\bbirthday\b|\b(?:turn(?:s|ing)?|aged?)\s+\d{1,3}\b|\d{1,3}\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b/i.test(pending) || COPULA_NUMBER.test(pending)) {
         resolved.push(pending);
         pending = part;
       } else pending += ` and ${part}`;
@@ -107,6 +117,10 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
     for (const match of fragment.matchAll(/\bbirthdays?\b/gi)) details.push({ kind: 'birthday', value: null, index: match.index });
     for (const detail of details.sort((a, b) => a.index - b.index)) {
       result.hasPersonalDetails = true;
+      if (detail.ambiguous) {
+        result.ambiguous = true;
+        continue;
+      }
       const subjectKey = ownerFromPrefix(fragment.slice(0, detail.index), { displayName: safeDisplayName, source, fragment, kind: detail.kind });
       if (!subjectKey) result.ambiguous = true;
       else result.claims.push({ kind: detail.kind, value: detail.value, subjectKey });

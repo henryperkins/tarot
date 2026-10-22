@@ -381,3 +381,63 @@ for (const text of ['I am 42 degrees from north', 'My child is 8 cards ahead', '
     assert.deepEqual(selected.selectedIds, ['ordinary']);
   });
 }
+
+for (const text of [
+  'I am 42 miles from home and considering a career change',
+  "I'm 42 km from home and considering a career change",
+  'I am 42 kilometers away from family',
+  'I am 42 kilometres away from family',
+  'I am 42 meters from the office',
+  'I am 42 centimetres from the desk',
+  'I am 42 feet above the ground',
+  'I am 42 inches from the door',
+  'I am 42 yards from the entrance',
+  'I am 42 kg and seeking career guidance',
+  'I am 42 kilograms and seeking career guidance',
+  'I am 42 grams short of the target',
+  'I am 42 ounces short of the target',
+  'I am 42 litres short of the target',
+  'I am 42 mph above the speed limit',
+  'I am 42 nautical miles from home and considering a career change',
+  'I am 42 square meters short of the target',
+  'I am 42 tonnes short of the target',
+  'I am 42,000 feet above the ground and considering a career change',
+  'I am 42,5 kilometers from home and considering a career change'
+]) {
+  test(`explicit measurement cannot authorize a stored age: ${text}`, () => {
+    assert.deepEqual(choose(text, 'I am 42 years old and considering a career change'), []);
+    assert.equal(selection.extractPersonalDetailClaims(text).hasPersonalDetails, false);
+    assert.deepEqual(selection.selectMemoriesForReading([
+      note('ordinary', text, { category: 'communication' })
+    ], { sources: [{ id: 'question', text: 'Career choices' }] }).selectedIds, ['ordinary']);
+  });
+}
+
+test('measurement units preserve subject ownership and independent age clauses', () => {
+  assert.deepEqual(choose('My child is 8 kilometers away', 'My child is 8 years old'), []);
+  assert.deepEqual(choose("Alice's 42 kg", 'Alice is 42 years old'), []);
+  assert.deepEqual(choose('I am 42 miles from home; my child is 8', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42 miles from home and my child is 8', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42 nautical miles from home and my child is 8', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('My child is 8 and I am 42 miles from home', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42; my child is 8 kilometers away', 'I am 42 years old'), ['target']);
+});
+
+test('unsupported numeric continuations cannot authorize ages or hide stored bare-age details', () => {
+  for (const text of ['I am 42 furlongs from home', 'I am 42 laps ahead', 'I am 42 looking for a career change', 'I am 42 and a half miles from home', 'I am 42 and 1/2 miles from home', 'I am 42 and two thirds miles from home', 'I am 42 and three-quarters miles from home', 'I am 42 and ½ miles from home', 'I am 42 and ¾ miles from home']) {
+    assert.deepEqual(choose(text, 'I am 42 years old'), [], text);
+    assert.deepEqual(choose('Career change', text), [], text);
+    const claims = selection.extractPersonalDetailClaims(text);
+    assert.equal(claims.hasPersonalDetails, true, text);
+    assert.equal(claims.ambiguous, true, text);
+    assert.deepEqual(claims.claims, [], text);
+  }
+});
+
+test('age-specific continuations preserve supported shorthand without borrowing later owners', () => {
+  for (const text of ['I am 42 now', "I'm 42 today", 'I am 42 this year']) {
+    assert.deepEqual(choose(text, 'I am 42 years old'), ['target'], text);
+    assert.deepEqual(choose('I am 42 years old', text), ['target'], text);
+  }
+  assert.deepEqual(choose('I am 42 furlongs from home and my child is 8', 'My child turns 8'), ['target']);
+});

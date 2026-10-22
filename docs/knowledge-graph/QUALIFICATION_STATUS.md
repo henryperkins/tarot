@@ -25,6 +25,13 @@ That follow-up added 62 tests. Independent review approved those three fixes and
 
 This second fix wave adds 28 tests, including four route subtests. Independent review approved both fixes and confirmed the reading-specific selected/retained access lifecycle remains intact.
 
+The re-review of `7dec3846` identified two further P2 issues, addressed in the third fix wave:
+
+- Bare age authorization now requires an age-compatible continuation. Known measurements remain ordinary context; unsupported numeric continuations stay ambiguous and cannot authorize an age or bypass stored-detail filtering. Numeric commas and mixed fractions remain intact through clause splitting, including the Unicode fraction slash produced by NFKC. Completed measurement predicates can still separate a later named or relationship age clause. Route regressions prove that older unraised age notes stay out of provider prompts and receive no access stamp.
+- The reading route flattens decision-card notes with canonical A/B roles after raw crisis screening. Explicit clears and replacements therefore cannot reintroduce obsolete restricted-topic labels through a card-note prefix. Current questions, general/card notes and normalized or inferred path labels still trigger selective evaluation when appropriate. Direct requests and reading jobs share this behavior; original raw-position crisis screening and nondecision positions remain covered.
+
+This third fix wave adds 48 tests, including twelve route/job subtests. Independent bounded review passes 215 focused tests and fifteen asserted route probes, with no significant issue remaining in these two corrections. The eleven measurement probes exclude the private age note and its access stamp; four named/relationship age controls retain their matching note. Earlier failed probes remain preserved alongside the final passing evidence.
+
 These fixes preserve the frozen corpus and pending acceptance requirements. The older candidate previews do not qualify the updated implementation. The PR remains in draft while subscription qualification and human editorial review are pending.
 
 ## Passing local evidence
@@ -33,7 +40,7 @@ The following local checks cover the PR review fixes. Subscription gates and hum
 
 | Check | Recorded result |
 | --- | --- |
-| Root Node suite (`npm test`) | 4,804 passed, two skipped, zero failures |
+| Root Node suite (`npm test`) | 4,852 passed, two skipped, zero failures |
 | Worker knowledge graph suite | 47 passed, zero failures |
 | Deterministic qualification corpus | 73 synthetic fixtures and 219 provider prompt builds |
 | Authored archetypal patterns | All 30 partial pairs and ten complete arcs |
@@ -41,7 +48,7 @@ The following local checks cover the PR review fixes. Subscription gates and hum
 | Budget/fallback boundaries | Twelve explicit boundaries, including graph disabled versus passages removed |
 | Repository and changed-file ESLint | Zero errors and warnings |
 | Build, maintained documentation links and diff check | Passed |
-| Independent code review | Original whole-change review and both fix-wave reviews approved; all five PR code findings closed |
+| Independent code review | Original whole-change review and all three fix-wave reviews approved; all seven reported PR code findings addressed |
 
 An earlier separate real Workers AI lane validated nineteen finite embedding vectors of 1,024 dimensions from `@cf/baai/bge-m3`. Sixteen paired cases used semantic scoring; two accurately reported no eligible patterns or passages. This lane predates the PR fixes and does not establish generated-reading usefulness, production latency or production cache behavior.
 
@@ -51,7 +58,7 @@ An earlier separate real Workers AI lane validated nineteen finite embedding vec
 - [ ] Complete the frozen eighteen-pair quality comparison: eighteen baseline and eighteen candidate outputs, 36 outputs total.
 - [ ] Review candidate readings against the actual inputs and the existing ethics, card-coverage and depth gates.
 
-The original narrative-gate attempt used the existing personal Claude subscription, model `claude-opus-5-5`, effort `xhigh`, and stopped on its first sample because of the subscription usage limit. One attempt on each of the two review-fix waves also failed on its first sample with the Claude Code subscription request error. Each attempt retains its own log. The latest read-only usage check confirmed the weekly limit below. The gate has **not passed**. No paid API fallback was used; the original sample, metric, review-queue and paired-comparison evidence remains unchanged.
+The original narrative-gate attempt used the existing personal Claude subscription, model `claude-opus-5-5`, effort `xhigh`, and stopped on its first sample because of the subscription usage limit. One attempt during each of the three review-fix waves also failed on its first sample with the Claude Code subscription request error. The third-wave attempt ran in an isolated source snapshot before the final numeric-boundary corrections; it does not qualify the updated source. Each attempt retains its own source identity and log. The latest read-only usage check confirmed the historical weekly limit below; this fix wave did not refresh that usage observation. The gate has **not passed**. No paid API fallback was used; the original sample, metric, review-queue and paired-comparison evidence remains unchanged.
 
 The frozen baseline comparison attempted eighteen cases once and produced five readings and thirteen CLI failures. All failures remain recorded, with zero retries. Independent content review passed three available baseline outputs and failed two: one lost the named decision options, and one disclosed an irrelevant coastal-walk memory. Those two failures were not waived or omitted. All five available baseline outputs passed the saved structural/card-coverage checks, which did not detect those content failures.
 
@@ -81,5 +88,7 @@ The full qualification manifest, original failed attempts, synthetic generated r
 The fixture bytes, paired-case order and canon/projection corpus are unchanged by the PR fixes. Follow-up regression logs, local-check results and the fresh subscription observation are preserved in the `pr121-fixes-20261022-k3a3_5l4` directory beneath that artifact root. Original source archives and candidate previews predate these fixes and retain their original identities. Fresh generated-reading qualification must identify the updated implementation commit.
 
 The subsequent two-P2 fix wave retains its own regression, verification, review and subscription evidence under `pr121-p2fixes-20261022-nlmsr0s2` beneath the same artifact root. Earlier failed attempts and their run identities remain intact.
+
+The measurement and selective-evaluation corrections retain red/green regression logs, independent route probes, final source hashes, local checks and the isolated failed subscription attempt under `pr121-measurement-policy-fixes-20261022-24lxcpxf` beneath that artifact root. The source archives and all earlier failed or passing observations retain their original identities.
 
 No merge, deployment, migration or production-behavior qualification is established by this branch publication.

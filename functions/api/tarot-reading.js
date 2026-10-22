@@ -1,7 +1,7 @@
 import { prepareReadingContextSources } from '../lib/readingContextSources.js';
 import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
 import { persistReadingMemoryAccess } from '../lib/userMemory.js';
-import { resolveDecisionPathContext } from '../lib/decisionPathContext.js';
+import { decisionPathRoleCards, resolveDecisionPathContext } from '../lib/decisionPathContext.js';
 import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
 import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
@@ -851,9 +851,12 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       if (!(error instanceof ReadingCardResolutionError)) throw error;
       return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
     }
-    // Combine general notes with sanitized card reflections for context
-    // inference; the prompt renders the two separately.
-    const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
+    // Raw crisis screening above retains every original label. Later checks
+    // use stable roles so cleared/replaced path labels cannot return via notes.
+    const querentReflections = collectQuerentReflections(
+      reflectionsText,
+      getSpreadKey(spreadInfo?.name, spreadInfo?.key) === 'decision' ? decisionPathRoleCards(cardsInfo) : cardsInfo
+    );
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
