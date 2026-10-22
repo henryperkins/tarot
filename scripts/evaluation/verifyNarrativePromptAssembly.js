@@ -143,8 +143,15 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
       summary.boundaries[boundary] = { steps: built.promptMeta.slimmingSteps.length };
     } else {
       assert.equal(built.promptMeta.sourceUsage.graphRAG.mode, 'none');
-      assert.ok(built.promptMeta.sourceUsage.patterns.patternsUsedInPrompt > 0, 'passage removal must not erase the separate actual-card highlight path');
+      assert.equal(built.promptMeta.sourceUsage.patterns.patternsUsedInPrompt, 0, 'the frozen disabled-graph fixture must suppress highlights as well as references');
       summary.boundaries[boundary] = { mode: 'none', retainedPatterns: built.promptMeta.sourceUsage.patterns.patternsUsedInPrompt };
+      // Check passage-only removal separately with the graph enabled. Keep the
+      // frozen fixture bytes and paired identities unchanged.
+      const passageOnly = buildEnhancedClaudePrompt(promptArguments(payload, config.budgetTarget, { graphRAGPayload: { passages: [] } }));
+      assert.equal(passageOnly.promptMeta.sourceUsage.graphRAG.mode, 'none');
+      assert.ok(passageOnly.promptMeta.sourceUsage.patterns.patternsUsedInPrompt > 0, 'passage removal must not erase enabled actual-card highlights');
+      verifyFinalPrompt(passageOnly, payload, config.budgetTarget, `${fixture.id}:passage-only`);
+      summary.boundaries['removed-passages'] = { mode: 'none', retainedPatterns: passageOnly.promptMeta.sourceUsage.patterns.patternsUsedInPrompt };
     }
   } else if (boundary === 'summary-only') {
     const canonPassage = payload.graphRAGPayload.passages[0];

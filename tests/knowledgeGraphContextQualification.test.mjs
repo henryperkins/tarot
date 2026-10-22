@@ -47,6 +47,9 @@ test('deterministic assembly gate exercises the frozen corpus and actual provide
   assert.deepEqual(result.providerBudgets, { claude: 25000, openai: 20000, modal: null });
   assert.equal(result.boundaries['summary-only'].mode, 'summary');
   assert.equal(result.boundaries['removed-graph'].mode, 'none');
+  assert.equal(result.boundaries['removed-graph'].retainedPatterns, 0);
+  assert.equal(result.boundaries['removed-passages'].mode, 'none');
+  assert.ok(result.boundaries['removed-passages'].retainedPatterns > 0);
   assert.equal(result.boundaries['partial-path'].partial, true);
   assert.equal(result.boundaries['removed-memory'].selected, 1);
   assert.equal(result.boundaries['removed-memory'].retained, 0);

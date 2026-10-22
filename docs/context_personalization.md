@@ -41,12 +41,16 @@ An age/birthday note must match the same current detail about the same subject. 
 | `I turn 42; my child turns 8` | `I am 8 years old; my child is 42 years old` | Excluded: swapped owners |
 | Question `I turn 42`; path `My child could move` | `My child turns 42` | Excluded: ownership cannot cross fields |
 | `Bob turns 42` | `Alice & Bob turn 42` | Excluded: coordinated owners |
+| `My 42-year-old partner wants a career change` | `I am 42 years old` | Excluded: the modifier does not establish self age |
+| `Alice's 42-year-old partner wants a career change` | `Alice is 42 years old` | Excluded: the modifier does not establish the possessor's age |
 
 The recognizer is conservative and clause-local. First-person and an unambiguous sanitized display-name alias map to self. Named people retain separate normalized names; a relation plus a name uses that person's name, including possessive birthday forms. Clear aliases such as kid/child, mom/mother and dad/father normalize together, while son/daughter and mother/parent remain distinct.
 
 An unnamed singular relation supports only a role-level match, not real-world identity. If any current source identifies multiple people in that role, its unnamed role claims authorize nothing. Only ambiguity/name-set metadata is merged across independently analyzed fields; detail owners are never transferred between fields. Explicit `other child`, plural/group relations and multiple names can establish ambiguity even in a field without an age or birthday. Stored-note multiplicity receives the same check.
 
 Ambiguous pronouns, groups, unsupported ownership and unattributed stored fragments authorize nothing. A current standalone `Turning 42` may be self when it has no competing subject; the same unattributed stored fragment remains unknown. The supported age notations include `8 years old`, `42-year-old`, `42 y/o`, `aged 100` and `turning 42`; `turns 3 cards` is not an age. This bounded English recognizer may exclude unfamiliar phrasing. It does not claim general person recognition.
+
+Possessive age modifiers such as `my 42-year-old partner`, `my partner's 42-year-old friend` and `Alice's 42 y/o partner` have unresolved ownership and are excluded in either current input or stored notes. They cannot authorize the possessor's age or borrow an owner from another field. Explicit predicates such as `my partner turns 42`, `Alice's 42` and `Alice's a 42-year-old reader` remain supported. Route regressions verify that excluded notes reach neither the provider prompt nor successful-use access stamps.
 
 ## Rendering and callback guidance
 

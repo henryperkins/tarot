@@ -132,6 +132,51 @@ test('actual reading route stamps selected retained IDs only after final accepta
   assert.doesNotMatch(JSON.stringify(body), /relevant|unrelated|private-detail|memoryRetention|slotToId|42 years old/);
 });
 
+for (const [userQuestion, wrongPersonNote] of [
+  ['My 42-year-old partner wants a career change', 'I am 42 years old and considering a career change'],
+  ['I turn 42 and am considering a career change', 'My 42-year-old friend enjoys hiking'],
+  ["My partner's 42-year-old friend wants a career change", 'My partner is 42 years old and considering a career change'],
+  ['My partner turns 42 and is considering a career change', "My partner's 42-year-old friend enjoys hiking"],
+  ["Alice's 42-year-old partner wants a career change", 'Alice is 42 years old and considering a career change'],
+  ['Alice turns 42 and is considering a career change', "Alice's 42-year-old partner enjoys hiking"]
+]) {
+  test(`reading route excludes and never stamps an older wrong-person age note: ${userQuestion}`, async t => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+    const db = routeDatabase();
+    t.after(() => db.sqlite.close());
+    insert(db, 'relevant', { text: 'Navigating career uncertainty' });
+    for (let index = 0; index < 7; index++) insert(db, `newer-${index}`, { text: `Enjoys woodland hiking trail ${index}` });
+    db.sqlite.exec('UPDATE user_memories SET created_at = 100');
+    insert(db, 'older-wrong-person', { text: wrongPersonNote });
+    const recent = await memory.getMemories(db, 'owner', { scope: 'global', limit: 8, markAccess: false });
+    assert.equal(recent.some(row => row.id === 'older-wrong-person'), false);
+    t.mock.method(console, 'log', () => {});
+    t.mock.method(console, 'warn', () => {});
+    const providerRequests = [];
+    t.mock.method(globalThis, 'fetch', async (_url, init) => {
+      providerRequests.push(JSON.parse(init.body));
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites career exploration. Your choices shape outcomes.' } }] });
+    });
+    const tasks = [];
+    const response = await onRequestPost({
+      request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...routeFixture, userQuestion }) }),
+      env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+      principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise)
+    });
+    const body = await response.json();
+    await Promise.all(tasks);
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.equal(providerRequests.length, 1);
+    assert.equal(JSON.stringify(providerRequests).includes(wrongPersonNote), false);
+    assert.match(JSON.stringify(providerRequests), /Navigating career uncertainty/);
+    assert.deepEqual(body.sourceUsage.memories, {
+      requested: true, used: true, candidatesProvided: 9, memoriesSelected: 1,
+      memoriesUsedInPrompt: 1, skippedReason: null
+    });
+    assert.deepEqual(db.sqlite.prepare('SELECT id FROM user_memories WHERE last_accessed_at IS NOT NULL').all().map(row => row.id), ['relevant']);
+  });
+}
+
 test('discarded provider attempt followed by local fallback stamps no memories', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' });

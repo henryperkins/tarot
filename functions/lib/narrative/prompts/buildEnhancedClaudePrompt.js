@@ -491,9 +491,12 @@ export function buildEnhancedClaudePrompt({
     diagnostics
   });
   activeThemes.deckStyle = resolvedDeckStyle;
+  const graphEnv = resolveGraphEnv(promptBudgetEnv);
   activeThemes.knowledgeGraph = {
     ...activeThemes.knowledgeGraph,
-    narrativeHighlights: buildGraphContext(cardsInfo, { deckStyle: resolvedDeckStyle })?.narrativeHighlights || []
+    narrativeHighlights: isGraphRAGEnabled(graphEnv)
+      ? buildGraphContext(cardsInfo, { deckStyle: resolvedDeckStyle })?.narrativeHighlights || []
+      : []
   };
 
   const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
@@ -512,7 +515,6 @@ export function buildEnhancedClaudePrompt({
     activeThemes?.knowledgeGraph?.graphRAGPayload ||
     null;
   let graphRAGInjectionDisabled = false;
-  const graphEnv = resolveGraphEnv(promptBudgetEnv);
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);

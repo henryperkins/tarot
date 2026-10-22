@@ -1,4 +1,5 @@
 import { buildGraphContext } from '../../graphContext.js';
+import { isGraphRAGEnabled } from '../../graphRAG.js';
 import { resolveDecisionPathContext, decisionPathRoleCards } from '../../decisionPathContext.js';
 import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
@@ -77,7 +78,9 @@ export function buildUserPrompt(
   // enhanced builder. Prefetched prose cannot establish an undrawn pattern.
   const activeThemes = { ...baseThemes, knowledgeGraph: {
     ...baseThemes.knowledgeGraph,
-    narrativeHighlights: buildGraphContext(cardsInfo, { deckStyle: deckStyle || 'rws-1909' })?.narrativeHighlights || []
+    narrativeHighlights: isGraphRAGEnabled(promptOptions.env)
+      ? buildGraphContext(cardsInfo, { deckStyle: deckStyle || 'rws-1909' })?.narrativeHighlights || []
+      : []
   } };
   const reversalDescriptor = activeThemes.reversalDescription || { ...DEFAULT_REVERSAL_DESCRIPTION };
   let prompt = ``;

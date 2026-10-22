@@ -19,6 +19,8 @@ The generation prompt receives two graph-derived inputs. Each must be valid inde
 
 Filtering passages cannot repair an incorrect highlight. Enhanced and direct user-prompt builders regenerate highlights from the actual cards and selected deck. Provider rebuilds count only highlight lines present in the final prompt. The local composer has its own accounting and does not claim reference use simply because patterns were detected.
 
+Highlight regeneration honors the existing graph enablement boundary in both prompt builders: `GRAPHRAG_ENABLED` takes precedence over legacy `KNOWLEDGE_GRAPH_ENABLED`, and an explicit false disables regenerated highlights. A graph-enabled prompt can still retain valid highlights when its separate reference payload is empty or removed.
+
 A two-card partial triad uses its exact authored partial narrative. Its highlight names the two drawn cards and marks the arc as partial. The missing card can remain private pattern metadata; it is not drawn-card evidence. Full-pattern passages and journey references, when retained as background, include a guardrail against asserting undrawn cards. A summary reports pattern signals and retains that guardrail without claiming that any full passage survived.
 
 ## Current-source selection
@@ -30,6 +32,8 @@ The topic selector analyzes each accepted field before constructing a bounded re
 Accepted limits remain 2,000 characters for the question, 5,000 for general reflections, 2,000 per card reflection, 80 per decision label and 78 cards. These are per-field limits, not a shared reflection concatenation budget. Decision labels preserve A/B identity. Explicit labels take precedence over labels inferred from the corresponding custom positions; explicit empty values clear that path. Omitted and one-sided labels remain valid. The normalized internal path map is reused rather than repeatedly interpreting its text as another position prefix.
 
 The retrieval query is a separate projection capped at **8,000 characters**, including labels and separators. It allocates question/path text and relevant excerpts, preserving offsets into original Unicode text. It does not replace the full current sources supplied to narrative generation. Query coverage reports lengths, omissions and bounded reasons; a source can influence topic selection yet be partly or wholly omitted from the smaller query.
+
+Current notes without topic keywords remain eligible: scheduling, remote-only and school-pickup constraints can matter to retrieval. A note is excluded as unrelated only when it has evidence for another topic and no match for the selected one. Duplicate notes and inactive saved focus remain excluded. For a question-led query, eligible notes share the existing 750-character note allowance before excerpts expand, so early neutral notes do not consume the entire allowance before a late card note is considered.
 
 ## Candidate enumeration and final limits
 

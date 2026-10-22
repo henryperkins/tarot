@@ -1,5 +1,7 @@
 import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS, matchedContextPhrases, normalizeContextWords } from './readingContextVocabulary.js';
 
+const ALL_CONTEXT_KEYWORDS = [...Object.values(CONTEXT_KEYWORDS).flat(), ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat()];
+
 function slice(text, start, end) {
   if (start > 0 && /[\uDC00-\uDFFF]/.test(text[start] || '')) start += 1;
   if (end < text.length && /[\uDC00-\uDFFF]/.test(text[end] || '')) end -= 1;
@@ -35,7 +37,11 @@ export function buildReadingRetrievalQuery(sources = [], selection = {}, { maxLe
     if (normalized) seen.add(normalized);
     const phrases = matchedContextPhrases(source.text, vocabulary);
     const mandatory = ['question', 'decisionPath'].includes(source.kind);
-    const unrelated = source.kind === 'savedFocus' ? selection.source !== 'focusAreas' : hasTopic && !mandatory && !phrases.length;
+    // Current notes without taxonomy keywords can still supply useful constraints.
+    // Exclude them only when they contain evidence for a different topic.
+    const unrelated = source.kind === 'savedFocus'
+      ? selection.source !== 'focusAreas'
+      : hasTopic && !mandatory && !phrases.length && matchedContextPhrases(source.text, ALL_CONTEXT_KEYWORDS).length > 0;
     const reason = !source.text ? 'sanitized_empty' : duplicate ? 'duplicate' : unrelated ? 'unrelated_to_current_topic' : null;
     return { source, phrases, mandatory, reason, size: 0, label: source.kind === 'savedFocus' ? `focus areas ${source.id}: ` : `${source.id}: ` };
   });
@@ -56,7 +62,11 @@ export function buildReadingRetrievalQuery(sources = [], selection = {}, { maxLe
   for (const entry of ordered) if (!entry.reason) allocate(entry, entry.source.text.length);
   const notes = entries.filter((entry) => !entry.mandatory && !entry.reason);
   let noteBudget = selection.source === 'question' ? 750 : budget;
-  for (const entry of notes) noteBudget -= allocate(entry, Math.min(32, noteBudget));
+  // Reserve an initial share for every eligible note before expanding excerpts.
+  for (const [index, entry] of notes.entries()) {
+    const initialShare = Math.min(32, Math.floor(noteBudget / (notes.length - index)));
+    noteBudget -= allocate(entry, initialShare);
+  }
   let expanded = true;
   while (expanded && remaining > 0 && noteBudget > 0) {
     expanded = false;

@@ -15,6 +15,7 @@ test('real builder output includes Standard depth and card notes without warning
     spreadInfo: { name: 'One-Card Insight', key: 'single' },
     cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme', userReflection: 'The flowers stand out.' }],
     userQuestion: 'What supports me today?', personalization: { preferredSpreadDepth: 'standard', readingTone: 'gentle' },
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' },
     graphRAGPayload: { retrievalSummary: { skippedReason: 'no_patterns_detected' } },
     ephemerisContext: { available: false }
   });

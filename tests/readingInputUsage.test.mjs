@@ -223,7 +223,10 @@ test('fully omitted local notes are described as not included, not shortened', a
 const patternThemes = { knowledgeGraph: buildGraphContext(cardsInfo) };
 
 test('retained detected patterns have their own persisted attribution without reference passages', () => {
-  const built = buildEnhancedClaudePrompt({ ...fixture, themes: patternThemes });
+  const built = buildEnhancedClaudePrompt({
+    ...fixture, themes: patternThemes,
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }, graphRAGPayload: { passages: [] }
+  });
   assert.match(built.userPrompt, /Archetypal Patterns/);
   const usage = readingMetadataFromEntry({ sourceUsage: built.promptMeta.sourceUsage }).sourceUsage;
   assert.equal(usage.patterns?.used, true);
@@ -235,7 +238,10 @@ test('retained detected patterns have their own persisted attribution without re
 
 test('discarded detected-pattern metadata cannot become a source claim', async () => {
   const themes = { ...patternThemes, archetypeDescription: 'A derived archetypal context. '.repeat(15000) };
-  const built = buildEnhancedClaudePrompt({ ...fixture, themes, budgetTarget: 'openai' });
+  const built = buildEnhancedClaudePrompt({
+    ...fixture, themes, budgetTarget: 'openai',
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }, graphRAGPayload: { passages: [] }
+  });
   assert.ok(patternThemes.knowledgeGraph.narrativeHighlights.every(highlight => !built.userPrompt.includes(highlight.text)));
   assert.equal(built.promptMeta.sourceUsage.patterns?.used, false);
   assert.ok(!formatUsageSummary(built.promptMeta.sourceUsage).rows.some(row => row.label === 'Detected patterns'));

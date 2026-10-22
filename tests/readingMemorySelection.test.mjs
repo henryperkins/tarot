@@ -41,6 +41,64 @@ for (const [current, memory, admitted, options] of cases) {
   });
 }
 
+for (const modifier of [
+  'My 42-year-old partner wants a career change',
+  'My 42-year-old friend enjoys hiking',
+  'My 42-year-old child Alex is considering a career change',
+  'My 42-year-old children are considering a career change',
+  'My 42 y/o partner wants a career change',
+  'My 42 years old partner wants a career change'
+]) {
+  test(`possessive age modifier never authorizes self details: ${modifier}`, () => {
+    assert.deepEqual(choose(modifier, 'I am 42 years old'), []);
+    assert.deepEqual(choose('I turn 42', modifier), []);
+    assert.deepEqual(choose(modifier, modifier), [], 'an unresolved modifier cannot authorize another unresolved note');
+    assert.deepEqual(selection.extractPersonalDetailClaims(modifier), {
+      hasPersonalDetails: true, ambiguous: true, claims: []
+    });
+  });
+}
+
+test('a possessive age modifier cannot borrow self ownership from another current field', () => {
+  const result = selection.selectMemoriesForReading([
+    note('wrong-person', 'My 42-year-old partner wants a career change'),
+    note('right-self', 'I am 42 years old'),
+    note('right-partner', 'My partner is 42 years old')
+  ], { sources: [
+    { id: 'question', text: 'I turn 42' },
+    { id: 'card-0', text: 'My 42-year-old partner wants a career change' }
+  ] });
+  assert.deepEqual(result.selectedIds, ['right-self']);
+});
+
+for (const [modifier, owner] of [
+  ["My partner's 42-year-old friend wants a career change", 'My partner'],
+  ["Alice's 42-year-old partner wants a career change", 'Alice'],
+  ["My child Alex's 42-year-old spouse wants a career change", 'Alex'],
+  ["My partner's 42 y/o friend wants a career change", 'My partner'],
+  ["Alice's 42 years old partner wants a career change", 'Alice'],
+  ['Alice’s 42–year–old colleague wants a career change', 'Alice']
+]) {
+  test(`a possessive age modifier cannot establish the possessor's age: ${modifier}`, () => {
+    const actualOwnerAge = `${owner} is 42 years old`;
+    assert.deepEqual(choose(modifier, actualOwnerAge), []);
+    assert.deepEqual(choose(actualOwnerAge, modifier), []);
+    assert.deepEqual(choose(modifier, modifier), []);
+    assert.deepEqual(choose(modifier, 'I am 42 years old', { displayName: owner }), []);
+    assert.deepEqual(selection.extractPersonalDetailClaims(modifier), {
+      hasPersonalDetails: true, ambiguous: true, claims: []
+    });
+  });
+}
+
+test('explicit age predicates and contractions retain their own subjects', () => {
+  for (const current of ["Alice's 42", "Alice's 42 years old", "Alice's 42 y/o", "Alice's a 42-year-old reader", "Alice's 42 years old and considering a career change"]) {
+    assert.deepEqual(choose(current, 'Alice is 42 years old'), ['target'], current);
+    assert.deepEqual(choose('Alice is 42 years old', current), ['target'], current);
+  }
+  assert.deepEqual(choose("My partner's 42 years old", 'My partner turns 42'), ['target']);
+});
+
 test('older relevant memory outranks eight newer unrelated notes', () => {
   const candidates = Array.from({ length: 8 }, (_, i) => note(`new-${i}`, 'Enjoys woodland hiking', { createdAt: 200 + i }));
   candidates.push(note('older', 'Navigating career uncertainty', { createdAt: 1 }));

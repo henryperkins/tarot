@@ -56,6 +56,12 @@ function ownerFromPrefix(prefix, { displayName, source, fragment, kind }) {
   const clean = prefix.trim().replace(new RegExp(`\\bmy\\s+(${RELATIONS})\\b`, 'gi'), (_match, role) => `my ${role.toLowerCase()}`).replace(/(?:\s+(?:am|is|are|was|will|be|a|an|almost|now|soon|about|to))+\s*$/gi, '').trim();
   if (/[&+,]|\b(?:and|or|nor)\b/i.test(clean)) return null;
   if (/\b(?:their|his|her|they|he|she|our|we|children|kids|parents|friends|siblings|both|two|three|other)\b/i.test(clean)) return null;
+  // Possessive age modifiers may describe a following person, not the possessor.
+  // Fail closed before relation/name/self attribution. Use the original prefix
+  // so explicit predicates ("Alice's a 42-year-old reader") remain supported.
+  const possessiveAgeModifier = /'s\s*$/i.test(prefix)
+    && /^\d{1,3}\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b\s+\p{L}/iu.test(fragment.slice(prefix.length));
+  if (kind === 'age' && (/\bmy(?:'s)?\s*$/i.test(clean) || possessiveAgeModifier)) return null;
   const relation = new RegExp(`(?:^|\\b)my\\s+(${RELATIONS})(?:'s)?(?:\\s+([\\p{Lu}][\\p{L}'-]*(?:\\s+[\\p{Lu}][\\p{L}'-]*)*))?\\s*$`, 'u').exec(clean);
   if (relation) {
     const name = relation[2];
