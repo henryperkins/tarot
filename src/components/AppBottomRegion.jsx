@@ -10,11 +10,12 @@ import { syncDestinationPlacement } from '../lib/destinationPlacement';
 export function AppBottomRegion({ destinations = true, children = null, overlayActive = false }) {
   const isHandset = useHandsetLayout();
   const keyboardOffset = useKeyboardOffset();
+  const hasActions = Boolean(children);
   const regionRef = useRef(null);
   useLayoutEffect(() => {
     const page = regionRef.current?.closest('[data-app-chrome]');
     if (page) syncDestinationPlacement(page, isHandset, keyboardOffset > 0);
-  }, [isHandset, keyboardOffset, destinations]);
+  }, [isHandset, keyboardOffset, destinations, hasActions]);
   if (!destinations && !children) return null;
   return (
     <div

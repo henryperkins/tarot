@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { List, SpeakerHigh, CaretDown } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 
-export function ReadingContents({ sections, readingRef, controlsModel, onNarrate, onStopNarration, compactTabs = false }) {
+export function ReadingContents({ sections, readingRef, controlsModel, onNarrate, onStopNarration, compactTabs = false, showReadingActions = false }) {
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const reducedMotion = useReducedMotion();
@@ -128,5 +128,13 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
       tabIndex={current === sections.length - 1 ? -1 : undefined}
       href={`#${sections[Math.min(current + 1, sections.length - 1)].id}`}
       onClick={event => visit(event, sections[Math.min(current + 1, sections.length - 1)].id)}><CaretDown aria-hidden="true" size={18} /> Continue reading</a>}
+    {showReadingActions && <button type="button" className="reading-actions-jump" onClick={() => {
+      const actions = readingRef.current?.closest('[data-app-chrome]')
+        ?.querySelector('[data-app-bottom-actions] [data-reading-completion]');
+      const control = actions?.querySelector('button:not(:disabled)');
+      if (!control) return;
+      control.focus({ preventScroll: true });
+      control.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+    }}>Save or ask about this reading</button>}
   </div>;
 }

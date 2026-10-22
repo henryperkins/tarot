@@ -7,7 +7,7 @@ const outputDir = process.env.NAV_GATE2_OUTPUT_DIR || 'test-results/navigation-g
 // Preserve the normal exclusion of optimized dependencies from React Refresh.
 const cacheRoot = join(tmpdir(), `tableu-navigation-gate2-vite-${randomUUID()}`, 'node_modules');
 const suites = [
-  'navigation-gate1', 'navigation-gate2', 'navigation-integration', 'navigation-review-regressions', 'responsive-adaptation', 'question-field',
+  'navigation-gate1', 'navigation-gate2', 'navigation-integration', 'navigation-review-regressions', 'bottom-navigation-remediation', 'keyboard-viewport', 'responsive-adaptation', 'question-field',
   'mobile-overlays', 'frontend-p1-hardening', 'account-data-safety', 'account-recovery',
   'storage-hardening', 'account-plan-hardening', 'journal-responsive-adaptation',
   'journal-visual-restoration', 'reading-deck-scope', 'pwa-install',

@@ -1208,7 +1208,6 @@ export default function TarotReading() {
               embedded
               isOverlayActive={isMobileOverlayActive}
               isSettingsOpen={isMobileSettingsOpen}
-              isCoachOpen={isIntentionCoachOpen}
               showFollowUp={showFollowUpButton}
               isFollowUpOpen={isFollowUpVisible}
               isShuffling={isShuffling}
@@ -1227,7 +1226,6 @@ export default function TarotReading() {
                 setMobileSettingsTab(activeStep === 'ritual' ? 'ritual' : 'deck');
                 setIsMobileSettingsOpen(true);
               }}
-              onOpenCoach={openIntentionCoach}
               onOpenFollowUp={handleOpenFollowUp}
               onShuffle={handleShuffle}
               onDealNext={dealNext}

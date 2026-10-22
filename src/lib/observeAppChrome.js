@@ -86,7 +86,8 @@ export function observeAppChrome(header) {
       || visibleHeight < Number(element.dataset.chromeMinHeight || 0) ? 0 : height(element);
     const secondaryHeights = secondaryGroups.map(elements => Math.max(...elements.map(eligibleHeight)));
     const layout = resolveAppChrome({ visibleHeight,
-      headerHeight, actionsHeight, dockHeight, safeBottom, secondaryHeights });
+      headerHeight, actionsHeight, dockHeight, safeBottom, secondaryHeights,
+      prioritizeActions: Boolean(actions?.querySelector('[data-reading-completion]')) });
     attribute(region, 'data-actions-in-flow', !layout.actionsPinned);
     attribute(region, 'data-dock-in-flow', !layout.dockPinned);
     attribute(region, 'data-has-fixed', layout.actionsPinned || layout.dockPinned);

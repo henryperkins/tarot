@@ -124,6 +124,8 @@
 .reading-section-tabs a { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 4px 8px; font-size: .9375rem; border-bottom: 2px solid transparent; }
 .reading-section-tabs [aria-current] { border-color: var(--brand-accent); color: var(--text-accent); }
 .reading-continue { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--text-muted); font-size: .875rem; }
+.reading-actions-jump { display: none; align-items: center; min-height: 44px; color: var(--brand-primary); font-size: .875rem; text-align: left; }
+[data-app-chrome]:has([data-app-bottom-region][data-actions-in-flow='true'] [data-reading-completion]) .reading-actions-jump { display: inline-flex; }
 .reading-prose { margin-top: 1.25rem; }
 .reading-prose > div, .reading-prose [data-narrative-content], .reading-prose .narrative-atmosphere { margin: 0; padding: 0; max-width: none; border: 0; background: transparent; box-shadow: none; }
 .reading-prose p, .reading-prose li { font-size: 1.0625rem; line-height: 1.7; }

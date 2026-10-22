@@ -206,8 +206,8 @@ test.describe('landscape chrome measurement', () => {
     const actions = page.locator('[data-app-bottom-actions]');
     const draw = actions.getByRole('button', { name: 'Draw cards', exact: true });
     await draw.locator('span').evaluate(element => { element.textContent = 'Draw cards for your daily reflection'; });
-    await actions.getByRole('button', { name: 'Open guided intention coach', exact: true }).locator('span')
-      .evaluate(element => { element.textContent = 'Guided intention coaching'; });
+    await actions.getByRole('button', { name: 'Open reading preparation', exact: true }).locator('span')
+      .evaluate(element => { element.textContent = 'Reading preparation and ritual options'; });
     await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('data-actions-in-flow', 'true');
     await settleNavigation(page); await draw.focus(); await settleNavigation(page);
     const before = await draw.evaluate(button => {

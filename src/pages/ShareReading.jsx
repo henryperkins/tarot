@@ -60,25 +60,79 @@ export default function ShareReading() {
   const [copyState, setCopyState] = useState('');
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [mobileView, setMobileView] = useState('spread'); // 'spread' | 'notes'
+  const [notesFormVisible, setNotesFormVisible] = useState(false);
   const notesPanelRef = useRef(null);
+  const desktopNotesRef = useRef(null);
+  const notesJumpRef = useRef(null);
   const shareRequestRef = useRef(null);
+
+  const getNotesForm = useCallback(() => {
+    for (const panel of [notesPanelRef.current, desktopNotesRef.current]) {
+      const form = panel?.querySelector('form');
+      if (form?.getClientRects().length) return form;
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'ready' || mobileView !== 'notes' || !isAuthenticated) return undefined;
+    const panels = [notesPanelRef.current, desktopNotesRef.current].filter(Boolean);
+    let frame;
+    const measure = () => {
+      frame = null;
+      const form = getNotesForm();
+      if (!form) { setNotesFormVisible(true); return; }
+      const viewport = window.visualViewport;
+      const top = (viewport?.offsetTop || 0)
+        + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pinned-header-height')) || 0);
+      const bottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+      const bounds = form.getBoundingClientRect();
+      const visible = (bounds.bottom > top && bounds.top < bottom) || form.contains(document.activeElement);
+      // If scrolling reveals the form while its jump control has keyboard
+      // focus, hand that focus over before hiding the old control.
+      if (visible && document.activeElement === notesJumpRef.current) {
+        (form.querySelector('textarea') || form.querySelector('input'))?.focus({ preventScroll: true });
+      }
+      setNotesFormVisible(visible);
+    };
+    const schedule = () => {
+      if (frame == null) frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(schedule);
+    panels.forEach(panel => observer.observe(panel));
+    schedule();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
+    panels.forEach(panel => {
+      panel.addEventListener('focusin', schedule);
+      panel.addEventListener('focusout', schedule);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
+      panels.forEach(panel => {
+        panel.removeEventListener('focusin', schedule);
+        panel.removeEventListener('focusout', schedule);
+      });
+    };
+  }, [status, mobileView, isAuthenticated, token, getNotesForm]);
 
   const scrollToNotesForm = useCallback(() => {
     setMobileView('notes');
     window.requestAnimationFrame(() => {
-      const panel = notesPanelRef.current;
-      if (!panel) return;
-      try {
-        panel.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-      } catch {
-        // no-op: scrollIntoView may fail on some older browsers
-      }
-      const focusTarget = panel.querySelector('textarea, input');
-      if (focusTarget && typeof focusTarget.focus === 'function') {
-        focusTarget.focus({ preventScroll: true });
-      }
+      const form = getNotesForm();
+      if (!form) return;
+      const focusTarget = form.querySelector('textarea') || form.querySelector('input');
+      focusTarget?.focus({ preventScroll: true });
+      (focusTarget || form).scrollIntoView({ behavior: prefersReducedMotion ? 'instant' : 'smooth', block: 'center' });
     });
-  }, [prefersReducedMotion]);
+  }, [prefersReducedMotion, getNotesForm]);
 
   const fetchShare = useCallback(() => {
     if (!token) return;
@@ -452,22 +506,6 @@ export default function ShareReading() {
           </div>
         </div>
 
-        {/* Mobile: bottom CTA to jump to note form - only for authenticated users without bottom bar */}
-        {mobileView === 'notes' && isAuthenticated && (
-          <div
-            className="lg:hidden fixed right-4 z-sticky-nav bottom-[calc(var(--safe-pad-bottom)+1rem)]"
-          >
-            <button
-              type="button"
-              onClick={scrollToNotesForm}
-              className="inline-flex items-center gap-2 rounded-full bg-primary text-surface px-4 py-2.5 shadow-lg shadow-primary/30 border border-primary/70 text-sm font-semibold touch-manipulation min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/70"
-              aria-label="Add note: open note form"
-            >
-              Add note
-            </button>
-          </div>
-        )}
-
         {/* Desktop: side-by-side grid layout */}
         <div className="mt-8 hidden lg:grid lg:grid-cols-[2fr_1fr] gap-6">
           <div className="space-y-6">
@@ -490,25 +528,27 @@ export default function ShareReading() {
               />
             </div>
           </div>
-          <CollaborativeNotesPanel
-            notes={notes}
-            cards={activeEntry?.cards || []}
-            shareToken={token}
-            onSubmit={handleAddNote}
-            onReport={handleReportNote}
-            onRefresh={refreshNotes}
-            isSubmitting={noteSubmitting}
-            error={noteError}
-            selectedPosition={activePosition}
-            onSelectedPositionChange={setActivePosition}
-            lastSyncedAt={lastSyncedAt}
-          />
+          <div ref={desktopNotesRef}>
+            <CollaborativeNotesPanel
+              notes={notes}
+              cards={activeEntry?.cards || []}
+              shareToken={token}
+              onSubmit={handleAddNote}
+              onReport={handleReportNote}
+              onRefresh={refreshNotes}
+              isSubmitting={noteSubmitting}
+              error={noteError}
+              selectedPosition={activePosition}
+              onSelectedPositionChange={setActivePosition}
+              lastSyncedAt={lastSyncedAt}
+            />
+          </div>
         </div>
       </main>
 
-      {/* Guest share actions: contextual row in the handset bottom region; desktop keeps the in-flow promotion. */}
-      {!isAuthenticated && (
-        <AppBottomRegion destinations={false}>
+      {/* One measured handset region owns guest links and the signed-in note shortcut. */}
+      <AppBottomRegion destinations={false}>
+        {!isAuthenticated ? (
           <div className="flex flex-wrap gap-2 py-2">
             <Link to="/" data-chrome-action="share-start" className="inline-flex min-w-0 flex-1 basis-32 items-center justify-center gap-2 rounded-full bg-accent px-3 py-3 text-center text-sm font-semibold text-surface shadow-md hover:bg-accent/90 transition min-h-touch focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60">
               <Sparkle className="h-4 w-4 shrink-0" weight="fill" />
@@ -518,8 +558,14 @@ export default function ShareReading() {
               Sign In
             </Link>
           </div>
-        </AppBottomRegion>
-      )}
+        ) : mobileView === 'notes' && (
+          <div hidden={notesFormVisible} className="py-2">
+            <button ref={notesJumpRef} type="button" onClick={scrollToNotesForm}
+              className="inline-flex min-h-touch w-full items-center justify-center rounded-full border border-primary/70 bg-primary px-4 py-2.5 text-sm font-semibold text-surface touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/70"
+              aria-label="Add note: open note form">Add note</button>
+          </div>
+        )}
+      </AppBottomRegion>
       {!isAuthenticated && (
         <div
           className="w-full border-t border-accent/30 bg-surface pl-safe pr-safe wrap-anywhere"

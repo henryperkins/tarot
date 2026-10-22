@@ -56,7 +56,8 @@ export function ReadingDocument({ model, callbacks }) {
       {hasViewedOverview && <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />}
     </details>}
     <ReadingContents sections={sections} readingRef={root} controlsModel={model.controlsModel}
-      onNarrate={callbacks.onNarrationStart} onStopNarration={callbacks.onStopNarration} compactTabs={cards.length <= 3} />
+      onNarrate={callbacks.onNarrationStart} onStopNarration={callbacks.onStopNarration} compactTabs={cards.length <= 3}
+      showReadingActions={model.isHandset && !model.isReadingStreaming && Boolean(model.saveController)} />
     {sections[0]?.depth === null && (sections.length > 1 ? <h3 id={sections[0].id} data-reading-section tabIndex={-1}
       className="reading-screen__section-title">{sections[0].title}</h3> : <div id={sections[0].id} data-reading-section tabIndex={-1} />)}
     <div className="reading-prose">

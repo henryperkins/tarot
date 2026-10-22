@@ -1,5 +1,5 @@
 import { useEffect, useRef, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { PageTransition } from './PageTransition.jsx';
 import { RouteAccessibility } from './RouteAccessibility.jsx';
 
@@ -97,7 +97,7 @@ export function AnimatedRoutes() {
           {SpreadLayoutFixture && (
             <Route path="/__e2e/spread-layout" element={<SpreadLayoutFixture />} />
           )}
-          <Route path="*" element={<PageTransition><TarotReading /></PageTransition>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </div>

@@ -138,7 +138,7 @@ test('quiet routes reserve only real contextual actions', async ({ page }) => {
 });
 
 for (const engine of ['', ' @webkit']) {
-  test(`keyboard hides destinations with safe focus handoff and restores them${engine}`, async ({ page }) => {
+  test(`editable keyboard focus hides destinations while a viewport change alone preserves them${engine}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 }); await prepareNavigation(page, { populated: true });
     await page.goto('/journal'); await settleNavigation(page);
     await page.evaluate(() => {
@@ -150,10 +150,11 @@ for (const engine of ['', ' @webkit']) {
       visualViewport.dispatchEvent(new Event('resize'));
     }, height);
     const dock = page.locator('[data-destination-group="dock"]');
-    await dock.getByRole('link', { name: 'Journal', exact: true }).focus();
+    const journal = dock.getByRole('link', { name: 'Journal', exact: true });
+    await journal.focus();
     await changeHeight(420);
-    await expect(dock).toHaveAttribute('hidden', ''); await expect(dock).toHaveAttribute('inert', '');
-    await expect(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true })).toBeFocused();
+    await expect(dock).toBeVisible();
+    await expect(journal).toBeFocused();
     await changeHeight(844); await expect(dock).toBeVisible();
     const search = page.locator('input[type="search"]'); await search.focus();
     await changeHeight(420); await expect(search).toBeFocused(); await expect(dock).toBeHidden();

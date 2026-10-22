@@ -1,12 +1,11 @@
 import { ReadingCompletionActions } from './reading/complete/ReadingCompletionActions';
 import { useMemo, useEffect, useRef } from 'react';
-import { Gear, Sparkle, ArrowsClockwise } from '@phosphor-icons/react';
+import { Gear, ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
 import {
   MOBILE_SETTINGS_DIALOG_ID,
-  MOBILE_COACH_DIALOG_ID,
   MOBILE_FOLLOWUP_DIALOG_ID
 } from './mobileActionBarConstants';
 
@@ -15,7 +14,6 @@ const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibo
 const BTN_PRIMARY = `${BTN_BASE} bg-accent text-surface shadow-lg hover:bg-primary`;
 const BTN_SECONDARY = `${BTN_BASE} bg-surface-muted text-accent border border-accent/30 hover:bg-surface`;
 const BTN_TERTIARY = `${BTN_BASE} bg-primary/20 text-main border border-primary/40 hover:bg-primary/30`;
-const BTN_COACH = `${BTN_BASE} bg-secondary/20 text-secondary border border-secondary/40 hover:bg-secondary/30`;
 
 /**
  * Determines which action mode the mobile bar should display
@@ -47,8 +45,7 @@ function ActionButton({
   const variantClass = {
     primary: BTN_PRIMARY,
     secondary: BTN_SECONDARY,
-    tertiary: BTN_TERTIARY,
-    coach: BTN_COACH
+    tertiary: BTN_TERTIARY
   }[variant] || BTN_PRIMARY;
 
   const heightClass = variant === 'primary' && !isLandscape ? 'min-h-cta' : 'min-h-touch';
@@ -124,7 +121,6 @@ function MobileActionContents({
   isFollowUpOpen = false,
   stepIndicatorLabel,
   onOpenSettings,
-  onOpenCoach,
   onOpenFollowUp,
   onShuffle,
   onDealNext,
@@ -140,9 +136,7 @@ function MobileActionContents({
   variant = 'fixed',
   showUtilityButtons = true,
   isSettingsOpen = false,
-  isCoachOpen = false,
-  settingsDialogId = MOBILE_SETTINGS_DIALOG_ID,
-  coachDialogId = MOBILE_COACH_DIALOG_ID
+  settingsDialogId = MOBILE_SETTINGS_DIALOG_ID
 }) {
   const isLandscape = useLandscape();
   const actionGroupRef = useRef(null);
@@ -203,11 +197,8 @@ function MobileActionContents({
     isFollowUpOpen,
     onOpenFollowUp,
     isSettingsOpen,
-    isCoachOpen,
     settingsDialogId,
-    coachDialogId,
     onOpenSettings,
-    onOpenCoach,
     onShuffle,
     onDealNext,
     onDealSpread,
@@ -245,11 +236,8 @@ function renderActions(mode, options) {
     isFollowUpOpen,
     onOpenFollowUp,
     isSettingsOpen,
-    isCoachOpen,
     settingsDialogId,
-    coachDialogId,
     onOpenSettings,
-    onOpenCoach,
     onShuffle,
     onDealNext,
     onDealSpread,
@@ -272,8 +260,7 @@ function renderActions(mode, options) {
     prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6rem)]',
     secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
     tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6.5rem)]',
-    icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch',
-    coach: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-none min-w-touch' : 'flex-none'
+    icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch'
   };
 
   // Padding classes: smaller in landscape
@@ -309,24 +296,11 @@ function renderActions(mode, options) {
               ariaLabel="Open reading preparation"
               ariaControls={settingsDialogId}
               ariaExpanded={isSettingsOpen}
-              className={`${widthClasses.icon} ${variant === 'inline' ? px : 'px-0'}`}
+              icon={Gear}
+              className={`${widthClasses.icon} ${px}`}
               isLandscape={isLandscape}
             >
-              <Gear className={isLandscape ? 'w-4 h-4' : 'w-5 h-5'} />
-            </ActionButton>
-          )}
-          {showUtilityButtons && (
-            <ActionButton
-              variant="coach"
-              onClick={onOpenCoach}
-              icon={Sparkle}
-              ariaLabel="Open guided intention coach"
-              ariaControls={coachDialogId}
-              ariaExpanded={isCoachOpen}
-              className={`${widthClasses.coach} ${px}`}
-              isLandscape={isLandscape}
-            >
-              Coach
+              Prepare
             </ActionButton>
           )}
           <ActionButton

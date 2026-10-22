@@ -20,3 +20,19 @@ test('quiet routes have zero destination reservation; guest share only reserves 
   assert.equal(resolveAppChrome({ visibleHeight: 844, headerHeight: 56, actionsHeight: 0, dockHeight: 0, safeBottom: 34 }).bottomHeight, 0);
   assert.equal(resolveAppChrome({ visibleHeight: 844, headerHeight: 56, actionsHeight: 64, dockHeight: 0, safeBottom: 34 }).bottomHeight, 99);
 });
+
+test('completed reading actions keep their place while tall contents move into flow', () => {
+  const layout = resolveAppChrome({ visibleHeight: 844, headerHeight: 56, actionsHeight: 80,
+    dockHeight: 56, safeBottom: 34, secondaryHeights: [153], prioritizeActions: true });
+  assert.equal(layout.actionsPinned, true);
+  assert.deepEqual(layout.secondaryPinned, [false]);
+  assert.equal(layout.bottomHeight, 171);
+});
+
+test('reading action priority still respects the bottom budget in short or enlarged views', () => {
+  const layout = resolveAppChrome({ visibleHeight: 390, headerHeight: 56, actionsHeight: 80,
+    dockHeight: 56, secondaryHeights: [153], prioritizeActions: true });
+  assert.equal(layout.actionsPinned, false);
+  assert.equal(layout.dockPinned, true);
+  assert.ok(layout.bottomHeight <= 390 * 0.25);
+});
