@@ -108,9 +108,9 @@ export const ARCHETYPAL_TRIADS = [
       shadow: 'Releasing old patterns, integrating new self'
     },
     partialNarrative: {
-      'death-temperance': 'Transformation actively seeking balance',
-      'temperance-star': 'Patient integration leading to renewal',
-      'death-star':
+      '13-14': 'Transformation actively seeking balance',
+      '14-17': 'Patient integration leading to renewal',
+      '13-17':
         'Dramatic shift from ending to rebirth (skipping integration)'
     }
   },
@@ -131,9 +131,9 @@ export const ARCHETYPAL_TRIADS = [
       spiritual: 'Freedom from limiting beliefs'
     },
     partialNarrative: {
-      'devil-tower': 'Attachments meet necessary disruption',
-      'tower-sun': 'Upheaval clearing the path to clarity',
-      'devil-sun': 'From shadow to light (sudden liberation)'
+      '15-16': 'Attachments meet necessary disruption',
+      '16-19': 'Upheaval clearing the path to clarity',
+      '15-19': 'From shadow to light (sudden liberation)'
     }
   },
 
@@ -153,9 +153,9 @@ export const ARCHETYPAL_TRIADS = [
       grief: 'Internal mourning work'
     },
     partialNarrative: {
-      'hermit-hangedman': 'Introspection leading to necessary pause',
-      'hangedman-moon': 'Suspension opening to shadow realm',
-      'hermit-moon': 'Solo journey into the unconscious'
+      '9-12': 'Introspection leading to necessary pause',
+      '12-18': 'Suspension opening to shadow realm',
+      '9-18': 'Solo journey into the unconscious'
     }
   },
 
@@ -175,9 +175,9 @@ export const ARCHETYPAL_TRIADS = [
       manifestation: 'Bringing vision into reality'
     },
     partialNarrative: {
-      'magician-chariot': 'Potential directed into decisive movement',
-      'chariot-world': 'Determined effort reaching culmination',
-      'magician-world': 'From first spark to full realization'
+      '1-7': 'Potential directed into decisive movement',
+      '7-21': 'Determined effort reaching culmination',
+      '1-21': 'From first spark to full realization'
     }
   },
 
@@ -197,9 +197,9 @@ export const ARCHETYPAL_TRIADS = [
       values: 'Clarifying what merits dedication'
     },
     partialNarrative: {
-      'empress-lovers': 'Creative fertility meeting decisive choice',
-      'lovers-hierophant': 'Personal values versus collective tradition',
-      'empress-hierophant': 'Nurturing energy seeking formal structure'
+      '3-6': 'Creative fertility meeting decisive choice',
+      '5-6': 'Personal values versus collective tradition',
+      '3-5': 'Nurturing energy seeking formal structure'
     }
   },
 
@@ -219,9 +219,9 @@ export const ARCHETYPAL_TRIADS = [
       spiritual: 'Soul journey from potential to realized wholeness'
     },
     partialNarrative: {
-      'fool-magician': 'Pure potential meeting conscious will',
-      'magician-world': 'Skillful action achieving total integration',
-      'fool-world': 'From zero to wholeness (quantum leap)'
+      '0-1': 'Pure potential meeting conscious will',
+      '1-21': 'Skillful action achieving total integration',
+      '0-21': 'From zero to wholeness (quantum leap)'
     }
   },
 
@@ -241,9 +241,9 @@ export const ARCHETYPAL_TRIADS = [
       career: 'From abundance to organization to institutional wisdom'
     },
     partialNarrative: {
-      'empress-emperor': 'Nurturing meets structure',
-      'emperor-hierophant': 'Authority seeking traditional validation',
-      'empress-hierophant': 'Abundance channeled through tradition'
+      '3-4': 'Nurturing meets structure',
+      '4-5': 'Authority seeking traditional validation',
+      '3-5': 'Abundance channeled through tradition'
     }
   },
 
@@ -263,9 +263,9 @@ export const ARCHETYPAL_TRIADS = [
       healing: 'Accepting what cannot be changed, finding balance, releasing attachment'
     },
     partialNarrative: {
-      'wheel-justice': 'Fate meeting accountability',
-      'justice-hangedman': 'Truth requiring suspension of judgment',
-      'wheel-hangedman': 'Cycles demanding surrender'
+      '10-11': 'Fate meeting accountability',
+      '11-12': 'Truth requiring suspension of judgment',
+      '10-12': 'Cycles demanding surrender'
     }
   },
 
@@ -285,9 +285,9 @@ export const ARCHETYPAL_TRIADS = [
       spiritual: 'Dark night to glimpse of light to mysterious unfolding'
     },
     partialNarrative: {
-      'tower-star': 'Destruction clearing space for hope',
-      'star-moon': 'Hope meeting shadow work',
-      'tower-moon': 'Upheaval plunging into deep mystery'
+      '16-17': 'Destruction clearing space for hope',
+      '17-18': 'Hope meeting shadow work',
+      '16-18': 'Upheaval plunging into deep mystery'
     }
   },
 
@@ -307,9 +307,9 @@ export const ARCHETYPAL_TRIADS = [
       creative: 'Cultivating discipline, solitary practice, trusting the process'
     },
     partialNarrative: {
-      'strength-hermit': 'Inner fortitude seeking deeper wisdom',
-      'hermit-wheel': 'Solitary truth-seeking accepting fate',
-      'strength-wheel': 'Gentle mastery meeting life\'s cycles'
+      '8-9': 'Inner fortitude seeking deeper wisdom',
+      '9-10': 'Solitary truth-seeking accepting fate',
+      '8-10': 'Gentle mastery meeting life\'s cycles'
     }
   }
 ];

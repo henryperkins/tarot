@@ -1,3 +1,4 @@
+import { persistReadingMemoryAccess } from '../../functions/lib/userMemory.js';
 import { onRequestPost as tarotReadingPost } from '../../functions/api/tarot-reading.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
@@ -73,6 +74,7 @@ export class ReadingJob {
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     this.cancelled = false;
+    this.pendingMemoryUsage = null;
     this.job = emptyJob();
     this.readingResultId = null;
     this.visualBinding = null;
@@ -324,7 +326,9 @@ export class ReadingJob {
   }
 
   cancelRun() {
+    if (this.job.status === 'complete' || this.job.status === 'error') return;
     this.cancelled = true;
+    this.pendingMemoryUsage = null;
 
     if (this.abortController) {
       this.abortController.abort();
@@ -408,6 +412,9 @@ export class ReadingJob {
         request,
         env: this.env,
         waitUntil: this.state.waitUntil.bind(this.state),
+        onReadingMemoryUsage: usage => {
+          if (!this.cancelled && this.job.status === 'running') this.pendingMemoryUsage = usage;
+        },
         ...(principal ? { principal } : {})
       });
 
@@ -532,7 +539,7 @@ export class ReadingJob {
   }
 
   processEventBlock(block) {
-    if (this.cancelled) return;
+    if (this.cancelled || this.job.status === 'complete' || this.job.status === 'error') return;
     if (!block || !block.trim()) return;
     const lines = block.split(/\r?\n/);
     let eventType = '';
@@ -569,6 +576,8 @@ export class ReadingJob {
   }
 
   appendEvent(eventType, data) {
+    if (this.job.status === 'complete' || this.job.status === 'error') return;
+    if (this.cancelled && eventType !== 'error') return;
     const entry = {
       id: this.nextEventId++,
       event: eventType,
@@ -595,6 +604,7 @@ export class ReadingJob {
     this.pruneEvents();
 
     if (eventType === 'error') {
+      this.pendingMemoryUsage = null;
       this.job.status = 'error';
       this.job.error = data?.message || 'Streaming error.';
       this.job.errorCode = typeof data?.code === 'string' ? data.code : null;
@@ -603,6 +613,9 @@ export class ReadingJob {
 
     if (eventType === 'done') {
       this.job.status = 'complete';
+      const usage = this.pendingMemoryUsage;
+      this.pendingMemoryUsage = null;
+      if (usage && !data?.gateBlocked && data?.provider !== 'safe-fallback') this.state.waitUntil(persistReadingMemoryAccess(this.env.DB, usage));
       this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
     }
 

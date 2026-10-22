@@ -1,3 +1,4 @@
+import { projectPassageForDeck } from '../../graphRAGProjection.js';
 import {
   formatPassagesForPrompt,
   getPassageCountForSpread,
@@ -113,13 +114,14 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
     }
 
     let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
-      ? payload.passages
+      ? payload.passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || themes?.deckStyle || 'rws-1909')).filter(Boolean)
       : null;
     let formattedPassages = null;
 
     if (retrievedPassages && retrievedPassages.length > 0) {
       const effectiveSpreadKey = spreadKey || 'general';
-      const maxPassages = payload?.maxPassages || getPassageCountForSpread(effectiveSpreadKey, options.subscriptionTier);
+      const maxPassages = payload?.maxPassages ?? getPassageCountForSpread(effectiveSpreadKey, options.subscriptionTier);
+      if (!Number.isInteger(maxPassages) || maxPassages <= 0) return '';
 
       if (retrievedPassages.length > maxPassages) {
         retrievedPassages = retrievedPassages.slice(0, maxPassages);
@@ -132,12 +134,13 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       }
 
       formattedPassages = formatPassagesForPrompt(retrievedPassages, {
+        deckStyle: options.deckStyle || themes?.deckStyle || 'rws-1909',
         includeSource: true,
         markdown: true
       });
-    } else if (typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim()) {
-      // Legacy fallback when only a preformatted block is available.
-      formattedPassages = payload.formattedBlock;
+    } else if (typeof payload?.formattedBlock === 'string' && payload.formattedBlock.trim()) {
+      // Opaque historical quotes remain displayable, but cannot establish prompt provenance.
+      return hasGraphKeys ? buildGraphRAGSummaryBlock(payload) : '';
     }
 
     formattedPassages = neutralizeReferenceDelimiters(formattedPassages);
@@ -157,7 +160,7 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       '<reference>',
       formattedPassages,
       '</reference>',
-      'INTEGRATION: Ground your interpretation in this traditional wisdom. These passages provide archetypal context from respected tarot literature. Weave their insights naturally into your narrative - do not quote verbatim, but let them inform your understanding of the patterns present in this spread.',
+      'INTEGRATION: Ground your interpretation in this traditional wisdom. These passages are internally authored Tableu Tarot Canon, supplied as archetypal background. Weave their insights naturally into your narrative - do not quote verbatim, but let them inform your understanding of the patterns present in this spread.',
       'CARD GUARDRAIL: Do not add cards that are not in the spread. If a journey stage is mentioned, treat it as context only and do not assert that The Fool (or any other absent card) appears.',
       ...(hasPartialPattern
         ? ['PARTIAL PATTERN: At least one passage above describes a multi-card arc that was only partly drawn. Name only the cards actually in this spread; treat the rest of the arc as the direction this reading leans, never as cards that appeared.']

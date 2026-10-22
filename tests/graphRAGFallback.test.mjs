@@ -193,6 +193,7 @@ describe('GraphRAG fallback behavior', () => {
     const graphRAGPayload = {
       passages: [
         {
+          type: 'major-arcana', patternId: '14',
           title: 'Temperance',
           source: 'Tableu Tarot Canon',
           text: 'Integration comes through steady blending of opposites.'
@@ -229,7 +230,7 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });
 
-  it('injects legacy formattedBlock-only payloads and preserves GraphRAG telemetry', () => {
+  it('omits legacy formattedBlock-only payloads with unverifiable provenance', () => {
     const graphRAGPayload = {
       formattedBlock: [
         '**Retrieved Wisdom from Tarot Tradition:**',
@@ -254,25 +255,26 @@ describe('GraphRAG fallback behavior', () => {
       graphRAGPayload
     });
 
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
-    assert.ok(userPrompt.includes('Integration comes through steady blending of opposites.'));
-    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
-    assert.equal(promptMeta.graphRAG?.injectionMode, 'full');
-    assert.equal(promptMeta.graphRAG?.parseStatus, 'complete');
-    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
-    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
-    assert.equal(promptMeta.graphRAG?.skippedReason ?? null, null);
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(!userPrompt.includes('Integration comes through steady blending of opposites.'));
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG?.injectionMode, 'none');
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 0);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 0);
+    assert.equal(promptMeta.graphRAG?.skippedReason, 'unverified_reference_provenance');
   });
 
   it('rebuilds GraphRAG from the effective capped passage list instead of stale formattedBlock text', () => {
     const graphRAGPayload = {
       passages: [
         {
+          type: 'major-arcana', patternId: '14',
           title: 'Temperance',
           source: 'Tableu Tarot Canon',
           text: 'Integration comes through steady blending of opposites.'
         },
         {
+          type: 'major-arcana', patternId: '16',
           title: 'The Tower',
           source: 'Tableu Tarot Canon',
           text: 'Sudden upheaval breaks false structures apart.'

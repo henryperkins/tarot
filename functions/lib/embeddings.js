@@ -138,6 +138,8 @@ export async function embedTextsWithMetadata(texts, options = {}) {
   }));
 
   const { env } = options;
+  const stats = options.stats || {};
+  Object.assign(stats, { inputCount: inputs.length, inputCharacters: inputs.reduce((sum, input) => sum + input.length, 0), cacheHits: 0, batchCount: 0 });
   if (!isEmbeddingProviderAvailable(env)) {
     return results;
   }
@@ -151,11 +153,14 @@ export async function embedTextsWithMetadata(texts, options = {}) {
   });
 
   const uncached = [];
+  const cacheKeys = new Map();
   for (const [input, indexes] of positions) {
     // Hash the full input, not a prefix, so shared prefixes never reuse a vector.
     const cacheKey = await sha256Hex(JSON.stringify([EMBEDDING_MODEL, input]));
+    cacheKeys.set(input, cacheKey);
     const cached = embeddingCache.get(cacheKey);
     if (cached) {
+      stats.cacheHits += 1;
       indexes.forEach((index) => { results[index] = { embedding: cached, source: 'workers-ai' }; });
     } else {
       uncached.push({ input, indexes, cacheKey });
@@ -167,8 +172,9 @@ export async function embedTextsWithMetadata(texts, options = {}) {
     batches.push(uncached.slice(start, start + MAX_TEXTS_PER_REQUEST));
   }
 
+  stats.batchCount = batches.length;
   await Promise.all(batches.map(async (batch) => {
-    const vectors = await fetchWorkersAIEmbeddings(env, batch.map((entry) => entry.input));
+    const vectors = await fetchWorkersAIEmbeddings(env, batch.map((entry) => entry.input), stats);
     batch.forEach((entry, offset) => {
       const embedding = toUnitVector(vectors?.[offset]);
       // Do not cache fallbacks; a subsequent call may succeed after an API outage.
@@ -177,6 +183,18 @@ export async function embedTextsWithMetadata(texts, options = {}) {
       entry.indexes.forEach((index) => { results[index] = { embedding, source: 'workers-ai' }; });
     });
   }));
+
+  // A mismatched dimension makes every participating cache entry suspect:
+  // neither the query nor a majority of candidate vectors proves the model's
+  // real dimension. Discard the whole inconsistent set so recovery can retry.
+  const dimensions = new Set(results.filter((result) => result.source === 'workers-ai').map((result) => result.embedding.length));
+  if (dimensions.size > 1) {
+    stats.failureReason = 'embeddings-partial-failure';
+    for (const [input, indexes] of positions) {
+      embeddingCache.delete(cacheKeys.get(input));
+      indexes.forEach((index) => { results[index] = { embedding: generateFallbackEmbedding(input), source: 'fallback' }; });
+    }
+  }
 
   return results;
 }
@@ -197,7 +215,7 @@ function cacheEmbedding(cacheKey, embedding) {
  * @param {string[]} texts - Non-empty texts, at most MAX_TEXTS_PER_REQUEST
  * @returns {Promise<Array|null>} One raw vector per text, or null if the request failed
  */
-async function fetchWorkersAIEmbeddings(env, texts) {
+async function fetchWorkersAIEmbeddings(env, texts, stats) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
 
@@ -210,6 +228,7 @@ async function fetchWorkersAIEmbeddings(env, texts) {
     );
     const vectors = response?.data;
     if (!Array.isArray(vectors) || vectors.length !== texts.length) {
+      stats.failureReason = 'embeddings-invalid-response';
       console.warn(
         `[Embeddings] Workers AI returned ${Array.isArray(vectors) ? vectors.length : 'no'} vectors for ${texts.length} texts`
       );
@@ -217,7 +236,8 @@ async function fetchWorkersAIEmbeddings(env, texts) {
     }
     return vectors;
   } catch (err) {
-    const reason = err?.name === 'AbortError' ? `timed out after ${EMBEDDING_TIMEOUT_MS}ms` : err?.message;
+    stats.failureReason = err?.name === 'AbortError' ? 'embeddings-timeout' : 'embeddings-failed';
+    const reason = stats.failureReason;
     console.warn(`[Embeddings] Workers AI embedding failed: ${reason}`);
     return null;
   } finally {

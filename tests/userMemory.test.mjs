@@ -454,6 +454,13 @@ describe('userMemory', () => {
       assert.equal(allMemories.length, 3);
     });
 
+    test('candidate reads leave all access metadata untouched', async () => {
+      db.calls = [];
+      const memories = await getMemories(db, 'user-1', { scope: 'global', limit: 100, markAccess: false });
+      assert.equal(memories.length, 2);
+      assert.equal(db.calls.filter(call => call.type === 'run').length, 0);
+    });
+
     test('filters unsafe memories on retrieval', async () => {
       const nowSeconds = Math.floor(Date.now() / 1000);
       db.memories.set('bad-1', {

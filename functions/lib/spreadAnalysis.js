@@ -1745,8 +1745,10 @@ export function analyzeDecision(cardsInfo) {
   }
 
   const heartLabel = heart.position || 'Heart of the decision';
-  const pathALabel = pathA.position || 'Path A — energy & likely outcome';
-  const pathBLabel = pathB.position || 'Path B — energy & likely outcome';
+  // Named facts have their own bounded context fields. Derived relationships
+  // retain stable position roles so explicit overrides and clears remain effective.
+  const pathALabel = 'Path A — energy & likely outcome';
+  const pathBLabel = 'Path B — energy & likely outcome';
   const clarifierLabel = clarifier?.position || 'What clarifies the best path';
   const freeWillLabel = freeWill?.position || 'What to remember about your free will';
 

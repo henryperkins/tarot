@@ -59,6 +59,14 @@ function buildGraphKeys(patterns) {
         keys.completeTriadIds = [];
     }
 
+    keys.partialTriads = (patterns.triads || [])
+        .filter((triad) => !triad.isComplete)
+        .map((triad) => ({
+            id: triad.id,
+            matchedCards: [...triad.matchedCards],
+            missingCards: [...triad.missingCards]
+        }));
+
     // Dyads: capture numeric card pairs plus semantic category and significance.
     if (Array.isArray(patterns.dyads) && patterns.dyads.length > 0) {
         keys.dyadPairs = patterns.dyads.map((dyad) => ({

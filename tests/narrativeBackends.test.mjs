@@ -198,7 +198,7 @@ describe('composeReadingEnhanced', () => {
         spreadKey: 'single',
         graphRAGPayload: {
           passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
           ],
           initialPassageCount: 1,
           retrievalSummary: {
@@ -232,7 +232,7 @@ describe('composeReadingEnhanced', () => {
         spreadKey: 'single',
         graphRAGPayload: {
           passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
           ],
           initialPassageCount: 1,
           retrievalSummary: {
@@ -289,7 +289,7 @@ describe('composeReadingEnhanced', () => {
         spreadKey: 'single',
         graphRAGPayload: {
           passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
           ],
           initialPassageCount: 1,
           retrievalSummary: {}
