@@ -92,7 +92,9 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
     return (
       <div
         ref={ref}
-        className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface ${
+        tabIndex={-1}
+        data-coach-fallback-focus
+        className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-2 shadow-lg shadow-main/20 transition selection:bg-accent selection:text-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
           highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
         }`}
       >
@@ -168,7 +170,9 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   return (
     <div
       ref={ref}
-      className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface ${
+      tabIndex={-1}
+      data-coach-fallback-focus
+      className={`scroll-mt-4 rounded-2xl border border-secondary/30 bg-surface/70 px-4 py-3 shadow-lg shadow-main/20 flex flex-col gap-3 transition selection:bg-accent selection:text-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
         highlight ? 'ring-2 ring-accent/50 shadow-xl shadow-accent/10' : ''
       }`}
     >

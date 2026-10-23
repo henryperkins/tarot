@@ -177,6 +177,14 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
       await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_history_anon'))?.[0]?.question))
         .toBe(question);
+
+      coach = await openCoachWithButton(page);
+      await coach.getByRole('button', { name: 'Templates', exact: true }).click();
+      const library = page.getByRole('dialog', { name: 'Template library' });
+      await library.getByRole('button', { name: question, exact: true }).click();
+      await expect(library).toHaveCount(0);
+      await expect(reviewQuestion(coach)).toHaveValue(question);
+      await expect(reviewQuestion(coach)).toBeFocused();
     });
 
     test('clearing the question leaves it empty until the user writes or remixes', async ({ page }) => {
@@ -203,6 +211,191 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await coach.getByRole('button', { name: 'Remix', exact: true }).click();
       await expect(field).not.toHaveValue('');
       await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+    });
+
+    test('applying a suggestion keeps its previewed wording and focuses the editor', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      let coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+      if (await show.count()) await show.click();
+
+      // The two focus-area cards that used to regenerate on selection.
+      let preview = '';
+      for (const label of ['Love & relationships', 'Healing & growth']) {
+        const card = suggestions.getByRole('button', { name: label, exact: true });
+        preview = await card.evaluate(element => {
+          const ids = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+          return (document.getElementById(ids[ids.length - 1])?.textContent || '').trim();
+        });
+        expect(preview.length).toBeGreaterThan(0);
+
+        await card.click();
+        await expect(coach.getByRole('tab', { name: 'Depth' })).toHaveAttribute('aria-selected', 'true');
+        const field = reviewQuestion(coach);
+        await expect(field).toHaveValue(preview);
+        await expect(field).toBeFocused();
+        await expect(field).toBeInViewport();
+      }
+
+      await coach.getByRole('tab', { name: 'Timeframe' }).click();
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await expect(reviewQuestion(coach)).toHaveValue(preview);
+      await page.keyboard.press('Escape');
+      await expect(coach).toHaveCount(0);
+      coach = await openCoachWithButton(page);
+      await expect(reviewQuestion(coach)).toHaveValue(preview);
+
+      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await expect(coach).toHaveCount(0);
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(preview);
+      await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_history_anon'))?.[0]?.question))
+        .toBe(preview);
+    });
+
+    test('Remix and a changed setting release the selected wording', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['love'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+      if (await show.count()) await show.click();
+      const pick = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
+      await pick.click();
+      const field = reviewQuestion(coach);
+      await expect(contextChip(coach, 'Mode')).toContainText('Custom question');
+
+      await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+      await expect(contextChip(coach, 'Topic')).toContainText('Love & Relationships');
+      await expect(field).not.toHaveValue('');
+
+      await pick.click();
+      await expect(contextChip(coach, 'Mode')).toContainText('Custom question');
+      await coach.getByRole('textbox', { name: 'Add a detail (optional)' }).fill('our community garden');
+      await expect(field).toHaveValue(/our community garden/);
+      await expect(contextChip(coach, 'Topic')).toContainText('Love & Relationships');
+    });
+
+    test('normal motion reveals the selected question in the review editor', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+      if (await show.count()) await show.click();
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(reviewQuestion(coach)).toBeFocused();
+      await expect(reviewQuestion(coach)).toBeInViewport();
+    });
+
+    test('normal-motion quality celebration expires after framing guidance', async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await seedApp(page);
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const field = reviewQuestion(coach);
+      await field.fill('What now?');
+      const clockStart = new Date('2026-10-22T12:00:00Z');
+      await page.clock.install({ time: clockStart });
+      await page.clock.pauseAt(new Date(clockStart.getTime() + 100));
+      const question = 'What can I learn about my relationship this month?';
+      await field.fill(question);
+      await page.clock.runFor(32);
+      const burst = coach.locator('[class~="motion-safe:animate-ping"]');
+      await expect(burst).toHaveCount(1);
+      await field.fill('What can I learn about my relationship meant to be this month?');
+      await expect(coach.getByText(/A reading can.t promise an outcome/)).toBeVisible();
+      await expect(burst).toHaveCount(0);
+      await page.clock.runFor(700);
+      await field.fill(question);
+      await expect(coach.getByText('Excellent', { exact: true })).toBeVisible();
+      await expect(burst).toHaveCount(0);
+    });
+
+    test('dismissing the template library after a selection keeps focus on its opener', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'], templates: [TEMPLATE] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+      if (await show.count()) await show.click();
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(reviewQuestion(coach)).toBeFocused();
+
+      const opener = coach.getByRole('button', { name: 'Save as template', exact: true });
+      await opener.click();
+      const library = page.getByRole('dialog', { name: 'Template library' });
+      await expect(library).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(library).toHaveCount(0);
+      await expect(opener).toBeFocused();
+
+      // Moving to another step and back must not replay the same request.
+      await coach.getByRole('tab', { name: 'Timeframe' }).click();
+      const depthTab = coach.getByRole('tab', { name: 'Depth' });
+      await depthTab.click();
+      await expect(depthTab).toBeFocused();
+    });
+
+    test('framing guidance takes priority over grades without blocking use', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const field = reviewQuestion(coach);
+      for (const [question, guidance] of [
+        ['What is the guaranteed outcome of my relationship this month?', /A reading can.t promise an outcome/],
+        ['Will my relationship improve this month?', /This reads as a yes-or-no question/]
+      ]) {
+        await field.fill(question);
+        await expect(field).toHaveValue(question);
+        await expect(coach.getByText(guidance)).toBeVisible();
+        await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
+        await expect(coach.getByText('Excellent - ready to anchor into your spread.')).toHaveCount(0);
+        await expect(coach.getByText('Open-ended', { exact: true })).toHaveCount(0);
+        await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+      }
+    });
+
+    test('non-Latin questions stay editable without English grades or advice', async ({ page }) => {
+      await seedApp(page);
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const field = reviewQuestion(coach);
+      const ungraded = 'Clarity scoring is available for English questions. Keep writing in the language that fits.';
+      const arabic = 'كيف يمكنني أن أجد التوازن بين عملي وعائلتي هذا الشهر؟';
+      const chinese = '如何在这周更好地支持我的家人？';
+
+      await field.fill(arabic);
+      await expect(coach.getByText(ungraded)).toBeVisible();
+      await expect(coach.getByText('Name the person, role, or situation to ground the question')).toHaveCount(0);
+      await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
+
+      await field.fill(chinese);
+      await expect(coach.getByText(ungraded)).toBeVisible();
+      await expect(coach.getByText('Add more detail to your question')).toHaveCount(0);
+      await expect(field).toHaveValue(chinese);
+      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+
+      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await expect(coach).toHaveCount(0);
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(chinese);
+    });
+
+    test('the suggestions summary names only the sources in use', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+      if (await show.count()) await show.click();
+
+      await expect(suggestions.getByText('Based on your focus areas.', { exact: true }).first()).toBeVisible();
+      await expect(suggestions.getByText(/journal trends/i)).toHaveCount(0);
     });
 
     test('saving a template uses the edited question and rejects an empty one', async ({ page }) => {
@@ -288,6 +481,54 @@ for (const platform of ['desktop', 'handset @mobile']) {
         await expect(suggestions.getByText('Healing & growth', { exact: true })).toBeVisible();
         await expect(suggestions.getByText('Career & money', { exact: true })).toHaveCount(0);
       } finally { settleAuth(); }
+    });
+
+    test('a suggestion cancels pending AI generation and keeps its preview after the late response', async ({ page }) => {
+      await seedApp(page, { user: PLUS_USER, focusAreas: ['love'] });
+      let releaseResponse;
+      let markStarted;
+      let settled = false;
+      let aborted = false;
+      const responseReady = new Promise(resolve => { releaseResponse = resolve; });
+      const requestStarted = new Promise(resolve => { markStarted = resolve; });
+      page.on('requestfailed', request => {
+        if (request.url().endsWith('/api/generate-question')) aborted = true;
+      });
+      await page.route('**/api/generate-question', async route => {
+        markStarted();
+        await responseReady;
+        await route.fulfill({ status: 200, json: {
+          question: 'What late AI wording could replace my selection?',
+          provider: 'workers-ai'
+        } }).catch(() => {});
+        settled = true;
+      });
+      try {
+        await gotoReading(page);
+        const coach = await openCoachWithButton(page);
+        await coach.getByRole('tab', { name: 'Depth' }).click();
+        await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+        await requestStarted;
+        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+        const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+        if (await show.count()) await show.click();
+        const card = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
+        const preview = await card.evaluate(element => {
+          const ids = element.getAttribute('aria-describedby').split(/\s+/);
+          return document.getElementById(ids.at(-1)).textContent.trim();
+        });
+        await card.click();
+        await expect(reviewQuestion(coach)).toHaveValue(preview);
+        await expect(reviewQuestion(coach)).toBeFocused();
+        await expect.poll(() => aborted).toBe(true);
+        releaseResponse();
+        await expect.poll(() => settled).toBe(true);
+        await expect(reviewQuestion(coach)).toHaveValue(preview);
+        await expect(coach.locator('[aria-busy="true"]')).toHaveCount(0);
+        await expect(coach.getByRole('status')).toContainText(`Suggestion applied. ${preview}`);
+      } finally {
+        releaseResponse();
+      }
     });
 
     test('editing during AI generation cancels the response and keeps the typed question', async ({ page }) => {
@@ -412,6 +653,29 @@ test.describe('Guided intention coach responsive review @mobile', () => {
     await page.keyboard.press('Escape');
     await expect(library).toHaveCount(0);
     await expect(coach).toBeVisible();
+  });
+
+  test('closing after rotating to landscape focuses the preparation card when no coach button remains', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedApp(page);
+    await gotoReading(page);
+    const coach = await openCoachWithButton(page);
+
+    // The compact landscape card has no coach button, so the stable
+    // preparation card is the only available fallback.
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.getByRole('button', { name: /^Open guided (?:intention )?coach/ })
+      .filter({ visible: true })).toHaveCount(0);
+
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    // React may reuse the old opener node as the compact card's Add/Edit
+    // button; either it or the card itself is a valid preparation target.
+    await expect.poll(() => page.evaluate(() => {
+      const active = document.activeElement;
+      return Boolean(active && active !== document.body
+        && active.closest('[data-coach-fallback-focus]'));
+    })).toBe(true);
   });
 });
 
@@ -576,6 +840,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(library).toHaveCount(0);
     await expect(coach.getByRole('tab', { name: 'Depth' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
+    await expect(reviewQuestion(coach)).toBeFocused();
     await expect(coach.getByRole('status')).toContainText(`Template "${TEMPLATE.label}" applied.`);
   });
 
@@ -689,6 +954,23 @@ test.describe('Guided intention coach keyboard and layers', () => {
     const coach = await openCoachWithShortcut(page);
 
     await expect(coach.getByRole('button', { name: 'Back', exact: true })).toBeVisible();
+  });
+
+  test('closing after a portrait-to-landscape change restores a visible coach opener', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedApp(page);
+    await gotoReading(page);
+    const coach = await openCoachWithButton(page);
+
+    // The phone card's opener is replaced by the desktop question panel.
+    await page.setViewportSize({ width: 844, height: 390 });
+    const visibleOpener = page.getByRole('button', { name: /^Open guided (?:intention )?coach/ })
+      .filter({ visible: true }).first();
+    await expect(visibleOpener).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(coach).toHaveCount(0);
+    await expect(visibleOpener).toBeFocused();
   });
 });
 

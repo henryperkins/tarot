@@ -1,6 +1,35 @@
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { CONTEXT_HINTS, FOCUS_AREA_SUGGESTIONS } from './coachConstants.js';
 
+const SUGGESTION_SOURCE_LABELS = {
+  journal: 'journal trends',
+  focus: 'focus areas',
+  history: 'recent questions'
+};
+
+/**
+ * Explain why the suggestion panel is populated from the sources its cards
+ * actually carry, so a focus-area-only list never claims journal trends.
+ *
+ * @param {Array<{ source?: string }>} suggestions
+ * @returns {string}
+ */
+export function describeSuggestionSources(suggestions = []) {
+  const sources = new Set(
+    (Array.isArray(suggestions) ? suggestions : [])
+      .map(suggestion => suggestion?.source)
+      .filter(source => Object.hasOwn(SUGGESTION_SOURCE_LABELS, source))
+  );
+  const labels = ['journal', 'focus', 'history']
+    .filter(source => sources.has(source))
+    .map(source => SUGGESTION_SOURCE_LABELS[source]);
+
+  if (labels.length === 0) return 'A few starting points for this reading.';
+  if (labels.length === 1) return `Based on your ${labels[0]}.`;
+  if (labels.length === 2) return `Based on your ${labels[0]} and ${labels[1]}.`;
+  return `Based on your ${labels[0]}, ${labels[1]}, and ${labels[2]}.`;
+}
+
 export function describePrefillSource(source) {
   if (!source) return null;
   const label = typeof source.label === 'string' ? source.label.trim() : '';
@@ -50,6 +79,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
         idx === 0 ? `Recurring card: ${card.name}` : `${card.name} keeps showing up`;
       suggestions.push({
         id: `card-${card.name}-${idx}`,
+        source: 'journal',
         label,
         helper: `${card.count} pulls logged${reversedCount ? ` (${reversedCount} reversed)` : ''}`,
         question: `What is ${card.name} inviting me to embody next?`,
@@ -68,6 +98,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
       const themeQuestion = buildThemeQuestion(label);
       suggestions.push({
         id: `theme-${idx}`,
+        source: 'journal',
         label: `Lean into: ${label}`,
         helper: 'Recent journal theme',
         question: themeQuestion,
@@ -85,6 +116,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
     if (hint) {
       suggestions.push({
         id: `context-${primary.name}`,
+        source: 'journal',
         label: hint.label,
         helper: `Most logged context (${primary.count})`,
         topic: hint.topic,
@@ -105,6 +137,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
       if (!suggestion) return;
       suggestions.push({
         id: `focus-${area}-${idx}`,
+        source: 'focus',
         label: suggestion.label,
         helper: 'Based on your focus areas',
         topic: suggestion.topic,
@@ -119,6 +152,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
     const last = history[0];
     suggestions.push({
       id: `history-${last.id}`,
+      source: 'history',
       label: 'Revisit your last question',
       helper: last.question,
       question: last.question

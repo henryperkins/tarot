@@ -70,6 +70,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     canUseAIQuestions,
     step,
     setStep,
+    reviewFocusRequest,
     topic,
     timeframe,
     depth,
@@ -97,6 +98,8 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     coachSnapshotDetail,
     focusAreaSuggestedTopic,
     prefillSourceDescription,
+    isQuestionAssessable,
+    questionNudge,
     questionQuality,
     isManualQuestion,
     qualityLevel,
@@ -144,6 +147,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const depthSectionRef = useRef(null);
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
+  const handledReviewFocusRequestRef = useRef(0);
   const titleId = useId();
   const topicPromptId = useId();
   const timeframePromptId = useId();
@@ -151,16 +155,58 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const questionInputId = useId();
   const questionHelpId = useId();
 
+  // A responsive layout can replace the opener that DeferredDialog captured
+  // (for example, the phone card becoming the desktop question panel). Prefer
+  // whichever coach opener is visible now, then the preparation card, then a
+  // stable reading heading.
+  const getFallbackFocus = useCallback(() => {
+    const candidates = [
+      ...document.querySelectorAll(
+        '[aria-label="Open guided coach (Shift+G)"], [aria-label="Open guided intention coach"]'
+      ),
+      ...document.querySelectorAll('[data-coach-fallback-focus]'),
+      ...document.querySelectorAll('[data-reading-focus-target]')
+    ];
+    return candidates.find(element => element instanceof HTMLElement
+      && element.isConnected
+      && !element.matches(':disabled')
+      && !element.closest('[inert], [hidden], [aria-hidden="true"]')
+      && element.getClientRects().length > 0
+      && getComputedStyle(element).visibility !== 'hidden') || null;
+  }, []);
+
   useModalA11y(isOpen, {
     onClose,
     containerRef: modalRef,
     trapFocus: false,
     initialFocusRef: closeButtonRef,
     returnFocusRef,
+    getFallbackFocus,
     // Back closes the innermost layer first, like Escape.
     onBack: () => (isTemplatePanelOpen ? closeTemplatePanel() : onClose()),
     backGuardId: 'intentionCoach',
   });
+
+  // A picked suggestion or template lands on the review step with its result
+  // below the configuration. Reveal and focus the editable question once the
+  // step has committed, so the action's destination is the question itself.
+  useEffect(() => {
+    if (!isOpen || step !== STEPS.length - 1 || isTemplatePanelOpen
+      || reviewFocusRequest <= handledReviewFocusRequestRef.current) return undefined;
+    // The template layer restores focus on its own zero-delay timer. Queue this
+    // after that restore so the editor is the final focus destination.
+    const timer = setTimeout(() => {
+      const field = questionInputRef.current;
+      if (!field) return;
+      handledReviewFocusRequestRef.current = reviewFocusRequest;
+      field.focus({ preventScroll: true });
+      field.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'center'
+      });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, prefersReducedMotion, questionInputRef]);
 
   const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({
     onDismiss: onClose,
@@ -181,17 +227,18 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     prevQualityScoreRef.current = questionQuality.score;
 
     if (prefersReducedMotion) return;
-    if (prev < 85 && questionQuality.score >= 85) {
-      let rafId = null;
-      let timeoutId = null;
-      rafId = requestAnimationFrame(() => setShowExcellentBurst(true));
-      timeoutId = setTimeout(() => setShowExcellentBurst(false), 650);
-      return () => {
-        if (rafId) cancelAnimationFrame(rafId);
-        if (timeoutId) clearTimeout(timeoutId);
-      };
+    if (isQuestionAssessable && !questionNudge && prev < 85 && questionQuality.score >= 85) {
+      const rafId = requestAnimationFrame(() => setShowExcellentBurst(true));
+      return () => cancelAnimationFrame(rafId);
     }
-  }, [questionQuality.score, prefersReducedMotion]);
+  }, [questionQuality.score, prefersReducedMotion, isQuestionAssessable, questionNudge]);
+
+  // Guidance changes may hide the burst, but must not cancel its expiration.
+  useEffect(() => {
+    if (!showExcellentBurst) return undefined;
+    const timeoutId = setTimeout(() => setShowExcellentBurst(false), 650);
+    return () => clearTimeout(timeoutId);
+  }, [showExcellentBurst]);
 
   const buildSuggestionPreview = useCallback((suggestion) => {
     if (!suggestion) return '';
@@ -598,46 +645,56 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                     <Info className="h-3.5 w-3.5" aria-hidden="true" />
                   </Tooltip>
                 </span>
-                <span className="text-xs font-semibold text-secondary">
-                  <span className="relative inline-flex items-center">
-                    <QualityLevelIcon level={qualityLevel} />
-                    {showExcellentBurst && (
-                      <Sparkle
-                        className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
-                        weight="fill"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </span>
-                  <span className="ml-1">{qualityLevel.label}</span>
-                </span>
-              </div>
-              {/* The level label above already carries the score for assistive tech. */}
-              <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden" aria-hidden="true">
-                <div
-                  className={`h-full ${prefersReducedMotion ? '' : 'transition-all duration-500'} ${
-                    normalizedQualityScore >= 85
-                      ? 'bg-accent'
-                      : normalizedQualityScore >= 65
-                        ? 'bg-secondary'
-                        : 'bg-secondary/50'
-                  }`}
-                  style={{ width: `${normalizedQualityScore}%` }}
-                />
-              </div>
-              <p className="text-2xs text-secondary">{qualityHelperText}</p>
-              {qualityHighlights.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary">
-                  {qualityHighlights.map(label => (
-                    <span
-                      key={label}
-                      className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-full border border-secondary/30 px-2 py-1"
-                    >
-                      <Check className="h-3 w-3" aria-hidden="true" />
-                      {label}
+                {isQuestionAssessable && !questionNudge && (
+                  <span className="text-xs font-semibold text-secondary">
+                    <span className="relative inline-flex items-center">
+                      <QualityLevelIcon level={qualityLevel} />
+                      {showExcellentBurst && (
+                        <Sparkle
+                          className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
+                          weight="fill"
+                          aria-hidden="true"
+                        />
+                      )}
                     </span>
-                  ))}
-                </div>
+                    <span className="ml-1">{qualityLevel.label}</span>
+                  </span>
+                )}
+              </div>
+              {isQuestionAssessable && !questionNudge ? (
+                <>
+                  {/* The level label above already carries the score for assistive tech. */}
+                  <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden" aria-hidden="true">
+                    <div
+                      className={`h-full ${prefersReducedMotion ? '' : 'transition-all duration-500'} ${
+                        normalizedQualityScore >= 85
+                          ? 'bg-accent'
+                          : normalizedQualityScore >= 65
+                            ? 'bg-secondary'
+                            : 'bg-secondary/50'
+                      }`}
+                      style={{ width: `${normalizedQualityScore}%` }}
+                    />
+                  </div>
+                  <p className="text-2xs text-secondary">{qualityHelperText}</p>
+                  {qualityHighlights.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary">
+                      {qualityHighlights.map(label => (
+                        <span
+                          key={label}
+                          className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-full border border-secondary/30 px-2 py-1"
+                        >
+                          <Check className="h-3 w-3" aria-hidden="true" />
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                // A phrasing warning or an unsupported language has no honest
+                // numeric grade, so the guidance stands on its own.
+                <p className="text-2xs text-secondary">{qualityHelperText}</p>
               )}
             </div>
           </div>

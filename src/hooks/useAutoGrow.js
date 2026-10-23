@@ -43,7 +43,9 @@ export function useAutoGrow(value, minRows = 1, maxRows = 4, active = true) {
     const newHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
     el.style.height = `${style.boxSizing === 'border-box' ? newHeight : newHeight - paddingY - borderY}px`;
     el.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
-    if (scroller) scroller.scrollTop = scrollTop;
+    // Assigning the same offset still cancels an in-flight smooth scroll,
+    // including the coach's handoff to this editor. Restore only real shifts.
+    if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
   }, [active, minRows, maxRows]);
 
   useLayoutEffect(fit, [value, fit]);

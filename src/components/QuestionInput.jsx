@@ -64,7 +64,11 @@ export function QuestionInput({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="space-y-3">
+    <div
+      tabIndex={-1}
+      data-coach-fallback-focus
+      className="space-y-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+    >
       <div className="flex flex-col gap-2 xs:flex-row xs:items-start xs:justify-between">
         <div className="min-w-0 space-y-1">
           <label htmlFor="question-input" className="block font-serif text-base sm:text-lg leading-snug text-main text-balance">

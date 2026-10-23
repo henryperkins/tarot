@@ -14,7 +14,13 @@ import {
   buildCreativeQuestion,
   getCoachSummary
 } from '../lib/intentionCoach';
-import { scoreQuestion, getQualityLevel } from '../lib/questionQuality';
+import {
+  scoreQuestion,
+  getQualityLevel,
+  getQuestionNudge,
+  isAssessableQuestion,
+  QUESTION_NUDGES
+} from '../lib/questionQuality';
 import {
   buildSourceDetailFromSignals,
   loadCoachRecommendation,
@@ -49,6 +55,17 @@ const GuidedIntentionCoachContext = createContext(null);
 const REVIEW_STEP = STEPS.length - 1;
 const RESUMED_MESSAGE = 'Picked up where you left off.';
 const coachPrefsKey = userId => userId ? `${COACH_PREFS_KEY}_${userId}` : COACH_PREFS_KEY;
+const UNASSESSED_QUESTION_QUALITY = {
+  openEnded: false,
+  specific: false,
+  actionable: false,
+  length: false,
+  concreteSubject: false,
+  timeframe: false,
+  deterministicLanguage: false,
+  score: 0,
+  feedback: []
+};
 
 /**
  * What the coach shows when it opens: the unfinished draft from a session that
@@ -157,6 +174,9 @@ function CoachSession({
     : null));
 
   const [step, setStep] = useState(openingState?.step ?? 0);
+  // A request token, not a boolean: applying another suggestion while already
+  // on the review step must move focus back to the editor again.
+  const [reviewFocusRequest, setReviewFocusRequest] = useState(0);
   const [topic, setTopic] = useState(openingState?.topic ?? suggestedTopic);
   const [timeframe, setTimeframe] = useState(openingState?.timeframe ?? INTENTION_TIMEFRAME_OPTIONS[1].value);
   const [depth, setDepth] = useState(openingState?.depth ?? INTENTION_DEPTH_OPTIONS[1].value);
@@ -229,6 +249,10 @@ function CoachSession({
   const releasePrefill = useCallback(() => {
     setPrefillSource(null);
     setAutoQuestionEnabled(true);
+  }, []);
+
+  const requestReviewFocus = useCallback(() => {
+    setReviewFocusRequest(request => request + 1);
   }, []);
 
   const clearAstroForecast = useCallback(() => {
@@ -306,9 +330,22 @@ function CoachSession({
   const astroWindowDays = activeGeneration?.forecast?.days || null;
   const astroSource = activeGeneration?.forecast?.source || null;
 
+  const trimmedQuestion = currentQuestion.trim();
+  const hasQuestion = Boolean(trimmedQuestion);
+  // The scorer and its word lists are English heuristics. Keep the field
+  // editable in any language, but do not attach an unsupported grade to it.
+  const isQuestionAssessable = useMemo(
+    () => hasQuestion && isAssessableQuestion(trimmedQuestion),
+    [hasQuestion, trimmedQuestion]
+  );
+  const questionNudge = useMemo(
+    () => (isQuestionAssessable ? getQuestionNudge(trimmedQuestion) : null),
+    [isQuestionAssessable, trimmedQuestion]
+  );
+
   const questionQuality = useMemo(
-    () => scoreQuestion(currentQuestion),
-    [currentQuestion]
+    () => (isQuestionAssessable ? scoreQuestion(trimmedQuestion) : UNASSESSED_QUESTION_QUALITY),
+    [isQuestionAssessable, trimmedQuestion]
   );
 
   const isManualQuestion = !autoQuestionEnabled;
@@ -356,22 +393,30 @@ function CoachSession({
   }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, spreadQuestionContext, customFocus, isManualQuestion]);
 
   const qualityHelperText = useMemo(() => {
+    if (!hasQuestion) return 'Write your question to see clarity guidance.';
+    if (!isQuestionAssessable) {
+      return 'Clarity scoring is available for English questions. Keep writing in the language that fits.';
+    }
+    // A framing problem outranks a high score: the main question field hides
+    // its grade in the same situation instead of praising the wording.
+    if (questionNudge) return QUESTION_NUDGES[questionNudge];
     if (questionQuality.score >= 85) return 'Excellent - ready to anchor into your spread.';
     const primaryTip = questionQuality.feedback[0];
     if (primaryTip) return primaryTip;
     if (questionQuality.score >= 65) return 'Add one more detail for extra clarity.';
     if (questionQuality.score >= 40) return 'Sharpen the focus to strengthen it.';
     return 'Try reframing it from a curious, open-ended angle.';
-  }, [questionQuality.feedback, questionQuality.score]);
+  }, [hasQuestion, isQuestionAssessable, questionNudge, questionQuality.feedback, questionQuality.score]);
 
   const qualityHighlights = useMemo(() => {
+    if (!isQuestionAssessable || questionNudge) return [];
     const highlights = [];
     if (questionQuality.openEnded) highlights.push('Open-ended');
     if (questionQuality.specific) highlights.push('Specific');
     if (questionQuality.actionable) highlights.push('Actionable');
     if (questionQuality.timeframe) highlights.push('Timeframe');
     return highlights;
-  }, [questionQuality.actionable, questionQuality.openEnded, questionQuality.specific, questionQuality.timeframe]);
+  }, [isQuestionAssessable, questionNudge, questionQuality.actionable, questionQuality.openEnded, questionQuality.specific, questionQuality.timeframe]);
 
   const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
 
@@ -469,6 +514,7 @@ function CoachSession({
     // Close the library and land on the review step, where the result shows.
     setTemplatePanelOpen(false);
     setStep(REVIEW_STEP);
+    requestReviewFocus();
     announce(template.savedQuestion
       ? `Template "${template.label}" applied. ${template.savedQuestion}`
       : `Template "${template.label}" applied.`);
@@ -478,6 +524,7 @@ function CoachSession({
     depth,
     releasePrefill,
     clearAstroForecast,
+    requestReviewFocus,
     announce
   ]);
 
@@ -494,7 +541,7 @@ function CoachSession({
     }
   }, [templates, userId, scheduleTimeout]);
 
-  const handleApplySuggestion = useCallback((suggestion) => {
+  const handleApplySuggestion = useCallback((suggestion, resolvedQuestion = '') => {
     if (!suggestion) return;
     if (suggestion.topic && suggestion.topic !== topic) {
       releasePrefill();
@@ -512,8 +559,12 @@ function CoachSession({
     if (typeof suggestion.useCreative === 'boolean') {
       setUseCreative(suggestion.useCreative);
     }
-    if (suggestion.question) {
-      setQuestionText(suggestion.question);
+    // The card and the editor must show one question. Suggestions without
+    // saved wording use the exact preview the reader just selected instead of
+    // asking the generator for a different variant.
+    const exactQuestion = suggestion.question || resolvedQuestion;
+    if (exactQuestion) {
+      setQuestionText(exactQuestion);
       setAutoQuestionEnabled(false);
       clearAstroForecast();
     } else {
@@ -531,14 +582,16 @@ function CoachSession({
     clearAstroForecast
   ]);
 
-  const handleSuggestionPick = useCallback((suggestion) => {
+  const handleSuggestionPick = useCallback((suggestion, preview) => {
     if (!suggestion) return;
-    handleApplySuggestion(suggestion);
+    const resolvedQuestion = suggestion.question || preview || '';
+    handleApplySuggestion(suggestion, resolvedQuestion);
     setStep(REVIEW_STEP);
-    announce(suggestion.question
-      ? `Suggestion applied. ${suggestion.question}`
+    requestReviewFocus();
+    announce(resolvedQuestion
+      ? `Suggestion applied. ${resolvedQuestion}`
       : `Suggestion "${suggestion.label}" applied.`);
-  }, [handleApplySuggestion, announce]);
+  }, [handleApplySuggestion, requestReviewFocus, announce]);
 
   const handleApplyHistoryQuestion = useCallback((historyItem) => {
     if (!historyItem) return;
@@ -548,8 +601,9 @@ function CoachSession({
     });
     setTemplatePanelOpen(false);
     setStep(REVIEW_STEP);
+    requestReviewFocus();
     announce(`Recent question applied. ${historyItem.question}`);
-  }, [handleApplySuggestion, announce]);
+  }, [handleApplySuggestion, requestReviewFocus, announce]);
 
   const editQuestion = useCallback((text) => {
     // Disabling generation also aborts any pending AI request in its effect.
@@ -739,6 +793,7 @@ function CoachSession({
     canUseAIQuestions,
     step,
     setStep,
+    reviewFocusRequest,
     topic,
     timeframe,
     depth,
@@ -773,6 +828,9 @@ function CoachSession({
     prefillSourceDescription,
     guidedQuestion,
     currentQuestion,
+    hasQuestion,
+    isQuestionAssessable,
+    questionNudge,
     questionQuality,
     isManualQuestion,
     qualityLevel,
@@ -802,6 +860,7 @@ function CoachSession({
     setTemplatePanelOpen,
     setRemixCount,
     releasePrefill,
+    requestReviewFocus,
     clearAstroForecast,
     announce,
     editQuestion,

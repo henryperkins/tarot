@@ -8,13 +8,6 @@ export const QUESTION_HELPER = 'Optional. How and what questions work best.';
 // as if a question were already set.
 export const QUESTION_PLACEHOLDER = 'In your own words…';
 
-// Ungraded guidance for phrasing a reading cannot answer well; see
-// getQuestionNudge in lib/questionQuality.
-export const QUESTION_NUDGES = {
-  closed: 'This reads as a yes-or-no question. Asking how or what gives you more to reflect on.',
-  'fixed-outcome': 'A reading can’t promise an outcome. Asking what you can understand or change gives you more to work with.'
-};
-
 export function getQuestionPrompt(displayName) {
   const name = typeof displayName === 'string' ? displayName.trim() : '';
   return name ? `What would you like to understand, ${name}?` : QUESTION_PROMPT;

@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { ArrowLeft, ArrowRight, Info } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
+import { describeSuggestionSources } from '../../lib/coachSuggestions';
 
 export function CoachSuggestionsPanel({
   personalizedSuggestions,
@@ -23,6 +24,7 @@ export function CoachSuggestionsPanel({
   if (!personalizedSuggestions || personalizedSuggestions.length === 0) return null;
 
   const suggestionCount = personalizedSuggestions.length;
+  const sourceSummary = describeSuggestionSources(personalizedSuggestions);
 
   return (
     <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
@@ -31,7 +33,7 @@ export function CoachSuggestionsPanel({
           <p className="text-xs uppercase tracking-[0.3em] text-secondary">Suggested for you</p>
           <p className="text-xs text-muted">
             {isSuggestionsExpanded
-              ? 'Based on your journal trends and recent questions.'
+              ? sourceSummary
               : `${suggestionCount} ${suggestionCount === 1 ? 'suggestion' : 'suggestions'} ready. Tap to peek.`}
           </p>
           {coachSnapshotLabel && (
@@ -108,7 +110,7 @@ export function CoachSuggestionsPanel({
               <button
                 key={suggestion.id || suggestion.label}
                 type="button"
-                onClick={() => handleSuggestionPick(suggestion)}
+                onClick={() => handleSuggestionPick(suggestion, preview)}
                 aria-labelledby={labelId}
                 aria-describedby={describedBy}
                 className="min-h-touch min-w-0 rounded-2xl border border-accent/20 bg-surface/70 p-3 text-left transition hover:border-secondary/60 hover:bg-surface-muted/60"
