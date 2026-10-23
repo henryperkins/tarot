@@ -430,7 +430,8 @@ async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requ
       }
       // Refinement never runs the generic sanitizer: that helper deliberately
       // normalizes accents for instruction matching and can change reader data.
-      const question = refinement ? (text === refinement ? text : ensureQuestionMark(text)) : sanitizeGeneratedQuestion(text);
+      // A trim-level match returns the raw wording, so no punctuation is invented.
+      const question = refinement ? (text === refinement.trim() ? refinement : ensureQuestionMark(text)) : sanitizeGeneratedQuestion(text);
       if (refinement) {
         const checked = checkQuestionRefinement(refinement, question);
         if (!checked.valid) {

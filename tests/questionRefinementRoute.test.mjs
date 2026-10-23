@@ -157,6 +157,16 @@ test('the model may leave an already clear question unchanged', async () => {
   assert.deepEqual(usageStates(env), ['completed']);
 });
 
+test('an unchanged declarative original with trailing whitespace is preserved raw without inventing punctuation', async () => {
+  const original = 'I want to understand my career. ';
+  const { env, calls } = await setup(original.trim());
+  const result = await ask(env, original);
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body, { question: original, provider: 'workers-ai', model: SERVED_MODEL, forecast: null });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(usageStates(env), ['completed']);
+});
+
 test('silence already supplied by the reader may be retained', async () => {
   const original = 'How can I understand the silence between my sister and me this week?';
   const proposed = 'What can help me understand the silence between my sister and me this week?';
