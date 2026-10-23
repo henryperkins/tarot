@@ -43,7 +43,7 @@ import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import { getUserFromRequest, loadActiveUserById } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
-import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
+import { loadReadingMemoryCandidates, resolveReadingPreferencesContext } from '../lib/userPersonalization.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { ReadingCardResolutionError, resolveReadingCards } from '../lib/readingCardResolution.js';
 import { collectQuerentReflections } from '../lib/querentReflections.js';
@@ -924,9 +924,8 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
 
     const {
       personalization,
-      storedPersonalization,
-      memories: memoryCandidates
-    } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization, { useSavedMemories });
+      storedPersonalization
+    } = await resolveReadingPreferencesContext(env?.DB, user?.id, requestPersonalization);
     const contextDiagnostics = [...decisionPathContext.diagnostics];
     const contextSources = {
       spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
@@ -941,8 +940,6 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       onUnknown: (message) => contextDiagnostics.push(message)
     });
     const contextInputText = buildContextInferenceInput(contextSources);
-    const memorySelection = useSavedMemories === false ? { memories: [], selectedIds: [], stats: { candidatesProvided: 0 }, disabledByRequest: true } : selectMemoriesForReading(memoryCandidates, { sources: preparedContextSources, contextSelection, displayName: personalization?.displayName, referenceTime: startTime });
-    const memories = memorySelection.memories;
 
     console.log(`[${requestId}] Subscription context:`, {
       tier: subscription.tier,
@@ -953,8 +950,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
     console.log(`[${requestId}] Personalization context resolved`, {
       hasRequestPersonalization: Boolean(requestPersonalization),
       hasStoredPersonalization: Boolean(storedPersonalization),
-      effectiveFocusAreas: Array.isArray(personalization?.focusAreas) ? personalization.focusAreas.length : 0,
-      memoryCount: Array.isArray(memories) ? memories.length : 0
+      effectiveFocusAreas: Array.isArray(personalization?.focusAreas) ? personalization.focusAreas.length : 0
     });
     console.log(`[${requestId}] Context inference input prepared`, {
       hasContextInput: Boolean(contextInputText),
@@ -1157,6 +1153,24 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       }, { status: 429 });
     }
     readingReservation = readingLimitResult.reservation || null;
+
+    // Preferences inform context before safety/entitlement exits; memory storage
+    // is touched only after those exits and only when reuse is enabled.
+    const memoryCandidates = await loadReadingMemoryCandidates(env?.DB, user?.id, { useSavedMemories });
+    const memorySelection = useSavedMemories === false
+      ? Object.freeze({
+        memories: Object.freeze([]), selectedIds: Object.freeze([]),
+        candidateCount: 0, selectedCount: 0, exclusionReasons: Object.freeze({}),
+        stats: Object.freeze({ candidateCount: 0, selectedCount: 0, exclusionReasons: Object.freeze({}) }),
+        disabledByRequest: true, referenceTime: startTime
+      })
+      : selectMemoriesForReading(memoryCandidates, {
+        sources: preparedContextSources, contextSelection,
+        displayName: personalization?.displayName, personalization,
+        userId: user?.id, referenceTime: startTime
+      });
+    const memories = memorySelection.memories;
+    console.log(`[${requestId}] Memory candidates selected`, { selectedCount: memories.length });
 
     // STEP 1: Comprehensive spread analysis
     console.log(`[${requestId}] Starting spread analysis...`);

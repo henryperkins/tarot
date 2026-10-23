@@ -441,6 +441,7 @@ export function buildEnhancedClaudePrompt({
   memories = [],
   useSavedMemories = true,
   memorySelection = null,
+  memoryAccessOwnerId = null,
   enableSemanticScoring = null,
   subscriptionTier = null,
   variantOverrides = null
@@ -466,12 +467,16 @@ export function buildEnhancedClaudePrompt({
     focusAreas: personalization?.focusAreas,
     contextInputText
   }, spreadKey);
-  const selectedMemories = useSavedMemories === false ? { memories: [] } : selectMemoriesForReading(memories, {
-    sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
-    contextSelection,
-    displayName: personalization?.displayName,
-    referenceTime: memorySelection?.referenceTime
-  });
+  // Supplied selections are private server arguments frozen before provider
+  // attempts. Budgets can drop notes; rebuilding must not select them again.
+  const selectedMemories = useSavedMemories === false
+    ? { memories: [], candidateCount: 0, exclusionReasons: {} }
+    : memorySelection || selectMemoriesForReading(memories, {
+      sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
+      contextSelection,
+      displayName: personalization?.displayName, personalization,
+      userId: memoryAccessOwnerId
+    });
   memories = selectedMemories.memories;
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
@@ -1335,10 +1340,10 @@ export function buildEnhancedClaudePrompt({
     slotToId: Object.fromEntries(memories.flatMap((memory, index) => memory.id ? [[`memory-${index}`, memory.id]] : []))
   };
   promptMeta.memories = {
-    candidateCount: memorySelection?.candidateCount ?? selectedMemories.candidateCount,
+    candidateCount: selectedMemories.candidateCount,
     selectedCount: memories.length,
     retainedCount: retainedSlots.length,
-    exclusionReasons: memorySelection?.exclusionReasons || selectedMemories.exclusionReasons
+    exclusionReasons: selectedMemories.exclusionReasons
   };
 
   promptMeta.sourceUsage.memories = buildMemorySourceUsage(promptMeta.memories.candidateCount, memories.length, retainedSlots.length);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as selection from '../functions/lib/readingMemorySelection.js';
+import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 
 const note = (id, text, extra = {}) => ({ id, text, category: 'general', scope: 'global', ...extra });
 const choose = (text, memory, options = {}) => selection.selectMemoriesForReading([note('target', memory)], {
@@ -117,7 +118,7 @@ test('fields keep their own owners; saved focus authorizes neither topic nor det
 });
 
 test('detail tier, deterministic cap, deduplication and one silent communication note', () => {
-  const candidates = [note('general', 'Birthday approaching choices'), ...['d', 'c', 'b', 'a'].map(id => note(id, `I am 42 years old; ${id}`)), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })];
+  const candidates = [note('general', 'Birthday approaching choices'), ...['d', 'c', 'b', 'a'].map((id, index) => note(id, ['I am 42', 'I am aged 42', 'I am 42 years old', 'I turn 42'][index])), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })];
   const result = selection.selectMemoriesForReading(candidates, { sources: [{ id: 'question', text: 'I turn 42; birthday approaching choices' }] });
   assert.deepEqual(result.memories.map(row => row.id), ['a', 'b', 'c']);
   assert.deepEqual(selection.selectMemoriesForReading([note('same', 'Career choices'), note('same', 'Career transition'), note('other', ' CAREER choices '), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })], { sources: [{ id: 'question', text: 'Career choices' }] }).memories.map(row => row.id), ['same', 'style-a']);
@@ -131,7 +132,7 @@ test('malformed, expired, session, unsafe, ambiguous and extra detail notes are 
 });
 
 test('Unicode text and string keywords rank consistently without establishing detail ownership', () => {
-  assert.deepEqual(selection.selectMemoriesForReading([note('unicode', 'Préfère explorer sa créativité'), note('keyword', 'Enjoys making things', { keywords: ['créativité', null] }), note('wrong-owner', 'Bob is 42 years old', { keywords: ['créativité'] })], { sources: [{ id: 'question', text: 'Créativité' }] }).memories.map(row => row.id), ['keyword', 'unicode']);
+  assert.deepEqual(selection.selectMemoriesForReading([note('unicode', 'Créativité'), note('unknown-grammar', 'Préfère explorer sa créativité'), note('keyword', 'Enjoys making things', { keywords: ['créativité', null] }), note('wrong-owner', 'Bob is 42 years old', { keywords: ['créativité'] })], { sources: [{ id: 'question', text: 'Créativité' }] }).memories.map(row => row.id), ['unicode']);
 });
 
 test('extractor keeps unsupported details ambiguous and claims local to clauses', () => {
@@ -225,20 +226,20 @@ test('final hard-cap loss drops complete selected notes and records retained cou
   const { buildEnhancedClaudePrompt } = await import('../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js');
   const { parseMemoryBlocks } = await import('../functions/lib/userMemory.js');
   const cardsInfo = Array.from({ length: 78 }, (_, index) => ({ card: 'The Sun', number: 19, position: `Focus ${index}`, orientation: 'Upright', meaning: 'Career exploration in the current workplace '.repeat(20), userReflection: 'Career exploration and workplace choices. '.repeat(47) }));
-  const args = { spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo, userQuestion: 'Career choices', context: 'career', budgetTarget: 'openai', promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }, memories: [note('budget-private', 'Career SENTINELWHOLEMEMORY')] };
+  const args = { spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo, userQuestion: 'Career choices', context: 'career', budgetTarget: 'openai', promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }, memories: [note('budget-private', 'Career exploration and workplace choices')] };
   const result = buildEnhancedClaudePrompt(args);
   assert.equal(result.promptMeta.memories.selectedCount, 1);
   assert.equal(result.promptMeta.memories.retainedCount, 0);
   assert.deepEqual(result.memoryRetention.retainedSlots, []);
   assert.equal(parseMemoryBlocks(result.userPrompt).size, 0);
-  assert.doesNotMatch(result.userPrompt, /SENTINELWHOLEMEMORY/);
+  assert.doesNotMatch(result.userPrompt, /reading_memory/);
   assert.equal(result.promptMeta.estimatedTokens.hardCap, 20000);
 });
 
 test('communication status does not override recency within the matching-detail tier', () => {
   const result = selection.selectMemoriesForReading([
-    note('newer-detail', 'I am aged 42; Alpha', { createdAt: 200 }),
-    note('older-communication-detail', 'I am aged 42; Beta', { category: 'communication', createdAt: 1 })
+    note('newer-detail', 'I am aged 42', { createdAt: 200 }),
+    note('older-communication-detail', 'I am 42 years old', { category: 'communication', createdAt: 1 })
   ], { sources: [{ id: 'question', text: 'I turn 42' }], limit: 1 });
   assert.deepEqual(result.selectedIds, ['newer-detail']);
 });
@@ -378,7 +379,7 @@ for (const text of ['I am 42 degrees from north', 'My child is 8 cards ahead', '
   test(`non-age numeric construction remains ordinary context: ${text}`, () => {
     assert.equal(selection.extractPersonalDetailClaims(text).hasPersonalDetails, false);
     const selected = selection.selectMemoriesForReading([note('ordinary', text, { category: 'communication' })], { sources: [{ id: 'question', text: 'Career choices' }] });
-    assert.deepEqual(selected.selectedIds, ['ordinary']);
+    assert.deepEqual(selected.selectedIds, []);
   });
 }
 
@@ -409,7 +410,7 @@ for (const text of [
     assert.equal(selection.extractPersonalDetailClaims(text).hasPersonalDetails, false);
     assert.deepEqual(selection.selectMemoriesForReading([
       note('ordinary', text, { category: 'communication' })
-    ], { sources: [{ id: 'question', text: 'Career choices' }] }).selectedIds, ['ordinary']);
+    ], { sources: [{ id: 'question', text: 'Career choices' }] }).selectedIds, []);
   });
 }
 
@@ -486,10 +487,10 @@ for (const text of [
   });
 }
 
-test('ordinary durations remain eligible while infant ages stay ambiguous', () => {
+test('ordinary durations are not ages but unsupported duration facts remain omitted', () => {
   for (const text of ['My child is 8 months away from graduation', 'I am 2 weeks into a career change', 'I am 5 days from a career change']) {
     assert.equal(selection.extractPersonalDetailClaims(text).hasPersonalDetails, false, text);
-    assert.deepEqual(choose('Career change', `${text}; career change`), ['target']);
+    assert.deepEqual(choose('Career change', `${text}; career change`), []);
   }
 });
 
@@ -508,4 +509,306 @@ for (const fraction of [' & 1/2', '&1/2', ' & ½', ' & a half', ' & two thirds',
 test('ampersands still separate supported age predicates without joining subjects', () => {
   assert.deepEqual(choose('I am 42 & my child is 8', 'I am 42 years old; my child turns 8'), ['target']);
   assert.deepEqual(choose('Alice & Bob turn 42', 'Bob is 42 years old'), []);
+});
+
+
+// Compatibility tests deliberately exercise complete notes, never just stored categories.
+test('explicit wedding negation and retraction reject a positive memory in every category', () => {
+  for (const current of ['I am not planning a wedding', 'I am no longer planning a wedding', 'I cancelled my wedding', 'My partner and I are not planning a wedding']) {
+    for (const category of ['general', 'theme', 'card_affinity', 'communication', 'life_context']) {
+      assert.deepEqual(choose(current, 'I am planning a wedding with my partner', { }), []);
+      assert.deepEqual(selection.selectMemoriesForReading([note('wedding', 'I am planning a wedding with my partner', { category })], { sources: [{ id: 'question', kind: 'question', text: current }] }).selectedIds, []);
+    }
+  }
+});
+
+test('supported event and employment memories require matching subjects and claims', () => {
+  for (const [current, stored, want] of [
+    ['I am planning a wedding with my partner', 'I am planning a wedding with my partner', ['target']],
+    ['Alice is planning a wedding', 'Alice is planning a wedding', ['target']],
+    ['Alice is planning a wedding', 'Bob is planning a wedding', []],
+    ['I am planning a wedding', 'I am planning a wedding with my partner', []],
+    ['I work at Acme', 'I work at Acme', ['target']],
+    ['I work at Beta', 'I work at Acme', []],
+    ['Alice works at Acme', 'Bob works at Acme', []],
+    ['I no longer work at Acme', 'I work at Acme', []],
+    ['I no longer work there', 'I work at Acme', []],
+    ['I left my job at Acme', 'I work at Acme', []],
+    ['I do not work at Acme', 'I work at Acme', []],
+    ['My job interview is at Acme', 'I work at Acme', []]
+  ]) assert.deepEqual(choose(current, stored), want, current + ' / ' + stored);
+});
+
+test('one relevant clause cannot admit extra unsupported facts or unknown factual grammar', () => {
+  for (const extra of ['I live in Paris', 'I have two children', 'I earn 50000 dollars', 'My wedding is on June 4', 'She works at Acme', 'Mi hijo tiene ocho años', '我住在巴黎']) {
+    for (const category of ['general', 'theme', 'card_affinity', 'communication']) {
+      const result = selection.selectMemoriesForReading([note('extra', `Navigating career uncertainty; ${extra}`, { category, keywords: ['career'] })], { sources: [{ id: 'question', kind: 'question', text: 'Career uncertainty' }] });
+      assert.deepEqual(result.selectedIds, [], extra);
+    }
+  }
+  assert.deepEqual(choose('I turn 42; Career choices', 'I am 42 years old; I live in Paris'), []);
+});
+
+test('explicit allergy and ambiguous medical restrictions are omitted but ordinary food preferences survive relevant input', () => {
+  for (const text of ['I am allergic to shellfish', 'I have a shellfish allergy', 'Shellfish causes anaphylaxis', 'I avoid shellfish for medical reasons']) {
+    assert.deepEqual(choose('Shellfish food preferences', text), [], text);
+    assert.deepEqual(choose('How can I process grief during a career change?', text), [], text);
+  }
+  assert.deepEqual(choose('Food preferences and vegetarian meals', 'I prefer vegetarian food'), ['target']);
+  assert.deepEqual(choose('Shellfish food preferences', 'I dislike shellfish'), ['target']);
+  assert.deepEqual(choose('Career choices', 'I dislike shellfish'), []);
+});
+
+test('full compatible spans authorize memory independently of the query budget', () => {
+  const sources = [
+    { id: 'question', kind: 'question', text: 'How can I prepare for my career change?' },
+    { id: 'reflections', kind: 'reflection', text: 'My job interview is tomorrow. I am planning a wedding with my partner.' },
+    { id: 'card-77', kind: 'cardReflection', text: 'I work at Acme and am considering a career change.' }
+  ];
+  const contextSelection = resolveContextSelection({ sources }, 'single', { maxLength: 0 });
+  assert.equal(contextSelection.retrievalQuery, '');
+  const result = selection.selectMemoriesForReading([
+    note('career', 'Navigating career uncertainty'),
+    note('wedding', 'I am planning a wedding with my partner'),
+    note('employer', 'I work at Acme')
+  ], { sources, contextSelection });
+  assert.deepEqual(result.selectedIds, ['employer', 'career']);
+});
+
+test('saved focus and metadata keywords cannot authorize unrelated private details', () => {
+  const sources = [{ id: 'question', kind: 'question', text: 'How can I process grief?' }, { id: 'focus-0', kind: 'savedFocus', text: 'Wedding planning and work at Acme' }];
+  const contextSelection = resolveContextSelection({ sources }, 'single');
+  assert.deepEqual(selection.selectMemoriesForReading([
+    note('food', 'I dislike shellfish', { keywords: ['grief'] }),
+    note('employment', 'I work at Acme', { keywords: ['grief'] }),
+    note('wedding', 'I am planning a wedding', { keywords: ['grief'] })
+  ], { sources, contextSelection }).selectedIds, []);
+});
+
+test('contradictory current age claims do not cherry-pick a stored match', () => {
+  assert.deepEqual(choose('I am 42; I am 43', 'I am 42 years old'), []);
+  assert.deepEqual(choose('I am not 42 years old', 'I am 42 years old'), []);
+});
+
+test('only recognized communication preferences receive the silent off-topic exception', () => {
+  const result = selection.selectMemoriesForReading([
+    note('style-a', 'Prefers concise practical advice', { category: 'communication' }),
+    note('style-b', 'Prefers brief language', { category: 'communication' }),
+    note('private', 'I live in Paris', { category: 'communication' }),
+    note('unknown', 'SENTINEL ARBITRARY STRING', { category: 'communication' })
+  ], { sources: [] });
+  assert.deepEqual(result.selectedIds, ['style-a']);
+  assert.deepEqual(selection.selectMemoriesForReading([note('gentle', 'Prefers gentle language', { category: 'communication' })], {
+    sources: [{ id: 'question', text: 'Career choices' }], personalization: { readingTone: 'blunt' }
+  }).selectedIds, []);
+});
+
+test('optional internal owner binding rejects contradictory direct candidate owners', () => {
+  const result = selection.selectMemoriesForReading([
+    note('owner', 'Career transition', { userId: 'owner' }),
+    note('other', 'Career choices', { user_id: 'other' })
+  ], { sources: [{ id: 'question', text: 'Career choices and transition' }], userId: 'owner' });
+  assert.deepEqual(result.selectedIds, ['owner']);
+});
+
+test('exact expiry and malformed keyword metadata cannot create admission', () => {
+  assert.deepEqual(selection.selectMemoriesForReading([
+    note('boundary', 'Career choices', { expiresAt: 1000 }),
+    note('after', 'Career transition', { expiresAt: 1001 }),
+    note('keywords', 'I dislike shellfish', { keywords: [null, {}, 42, 'career'] })
+  ], { sources: [{ id: 'question', text: 'Career choices and transition' }], referenceTime: 1000 }).selectedIds, ['after']);
+});
+
+
+test('compatibility exposes conservative statuses without leaking claim details', () => {
+  const current = [{ id: 'question', text: 'I am planning a wedding with my partner; I work at Acme; I turn 42' }];
+  for (const [text, want] of [
+    ['I am 42 years old', 'supported'],
+    ['I am planning a wedding with my partner', 'supported'],
+    ['I work at Acme', 'supported'],
+    ['I am 43 years old', 'conflicting'],
+    ['I am not planning a wedding', 'conflicting'],
+    ['I live in Paris', 'ambiguous'],
+    ['Navigating career uncertainty', 'nonfactual']
+  ]) {
+    const outcome = selection.checkMemoryCompatibility(note('private-id', text), current);
+    assert.equal(outcome.status, want, text);
+    assert.deepEqual(Object.keys(outcome).sort(), ['reason', 'status']);
+  }
+});
+
+test('multiple current employers and multiple unnamed relation subjects cannot cherry-pick events', () => {
+  assert.deepEqual(choose('I work at Acme; I work at Beta', 'I work at Acme'), []);
+  assert.deepEqual(choose('My partner is planning a wedding; my other partner visits', 'My partner is planning a wedding'), []);
+});
+
+test('metadata keywords cannot bypass the one silent communication-style cap', () => {
+  assert.equal(selection.selectMemoriesForReading([
+    note('a', 'Prefers concise practical advice', { category: 'communication', keywords: ['career'] }),
+    note('b', 'Prefers brief language', { category: 'communication', keywords: ['career'] })
+  ], { sources: [{ id: 'question', text: 'Career choices' }] }).memories.length, 1);
+});
+
+
+test('unresolved same-subject retractions veto positive employment and wedding evidence', () => {
+  for (const [memory, positive, retraction] of [
+    ['I work at Acme', 'I work at Acme.', 'I no longer work there.'],
+    ['I work at Acme', 'I work at Acme.', 'I do not work there.'],
+    ['I am planning a wedding with my partner', 'I am planning a wedding with my partner.', 'I canceled it.'],
+    ['I am planning a wedding with my partner', 'I am planning a wedding with my partner.', 'I cancelled it.']
+  ]) {
+    const sources = [{ id: 'question', kind: 'question', text: positive }, { id: 'reflections', kind: 'reflection', text: retraction }];
+    assert.equal(selection.checkMemoryCompatibility(note('positive', memory), sources).status, 'ambiguous', retraction);
+    assert.deepEqual(selection.selectMemoriesForReading([note('positive', memory)], { sources }).selectedIds, [], retraction);
+  }
+});
+
+test('an unrelated subject retraction or negation cannot veto a supported self claim', () => {
+  for (const [memory, positive, unrelated] of [
+    ['I work at Acme', 'I work at Acme.', 'Bob no longer works there.'],
+    ['I am planning a wedding with my partner', 'I am planning a wedding with my partner.', 'Alice canceled it.'],
+    ['I am 42 years old', 'I am 42.', 'My friend is not 42 years old.'],
+    ['I am 42 years old', 'I am 42.', 'Alice is not 42 years old.']
+  ]) {
+    for (const sources of [
+      [{ id: 'question', kind: 'question', text: positive }, { id: 'reflections', kind: 'reflection', text: unrelated }],
+      [{ id: 'question', kind: 'question', text: positive + ' ' + unrelated }]
+    ]) {
+      assert.equal(selection.checkMemoryCompatibility(note('self', memory), sources).status, 'supported', unrelated);
+      assert.deepEqual(selection.selectMemoriesForReading([note('self', memory)], { sources }).selectedIds, ['self'], unrelated);
+    }
+  }
+});
+
+test('coordinated current subjects cannot establish a single-person event', () => {
+  assert.deepEqual(choose('Alice and Bob work at Acme', 'Bob works at Acme'), []);
+  assert.deepEqual(choose('My child and my partner are planning a wedding', 'My partner is planning a wedding'), []);
+});
+
+test('positive age evidence cannot outlive an explicit same-subject correction', () => {
+  for (const current of ['I am 42. I am not 42 years old.', 'I turn 42. I am not turning 42.', 'I am 42. I am no longer 42 years old.']) {
+    const sources = [{ id: 'question', kind: 'question', text: current }];
+    assert.equal(selection.checkMemoryCompatibility(note('age', 'I am 42 years old'), sources).status, 'conflicting', current);
+    assert.deepEqual(selection.selectMemoriesForReading([note('age', 'I am 42 years old')], { sources }).selectedIds, [], current);
+  }
+});
+
+test('uncertain disjunctive and conditional current ages cannot authorize facts', () => {
+  for (const current of ['I am 42 years old or 43 years old', 'If I am 42 years old', 'Perhaps I am 42 years old', 'I am 42. If I am 42 years old']) {
+    const sources = [{ id: 'question', kind: 'question', text: current }];
+    assert.equal(selection.checkMemoryCompatibility(note('age', 'I am 42 years old'), sources).status, 'ambiguous', current);
+    assert.deepEqual(selection.selectMemoriesForReading([note('age', 'I am 42 years old')], { sources }).selectedIds, [], current);
+  }
+  assert.deepEqual(choose('My child turns 8.5 months old; I am 42 years old', 'I am 42 years old'), ['target']);
+  assert.deepEqual(choose('I am 42 years old. If Alice is 42 years old', 'I am 42 years old'), ['target']);
+});
+
+test('style preference conflicts reject the whole note despite punctuation or additional clauses', () => {
+  for (const text of ['Prefers gentle language.', 'Prefers gentle language; Career choices', 'Prefers brief language; Career choices']) {
+    assert.deepEqual(selection.selectMemoriesForReading([note('style', text, { category: 'communication' })], {
+      sources: [{ id: 'question', text: 'Career choices and language' }], personalization: { readingTone: 'blunt', preferredSpreadDepth: 'deep' }
+    }).selectedIds, [], text);
+  }
+  assert.deepEqual(selection.selectMemoriesForReading([note('style', 'Prefers brief language.', { category: 'communication' })], {
+    sources: [], personalization: { preferredSpreadDepth: 'short' }
+  }).selectedIds, ['style']);
+});
+
+test('interrogative age clauses preserve uncertainty and do not borrow unrelated question punctuation', () => {
+  for (const current of ['Am I 42 years old?', 'Am I 42 years old', 'I am 42 years old?', 'I am 42. I am 42 years old?']) {
+    assert.deepEqual(choose(current, 'I am 42 years old'), [], current);
+  }
+  assert.deepEqual(choose('I am 42. Is Alice 43 years old?', 'I am 42 years old'), ['target']);
+  assert.deepEqual(choose('I am 42 years old', 'I am 42 years old?'), []);
+});
+
+
+test('shared provider builds reuse the frozen private selection and original candidate count', async t => {
+  t.mock.method(console, 'log', () => {});
+  const { buildOpenAIResponsesPrompts } = await import('../functions/lib/narrativeBackends.js');
+  const sources = [{ id: 'question', kind: 'question', text: 'I work at Acme and am considering a career change' }];
+  const candidates = [note('employer', 'I work at Acme'), ...Array.from({ length: 99 }, (_, index) => note(`unrelated-${index}`, 'Enjoys woodland hiking'))];
+  const contextSelection = resolveContextSelection({ sources }, 'single');
+  const memorySelection = selection.selectMemoriesForReading(candidates, { sources, contextSelection, userId: 'owner', personalization: { readingTone: 'blunt' } });
+  const payload = {
+    spreadInfo: { name: 'One-Card Insight', key: 'single' },
+    cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+    userQuestion: 'Career choices', contextSelection, memorySelection, memories: [note('not-selected', 'Career transition')],
+    memoryAccessOwnerId: 'owner', personalization: { readingTone: 'blunt' }, analysis: { themes: {}, spreadAnalysis: null }
+  };
+  for (const budgetTarget of ['claude', 'openai', 'modal']) {
+    const built = buildOpenAIResponsesPrompts({ GRAPHRAG_ENABLED: 'false' }, payload, 'frozen-memory-test', { budgetTarget });
+    assert.equal(payload.memorySelection, memorySelection);
+    assert.match(built.userPrompt, /I work at Acme/);
+    assert.doesNotMatch(built.userPrompt, /not-selected/);
+    assert.equal(built.promptMeta.memories.candidateCount, 100);
+    assert.equal(built.promptMeta.memories.selectedCount, 1);
+    assert.deepEqual(payload.memoryRetention.slotToId, { 'memory-0': 'employer' });
+  }
+});
+
+test('direct provider payload selects once without DB access and forwards current style preferences', async t => {
+  t.mock.method(console, 'log', () => {});
+  const { buildOpenAIResponsesPrompts } = await import('../functions/lib/narrativeBackends.js');
+  const payload = {
+    spreadInfo: { name: 'One-Card Insight', key: 'single' },
+    cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+    userQuestion: 'Career choices', memories: [note('career', 'Career transition'), note('style', 'Prefers gentle language.', { category: 'communication' })],
+    personalization: { readingTone: 'blunt' }, analysis: { themes: {}, spreadAnalysis: null }
+  };
+  const env = { GRAPHRAG_ENABLED: 'false', DB: { prepare() { throw new Error('direct builder must not access DB'); } } };
+  const first = buildOpenAIResponsesPrompts(env, payload, 'direct-memory-test');
+  assert.ok(Object.isFrozen(payload.memorySelection));
+  assert.deepEqual(payload.memorySelection.selectedIds, ['career']);
+  assert.doesNotMatch(first.userPrompt, /Prefers gentle language/);
+  const frozen = payload.memorySelection;
+  payload.memories = [note('new', 'Career uncertainty')];
+  buildOpenAIResponsesPrompts(env, payload, 'direct-memory-retry');
+  assert.equal(payload.memorySelection, frozen);
+  assert.deepEqual(payload.memoryRetention.slotToId, { 'memory-0': 'career' });
+});
+
+test('standalone direct builder uses current preferences and explicit opt-out overrides a supplied selection', async () => {
+  const { buildEnhancedClaudePrompt } = await import('../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js');
+  const args = {
+    spreadInfo: { name: 'One-Card Insight', key: 'single' },
+    cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+    userQuestion: 'Career choices and language', promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }, personalization: { readingTone: 'blunt' },
+    memories: [note('gentle', 'Prefers gentle language.', { category: 'communication' })]
+  };
+  assert.equal(buildEnhancedClaudePrompt(args).promptMeta.memories.selectedCount, 0);
+  const memorySelection = selection.selectMemoriesForReading([note('career', 'Career transition')], { sources: [{ id: 'question', text: 'Career choices' }] });
+  const optedOut = buildEnhancedClaudePrompt({ ...args, memorySelection, useSavedMemories: false });
+  assert.deepEqual(optedOut.memoryRetention, { retainedSlots: [], slotToId: {} });
+  assert.equal(optedOut.promptMeta.memories.candidateCount, 0);
+});
+
+test('bounded current employment contractions veto the same subject with ASCII and curly apostrophes', () => {
+  for (const [positive, subject, auxiliary] of [
+    ['I work at Acme', 'I', "don't"],
+    ['Alice works at Acme', 'Alice', "doesn't"],
+    ['My partner works at Acme', 'My partner', "doesn't"]
+  ]) {
+    for (const apostrophe of ["'", '’']) {
+      const contraction = auxiliary.replace("'", apostrophe);
+      for (const sources of [
+        [{ id: 'question', kind: 'question', text: `${positive}. ${subject} ${contraction} work at Acme.` }],
+        [{ id: 'question', kind: 'question', text: `${positive}.` }, { id: 'reflections', kind: 'reflection', text: `${subject} ${contraction} work at Acme.` }]
+      ]) {
+        assert.equal(selection.checkMemoryCompatibility(note('employment', positive), sources).status, 'conflicting', sources.map(source => source.text).join(' '));
+        assert.deepEqual(selection.selectMemoriesForReading([note('employment', positive)], { sources }).selectedIds, []);
+      }
+      const unresolved = [{ id: 'question', kind: 'question', text: `${positive}. ${subject} ${contraction} work there.` }];
+      assert.equal(selection.checkMemoryCompatibility(note('employment', positive), unresolved).status, 'ambiguous');
+      assert.deepEqual(selection.selectMemoriesForReading([note('employment', positive)], { sources: unresolved }).selectedIds, []);
+    }
+  }
+});
+
+test('unrelated contracted employment negatives never veto another subject or provide positive authority', () => {
+  for (const text of ["I work at Acme. Bob doesn't work at Acme.", 'I work at Acme. My friend doesn’t work at Acme.']) {
+    assert.deepEqual(choose(text, 'I work at Acme'), ['target']);
+  }
+  assert.deepEqual(choose("I don't work at Acme", 'I work at Acme'), []);
+  assert.deepEqual(choose("I don't work at Acme", "I don't work at Acme"), []);
 });

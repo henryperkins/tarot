@@ -259,7 +259,7 @@ test('a blocked evaluation substitutes safe fallback and stamps no retained note
 
 test('provider fallback recomputes retention for the accepted final capped prompt', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
-  const db = routeDatabase(); insert(db, 'relevant', { text: 'Career SENTINELRETAINEDNOTE' });
+  const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' });
   t.mock.method(console, 'log', () => {}); t.mock.method(console, 'warn', () => {}); t.mock.method(console, 'error', () => {});
   const requests = [];
   t.mock.method(globalThis, 'fetch', async (url, init) => {
@@ -275,8 +275,14 @@ test('provider fallback recomputes retention for the accepted final capped promp
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.provider, 'openai-native');
   assert.equal(requests.length, 2);
-  assert.match(JSON.stringify(requests[0].payload), /SENTINELRETAINEDNOTE/);
-  assert.doesNotMatch(JSON.stringify(requests[1].payload), /SENTINELRETAINEDNOTE/);
+  const firstBlocks = memory.parseMemoryBlocks(requests[0].payload.messages.at(-1).content);
+  const finalBlocks = memory.parseMemoryBlocks(requests[1].payload.input);
+  assert.deepEqual([...firstBlocks.keys()], ['memory-0']);
+  assert.deepEqual([...finalBlocks.keys()], []);
+  const firstNotes = [...firstBlocks.values()].map(block => block.text);
+  const finalNotes = [...finalBlocks.values()].map(block => block.text);
+  assert.deepEqual(firstNotes, ['Navigating career uncertainty']);
+  assert.deepEqual(finalNotes, []);
   await Promise.all(tasks);
   assert.equal(db.calls.filter(call => call.write && call.sql.includes('UPDATE user_memories')).length, 0);
 });
@@ -335,4 +341,83 @@ test('explicit memory opt-out makes zero candidate reads and zero access writes 
   assert.deepEqual(db.calls.filter(call => /user_memories/.test(call.sql)), []);
   assert.equal(JSON.stringify(prompts).includes('Navigating career uncertainty'), false);
   assert.deepEqual(body.sourceUsage.memories, { requested: false, used: false, candidatesProvided: 0, memoriesSelected: 0, memoriesUsedInPrompt: 0, skippedReason: 'disabled_by_request' });
+});
+
+
+test('crisis return resolves preferences but never loads or stamps memories', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const db = routeDatabase();
+  t.after(() => db.sqlite.close());
+  insert(db, 'private', { text: 'Career transition' });
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('provider must not run during crisis return'); });
+  const tasks = [];
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', body: JSON.stringify({ ...routeFixture, userQuestion: 'I want to kill myself' }) }),
+    env: { DB: db }, principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise)
+  });
+  const body = await response.json();
+  await Promise.all(tasks);
+  assert.equal(response.status, 200);
+  assert.equal(body.gateReason, 'crisis_gate');
+  assert.equal(db.calls.some(call => /SELECT\s+display_name/.test(call.sql)), true);
+  assert.deepEqual(db.calls.filter(call => /user_memories/.test(call.sql)), []);
+});
+
+test('a pre-generation vision-proof rejection never reads the memory candidate pool', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const db = routeDatabase();
+  t.after(() => db.sqlite.close());
+  insert(db, 'private', { text: 'Career transition' });
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', body: JSON.stringify({ ...routeFixture, visionProof: { id: 'invalid-proof', signature: 'invalid-signature' } }) }),
+    env: { DB: db }, principal: { userId: 'owner' }
+  });
+  assert.equal(response.status, 400, await response.text());
+  assert.deepEqual(db.calls.filter(call => /user_memories/.test(call.sql)), []);
+});
+
+test('real route forwards current preferences and excludes unrelated or restricted whole memories', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const db = routeDatabase();
+  t.after(() => db.sqlite.close());
+  for (const [id, text] of [
+    ['career', 'Navigating career uncertainty'],
+    ['wedding', 'I am planning a wedding with my partner'],
+    ['allergy', 'I am allergic to shellfish'],
+    ['extra', 'Navigating career uncertainty; I live in Paris'],
+    ['style', 'Prefers gentle language.']
+  ]) insert(db, id, { text });
+  db.sqlite.exec("UPDATE user_memories SET category='communication' WHERE id='style'");
+  const injected = [];
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const body = JSON.parse(init.body);
+    const prompt = body.messages.map(message => message.content).join('\n');
+    for (const block of memory.parseMemoryBlocks(prompt).values()) injected.push(block.text);
+    // Candidate enumeration has not stamped any note before provider completion.
+    assert.equal(db.calls.filter(call => call.write && /user_memories/.test(call.sql)).length, 0);
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites career exploration. Your choices shape outcomes.' } }] });
+  });
+  const tasks = [];
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', body: JSON.stringify({
+      ...routeFixture, userQuestion: 'Career choices and language',
+      reflectionsText: 'My job interview is tomorrow. I am planning a wedding with my partner.',
+      personalization: { readingTone: 'blunt' }
+    }) }),
+    env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+    principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise)
+  });
+  const body = await response.json();
+  await Promise.all(tasks);
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.deepEqual(injected, ['Navigating career uncertainty']);
+  assert.deepEqual(db.calls.filter(call => !call.write && /FROM user_memories/.test(call.sql)).map(call => call.args.at(-1)), [100]);
+  assert.doesNotMatch(JSON.stringify(body), /I live in Paris|allergic to shellfish|Prefers gentle language|memorySelection|selectedIds/);
+  assert.deepEqual(db.sqlite.prepare('SELECT id FROM user_memories WHERE last_accessed_at IS NOT NULL').all().map(row => row.id), ['career']);
 });

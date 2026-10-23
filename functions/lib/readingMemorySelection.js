@@ -1,3 +1,6 @@
+import { resolveContextSelection } from './contextDetection.js';
+import { projectReadingContextSpans } from './readingRetrievalQuery.js';
+import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS } from './readingContextVocabulary.js';
 import { containsSensitiveContent, getMemoryCandidateLoadStats } from './userMemory.js';
 import { sanitizeDisplayName } from './narrative/styleHelpers.js';
 
@@ -151,8 +154,193 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
   return result;
 }
 
-/** Pure selection. Current fields stay separate; saved focus is never evidence. */
-export function selectMemoriesForReading(candidates, { sources = [], displayName = '', limit = 3, referenceTime } = {}) {
+// These admission grammars are intentionally small. Unknown factual language is
+// omitted; Unicode tokenization is not multilingual subject/negation analysis.
+const SUBJECT = String.raw`(?:[Ii]|[Mm]y\s+(?:${RELATIONS})(?:\s+[\p{Lu}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)?|[\p{Lu}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)`;
+const AGE_CLAUSE = new RegExp(String.raw`^${SUBJECT}(?:'s|'m)?\s*(?:(?:am|is|are|was|will\s+be)\s+)?(?:a\s+)?(?:(?:turn(?:s|ing)?|aged?)\s+)?\d{1,3}(?:\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o))?(?:\s+(?:reader|today|now|this\s+year))?$`, 'u');
+const BIRTHDAY_CLAUSE = new RegExp(String.raw`^(?:[Mm]y|${SUBJECT}(?:'s)?)\s+birthday(?:\s+is\s+approaching)?$`, 'u');
+const STYLE = /^(?:(?:i\s+)?prefer|prefers)\s+(?:(?:concise|brief|gentle|blunt|balanced|practical|direct|detailed|short|clear|simple|warm)\s+)*(?:advice|language|words|style|responses|readings|explanations|guidance)$/i;
+const FOOD_PREFERENCE = /^(?:i\s+(?:prefer|dislike)|prefers|dislikes)\s+(?:(?:vegetarian|vegan|simple|fresh|spicy)\s+)*(?:food|meals|shellfish|vegetables)$/i;
+// Reading admission only. This does not change saving or manual memory controls,
+// and containsSensitiveContent remains a limited identifier/instruction detector.
+const RESTRICTED_HEALTH = /\b(?:allerg(?:y|ies|ic)|anaphylaxis|diagnos(?:is|ed)|medicat(?:ion|ions|ed)|medical(?:ly)?|treatment|prescription)\b/i;
+const THEME_WORDS = new Set([
+  ...Object.values(CONTEXT_KEYWORDS).flat(), ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat(),
+  'navigating uncertainty choices choice transition transitions exploration exploring prepare preparing guidance advice clarity workplace romantic relationships birthday approaching decisions gardening brings joy creativity créativité woodland hiking making things enjoys working change changing considering seeking practical support process processing reflection gentle balance energy'
+].flatMap(text => normalize(text).match(/[\p{L}]+/gu) || []));
+
+function nonfactualKind(text) {
+  if (STYLE.test(text)) return 'style';
+  if (FOOD_PREFERENCE.test(text)) return 'preference';
+  const plain = normalize(text).replace(/^(?:i\s+am|i'm|am|is|are)\s+(?=considering|seeking|navigating|changing)/, '').replace(/^(?:considering|seeking|navigating|working on)\s+/, '');
+  const words = plain.match(/[\p{L}]+/gu) || [];
+  if (!words.length || /[\p{N}]|[^\p{L}\p{M}\p{Z}'-]/u.test(plain)) return null;
+  return words.every(word => THEME_WORDS.has(word) || ['a', 'an', 'the', 'and', 'on', 'in', 'of', 'for', 'with'].includes(word)) ? 'theme' : null;
+}
+
+function memoryClauses(text) {
+  return text.normalize('NFKC').replace(/[’‘]/g, "'")
+    .split(/[;!\n]+|(?<!\d)\.|\.(?!\d)|(?<=[?？])/)
+    .flatMap(clause => {
+      const parts = clause.split(/\s+(?:and|but)\s+(?=(?:[Ii]\b|[Mm]y\b|[\p{Lu}][\p{L}'-]*\s+(?:is|turns?|works?)\b|(?:am\s+)?considering\b))|\s*&\s*(?=[Ii]\b|[Mm]y\b)|,(?!\d)\s*(?=[\p{Lu}][\p{L}'-]*\s+(?:is|turns?)\b)/u);
+      const complete = [];
+      let pending = parts.shift() || '';
+      for (const part of parts) {
+        // Keep coordinated owners together unless the preceding subject already
+        // has its own predicate; splitting 'Alice and Bob work' invents Bob's.
+        if (extractPersonalDetailClaims(pending).hasPersonalDetails || COPULA_NUMBER.test(pending) || eventClaim(pending.trim(), '') || nonfactualKind(pending.trim())) {
+          complete.push(pending);
+          pending = part;
+        } else pending += ` and ${part}`;
+      }
+      return [...complete, pending];
+    })
+    .map(clause => clause.trim()).filter(Boolean);
+}
+
+function eventClaim(text, displayName) {
+  const wedding = new RegExp(String.raw`^(${SUBJECT})\s+(?:(?:am|is|are)\s+)?(not\s+|no\s+longer\s+)?planning\s+a\s+wedding(\s+with\s+my\s+partner)?$`, 'u').exec(text);
+  const canceled = new RegExp(String.raw`^(${SUBJECT})\s+cancel(?:l)?ed\s+(?:my|a|the)\s+wedding$`, 'u').exec(text);
+  const employment = new RegExp(String.raw`^(${SUBJECT})\s+(?:(do(?:es)?\s+not|no\s+longer)\s+)?works?\s+at\s+([\p{L}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)$`, 'u').exec(text);
+  const left = new RegExp(String.raw`^(${SUBJECT})\s+left\s+(?:my|a|the)\s+job\s+at\s+([\p{L}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)$`, 'u').exec(text);
+  const match = wedding || canceled || employment || left;
+  if (!match) return null;
+  const subjectKey = ownerFromPrefix(match[1], { displayName: normalize(sanitizeDisplayName(displayName) || ''), source: 'memory', fragment: text, kind: 'event' });
+  if (!subjectKey) return null;
+  return wedding || canceled
+    ? { kind: 'wedding', subjectKey, value: wedding?.[3] ? 'partner' : 'unspecified', negative: Boolean(canceled || wedding?.[2]) }
+    : { kind: 'employment', subjectKey, value: normalize(left ? left[2] : employment[3]), negative: Boolean(left || employment[2]) };
+}
+
+function unresolvedRetraction(text, displayName) {
+  const employment = new RegExp(String.raw`^(${SUBJECT})\s+(?:no\s+longer|do(?:es)?\s+not)\s+works?\s+there$`, 'u').exec(text);
+  const canceled = new RegExp(String.raw`^(${SUBJECT})\s+cancel(?:l)?ed\s+it$`, 'u').exec(text);
+  const match = employment || canceled;
+  if (!match) return null;
+  const subjectKey = ownerFromPrefix(match[1], { displayName: normalize(sanitizeDisplayName(displayName) || ''), source: 'memory', fragment: text, kind: 'event' });
+  // This records a veto, never an employer or an event resolved from a pronoun.
+  return subjectKey ? { kind: employment ? 'employment' : 'unspecified_event', subjectKey } : null;
+}
+
+function contractedEmploymentVeto(text, displayName) {
+  // Only current-source negative auxiliaries are expanded, and only bounded
+  // employment/retraction grammar can produce a veto. No positive authority.
+  const expanded = text.replace(/\b(don't|doesn't)\b/gi, auxiliary => auxiliary.toLowerCase() === "don't" ? 'do not' : 'does not');
+  if (expanded === text) return { event: null, retraction: null };
+  const event = eventClaim(expanded, displayName);
+  return {
+    event: event?.kind === 'employment' && event.negative ? event : null,
+    retraction: unresolvedRetraction(expanded, displayName)
+  };
+}
+
+function currentDetailEvidence(source, displayName) {
+  const extracted = extractPersonalDetailClaims(source.text, { displayName, source: source.id || 'question' });
+  const hypothetical = /^(?:if|unless|whether|suppose|assuming|perhaps|maybe|possibly|am|is|are|was|were|will|would|could|should)\b/i.test(source.text);
+  const currentShorthand = /^turning\s+\d{1,3}(?:\s+(?:today|now|this\s+year))?$/i.test(source.text);
+  const supported = !hypothetical && !extracted.ambiguous && (AGE_CLAUSE.test(source.text) || BIRTHDAY_CLAUSE.test(source.text) || currentShorthand);
+  // A negative predicate may intentionally have no positive extractor claim.
+  // Parse its affirmative shape only to veto that exact subject/value, never to
+  // authorize a memory. Unknown syntax remains unsupported.
+  const affirmative = source.text.replace(/\b(?:no\s+longer|not|never)\s+/i, '');
+  const negative = affirmative !== source.text && AGE_CLAUSE.test(affirmative)
+    ? extractPersonalDetailClaims(affirmative, { displayName, source: source.id || 'question' }).claims : [];
+  return { claims: supported ? extracted.claims : [], ambiguousClaims: supported ? [] : extracted.claims, negative };
+}
+
+function roleVetoes(sources) {
+  const ambiguous = new Set();
+  const names = new Map();
+  for (const source of sources) {
+    const roles = analyzeRoleMultiplicity(source.text);
+    for (const role of roles.ambiguousRoles) ambiguous.add(role);
+    for (const [role, values] of roles.namedRoles) {
+      if (!names.has(role)) names.set(role, new Set());
+      for (const value of values) names.get(role).add(value);
+      if (names.get(role).size > 1) ambiguous.add(role);
+    }
+  }
+  return ambiguous;
+}
+
+/**
+ * Conservative, pure reading-admission guard. It recognizes only documented
+ * age/birthday, wedding, employment and nonfactual preference/theme forms.
+ * Optional displayName is internal context, never a client authority marker.
+ */
+export function checkMemoryCompatibility(memory, currentSources = [], { displayName = '' } = {}) {
+  const text = typeof memory === 'string' ? memory : memory?.text;
+  const reject = (status, reason) => ({ status, reason });
+  if (typeof text !== 'string' || !text.trim()) return reject('ambiguous', 'malformed');
+  if (containsSensitiveContent(text)) return reject('ambiguous', 'unsafe');
+  if (RESTRICTED_HEALTH.test(text)) return reject('ambiguous', 'restricted_detail');
+  const current = (Array.isArray(currentSources) ? currentSources : []).filter(source => typeof source?.text === 'string');
+  const currentVetoes = roleVetoes(current);
+  const memoryDetails = extractPersonalDetailClaims(text, { displayName, source: 'memory' });
+  if (memoryDetails.ambiguous) return reject('ambiguous', 'unmatched_detail');
+  const currentClauses = current.flatMap(source => memoryClauses(source.text).map(text => ({ ...source, text })));
+  const evidence = currentClauses.map(source => currentDetailEvidence(source, displayName));
+  const detailEvidence = evidence.flatMap(result => result.claims);
+  const ambiguousDetails = evidence.flatMap(result => result.ambiguousClaims);
+  const negativeDetails = evidence.flatMap(result => result.negative);
+  let supported = false;
+  for (const claim of memoryDetails.claims) {
+    if (claim.subjectKey.startsWith('relation:') && currentVetoes.has(claim.subjectKey.slice(9))) return reject('ambiguous', 'unmatched_detail');
+    const sameSubject = detailEvidence.filter(candidate => candidate.subjectKey === claim.subjectKey && candidate.kind === claim.kind);
+    if (sameSubject.some(candidate => candidate.value !== claim.value)) return reject('conflicting', 'conflicting_detail');
+    if (negativeDetails.some(candidate => claimKey(candidate) === claimKey(claim))) return reject('conflicting', 'conflicting_detail');
+    if (ambiguousDetails.some(candidate => candidate.kind === claim.kind && candidate.subjectKey === claim.subjectKey)) return reject('ambiguous', 'unmatched_detail');
+    if (!sameSubject.some(candidate => claimKey(candidate) === claimKey(claim))) return reject('ambiguous', 'unmatched_detail');
+    supported = true;
+  }
+  const contractedVetoes = currentClauses.map(source => contractedEmploymentVeto(source.text, displayName));
+  const currentEvents = [...currentClauses.map(source => eventClaim(source.text, displayName)), ...contractedVetoes.map(veto => veto.event)].filter(Boolean);
+  const unresolvedRetractions = [...currentClauses.map(source => unresolvedRetraction(source.text, displayName)), ...contractedVetoes.map(veto => veto.retraction)].filter(Boolean);
+  for (const clause of memoryClauses(text)) {
+    if (nonfactualKind(clause)) continue;
+    const event = eventClaim(clause, displayName);
+    if (event) {
+      if (unresolvedRetractions.some(retraction => retraction.subjectKey === event.subjectKey && (retraction.kind === event.kind || event.kind === 'wedding' && retraction.kind === 'unspecified_event'))) return reject('ambiguous', 'unmatched_detail');
+      if (event.subjectKey.startsWith('relation:') && currentVetoes.has(event.subjectKey.slice(9))) return reject('ambiguous', 'unmatched_detail');
+      const evidence = currentEvents.filter(candidate => candidate.kind === event.kind && candidate.subjectKey === event.subjectKey);
+      if (evidence.some(candidate => candidate.value !== event.value && candidate.negative === event.negative)) return reject('ambiguous', 'unmatched_detail');
+      if (evidence.some(candidate => candidate.negative !== event.negative && (candidate.value === event.value || event.kind === 'wedding'))) return reject('conflicting', 'conflicting_detail');
+      if (!evidence.some(candidate => candidate.value === event.value && candidate.negative === event.negative)) return reject('ambiguous', 'unmatched_detail');
+      supported = true;
+      continue;
+    }
+    if ((AGE_CLAUSE.test(clause) || BIRTHDAY_CLAUSE.test(clause)) && extractPersonalDetailClaims(clause, { displayName, source: 'memory' }).claims.length) continue;
+    return reject('ambiguous', 'unsupported_claim');
+  }
+  return supported ? reject('supported', 'current_claim_agreement') : reject('nonfactual', 'recognized_nonfactual');
+}
+
+function currentSourceKind(source) {
+  if (source.kind) return source.kind;
+  if (source.id === 'question') return 'question';
+  if (String(source.id).startsWith('focus-')) return 'savedFocus';
+  if (String(source.id).startsWith('card-')) return 'cardReflection';
+  if (/^path[AB]$/.test(source.id)) return 'decisionPath';
+  return 'reflection';
+}
+
+function conflictsWithCurrentStyle(text, personalization) {
+  return memoryClauses(text).some(clause => {
+    if (!STYLE.test(clause)) return false;
+    const normalized = normalize(clause);
+    const tone = /\b(gentle|blunt|balanced)\b/.exec(normalized)?.[1];
+    if (personalization?.readingTone && tone && tone !== personalization.readingTone) return true;
+    if (personalization?.preferredSpreadDepth === 'deep' && /\b(?:brief|concise|short)\b/.test(normalized)) return true;
+    return personalization?.preferredSpreadDepth === 'short' && /\bdetailed\b/.test(normalized);
+  });
+}
+
+/**
+ * Pure selection, frozen for this request. userId/personalization are optional
+ * INTERNAL bindings for direct candidates/current preferences, never wire fields.
+ * DB-loaded candidate ownership remains enforced by the loader's bound SQL.
+ */
+export function selectMemoriesForReading(candidates, { sources = [], contextSelection, displayName = '', userId, personalization, limit = 3, referenceTime } = {}) {
   const input = Array.isArray(candidates) ? candidates : [];
   const loadStats = getMemoryCandidateLoadStats(input);
   const candidateCount = loadStats?.candidateCount ?? input.length;
@@ -162,71 +350,61 @@ export function selectMemoriesForReading(candidates, { sources = [], displayName
   const now = Number.isFinite(referenceTime) ? referenceTime : cached?.referenceTime ?? Date.now();
   const stats = { candidateCount, selectedCount: 0, exclusionReasons };
   const result = { memories: [], selectedIds: [], stats, candidateCount, selectedCount: 0, exclusionReasons, referenceTime: now };
-  if (!Number.isInteger(limit) || limit <= 0) {
-    Object.freeze(result.memories);
-    Object.freeze(result.selectedIds);
+  const freeze = () => {
+    result.selectedCount = result.memories.length;
+    result.selectedIds = Object.freeze(result.memories.map(row => row.id).filter(Boolean));
+    stats.selectedCount = result.selectedCount;
     Object.freeze(exclusionReasons);
     Object.freeze(stats);
+    result.memories = Object.freeze(result.memories.map(row => Object.freeze({ ...row, keywords: Object.freeze(Array.isArray(row.keywords) ? row.keywords.filter(value => typeof value === 'string') : []) })));
     return Object.freeze(result);
-  }
-  const current = (Array.isArray(sources) ? sources : []).filter(field => field && typeof field.text === 'string' && field.kind !== 'savedFocus' && !String(field.id || '').startsWith('focus-'));
-  const signature = JSON.stringify([current.map(field => [field.id, field.text]), sanitizeDisplayName(displayName), limit, now]);
+  };
+  if (!Number.isInteger(limit) || limit <= 0) return freeze();
+  const prepared = (Array.isArray(sources) ? sources : []).filter(source => source && typeof source.text === 'string' && !String(source.id || '').startsWith('interpretation-')).map(source => ({ ...source, kind: currentSourceKind(source) }));
+  const selection = contextSelection || resolveContextSelection({ sources: prepared });
+  // A source ID or mandatory query excerpt does not authorize its other clauses.
+  const current = projectReadingContextSpans(prepared, selection).filter(entry => entry.source.kind !== 'savedFocus').flatMap(entry => entry.spans.map(span => ({ ...entry.source, text: span.text })));
+  const signature = JSON.stringify([current.map(field => [field.id, field.text]), selection.context, selection.graphRAGContext, sanitizeDisplayName(displayName), userId, personalization, limit, now]);
   if (cached?.signature === signature) return cached.result;
   const currentTokens = meaningfulTokens(current.map(field => field.text).join(' '));
-  // Analyze fields independently, then merge only role ambiguity metadata.
-  // This can invalidate an unnamed role; it can never create a detail owner.
-  const currentAmbiguousRoles = new Set();
-  const currentRoleNames = new Map();
-  for (const field of current) {
-    const roles = analyzeRoleMultiplicity(field.text);
-    for (const role of roles.ambiguousRoles) currentAmbiguousRoles.add(role);
-    for (const [role, names] of roles.namedRoles) {
-      if (!currentRoleNames.has(role)) currentRoleNames.set(role, new Set());
-      for (const name of names) currentRoleNames.get(role).add(name);
-      if (currentRoleNames.get(role).size > 1) currentAmbiguousRoles.add(role);
-    }
-  }
-  const currentClaims = new Set(current.flatMap(field => extractPersonalDetailClaims(field.text, { displayName, source: field.id || 'question' }).claims)
-    .filter(claim => !claim.subjectKey.startsWith('relation:') || !currentAmbiguousRoles.has(claim.subjectKey.slice('relation:'.length)))
-    .map(claimKey));
   const seenIds = new Set();
   const seenText = new Set();
   const eligible = [];
   for (const row of input) {
     if (!row || Array.isArray(row) || typeof row.text !== 'string' || !row.text.trim() || (row.id !== undefined && (typeof row.id !== 'string' || !row.id)) || (row.category && !CATEGORIES.has(row.category))) { exclude('malformed'); continue; }
+    if (userId && ((row.userId !== undefined && row.userId !== userId) || (row.user_id !== undefined && row.user_id !== userId))) { exclude('wrong_owner'); continue; }
     if (row.scope !== undefined && row.scope !== 'global') { exclude('non_global'); continue; }
     const expiry = row.expiresAt ?? (row.expires_at == null ? null : Number(row.expires_at) * 1000);
     if (expiry != null && (!Number.isFinite(expiry) || expiry <= now)) { exclude('expired'); continue; }
-    if (containsSensitiveContent(row.text)) { exclude('unsafe'); continue; }
+    const compatibility = checkMemoryCompatibility(row, current, { displayName });
+    if (!['supported', 'nonfactual'].includes(compatibility.status)) { exclude(compatibility.reason); continue; }
     const textKey = normalize(row.text);
     if ((row.id && seenIds.has(row.id)) || seenText.has(textKey)) { exclude('duplicate'); continue; }
     if (row.id) seenIds.add(row.id);
     seenText.add(textKey);
-    const details = extractPersonalDetailClaims(row.text, { displayName, source: 'memory' });
-    if (details.hasPersonalDetails && (details.ambiguous || !details.claims.length || details.claims.some(claim => !currentClaims.has(claimKey(claim))))) { exclude('unmatched_detail'); continue; }
-    const keywords = Array.isArray(row.keywords) ? row.keywords.filter(value => typeof value === 'string') : [];
-    const tokens = meaningfulTokens([row.text, ...keywords].join(' '));
-    const overlap = [...tokens].filter(token => currentTokens.has(token)).length;
-    if (!details.claims.length && !overlap && row.category !== 'communication') { exclude('irrelevant'); continue; }
-    eligible.push({ row, detailCount: details.claims.length, overlap, recency: Number(row.createdAt ?? (Number(row.created_at || 0) * 1000)) || 0, stable: row.id || textKey });
+    const clauses = memoryClauses(row.text);
+    const style = clauses.length === 1 && STYLE.test(clauses[0]);
+    if (conflictsWithCurrentStyle(row.text, personalization)) { exclude('current_preference_conflict'); continue; }
+    // Text must independently establish relevance. Metadata keywords may help
+    // ranking only after admission; they cannot smuggle unrelated private facts.
+    const tokens = meaningfulTokens(row.text);
+    const textOverlap = [...tokens].filter(token => currentTokens.has(token)).length;
+    const keywords = Array.isArray(row.keywords) ? row.keywords.filter(value => typeof value === 'string' && value.trim().length <= 30 && !containsSensitiveContent(value)) : [];
+    const overlap = [...meaningfulTokens([row.text, ...keywords].join(' '))].filter(token => currentTokens.has(token)).length;
+    if (compatibility.status !== 'supported' && !textOverlap && !(style && row.category === 'communication')) { exclude('irrelevant'); continue; }
+    eligible.push({ row, detailCount: compatibility.status === 'supported' ? Math.max(1, extractPersonalDetailClaims(row.text, { displayName }).claims.length) : 0, overlap, textOverlap, style, recency: Number(row.createdAt ?? (Number(row.created_at || 0) * 1000)) || 0, stable: row.id || textKey });
   }
-  eligible.sort((a, b) => b.detailCount - a.detailCount || b.overlap - a.overlap || (!a.detailCount && !b.detailCount ? Number(b.row.category === 'communication') - Number(a.row.category === 'communication') : 0) || b.recency - a.recency || a.stable.localeCompare(b.stable));
+  eligible.sort((a, b) => b.detailCount - a.detailCount || b.overlap - a.overlap || b.recency - a.recency || a.stable.localeCompare(b.stable));
   let offTopicCommunication = false;
   for (const candidate of eligible) {
-    if (candidate.row.category === 'communication' && !candidate.overlap) {
+    if (candidate.style && !candidate.textOverlap) {
       if (offTopicCommunication) { exclude('communication_cap'); continue; }
       offTopicCommunication = true;
     }
     if (result.memories.length >= Math.min(3, limit)) { exclude('limit'); continue; }
     result.memories.push(candidate.row);
   }
-  result.selectedCount = result.memories.length;
-  result.selectedIds = Object.freeze(result.memories.map(row => row.id).filter(Boolean));
-  stats.selectedCount = result.selectedCount;
-  Object.freeze(stats);
-  result.memories = Object.freeze(result.memories.map(row => Object.freeze({ ...row, keywords: Object.freeze(Array.isArray(row.keywords) ? row.keywords.filter(value => typeof value === 'string') : []) })));
-  Object.freeze(result.exclusionReasons);
-  Object.freeze(result);
+  freeze();
   selectionsByArray.set(result.memories, { signature, result, referenceTime: now });
   return result;
 }

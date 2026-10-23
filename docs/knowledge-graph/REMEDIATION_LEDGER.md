@@ -22,7 +22,7 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
 | 1 | 1–2 | Complete | Validated transport and one authoritative context selection reviewed, including all accepted sources and bounded query projection. |
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
-| 3 | 5–6 | Active | Ranking implementation and reviewed selector integration follow the Task 2 checkpoint. |
+| 3 | 5–6 | Task 6 complete; Task 5 in review | Compatible frozen memory selection reviewed; bounded full-set ranking implementation awaits independent review. |
 | 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
@@ -155,3 +155,12 @@ Every accepted current source participates in classification before query alloca
 - Review round 1/5: three P2 findings addressed, zero open. Saturated queries preserve complete negative clauses or omit them explicitly; ordinary excerpts respect word/grapheme boundaries; typographic apostrophes preserve topic exclusions; internal/grouped decision sources retain effective legacy labels and cached selection identity.
 - Independent re-review: **13 targeted tests passed**; spec and quality approved. Narrow grammar/keyword classification limitations remain explicit; this is not a general multilingual semantic classifier.
 - Shared file ownership is released to Tasks 5 and 6. Task 5 owns retrieval/embeddings/orchestration; Task 6 owns memory admission, route loading and frozen selection propagation. Neither task is complete until its integration review passes.
+
+## Task 6 — Compatible frozen memory selection
+
+Preferences load separately before safety/context handling. The generation path loads up to 100 owner-bound global candidates without access writes only after crisis, entitlement, vision and quota exits; explicit opt-out performs no memory read or selection. At most three compatible notes are selected once from full accepted compatible spans and frozen for all provider attempts. Direct builders use the same selector without database access, and supplied private selections retain their original candidate counts.
+
+- Final enforced-network-blocked covering gate: **303 passed**, zero failures; scoped lint and diff checks pass. Earlier failed and stubs-only runs remain preserved.
+- The whole-note guard rejects unsupported/ambiguous facts, conflicting subjects or current preferences, recognized restricted health details, and bounded same-subject negations/retractions. It preserves numeric/measurement and unrelated-person controls. This deliberately limited grammar is not universal language or health classification.
+- Pure-selector review round 1/5 addressed three P2 findings; the parent subsequently found and verified a bounded employment-contraction gap, fixed with direct-guard and selector regressions before final review. Full independent integration review: **spec and quality pass**, with **11 targeted tests passed**.
+- Existing save/delete behavior and completion/access implementation are unchanged by this task. Final retention and durable accepted-result receipts remain Tasks 7 and 8.

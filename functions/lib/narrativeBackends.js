@@ -1,3 +1,5 @@
+import { selectMemoriesForReading } from './readingMemorySelection.js';
+import { prepareReadingContextSources } from './readingContextSources.js';
 import { resolveDecisionPathContext, decisionPathRoleCards } from './decisionPathContext.js';
 /**
  * Narrative Backend Dispatch and Generation
@@ -710,6 +712,27 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
  * @param {string} requestId - Request ID for logging
  * @returns {Object} { systemPrompt, userPrompt, promptMeta }
  */
+/** Direct internal callers freeze once; route callers retain the private selection. */
+function ensureReadingMemorySelection(payload) {
+  if (payload.useSavedMemories === false) {
+    payload.memories = [];
+    return;
+  }
+  payload.memorySelection ||= selectMemoriesForReading(payload.memories, {
+    sources: prepareReadingContextSources({
+      spreadKey: getSpreadKey(payload.spreadInfo?.name, payload.spreadInfo?.key),
+      userQuestion: payload.userQuestion, reflectionsText: payload.reflectionsText,
+      cardsInfo: payload.cardsInfo, decisionPaths: payload.decisionPaths,
+      focusAreas: payload.personalization?.focusAreas
+    }),
+    contextSelection: payload.contextSelection,
+    displayName: payload.personalization?.displayName,
+    personalization: payload.personalization,
+    userId: payload.memoryAccessOwnerId
+  });
+  payload.memories = payload.memorySelection.memories;
+}
+
 export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown', options = {}) {
   const {
     spreadInfo,
@@ -733,6 +756,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     ...(hasLegacyDecisionPaths || payload.decisionPaths || reflectionsText !== undefined || cardsInfo?.some(card => card?.userReflection) ? { cardsInfo } : {}),
     focusAreas: payload.personalization?.focusAreas, contextInputText
   }, getSpreadKey(spreadInfo?.name, spreadInfo?.key));
+  ensureReadingMemorySelection(payload);
 
   const deckStyle = payload.deckStyle || spreadInfo?.deckStyle || cardsInfo?.[0]?.deckStyle || analysis?.themes?.deckStyle || 'rws-1909';
 
@@ -779,6 +803,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     memories: payload.memories,
     useSavedMemories: payload.useSavedMemories,
     memorySelection: payload.memorySelection,
+    memoryAccessOwnerId: payload.memoryAccessOwnerId,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
     variantOverrides: payload.variantPromptOverrides
@@ -1362,6 +1387,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     decisionPaths,
     focusAreas: personalization?.focusAreas
   }, spreadKey);
+  ensureReadingMemorySelection(payload);
   const hasCurrentTopic = contextSelection.source === 'question'
     || contextSelection.source === 'reflections'
     || contextSelection.source === 'decisionPaths';
@@ -1499,8 +1525,8 @@ export async function composeReadingEnhanced(payload, env = null) {
   }
 
   payload.promptMeta.memories = {
-    candidateCount: payload.memorySelection?.candidateCount ?? payload.memories?.length ?? 0,
-    selectedCount: payload.memorySelection?.selectedCount ?? payload.memories?.length ?? 0,
+    candidateCount: payload.useSavedMemories === false ? 0 : payload.memorySelection?.candidateCount ?? payload.memories?.length ?? 0,
+    selectedCount: payload.useSavedMemories === false ? 0 : payload.memorySelection?.selectedCount ?? payload.memories?.length ?? 0,
     retainedCount: 0,
     exclusionReasons: payload.memorySelection?.exclusionReasons || {}
   };

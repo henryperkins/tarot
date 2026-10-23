@@ -229,7 +229,7 @@ export async function loadStoredPersonalization(db, userId) {
   }
 }
 
-export async function resolveReadingPersonalizationContext(db, userId, requestPersonalization, options = {}) {
+export async function resolveReadingPreferencesContext(db, userId, requestPersonalization) {
   const storedPersonalization = await loadStoredPersonalization(db, userId);
   const sanitizedRequestPersonalization = sanitizeRequestPersonalizationInput(
     requestPersonalization,
@@ -240,23 +240,32 @@ export async function resolveReadingPersonalizationContext(db, userId, requestPe
     sanitizedRequestPersonalization
   );
 
-  let memories = [];
-  if (options.useSavedMemories !== false && db && userId) {
-    const memoryLoader = typeof options.loadMemories === 'function' ? options.loadMemories : getMemories;
-    try {
-      memories = await memoryLoader(db, userId, {
-        scope: 'global',
-        limit: DEFAULT_GLOBAL_MEMORY_LIMIT,
-        markAccess: false
-      });
-    } catch (error) {
-      console.warn('[resolveReadingPersonalizationContext] Memory load failed:', error?.message || error);
-    }
-  }
-
   return {
     personalization: Object.keys(mergedPersonalization).length > 0 ? mergedPersonalization : null,
-    storedPersonalization,
-    memories: Array.isArray(memories) ? memories : []
+    storedPersonalization
   };
+}
+
+/** Initial-reading candidate loading is separate from preference resolution. */
+export async function loadReadingMemoryCandidates(db, userId, options = {}) {
+  if (options.useSavedMemories === false || !db || !userId) return [];
+  const memoryLoader = typeof options.loadMemories === 'function' ? options.loadMemories : getMemories;
+  try {
+    const memories = await memoryLoader(db, userId, {
+      scope: 'global',
+      limit: DEFAULT_GLOBAL_MEMORY_LIMIT,
+      markAccess: false
+    });
+    return Array.isArray(memories) ? memories : [];
+  } catch {
+    console.warn('[loadReadingMemoryCandidates] Memory load failed');
+    return [];
+  }
+}
+
+/** Compatibility wrapper for callers that intentionally request both sources. */
+export async function resolveReadingPersonalizationContext(db, userId, requestPersonalization, options = {}) {
+  const preferences = await resolveReadingPreferencesContext(db, userId, requestPersonalization);
+  const memories = await loadReadingMemoryCandidates(db, userId, options);
+  return { ...preferences, memories };
 }
