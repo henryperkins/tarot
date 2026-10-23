@@ -146,7 +146,10 @@ for (const version of ['1.0.2', '1.0.3']) test(`public ${version} package rebuil
   assert.equal(Object.keys(v2Lock.files).some((name) => /migration|ActionsGPT|capabilities-audit|AI Training|Quick Reference and/.test(name)), false);
 });
 
-test('1.0.3 cancels in one message and ships the maintained plugin instructions', () => {
+test('frozen 1.0.3 cancels in one message and preserves its versioned instructions contract', () => {
+  const v3Lock = JSON.parse(readFileSync(join(root, 'docs/integrations/openai/submission/1.0.3/package-lock.json'), 'utf8'));
+  assert.equal(v3Lock.version, '1.0.3');
+  assert.equal(v3Lock.archive.sha256, 'ada6202e35d5fa7bfa55088bed63e9cceca806ea68e8ba70ebef6854c3ec3543');
   const v3Source = join(root, 'docs/integrations/openai/submission/1.0.3/source', lock.name);
   const manifest = JSON.parse(readFileSync(join(v3Source, '.codex-plugin/plugin.json'), 'utf8'));
   const cancel = manifest.extensions['com.openai'].review.test_cases.positive.find((testCase) => /cancel_tarot_reading/.test(testCase.tools_triggered));
@@ -155,9 +158,39 @@ test('1.0.3 cancels in one message and ships the maintained plugin instructions'
   assert.equal(cancel.tools_triggered, 'draw_tarot_reading, get_tarot_reading_status, cancel_tarot_reading');
   assert.match(cancel.expected_behavior, /status to return running and the cancellation to return cancelled/);
   assert.match(cancel.expected_behavior, /inconclusive/);
-  for (const [maintained, packaged] of [['SKILL.md', 'skills/instructions/SKILL.md'], ['references/actions-contract.md', 'skills/instructions/references/actions-contract.md']]) {
-    assert.equal(readFileSync(join(root, 'docs/integrations/openai/plugin', maintained), 'utf8'), readFileSync(join(v3Source, packaged), 'utf8'), maintained);
+  for (const [packaged, hash] of [
+    ['skills/instructions/SKILL.md', 'd0e98a603d1f8542fbe840753257ab526b2f3ff4c58093f4d2181023b291f5e2'],
+    ['skills/instructions/references/actions-contract.md', 'eeadc5fce6083641366120eb2fbd334e285349f811d1ddbdbeee1d1939a3d853']
+  ]) {
+    const bytes = readFileSync(join(v3Source, packaged));
+    assert.equal(sha256(bytes), hash, packaged);
+    assert.equal(v3Lock.files[packaged].sha256, hash, `${packaged} lock identity`);
+    assert.equal(bytes.length, v3Lock.files[packaged].bytes, `${packaged} byte count`);
   }
+  const frozenContract = readFileSync(join(v3Source, 'skills/instructions/references/actions-contract.md'), 'utf8');
+  assert.match(frozenContract, /instructions 0\.29\.0 \(upload packages 1\.0\.2 and 1\.0\.3\)/);
+});
+
+test('maintained plugin contract describes reading-context parity independently of frozen uploads', () => {
+  const maintained = join(root, 'docs/integrations/openai/plugin');
+  const instructions = readFileSync(join(maintained, 'SKILL.md'), 'utf8');
+  const contract = readFileSync(join(maintained, 'references/actions-contract.md'), 'utf8');
+  assert.match(instructions, /Before a backend reading or a journal write, read references\/actions-contract\.md/);
+  assert.match(contract, /Published upload packages retain their frozen historical contracts; this edit does not publish or install a new package\./);
+  for (const tool of ['draw_tarot_reading', 'start_tarot_reading']) {
+    const row = contract.split('\n').find(line => line.startsWith(`| \`${tool}\``));
+    assert.ok(row, `${tool} has a maintained input contract`);
+    assert.match(row, /`decisionPaths`, `useSavedMemories`/);
+  }
+  assert.match(contract, /each `userReflection` is at most 2,000/);
+  assert.match(contract, /server resolves orientation-aware catalog meaning and derives a differing interpretation separately as `callerMeaning`/);
+  assert.match(contract, /Never send derived `callerMeaning` as input/);
+  assert.match(contract, /Empty string explicitly clears; omission permits legacy decision-position fallback/);
+  assert.match(contract, /Explicit false bypasses loading, selection and initial-reading access writes/);
+  assert.match(contract, /compact result intentionally omits[^\n]*`sourceUsage`\/GraphRAG diagnostics and private receipt\/run\/attempt\/memory identities/);
+  assert.match(contract, /complete retained blocks of a successfully accepted result/);
+  assert.match(contract, /status\/wait\/save reads do not establish new inclusion/);
+  assert.match(contract, /Receipt-aware or drained compatible rollback is required/);
 });
 
 test('ignore rules leave no locked package file out of a commit', (t) => {

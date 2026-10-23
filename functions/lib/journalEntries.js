@@ -342,7 +342,7 @@ async function insertReadingEntry(db, { entryId, userId, now, entry, sessionSeed
       user_preferences_json, deck_id, request_id, location_latitude, location_longitude,
       location_timezone, location_consent, idempotency_key
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0, ?)
   `).bind(
     entryId,
     userId,
@@ -354,6 +354,7 @@ async function insertReadingEntry(db, { entryId, userId, now, entry, sessionSeed
     JSON.stringify(entry.cards),
     entry.personalReading,
     entry.themes ? JSON.stringify(entry.themes) : null,
+    entry.reflections ? JSON.stringify(entry.reflections) : null,
     normalizeJournalContext(entry.context),
     entry.provider ?? null,
     sessionSeed,

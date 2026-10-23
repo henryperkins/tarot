@@ -1,0 +1,1899 @@
+{
+  "schemaVersion": 2,
+  "referenceTime": "2026-10-23T12:00:00.000Z",
+  "frozenRawHash": "578e615034eaef0e188ae04986cfc9834b62c80943dae089873582cb0cd2ee29",
+  "decks": [
+    "rws-1909",
+    "thoth-a1",
+    "marseille-classic"
+  ],
+  "providerTargets": [
+    "claude",
+    "openai",
+    "modal"
+  ],
+  "partialMatrix": {
+    "orders": [
+      "forward",
+      "reverse"
+    ],
+    "orientations": [
+      [
+        "Upright",
+        "Upright"
+      ],
+      [
+        "Upright",
+        "Reversed"
+      ],
+      [
+        "Reversed",
+        "Upright"
+      ],
+      [
+        "Reversed",
+        "Reversed"
+      ]
+    ],
+    "seeds": [
+      {
+        "id": "partial-death-temperance-star-13-14",
+        "cards": [
+          {
+            "name": "Death",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Temperance",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "death-temperance-star",
+          "partialNarrative": "Transformation actively seeking balance"
+        }
+      },
+      {
+        "id": "partial-death-temperance-star-14-17",
+        "cards": [
+          {
+            "name": "Temperance",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "death-temperance-star",
+          "partialNarrative": "Patient integration leading to renewal"
+        }
+      },
+      {
+        "id": "partial-death-temperance-star-13-17",
+        "cards": [
+          {
+            "name": "Death",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "death-temperance-star",
+          "partialNarrative": "Change accompanied by renewed possibility"
+        }
+      },
+      {
+        "id": "partial-devil-tower-sun-15-16",
+        "cards": [
+          {
+            "name": "The Devil",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "devil-tower-sun",
+          "partialNarrative": "Attachments meet necessary disruption"
+        }
+      },
+      {
+        "id": "partial-devil-tower-sun-16-19",
+        "cards": [
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Sun",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "devil-tower-sun",
+          "partialNarrative": "Upheaval clearing the path to clarity"
+        }
+      },
+      {
+        "id": "partial-devil-tower-sun-15-19",
+        "cards": [
+          {
+            "name": "The Devil",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Sun",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "devil-tower-sun",
+          "partialNarrative": "From shadow to light (sudden liberation)"
+        }
+      },
+      {
+        "id": "partial-hermit-hangedman-moon-9-12",
+        "cards": [
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "hermit-hangedman-moon",
+          "partialNarrative": "Introspection leading to necessary pause"
+        }
+      },
+      {
+        "id": "partial-hermit-hangedman-moon-12-18",
+        "cards": [
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "hermit-hangedman-moon",
+          "partialNarrative": "Suspension opening to shadow realm"
+        }
+      },
+      {
+        "id": "partial-hermit-hangedman-moon-9-18",
+        "cards": [
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "hermit-hangedman-moon",
+          "partialNarrative": "Solo journey into the unconscious"
+        }
+      },
+      {
+        "id": "partial-magician-chariot-world-1-7",
+        "cards": [
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Chariot",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "magician-chariot-world",
+          "partialNarrative": "Potential directed into decisive movement"
+        }
+      },
+      {
+        "id": "partial-magician-chariot-world-7-21",
+        "cards": [
+          {
+            "name": "The Chariot",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "magician-chariot-world",
+          "partialNarrative": "Determined effort reaching culmination"
+        }
+      },
+      {
+        "id": "partial-magician-chariot-world-1-21",
+        "cards": [
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "magician-chariot-world",
+          "partialNarrative": "From first spark to full realization"
+        }
+      },
+      {
+        "id": "partial-empress-lovers-hierophant-3-6",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Lovers",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-lovers-hierophant",
+          "partialNarrative": "Creative fertility meeting decisive choice"
+        }
+      },
+      {
+        "id": "partial-empress-lovers-hierophant-5-6",
+        "cards": [
+          {
+            "name": "The Lovers",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-lovers-hierophant",
+          "partialNarrative": "Personal values versus collective tradition"
+        }
+      },
+      {
+        "id": "partial-empress-lovers-hierophant-3-5",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-lovers-hierophant",
+          "partialNarrative": "Nurturing energy seeking formal structure"
+        }
+      },
+      {
+        "id": "partial-fool-magician-world-0-1",
+        "cards": [
+          {
+            "name": "The Fool",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "fool-magician-world",
+          "partialNarrative": "Pure potential meeting conscious will"
+        }
+      },
+      {
+        "id": "partial-fool-magician-world-1-21",
+        "cards": [
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "fool-magician-world",
+          "partialNarrative": "Skillful action achieving total integration"
+        }
+      },
+      {
+        "id": "partial-fool-magician-world-0-21",
+        "cards": [
+          {
+            "name": "The Fool",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "fool-magician-world",
+          "partialNarrative": "From zero to wholeness (quantum leap)"
+        }
+      },
+      {
+        "id": "partial-empress-emperor-hierophant-3-4",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Emperor",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-emperor-hierophant",
+          "partialNarrative": "Nurturing meets structure"
+        }
+      },
+      {
+        "id": "partial-empress-emperor-hierophant-4-5",
+        "cards": [
+          {
+            "name": "The Emperor",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-emperor-hierophant",
+          "partialNarrative": "Authority seeking traditional validation"
+        }
+      },
+      {
+        "id": "partial-empress-emperor-hierophant-3-5",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "empress-emperor-hierophant",
+          "partialNarrative": "Abundance channeled through tradition"
+        }
+      },
+      {
+        "id": "partial-wheel-justice-hangedman-10-11",
+        "cards": [
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Justice",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "wheel-justice-hangedman",
+          "partialNarrative": "Fate meeting accountability"
+        }
+      },
+      {
+        "id": "partial-wheel-justice-hangedman-11-12",
+        "cards": [
+          {
+            "name": "Justice",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "wheel-justice-hangedman",
+          "partialNarrative": "Truth requiring suspension of judgment"
+        }
+      },
+      {
+        "id": "partial-wheel-justice-hangedman-10-12",
+        "cards": [
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "wheel-justice-hangedman",
+          "partialNarrative": "Cycles demanding surrender"
+        }
+      },
+      {
+        "id": "partial-tower-star-moon-16-17",
+        "cards": [
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "tower-star-moon",
+          "partialNarrative": "Destruction clearing space for hope"
+        }
+      },
+      {
+        "id": "partial-tower-star-moon-17-18",
+        "cards": [
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "tower-star-moon",
+          "partialNarrative": "Hope meeting shadow work"
+        }
+      },
+      {
+        "id": "partial-tower-star-moon-16-18",
+        "cards": [
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "tower-star-moon",
+          "partialNarrative": "Upheaval plunging into deep mystery"
+        }
+      },
+      {
+        "id": "partial-strength-hermit-wheel-8-9",
+        "cards": [
+          {
+            "name": "Strength",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "strength-hermit-wheel",
+          "partialNarrative": "Inner fortitude seeking deeper wisdom"
+        }
+      },
+      {
+        "id": "partial-strength-hermit-wheel-9-10",
+        "cards": [
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "strength-hermit-wheel",
+          "partialNarrative": "Solitary truth-seeking accepting fate"
+        }
+      },
+      {
+        "id": "partial-strength-hermit-wheel-8-10",
+        "cards": [
+          {
+            "name": "Strength",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "partialTriad": "strength-hermit-wheel",
+          "partialNarrative": "Gentle mastery meeting life's cycles"
+        }
+      }
+    ]
+  },
+  "completeMatrix": {
+    "seeds": [
+      {
+        "id": "complete-death-temperance-star",
+        "cards": [
+          {
+            "name": "Death",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Temperance",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "death-temperance-star",
+          "completeNarrative": "Ending \u2192 Alchemical integration \u2192 Renewed hope"
+        }
+      },
+      {
+        "id": "complete-devil-tower-sun",
+        "cards": [
+          {
+            "name": "The Devil",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Sun",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "devil-tower-sun",
+          "completeNarrative": "Bondage \u2192 Rupture \u2192 Freedom"
+        }
+      },
+      {
+        "id": "complete-hermit-hangedman-moon",
+        "cards": [
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "hermit-hangedman-moon",
+          "completeNarrative": "Solitude \u2192 Surrender \u2192 Deep Mystery"
+        }
+      },
+      {
+        "id": "complete-magician-chariot-world",
+        "cards": [
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Chariot",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "magician-chariot-world",
+          "completeNarrative": "Skill \u2192 Directed action \u2192 Complete achievement"
+        }
+      },
+      {
+        "id": "complete-empress-lovers-hierophant",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Lovers",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "empress-lovers-hierophant",
+          "completeNarrative": "Abundance \u2192 Choice \u2192 Commitment"
+        }
+      },
+      {
+        "id": "complete-fool-magician-world",
+        "cards": [
+          {
+            "name": "The Fool",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Magician",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The World",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "fool-magician-world",
+          "completeNarrative": "Innocent beginning \u2192 Conscious skill \u2192 Total integration"
+        }
+      },
+      {
+        "id": "complete-empress-emperor-hierophant",
+        "cards": [
+          {
+            "name": "The Empress",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Emperor",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hierophant",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "empress-emperor-hierophant",
+          "completeNarrative": "Nurturing abundance \u2192 Order & structure \u2192 Traditional wisdom"
+        }
+      },
+      {
+        "id": "complete-wheel-justice-hangedman",
+        "cards": [
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Justice",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hanged Man",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "wheel-justice-hangedman",
+          "completeNarrative": "Fate turns \u2192 Truth demanded \u2192 Surrender to flow"
+        }
+      },
+      {
+        "id": "complete-tower-star-moon",
+        "cards": [
+          {
+            "name": "The Tower",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Star",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Moon",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "tower-star-moon",
+          "completeNarrative": "Upheaval \u2192 Hope restored \u2192 Navigating uncertainty"
+        }
+      },
+      {
+        "id": "complete-strength-hermit-wheel",
+        "cards": [
+          {
+            "name": "Strength",
+            "orientation": "Upright"
+          },
+          {
+            "name": "The Hermit",
+            "orientation": "Upright"
+          },
+          {
+            "name": "Wheel of Fortune",
+            "orientation": "Upright"
+          }
+        ],
+        "expected": {
+          "completeTriad": "strength-hermit-wheel",
+          "completeNarrative": "Taming inner beasts \u2192 Solitary wisdom \u2192 Accepting cycles"
+        }
+      }
+    ]
+  },
+  "passageCaps": {
+    "spreads": {
+      "single": 1,
+      "threeCard": 2,
+      "fiveCard": 3,
+      "celtic": 5,
+      "decision": 3,
+      "relationship": 2,
+      "general": 3
+    },
+    "tiers": [
+      "free",
+      "plus",
+      "pro"
+    ]
+  },
+  "expectationMigrations": {
+    "paired-rws-1909-relevant-old-memory": {
+      "oldExpected": {
+        "memoryIds": [
+          "synthetic-old-career"
+        ],
+        "memoriesSelected": 1
+      },
+      "newExpected": {
+        "memoryIds": [],
+        "memoriesSelected": 0
+      },
+      "reason": "strict-unsupported-whole-claim-omission; old rehearsal claim is outside supported factual/nonfactual admission grammar",
+      "type": "memory-admission"
+    },
+    "paired-thoth-a1-relevant-old-memory": {
+      "oldExpected": {
+        "memoryIds": [
+          "synthetic-old-career"
+        ],
+        "memoriesSelected": 1
+      },
+      "newExpected": {
+        "memoryIds": [],
+        "memoriesSelected": 0
+      },
+      "reason": "strict-unsupported-whole-claim-omission; old rehearsal claim is outside supported factual/nonfactual admission grammar",
+      "type": "memory-admission"
+    },
+    "paired-marseille-classic-relevant-old-memory": {
+      "oldExpected": {
+        "memoryIds": [
+          "synthetic-old-career"
+        ],
+        "memoriesSelected": 1
+      },
+      "newExpected": {
+        "memoryIds": [],
+        "memoriesSelected": 0
+      },
+      "reason": "strict-unsupported-whole-claim-omission; old rehearsal claim is outside supported factual/nonfactual admission grammar",
+      "type": "memory-admission"
+    },
+    "boundary-removed-memory": {
+      "oldExpected": {
+        "cardIdentityPreserved": true,
+        "ethicsPreserved": true,
+        "memoriesSelected": 1,
+        "memoryIds": [
+          "synthetic-old-career"
+        ]
+      },
+      "newExpected": {
+        "cardIdentityPreserved": true,
+        "ethicsPreserved": true,
+        "memoriesSelected": 0,
+        "memoryIds": []
+      },
+      "reason": "strict-unsupported-whole-claim-omission; old rehearsal claim is outside supported factual/nonfactual admission grammar",
+      "type": "memory-admission"
+    },
+    "wrong-subject-memory": {
+      "oldExpected": {
+        "memoryIds": [
+          "synthetic-right-child"
+        ],
+        "memoriesSelected": 1
+      },
+      "newExpected": {
+        "memoryIds": [],
+        "memoriesSelected": 0,
+        "fullQuestionRetained": true
+      },
+      "reason": "selected transition context excludes the separate parenting clause from compatible memory evidence; complete current question remains in final narrative input",
+      "type": "memory-admission"
+    },
+    "partial-death-temperance-star-13-17": {
+      "type": "partial-pattern-meaning",
+      "oldExpected": {
+        "partialTriad": "death-temperance-star",
+        "partialNarrative": "Dramatic shift from ending to rebirth (skipping integration)"
+      },
+      "newExpected": {
+        "partialTriad": "death-temperance-star",
+        "partialNarrative": "Change accompanied by renewed possibility"
+      },
+      "reason": "Matched Death and Star express change and renewed possibility; missing Temperance is not an established integration stage or an event being skipped."
+    }
+  },
+  "cases": [
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-major-zero",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "Ace of Cups",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "Two of Wands",
+          "orientation": "Upright",
+          "position": "Position 2"
+        }
+      ],
+      "expected": {
+        "totalMajors": 0
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-major-single",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "Temperance",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "totalMajors": 1
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-major-two_major_stage_tie_reports_two",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Fool",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "The World",
+          "orientation": "Upright",
+          "position": "Position 2"
+        }
+      ],
+      "expected": {
+        "totalMajors": 2
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-major-four",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Fool",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "Death",
+          "orientation": "Upright",
+          "position": "Position 2"
+        },
+        {
+          "name": "Temperance",
+          "orientation": "Upright",
+          "position": "Position 3"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 4"
+        }
+      ],
+      "expected": {
+        "totalMajors": 4
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-major-duplicate",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "Temperance",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "Temperance",
+          "orientation": "Upright",
+          "position": "Position 2"
+        }
+      ],
+      "expected": {
+        "totalMajors": 2
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "How can I prepare for my career job interview?",
+      "reflectionsText": "I can rehearse my interview in the evenings. My romantic partnership needs attention.",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-mixed-topic-exclusion",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "Death",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "Temperance",
+          "orientation": "Upright",
+          "position": "Position 2"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 3"
+        }
+      ],
+      "expected": {
+        "context": "career",
+        "queryIncludes": "rehearse my interview",
+        "queryExcludes": "romantic partnership"
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "This is not about my wedding. How can I prepare for a career interview?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-explicit-topic-exclusion",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "context": "career",
+        "excludedReading": "love"
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance for my career?",
+      "reflectionsText": "I no longer work at Acme.",
+      "memories": [
+        {
+          "id": "v2-former-employer",
+          "scope": "global",
+          "category": "life_context",
+          "text": "I work at Acme."
+        }
+      ],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-negated-employment-memory",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "memoryIds": [],
+        "memoriesSelected": 0
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance for my career?",
+      "reflectionsText": "I work at Acme.",
+      "memories": [
+        {
+          "id": "v2-supported-employer",
+          "scope": "global",
+          "category": "life_context",
+          "text": "I work at Acme."
+        }
+      ],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-supported-employment-memory",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "memoryIds": [
+          "v2-supported-employer"
+        ],
+        "memoriesSelected": 1
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "How can I prepare for my career?",
+      "reflectionsText": "",
+      "memories": [
+        {
+          "id": "v2-career-theme",
+          "scope": "global",
+          "category": "theme",
+          "text": "Career guidance"
+        }
+      ],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-nonfactual-memory",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "memoryIds": [
+          "v2-career-theme"
+        ],
+        "memoriesSelected": 1
+      }
+    },
+    {
+      "id": "v2-supported-parenting-subject",
+      "executor": "prompt",
+      "spreadKey": "single",
+      "deckStyle": "rws-1909",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "My child turns 8. What can help me support my family and parenting?",
+      "reflectionsText": "",
+      "memories": [
+        {
+          "id": "synthetic-wrong-self",
+          "category": "communication",
+          "text": "I am 8 years old.",
+          "scope": "global"
+        },
+        {
+          "id": "synthetic-right-child",
+          "category": "life_context",
+          "text": "My child is 8 years old.",
+          "scope": "global"
+        }
+      ],
+      "subscriptionTier": "pro",
+      "expected": {
+        "context": "general",
+        "memoryIds": [
+          "synthetic-right-child"
+        ],
+        "memoriesSelected": 1,
+        "graphRAGContext": "parenting"
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "How can I prepare for my career?",
+      "reflectionsText": "",
+      "memories": [
+        {
+          "id": "v2-disabled",
+          "scope": "global",
+          "category": "theme",
+          "text": "Career guidance"
+        }
+      ],
+      "subscriptionTier": "pro",
+      "useSavedMemories": false,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-memory-opt-out",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "memoryIds": [],
+        "memoriesSelected": 0,
+        "useSavedMemories": false
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-caller-interpretation-boundary",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1",
+          "meaning": "My partner is 42 and needs career guidance."
+        }
+      ],
+      "expected": {
+        "context": "general",
+        "callerMeaning": "My partner is 42 and needs career guidance."
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-all-78-notes",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 2"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 3"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 4"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 5"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 6"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 7"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 8"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 9"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 10"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 11"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 12"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 13"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 14"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 15"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 16"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 17"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 18"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 19"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 20"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 21"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 22"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 23"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 24"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 25"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 26"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 27"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 28"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 29"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 30"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 31"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 32"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 33"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 34"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 35"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 36"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 37"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 38"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 39"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 40"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 41"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 42"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 43"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 44"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 45"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 46"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 47"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 48"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 49"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 50"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 51"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 52"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 53"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 54"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 55"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 56"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 57"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 58"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 59"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 60"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 61"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 62"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 63"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 64"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 65"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 66"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 67"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 68"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 69"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 70"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 71"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 72"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 73"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 74"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 75"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 76"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 77"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 78"
+        }
+      ],
+      "expected": {
+        "context": "career",
+        "classifiedCards": 78,
+        "selectedSource": "card-77"
+      },
+      "inputExpansion": {
+        "allCardNotes": 2000,
+        "lastCardNote": "A career job interview needs preparation."
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-late-question-clause",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "context": "career"
+      },
+      "inputExpansion": {
+        "questionLength": 2000,
+        "tail": "A career job interview needs preparation."
+      }
+    },
+    {
+      "spreadKey": "general",
+      "deckStyle": "rws-1909",
+      "userQuestion": "Any guidance?",
+      "reflectionsText": "",
+      "memories": [],
+      "subscriptionTier": "pro",
+      "useSavedMemories": true,
+      "flags": {
+        "GRAPHRAG_ENABLED": "true",
+        "ENABLE_SEMANTIC_SCORING": "false"
+      },
+      "id": "v2-late-general-note-clause",
+      "executor": "prompt",
+      "cards": [
+        {
+          "name": "The Star",
+          "orientation": "Upright",
+          "position": "Position 1"
+        }
+      ],
+      "expected": {
+        "context": "career"
+      },
+      "inputExpansion": {
+        "notesLength": 5000,
+        "tail": "A career job interview needs preparation."
+      }
+    },
+    {
+      "id": "v2-budget-removed-memory",
+      "executor": "prompt",
+      "inputFromFrozenCase": "boundary-removed-memory",
+      "overrides": {
+        "memories": [
+          {
+            "id": "v2-budget-career",
+            "scope": "global",
+            "category": "theme",
+            "text": "Career guidance"
+          }
+        ],
+        "expected": {
+          "memoryIds": [
+            "v2-budget-career"
+          ],
+          "memoriesSelected": 1
+        }
+      }
+    },
+    {
+      "id": "v2-graph-disabled-precedence",
+      "executor": "prompt",
+      "inputFromFrozenCase": "complete-death-temperance-star",
+      "flags": {
+        "GRAPHRAG_ENABLED": "false",
+        "ENABLE_SEMANTIC_SCORING": "true",
+        "DISABLE_QUALITY_FILTERING": "true"
+      },
+      "overrides": {
+        "expected": {
+          "graphDisabled": true
+        }
+      }
+    },
+    {
+      "id": "v2-ranking-modes",
+      "executor": "ranking-modes"
+    },
+    {
+      "id": "v2-literal-aliases",
+      "executor": "literal-aliases"
+    },
+    {
+      "id": "v2-legacy-retention",
+      "executor": "legacy-retention"
+    },
+    {
+      "id": "v2-merged-enrichment",
+      "executor": "enrichment"
+    },
+    {
+      "id": "v2-mcp-job-fields",
+      "executor": "transport"
+    },
+    {
+      "id": "v2-output-quality-boundaries",
+      "executor": "output-quality"
+    },
+    {
+      "id": "v2-restart-coverage-targets",
+      "executor": "target-mapping",
+      "targets": [
+        {
+          "file": "tests/readingMemoryAccess.test.mjs",
+          "purpose": "accepted receipt, restart, cancellation, fixed timestamp, persistence-only replay",
+          "requiredTestNames": [
+            "durable memory receipt restart replays only persistence with original completion time",
+            "durable memory receipt acknowledgment failure replays fixed timestamp after restart",
+            "durable memory receipt cancellation before terminal response drops staged usage",
+            "durable memory receipt cancellation after terminal commit preserves accepted inclusion",
+            "durable memory receipt late acknowledgment cannot recreate purged job or alarm",
+            "durable memory receipt retries stay bounded across restarts and expire with job"
+          ]
+        },
+        {
+          "file": "tests/readingContextTransport.test.mjs",
+          "purpose": "real MCP strict fields and durable forwarding"
+        },
+        {
+          "file": "tests/graphRAGCandidateSelection.test.mjs",
+          "purpose": "deadline, partial-batch failure, complete-set fallback, cache bounds and cancellation"
+        },
+        {
+          "file": "tests/graphRAGRetention.test.mjs",
+          "purpose": "final selected indices, opaque legacy counts and accepted-provider retention"
+        },
+        {
+          "file": "tests/readingMemorySelection.test.mjs",
+          "purpose": "negation, wrong subject, numeric qualifications and conservative unsupported facts"
+        }
+      ]
+    },
+    {
+      "id": "v2-unstubbed-network-blocked",
+      "executor": "network-boundary"
+    }
+  ],
+  "deckCardNames": {
+    "thoth-a1": {
+      "The Magician": "The Magus",
+      "The High Priestess": "The Priestess",
+      "Strength": "Lust",
+      "Justice": "Adjustment",
+      "Wheel of Fortune": "Fortune",
+      "Temperance": "Art",
+      "Judgement": "The Aeon",
+      "The World": "The Universe"
+    },
+    "marseille-classic": {
+      "The Fool": "Le Mat",
+      "The Magician": "Le Bateleur",
+      "The High Priestess": "La Papesse",
+      "The Empress": "L'Imperatrice",
+      "The Emperor": "L'Empereur",
+      "The Hierophant": "Le Pape",
+      "The Lovers": "L'Amoureux",
+      "The Chariot": "Le Chariot",
+      "Strength": "La Force",
+      "The Hermit": "L'Hermite",
+      "Wheel of Fortune": "La Roue de Fortune",
+      "Justice": "La Justice",
+      "The Hanged Man": "Le Pendu",
+      "Death": "La Mort",
+      "Temperance": "Temperance",
+      "The Devil": "Le Diable",
+      "The Tower": "La Maison Dieu",
+      "The Star": "L'Etoile",
+      "The Moon": "La Lune",
+      "The Sun": "Le Soleil",
+      "Judgement": "Le Jugement",
+      "The World": "Le Monde"
+    }
+  }
+}

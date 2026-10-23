@@ -14,13 +14,37 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.2.0';
+export const READING_PROMPT_VERSION = '1.4.0';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.0',
+    date: '2026-10-23',
+    notes: 'Preserve authoritative current context and accepted-attempt source inclusion.',
+    changes: [
+      'Classified independently bounded current sources once and projected eligible mixed-topic spans into a separate bounded retrieval query.',
+      'Kept orientation-aware catalog meanings authoritative and tracked caller interpretations separately from factual context.',
+      'Used matched-only deck-safe registered references, verified enrichment provenance and full eligible relevance-first ranking with comparable whole-set fallback.',
+      'Replaced unsupported skipped-integration wording in the Death and Star partial highlight with a matched-card theme.',
+      'Selected compatible memories once from a bounded pool, honored per-reading opt-out and tracked only complete blocks retained by the accepted backend attempt.',
+      'Recorded initial-reading access timestamps after successful server acceptance, with best-effort direct persistence and private durable-job receipt replay.'
+    ]
+  },
+  {
+    version: '1.3.0',
+    date: '2026-10-22',
+    notes: 'Ground graph references and personal context in the current reading.',
+    changes: [
+      'Corrected partial patterns and canonical direct highlights without treating missing cards as drawn.',
+      'Separated current question, notes, card reflections and decision paths before bounded retrieval projection.',
+      'Projected authored canon by selected deck and scored all eligible candidate variants before final passage limits.',
+      'Selected safe relevant memories and recorded successful use only for complete blocks retained in the final reading prompt.'
+    ]
+  },
   {
     version: '1.2.0',
     date: '2026-09-05',

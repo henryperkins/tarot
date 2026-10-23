@@ -8,7 +8,8 @@ export const USAGE_BADGE_CLASSES = {
 };
 
 const INPUT_LABELS = {
-  question: 'question', reflections: 'reflections', cardReflections: 'card notes',
+  question: 'question', reflections: 'reflections', cardReflections: 'card notes', pathA: 'Path A label', pathB: 'Path B label',
+  callerInterpretations: 'your card interpretations',
   focusAreas: 'saved focus areas', displayName: 'name', experience: 'tarot experience',
   tone: 'tone', frame: 'interpretive approach', depth: 'reading depth'
 };
@@ -21,7 +22,7 @@ function personalInputs(context) {
   if (!context) return [];
   return USER_INPUT_KEYS.flatMap(key => {
     const reason = context.skippedInputs?.[key];
-    const fields = Object.entries(context.fields || {}).filter(([name]) => key === 'cardReflections' ? name.startsWith('card-') : name === key)
+    const fields = Object.entries(context.fields || {}).filter(([name]) => key === 'cardReflections' ? name.startsWith('card-') : key === 'callerInterpretations' ? name.startsWith('interpretation-') : name === key)
       .map(([, field]) => field).filter(field => field.originalLength > 0);
     const provided = context[`${key}Provided`] === true || context.providedInputs?.includes(key)
       || context.usedInputs?.includes(key) || Boolean(reason) || fields.length > 0;
@@ -56,7 +57,7 @@ export function formatUsageSummary(rawUsage) {
 
   const inputs = personalInputs(sourceUsage?.userContext);
   for (const group of [
-    { keys: ['question', 'reflections', 'cardReflections'], label: 'Your question & notes', summary: 'your question and notes' },
+    { keys: ['question', 'reflections', 'cardReflections', 'callerInterpretations', 'pathA', 'pathB'], label: 'Your question & notes', summary: 'your question and notes' },
     { keys: ['focusAreas', 'displayName', 'experience', 'tone', 'frame', 'depth'], label: 'Your preferences', summary: 'reading preferences' }
   ]) {
     const members = inputs.filter(input => group.keys.includes(input.key));
@@ -93,6 +94,14 @@ export function formatUsageSummary(rawUsage) {
       ? `${evidence}${partial ? ` ${omitted} image${omitted === 1 ? '' : 's'} could not be included.` : ''}`
       : reasonCopy(vision.skippedReason || (diagnosticsOnly ? 'no_usable_evidence' : null));
     addRow('Uploaded images', partial ? 'partial' : used ? 'used' : 'omitted', detail, 'you', 'uploaded images');
+  }
+
+  const memories = sourceUsage?.memories;
+  if (memories?.requested || memories?.used) {
+    const count = memories.memoriesUsedInPrompt || 0;
+    addRow('Saved memories', memories.used ? 'used' : 'omitted', memories.used
+      ? `${count} saved memor${count === 1 ? 'y' : 'ies'} included as reading context.`
+      : reasonCopy(memories.skippedReason), 'you', 'saved memories');
   }
 
   const graph = sourceUsage?.graphRAG;

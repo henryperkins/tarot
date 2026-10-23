@@ -92,6 +92,9 @@ import {
   getSectionHeader
 } from '../functions/lib/narrative/helpers.js';
 import { sortCardsByImportance } from '../functions/lib/positionWeights.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
+import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
 
 // Minimal helper to fabricate a Major Arcana-like card
 function major(name, number, position, orientation = 'Upright', meaning = 'Meaningful transformation and growth.') {
@@ -1228,35 +1231,37 @@ describe('Prompt budget telemetry', () => {
   });
 
   it('drops optional sections before hard-cap truncation when slimming is disabled', async () => {
-    const cardsInfo = [
-      major('The Fool', 0, 'Past — influences that led here', 'Upright'),
-      major('The Magician', 1, 'Present — where you stand now', 'Upright'),
-      major('The High Priestess', 2, 'Future — trajectory if nothing shifts', 'Upright')
-    ];
-
-    const themes = await buildThemes(cardsInfo, 'blocked');
-    themes.knowledgeGraph = { graphKeys: { stub: true } };
-
-    const hugePassage = 'A'.repeat(140000);
+    // Accepted per-card notes create real provider pressure; reference text
+    // itself must retain the registry's verified identity and exact content.
+    const cardsInfo = resolveReadingCards([
+      'Death', 'Temperance', 'The Star', 'The Moon', 'The Sun',
+      'The Fool', 'The Magician', 'The High Priestess', 'The Empress', 'The Emperor'
+    ].map((card, index) => ({
+      card, position: `Position ${index + 1}`, orientation: 'Upright',
+      userReflection: 'このカードを見ると、長い通勤と子どもたちとの夜を思い出します。'.repeat(100).slice(0, 1000)
+    })));
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    themes.knowledgeGraph = buildGraphContext(cardsInfo);
+    const passages = collectPassageCandidates(themes.knowledgeGraph.graphKeys).slice(0, 1);
+    assert.equal(passages.length, 1);
     const graphRAGPayload = {
-      passages: [
-        { title: 'Test Passage', text: hugePassage, source: 'Test Source' }
-      ],
+      passages,
       retrievalSummary: { graphKeysProvided: true },
       maxPassages: 1
     };
 
-    const threeCardAnalysis = await analyzeThreeCard(cardsInfo);
+    const spreadAnalysis = await analyzeCelticCross(cardsInfo);
 
     const { promptMeta, systemPrompt, userPrompt } = buildEnhancedClaudePrompt({
-      spreadInfo: { name: 'Three-Card Story (Past · Present · Future)' },
+      spreadInfo: { key: 'celtic', name: 'Celtic Cross (Classic 10-Card)' },
       cardsInfo,
-      userQuestion: 'How do I keep momentum?',
+      userQuestion: 'What helps my family during this transition?',
       reflectionsText: '',
       themes,
-      spreadAnalysis: threeCardAnalysis,
+      spreadAnalysis,
       context: 'general',
       graphRAGPayload,
+      budgetTarget: 'openai',
       promptBudgetEnv: { GRAPHRAG_ENABLED: 'true', ENABLE_PROMPT_SLIMMING: 'false' }
     });
 
@@ -1276,6 +1281,14 @@ describe('Prompt budget telemetry', () => {
     assert.equal(promptMeta.sourceUsage?.graphRAG?.mode, 'summary');
     assert.equal(promptMeta.sourceUsage?.graphRAG?.used, true);
     assert.equal(promptMeta.sourceUsage?.spreadCards?.used, true);
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
+    assert.equal(promptMeta.graphRAG?.retainedPassageCount, 0, 'summary retention never claims a full reference');
+    assert.deepEqual(promptMeta.sourceUsage?.graphRAG?.passageIndices, []);
+    for (const [index, card] of cardsInfo.entries()) {
+      const retention = promptMeta.sourceUsage.userContext.fields[`card-${index}`];
+      assert.equal(retention.includedLength, card.userReflection.length, 'optional references yield before accepted notes');
+      assert.equal(retention.budgetTruncated, false);
+    }
     assert.ok(systemPrompt.includes('REVERSAL FRAMEWORK'), 'Core system prompt sections should remain intact');
     assert.ok(systemPrompt.includes('ETHICS'), 'Ethics section should remain intact');
     assert.ok(systemPrompt.includes('Do NOT provide diagnosis'), 'Ethics guardrail should remain intact');
@@ -1290,12 +1303,12 @@ describe('Prompt budget telemetry', () => {
     ];
 
     const themes = await buildThemes(cardsInfo, 'blocked');
-    themes.knowledgeGraph = { graphKeys: { stub: true } };
+    themes.knowledgeGraph = buildGraphContext(cardsInfo);
 
+    const [passage] = collectPassageCandidates(themes.knowledgeGraph.graphKeys);
+    assert.ok(passage?.candidateId, 'fixture must use an actual registered reference');
     const graphRAGPayload = {
-      passages: [
-        { title: 'Test Passage', text: 'Guidance grounded in tradition.', source: 'Test Source' }
-      ],
+      passages: [passage],
       retrievalSummary: { graphKeysProvided: true },
       maxPassages: 1
     };
@@ -1314,6 +1327,9 @@ describe('Prompt budget telemetry', () => {
 
     assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be included when payload is provided');
     assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
+    assert.ok(userPrompt.includes(passage.promptText));
+    assert.deepEqual(promptMeta.sourceUsage?.graphRAG?.passageIndices, [0]);
+    assert.equal(promptMeta.graphRAG?.retainedPassageCount, 1);
   });
 
   it('emits stub GraphRAG telemetry when graphKeys exist but GraphRAG is disabled', async () => {
@@ -1530,14 +1546,14 @@ describe('Prompt budget telemetry', () => {
     const { userPrompt } = buildEnhancedClaudePrompt({
       spreadInfo: { name: 'One-Card Insight' },
       cardsInfo,
-      userQuestion: 'What pattern should I stay aware of?',
+      userQuestion: 'I work at Acme. What pattern should I stay aware of in my career?',
       reflectionsText: '',
       themes,
       spreadAnalysis: null,
       context: 'general',
       memories: [
         {
-          text: 'They are navigating a long relocation season.',
+          text: 'I work at Acme',
           category: 'life_context',
           scope: 'global'
         }
@@ -1545,8 +1561,8 @@ describe('Prompt budget telemetry', () => {
     });
 
     assert.ok(userPrompt.includes('**Returning Querent Context**:'));
-    assert.ok(userPrompt.includes('long relocation season'));
-    assert.ok(userPrompt.includes('Current question, current reflections, and current onboarding preferences override remembered context.'));
+    assert.match(userPrompt, /<reading_memory slot="memory-0">[^\n]*I work at Acme[^\n]*<\/reading_memory>/);
+    assert.ok(userPrompt.includes('Current question, current reflections, named paths, and current preferences override older context.'));
   });
 
   it('marks duplicate global reflections as skipped instead of used', async () => {

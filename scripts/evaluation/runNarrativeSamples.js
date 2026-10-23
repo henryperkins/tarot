@@ -9,7 +9,12 @@ import { parseJsoncConfig } from '../deploy.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { SPREADS } from '../../src/data/spreads.js';
-import { inferContext } from '../../functions/lib/contextDetection.js';
+import { resolveContextSelection } from '../../functions/lib/contextDetection.js';
+import { prepareReadingContextSources } from '../../functions/lib/readingContextSources.js';
+import { resolveDecisionPathContext } from '../../functions/lib/decisionPathContext.js';
+import { resolveReadingCards } from '../../functions/lib/readingCardResolution.js';
+import { selectMemoriesForReading } from '../../functions/lib/readingMemorySelection.js';
+import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import { performSpreadAnalysis } from '../../functions/lib/spreadAnalysisOrchestrator.js';
 import {
   NARRATIVE_BACKENDS,
@@ -186,11 +191,12 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--sample sample-id] [--backend auto|claude-code|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--fixtures file.json] [--sample sample-id] [--backend auto|claude-code|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
   console.log(`  --trace    Enable W&B Weave tracing (requires WANDB_API_KEY)`);
+  console.log('  --fixtures Read synthetic cases from a qualification corpus instead of the default samples');
 }
 
 function resolveReferenceTime(value) {
@@ -216,6 +222,9 @@ function parseArgs(rawArgs) {
     if (arg === '--out') {
       options.output = rawArgs[i + 1] || DEFAULT_OUTPUT;
       i += 1;
+    } else if (arg === '--fixtures') {
+      if (!rawArgs[i + 1]) throw new Error('Missing value for --fixtures');
+      options.fixtures = rawArgs[++i];
     } else if (arg === '--sample') {
       const id = rawArgs[i + 1];
       if (!id) {
@@ -295,59 +304,60 @@ export function resolveBackendId(requestedBackend) {
   return resolveNarrativeEvalBackend(requestedBackend);
 }
 
-/**
- * Generate a narrative sample. When tracing is enabled, this function
- * is wrapped with weave.op() to log inputs/outputs to W&B.
- */
-async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
-  const spreadInfo = SPREADS[sample.spreadKey];
-  if (!spreadInfo) {
-    throw new Error(`Unknown spread key: ${sample.spreadKey}`);
-  }
-
-  if (sample.cards.length !== spreadInfo.count) {
-    throw new Error(`Sample ${sample.id} cards (${sample.cards.length}) do not match spread count (${spreadInfo.count}).`);
-  }
-
-  const cardsInfo = sample.cards.map((cardDef, index) => {
-    const position = spreadInfo.positions[index] || `Position ${index + 1}`;
-    const orientation = normalizeOrientation(cardDef.orientation);
-    const baseCard = getCardByName(cardDef.name);
-    return buildCardEntry(baseCard, position, orientation);
-  });
-
+/** Prepare synthetic samples through the same current-source and memory pipeline. */
+export async function prepareNarrativeSamplePayload(sample, { env = {}, referenceTime = sample.referenceTime || DEFAULT_REFERENCE_TIME } = {}) {
+  const spreadInfo = sample.spreadInfo || SPREADS[sample.spreadKey] || (sample.spreadKey === 'general'
+    ? { key: 'general', name: 'Custom Spread', count: sample.cards.length, positions: sample.cards.map((_, index) => `Position ${index + 1}`) }
+    : null);
+  if (!spreadInfo) throw new Error(`Unknown spread key: ${sample.spreadKey}`);
+  if (sample.cards.length !== spreadInfo.count) throw new Error(`Sample ${sample.id} cards (${sample.cards.length}) do not match spread count (${spreadInfo.count}).`);
   const deckStyle = sample.deckStyle || spreadInfo.deckStyle || 'rws-1909';
-  const analysis = await performSpreadAnalysis(
-    spreadInfo,
-    cardsInfo,
-    {
-      deckStyle,
-      userQuestion: sample.userQuestion,
-      subscriptionTier: sample.subscriptionTier || 'pro',
-      referenceTime
-    },
-    `eval-${sample.id}`,
-    env
-  );
-
-  const context = sample.context || inferContext(sample.userQuestion, analysis.spreadKey || sample.spreadKey);
-  const narrativePayload = {
-    spreadInfo,
-    cardsInfo,
-    userQuestion: sample.userQuestion,
-    reflectionsText: sample.reflectionsText || '',
-    analysis,
-    context,
-    contextDiagnostics: [],
-    visionInsights: [],
-    deckStyle,
-    personalization: sample.personalization || null,
-    subscriptionTier: sample.subscriptionTier || 'pro',
-    narrativeEnhancements: [],
-    graphRAGPayload: analysis.graphRAGPayload || null,
-    promptMeta: null,
-    variantPromptOverrides: null
+  const rawCards = sample.cards.map((cardDef, index) => ({
+    ...buildCardEntry(getCardByName(cardDef.name), cardDef.position || spreadInfo.positions[index] || `Position ${index + 1}`, normalizeOrientation(cardDef.orientation)),
+    ...(typeof cardDef.meaning === 'string' ? { meaning: cardDef.meaning } : {}),
+    ...(typeof cardDef.wireName === 'string' ? { card: cardDef.wireName } : {}),
+    ...(typeof cardDef.userReflection === 'string' ? { userReflection: cardDef.userReflection } : {})
+  }));
+  const parsed = safeParseReadingRequest({
+    spreadInfo: { ...spreadInfo, key: sample.spreadKey }, cardsInfo: rawCards,
+    userQuestion: sample.userQuestion || '', reflectionsText: sample.reflectionsText || '',
+    ...(sample.decisionPaths ? { decisionPaths: sample.decisionPaths } : {}),
+    ...(sample.useSavedMemories !== undefined ? { useSavedMemories: sample.useSavedMemories } : {})
+  });
+  if (!parsed.success) throw new Error(`Sample ${sample.id} is not a valid reading request: ${parsed.error}`);
+  const cardsInfo = resolveReadingCards(parsed.data.cardsInfo, deckStyle);
+  const { decisionPaths, inputStats } = resolveDecisionPathContext({ spreadKey: sample.spreadKey, cardsInfo, decisionPaths: parsed.data.decisionPaths });
+  const contextSources = {
+    userQuestion: parsed.data.userQuestion || '', reflectionsText: parsed.data.reflectionsText || '',
+    cardsInfo, decisionPaths, spreadKey: sample.spreadKey, focusAreas: sample.personalization?.focusAreas || []
   };
+  const sources = prepareReadingContextSources(contextSources);
+  const selection = resolveContextSelection({ sources }, sample.spreadKey);
+  const useSavedMemories = parsed.data.useSavedMemories !== false;
+  const memorySelection = selectMemoriesForReading(useSavedMemories ? sample.memories || [] : [], { sources, contextSelection: selection, displayName: sample.personalization?.displayName, personalization: sample.personalization, referenceTime: Date.parse(referenceTime) });
+  const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
+    deckStyle, userQuestion: contextSources.userQuestion,
+    reflectionsText: contextSources.reflectionsText, contextSources: { sources }, contextSelection: selection,
+    subscriptionTier: sample.subscriptionTier || 'pro', referenceTime
+  }, `eval-${sample.id}`, env);
+  return {
+    spreadInfo, cardsInfo, userQuestion: contextSources.userQuestion,
+    reflectionsText: contextSources.reflectionsText, decisionPaths,
+    userContextInputStats: inputStats,
+    analysis, contextSelection: selection, context: selection.context, contextInputText: selection.retrievalQuery,
+    contextDiagnostics: [], visionInsights: [], deckStyle,
+    personalization: sample.personalization || null,
+    useSavedMemories, memories: memorySelection.memories, memorySelection,
+    subscriptionTier: sample.subscriptionTier || 'pro', narrativeEnhancements: [],
+    graphRAGPayload: analysis.graphRAGPayload || null,
+    promptMeta: null, variantPromptOverrides: null
+  };
+}
+
+export async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
+  const actualReferenceTime = resolveReferenceTime(referenceTime || sample.referenceTime || DEFAULT_REFERENCE_TIME);
+  const narrativePayload = await prepareNarrativeSamplePayload(sample, { env, referenceTime: actualReferenceTime });
+  const { spreadInfo, cardsInfo, analysis, context, deckStyle } = narrativePayload;
 
   const { reading, model, usage } = backendId === 'claude-code'
     ? await runSubscriptionNarrative(env, narrativePayload, `eval-${sample.id}`)
@@ -359,6 +369,7 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
 
   return {
     id: sample.id,
+    referenceTime: actualReferenceTime,
     spreadKey: sample.spreadKey,
     spreadName: spreadInfo.name,
     userQuestion: sample.userQuestion,
@@ -370,6 +381,8 @@ async function generateSampleImpl(sample, { env, backendId, referenceTime }) {
     ...(model && { inference: { provider: backendId, model, usage } }),
     // What retrieval did for this sample, not what the env asked for
     semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
+    sourceUsage: narrativePayload.promptMeta?.sourceUsage || null,
+    memoryCounts: narrativePayload.promptMeta?.memories || null,
     themesSummary: {
       reversalFramework: analysis.themes?.reversalFramework,
       suitFocus: analysis.themes?.suitFocus || null,
@@ -399,7 +412,13 @@ export async function main() {
     console.log('Tracing enabled. View traces at: https://wandb.ai/lakefront-digital/Tarot/weave/traces');
   }
 
-  const selectedSamples = SAMPLE_DEFINITIONS.filter((sample) => {
+  const fixtureCorpus = options.fixtures
+    ? JSON.parse(await fs.readFile(path.resolve(options.fixtures), 'utf8')) : null;
+  const definitions = fixtureCorpus?.cases || SAMPLE_DEFINITIONS;
+  if (!Array.isArray(definitions) || definitions.some(sample => !sample?.id) || new Set(definitions.map(sample => sample.id)).size !== definitions.length) {
+    throw new Error('Sample corpus must contain uniquely identified cases.');
+  }
+  const selectedSamples = definitions.filter((sample) => {
     if (!options.sampleIds) return true;
     return options.sampleIds.has(sample.id);
   });
@@ -408,16 +427,22 @@ export async function main() {
     console.error('No samples matched the provided filters.');
     process.exit(1);
   }
+  if (options.sampleIds && selectedSamples.length !== options.sampleIds.size) {
+    throw new Error('Some requested sample IDs do not exist in the corpus.');
+  }
 
   const generated = [];
   for (const sample of selectedSamples) {
     console.log(`Generating sample: ${sample.id}...`);
-    generated.push(await generateSample(sample, { env, backendId, referenceTime }));
+    const sampleReferenceTime = resolveReferenceTime(options.fixtures ? sample.referenceTime || fixtureCorpus.referenceTime || referenceTime : referenceTime);
+    generated.push(await generateSample(sample, { env, backendId, referenceTime: sampleReferenceTime }));
   }
 
+  const referenceTimes = [...new Set(generated.map(sample => sample.referenceTime))];
   const payload = {
     generatedAt: new Date().toISOString(),
-    referenceTime,
+    referenceTime: referenceTimes.length === 1 ? referenceTimes[0] : null,
+    referenceTimes,
     model: backendId,
     backendLabel: NARRATIVE_BACKENDS[backendId]?.label || backendId,
     config: {

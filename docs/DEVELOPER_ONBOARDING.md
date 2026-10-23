@@ -2,7 +2,7 @@
 
 Type: guide
 Status: active reference
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-23
 
 This guide is the current starting point for engineers working in the Tableu repository.
 
@@ -132,6 +132,8 @@ supports an optional `cursor` for replay.
 The Durable Object persists job state and a bounded event history, forwards the
 caller's credentials for app jobs, and owns the public SSE stream. MCP-originated
 principal jobs use separate `/mcp/snapshot` and `/mcp/cancel` paths.
+
+Use the [reading input and source-use contract](reading-context-inputs.md) for decision labels, catalog/caller meaning authority, memory opt-out, independent limits and accepted-attempt retention. A durable successful job atomically stores a separate private `readingMemoryReceipt` key; its memory/run/attempt identities never enter public result/events or MCP snapshots. Replay persists only the original idempotent access update and cannot regenerate a reading. Direct persistence remains best effort. Receipt-aware or drained compatible rollback is necessary for pending accounting; old envelope writes can erase replay identity. This scope reuses existing D1 timestamps and adds no schema migration. Current progress and remaining qualification lanes are recorded in the [ledger](knowledge-graph/REMEDIATION_LEDGER.md) and [qualification status](knowledge-graph/QUALIFICATION_STATUS.md).
 
 ## Validation Commands
 

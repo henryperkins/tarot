@@ -383,6 +383,7 @@ export function useNarrativeReadingController({
     themes,
     highlightItems,
     traditionalPassages: visibilityState.traditionalPassages,
+    traditionalPreviewPassages: visibilityState.traditionalPreviewPassages,
     insightCards,
     isLandscape
   }), [

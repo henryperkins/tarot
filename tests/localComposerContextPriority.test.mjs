@@ -2,18 +2,20 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { composeReadingEnhanced } from '../functions/lib/narrativeBackends.js';
 import { analyzeSpreadThemes, analyzeSingleCard } from '../functions/lib/spreadAnalysis.js';
+import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 import { buildOpening } from '../functions/lib/narrative/helpers.js';
 
 const personalization = { focusAreas: ['Love & relationships'], readingTone: 'balanced' };
 const cardsInfo = [{ card: 'The Hermit', name: 'The Hermit', number: 9, position: 'Theme', orientation: 'Upright', meaning: 'Reflection and careful preparation.' }];
 
-async function compose(context, userQuestion, { spreadKey = 'single', reflectionsText = '' } = {}) {
+async function compose(context, userQuestion, { spreadKey = 'single', reflectionsText = '', contextSelection } = {}) {
   return composeReadingEnhanced({
     spreadInfo: { key: 'single', name: 'One-Card Insight' },
     cardsInfo,
     userQuestion,
     reflectionsText,
     context,
+    contextSelection,
     personalization,
     analysis: { spreadKey, themes: await analyzeSpreadThemes(cardsInfo), spreadAnalysis: analyzeSingleCard(cardsInfo) }
   });
@@ -38,8 +40,8 @@ test('generic fallback readings can still draw on saved focus', async () => {
   assert.ok(opening.includes('Love & relationships'));
 });
 
-test('legacy callers with a manually selected topic keep that context ahead of saved focus', async () => {
-  const result = await compose('career', 'Any guidance?', { spreadKey: 'custom' });
+test('callers with an authoritative manually selected topic keep it ahead of saved focus', async () => {
+  const result = await compose('career', 'Any guidance?', { spreadKey: 'custom', contextSelection: resolveContextSelection({ userQuestion: 'My career needs attention.' }, 'custom') });
   assert.ok(!result.reading.includes('Love & relationships'));
 });
 
@@ -59,7 +61,7 @@ test('graph-only reflection evidence also takes priority over saved focus', asyn
 });
 
 test('generic spread fallback uses the same current-topic precedence as named spread builders', async () => {
-  for (const [context, userQuestion] of [['career', 'How can I prepare for my interview?'], ['general', 'How can I process grief?']]) {
+  for (const [context, userQuestion] of [['career', 'How can I prepare for my job interview?'], ['general', 'How can I process grief?']]) {
     const result = await compose(context, userQuestion, { spreadKey: 'custom' });
     assert.ok(result.reading.includes('The Hermit'));
     assert.ok(!result.reading.includes('Love & relationships'));

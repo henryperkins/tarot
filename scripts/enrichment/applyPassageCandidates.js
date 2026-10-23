@@ -110,6 +110,13 @@ export function selectApprovedRows(csvContent) {
       context,
       text,
       tags,
+      sourceId: String(columns[at('source_id')] || `enriched:${candidateId}`).trim(),
+      sourceUrls: [String(columns[at('source_url')] || '').trim()].filter(Boolean),
+      sourceMethod: String(columns[at('source_method')] || '').trim(),
+      archetypalText: String(columns[at('projection_text')] || '').trim(),
+      projectionVersion: String(columns[at('projection_version')] || '').trim(),
+      projectionReviewStatus: APPROVED_VERDICTS.has(String(columns[at('projection_verdict')] || '').trim().toLowerCase())
+        && String(columns[at('projection_text')] || '').trim() && String(columns[at('projection_version')] || '').trim() ? 'approved' : 'pending',
       sourceUrl: String(columns[at('source_url')] || '').trim(),
       sourceTitle: String(columns[at('source_title')] || '').trim(),
       generatedAt: String(columns[at('generated_at')] || '').trim(),
@@ -119,7 +126,7 @@ export function selectApprovedRows(csvContent) {
   return { approved, rejected };
 }
 
-function renderModule(entries) {
+export function renderModule(entries) {
   const byCard = new Map();
   for (const entry of entries) {
     if (!byCard.has(entry.cardNumber)) byCard.set(entry.cardNumber, []);
@@ -130,12 +137,18 @@ function renderModule(entries) {
     const passages = byCard.get(cardNumber).map((entry) => [
       `        // candidate: ${entry.candidateId}`,
       '        {',
-      "            source: 'Tableu Tarot Canon',",
+      "            source: 'Tableu Tarot Canon (research-informed interpretation)',",
+      `            sourceId: ${JSON.stringify(entry.sourceId)},`,
+      `            sourceUrls: ${JSON.stringify(entry.sourceUrls)},`,
+      `            provenance: ${JSON.stringify({ sourceTitle: entry.sourceTitle, sourceMethod: entry.sourceMethod, candidateId: entry.candidateId })},`,
+      `            archetypalText: ${JSON.stringify(entry.archetypalText)},`,
+      `            projectionVersion: ${JSON.stringify(entry.projectionVersion)},`,
+      `            projectionReviewStatus: ${JSON.stringify(entry.projectionReviewStatus)},`,
       `            context: '${entry.context}',`,
       `            text: ${JSON.stringify(entry.text)},`,
       `            tags: ${JSON.stringify(entry.tags)},`,
       '        }'
-    ].join('\n')).join('\n');
+    ].join('\n')).join(',\n');
     return [
       `    ${cardNumber}: {`,
       '        passages: [',
@@ -143,7 +156,7 @@ function renderModule(entries) {
       '        ]',
       '    }'
     ].join('\n');
-  }).join('\n');
+  }).join(',\n');
 
   return `// functions/lib/knowledgeBaseEnrichment.js
 // GENERATED FILE — do not edit by hand.
@@ -210,6 +223,12 @@ export async function applyCandidates({
       context: entry.context,
       sourceUrl: entry.sourceUrl,
       sourceTitle: entry.sourceTitle,
+      sourceId: entry.sourceId,
+      sourceUrls: entry.sourceUrls,
+      sourceMethod: entry.sourceMethod,
+      projectionVersion: entry.projectionVersion,
+      projectionReviewStatus: entry.projectionReviewStatus,
+      archetypalText: entry.archetypalText,
       model: entry.model
     }))
   }, null, 2)}\n`);

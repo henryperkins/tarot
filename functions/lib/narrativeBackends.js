@@ -1,3 +1,7 @@
+import { buildGraphContext } from './graphContext.js';
+import { selectMemoriesForReading } from './readingMemorySelection.js';
+import { prepareReadingContextSources } from './readingContextSources.js';
+import { resolveDecisionPathContext, decisionPathRoleCards } from './decisionPathContext.js';
 /**
  * Narrative Backend Dispatch and Generation
  *
@@ -38,14 +42,14 @@ import {
   buildExperienceLine,
   getToneStyle,
   buildPersonalizedClosing,
-  canUseSavedFocus,
   getDepthProfile,
   sanitizeDisplayName,
   TONE_STYLES,
   FRAME_VOCABULARY
 } from './narrative/styleHelpers.js';
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
-import { buildUserContextSourceUsage } from './narrative/sourceUsage.js';
+import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../shared/readingSourceUsage.js';
+import { buildMemorySourceUsage, buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildReadingRedactionOptions } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
@@ -54,6 +58,7 @@ import {
   maybeLogPromptPayload
 } from './readingTelemetry.js';
 import { withSpan } from './tracingSpans.js';
+import { getSpreadKey } from './readingQuality.js';
 import { resolveContextSelection } from './contextDetection.js';
 import { collectQuerentReflections } from './querentReflections.js';
 
@@ -294,7 +299,9 @@ function normalizeLocalComposerLanguageInput(input) {
 
   return [
     input.userQuestion,
-    input.reflectionsText
+    input.reflectionsText,
+    input.decisionPaths?.a,
+    input.decisionPaths?.b
   ]
     .filter((value) => typeof value === 'string' && value.trim())
     .join('\n')
@@ -407,7 +414,7 @@ const SPREAD_READING_BUILDERS = {
   relationship: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     buildRelationshipReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
   decision: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
-    buildDecisionReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options),
+    buildDecisionReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo, decisionPaths: options.decisionPaths }, options),
   single: ({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options = {}) =>
     buildSingleCardReading({ spreadAnalysis, cardsInfo, userQuestion, reflectionsText, themes, context, spreadInfo }, options)
 };
@@ -492,7 +499,7 @@ function summarizeVisionPromptEligibility(visionInsights) {
   };
 }
 
-function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { focusAreasSuppressed = false } = {}) {
+function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { focusAreasSuppressed = false, renderedReading = '' } = {}) {
   const analysis = payload?.analysis || {};
   const personalization = payload?.personalization || {};
   const rawUserQuestion = typeof payload?.userQuestion === 'string' ? payload.userQuestion : '';
@@ -530,6 +537,22 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       reason: originalLength && !prepared ? 'sanitized_empty' : prepared && includedLength < prepared.length ? 'input_limit' : null
     }];
   }));
+  const pathContext = resolveDecisionPathContext({ spreadKey: analysis.spreadKey, cardsInfo: payload.cardsInfo, decisionPaths: payload.decisionPaths });
+  for (const [id, key] of [['pathA', 'a'], ['pathB', 'b']]) {
+    const stats = payload?.userContextInputStats?.[id] || pathContext.inputStats[id];
+    if (!stats) continue;
+    const text = pathContext.decisionPaths[key] || '';
+    reflectionFields[id] = {
+      ...stats, sanitizedLength: stats.sanitizedLength ?? text.length,
+      eligibleLength: text.length, includedLength: text.length,
+      omitted: Boolean(stats.originalLength && !text),
+      reason: !text && stats.originalLength ? 'sanitized_empty' : stats.limitApplied ? 'input_limit' : null
+    };
+  }
+  for (const [index, card] of (payload?.cardsInfo || []).entries()) {
+    if (!card?.callerMeaning) continue;
+    reflectionFields[`interpretation-${index}`] = { originalLength: card.callerMeaning.length, sanitizedLength: card.callerMeaning.length, includedLength: 0, omitted: true, reason: 'not_used_by_backend' };
+  }
   const cardFields = Object.entries(reflectionFields).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
@@ -547,6 +570,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const depthProfile = getDepthProfile(depthKey);
   const hasSupportedDepth = Boolean(depthKey) && depthProfile.key === depthKey;
   const userContext = buildUserContextSourceUsage({
+    ...Object.fromEntries(['pathA', 'pathB'].map(key => [key, {
+      provided: Boolean(reflectionFields[key]?.originalLength),
+      used: Boolean(reflectionFields[key]?.includedLength),
+      skippedReason: reflectionFields[key]?.reason
+    }])),
     question: {
       provided: rawUserQuestion.trim().length > 0,
       used: Boolean(sanitizedQuestion),
@@ -556,6 +584,11 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       provided: reflectionFields.reflections.originalLength > 0,
       used: reflectionFields.reflections.includedLength > 0,
       skippedReason: reflectionFields.reflections.reason
+    },
+    callerInterpretations: {
+      provided: (payload?.cardsInfo || []).some(card => Boolean(card?.callerMeaning)),
+      used: false,
+      skippedReason: 'not_used_by_backend'
     },
     cardReflections: {
       provided: cardFields.some(field => field.originalLength > 0),
@@ -600,32 +633,16 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
   const visionPromptEligibility = summarizeVisionPromptEligibility(payload?.visionInsights);
 
   const hasGraphRAGSource = hasMeaningfulGraphRAGPayload(graphRAGPayload) || hasMeaningfulGraphKeys(analysis?.themes?.knowledgeGraph?.graphKeys);
-  const graphRAGVisibleInOutput = Boolean(promptMeta?.graphRAG?.debugVisibleInOutput || promptMeta?.graphRAG?.visibleInOutput);
-  // Detected patterns are analysis metadata; the composer does not weave them
-  // into its narrative. Only the explicit reference postscript uses passages.
-  const graphRAGUsed = graphRAGVisibleInOutput;
-  const graphRAGMode = graphRAGVisibleInOutput ? 'full' : 'none';
-  const passagesProvided = Number.isFinite(promptMeta?.graphRAG?.passagesProvided)
-    ? promptMeta.graphRAG.passagesProvided
-    : (
-      graphRAGPayload?.initialPassageCount ||
-      graphRAGPayload?.passages?.length ||
-      0
-    );
-  const passagesUsedInPrompt = Number.isFinite(promptMeta?.graphRAG?.passagesUsedInPrompt)
-    ? promptMeta.graphRAG.passagesUsedInPrompt
-    : (graphRAGVisibleInOutput ? passagesProvided : 0);
-  const graphRAGSkippedReason = hasGraphRAGSource
-    ? (
-      graphRAGUsed
-        ? null
-        : (
-          promptMeta?.graphRAG?.skippedReason ||
-          graphRAGPayload?.retrievalSummary?.skippedReason ||
-          (passagesProvided > 0 ? 'not_used_by_backend' : 'retrieval_failed_or_empty')
-        )
-    )
-    : 'not_requested';
+  const graphRAGUsed = false;
+  const graphRAGMode = 'none';
+  const passagesProvided = Array.isArray(graphRAGPayload?.passages) ? graphRAGPayload.passages.length : 0;
+  const passagesUsedInPrompt = 0;
+  const suppliedHighlights = analysis.themes?.knowledgeGraph?.narrativeHighlights;
+  const deckStyle = payload.deckStyle || payload.spreadInfo?.deckStyle || payload.cardsInfo?.find(card => card?.deckStyle)?.deckStyle || analysis.themes?.deckStyle || 'rws-1909';
+  const safeHighlights = suppliedHighlights?.length ? (buildGraphContext(payload.cardsInfo || [], { deckStyle })?.narrativeHighlights || []).slice(0, 5) : [];
+  const synthesis = renderedReading.match(/### Deeper Patterns\n([\s\S]*?)(?=\n### |$)/)?.[1] || '';
+  const patternsUsedInPrompt = safeHighlights.filter(highlight => synthesis.includes(`- ${highlight.text.replace(/\*\*/g, '')}`)).length;
+  const graphRAGSkippedReason = hasGraphRAGSource ? 'not_used_by_backend' : 'not_requested';
 
   const ephemerisContext = analysis?.ephemerisContext || null;
   const ephemerisForecast = analysis?.ephemerisForecast || null;
@@ -648,13 +665,22 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
     },
     userContext: { ...userContext, fields: reflectionFields },
     graphRAG: {
+      ...sanitizeGraphRAGDiagnostics(promptMeta.graphRAG),
+      retainedPassageCount: 0,
       requested: hasGraphRAGSource,
       used: graphRAGUsed,
       mode: graphRAGMode,
       passagesProvided,
       passagesUsedInPrompt,
-      passageIndices: graphRAGVisibleInOutput ? (graphRAGPayload?.passages || []).map((_, index) => index) : [],
+      passageIndices: [],
       skippedReason: graphRAGSkippedReason
+    },
+    patterns: {
+      requested: safeHighlights.length > 0,
+      used: patternsUsedInPrompt > 0,
+      patternsProvided: safeHighlights.length,
+      patternsUsedInPrompt,
+      skippedReason: safeHighlights.length ? (patternsUsedInPrompt ? null : 'not_used_by_backend') : 'not_requested'
     },
     ephemeris: {
       requested: ephemerisRequested,
@@ -685,6 +711,27 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
  * @param {string} requestId - Request ID for logging
  * @returns {Object} { systemPrompt, userPrompt, promptMeta }
  */
+/** Direct internal callers freeze once; route callers retain the private selection. */
+function ensureReadingMemorySelection(payload) {
+  if (payload.useSavedMemories === false) {
+    payload.memories = [];
+    return;
+  }
+  payload.memorySelection ||= selectMemoriesForReading(payload.memories, {
+    sources: prepareReadingContextSources({
+      spreadKey: getSpreadKey(payload.spreadInfo?.name, payload.spreadInfo?.key),
+      userQuestion: payload.userQuestion, reflectionsText: payload.reflectionsText,
+      cardsInfo: payload.cardsInfo, decisionPaths: payload.decisionPaths,
+      focusAreas: payload.personalization?.focusAreas
+    }),
+    contextSelection: payload.contextSelection,
+    displayName: payload.personalization?.displayName,
+    personalization: payload.personalization,
+    userId: payload.memoryAccessOwnerId
+  });
+  payload.memories = payload.memorySelection.memories;
+}
+
 export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown', options = {}) {
   const {
     spreadInfo,
@@ -699,7 +746,18 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     contextDiagnostics = []
   } = payload;
 
-  const deckStyle = spreadInfo?.deckStyle || analysis?.themes?.deckStyle || cardsInfo?.[0]?.deckStyle || 'rws-1909';
+  // Original positions can supply effective decision labels without reflections.
+  const hasLegacyDecisionPaths = !payload.contextSelection && getSpreadKey(spreadInfo?.name, spreadInfo?.key) === 'decision'
+    && resolveDecisionPathContext({ spreadKey: 'decision', cardsInfo, decisionPaths: payload.decisionPaths }).sources.length > 0;
+  // Internal callers without a route decision derive it once for all retries.
+  payload.contextSelection ||= resolveContextSelection({
+    userQuestion, reflectionsText, decisionPaths: payload.decisionPaths,
+    ...(hasLegacyDecisionPaths || payload.decisionPaths || reflectionsText !== undefined || cardsInfo?.some(card => card?.userReflection) ? { cardsInfo } : {}),
+    focusAreas: payload.personalization?.focusAreas, contextInputText
+  }, getSpreadKey(spreadInfo?.name, spreadInfo?.key));
+  ensureReadingMemorySelection(payload);
+
+  const deckStyle = payload.deckStyle || spreadInfo?.deckStyle || cardsInfo?.[0]?.deckStyle || analysis?.themes?.deckStyle || 'rws-1909';
 
   const promptProvider = options.providerLabel || 'OpenAI Responses';
   const backendId = options.backendId || 'openai-native';
@@ -718,8 +776,10 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     null;
 
   // Build enhanced prompts using narrative builder
-  const { systemPrompt, userPrompt, promptMeta, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+  const { systemPrompt, userPrompt, promptMeta, memoryRetention, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+    contextSelection: payload.contextSelection,
     userContextInputStats: payload.userContextInputStats,
+    decisionPaths: payload.decisionPaths,
     spreadInfo,
     cardsInfo,
     userQuestion,
@@ -740,6 +800,9 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     promptBudgetEnv: env,
     personalization: payload.personalization,
     memories: payload.memories,
+    useSavedMemories: payload.useSavedMemories,
+    memorySelection: payload.memorySelection,
+    memoryAccessOwnerId: payload.memoryAccessOwnerId,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
     variantOverrides: payload.variantPromptOverrides
@@ -748,6 +811,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
   if (promptMeta) {
     payload.promptMeta = promptMeta;
   }
+  payload.memoryRetention = memoryRetention;
 
   if (Array.isArray(promptDiagnostics) && promptDiagnostics.length) {
     payload.contextDiagnostics = Array.from(new Set([...(payload.contextDiagnostics || []), ...promptDiagnostics]));
@@ -757,9 +821,11 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
   const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
   const promptRedactionOptions = buildReadingRedactionOptions({
     personalization: payload.personalization,
+    cardsInfo: payload.cardsInfo,
     userQuestion,
     reflectionsText: querentReflections,
-    memories: payload.memories
+    memories: payload.memories,
+    decisionPaths: payload.decisionPaths
   });
 
   console.log(`[${requestId}] System prompt length: ${systemPrompt.length}, User prompt length: ${userPrompt.length}`);
@@ -1278,19 +1344,25 @@ function buildGenericReading(
 export async function composeReadingEnhanced(payload, env = null) {
   const {
     spreadInfo,
-    cardsInfo,
+    cardsInfo: rawCardsInfo,
     userQuestion,
     analysis,
-    context,
     personalization = null,
     visionInsights = []
   } = payload;
+  const { themes, spreadAnalysis, spreadKey } = analysis;
+  // Resolve legacy facts before replacing their positions with stable roles.
+  // Composition and usage must flatten the same copied card representation.
+  const decisionPathContext = resolveDecisionPathContext({ spreadKey, cardsInfo: rawCardsInfo, decisionPaths: payload.decisionPaths });
+  const decisionPaths = decisionPathContext.decisionPaths;
+  const cardsInfo = spreadKey === 'decision' ? decisionPathRoleCards(rawCardsInfo) : rawCardsInfo;
   // The composer has no per-card reflection slot, so its reflections section
   // carries the general notes and every card's reflection together.
   const reflectionsText = collectQuerentReflections(payload.reflectionsText, cardsInfo);
   const languageSupport = getLocalComposerLanguageSupport({
     userQuestion,
-    reflectionsText
+    reflectionsText,
+    decisionPaths
   });
   if (!languageSupport.supported) {
     const error = new Error(languageSupport.reason);
@@ -1299,25 +1371,31 @@ export async function composeReadingEnhanced(payload, env = null) {
     error.userFacingMessage = languageSupport.userFacingMessage;
     throw error;
   }
-  const { themes, spreadAnalysis, spreadKey } = analysis;
   const collectedSections = [];
+  // The local composer currently renders no remembered notes. Never inherit a
+  // discarded provider attempt's prompt retention.
+  payload.memoryRetention = { retainedSlots: [], slotToId: {} };
 
   // A topic can be specific in the graph taxonomy (for example grief) while
   // its reading label remains general. Use the shared source decision instead
   // of the reading label to keep saved interests from steering any fallback.
-  const contextSelection = resolveContextSelection({
+  const contextSelection = payload.contextSelection ||= resolveContextSelection({
     userQuestion,
-    reflectionsText,
+    reflectionsText: payload.reflectionsText,
+    cardsInfo,
+    decisionPaths,
     focusAreas: personalization?.focusAreas
   }, spreadKey);
+  ensureReadingMemorySelection(payload);
   const hasCurrentTopic = contextSelection.source === 'question'
     || contextSelection.source === 'reflections'
-    || !canUseSavedFocus(context);
+    || contextSelection.source === 'decisionPaths';
   const composerPersonalization = personalization && hasCurrentTopic
     ? { ...personalization, focusAreas: [] }
     : personalization;
 
   const composerOptions = {
+    decisionPaths,
     personalization: composerPersonalization,
     proseMode: true,
     collectValidation: (section) => {
@@ -1338,7 +1416,7 @@ export async function composeReadingEnhanced(payload, env = null) {
       userQuestion,
       reflectionsText,
       themes,
-      context
+      context: contextSelection.context
     },
     async (enhancedPayload, reasoningOptions = {}) => {
       const mergedOptions = {
@@ -1373,31 +1451,38 @@ export async function composeReadingEnhanced(payload, env = null) {
   payload.narrativeEnhancements = collectedSections;
 
   // Ensure promptMeta exists for telemetry
-  if (!payload.promptMeta) {
-    payload.promptMeta = {
-      backend: 'local-composer',
-      estimatedTokens: null,
-      slimmingSteps: []
-    };
-  }
+  payload.promptMeta = {
+    backend: 'local-composer',
+    contextSelection: sanitizeContextSelection(contextSelection),
+    context: { provided: contextSelection.context, normalized: contextSelection.context, source: contextSelection.source, clarifiedBy: contextSelection.clarifiedBy },
+    queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
+    estimatedTokens: null,
+    slimmingSteps: []
+  };
 
   // GraphRAG is generation context, not a user-visible postscript.
   // For local-composer parity, we track GraphRAG telemetry but do not append
   // raw passages to output unless debug mode is explicitly enabled.
   let finalReadingText = readingText;
   const graphRAGPayload = analysis.graphRAGPayload || payload.graphRAGPayload;
-  const passagesProvided = graphRAGPayload?.initialPassageCount || graphRAGPayload?.passages?.length || 0;
+  const passagesProvided = graphRAGPayload?.passages?.length || 0;
   if (graphRAGPayload) {
     const retrievalSummary = graphRAGPayload.retrievalSummary || {};
     payload.promptMeta.graphRAG = {
       ...retrievalSummary,
+      queryCoverage: payload.promptMeta.queryCoverage,
+      contextSelection: payload.promptMeta.contextSelection,
       includedInPrompt: false,
       injectedIntoPrompt: false,
       passagesProvided,
       passagesUsedInPrompt: 0,
+      retainedPassageCount: 0,
+      selectedDeck: payload.deckStyle || spreadInfo?.deckStyle || themes?.deckStyle || 'rws-1909',
+      sourceDecks: [...new Set((graphRAGPayload.passages || []).map(passage => passage.sourceDeck).filter(Boolean))],
+      skippedReason: 'not_used_by_backend',
       disabledByEnv: retrievalSummary.disabledByEnv === true,
-      parseStatus: retrievalSummary.parseStatus || 'absent',
-      referenceBlockClosed: retrievalSummary.referenceBlockClosed || false,
+      parseStatus: 'absent',
+      referenceBlockClosed: false,
       debugVisibleInOutput: false,
       visibleInOutput: false
     };
@@ -1407,9 +1492,11 @@ export async function composeReadingEnhanced(payload, env = null) {
   if (debugAppendGraphRAG && graphRAGPayload?.passages?.length > 0) {
     const formattedPassages = formatPassagesForPrompt(graphRAGPayload.passages, {
       includeSource: true,
-      markdown: true
+      markdown: true,
+      deckStyle: payload.deckStyle || spreadInfo?.deckStyle || themes?.deckStyle || 'rws-1909'
     });
-    if (formattedPassages) {
+    const debugPassagesRendered = (formattedPassages.match(/^\d+\. /gm) || []).length;
+    if (formattedPassages && debugPassagesRendered) {
       finalReadingText = readingText + '\n\n## Traditional Wisdom\n\n' + formattedPassages;
 
       if (payload.promptMeta?.graphRAG) {
@@ -1418,9 +1505,10 @@ export async function composeReadingEnhanced(payload, env = null) {
           injectedIntoPrompt: false,
           debugVisibleInOutput: true,
           visibleInOutput: true,
-          passagesUsedInPrompt: graphRAGPayload.passages.length,
-          parseStatus: 'complete',
-          referenceBlockClosed: true,
+          passagesUsedInPrompt: 0,
+          debugPassagesRendered,
+          parseStatus: 'absent',
+          referenceBlockClosed: false,
           disabledByEnv: false,
           skippedReason: null
         };
@@ -1430,11 +1518,13 @@ export async function composeReadingEnhanced(payload, env = null) {
           includedInPrompt: false,
           injectedIntoPrompt: false,
           passagesProvided,
-          passagesUsedInPrompt: graphRAGPayload.passages.length,
+          passagesUsedInPrompt: 0,
+          debugPassagesRendered,
+          retainedPassageCount: 0,
           disabledByEnv: false,
           skippedReason: null,
-          parseStatus: 'complete',
-          referenceBlockClosed: true,
+          parseStatus: 'absent',
+          referenceBlockClosed: false,
           debugVisibleInOutput: true,
           visibleInOutput: true
         };
@@ -1442,12 +1532,29 @@ export async function composeReadingEnhanced(payload, env = null) {
     }
   }
 
+  payload.promptMeta.memories = {
+    candidateCount: payload.useSavedMemories === false ? 0 : payload.memorySelection?.candidateCount ?? payload.memories?.length ?? 0,
+    selectedCount: payload.useSavedMemories === false ? 0 : payload.memorySelection?.selectedCount ?? payload.memories?.length ?? 0,
+    retainedCount: 0,
+    exclusionReasons: payload.memorySelection?.exclusionReasons || {}
+  };
+
   payload.promptMeta.sourceUsage = buildLocalComposerSourceUsage(
-    { ...payload, visionInsights, personalization },
+    {
+      ...payload,
+      cardsInfo,
+      decisionPaths,
+      userContextInputStats: { ...decisionPathContext.inputStats, ...payload.userContextInputStats },
+      visionInsights,
+      personalization
+    },
     payload.promptMeta,
     graphRAGPayload,
-    { focusAreasSuppressed: hasCurrentTopic }
+    { focusAreasSuppressed: hasCurrentTopic, renderedReading: readingText }
   );
+
+  payload.promptMeta.sourceUsage.memories = buildMemorySourceUsage(payload.promptMeta.memories.candidateCount, payload.promptMeta.memories.selectedCount, 0, 'not_used_by_backend');
+  if (payload.useSavedMemories === false) payload.promptMeta.sourceUsage.memories.skippedReason = 'disabled_by_request';
 
   // Return reading with null prompts (local composer doesn't use LLM prompts)
   return {

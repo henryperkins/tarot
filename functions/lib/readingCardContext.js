@@ -47,7 +47,7 @@ export function sanitizeReadingCard(card) {
   if (!card || typeof card !== 'object' || Array.isArray(card)) return card;
 
   const safeCard = { ...card };
-  for (const field of ['position', 'meaning', 'userReflection']) {
+  for (const field of ['position', 'meaning', 'callerMeaning', 'userReflection']) {
     if (Object.hasOwn(card, field)) safeCard[field] = sanitizeReadingContext(card[field]);
   }
   return safeCard;

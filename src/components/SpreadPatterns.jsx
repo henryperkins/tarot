@@ -64,12 +64,14 @@ function InsightSection({ title, children }) {
 }
 
 /** A short reading summary with supporting patterns and reference passages. */
-export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], cards = [], onSelectCard }) {
+export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighlights = [], passages = [], previewPassages = [], cards = [], onSelectCard }) {
   const headingId = useId();
   const { highlights, spreadDetails, archetypes } = buildSpreadInsightSections(
     spreadHighlights, themes?.knowledgeGraph?.narrativeHighlights
   );
-  const references = getVisibleTraditionalPassages(passages);
+  const retainedReferences = getVisibleTraditionalPassages(passages);
+  const isPreview = retainedReferences.length === 0 && previewPassages.length > 0;
+  const references = isPreview ? getVisibleTraditionalPassages(previewPassages) : retainedReferences;
   const totalCount = highlights.length + spreadDetails.length + archetypes.length + references.length;
   const selectedDeck = DECK_CATALOG[themes?.deckStyle];
   const otherSources = [...new Set(references.map(getPassageSource)
@@ -103,24 +105,28 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
           </InsightSection>
         ) : null}
         {references.length > 0 ? (
-          <InsightSection title="Traditional wisdom">
+          <InsightSection title={isPreview ? 'Traditional wisdom preview' : 'Traditional wisdom'}>
+            {isPreview ? <p className="text-base leading-relaxed text-muted">Background references for these cards. These are a preview; inclusion in the generated reading is unverified.</p> : null}
             {otherSources.length > 0 ? (
               <p className="max-w-prose wrap-break-word text-base leading-relaxed text-muted">
-                These references use {otherSources.join(' and ')} names and imagery. Your reading uses {selectedDeck.label}.
+                {!isPreview && references.every(passage => passage.projectedDeck && passage.promptText)
+                  ? `These references come from ${otherSources.join(' and ')}; their wording is adapted to ${selectedDeck.label}.`
+                  : `These references use ${otherSources.join(' and ')} names and imagery. Your reading uses ${selectedDeck.label}.`}
               </p>
             ) : null}
-            <ul className="space-y-5 text-main" role="list" aria-label="Traditional wisdom passages">
+            <ul className="space-y-5 text-main" role="list" aria-label={isPreview ? 'Traditional wisdom preview passages' : 'Traditional wisdom passages'}>
               {references.map((passage, index) => {
                 const source = getPassageSource(passage);
+                const textDeck = !isPreview && passage.projectedDeck ? passage.projectedDeck : source?.deckStyle;
                 return (
                   <li key={`${passage.id || passage.patternId || 'passage'}-${index}`}>
                     <article className="max-w-prose wrap-break-word space-y-2 text-base leading-relaxed">
                       <p className="font-semibold">
-                        <InsightText text={passage.title || passage.theme} cards={cards} onSelectCard={onSelectCard} sourceDeck={source?.deckStyle} />
+                        <InsightText text={passage.title || passage.theme} cards={cards} onSelectCard={onSelectCard} sourceDeck={textDeck} />
                       </p>
                       {source ? <p className="text-sm text-muted">{source.label} reference</p> : null}
                       <blockquote>
-                        <InsightText text={passage.text} cards={cards} onSelectCard={onSelectCard} sourceDeck={source?.deckStyle} />
+                        <InsightText text={passage.text} cards={cards} onSelectCard={onSelectCard} sourceDeck={textDeck} />
                       </blockquote>
                       {passage.source ? <p className="text-sm text-muted">— {passage.source}</p> : null}
                     </article>

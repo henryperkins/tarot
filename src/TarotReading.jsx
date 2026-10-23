@@ -167,6 +167,8 @@ export default function TarotReading() {
 
     // Reading Generation & UI
     personalReading,
+    useSavedMemories,
+    setUseSavedMemories,
     setPersonalReading,
     setThemes,
     setNarrativePhase,
@@ -1130,6 +1132,18 @@ export default function TarotReading() {
                   onSpreadConfirm={onSpreadConfirm}
                 />
               </div>
+
+              {user && (
+                <label className="flex min-h-11 items-center gap-3 text-sm text-muted-high">
+                  <input
+                    type="checkbox"
+                    checked={useSavedMemories}
+                    onChange={event => setUseSavedMemories(event.target.checked)}
+                    className="h-4 w-4 accent-current focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                  />
+                  Use saved memories in this reading.
+                </label>
+              )}
 
               {!isHandset && (
                 <ReadingPreparation

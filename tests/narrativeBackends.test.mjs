@@ -10,6 +10,8 @@ import {
   getLocalComposerLanguageSupport,
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
 import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
@@ -61,6 +63,15 @@ async function withMockedFetch(mockFetch, fn) {
 }
 
 describe('composeReadingEnhanced', () => {
+  it('lower-level composition without reasoning rebuilds safe highlights from drawn cards', async () => {
+    const { buildThreeCardReading } = await import('../functions/lib/narrativeBuilder.js');
+    const cardsInfo = [major('The Sun', 19, 'Past'), major('Temperance', 14, 'Present'), major('The Star', 17, 'Future')];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    themes.knowledgeGraph = { ...themes.knowledgeGraph, narrativeHighlights: [{ text: 'UNTRUSTED-PATTERN Death completed your grief and career loss.' }] };
+    const result = await buildThreeCardReading({ cardsInfo, themes, spreadAnalysis: analyzeThreeCard(cardsInfo), userQuestion: 'What supports me?', context: 'general' });
+    assert.doesNotMatch(result, /UNTRUSTED-PATTERN|Death completed|your grief and career loss/);
+    assert.match(themes.knowledgeGraph.narrativeHighlights[0].text, /UNTRUSTED-PATTERN/, 'Do not mutate shared analysis');
+  });
   it('passes spreadInfo through spread dispatch so remedy rotation can vary by spread metadata', async () => {
     const cardsInfo = [
       minor('Ace of Wands', 'Wands', 'Ace', 1, 'You / your energy', 'Upright'),
@@ -92,7 +103,8 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: relationshipAnalysis,
         spreadKey: 'relationship'
       },
-      context: 'general'
+      context: 'general',
+      contextSelection: resolveContextSelection({}, 'general')
     };
     const payloadB = {
       spreadInfo: spreadInfoB,
@@ -104,7 +116,8 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: relationshipAnalysis,
         spreadKey: 'relationship'
       },
-      context: 'general'
+      context: 'general',
+      contextSelection: resolveContextSelection({}, 'general')
     };
 
     const resultA = await composeReadingEnhanced(payloadA);
@@ -198,7 +211,7 @@ describe('composeReadingEnhanced', () => {
         spreadKey: 'single',
         graphRAGPayload: {
           passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
+            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
           ],
           initialPassageCount: 1,
           retrievalSummary: {
@@ -231,9 +244,7 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: null,
         spreadKey: 'single',
         graphRAGPayload: {
-          passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
-          ],
+          passages: collectPassageCandidates({ singleMajorNumber: 17, singleMajorName: 'The Star', totalMajors: 1 }).slice(0, 1),
           initialPassageCount: 1,
           retrievalSummary: {
             semanticScoringRequested: false,
@@ -249,9 +260,10 @@ describe('composeReadingEnhanced', () => {
     });
     assert.ok(result.reading.includes('## Traditional Wisdom'));
     assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
-    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
-    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, true);
-    assert.ok(formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
+    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 0);
+    assert.equal(payload.promptMeta.graphRAG.debugPassagesRendered, 1);
+    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, false);
+    assert.ok(!formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
   });
 
   it('does not claim detected patterns as wisdom used by the local composer', async () => {
@@ -288,9 +300,7 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: null,
         spreadKey: 'single',
         graphRAGPayload: {
-          passages: [
-            { title: 'Healing Arc', text: 'Renewal often follows surrender.', source: 'Test Source' }
-          ],
+          passages: collectPassageCandidates({ singleMajorNumber: 17, singleMajorName: 'The Star', totalMajors: 1 }).slice(0, 1),
           initialPassageCount: 1,
           retrievalSummary: {}
         }
@@ -317,7 +327,7 @@ describe('composeReadingEnhanced', () => {
     const payload = {
       spreadInfo: { name: 'One-Card Insight', key: 'single' },
       cardsInfo,
-      userQuestion: 'How do I rebuild trust in my direction?',
+      userQuestion: 'How do I rebuild trust in my career?',
       reflectionsText: 'I feel split between caution and hope.',
       visionInsights: [
         {

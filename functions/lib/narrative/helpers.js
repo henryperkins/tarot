@@ -1,6 +1,7 @@
 /**
  * Shared narrative helpers for tarot spread builders.
  */
+import { buildGraphContext } from '../graphContext.js';
 import { getImageryHook, isMajorArcana, getElementalImagery, getMinorImageryHook } from '../imageryHooks.js';
 import { buildMinorSummary, getMinorContext } from '../minorMeta.js';
 import { getPositionWeight } from '../positionWeights.js';
@@ -1484,8 +1485,12 @@ function decapitalize(text) {
   return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
-function buildPatternSynthesis(themes) {
-  const highlights = themes?.knowledgeGraph?.narrativeHighlights;
+function buildPatternSynthesis(themes, cardsInfo, requestedDeck) {
+  // Presence preserves the existing enabled/disabled decision. Rebuild the
+  // content from drawn identities instead of trusting prefetched prose.
+  if (!themes?.knowledgeGraph?.narrativeHighlights?.length) return '';
+  const deckStyle = requestedDeck || cardsInfo?.find(card => card?.deckStyle)?.deckStyle || themes?.deckStyle || 'rws-1909';
+  const highlights = buildGraphContext(cardsInfo || [], { deckStyle })?.narrativeHighlights;
   if (!Array.isArray(highlights) || highlights.length === 0) {
     return '';
   }

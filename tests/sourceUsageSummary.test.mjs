@@ -10,17 +10,25 @@ test('absent, empty and invalid metadata never invent sources', () => {
   }
 });
 
+test('caller interpretation is a separate personal input in bounded summaries', () => {
+  const result = formatUsageSummary({ userContext: { requested: true, used: true, providedInputs: ['callerInterpretations'], usedInputs: ['callerInterpretations'], callerInterpretationsProvided: true, callerInterpretationsUsed: true, fields: { 'interpretation-0': { originalLength: 19, includedLength: 19 } } } });
+  assert.equal(result.rows.length, 1);
+  assert.match(result.rows[0].detail, /your card interpretations/i);
+  assert.equal(result.rows[0].state, 'used');
+});
+
 test('real builder output includes Standard depth and card notes without warning about optional sources', () => {
   const built = buildEnhancedClaudePrompt({
     spreadInfo: { name: 'One-Card Insight', key: 'single' },
     cardsInfo: [{ card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme', userReflection: 'The flowers stand out.' }],
     userQuestion: 'What supports me today?', personalization: { preferredSpreadDepth: 'standard', readingTone: 'gentle' },
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' },
     graphRAGPayload: { retrievalSummary: { skippedReason: 'no_patterns_detected' } },
     ephemerisContext: { available: false }
   });
   const usage = formatUsageSummary(built.promptMeta.sourceUsage);
   assert.equal(usage.summary.attention, 0);
-  assert.deepEqual(usage.rows.map(row => row.label), ['Your cards', 'Your question & notes', 'Your preferences']);
+  assert.deepEqual(usage.rows.map(row => row.label), ['Your cards', 'Your question & notes', 'Your preferences', 'Detected patterns']);
   const copy = JSON.stringify(usage);
   assert.match(copy, /card notes/);
   assert.match(copy, /reading depth/);
@@ -118,4 +126,15 @@ test('used pattern sources with absent or zero counts use uncounted descriptions
       assert.doesNotMatch(row.detail, /\b0\b/);
     }
   }
+});
+
+test('saved memory attribution distinguishes selection from final inclusion without exposing text or identities', () => {
+  const selected = { requested: true, used: false, candidatesProvided: 100, memoriesSelected: 3, memoriesUsedInPrompt: 0, skippedReason: 'removed_for_budget', text: 'Private name', selectedIds: ['private-id'] };
+  const omitted = formatUsageSummary({ memories: selected });
+  assert.equal(omitted.rows[0].label, 'Saved memories');
+  assert.equal(omitted.rows[0].state, 'omitted');
+  assert.doesNotMatch(JSON.stringify(omitted), /Private name|private-id/);
+  const included = formatUsageSummary({ memories: { ...selected, used: true, memoriesUsedInPrompt: 1, skippedReason: null } });
+  assert.match(included.rows[0].detail, /1 saved memory included as reading context/);
+  assert.doesNotMatch(included.rows[0].detail, /influenced|followed|proved/);
 });

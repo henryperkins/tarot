@@ -8,6 +8,7 @@ import {
   resolveReadingPersonalizationContext,
   sanitizePersonalizationInput
 } from '../functions/lib/userPersonalization.js';
+import * as readingPersonalization from '../functions/lib/userPersonalization.js';
 import { PERSONALIZATION_REQUEST_EXPLICIT_FIELDS_KEY } from '../shared/contracts/personalizationConstants.js';
 
 function createDb({ userRow = null, journalPreferences = null } = {}) {
@@ -134,7 +135,8 @@ describe('resolveReadingPersonalizationContext', () => {
       userId: 'user-1',
       options: {
         scope: 'global',
-        limit: 8
+        limit: 100,
+        markAccess: false
       }
     }]);
   });
@@ -290,4 +292,30 @@ test('explicit saved defaults still count as a choice', async () => {
     readingTone: 'balanced', preferredSpreadDepth: 'standard', _explicitFields: ['readingTone', 'preferredSpreadDepth']
   } }), 'user-1', null, { loadMemories: async () => [] });
   assert.deepEqual(result.personalization, { readingTone: 'balanced', preferredSpreadDepth: 'standard' });
+});
+
+
+test('preference-only resolution preserves overrides without touching memory storage', async () => {
+  assert.equal(typeof readingPersonalization.resolveReadingPreferencesContext, 'function');
+  const sql = [];
+  const base = createDb({ userRow: { display_name: 'Sam' }, journalPreferences: { readingTone: 'gentle', focusAreas: ['career'] } });
+  const db = { prepare(query) { sql.push(query); return base.prepare(query); } };
+  const result = await readingPersonalization.resolveReadingPreferencesContext(db, 'owner', { readingTone: 'blunt' });
+  assert.equal(result.personalization.readingTone, 'blunt');
+  assert.equal(result.personalization.displayName, 'Sam');
+  assert.equal(sql.some(query => /user_memories/.test(query)), false);
+  assert.equal(Object.hasOwn(result, 'memories'), false);
+});
+
+test('reading candidate loader is separately guarded and always uses a read-only bounded pool', async () => {
+  assert.equal(typeof readingPersonalization.loadReadingMemoryCandidates, 'function');
+  const calls = [];
+  const options = { loadMemories: async (_db, userId, settings) => { calls.push({ userId, settings }); return [{ id: 'one', text: 'Career transition' }]; } };
+  const db = {};
+  assert.deepEqual(await readingPersonalization.loadReadingMemoryCandidates(db, 'owner', { ...options, useSavedMemories: false }), []);
+  assert.deepEqual(await readingPersonalization.loadReadingMemoryCandidates(null, 'owner', options), []);
+  assert.deepEqual(await readingPersonalization.loadReadingMemoryCandidates(db, null, options), []);
+  assert.deepEqual(calls, []);
+  assert.equal((await readingPersonalization.loadReadingMemoryCandidates(db, 'owner', options)).length, 1);
+  assert.deepEqual(calls, [{ userId: 'owner', settings: { scope: 'global', limit: 100, markAccess: false } }]);
 });

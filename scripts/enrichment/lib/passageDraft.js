@@ -46,6 +46,7 @@ Voice requirements, in priority order:
 
 Output requirements:
 - "text": the passage, in the voice described.
+- "archetypalText": a separately reviewable meaning-only interpretation. Avoid scenes, physical symbols, and claims that an event has occurred. Approval of the full passage never approves this projection.
 - "tags": 3 to 5 lowercase single-word tags describing the theme, each 3 to 21 characters, letters and hyphens only.
 - "context": the single reading context this passage best serves. Choose exactly one of: ${PASSAGE_CONTEXTS.join(', ')}. Never choose "general"; a general passage already exists for every card.
 
@@ -55,10 +56,11 @@ const DRAFT_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
     text: { type: 'string' },
+    archetypalText: { type: 'string' },
     tags: { type: 'array', items: { type: 'string' } },
     context: { type: 'string', enum: [...PASSAGE_CONTEXTS] }
   },
-  required: ['text', 'tags', 'context'],
+  required: ['text', 'archetypalText', 'tags', 'context'],
   additionalProperties: false
 };
 
@@ -138,6 +140,7 @@ export async function draftPassage({ card, theme, digest, examples = [], signal,
 
   return {
     text,
+    archetypalText: typeof structured.archetypalText === 'string' ? structured.archetypalText.trim() : '',
     tags,
     context,
     model: completion.model,

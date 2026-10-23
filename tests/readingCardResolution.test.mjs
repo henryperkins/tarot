@@ -240,7 +240,8 @@ describe('resolved card contract', () => {
     const before = structuredClone(submitted);
     const [resolved] = resolveReadingCards([submitted]);
     assert.deepEqual(submitted, before);
-    assert.equal(resolved.meaning, baseCard.meaning);
+    assert.equal(resolved.meaning, MAJOR_ARCANA.find(card => card.name === 'The Sun').upright);
+    assert.equal(resolved.callerMeaning, baseCard.meaning);
     assert.equal(resolved.userReflection, submitted.userReflection);
     assert.equal(resolved.orientation, 'Upright');
     assert.equal(resolved.number, 19);

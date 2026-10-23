@@ -104,6 +104,7 @@ export function NarrativeReadingSurface({
     themes,
     highlightItems = [],
     traditionalPassages = [],
+    traditionalPreviewPassages = [],
     insightCards = []
   } = surfaceModel;
   const { onCinematicMediaReady, onStoryArtMediaReady, onSelectCard } = callbacks;
@@ -219,6 +220,7 @@ export function NarrativeReadingSurface({
             themes={themes}
             spreadHighlights={highlightItems}
             passages={traditionalPassages}
+            previewPassages={traditionalPreviewPassages}
             cards={insightCards}
             onSelectCard={onSelectCard}
           />
@@ -253,6 +255,7 @@ NarrativeReadingSurface.propTypes = {
     themes: PropTypes.object,
     highlightItems: PropTypes.array,
     traditionalPassages: PropTypes.array,
+    traditionalPreviewPassages: PropTypes.array,
     insightCards: PropTypes.array
   }),
   callbacks: PropTypes.shape({

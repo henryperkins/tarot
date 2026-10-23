@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
+import { MAJOR_ARCANA_PASSAGES } from '../functions/lib/knowledgeBase.js';
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import {
   scorePassageRelevance,
@@ -193,9 +194,8 @@ describe('GraphRAG fallback behavior', () => {
     const graphRAGPayload = {
       passages: [
         {
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         }
       ],
       formattedBlock: [
@@ -229,7 +229,7 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });
 
-  it('injects legacy formattedBlock-only payloads and preserves GraphRAG telemetry', () => {
+  it('omits legacy formattedBlock-only payloads with unverifiable provenance', () => {
     const graphRAGPayload = {
       formattedBlock: [
         '**Retrieved Wisdom from Tarot Tradition:**',
@@ -254,28 +254,25 @@ describe('GraphRAG fallback behavior', () => {
       graphRAGPayload
     });
 
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
-    assert.ok(userPrompt.includes('Integration comes through steady blending of opposites.'));
-    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
-    assert.equal(promptMeta.graphRAG?.injectionMode, 'full');
-    assert.equal(promptMeta.graphRAG?.parseStatus, 'complete');
-    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
-    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
-    assert.equal(promptMeta.graphRAG?.skippedReason ?? null, null);
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(!userPrompt.includes('Integration comes through steady blending of opposites.'));
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG?.injectionMode, 'none');
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 0);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 0);
+    assert.equal(promptMeta.graphRAG?.skippedReason, 'unverified_reference_provenance');
   });
 
   it('rebuilds GraphRAG from the effective capped passage list instead of stale formattedBlock text', () => {
     const graphRAGPayload = {
       passages: [
         {
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         },
         {
-          title: 'The Tower',
-          source: 'Tableu Tarot Canon',
-          text: 'Sudden upheaval breaks false structures apart.'
+          ...MAJOR_ARCANA_PASSAGES[16].passages[0],
+          type: 'major-arcana', patternId: '16'
         }
       ],
       formattedBlock: [
@@ -309,6 +306,7 @@ describe('GraphRAG fallback behavior', () => {
 
     assert.ok(userPrompt.includes('Temperance'));
     assert.ok(!userPrompt.includes('Sudden upheaval breaks false structures apart.'));
+    assert.ok(!userPrompt.includes(MAJOR_ARCANA_PASSAGES[16].passages[0].text));
     assert.equal(promptMeta.graphRAG?.passagesProvided, 2);
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });

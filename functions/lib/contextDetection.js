@@ -1,3 +1,6 @@
+import { prepareReadingContextSources } from './readingContextSources.js';
+import { buildReadingRetrievalQuery } from './readingRetrievalQuery.js';
+import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_PRIORITY, countMatches, positiveContextPhrases, contextPhraseMatches } from './readingContextVocabulary.js';
 import { normalizeContext } from './narrative/helpers.js';
 import { sanitizeText } from './utils.js';
 import {
@@ -13,377 +16,6 @@ const SPREAD_CONTEXT_DEFAULTS = {
 const GRAPH_RAG_SPREAD_DEFAULTS = {
   relationship: 'relationship'
 };
-
-const CONTEXT_KEYWORDS = {
-  love: [
-    'relationship',
-    'relationships',
-    'romance',
-    'romantic',
-    'love',
-    'partner',
-    'partnership',
-    'marriage',
-    'married',
-    'spouse',
-    'crush',
-    'dating',
-    'soulmate',
-    'twin flame',
-    'connection',
-    'couple',
-    'lover',
-    'feelings',
-    'intimacy'
-  ],
-  career: [
-    'career',
-    'job',
-    'work',
-    'working',
-    'boss',
-    'coworker',
-    'manager',
-    'business',
-    'client',
-    'project',
-    'promotion',
-    'salary',
-    'money',
-    'finance',
-    'finances',
-    'income',
-    'profession',
-    'entrepreneur',
-    'company',
-    'office',
-    'team',
-    'coworkers'
-  ],
-  self: [
-    'self',
-    'myself',
-    'personal',
-    'growth',
-    'confidence',
-    'mindset',
-    'boundary',
-    'boundaries',
-    'shadow',
-    'inner child',
-    'therapy',
-    'habit',
-    'habits',
-    'self-care',
-    'self care'
-  ],
-  spiritual: [
-    'spiritual',
-    'spirit',
-    'soul',
-    'soulpath',
-    'purpose',
-    'mission',
-    'intuition',
-    'psychic',
-    'meditation',
-    'meditate',
-    'prayer',
-    'ritual',
-    'energy',
-    'energetic',
-    'chakra',
-    'astrology',
-    'ancestor',
-    'guides',
-    'universe',
-    'divine'
-  ],
-  wellbeing: [
-    'wellbeing',
-    'well-being',
-    'wellness',
-    'health',
-    'healthy',
-    'healing',
-    'heal',
-    'mental health',
-    'physical',
-    'body',
-    'stress',
-    'anxiety',
-    'depression',
-    'rest',
-    'sleep',
-    'balance',
-    'burnout',
-    'exhaustion',
-    'recovery',
-    'self-care'
-  ],
-  decision: [
-    'decision',
-    'decide',
-    'deciding',
-    'choose',
-    'choice',
-    'choices',
-    'choosing',
-    'crossroads',
-    'path',
-    'direction',
-    'option',
-    'options',
-    'should i',
-    'which way',
-    'what to do',
-    'dilemma',
-    'uncertain',
-    'fork in the road',
-    'or should i'
-  ]
-};
-
-const GRAPH_RAG_CONTEXT_KEYWORDS = {
-  grief: [
-    'grief',
-    'grieving',
-    'loss',
-    'mourning',
-    'bereavement',
-    'funeral',
-    'passed away',
-    'passed on'
-  ],
-  relationship: [
-    'relationship',
-    'relationships',
-    'romance',
-    'romantic',
-    'love',
-    'partner',
-    'partnership',
-    'marriage',
-    'married',
-    'spouse',
-    'boyfriend',
-    'girlfriend',
-    'dating',
-    'crush',
-    'soulmate',
-    'connection',
-    'breakup',
-    'separation',
-    'divorce'
-  ],
-  career: [
-    'career',
-    'job',
-    'work',
-    'working',
-    'boss',
-    'coworker',
-    'manager',
-    'business',
-    'client',
-    'project',
-    'promotion',
-    'salary',
-    'money',
-    'finance',
-    'finances',
-    'income',
-    'profession',
-    'entrepreneur',
-    'company',
-    'office',
-    'team',
-    'coworkers'
-  ],
-  health: [
-    'health',
-    'healthy',
-    'healing',
-    'heal',
-    'wellbeing',
-    'well-being',
-    'wellness',
-    'mental health',
-    'physical',
-    'body',
-    'stress',
-    'anxiety',
-    'depression',
-    'rest',
-    'sleep',
-    'balance',
-    'burnout',
-    'exhaustion',
-    'recovery',
-    'therapy',
-    'self-care',
-    'self care'
-  ],
-  spiritual: [
-    'spiritual',
-    'spirit',
-    'soul',
-    'purpose',
-    'mission',
-    'intuition',
-    'psychic',
-    'meditation',
-    'meditate',
-    'prayer',
-    'ritual',
-    'energy',
-    'energetic',
-    'chakra',
-    'ancestor',
-    'guides',
-    'universe',
-    'divine',
-    'sacred',
-    'mystic'
-  ],
-  transition: [
-    'transition',
-    'change',
-    'changing',
-    'shift',
-    'shifting',
-    'crossroads',
-    'next chapter',
-    'new chapter',
-    'ending',
-    'beginning',
-    'moving',
-    'move',
-    'relocation',
-    'graduation',
-    'threshold'
-  ],
-  shadow: [
-    'shadow',
-    'shadow work',
-    'trigger',
-    'shame',
-    'guilt',
-    'repress',
-    'repressed',
-    'avoid',
-    'avoidance',
-    'fear',
-    'fears',
-    'pattern',
-    'patterns',
-    'addiction',
-    'compulsion',
-    'habit',
-    'habits',
-    'inner child',
-    'subconscious',
-    'trauma'
-  ],
-  creative: [
-    'creative',
-    'creativity',
-    'artist',
-    'artistic',
-    'writing',
-    'writer',
-    'design',
-    'music'
-  ],
-  manifestation: [
-    'manifestation',
-    'manifest',
-    'manifesting',
-    'law of attraction'
-  ],
-  personal: [
-    'personal',
-    'personal growth',
-    'identity',
-    'self-worth',
-    'self worth',
-    'milestone',
-    'confidence'
-  ],
-  leadership: [
-    'leadership',
-    'leader',
-    'leading'
-  ],
-  parenting: [
-    'parenting',
-    'parent',
-    'mother',
-    'father',
-    'child',
-    'children',
-    'kids'
-  ],
-  legal: [
-    'legal',
-    'lawsuit',
-    'court',
-    'trial',
-    'judge',
-    'attorney',
-    'lawyer',
-    'settlement'
-  ],
-  calling: [
-    'calling',
-    'vocation',
-    'vocational'
-  ],
-  boundaries: [
-    'boundary',
-    'boundaries'
-  ],
-  clarity: [
-    'clarity'
-  ],
-  acceptance: [
-    'acceptance',
-    'letting go',
-    'let go',
-    'surrender'
-  ],
-  values: [
-    'values',
-    'integrity',
-    'principles'
-  ],
-  'life-cycle': [
-    'life cycle',
-    'life-cycle'
-  ]
-};
-
-const GRAPH_RAG_CONTEXT_PRIORITY = [
-  'grief',
-  'health',
-  'relationship',
-  'career',
-  'transition',
-  'shadow',
-  'spiritual',
-  'creative',
-  'manifestation',
-  'personal',
-  'leadership',
-  'parenting',
-  'legal',
-  'calling',
-  'boundaries',
-  'clarity',
-  'acceptance',
-  'values',
-  'life-cycle'
-];
 
 // The accepted question (2,000) and reflections (5,000), existing six bounded
 // focus labels, and section labels all fit within the embedding input boundary.
@@ -467,117 +99,89 @@ export function buildContextInferenceInput({
   });
 }
 
-const CONTEXT_WORDS = new Set(
-  [...Object.values(CONTEXT_KEYWORDS).flat(), ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat()]
-    .flatMap(keyword => keyword.match(/[\p{L}\p{N}]+/gu) || [])
-);
-
-function normalizeContextWords(text) {
-  return (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).map(word => {
-    // Normalize common plurals only when their singular is in our vocabulary.
-    // This preserves jobs/companies/bosses without matching rest in interests.
-    if (word.endsWith('ies') && CONTEXT_WORDS.has(`${word.slice(0, -3)}y`)) {
-      return `${word.slice(0, -3)}y`;
-    }
-    const esStem = word.slice(0, -2);
-    if (word.endsWith('es') && /(?:s|x|z|ch|sh)$/.test(esStem) && CONTEXT_WORDS.has(esStem)) {
-      return esStem;
-    }
-    if (word.endsWith('s') && !word.endsWith('ss') && CONTEXT_WORDS.has(word.slice(0, -1))) {
-      return word.slice(0, -1);
-    }
-    return word;
-  }).join(' ');
-}
-
-function countMatches(text, keywords) {
-  if (!text) return 0;
-  // Match complete Unicode words; punctuation and hyphens separate phrases.
-  // A substring such as "rest" inside "interests" is not context evidence.
-  const words = ` ${normalizeContextWords(text)} `;
-  let score = 0;
-  const phrases = new Set(keywords.map(normalizeContextWords));
-  for (const phrase of phrases) {
-    if (phrase && words.includes(` ${phrase} `)) {
-      score += phrase.includes(' ') ? 3 : 2;
-    }
-  }
-  return score;
-}
-
-function scoreContextSource(text, vocabulary) {
-  return Object.fromEntries(Object.entries(vocabulary).map(([key, keywords]) => [key, countMatches(text, keywords)]));
-}
-
-function leadingContexts(scores) {
-  const highest = Math.max(0, ...Object.values(scores));
-  return highest > 0 ? Object.keys(scores).filter(key => scores[key] === highest) : [];
-}
-
 /**
  * Select topic evidence before applying spread defaults. Sources remain separate
  * so a long reflection or saved preference cannot outvote a clear question.
  * The original fields are still supplied independently to the narrative prompt.
  */
-export function resolveContextSelection({ userQuestion, reflectionsText, focusAreas, contextInputText } = {}, spreadKey, options = {}) {
-  // Legacy callers may only have a combined context string. Treat it as lower
-  // priority background, never as the question when structured fields exist.
-  const hasStructuredBackground = typeof reflectionsText === 'string' || Array.isArray(focusAreas);
-  const background = !hasStructuredBackground && contextInputText !== userQuestion
-    ? contextInputText
-    : reflectionsText;
-  const sources = [
-    { source: 'question', text: sanitizeContextSegment(userQuestion, USER_QUESTION_MAX_LENGTH) },
-    { source: 'reflections', text: sanitizeContextSegment(background, REFLECTIONS_TEXT_MAX_LENGTH) },
-    { source: 'focusAreas', text: normalizeFocusAreas(focusAreas).join(', ') }
-  ].map(source => ({
-    ...source,
-    reading: scoreContextSource(source.text, CONTEXT_KEYWORDS),
-    graph: scoreContextSource(source.text, GRAPH_RAG_CONTEXT_KEYWORDS)
-  }));
-  const hasEvidence = source => [...Object.values(source.reading), ...Object.values(source.graph)].some(score => score > 0);
-  const questionHasTopic = countMatches(sources[0].text, QUESTION_TOPIC_KEYWORDS) > 0;
-  const selected = sources.find(source => hasEvidence(source) && (source.source !== 'question' || questionHasTopic))
-    || (hasEvidence(sources[0]) ? sources[0] : null);
-  const normalizedSpread = typeof spreadKey === 'string' ? spreadKey.toLowerCase() : '';
-  if (!selected) {
-    return {
-      context: inferContext('', spreadKey, options),
-      graphRAGContext: inferGraphRAGContext('', spreadKey),
-      source: SPREAD_CONTEXT_DEFAULTS[normalizedSpread] || GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread] ? 'spread' : 'none',
-      clarifiedBy: null,
-      retrievalQuery: buildContextInferenceInput({ userQuestion: sources[0].text, reflectionsText: sources[1].text })
-    };
-  }
+function leadingContexts(scores) {
+  const highest = Math.max(0, ...Object.values(scores));
+  return highest > 0 ? Object.keys(scores).filter((key) => scores[key] === highest) : [];
+}
 
+/**
+ * Resolve a private version-1 server decision from complete separate sources.
+ * retrievalContentText is the content-only lexical companion to retrievalQuery.
+ * Legacy contextInputText is lower-fidelity compatibility data, considered only
+ * when structured background fields are absent. Never accept this result on wire.
+ * @returns {{version: 1, context: string, graphRAGContext: string, source: string,
+ * clarifiedBy: string|null, selectedSourceIds: string[], retrievalQuery: string,
+ * retrievalContentText: string, queryCoverage: Object[], excludedContexts: Object}}
+ */
+export function resolveContextSelection(input = {}, spreadKey, options = {}) {
+  const hasStructured = Array.isArray(input.sources) || typeof input.reflectionsText === 'string'
+    || Array.isArray(input.focusAreas) || Array.isArray(input.cardsInfo) || input.decisionPaths;
+  const sources = Array.isArray(input.sources) ? input.sources : prepareReadingContextSources({
+    ...input,
+    spreadKey,
+    reflectionsText: !hasStructured && input.contextInputText !== input.userQuestion
+      ? input.contextInputText : input.reflectionsText
+  });
+  const excludedContexts = Object.fromEntries([['reading', CONTEXT_KEYWORDS], ['graph', GRAPH_RAG_CONTEXT_KEYWORDS]].map(([taxonomy, vocabulary]) => [taxonomy,
+    Object.entries(vocabulary).filter(([, keywords]) => sources.some(entry => entry.kind === 'question' && contextPhraseMatches(entry.text, keywords, { includeExcluded: true }).some(match => match.excluded))).map(([key]) => key)
+  ]));
+  const group = (source, entries) => ({
+    source, entries,
+    reading: scores(entries, CONTEXT_KEYWORDS, excludedContexts.reading),
+    graph: scores(entries, GRAPH_RAG_CONTEXT_KEYWORDS, excludedContexts.graph)
+  });
+  // Count distinct phrases across the complete sources, never repeated copies.
+  function scores(entries, vocabulary, excluded) {
+    return Object.fromEntries(Object.entries(vocabulary).map(([key, keywords]) => {
+      const phrases = new Set(entries.flatMap((entry) => positiveContextPhrases(entry.text, keywords)));
+      return [key, excluded.includes(key) ? 0 : [...phrases].reduce((sum, phrase) => sum + (phrase.includes(' ') ? 3 : 2), 0)];
+    }));
+  }
+  const question = group('question', sources.filter((entry) => entry.kind === 'question'));
+  const notes = group('reflections', sources.filter((entry) => ['reflection', 'cardReflection'].includes(entry.kind)));
+  const paths = group('decisionPaths', sources.filter((entry) => entry.kind === 'decisionPath'));
+  const focus = group('focusAreas', sources.filter((entry) => entry.kind === 'savedFocus'));
+  const hasEvidence = (entry) => [...Object.values(entry.reading), ...Object.values(entry.graph)].some((score) => score > 0);
+  const specificQuestion = question.entries.some((entry) => positiveContextPhrases(entry.text, QUESTION_TOPIC_KEYWORDS).length > 0);
+  const selected = (specificQuestion && hasEvidence(question) ? question : null)
+    || [notes, paths, focus].find(hasEvidence);
+  const normalizedSpread = typeof spreadKey === 'string' ? spreadKey.toLowerCase() : '';
   let clarifiedBy = null;
-  const pick = (taxonomy, priority, spreadDefault) => {
+  const contributors = new Set();
+  const pick = (taxonomy, priority) => {
     let candidates = leadingContexts(selected[taxonomy]);
-    if (selected.source === 'question' && candidates.length > 1) {
-      const reflectionScores = Object.fromEntries(candidates.map(key => [key, sources[1][taxonomy][key]]));
-      const clarified = leadingContexts(reflectionScores);
-      if (clarified.length && clarified.length < candidates.length) {
-        candidates = clarified;
-        clarifiedBy = 'reflections';
+    if (selected === question && candidates.length > 1) {
+      for (const background of [notes, paths]) {
+        const narrowed = leadingContexts(Object.fromEntries(candidates.map((key) => [key, background[taxonomy][key]])));
+        if (narrowed.length && narrowed.length < candidates.length) {
+          candidates = narrowed;
+          clarifiedBy = background.source;
+          background.entries.forEach(entry => contributors.add(entry));
+        }
       }
     }
-    if (candidates.includes(spreadDefault)) return spreadDefault;
-    return priority.find(key => candidates.includes(key)) || candidates[0] || 'general';
+    return priority.find((key) => candidates.includes(key)) || candidates[0] || 'general';
   };
-  const context = normalizeContext(pick('reading', ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual'], SPREAD_CONTEXT_DEFAULTS[normalizedSpread]), options);
-  const graphRAGContext = pick('graph', GRAPH_RAG_CONTEXT_PRIORITY, GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread]);
-  const reflectionHasEvidence = [...Object.values(sources[1].reading), ...Object.values(sources[1].graph)].some(score => score > 0);
-  const reflectionIsRelevant = !reflectionHasEvidence || sources[1].reading[context] > 0 || sources[1].graph[graphRAGContext] > 0;
-  const retrievalQuery = buildContextInferenceInput({
-    userQuestion: sources[0].text,
-    // Question-led retrieval keeps a bounded amount of relevant detail so a long
-    // reflection cannot dominate semantic ranking. Full reflections stay in the prompt.
-    reflectionsText: selected.source === 'question'
-      ? (reflectionIsRelevant ? sanitizeContextSegment(sources[1].text, 750) : '')
-      : sources[1].text,
-    focusAreas: selected.source === 'focusAreas' ? focusAreas : []
-  });
-  return { context, graphRAGContext, source: selected.source, clarifiedBy, retrievalQuery };
+  const result = {
+    version: 1,
+    excludedContexts,
+    context: selected
+      ? normalizeContext(pick('reading', ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual']), options)
+      : inferContext('', spreadKey, options),
+    graphRAGContext: selected ? pick('graph', GRAPH_RAG_CONTEXT_PRIORITY) : inferGraphRAGContext('', spreadKey),
+    source: selected?.source || (SPREAD_CONTEXT_DEFAULTS[normalizedSpread] || GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread] ? 'spread' : 'none'),
+    clarifiedBy,
+    selectedSourceIds: []
+  };
+  result.selectedSourceIds = [...new Set([...(selected?.entries || []), ...contributors])].filter((entry) => positiveContextPhrases(entry.text,
+    [...(CONTEXT_KEYWORDS[result.context] || []), ...(GRAPH_RAG_CONTEXT_KEYWORDS[result.graphRAGContext] || [])]).length > 0).map((entry) => entry.id);
+  const query = buildReadingRetrievalQuery(sources, result, options);
+  return { ...result, retrievalQuery: query.text, retrievalContentText: query.contentText, queryCoverage: query.coverage };
 }
 
 export function inferContext(userQuestion, spreadKey, options = {}) {

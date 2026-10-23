@@ -11,3 +11,5 @@ export const USER_QUESTION_MAX_LENGTH = 2000;
 export const REFLECTIONS_TEXT_MAX_LENGTH = 5000;
 // A reading cannot contain more cards than exist in the deck (78).
 export const MAXIMUM_CARD_COUNT = 78;
+
+export const DECISION_PATH_MAX_LENGTH = 80;

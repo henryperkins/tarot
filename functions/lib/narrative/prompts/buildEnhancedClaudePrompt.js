@@ -1,3 +1,9 @@
+import { buildGraphContext } from '../../graphContext.js';
+import { prepareReadingContextSources } from '../../readingContextSources.js';
+import { selectMemoriesForReading } from '../../readingMemorySelection.js';
+import { parseMemoryBlocks } from '../../userMemory.js';
+import { projectPassageForDeck } from '../../graphRAGProjection.js';
+import { resolveDecisionPathContext } from '../../decisionPathContext.js';
 import { prepareUserContext, summarizeUserContext } from './userContext.js';
 import { normalizeContext } from '../helpers.js';
 import {
@@ -16,7 +22,8 @@ import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from '
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
-import { buildUserContextSourceUsage } from '../sourceUsage.js';
+import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../../../shared/readingSourceUsage.js';
+import { buildMemorySourceUsage, buildUserContextSourceUsage } from '../sourceUsage.js';
 
 function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostics = [] }) {
   const candidates = [];
@@ -27,10 +34,10 @@ function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostic
     }
   };
 
-  addCandidate(themes?.deckStyle, 'themes');
-  addCandidate(spreadInfo?.deckStyle, 'spreadInfo');
   addCandidate(deckStyle, 'options');
+  addCandidate(spreadInfo?.deckStyle, 'spreadInfo');
   addCandidate(cardsInfo?.find((c) => c?.deckStyle)?.deckStyle, 'cards');
+  addCandidate(themes?.deckStyle, 'themes');
 
   const resolved = candidates.length > 0 ? candidates[0].value : 'rws-1909';
   const uniqueValues = Array.from(new Set(candidates.map((c) => c.value)));
@@ -413,14 +420,16 @@ export function buildEnhancedClaudePrompt({
   cardsInfo,
   userQuestion,
   userContextInputStats = {},
+  decisionPaths,
   contextInputText,
+  contextSelection: suppliedContextSelection = null,
   reflectionsText,
   themes,
   spreadAnalysis,
   context,
   visionInsights,
   visionEvidence = [],
-  deckStyle = 'rws-1909',
+  deckStyle,
   graphRAGPayload = null,
   ephemerisContext = null,
   ephemerisForecast = null,
@@ -430,6 +439,9 @@ export function buildEnhancedClaudePrompt({
   promptBudgetEnv = null,
   personalization = null,
   memories = [],
+  useSavedMemories = true,
+  memorySelection = null,
+  memoryAccessOwnerId = null,
   enableSemanticScoring = null,
   subscriptionTier = null,
   variantOverrides = null
@@ -444,15 +456,31 @@ export function buildEnhancedClaudePrompt({
     : { ...baseThemes, reversalDescription: { ...DEFAULT_REVERSAL_DESCRIPTION } };
 
   const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
-  const contextSelection = resolveContextSelection({
+  const pathContext = resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths });
+  decisionPaths = pathContext.decisionPaths;
+  userContextInputStats = { ...pathContext.inputStats, ...userContextInputStats };
+  const contextSelection = suppliedContextSelection || resolveContextSelection({
     userQuestion,
     reflectionsText,
+    ...(spreadKey === 'decision' ? { decisionPaths } : {}),
+    ...(spreadKey === 'decision' || reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
     focusAreas: personalization?.focusAreas,
     contextInputText
   }, spreadKey);
+  // Supplied selections are private server arguments frozen before provider
+  // attempts. Budgets can drop notes; rebuilding must not select them again.
+  const selectedMemories = useSavedMemories === false
+    ? { memories: [], candidateCount: 0, exclusionReasons: {} }
+    : memorySelection || selectMemoriesForReading(memories, {
+      sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
+      contextSelection,
+      displayName: personalization?.displayName, personalization,
+      userId: memoryAccessOwnerId
+    });
+  memories = selectedMemories.memories;
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
-  const normalizedContextValue = normalizeContext(context, {
+  const normalizedContextValue = normalizeContext(contextSelection.context, {
     onUnknown: (message) => diagnostics.push(message),
     allowFallback: true,
     fallback: 'general'
@@ -470,9 +498,14 @@ export function buildEnhancedClaudePrompt({
     cardsInfo,
     diagnostics
   });
-  if (!activeThemes.deckStyle && resolvedDeckStyle) {
-    activeThemes.deckStyle = resolvedDeckStyle;
-  }
+  activeThemes.deckStyle = resolvedDeckStyle;
+  const graphEnv = resolveGraphEnv(promptBudgetEnv);
+  activeThemes.knowledgeGraph = {
+    ...activeThemes.knowledgeGraph,
+    narrativeHighlights: isGraphRAGEnabled(graphEnv)
+      ? buildGraphContext(cardsInfo, { deckStyle: resolvedDeckStyle })?.narrativeHighlights || []
+      : []
+  };
 
   const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
 
@@ -490,7 +523,6 @@ export function buildEnhancedClaudePrompt({
     activeThemes?.knowledgeGraph?.graphRAGPayload ||
     null;
   let graphRAGInjectionDisabled = false;
-  const graphEnv = resolveGraphEnv(promptBudgetEnv);
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
@@ -510,7 +542,10 @@ export function buildEnhancedClaudePrompt({
         // be called in performSpreadAnalysis() and passed via graphRAGPayload
         const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
           maxPassages,
+          deckStyle: resolvedDeckStyle,
+          env: promptBudgetEnv,
           userQuery: graphRAGContextInput || userQuestion || '',
+          keywordQuery: selection.retrievalContentText,
           questionContext
         });
 
@@ -522,6 +557,8 @@ export function buildEnhancedClaudePrompt({
           questionContext,
           contextSource: selection.source,
           contextClarifiedBy: selection.clarifiedBy,
+          contextSelection: sanitizeContextSelection(selection),
+          queryCoverage: sanitizeQueryCoverage(selection.queryCoverage),
           semanticScoringRequested: semanticRequested,
           semanticScoringUsed,
           semanticScoringFallback,
@@ -587,10 +624,32 @@ export function buildEnhancedClaudePrompt({
     }
   }
 
-  const userContextFields = prepareUserContext(userQuestion, reflectionsText, cardsInfo, userContextInputStats);
+  if (effectiveGraphRAGPayload) {
+    const provided = Array.isArray(effectiveGraphRAGPayload.passages) ? effectiveGraphRAGPayload.passages : [];
+    const projected = provided.map((passage, index) => {
+      const candidate = projectPassageForDeck(passage, resolvedDeckStyle);
+      return candidate ? { ...candidate, selectedPayloadIndex: index } : null;
+    }).filter(Boolean);
+    const unverified = (provided.length > 0 && !projected.length)
+      || (!provided.length && Boolean(effectiveGraphRAGPayload.formattedBlock));
+    effectiveGraphRAGPayload = {
+      ...effectiveGraphRAGPayload,
+      passages: projected,
+      initialPassageCount: provided.length,
+      unverifiedReferenceProvenance: unverified,
+      retrievalSummary: {
+        ...effectiveGraphRAGPayload.retrievalSummary,
+        projectionRejected: (effectiveGraphRAGPayload.retrievalSummary?.projectionRejected || 0) + provided.length - projected.length,
+        ...(unverified ? { skippedReason: 'unverified_reference_provenance' } : {})
+      }
+    };
+  }
+
+  const userContextFields = prepareUserContext(userQuestion, reflectionsText, cardsInfo, userContextInputStats, decisionPaths);
 
   const baseControls = {
     userContextFields,
+    decisionPaths,
     // Source precedence contract:
     // spread/cards > validated matched vision > current user context > stored memory > GraphRAG > ephemeris.
     // These controls can slim or suppress enrichment, but must not alter drawn-card identity/positions.
@@ -599,7 +658,7 @@ export function buildEnhancedClaudePrompt({
     ephemerisForecast: astroForecast,
     transitResonances: astroTransits,
     includeGraphRAG: !graphRAGInjectionDisabled,
-    graphRAGSummaryOnly: false,
+    graphRAGSummaryOnly: Boolean(effectiveGraphRAGPayload?.unverifiedReferenceProvenance && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)),
     includeEphemeris: astroRelevant,
     includeForecast: astroRelevant,
     includeDeckContext: true,
@@ -950,6 +1009,8 @@ export function buildEnhancedClaudePrompt({
     // Spread key used for prompt structure selection (from getSpreadKey)
     spreadKey,
     deckStyle: resolvedDeckStyle,
+    contextSelection: sanitizeContextSelection(contextSelection),
+    queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
     context: {
       provided: context || null,
       normalized: normalizedContext,
@@ -1004,32 +1065,19 @@ export function buildEnhancedClaudePrompt({
     const passagesInPrompt = graphRAGParse.status === 'complete'
       ? graphRAGParse.passageCount
       : null;
-    const formattedBlockFallbackPresent = typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim().length > 0;
     const graphRAGIncludedFull = graphragEnabled &&
       controls.includeGraphRAG !== false &&
       graphRAGParse.status === 'complete' &&
-      graphRAGBlockPresent &&
-      (
-        (typeof passagesInPrompt === 'number' && passagesInPrompt > 0) ||
-        formattedBlockFallbackPresent
-      );
+      graphRAGBlockPresent && passagesInPrompt > 0;
     const graphRAGIncludedSummary = graphragEnabled &&
       controls.graphRAGSummaryOnly === true &&
       graphRAGSummaryParse.complete === true;
     const graphRAGInjectionMode = graphRAGIncludedFull
       ? 'full'
       : (graphRAGIncludedSummary ? 'summary' : 'none');
-    const passagesUsed = graphRAGParse.status === 'complete'
-      ? (
-        graphRAGIncludedFull
-          ? (
-            typeof passagesInPrompt === 'number' && passagesInPrompt > 0
-              ? passagesInPrompt
-              : (initialPassageCount > 0 ? initialPassageCount : null)
-          )
-          : 0
-      )
-      : (graphRAGIncludedSummary ? 0 : null);
+    const passagesUsed = graphRAGIncludedFull
+      ? Math.min(graphRAGParse.passageCount, passagesAfterSlimming)
+      : 0;
     const trimmedCount = typeof passagesUsed === 'number'
       ? Math.max(0, initialPassageCount - passagesUsed)
       : null;
@@ -1063,6 +1111,9 @@ export function buildEnhancedClaudePrompt({
 
     retrievalSummary.passagesProvided = initialPassageCount;
     retrievalSummary.passagesUsedInPrompt = passagesUsed;
+    retrievalSummary.retainedPassageCount = passagesUsed;
+    retrievalSummary.selectedDeck = resolvedDeckStyle;
+    retrievalSummary.sourceDecks = [...new Set((payload.passages || []).map(passage => passage.sourceDeck).filter(Boolean))];
     retrievalSummary.parseStatus = graphRAGParse.status;
     retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
     retrievalSummary.summaryBlockPresent = graphRAGSummaryParse.present;
@@ -1074,12 +1125,17 @@ export function buildEnhancedClaudePrompt({
     if (payload.budgetTrimmedCount) {
       retrievalSummary.truncatedForBudget = true;
       retrievalSummary.budgetTrimmedFrom = payload.budgetTrimmedFrom ?? initialPassageCount;
+      // Historical budgetTrimmedTo describes ranking, before final block removal.
       retrievalSummary.budgetTrimmedTo = payload.budgetTrimmedTo ?? passagesUsed;
+      retrievalSummary.intermediateBudgetPassageCount = retrievalSummary.budgetTrimmedTo;
       if (payload.rankingStrategy) {
         retrievalSummary.budgetTrimmedStrategy = payload.rankingStrategy;
       }
     }
+    retrievalSummary.queryCoverage = promptMeta.queryCoverage;
+    retrievalSummary.contextSelection = promptMeta.contextSelection;
     retrievalSummary.disabledByEnv = !graphragEnabled;
+    if (!graphragEnabled) retrievalSummary.skippedReason = 'disabled_by_env';
     retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
     if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
       if (!graphragEnabled) {
@@ -1158,18 +1214,40 @@ export function buildEnhancedClaudePrompt({
   }
 
   const userContextUsage = buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem);
-  const cardRetention = Object.entries(contextRetention).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
-  userContextUsage.cardReflectionsProvided = cardRetention.some((field) => field.originalLength > 0);
-  userContextUsage.cardReflectionsUsed = cardRetention.some((field) => field.includedLength > 0);
-  if (userContextUsage.cardReflectionsProvided) {
+  for (const [group, prefix] of [['cardReflections', 'card-'], ['callerInterpretations', 'interpretation-']]) {
+    const fields = Object.entries(contextRetention).filter(([key]) => key.startsWith(prefix)).map(([, field]) => field);
+    const provided = fields.some(field => field.originalLength > 0);
+    const used = fields.some(field => field.includedLength > 0);
+    userContextUsage[`${group}Provided`] = provided;
+    userContextUsage[`${group}Used`] = used;
+    if (!provided) continue;
     userContextUsage.requested = true;
-    userContextUsage.providedInputs.push('cardReflections');
-    if (userContextUsage.cardReflectionsUsed) {
+    userContextUsage.providedInputs.push(group);
+    if (used) {
       userContextUsage.used = true;
-      userContextUsage.usedInputs.push('cardReflections');
+      userContextUsage.usedInputs.push(group);
       userContextUsage.skippedReason = null;
     } else {
-      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, cardReflections: cardRetention.some((field) => field.budgetTruncated) ? 'removed_for_budget' : 'sanitized_empty' };
+      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, [group]: fields.some(field => field.budgetTruncated) ? 'removed_for_budget' : 'sanitized_empty' };
+      if (!userContextUsage.used) userContextUsage.skippedReason = 'provided_but_not_used';
+    }
+  }
+
+  for (const key of ['pathA', 'pathB']) {
+    const field = contextRetention[key];
+    const provided = Boolean(field?.originalLength);
+    const used = Boolean(field?.includedLength);
+    userContextUsage[`${key}Provided`] = provided;
+    userContextUsage[`${key}Used`] = used;
+    if (!provided) continue;
+    userContextUsage.requested = true;
+    userContextUsage.providedInputs.push(key);
+    if (used) {
+      userContextUsage.used = true;
+      userContextUsage.usedInputs.push(key);
+      userContextUsage.skippedReason = null;
+    } else {
+      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, [key]: field.reason || 'removed_for_budget' };
       if (!userContextUsage.used) userContextUsage.skippedReason = 'provided_but_not_used';
     }
   }
@@ -1180,7 +1258,7 @@ export function buildEnhancedClaudePrompt({
     ? (controls.graphRAGPayload?.passages || []).slice(0, promptMeta.graphRAG.passagesUsedInPrompt || 0)
     : [];
   const passageIndices = retainedPassages
-    .map(passage => effectiveGraphRAGPayload?.passages?.indexOf(passage) ?? -1)
+    .map(passage => passage.selectedPayloadIndex ?? -1)
     .filter(index => index >= 0);
 
   const patternLines = built.sourceUsageSignals?.patternLines || [];
@@ -1211,6 +1289,8 @@ export function buildEnhancedClaudePrompt({
       fields: contextRetention
     },
     graphRAG: {
+      ...sanitizeGraphRAGDiagnostics(promptMeta.graphRAG),
+      retainedPassageCount: promptMeta.graphRAG?.passagesUsedInPrompt ?? 0,
       requested: hasGraphRAGSource,
       used: graphRAGMode !== 'none',
       mode: graphRAGMode,
@@ -1251,6 +1331,21 @@ export function buildEnhancedClaudePrompt({
     }
   };
 
+  const retainedSlots = [...parseMemoryBlocks(finalUser).keys()];
+  const memoryRetention = {
+    retainedSlots,
+    slotToId: Object.fromEntries(memories.flatMap((memory, index) => memory.id ? [[`memory-${index}`, memory.id]] : []))
+  };
+  promptMeta.memories = {
+    candidateCount: selectedMemories.candidateCount,
+    selectedCount: memories.length,
+    retainedCount: retainedSlots.length,
+    exclusionReasons: selectedMemories.exclusionReasons
+  };
+
+  promptMeta.sourceUsage.memories = buildMemorySourceUsage(promptMeta.memories.candidateCount, memories.length, retainedSlots.length);
+  if (useSavedMemories === false) promptMeta.sourceUsage.memories.skippedReason = 'disabled_by_request';
+
   // Return final prompts (potentially truncated to fit hard cap)
-  return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, contextDiagnostics: diagnostics };
+  return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, memoryRetention, contextDiagnostics: diagnostics };
 }

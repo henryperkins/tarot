@@ -1,3 +1,5 @@
+import { resolveDecisionPathContext } from './decisionPathContext.js';
+import { sanitizeContextSelection, sanitizeQueryCoverage } from '../../shared/readingSourceUsage.js';
 /**
  * Spread Analysis Orchestration
  *
@@ -189,6 +191,7 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
     passages: [],
     formattedBlock: null,
     retrievalSummary: {
+      retrievalMode: reason === 'graphrag-disabled-env' ? 'disabled' : null,
       graphKeysProvided: Boolean(graphKeys),
       patternsDetected,
       passagesRetrieved: 0,
@@ -370,18 +373,25 @@ async function performSpreadAnalysisInner(
   // Step 3: GraphRAG Passage Retrieval
   // =========================================================================
   try {
-    const graphKeys = themes?.knowledgeGraph?.graphKeys;
-    if (graphKeys) {
-      const contextInputText =
-        typeof options.contextInputText === 'string' && options.contextInputText.trim()
-          ? options.contextInputText
-          : (options.userQuestion || '');
-      const selection = resolveContextSelection(options.contextSources || {
+    const contextInputText =
+      typeof options.contextInputText === 'string' && options.contextInputText.trim()
+        ? options.contextInputText
+        : (options.userQuestion || '');
+    const hasLegacyDecisionPaths = !options.contextSelection && spreadKey === 'decision'
+      && resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths: options.decisionPaths }).sources.length > 0;
+    const selection = options.contextSelection || resolveContextSelection({
+      ...(hasLegacyDecisionPaths ? { cardsInfo } : {}),
+      ...(options.contextSources || {
         userQuestion: options.userQuestion,
+        ...(hasLegacyDecisionPaths || options.reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
         reflectionsText: options.reflectionsText,
+        decisionPaths: options.decisionPaths,
         focusAreas: options.focusAreas,
         contextInputText
-      }, spreadKey);
+      })
+    }, spreadKey);
+    const graphKeys = themes?.knowledgeGraph?.graphKeys;
+    if (graphKeys) {
       const questionContext = selection.graphRAGContext;
       const graphQuery = selection.retrievalQuery;
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
@@ -392,14 +402,17 @@ async function performSpreadAnalysisInner(
         (isAutoSemanticScoring && semanticAvailable);
       const enableSemanticScoring = requestedSemanticScoring && semanticAvailable;
 
-      if (requestedSemanticScoring && !semanticAvailable) {
+      const retrievalMode = graphRAG.resolveRetrievalMode({ graphEnabled: graphRAG.isGraphRAGEnabled(options.env), qualityFilteringDisabled: options.env?.DISABLE_QUALITY_FILTERING === true || options.env?.DISABLE_QUALITY_FILTERING === 'true', semanticRequested: requestedSemanticScoring, keywordQuery: selection.retrievalContentText });
+
+      if (retrievalMode === 'semantic' && !semanticAvailable) {
         console.warn(
           `[${requestId}] Semantic scoring requested but embeddings are unavailable (no Workers AI binding); falling back to keyword scoring.`
         );
       }
 
-      if (!graphRAG.isGraphRAGEnabled(options.env)) {
+      if (retrievalMode === 'disabled') {
         graphRAGPayload = buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSemanticScoring, 'graphrag-disabled-env');
+        Object.assign(graphRAGPayload.retrievalSummary, { retrievalMode: 'disabled', contextSelection: sanitizeContextSelection(selection), queryCoverage: sanitizeQueryCoverage(selection.queryCoverage), questionContext, contextSource: selection.source, contextClarifiedBy: selection.clarifiedBy });
         themes.knowledgeGraph = themes.knowledgeGraph || { graphKeys: graphKeys || null };
         themes.knowledgeGraph.graphRAGPayload = graphRAGPayload;
       } else {
@@ -408,42 +421,23 @@ async function performSpreadAnalysisInner(
         const maxPassages = graphRAG.getPassageCountForSpread(spreadKey || 'general', tier);
         console.log(`[${requestId}] GraphRAG passage limit: ${maxPassages} (tier: ${tier})`);
 
-        let passages;
-        let retrievalSummary;
-
-        if (requestedSemanticScoring) {
-          // Preserve quality scoring and fallback telemetry even without embeddings.
-          console.log(`[${requestId}] Using quality-aware GraphRAG retrieval (semantic scoring requested)`);
-          passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
-            maxPassages,
-            userQuery: graphQuery,
-            questionContext,
-            minRelevanceScore: 0.3,
-            enableDeduplication: true,
-            enableSemanticScoring: true,
-            env: options.env
-          });
-          retrievalSummary = graphRAG.buildQualityRetrievalSummary(graphKeys, passages);
-
-          // Log average relevance for monitoring
-          if (retrievalSummary.qualityMetrics?.averageRelevance) {
-            console.log(
-              `[${requestId}] GraphRAG quality: ${passages.length} passages, avg relevance: ${(retrievalSummary.qualityMetrics.averageRelevance * 100).toFixed(1)}%`
-            );
-          }
-        } else {
-          // Fall back to standard retrieval (keyword-only)
-          passages = graphRAG.retrievePassages(graphKeys, {
-            maxPassages,
-            userQuery: graphQuery,
-            questionContext
-          });
-          retrievalSummary = graphRAG.buildRetrievalSummary(graphKeys, passages);
-        }
+        const passages = await graphRAG.retrievePassagesWithQuality(graphKeys, {
+          maxPassages,
+          deckStyle: options.deckStyle || 'rws-1909',
+          userQuery: graphQuery,
+          keywordQuery: selection.retrievalContentText,
+          questionContext,
+          minRelevanceScore: 0.3,
+          enableDeduplication: true,
+          enableSemanticScoring: requestedSemanticScoring,
+          signal: options.signal,
+          env: options.env
+        });
+        let retrievalSummary = graphRAG.buildQualityRetrievalSummary(graphKeys, passages);
 
         const semanticScoringUsed = retrievalSummary?.qualityMetrics?.semanticScoringUsed === true;
         const semanticScoringFallback = requestedSemanticScoring && !semanticScoringUsed;
-        const semanticScoringFallbackReason = !semanticScoringFallback
+        const semanticScoringFallbackReason = retrievalSummary.semanticScoringFallbackReason || (!semanticScoringFallback
           ? null
           : !semanticAvailable
             ? 'embeddings-not-configured'
@@ -453,13 +447,15 @@ async function performSpreadAnalysisInner(
                 ? 'quality-filtering-disabled'
                 : !retrievalSummary?.qualityMetrics?.semanticScoringAttempted
                   ? 'no-query'
-                  : 'embeddings-failed';
+                  : 'embeddings-failed');
 
         retrievalSummary = {
           ...retrievalSummary,
           questionContext,
           contextSource: selection.source,
           contextClarifiedBy: selection.clarifiedBy,
+          contextSelection: sanitizeContextSelection(selection),
+          queryCoverage: sanitizeQueryCoverage(selection.queryCoverage),
           semanticScoringRequested: requestedSemanticScoring,
           semanticScoringUsed,
           semanticScoringFallback,
@@ -467,6 +463,7 @@ async function performSpreadAnalysisInner(
         };
 
         const formattedBlock = graphRAG.formatPassagesForPrompt(passages, {
+          deckStyle: options.deckStyle || 'rws-1909',
           includeSource: true,
           markdown: true
         });
@@ -499,12 +496,13 @@ async function performSpreadAnalysisInner(
         null,
         requestedSemanticScoring,
         Boolean(options.enableSemanticScoring),
-        'missing-graph-keys'
+        graphRAG.isGraphRAGEnabled(options.env) ? 'missing-graph-keys' : 'graphrag-disabled-env'
       );
       themes.knowledgeGraph = themes.knowledgeGraph || { graphKeys: null };
       themes.knowledgeGraph.graphRAGPayload = graphRAGPayload;
       console.warn(`[${requestId}] GraphRAG skipped: no graph patterns detected for this spread.`);
     }
+    if (graphRAGPayload?.retrievalSummary) Object.assign(graphRAGPayload.retrievalSummary, { contextSelection: sanitizeContextSelection(selection), queryCoverage: sanitizeQueryCoverage(selection.queryCoverage), questionContext: selection.graphRAGContext, contextSource: selection.source, contextClarifiedBy: selection.clarifiedBy });
   } catch (err) {
     console.warn(`[${requestId}] performSpreadAnalysis: GraphRAG memoization failed: ${err.message}`);
   }

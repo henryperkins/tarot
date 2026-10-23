@@ -1,3 +1,4 @@
+import { persistReadingMemoryAccess } from '../../functions/lib/userMemory.js';
 import { onRequestPost as tarotReadingPost } from '../../functions/api/tarot-reading.js';
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
@@ -18,6 +19,39 @@ const MAX_STORED_EVENTS = 300;
 const PERSIST_BATCH_EVENTS = 15;
 const PERSIST_INTERVAL_MS = 1000;
 const HEARTBEAT_INTERVAL_MS = 15000;
+// Older versions ignore this separate key, but their job-envelope writes drop
+// run/attempt validation identities. Rollback needs a receipt-aware target or
+// drained receipts; keeping this raw key alone does not guarantee later replay.
+const MEMORY_RECEIPT_KEY = 'readingMemoryReceipt';
+const MEMORY_RETRY_DELAYS_MS = [5000, 30000];
+const MAX_MEMORY_ROUNDS = 3;
+const boundedIdentity = value => typeof value === 'string' && value.length > 0 && value.length <= 256;
+
+function normalizeMemoryUsage(value) {
+  if (!value || !boundedIdentity(value.userId) || !boundedIdentity(value.requestId)
+    || !boundedIdentity(value.attemptId) || !Number.isFinite(value.completedAt) || value.completedAt <= 0
+    || !Array.isArray(value.ids) || !value.ids.length || value.ids.length > 3
+    || value.ids.some(id => !boundedIdentity(id))) return null;
+  return Object.freeze({
+    userId: value.userId, ids: Object.freeze([...new Set(value.ids)]),
+    completedAt: value.completedAt, requestId: value.requestId, attemptId: value.attemptId
+  });
+}
+
+function receiptMatches(receipt, stored) {
+  const job = stored?.job;
+  return receipt?.version === 1 && normalizeMemoryUsage(receipt)
+    && boundedIdentity(receipt.receiptId) && boundedIdentity(receipt.runId) && boundedIdentity(receipt.jobId)
+    && receipt.jobId === job?.jobId && receipt.runId === stored.runId
+    && receipt.attemptId === stored.acceptedAttemptId
+    && job.status === 'complete' && typeof job.result?.reading === 'string' && job.result.reading.length > 0
+    && !job.result.gateBlocked && !['safe-fallback', 'safety-gate'].includes(job.result.provider)
+    && receipt.requestId === job.result.requestId
+    && Number.isFinite(job.expiresAt) && job.expiresAt > 0
+    && (!job.principalUserId || receipt.userId === job.principalUserId)
+    && Number.isInteger(receipt.attempts) && receipt.attempts >= 0 && receipt.attempts <= MAX_MEMORY_ROUNDS
+    && (receipt.nextAttemptAt === null || (Number.isFinite(receipt.nextAttemptAt) && receipt.nextAttemptAt >= 0));
+}
 
 function buildError(status, message) {
   return jsonResponse({ error: message }, { status });
@@ -73,6 +107,12 @@ export class ReadingJob {
     this.persistEventCount = 0;
     this.lastPersistAt = 0;
     this.cancelled = false;
+    this.pendingMemoryUsage = null;
+    this.memoryReceipt = null;
+    this.runId = null;
+    this.acceptedAttemptId = null;
+    this.storageTail = Promise.resolve();
+    this.receiptDrain = null;
     this.job = emptyJob();
     this.readingResultId = null;
     this.visualBinding = null;
@@ -85,6 +125,8 @@ export class ReadingJob {
       const stored = await this.state.storage.get('job');
       if (stored) {
         this.job = stored.job || this.job;
+        this.runId = stored.runId || null;
+        this.acceptedAttemptId = stored.acceptedAttemptId || null;
         this.readingResultId = stored.readingResultId || null;
         this.visualBinding = stored.visualBinding || null;
         this.visualJobToken = stored.visualJobToken || null;
@@ -94,7 +136,13 @@ export class ReadingJob {
         this.textSoFar = typeof stored.textSoFar === 'string' ? stored.textSoFar : '';
         this.truncatedBeforeId = stored.truncatedBeforeId || 0;
       }
+      const receipt = await this.state.storage.get(MEMORY_RECEIPT_KEY);
+      this.memoryReceipt = receiptMatches(receipt, stored) ? receipt : null;
     });
+    const resume = this.initialized.then(() => {
+      if (this.memoryReceipt) return this.drainMemoryReceipt();
+    });
+    this.state.waitUntil?.(resume);
   }
 
   async fetch(request) {
@@ -153,10 +201,6 @@ export class ReadingJob {
 
     const payload = body?.payload;
     const jobId = body?.jobId;
-    this.readingResultId = body?.readingResultId || body?.visualBinding?.readingResultId || null;
-    this.visualBinding = body?.visualBinding || null;
-    this.visualJobToken = body?.visualJobToken || null;
-    this.visualInit = body?.visualInit || null;
     // Only in-Worker callers (readingJobs.startReadingJob, for the MCP tools)
     // send a principal; the public job-start route never does.
     const principalUserId = typeof body?.principal?.userId === 'string' && body.principal.userId
@@ -166,10 +210,22 @@ export class ReadingJob {
     if (!payload || !jobId) {
       return buildError(400, 'Missing reading payload.');
     }
+    // Another start may have won while this request's body was being read.
+    if (this.job.status === 'running' || this.job.status === 'complete') {
+      return jsonResponse({ jobId: this.job.jobId, status: this.job.status });
+    }
+    if (this.job.token && this.job.token !== token) return buildError(403, 'Invalid job token.');
+    this.readingResultId = body?.readingResultId || body?.visualBinding?.readingResultId || null;
+    this.visualBinding = body?.visualBinding || null;
+    this.visualJobToken = body?.visualJobToken || null;
+    this.visualInit = body?.visualInit || null;
 
     this.events = [];
     this.nextEventId = 1;
     this.truncatedBeforeId = 0;
+    this.textSoFar = '';
+    this.persistEventCount = 0;
+    this.lastPersistAt = 0;
 
     this.job = {
       ...this.job,
@@ -181,6 +237,7 @@ export class ReadingJob {
       updatedAt: Date.now(),
       expiresAt: null,
       error: null,
+      errorCode: null,
       meta: null,
       result: null,
       principalUserId,
@@ -188,22 +245,30 @@ export class ReadingJob {
       retentionMs: principalUserId ? MCP_JOB_TTL_MS : JOB_TTL_MS
     };
     this.cancelled = false;
+    this.pendingMemoryUsage = null;
+    this.memoryReceipt = null;
+    this.runId = crypto.randomUUID();
+    this.acceptedAttemptId = null;
+    const runId = this.runId;
 
     await this.persistState();
 
-    if (!this.runningPromise) {
+    if (this.isActiveRun(runId)) {
       const authHeader = request.headers.get('Authorization') || '';
       const cookieHeader = request.headers.get('Cookie') || '';
-      this.runningPromise = this.runJob(payload, {
+      const running = this.runJob(payload, {
         authorization: authHeader,
         cookie: cookieHeader
       }, principalUserId ? { userId: principalUserId } : null);
-      this.state.waitUntil(this.runningPromise);
+      this.runningPromise = running;
+      this.state.waitUntil(running.finally(() => {
+        if (this.runId === runId && this.runningPromise === running) this.runningPromise = null;
+      }));
     }
 
     return jsonResponse({
       jobId,
-      status: 'running'
+      status: this.job.status
     });
   }
 
@@ -318,19 +383,28 @@ export class ReadingJob {
       return buildError(403, 'Invalid job token.');
     }
 
-    this.cancelRun();
+    await this.cancelRun();
 
-    return jsonResponse({ status: 'cancelled' });
+    return jsonResponse({ status: this.job.status === 'complete' ? 'complete' : 'cancelled' });
   }
 
   cancelRun() {
+    if (this.job.status === 'complete' || this.job.status === 'error') return;
     this.cancelled = true;
+    this.pendingMemoryUsage = null;
 
     if (this.abortController) {
       this.abortController.abort();
     }
 
-    this.appendEvent('error', { message: 'Reading cancelled.' });
+    // The final status transition shares the terminal commit lane. A cancel
+    // arriving after the guarded success write cannot publish a second terminal.
+    return this.serializeStorage(async () => {
+      if (this.job.status !== 'running') return;
+      this.appendEvent('error', { message: 'Reading cancelled.' });
+      await this.state.storage.put('job', this.snapshotState());
+      await this.setNextAlarm(this.state.storage);
+    });
   }
 
   isPrincipalJob() {
@@ -376,12 +450,13 @@ export class ReadingJob {
     if (this.job.status !== 'running') {
       return jsonResponse({ status: this.job.status });
     }
-    this.cancelRun();
+    await this.cancelRun();
     return jsonResponse({ status: 'cancelled' });
   }
 
   async runJob(payload, authHeaders, principal = null) {
     this.abortController = new AbortController();
+    const runId = this.runId;
 
     try {
       const headers = new Headers({
@@ -408,11 +483,16 @@ export class ReadingJob {
         request,
         env: this.env,
         waitUntil: this.state.waitUntil.bind(this.state),
+        onReadingMemoryUsage: usage => {
+          if (!this.cancelled && this.job.status === 'running' && runId === this.runId) this.pendingMemoryUsage = normalizeMemoryUsage(usage);
+        },
         ...(principal ? { principal } : {})
       });
 
-      await this.consumeResponse(response);
+      if (!this.isActiveRun(runId)) return;
+      await this.consumeResponse(response, runId);
     } catch (error) {
+      if (runId !== this.runId) return;
       if (error?.name === 'AbortError') {
         if (this.job.status !== 'error') {
           this.appendEvent('error', { message: 'Reading cancelled.' });
@@ -423,8 +503,12 @@ export class ReadingJob {
     }
   }
 
-  async consumeResponse(response) {
-    if (this.cancelled) {
+  isActiveRun(runId) {
+    return runId === this.runId && Boolean(this.job.jobId) && this.job.status === 'running' && !this.cancelled;
+  }
+
+  async consumeResponse(response, runId = this.runId) {
+    if (!this.isActiveRun(runId)) {
       return;
     }
     const contentType = response.headers.get('content-type') || '';
@@ -437,6 +521,7 @@ export class ReadingJob {
       } catch {
         payload = null;
       }
+      if (!this.isActiveRun(runId)) return;
       const message = payload?.message || payload?.error || 'Failed to generate reading.';
       let code = typeof payload?.code === 'string' ? payload.code : null;
       if (!code && payload?.tierLimited === true) {
@@ -452,7 +537,7 @@ export class ReadingJob {
 
     if (!isSSE) {
       const payload = await response.json();
-      if (this.cancelled) {
+      if (!this.isActiveRun(runId)) {
         return;
       }
       if (payload?.reading) {
@@ -476,14 +561,7 @@ export class ReadingJob {
         // through /status and /mcp/snapshot exactly as SSE responses do.
         this.job.meta = meta;
         this.appendEvent('meta', meta);
-        this.job.result = {
-          reading: payload.reading,
-          provider: payload.provider || null,
-          requestId: payload.requestId || null,
-          gateBlocked: payload.gateBlocked || false,
-          gateReason: payload.gateReason || null
-        };
-        this.appendEvent('done', {
+        await this.appendEvent('done', {
           fullText: payload.reading,
           provider: payload.provider || null,
           requestId: payload.requestId || null,
@@ -508,7 +586,7 @@ export class ReadingJob {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (this.cancelled) {
+      if (!this.isActiveRun(runId)) {
         try {
           await reader.cancel();
         } catch {
@@ -519,20 +597,20 @@ export class ReadingJob {
       buffer += decoder.decode(value, { stream: true });
       const events = buffer.split(/\r?\n\r?\n/);
       buffer = events.pop() || '';
-      events.forEach((block) => this.processEventBlock(block));
+      for (const block of events) await this.processEventBlock(block, runId);
     }
 
     if (buffer.trim()) {
-      this.processEventBlock(buffer);
+      await this.processEventBlock(buffer, runId);
     }
 
-    if (this.job.status === 'running' && !this.cancelled) {
+    if (this.isActiveRun(runId)) {
       this.appendEvent('error', { message: 'Streaming ended unexpectedly.' });
     }
   }
 
-  processEventBlock(block) {
-    if (this.cancelled) return;
+  async processEventBlock(block, runId = this.runId) {
+    if (!this.isActiveRun(runId)) return;
     if (!block || !block.trim()) return;
     const lines = block.split(/\r?\n/);
     let eventType = '';
@@ -548,27 +626,16 @@ export class ReadingJob {
 
     if (!eventType || !eventData) return;
 
-    try {
-      const data = JSON.parse(eventData);
-      if (eventType === 'meta') {
-        this.job.meta = data;
-      }
-      if (eventType === 'done') {
-        this.job.result = {
-          reading: data.fullText || null,
-          provider: data.provider || null,
-          requestId: data.requestId || null,
-          gateBlocked: data.gateBlocked || false,
-          gateReason: data.gateReason || null
-        };
-      }
-      this.appendEvent(eventType, data);
-    } catch {
-      // Ignore malformed events.
-    }
+    let data;
+    try { data = JSON.parse(eventData); } catch { return; }
+    if (eventType === 'meta') this.job.meta = data;
+    await this.appendEvent(eventType, data);
   }
 
   appendEvent(eventType, data) {
+    if (eventType === 'done') return this.completeJob(data);
+    if (this.job.status === 'complete' || this.job.status === 'error') return;
+    if (this.cancelled && eventType !== 'error') return;
     const entry = {
       id: this.nextEventId++,
       event: eventType,
@@ -576,17 +643,8 @@ export class ReadingJob {
       timestamp: Date.now()
     };
 
-    const previousText = this.textSoFar;
     if (eventType === 'delta' && typeof data?.text === 'string') {
       this.textSoFar += data.text;
-    }
-    if (eventType === 'done' && typeof data?.fullText === 'string') {
-      this.textSoFar = data.fullText;
-    }
-
-    if (this.visualBinding && eventType === 'done' && typeof data?.fullText === 'string'
-      && previousText && !data.fullText.startsWith(previousText)) {
-      this.visualBinding = { ...this.visualBinding, sourceRevision: this.visualBinding.sourceRevision + 1 };
     }
     if (this.visualBinding) {
       entry.data = { ...data, visualBinding: this.visualBinding, readingResultId: this.readingResultId };
@@ -595,16 +653,13 @@ export class ReadingJob {
     this.pruneEvents();
 
     if (eventType === 'error') {
+      this.pendingMemoryUsage = null;
       this.job.status = 'error';
       this.job.error = data?.message || 'Streaming error.';
       this.job.errorCode = typeof data?.code === 'string' ? data.code : null;
       this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
     }
 
-    if (eventType === 'done') {
-      this.job.status = 'complete';
-      this.job.expiresAt = Date.now() + (this.job.retentionMs || JOB_TTL_MS);
-    }
 
     this.job.updatedAt = Date.now();
     this.maybePersist(eventType);
@@ -612,15 +667,15 @@ export class ReadingJob {
 
     // Observe only accepted outgoing raw prose. Optional visual initialization and
     // annotation run independently and never delay reading delivery/completion.
-    if (this.visualBinding && (eventType === 'delta' || eventType === 'done')) {
+    if (this.visualBinding && eventType === 'delta') {
       this.state.waitUntil(observeDeliveredReading({
         env: this.env, init: this.visualInit, binding: this.visualBinding,
         raw: this.textSoFar, deliveredEventId: entry.id,
-        complete: eventType === 'done', availableAt: entry.timestamp
+        complete: false, availableAt: entry.timestamp
       }).catch(() => null));
     }
 
-    if (eventType === 'done' || eventType === 'error') {
+    if (eventType === 'error') {
       this.closeSubscribers();
     }
   }
@@ -694,21 +749,143 @@ export class ReadingJob {
     this.subscribers.clear();
   }
 
-  async persistState() {
-    // A purged job is never written back, even by a run that ends after it.
-    if (!this.job.jobId) return;
-    await this.state.storage.put('job', {
-      job: this.job,
-      readingResultId: this.readingResultId,
-      visualBinding: this.visualBinding,
-      visualJobToken: this.visualJobToken,
-      visualInit: this.visualInit,
-      events: this.events,
-      nextEventId: this.nextEventId,
-      textSoFar: this.textSoFar,
-      truncatedBeforeId: this.truncatedBeforeId
+  serializeStorage(operation) {
+    const result = this.storageTail.then(operation);
+    this.storageTail = result.catch(() => {});
+    return result;
+  }
+
+  snapshotState() {
+    return structuredClone({
+      job: this.job, runId: this.runId, acceptedAttemptId: this.acceptedAttemptId,
+      readingResultId: this.readingResultId, visualBinding: this.visualBinding,
+      visualJobToken: this.visualJobToken, visualInit: this.visualInit,
+      events: this.events, nextEventId: this.nextEventId,
+      textSoFar: this.textSoFar, truncatedBeforeId: this.truncatedBeforeId
     });
-    await this.scheduleDeletion();
+  }
+
+  persistState() {
+    return this.serializeStorage(async () => {
+      // Build the snapshot when this ordered write runs, never before an await.
+      if (!this.job.jobId) return;
+      await this.state.storage.put('job', this.snapshotState());
+      await this.setNextAlarm(this.state.storage);
+    });
+  }
+
+  completeJob(data) {
+    const runId = this.runId;
+    const completion = this.serializeStorage(async () => {
+      if (this.cancelled || !this.job.jobId || this.job.status !== 'running' || this.runId !== runId) return;
+      const snapshot = this.snapshotState();
+      const now = Date.now();
+      const previousText = snapshot.textSoFar;
+      snapshot.job.result = {
+        reading: typeof data?.fullText === 'string' ? data.fullText : null,
+        provider: data?.provider || null, requestId: data?.requestId || null,
+        gateBlocked: Boolean(data?.gateBlocked), gateReason: data?.gateReason || null
+      };
+      snapshot.job.status = 'complete';
+      snapshot.job.updatedAt = now;
+      snapshot.job.expiresAt = now + (snapshot.job.retentionMs || JOB_TTL_MS);
+      snapshot.textSoFar = snapshot.job.result.reading || '';
+      if (snapshot.visualBinding && previousText && !snapshot.textSoFar.startsWith(previousText)) {
+        snapshot.visualBinding.sourceRevision += 1;
+      }
+      const entry = { id: snapshot.nextEventId++, event: 'done', data, timestamp: now };
+      if (snapshot.visualBinding) entry.data = { ...data, visualBinding: snapshot.visualBinding, readingResultId: snapshot.readingResultId };
+      snapshot.events.push(entry);
+      if (snapshot.events.length > MAX_STORED_EVENTS) {
+        const meta = snapshot.events.find(event => event.event === 'meta');
+        const tail = snapshot.events.filter(event => event !== meta);
+        const removed = tail.splice(0, tail.length - MAX_STORED_EVENTS + (meta ? 1 : 0));
+        snapshot.truncatedBeforeId = Math.max(snapshot.truncatedBeforeId, removed.at(-1)?.id || 0);
+        snapshot.events = meta ? [meta, ...tail] : tail;
+      }
+      const usage = this.pendingMemoryUsage;
+      snapshot.acceptedAttemptId = usage?.attemptId || null;
+      const receipt = usage ? {
+        ...usage, version: 1, jobId: snapshot.job.jobId, runId,
+        receiptId: crypto.randomUUID(), attempts: 0, nextAttemptAt: 0
+      } : null;
+      const acceptedReceipt = receiptMatches(receipt, snapshot) ? receipt : null;
+      const committed = await this.state.storage.transaction(async storage => {
+        const stored = await storage.get('job');
+        if (this.cancelled || this.runId !== runId || stored?.runId !== runId
+          || stored?.job?.jobId !== snapshot.job.jobId || stored.job.status !== 'running') return false;
+        await storage.put('job', snapshot);
+        if (acceptedReceipt) await storage.put(MEMORY_RECEIPT_KEY, acceptedReceipt);
+        else await storage.delete(MEMORY_RECEIPT_KEY);
+        await storage.setAlarm(acceptedReceipt ? now : snapshot.job.expiresAt);
+        return true;
+      });
+      if (!committed || this.runId !== runId || !this.job.jobId) return;
+      this.job = snapshot.job;
+      this.events = snapshot.events;
+      this.nextEventId = snapshot.nextEventId;
+      this.textSoFar = snapshot.textSoFar;
+      this.truncatedBeforeId = snapshot.truncatedBeforeId;
+      this.visualBinding = snapshot.visualBinding;
+      this.acceptedAttemptId = snapshot.acceptedAttemptId;
+      this.memoryReceipt = acceptedReceipt;
+      this.pendingMemoryUsage = null;
+      this.deletionScheduledAt = acceptedReceipt ? now : snapshot.job.expiresAt;
+      this.broadcast(entry);
+      this.closeSubscribers();
+      if (snapshot.visualBinding) this.state.waitUntil(observeDeliveredReading({
+        env: this.env, init: this.visualInit, binding: snapshot.visualBinding,
+        raw: snapshot.textSoFar, deliveredEventId: entry.id, complete: true, availableAt: now
+      }).catch(() => null));
+    });
+    // Persistence is optional only after the successful terminal commit.
+    return completion.then(() => {
+      if (this.memoryReceipt) this.state.waitUntil(this.drainMemoryReceipt());
+    }).catch(() => {
+      console.warn('[reading-job] terminal_persistence_failed');
+      this.pendingMemoryUsage = null;
+      this.appendEvent('error', { message: 'Unable to finish this reading.' });
+    });
+  }
+
+  drainMemoryReceipt() {
+    if (this.receiptDrain) return this.receiptDrain;
+    const work = (async () => {
+      const claimed = await this.serializeStorage(() => this.state.storage.transaction(async storage => {
+        const stored = await storage.get('job');
+        const receipt = await storage.get(MEMORY_RECEIPT_KEY);
+        const now = Date.now();
+        if (!receiptMatches(receipt, stored) || this.runId !== stored.runId
+          || !this.job.jobId || now >= stored.job.expiresAt || receipt.attempts >= MAX_MEMORY_ROUNDS
+          || (receipt.nextAttemptAt || 0) > now) {
+          await this.setNextAlarm(storage);
+          return null;
+        }
+        const attempts = receipt.attempts + 1;
+        const next = { ...receipt, attempts, nextAttemptAt: attempts < MAX_MEMORY_ROUNDS ? now + MEMORY_RETRY_DELAYS_MS[attempts - 1] : null };
+        await storage.put(MEMORY_RECEIPT_KEY, next);
+        await this.setNextAlarm(storage, next, stored.job);
+        return next;
+      }));
+      if (!claimed) return;
+      if (claimed.runId !== this.runId || !this.job.jobId) return;
+      this.memoryReceipt = claimed;
+      const persisted = await persistReadingMemoryAccess(this.env.DB, claimed);
+      if (!persisted) return;
+      const acknowledged = await this.serializeStorage(() => this.state.storage.transaction(async storage => {
+        const stored = await storage.get('job');
+        const current = await storage.get(MEMORY_RECEIPT_KEY);
+        if (!receiptMatches(current, stored) || this.runId !== stored.runId
+          || current.receiptId !== claimed.receiptId || !this.job.jobId) return;
+        await storage.delete(MEMORY_RECEIPT_KEY);
+        await this.setNextAlarm(storage, null, stored.job);
+        return true;
+      }));
+      if (acknowledged && this.memoryReceipt?.receiptId === claimed.receiptId) this.memoryReceipt = null;
+    })().catch(() => { console.warn('[reading-job] memory_receipt_persistence_failed'); });
+    this.receiptDrain = work;
+    work.finally(() => { if (this.receiptDrain === work) this.receiptDrain = null; });
+    return work;
   }
 
   /**
@@ -726,11 +903,18 @@ export class ReadingJob {
    * Nothing else reaches a job nobody asks about again, so without an alarm
    * its reading would stay stored indefinitely instead of for its retention.
    */
-  async scheduleDeletion() {
-    const at = this.deletionTime();
-    if (!at || at === this.deletionScheduledAt) return;
-    await this.state.storage.setAlarm(at);
-    this.deletionScheduledAt = at;
+  scheduleDeletion() {
+    return this.serializeStorage(() => this.setNextAlarm(this.state.storage));
+  }
+
+  async setNextAlarm(storage, receipt = this.memoryReceipt, job = this.job) {
+    const startedAt = job.startedAt || job.createdAt;
+    const expiry = job.expiresAt || (startedAt ? startedAt + (job.retentionMs || JOB_TTL_MS) : null);
+    if (!job.jobId || !expiry) return;
+    const retryAt = receipt && receipt.attempts < MAX_MEMORY_ROUNDS && receipt.nextAttemptAt !== null
+      ? Math.max(Date.now(), receipt.nextAttemptAt) : Infinity;
+    const at = Math.min(expiry, retryAt);
+    await storage.setAlarm(at);
   }
 
   /**
@@ -751,14 +935,11 @@ export class ReadingJob {
 
   async alarm() {
     await this.initialized;
+    this.deletionScheduledAt = null;
     const at = this.deletionTime();
-    if (at && Date.now() < at) {
-      // The alarm that fired is spent; set the current deletion time again.
-      this.deletionScheduledAt = null;
-      await this.scheduleDeletion();
-      return;
-    }
-    await this.purge();
+    if (!at || Date.now() >= at) return this.purge();
+    await this.drainMemoryReceipt();
+    await this.scheduleDeletion();
   }
 
   /** Delete everything this job stored, and stop any run still going. */
@@ -769,6 +950,10 @@ export class ReadingJob {
     this.cancelled = true;
     this.closeSubscribers();
     this.job = emptyJob();
+    this.pendingMemoryUsage = null;
+    this.memoryReceipt = null;
+    this.runId = null;
+    this.acceptedAttemptId = null;
     this.events = [];
     this.nextEventId = 1;
     this.textSoFar = '';
@@ -779,8 +964,10 @@ export class ReadingJob {
     run?.abort();
     // deleteAll() keeps the alarm before compatibility date 2026-02-24, and
     // deleting only the 'job' key would leave storage metadata behind.
-    await this.state.storage.deleteAlarm();
-    await this.state.storage.deleteAll();
+    await this.serializeStorage(async () => {
+      await this.state.storage.deleteAlarm();
+      await this.state.storage.deleteAll();
+    });
   }
 
   async expireIfNeeded() {

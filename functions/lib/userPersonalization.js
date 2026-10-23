@@ -24,7 +24,7 @@ const PERSONALIZATION_REQUEST_FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS
 
 const MAX_FOCUS_AREAS = 12;
 const MAX_FOCUS_AREA_LENGTH = 40;
-const DEFAULT_GLOBAL_MEMORY_LIMIT = 8;
+const DEFAULT_GLOBAL_MEMORY_LIMIT = 100;
 
 function hasOwn(source, key) {
   return Boolean(source) && Object.prototype.hasOwnProperty.call(source, key);
@@ -229,7 +229,7 @@ export async function loadStoredPersonalization(db, userId) {
   }
 }
 
-export async function resolveReadingPersonalizationContext(db, userId, requestPersonalization, options = {}) {
+export async function resolveReadingPreferencesContext(db, userId, requestPersonalization) {
   const storedPersonalization = await loadStoredPersonalization(db, userId);
   const sanitizedRequestPersonalization = sanitizeRequestPersonalizationInput(
     requestPersonalization,
@@ -240,25 +240,32 @@ export async function resolveReadingPersonalizationContext(db, userId, requestPe
     sanitizedRequestPersonalization
   );
 
-  let memories = [];
-  if (db && userId) {
-    const memoryLoader = typeof options.loadMemories === 'function' ? options.loadMemories : getMemories;
-    const memoryLimit = Number.isFinite(options.memoryLimit) && options.memoryLimit > 0
-      ? Math.floor(options.memoryLimit)
-      : DEFAULT_GLOBAL_MEMORY_LIMIT;
-    try {
-      memories = await memoryLoader(db, userId, {
-        scope: 'global',
-        limit: memoryLimit
-      });
-    } catch (error) {
-      console.warn('[resolveReadingPersonalizationContext] Memory load failed:', error?.message || error);
-    }
-  }
-
   return {
     personalization: Object.keys(mergedPersonalization).length > 0 ? mergedPersonalization : null,
-    storedPersonalization,
-    memories: Array.isArray(memories) ? memories : []
+    storedPersonalization
   };
+}
+
+/** Initial-reading candidate loading is separate from preference resolution. */
+export async function loadReadingMemoryCandidates(db, userId, options = {}) {
+  if (options.useSavedMemories === false || !db || !userId) return [];
+  const memoryLoader = typeof options.loadMemories === 'function' ? options.loadMemories : getMemories;
+  try {
+    const memories = await memoryLoader(db, userId, {
+      scope: 'global',
+      limit: DEFAULT_GLOBAL_MEMORY_LIMIT,
+      markAccess: false
+    });
+    return Array.isArray(memories) ? memories : [];
+  } catch {
+    console.warn('[loadReadingMemoryCandidates] Memory load failed');
+    return [];
+  }
+}
+
+/** Compatibility wrapper for callers that intentionally request both sources. */
+export async function resolveReadingPersonalizationContext(db, userId, requestPersonalization, options = {}) {
+  const preferences = await resolveReadingPreferencesContext(db, userId, requestPersonalization);
+  const memories = await loadReadingMemoryCandidates(db, userId, options);
+  return { ...preferences, memories };
 }

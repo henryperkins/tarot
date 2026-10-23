@@ -8,6 +8,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MAJOR_ARCANA_PASSAGES } from '../../functions/lib/knowledgeBase.js';
@@ -40,7 +41,11 @@ const QUEUE_COLUMNS = [
   'generated_at',
   'model',
   'human_verdict',
-  'human_notes'
+  'human_notes',
+  'source_id',
+  'projection_text',
+  'projection_version',
+  'projection_verdict'
 ];
 
 export const USAGE = `Usage: node scripts/enrichment/buildPassageCandidates.js [options]
@@ -121,6 +126,7 @@ async function readExistingDecisions(queuePath) {
     throw error;
   }
   const { header, rows } = parseCsv(content);
+  decisions.columns = header;
   const at = (name) => header.indexOf(name);
   if (at('source_url') === -1 || at('card_number') === -1 || at('human_verdict') === -1) {
     return decisions;
@@ -129,7 +135,7 @@ async function readExistingDecisions(queuePath) {
     const verdict = String(columns[at('human_verdict')] || '').trim();
     if (!verdict) continue;
     const key = `${normalizeSourceUrl(columns[at('source_url')] || '')}#${columns[at('card_number')] || ''}`;
-    decisions.set(key, Object.fromEntries(QUEUE_COLUMNS.map((column) => [
+    decisions.set(key, Object.fromEntries(header.map((column) => [
       column, String(columns[at(column)] ?? '')
     ])));
   }
@@ -233,7 +239,8 @@ export async function buildCandidates({
 
       const digest = buildDigest({ card: detected, evidence });
       const theme = MAJOR_ARCANA_PASSAGES[detected.cardNumber]?.theme || '';
-      const candidateId = `${detected.cardNumber}-${path.basename(source.url).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${rows.length + 1}`;
+      const sourceId = `research:${createHash('sha256').update(sourceKey).digest('hex').slice(0, 24)}`;
+      const candidateId = `${detected.cardNumber}-${sourceId}`;
 
       let draftResult = { text: '', tags: [], context: '', model: null, validation: { valid: false, errors: ['Not drafted.'] } };
       if (draft) {
@@ -275,16 +282,21 @@ export async function buildCandidates({
         generated_at: new Date().toISOString(),
         model: draftResult.model || '',
         human_verdict: '',
-        human_notes: ''
+        human_notes: '',
+        source_id: sourceId,
+        projection_text: oneLine(draftResult.archetypalText || ''),
+        projection_version: 'meaning-v1',
+        projection_verdict: ''
       });
     }
   }
 
   if (rows.length) {
     await fs.mkdir(path.dirname(queuePath), { recursive: true });
+    const columns = rows.every(row => row.human_verdict) && decisions.columns ? decisions.columns : [...new Set([...(decisions.columns || []), ...QUEUE_COLUMNS])];
     const csv = [
-      QUEUE_COLUMNS.join(','),
-      ...rows.map((row) => stringifyRow(QUEUE_COLUMNS.map((column) => row[column])))
+      columns.join(','),
+      ...rows.map((row) => stringifyRow(columns.map((column) => row[column])))
     ].join('\n');
     await fs.writeFile(queuePath, `${csv}\n`);
     log(`\nWrote ${rows.length} candidate(s) to ${path.relative(process.cwd(), queuePath) || queuePath}`);

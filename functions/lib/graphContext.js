@@ -13,12 +13,15 @@
 
 import { detectAllPatterns, getPriorityPatternNarratives } from './knowledgeGraph.js';
 
-function buildGraphKeys(patterns) {
+function buildGraphKeys(patterns, cardsInfo) {
     if (!patterns || typeof patterns !== 'object') {
         return null;
     }
 
-    const keys = {};
+    const keys = {
+        totalMajors: cardsInfo.filter((card) => Number.isInteger(card?.number)
+            && card.number >= 0 && card.number <= 21).length
+    };
 
     // Fool's Journey: expose both the human-friendly stage label and the
     // underlying key used in FOOLS_JOURNEY so retrieval/training can use
@@ -27,11 +30,7 @@ function buildGraphKeys(patterns) {
         keys.foolsJourneyStageKey = patterns.foolsJourney.stageKey || null;
         keys.foolsJourneyStage = patterns.foolsJourney.stage || null;
         keys.foolsJourneySignificance = patterns.foolsJourney.significance || null;
-        keys.totalMajors = typeof patterns.foolsJourney.totalMajors === 'number'
-            ? patterns.foolsJourney.totalMajors
-            : null;
-
-        if (patterns.foolsJourney.totalMajors === 1) {
+        if (keys.totalMajors === 1) {
             const singleMajor = Array.isArray(patterns.foolsJourney.cards)
                 ? patterns.foolsJourney.cards[0]
                 : null;
@@ -58,6 +57,14 @@ function buildGraphKeys(patterns) {
         keys.triadIds = [];
         keys.completeTriadIds = [];
     }
+
+    keys.partialTriads = (patterns.triads || [])
+        .filter((triad) => !triad.isComplete)
+        .map((triad) => ({
+            id: triad.id,
+            matchedCards: [...triad.matchedCards],
+            missingCards: [...triad.missingCards]
+        }));
 
     // Dyads: capture numeric card pairs plus semantic category and significance.
     if (Array.isArray(patterns.dyads) && patterns.dyads.length > 0) {
@@ -115,8 +122,8 @@ function buildGraphKeys(patterns) {
  * @param {string} [options.deckStyle='rws-1909'] - Deck style key used for
  *   deck-aware naming and pattern selection.
  * @returns {Object|null} An object with the detected `patterns`,
- *   `narrativeHighlights`, and stable `graphKeys`, or null when no patterns
- *   are found.
+ *   `narrativeHighlights`, and stable `graphKeys`, or null for empty input.
+ *   Nonempty spreads retain graph facts even without a pattern.
  */
 export function buildGraphContext(cardsInfo, options = {}) {
     const deckStyle = options.deckStyle || 'rws-1909';
@@ -125,13 +132,10 @@ export function buildGraphContext(cardsInfo, options = {}) {
         return null;
     }
 
-    const patterns = detectAllPatterns(cardsInfo, { deckStyle });
-    if (!patterns) {
-        return null;
-    }
+    const patterns = detectAllPatterns(cardsInfo, { deckStyle }) || {};
 
     const narrativeHighlights = getPriorityPatternNarratives(patterns, deckStyle) || [];
-    const graphKeys = buildGraphKeys(patterns);
+    const graphKeys = buildGraphKeys(patterns, cardsInfo);
 
     return {
         patterns,

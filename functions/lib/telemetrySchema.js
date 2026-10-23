@@ -1,3 +1,4 @@
+import { sanitizeSourceUsage, sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics, GRAPH_RAG_FALLBACK_REASONS, USAGE_REASON_COPY } from '../../shared/readingSourceUsage.js';
 import { normalizeInferenceUsage } from './inferenceAttempts.js';
 /**
  * Telemetry Schema Module
@@ -41,6 +42,16 @@ export function buildPromptTelemetry(promptMeta) {
     return Object.keys(normalized).length > 0 ? normalized : null;
   };
 
+  const boundedCount = (value, cap) => Number.isInteger(value) && value >= 0 ? Math.min(value, cap) : 0;
+  const memoryReasons = ['malformed', 'non_global', 'expired', 'unsafe', 'duplicate', 'unmatched_detail', 'irrelevant', 'communication_cap', 'limit'];
+  const memoryStats = promptMeta.memories;
+  const memories = memoryStats && typeof memoryStats === 'object' ? {
+    candidateCount: boundedCount(memoryStats.candidateCount, 100),
+    selectedCount: boundedCount(memoryStats.selectedCount, 3),
+    retainedCount: Math.min(boundedCount(memoryStats.retainedCount, 3), boundedCount(memoryStats.selectedCount, 3)),
+    exclusionReasons: Object.fromEntries(memoryReasons.flatMap(reason => Number.isInteger(memoryStats.exclusionReasons?.[reason]) && memoryStats.exclusionReasons[reason] >= 0 ? [[reason, boundedCount(memoryStats.exclusionReasons[reason], 100)]] : []))
+  } : null;
+
   const truncation = normalizeTruncation(promptMeta.truncation || promptMeta.truncationDetails || null);
 
   // Note: prompt.version removed - use experiment.promptVersion (single source of truth)
@@ -70,7 +81,10 @@ export function buildPromptTelemetry(promptMeta) {
     truncation,
     hardCap: promptMeta.hardCap || null,
     context: promptMeta.context || null,
-    sourceUsage: promptMeta.sourceUsage || null,
+    contextSelection: sanitizeContextSelection(promptMeta.contextSelection),
+    sourceUsage: sanitizeSourceUsage(promptMeta.sourceUsage),
+    queryCoverage: sanitizeQueryCoverage(promptMeta.queryCoverage),
+    memories,
     ephemeris: promptMeta.ephemeris || null,
     forecast: promptMeta.forecast || null,
     inference: promptMeta.inference ? { provider: promptMeta.inference.provider || null, model: promptMeta.inference.model || null } : null
@@ -94,21 +108,27 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
   const optionalBoolean = (value) =>
     typeof value === 'boolean' ? value : null;
 
+  const candidateCounts = sanitizeGraphRAGDiagnostics(graphRAGStats);
+
   return {
+    ...candidateCounts,
+    queryCoverage: sanitizeQueryCoverage(graphRAGStats.queryCoverage),
+    contextSelection: sanitizeContextSelection(graphRAGStats.contextSelection),
+    scoringMethod: ['keyword', 'semantic', 'priority', 'bypassed', 'mixed'].includes(graphRAGStats.scoringMethod) ? graphRAGStats.scoringMethod : null,
     includedInPrompt: graphRAGStats.includedInPrompt || false,
     disabledByEnv: graphRAGStats.disabledByEnv || false,
     passagesProvided: numberOrDefault(graphRAGStats.passagesProvided, 0),
     passagesUsedInPrompt: optionalNumber(graphRAGStats.passagesUsedInPrompt),
     truncatedPassages: optionalNumber(graphRAGStats.truncatedPassages),
-    parseStatus: graphRAGStats.parseStatus || null,
+    parseStatus: ['complete', 'partial', 'absent'].includes(graphRAGStats.parseStatus) ? graphRAGStats.parseStatus : null,
     referenceBlockClosed: optionalBoolean(graphRAGStats.referenceBlockClosed),
-    skippedReason: graphRAGStats.skippedReason || null,
+    skippedReason: Object.hasOwn(USAGE_REASON_COPY, graphRAGStats.skippedReason) ? graphRAGStats.skippedReason : null,
     semanticScoring: {
       requested: graphRAGStats.semanticScoringRequested || false,
       used: graphRAGStats.semanticScoringUsed || false,
       attempted: graphRAGStats.semanticScoringAttempted || false,
       fallback: graphRAGStats.semanticScoringFallback || false,
-      fallbackReason: graphRAGStats.semanticScoringFallbackReason || null
+      fallbackReason: GRAPH_RAG_FALLBACK_REASONS.includes(graphRAGStats.semanticScoringFallbackReason) ? graphRAGStats.semanticScoringFallbackReason : null
     },
     quality: graphRAGStats.qualityMetrics ? {
       averageRelevance: optionalNumber(graphRAGStats.qualityMetrics.averageRelevance),
