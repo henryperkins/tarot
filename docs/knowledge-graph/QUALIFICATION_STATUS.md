@@ -2,11 +2,23 @@
 
 ## Current October 23 remediation candidate
 
-**Offline implementation and deterministic qualification are complete. This candidate is not qualified for release.** Human editorial approval and live qualification remain separate, unrun requirements.
+**The follow-up memory-veto correction is implemented; its verification is recorded below. This candidate is not qualified for release.** Human editorial approval and live qualification remain pending; the pre-push subscription check failed at its first sample.
 
-Branch: `codex/reading-context-remediation-20261023`. Original reviewed base: `680516f0c13054f1a86b3f60d824e46427dec803`. Qualified executable/test checkpoint: **`e51022f3661b4a07c6c0f0b92af28f1a7e3e1da3`**, tree `66b7e89f9dc7b8e6215610caba639a109e204070`. Reading prompt **1.4.0**; evaluator **2.5.0**. See the [current plan](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md) and [remediation ledger](REMEDIATION_LEDGER.md).
+Branch: `codex/reading-context-remediation-20261023`. Original reviewed base: `680516f0c13054f1a86b3f60d824e46427dec803`. Previously qualified executable/test checkpoint: **`e51022f3661b4a07c6c0f0b92af28f1a7e3e1da3`**, tree `66b7e89f9dc7b8e6215610caba639a109e204070`. Reading prompt **1.4.0**; evaluator **2.5.0**. See the [current plan](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md) and [remediation ledger](REMEDIATION_LEDGER.md).
 
-### Passed final-source offline checks
+### Follow-up memory-veto correction
+
+A subsequent P2 review reproduced obsolete age memories entering direct API and durable-job provider requests when a current correction shared a clause with another topic. Selection now keeps positive authority and ranking topic-filtered, then checks supported factual notes against all accepted current inputs for conflicts and retractions. The selection cache includes those complete inputs. Saved focus and caller interpretations remain excluded from current factual authority.
+
+The regression run failed 23 cases before the production change; all pass after the correction. The updated suites add 32 tests covering age, wedding and employment corrections, all three supplemental current-input kinds, cache invalidation, subject ownership, topic-based admission/ranking, final provider memory blocks and access timestamps. The eight original review probes also pass: corrected notes are omitted and unstamped, while compatible controls remain retained and stamped. The full root suite passes **5,337 tests**, with zero failed/cancelled and two intentional installed-CLI opt-in skips (5,339 total). The deterministic gate passes 849 fixtures, 2,523 provider builds, 525 canon/deck projections and 12 exercised boundaries. Scoped ESLint passes.
+
+Evidence is preserved separately under `/home/ubuntu/.codex/artifacts/tarot-memory-veto-fix-20261023-01a1697e/`, based on `2d76a50d951c92fb30537d29ee5001bb483cae8c` with the follow-up diff. These offline checks used a credential-free environment and an external-network guard. The previous frozen-source qualification and v4 comparison below predate this executable change; they are preserved as historical evidence and do not qualify the follow-up source.
+
+### Pre-push subscription check
+
+At the user's requested commit-and-push stage, `npm run ci:narrative-check` was attempted once through the existing Claude subscription, with paid API credentials absent. It exited 1 on the first standard sample, `single-new-role`, with `Claude Code request failed. Check subscription login and usage limits.` One of 11 samples was attempted; zero completed, and the metrics and downstream gate commands were not reached. The attempt was not retried and no paid fallback was used. All 21 tracked evaluation files retained their pre-run hashes. The failed log and preservation record are in `/home/ubuntu/.codex/artifacts/tarot-memory-veto-push-20261023-01a1697e/`. Implementation/test bytes still match the passing offline check manifest. Branch publication does not close this failed live gate or any remaining release requirement.
+
+### Passed offline checks for the previous checkpoint
 
 | Check | Result |
 | --- | --- |
@@ -18,7 +30,7 @@ Branch: `codex/reading-context-remediation-20261023`. Original reviewed base: `6
 | Source and tooling stability | All **3,364 tracked/nonignored source paths**, toolchain/harness hashes and Git index match before/after; final Git status clean. |
 | Independent review | Whole-change review and subsequent qualification-repair review approved; the last repair review passed 158 fixture/relay tests, 173 privacy/prompt/access tests and an additional storage-bound probe. These overlap other suites. |
 
-The final source-path digest is `7f321e7993bac3048d7c2e12d8ed0fd65baf3340f038118fb8e852b7470b8ff1`. Exact commands, exits, durations, corpus/fixture identities and artifact hashes are recorded in the private evidence directory `/home/ubuntu/.cache/tarot-reading-context-remediation-20261023/task9-final-e51022f3-qualification-2/`. The raw prompt-gate artifact retains its development/null source label; the external qualification manifest binds it to this identical before/after source. Subsequent status-only documentation does not change qualified executable/test bytes.
+The previous source-path digest is `7f321e7993bac3048d7c2e12d8ed0fd65baf3340f038118fb8e852b7470b8ff1`. Exact commands, exits, durations, corpus/fixture identities and artifact hashes are recorded in the private evidence directory `/home/ubuntu/.cache/tarot-reading-context-remediation-20261023/task9-final-e51022f3-qualification-2/`. The raw prompt-gate artifact retains its development/null source label; the external qualification manifest binds it to that identical before/after source. Status-only documentation through `2d76a50d` preserved those executable/test bytes; the follow-up correction above changes them.
 
 Final qualification manifest SHA-256: `ee71fa578293c4a7f2ac81259358b800080d02a88db7ee9fea9768ad6193c367`; report SHA-256: `3f1ed7e8ba6394392bcccd334ab17b7e094c354a93655e229642721893983ded`.
 
@@ -31,10 +43,10 @@ Task 10 v4 recaptured **24 candidate and 24 original-baseline final provider req
 The v4 report/index/manifests are in `/home/ubuntu/.cache/tarot-reading-context-remediation-20261023/task10-preparation/`. Comparison manifest SHA-256: `523c9ced708dd056a55da7d8866e020cecbc28723a3494ff1687ffda669699d7`. Artifact index SHA-256: `2aa7b2e75f967d9aef9400c4bd54ad72a2a37f8f801060caf609cd8422202511`; all 72 new indexed files were independently rehashed. Historical v1–v3 artifacts and the old 18-case evidence remain unchanged.
 
 - **Human editorial approval:** 525 reference projections and 30 direct partial themes remain pending; zero agent checks are represented as human approval.
-- **Subscription generation:** required `npm run ci:narrative-check` and the 48-output baseline/candidate comparison remain unrun for this source. Every live output row records zero attempts and null actual output/usage. The executable capture harness has no live mode; future subscription execution remains a separate authorized stage.
+- **Subscription generation:** the required `npm run ci:narrative-check` failed at its first sample as recorded above. The 48-output baseline/candidate comparison remains unrun; every comparison output row records zero attempts and null actual output/usage. The executable capture harness has no live mode; comparison execution remains a separate authorized stage.
 - **Workers AI:** actual embedding relevance, failure/cache behavior and p95 latency remain unrun for this source.
 - **Provider capacity:** Modal's serving window, tokenizer, output reserve and overflow/truncation policy require configuration inspection and bounded live qualification.
-- **Release:** no push, merge, plugin publication, migration, deployment, production flags/binding check or live application verification occurred. Rollback and receipt-draining requirements are documented in the [input contract](../reading-context-inputs.md#compatibility-release-and-rollback-checklist).
+- **Release:** branch publication is separate from release. No merge, plugin publication, migration, deployment, production flags/binding check or live application verification occurred. Rollback and receipt-draining requirements are documented in the [input contract](../reading-context-inputs.md#compatibility-release-and-rollback-checklist).
 
 The following October 22 record is preserved as historical evidence. Its passing tests, source hashes, failed provider attempts, 18-case comparison and usage observations do **not** qualify the October 23 implementation.
 

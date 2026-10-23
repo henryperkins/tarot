@@ -19,6 +19,82 @@ const contrastRetractions = [
 ];
 const contrastBoundaries = [' but ', ' BUT ', ' But ', '. But ', '; but ', '; But, ', '.\nBUT, '];
 
+const offTopicCorrections = [
+  ['age retraction', 'I am 42 years old', 'I am 42 years old. How can I grow in my career?', 'I am not 42 years old and my partner is planning a wedding.'],
+  ['age correction', 'I am 42 years old', 'I am 42 years old. How can I grow in my career?', 'I am 43 years old and my partner is planning a wedding.'],
+  ['wedding cancellation', 'I am planning a wedding', 'I am planning a wedding and I am considering a career promotion.', 'I canceled my wedding and my partner needs support.'],
+  ['employment retraction', 'I work at Acme', 'I work at Acme and I am planning a wedding with my partner. How can I approach my marriage?', 'I no longer work at Acme.'],
+  ['contracted employment retraction', 'I work at Acme', 'I work at Acme and I am planning a wedding with my partner. How can I approach my marriage?', "I don't work at Acme."],
+  ['employer correction', 'I work at Acme', 'I work at Acme and I am planning a wedding with my partner. How can I approach my marriage?', 'I work at Beta.']
+];
+
+for (const [kind, previous, userQuestion, correction] of offTopicCorrections) {
+  for (const [sourceId, fields] of [
+    ['reflections', { reflectionsText: correction }],
+    ['card-0', { cardsInfo: [{ userReflection: correction }] }],
+    ['pathA', { spreadKey: 'decision', decisionPaths: { a: correction } }]
+  ]) {
+    test(`${kind} in an off-topic ${sourceId} still vetoes an otherwise supported memory`, () => {
+      const sources = prepareReadingContextSources({ userQuestion, ...fields });
+      const contextSelection = resolveContextSelection({ sources });
+      const projected = projectReadingContextSpans(sources, contextSelection);
+      assert.equal(projected.find(entry => entry.source.id === sourceId).spans.length, 0, 'The correction is outside the selected topic');
+      const result = selection.selectMemoriesForReading([note('obsolete', previous)], { sources, contextSelection });
+      assert.deepEqual(result.selectedIds, []);
+    });
+  }
+}
+
+test('changing an excluded current clause invalidates a previously frozen memory decision', () => {
+  const userQuestion = 'I am 42 years old. How can I grow in my career?';
+  const sources = prepareReadingContextSources({ userQuestion, reflectionsText: 'My partner is planning a wedding.' });
+  const contextSelection = resolveContextSelection({ sources });
+  const first = selection.selectMemoriesForReading([note('obsolete', 'I am 42 years old')], { sources, contextSelection, referenceTime: 1000 });
+  assert.deepEqual(first.selectedIds, ['obsolete']);
+  const correctedSources = prepareReadingContextSources({ userQuestion, reflectionsText: 'I am 43 years old and my partner is planning a wedding.' });
+  const second = selection.selectMemoriesForReading(first.memories, { sources: correctedSources, contextSelection, referenceTime: 1000 });
+  assert.deepEqual(second.selectedIds, []);
+  assert.deepEqual(first.selectedIds, ['obsolete'], 'The prior request decision remains immutable');
+});
+
+test('full current-input vetoes preserve subject ownership and cannot add positive authority', () => {
+  const userQuestion = 'I am 42 years old. How can I grow in my career?';
+  for (const reflectionsText of [
+    'My friend is not 42 years old and my partner is planning a wedding.',
+    'My friend is 43 years old and my partner is planning a wedding.',
+    'I am 42 years old and my partner is planning a wedding.'
+  ]) {
+    const sources = prepareReadingContextSources({ userQuestion, reflectionsText });
+    assert.deepEqual(selection.selectMemoriesForReading([note('self', 'I am 42 years old')], { sources }).selectedIds, ['self'], reflectionsText);
+  }
+  const sources = prepareReadingContextSources({ userQuestion, reflectionsText: 'I am planning a wedding with my partner.' });
+  assert.deepEqual(selection.selectMemoriesForReading([
+    note('unrelated', 'I am planning a wedding'),
+    note('extra-fact', 'I am 42 years old; I am planning a wedding'),
+    note('self', 'I am 42 years old')
+  ], { sources }).selectedIds, ['self']);
+});
+
+test('saved focus and caller interpretations cannot veto supported current facts', () => {
+  const sources = prepareReadingContextSources({
+    userQuestion: 'I am 42 years old. How can I grow in my career?',
+    focusAreas: ['I am 43 years old'],
+    cardsInfo: [{ callerMeaning: 'I am not 42 years old' }]
+  });
+  sources.push({ id: 'interpretation-0', text: 'I am not 42 years old' });
+  assert.deepEqual(selection.selectMemoriesForReading([note('self', 'I am 42 years old')], { sources }).selectedIds, ['self']);
+});
+
+test('off-topic current text cannot improve memory relevance or ranking', () => {
+  const sources = prepareReadingContextSources({ userQuestion: 'Career choices', reflectionsText: 'My partner needs support.' });
+  const result = selection.selectMemoriesForReading([
+    note('older-support', 'Career support', { createdAt: 1 }),
+    note('newer-clarity', 'Career clarity', { createdAt: 2 }),
+    note('unrelated', 'Romantic relationships', { createdAt: 3 })
+  ], { sources });
+  assert.deepEqual(result.selectedIds, ['newer-clarity', 'older-support']);
+});
+
 for (const [kind, previous, retraction] of contrastRetractions) {
   test(`projected contrast clauses preserve the ${kind} retraction at actual memory admission`, () => {
     for (const boundary of contrastBoundaries) {

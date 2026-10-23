@@ -171,6 +171,56 @@ for (const [kind, previous, retraction] of [
   }
 }
 
+for (const [name, reflectionsText, expected] of [
+  ['off-topic age retraction', 'I am not 42 years old and my partner is planning a wedding.', 0],
+  ['off-topic age correction', 'I am 43 years old and my partner is planning a wedding.', 0],
+  ['sentence-separated correction', 'I am not 42 years old. My partner is planning a wedding.', 0],
+  ['compatible current age', 'I am 42 years old and considering a career change.', 1],
+  ['unrelated subject correction', 'My friend is not 42 years old and my partner is planning a wedding.', 1]
+]) {
+  for (const transport of ['direct', 'job']) {
+    test(`${name} controls final ${transport} memory inclusion and access timestamps`, async t => {
+      const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+      const db = routeDatabase();
+      t.after(() => db.sqlite.close());
+      insert(db, 'saved-age', { text: 'I am 42 years old' });
+      for (const name of ['log', 'warn']) t.mock.method(console, name, () => {});
+      let finalPrompt = '';
+      t.mock.method(globalThis, 'fetch', async (_url, init) => {
+        finalPrompt = JSON.parse(init.body).messages.at(-1).content;
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites exploration. Your choices shape outcomes.' } }] });
+      });
+      const env = { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+      const payload = { ...routeFixture, userQuestion: 'I am 42 years old. How can I grow in my career?', reflectionsText };
+      let retained;
+      if (transport === 'direct') {
+        const tasks = [];
+        const response = await onRequestPost({ env, principal: { userId: 'owner' }, waitUntil: task => tasks.push(task), request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+        const body = await response.json();
+        assert.equal(response.status, 200, JSON.stringify(body));
+        await Promise.all(tasks);
+        retained = body.sourceUsage.memories.memoriesUsedInPrompt;
+      } else {
+        const state = createReadingJobState();
+        const job = new ReadingJob(state, env, { runReading: onRequestPost });
+        await job.initialized;
+        t.after(() => job.closeSubscribers());
+        Object.assign(job.job, { jobId: 'correction-job', token: 'correction-token', status: 'running', principalUserId: 'owner' });
+        job.runId = 'correction-run';
+        await job.persistState();
+        await job.runJob(payload, {}, { userId: 'owner' });
+        await drain(state);
+        assert.equal(job.job.status, 'complete', job.job.error);
+        retained = job.job.meta.sourceUsage.memories.memoriesUsedInPrompt;
+      }
+      assert.equal(finalPrompt.includes('<reading_memory slot='), expected > 0);
+      assert.equal(retained, expected);
+      assert.equal(db.sqlite.prepare('SELECT last_accessed_at FROM user_memories').get().last_accessed_at !== null, expected > 0);
+      if (!expected) assert.equal(db.calls.filter(call => call.write && /UPDATE user_memories/.test(call.sql)).length, 0);
+    });
+  }
+}
+
 test('actual reading route stamps selected retained IDs only after final acceptance', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' }); insert(db, 'unrelated', { text: 'Enjoys woodland hiking' }); insert(db, 'private-detail', { text: 'I am 42 years old' });

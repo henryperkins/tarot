@@ -378,7 +378,12 @@ export function selectMemoriesForReading(candidates, { sources = [], contextSele
   const selection = contextSelection || resolveContextSelection({ sources: prepared });
   // A source ID or mandatory query excerpt does not authorize its other clauses.
   const current = projectReadingContextSpans(prepared, selection).filter(entry => entry.source.kind !== 'savedFocus').flatMap(entry => entry.spans.map(span => ({ ...entry.source, text: span.text })));
-  const signature = JSON.stringify([current.map(field => [field.id, field.text]), selection.context, selection.graphRAGContext, sanitizeDisplayName(displayName), userId, personalization, limit, now]);
+  // Topic filtering limits positive authority and ranking, never corrections.
+  // Retain projected support while checking every accepted current clause for
+  // vetoes; saved interests and caller interpretations are not current facts.
+  const allCurrent = prepared.filter(source => source.kind !== 'savedFocus');
+  const vetoSources = [...current, ...allCurrent];
+  const signature = JSON.stringify([current.map(field => [field.id, field.text]), allCurrent.map(field => [field.id, field.text]), selection.context, selection.graphRAGContext, sanitizeDisplayName(displayName), userId, personalization, limit, now]);
   if (cached?.signature === signature) return cached.result;
   const currentTokens = meaningfulTokens(current.map(field => field.text).join(' '));
   const seenIds = new Set();
@@ -392,6 +397,10 @@ export function selectMemoriesForReading(candidates, { sources = [], contextSele
     if (expiry != null && (!Number.isFinite(expiry) || expiry <= now)) { exclude('expired'); continue; }
     const compatibility = checkMemoryCompatibility(row, current, { displayName });
     if (!['supported', 'nonfactual'].includes(compatibility.status)) { exclude(compatibility.reason); continue; }
+    if (compatibility.status === 'supported') {
+      const fullCompatibility = checkMemoryCompatibility(row, vetoSources, { displayName });
+      if (fullCompatibility.status !== 'supported') { exclude(fullCompatibility.reason); continue; }
+    }
     const textKey = normalize(row.text);
     if ((row.id && seenIds.has(row.id)) || seenText.has(textKey)) { exclude('duplicate'); continue; }
     if (row.id) seenIds.add(row.id);
