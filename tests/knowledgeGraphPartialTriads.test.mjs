@@ -61,6 +61,92 @@ test('numeric pair keys reject duplicate and noncanonical Major IDs', () => {
   assert.deepEqual(graph.detectArchetypalTriads([{ number: 14 }, { number: 14 }]), []);
 });
 
+test('authored pair registry covers exactly the three canonical pairs of every triad', () => {
+  for (const triad of ARCHETYPAL_TRIADS) {
+    const expected = triad.cards.flatMap((first, index) => triad.cards.slice(index + 1)
+      .map((second) => [first, second].sort((a, b) => a - b).join('-'))).sort();
+    assert.deepEqual(Object.keys(triad.partialNarrative).sort(), expected);
+    assert.equal(new Set(expected).size, 3);
+    for (const text of Object.values(triad.partialNarrative)) assert.ok(text.trim().length > 0);
+  }
+});
+
+test('all partial highlights qualify the matched theme and carry real slot indices', () => {
+  for (const [id, numbers, expected] of pairs) {
+    for (const order of [numbers, [...numbers].reverse()]) {
+      for (const orientations of [['Upright', 'Upright'], ['Upright', 'Reversed'], ['Reversed', 'Upright'], ['Reversed', 'Reversed']]) {
+        const cards = order.map((number, index) => ({ number, orientation: orientations[index], position: index ? 'Path B' : 'Path A' }));
+        const triad = graph.detectArchetypalTriads(cards).find((entry) => entry.id === id);
+        const [highlight] = graph.getPriorityPatternNarratives({ triads: [triad] });
+        assert.ok(highlight.text.includes(expected));
+        assert.match(highlight.text, /possible shared theme/i);
+        assert.match(highlight.text, /missing arc members are not drawn evidence/i);
+        assert.match(highlight.text, /positions and orientations/i);
+        assert.equal(highlight.isComplete, false);
+        assert.deepEqual(highlight.matchedCardIndices, [0, 1]);
+      }
+    }
+  }
+});
+
+test('complete arc highlights do not impose chronology on reordered or reversed spread slots', () => {
+  for (const entry of ARCHETYPAL_TRIADS) {
+    const cards = [...entry.cards].reverse().map((number, index) => ({ number, orientation: index ? 'Reversed' : 'Upright' }));
+    const triad = graph.detectArchetypalTriads(cards).find((value) => value.id === entry.id);
+    const [highlight] = graph.getPriorityPatternNarratives({ triads: [triad] });
+    assert.match(highlight.text, /possible shared theme/i);
+    assert.match(highlight.text, /without assuming chronological order/i);
+    assert.equal(highlight.isComplete, true);
+    assert.deepEqual(highlight.matchedCardIndices, [0, 1, 2]);
+  }
+});
+
+test('journey and dyad highlights are qualified themes rather than claims about events', () => {
+  const context = buildGraphContext([{ number: 0, card: 'The Fool' }, { number: 1, card: 'The Magician' }]);
+  const supporting = context.narrativeHighlights.filter((highlight) => !highlight.type.endsWith('triad'));
+  assert.ok(supporting.length > 0);
+  for (const highlight of supporting) {
+    assert.match(highlight.text, /possible shared theme/i);
+    assert.match(highlight.text, /positions and orientations/i);
+    assert.match(highlight.text, /without assuming chronological order/i);
+    assert.deepEqual(highlight.matchedCardIndices, [0, 1]);
+  }
+});
+
+test('minor and court highlights identify actual slots without confusing equal ranks across suits', () => {
+  const fixtures = [
+    ['rws-1909', [{ card: 'Two of Cups', suit: 'Cups', rankValue: 2 }, { card: 'Three of Swords', suit: 'Swords', rankValue: 3 }, { card: 'Three of Cups', suit: 'Cups', rankValue: 3 }], 'emerging-suit-progression', [0, 2]],
+    ['rws-1909', [{ card: 'Queen of Cups', suit: 'Cups', rank: 'Queen', rankValue: 13 }, { card: 'Queen of Swords', suit: 'Swords', rank: 'Queen', rankValue: 13 }, { card: 'King of Cups', suit: 'Cups', rank: 'King', rankValue: 14 }], 'court-lineage', [0, 2]],
+    ['thoth-a1', [{ card: 'Eight of Disks', suit: 'Pentacles', rankValue: 8 }], 'thoth-epithet', [0]],
+    ['thoth-a1', [{ card: 'Eight of Disks', suit: 'Pentacles', rankValue: 8 }, { card: 'Nine of Disks', suit: 'Pentacles', rankValue: 9 }], 'thoth-suit', [0, 1]],
+    ['marseille-classic', [{ card: 'Two of Cups', suit: 'Cups', rankValue: 2 }, { card: 'Three of Swords', suit: 'Swords', rankValue: 3 }, { card: 'Two of Coins', suit: 'Pentacles', rankValue: 2 }], 'marseille-numerology', [0, 2]]
+  ];
+  for (const [deckStyle, cards, type, indices] of fixtures) {
+    const positions = ['Me', 'Partner', 'Relationship'];
+    const input = cards.map((card, index) => ({ ...card, position: positions[index], orientation: index ? 'Reversed' : 'Upright' }));
+    const before = structuredClone(input);
+    const highlight = buildGraphContext(input, { deckStyle }).narrativeHighlights.find((entry) => entry.type === type);
+    assert.ok(highlight, type);
+    assert.deepEqual(highlight.matchedCardIndices, indices, type);
+    assert.deepEqual(input, before, 'original positions/orientations must remain intact');
+  }
+});
+
+test('journey and dyad slot accounting retains duplicates and skips interleaved unrelated cards', () => {
+  const cards = [
+    { number: 0, card: 'The Fool', position: 'Path A', orientation: 'Reversed' },
+    { card: 'Two of Cups', suit: 'Cups', rankValue: 2, position: 'Path B', orientation: 'Upright' },
+    { number: 1, card: 'The Magician', position: 'Advice', orientation: 'Upright' },
+    { number: 0, card: 'The Fool', position: 'Outcome', orientation: 'Upright' }
+  ];
+  const ctx = buildGraphContext(cards);
+  for (const type of ['fools-journey', 'high-dyad']) {
+    const highlight = ctx.narrativeHighlights.find((entry) => entry.type === type);
+    assert.ok(highlight, type);
+    assert.deepEqual(highlight.matchedCardIndices, [0, 2, 3], type);
+  }
+});
+
 test('all ten complete arcs preserve complete narratives', () => {
   for (const entry of ARCHETYPAL_TRIADS) {
     const found = graph.detectArchetypalTriads(entry.cards.map((number) => ({ number }))).find((triad) => triad.id === entry.id);

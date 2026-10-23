@@ -20,8 +20,8 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | Phase | Tasks | State | Evidence / next action |
 | --- | --- | --- | --- |
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
-| 1 | 1–2 | Pending | Contracts, memory toggle, canonical meaning, authoritative context and span query. |
-| 2 | 3–4 | Pending | Major counts, conditional highlights, matched-only references and enrichment projection. |
+| 1 | 1–2 | In progress | Contracts, memory toggle, canonical meaning, authoritative context and span query. |
+| 2 | 3–4 | Task 3 complete; Task 4 pending | Major counts and conditional highlights reviewed; passage/enrichment projection next. |
 | 3 | 5–6 | Pending | Bounded ranking and compatible memory selection. |
 | 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
@@ -108,3 +108,11 @@ Recorded commands and complete logs are retained in the external evidence direct
 ## Known unresolved candidate gaps
 
 Partial references still contain full arcs; Major counts still depend on journey detection; prompt selection is recomputed; mixed sources and negated memories remain unsafe; opaque legacy retention fallback remains; memory receipts are not durable; enriched projections are not yet adapted. These are required follow-on work, not waived findings.
+
+## Task 3 — Graph facts and direct highlights
+
+Implemented independently alongside Task 1 under the plan's explicit dependency allowance, with disjoint file ownership. Numeric pair keys and all 30 explicit authored expectations were verified reuse. New red regressions established independent Major counts (including ties/no patterns), unique membership versus duplicate slots, conditional highlight text, and exact matched slot indices. Every direct-highlight family now carries its detector's slot indices, and themes remain subordinate to actual positions/orientations without imposing chronology. Partial highlights explicitly reject missing arc members as drawn evidence.
+
+- Final focused result: **221 passed, zero failed/skipped**, including Worker graph and real shared builder regression suites.
+- Independent review R1 identified absent indices in non-triad families; fixed with interleaved/duplicate/equal-rank/court/deck-specific tests. Fix round 1/5: one addressed, zero open. Final spec and quality review approved.
+- Review/report and red/green logs are in this plan's workspace and external evidence directory. Full prompt boundary qualification remains Task 7/9.

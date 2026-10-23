@@ -9,6 +9,35 @@ import { buildGraphContext } from '../functions/lib/graphContext.js';
 // knowledge graph will not require frequent test rewrites.
 
 describe('graphContext.buildGraphContext', () => {
+    it('two_major_stage_tie_reports_two', () => {
+        const ctx = buildGraphContext([
+            { number: 14, card: 'Art', orientation: 'Reversed' },
+            { number: 17, card: 'The Star', orientation: 'Upright' }
+        ], { deckStyle: 'thoth-a1' });
+        assert.equal(ctx.patterns.foolsJourney, undefined);
+        assert.equal(ctx.graphKeys.totalMajors, 2);
+    });
+
+    it('counts valid Major slots independently of patterns and ignores invalid numeric metadata', () => {
+        for (const [cards, expected] of [
+            [[{ card: 'Eight of Cups', suit: 'Cups', rankValue: 8 }], 0],
+            [[{ number: 0, card: 'The Fool' }], 1],
+            [[{ number: 0 }, { number: 8 }, { number: 15 }, { number: 21 }], 4],
+            [[{ number: 14 }, { number: 14 }, { number: 17 }], 3],
+            [[{ number: -1 }, { number: 22 }, { number: 1.5 }, { number: NaN }, { number: '14' }], 0]
+        ]) {
+            assert.equal(buildGraphContext(cards)?.graphKeys.totalMajors, expected);
+        }
+    });
+
+    it('duplicate slots do not manufacture a dominant journey stage or complete pattern', () => {
+        const ctx = buildGraphContext([{ number: 14 }, { number: 14 }, { number: 17 }]);
+        assert.equal(ctx.patterns.foolsJourney, undefined);
+        assert.deepEqual(ctx.graphKeys.completeTriadIds, []);
+        assert.deepEqual(ctx.patterns.triads[0].matchedCardIndices, [0, 1, 2]);
+        assert.deepEqual(ctx.patterns.triads[0].matchedCards, [14, 17]);
+    });
+
     it('returns null for missing or empty card arrays', () => {
         assert.strictEqual(buildGraphContext(null), null);
         assert.strictEqual(buildGraphContext(undefined), null);
