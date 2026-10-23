@@ -12,6 +12,8 @@ export function CoachTemplatePanel({
   newTemplateLabel,
   setNewTemplateLabel,
   templateStatus,
+  templateUndo,
+  handleUndoTemplateSave,
   handleSaveTemplate,
   handleApplyTemplate,
   handleDeleteTemplate,
@@ -76,7 +78,7 @@ export function CoachTemplatePanel({
               Template library
             </h2>
             <p className="text-sm text-muted">
-              Save this configuration or reapply a favorite blend anytime.
+              Save this question or return to wording you have saved.
             </p>
           </div>
           <button
@@ -112,7 +114,7 @@ export function CoachTemplatePanel({
                   autoComplete="off"
                   enterKeyHint="done"
                   data-initial-focus="save"
-                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
+                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-base text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
                 />
                 <button
                   type="submit"
@@ -128,6 +130,9 @@ export function CoachTemplatePanel({
             </div>
             {templateStatus && (
               <p className="text-xs text-secondary wrap-break-word">{templateStatus}</p>
+            )}
+            {templateUndo && (
+              <button type="button" onClick={handleUndoTemplateSave} className="inline-flex min-h-touch min-w-touch items-center px-2 text-sm text-secondary underline underline-offset-4">Undo</button>
             )}
             {/* Always mounted, and off screen so an empty region leaves no gap,
                 so screen readers hear each save, update, and removal. */}

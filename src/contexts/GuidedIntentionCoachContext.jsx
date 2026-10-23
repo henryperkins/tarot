@@ -14,13 +14,7 @@ import {
   buildCreativeQuestion,
   getCoachSummary
 } from '../lib/intentionCoach';
-import {
-  scoreQuestion,
-  getQualityLevel,
-  getQuestionNudge,
-  isAssessableQuestion,
-  QUESTION_NUDGES
-} from '../lib/questionQuality';
+import { getQuestionFramingSuggestions, buildLocalQuestionRefinement } from '../lib/questionFraming';
 import {
   buildSourceDetailFromSignals,
   loadCoachRecommendation,
@@ -33,7 +27,8 @@ import {
   deleteCoachTemplate,
   loadCoachHistory,
   recordCoachQuestion,
-  MAX_TEMPLATES
+  runCoachTemplateMutation,
+  undoCoachTemplateSave
 } from '../lib/coachStorage';
 import { buildPersonalizedSuggestions, describePrefillSource } from '../lib/coachSuggestions';
 import {
@@ -55,71 +50,27 @@ const GuidedIntentionCoachContext = createContext(null);
 const REVIEW_STEP = STEPS.length - 1;
 const RESUMED_MESSAGE = 'Picked up where you left off.';
 const coachPrefsKey = userId => userId ? `${COACH_PREFS_KEY}_${userId}` : COACH_PREFS_KEY;
-const UNASSESSED_QUESTION_QUALITY = {
-  openEnded: false,
-  specific: false,
-  actionable: false,
-  length: false,
-  concreteSubject: false,
-  timeframe: false,
-  deterministicLanguage: false,
-  score: 0,
-  feedback: []
-};
-
-/**
- * What the coach shows when it opens: the unfinished draft from a session that
- * was dismissed, otherwise the last-used settings plus any journal
- * recommendation.
- */
-function resolveOpeningState({ userId, suggestedTopic, prefillRecommendation }) {
+/** Opening wording belongs to this reading and this owner, ahead of defaults. */
+function resolveOpeningState({ userId, suggestedTopic, initialQuestion }) {
+  const entryQuestion = typeof initialQuestion === 'string' ? initialQuestion.slice(0, USER_QUESTION_MAX_LENGTH) : '';
   const draft = loadCoachDraft(userId);
-  if (draft) {
-    // A restored intention belongs to the reader, even if it was generated.
-    // Explicit Remix or setting changes release it for generation again.
-    return { ...draft, autoQuestionEnabled: draft.questionText?.trim() ? false : draft.autoQuestionEnabled, resumed: draft.step > 0 };
+  if (draft && (draft.entryQuestion ?? draft.originalQuestion ?? '') === entryQuestion) {
+    return { ...draft, autoQuestionEnabled: draft.questionText?.trim() ? false : draft.autoQuestionEnabled, resumed: true };
   }
-
-  let topic = suggestedTopic;
-  let timeframe = INTENTION_TIMEFRAME_OPTIONS[1].value;
-  let depth = INTENTION_DEPTH_OPTIONS[1].value;
+  let saved = {};
   try {
-    const saved = JSON.parse(localStorage.getItem(coachPrefsKey(userId)) || '{}');
-    const isRecent = saved.timestamp && (Date.now() - saved.timestamp) < TIMING.PREFS_EXPIRY;
-    if (isRecent) {
-      topic = saved.lastTopic || topic;
-      timeframe = saved.lastTimeframe || timeframe;
-      depth = saved.lastDepth || depth;
-    }
-  } catch (error) {
-    console.warn('Could not load coach preferences:', error);
-  }
-
-  const opening = {
-    step: 0,
-    topic,
-    timeframe,
-    depth,
-    customFocus: '',
-    useCreative: false,
-    remixCount: 0,
-    questionText: '',
-    autoQuestionEnabled: true,
-    prefillSource: null,
-    resumed: false
-  };
-
-  const recommendation = prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation(userId);
-  if (!recommendation?.question) return opening;
-
+    const candidate = JSON.parse(localStorage.getItem(coachPrefsKey(userId)) || '{}');
+    if (candidate.timestamp && Date.now() - candidate.timestamp < TIMING.PREFS_EXPIRY) saved = candidate;
+  } catch { /* Storage is optional; the reader's wording is not. */ }
   return {
-    ...opening,
-    topic: recommendation.topicValue || topic,
-    timeframe: recommendation.timeframeValue || timeframe,
-    depth: recommendation.depthValue || depth,
-    questionText: recommendation.question,
-    autoQuestionEnabled: false,
-    prefillSource: recommendation
+    step: entryQuestion.trim() ? REVIEW_STEP : 0,
+    topic: saved.lastTopic || suggestedTopic,
+    timeframe: saved.lastTimeframe || INTENTION_TIMEFRAME_OPTIONS[1].value,
+    depth: saved.lastDepth || INTENTION_DEPTH_OPTIONS[1].value,
+    customFocus: '', useCreative: false, remixCount: 0,
+    entryQuestion, originalQuestion: entryQuestion, previousQuestion: '',
+    questionText: entryQuestion, questionOrigin: entryQuestion.trim() ? 'reader' : 'guided',
+    autoQuestionEnabled: !entryQuestion.trim(), prefillSource: null, resumed: false
   };
 }
 
@@ -138,6 +89,7 @@ function CoachSession({
   onClose,
   onApply,
   prefillRecommendation = null,
+  initialQuestion = '',
   children,
   userId
 }) {
@@ -170,20 +122,24 @@ function CoachSession({
   // Resolved before the first render, so the opening question is in place
   // from the start instead of racing the question generator's first run.
   const [openingState] = useState(() => (isOpen
-    ? resolveOpeningState({ userId, suggestedTopic, prefillRecommendation })
+    ? resolveOpeningState({ userId, suggestedTopic, initialQuestion })
     : null));
 
   const [step, setStep] = useState(openingState?.step ?? 0);
   // A request token, not a boolean: applying another suggestion while already
   // on the review step must move focus back to the editor again.
-  const [reviewFocusRequest, setReviewFocusRequest] = useState(0);
+  const [reviewFocusRequest, setReviewFocusRequest] = useState(openingState?.step === REVIEW_STEP ? 1 : 0);
   const [topic, setTopic] = useState(openingState?.topic ?? suggestedTopic);
   const [timeframe, setTimeframe] = useState(openingState?.timeframe ?? INTENTION_TIMEFRAME_OPTIONS[1].value);
   const [depth, setDepth] = useState(openingState?.depth ?? INTENTION_DEPTH_OPTIONS[1].value);
   const [customFocus, setCustomFocus] = useState(openingState?.customFocus ?? '');
   const [useCreative, setUseCreative] = useState(openingState?.useCreative ?? false);
   const [questionText, setQuestionText] = useState(openingState?.questionText ?? '');
+  const [originalQuestion, setOriginalQuestion] = useState(openingState?.originalQuestion || '');
+  const [previousQuestion, setPreviousQuestion] = useState(openingState?.previousQuestion || '');
+  const [questionOrigin, setQuestionOrigin] = useState(openingState?.questionOrigin || (openingState?.questionText ? 'reader' : 'guided'));
   const [generation, setGeneration] = useState(null);
+  const [generationRequest, setGenerationRequest] = useState(null);
   const [announcement, setAnnouncement] = useState('');
   // A resumed draft is the one thing a fresh mount has to say on its own.
   const [pendingAnnouncement, setPendingAnnouncement] = useState(
@@ -195,6 +151,7 @@ function CoachSession({
     const snapshot = loadCoachStatsSnapshot(userId);
     const insights = loadStoredJournalInsights(userId);
     return {
+      recommendation: prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation(userId),
       templates: loadCoachTemplates(userId),
       history: loadCoachHistory(undefined, userId),
       stats: snapshot?.stats || insights?.stats || null,
@@ -204,12 +161,19 @@ function CoachSession({
   const [templates, setTemplates] = useState(storageSnapshot.templates);
   const [newTemplateLabel, setNewTemplateLabel] = useState('');
   const [templateStatus, setTemplateStatus] = useState('');
+  const [templateUndo, setTemplateUndo] = useState(null);
   const [questionHistory, setQuestionHistory] = useState(storageSnapshot.history);
   const coachStats = storageSnapshot.stats;
   const coachStatsMeta = storageSnapshot.meta;
   const personalizedSuggestions = useMemo(
-    () => buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas),
-    [coachStats, questionHistory, personalization?.focusAreas]
+    () => {
+      const suggestions = buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas);
+      const recommendation = storageSnapshot.recommendation;
+      return recommendation?.question ? [{ ...recommendation, id: 'journal-recommendation', source: 'journal',
+        label: recommendation.label || 'From your journal', topic: recommendation.topicValue,
+        timeframe: recommendation.timeframeValue, depth: recommendation.depthValue }, ...suggestions] : suggestions;
+    },
+    [coachStats, questionHistory, personalization?.focusAreas, storageSnapshot.recommendation]
   );
   const [pageSelection, setPageSelection] = useState(null);
   const suggestionsPage = pageSelection?.source === personalizedSuggestions
@@ -223,9 +187,6 @@ function CoachSession({
   const [remixCount, setRemixCount] = useState(openingState?.remixCount ?? 0);
 
   const timeoutRefs = useRef([]);
-  // Prefix for announcing the next generated question, set by explicit
-  // actions (Remix, the AI toggle) and consumed once generation settles.
-  const pendingQuestionAnnouncementRef = useRef(null);
   const openingSnapshotRef = useRef(openingState);
   const draftSnapshotRef = useRef(null);
   const appliedRef = useRef(false);
@@ -245,11 +206,6 @@ function CoachSession({
   const coachSnapshotDetail = useMemo(() => {
     return buildSourceDetailFromSignals(coachStatsMeta?.signalsUsed);
   }, [coachStatsMeta]);
-
-  const releasePrefill = useCallback(() => {
-    setPrefillSource(null);
-    setAutoQuestionEnabled(true);
-  }, []);
 
   const requestReviewFocus = useCallback(() => {
     setReviewFocusRequest(request => request + 1);
@@ -297,10 +253,6 @@ function CoachSession({
     return () => clearTimeout(timerId);
   }, [pendingAnnouncement]);
 
-  const announceNextQuestion = useCallback((prefix) => {
-    pendingQuestionAnnouncementRef.current = prefix;
-  }, []);
-
   const prefillSourceDescription = useMemo(
     () => describePrefillSource(prefillSource),
     [prefillSource]
@@ -315,45 +267,30 @@ function CoachSession({
     [topic, timeframe, depth, customFocus, questionSeed, selectedSpread]
   );
 
-  // An empty edited question belongs to the reader too; only automatic mode
-  // can fall back to the generated wording.
   const generationInputs = useMemo(() => ({
     topic, timeframe, depth, customFocus, seed: questionSeed,
-    focusAreas: personalization?.focusAreas, spreadKey: selectedSpread,
-    useCreative, autoQuestionEnabled
-  }), [topic, timeframe, depth, customFocus, questionSeed, personalization?.focusAreas, selectedSpread, useCreative, autoQuestionEnabled]);
-  const activeGeneration = autoQuestionEnabled && useCreative && generation?.inputs === generationInputs ? generation : null;
-  const currentQuestion = autoQuestionEnabled ? activeGeneration?.question || guidedQuestion : questionText;
-  const questionLoading = autoQuestionEnabled && useCreative && !activeGeneration;
-  const questionError = activeGeneration?.error || '';
-  const astroHighlights = activeGeneration?.forecast?.highlights || [];
-  const astroWindowDays = activeGeneration?.forecast?.days || null;
-  const astroSource = activeGeneration?.forecast?.source || null;
-
-  const trimmedQuestion = currentQuestion.trim();
-  const hasQuestion = Boolean(trimmedQuestion);
-  // The scorer and its word lists are English heuristics. Keep the field
-  // editable in any language, but do not attach an unsupported grade to it.
-  const isQuestionAssessable = useMemo(
-    () => hasQuestion && isAssessableQuestion(trimmedQuestion),
-    [hasQuestion, trimmedQuestion]
-  );
-  const questionNudge = useMemo(
-    () => (isQuestionAssessable ? getQuestionNudge(trimmedQuestion) : null),
-    [isQuestionAssessable, trimmedQuestion]
-  );
-
-  const questionQuality = useMemo(
-    () => (isQuestionAssessable ? scoreQuestion(trimmedQuestion) : UNASSESSED_QUESTION_QUALITY),
-    [isQuestionAssessable, trimmedQuestion]
-  );
-
+    focusAreas: personalization?.focusAreas, spreadKey: selectedSpread
+  }), [topic, timeframe, depth, customFocus, questionSeed, personalization?.focusAreas, selectedSpread]);
+  const currentQuestion = autoQuestionEnabled ? guidedQuestion : questionText;
+  const questionLoading = Boolean(generationRequest);
+  const questionError = generation?.error || '';
+  const astroHighlights = generation?.forecast?.highlights || [];
+  const astroWindowDays = generation?.forecast?.days || null;
+  const astroSource = generation?.forecast?.source || null;
+  const hasQuestion = Boolean(currentQuestion.trim());
   const isManualQuestion = !autoQuestionEnabled;
+  const framingSuggestions = useMemo(() => getQuestionFramingSuggestions(currentQuestion), [currentQuestion]);
 
-  const qualityLevel = useMemo(
-    () => getQualityLevel(questionQuality.score),
-    [questionQuality.score]
-  );
+  // A setting is configuration, never permission to replace the editor.
+  const releasePrefill = useCallback(() => {
+    if (questionOrigin === 'reader' || !autoQuestionEnabled) {
+      setQuestionText(currentQuestion);
+      setAutoQuestionEnabled(false);
+    }
+    setGenerationRequest(null);
+    setGeneration(null);
+    setPrefillSource(null);
+  }, [currentQuestion, questionOrigin, autoQuestionEnabled]);
 
   const summary = getCoachSummary({ topic, timeframe, depth });
   const footerSummary = isManualQuestion
@@ -392,34 +329,6 @@ function CoachSession({
     return chips;
   }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, spreadQuestionContext, customFocus, isManualQuestion]);
 
-  const qualityHelperText = useMemo(() => {
-    if (!hasQuestion) return 'Write your question to see clarity guidance.';
-    if (!isQuestionAssessable) {
-      return 'Clarity scoring is available for English questions. Keep writing in the language that fits.';
-    }
-    // A framing problem outranks a high score: the main question field hides
-    // its grade in the same situation instead of praising the wording.
-    if (questionNudge) return QUESTION_NUDGES[questionNudge];
-    if (questionQuality.score >= 85) return 'Excellent - ready to anchor into your spread.';
-    const primaryTip = questionQuality.feedback[0];
-    if (primaryTip) return primaryTip;
-    if (questionQuality.score >= 65) return 'Add one more detail for extra clarity.';
-    if (questionQuality.score >= 40) return 'Sharpen the focus to strengthen it.';
-    return 'Try reframing it from a curious, open-ended angle.';
-  }, [hasQuestion, isQuestionAssessable, questionNudge, questionQuality.feedback, questionQuality.score]);
-
-  const qualityHighlights = useMemo(() => {
-    if (!isQuestionAssessable || questionNudge) return [];
-    const highlights = [];
-    if (questionQuality.openEnded) highlights.push('Open-ended');
-    if (questionQuality.specific) highlights.push('Specific');
-    if (questionQuality.actionable) highlights.push('Actionable');
-    if (questionQuality.timeframe) highlights.push('Timeframe');
-    return highlights;
-  }, [isQuestionAssessable, questionNudge, questionQuality.actionable, questionQuality.openEnded, questionQuality.specific, questionQuality.timeframe]);
-
-  const normalizedQualityScore = Math.min(Math.max(questionQuality.score, 0), 100);
-
   const suggestionPageCount = useMemo(() => {
     if (personalizedSuggestions.length === 0) return 0;
     return Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE);
@@ -431,7 +340,7 @@ function CoachSession({
     return personalizedSuggestions.slice(start, start + SUGGESTIONS_PER_PAGE);
   }, [personalizedSuggestions, suggestionsPage]);
 
-  const handleSaveTemplate = useCallback(() => {
+  const handleSaveTemplate = useCallback(async () => {
     const label = newTemplateLabel.trim();
     if (!label) {
       setTemplateStatus('Add a template name first.');
@@ -442,9 +351,6 @@ function CoachSession({
       setTemplateStatus('Add or generate a question before saving.');
       return;
     }
-    const normalizedLabel = label.toLowerCase();
-    const previousTemplateCount = templates.length;
-    const replacedExisting = templates.some(template => template.label?.toLowerCase() === normalizedLabel);
     const payload = {
       label,
       topic,
@@ -454,21 +360,16 @@ function CoachSession({
       useCreative,
       savedQuestion: trimmedQuestion
     };
-    const result = saveCoachTemplate(payload, userId);
+    const result = await runCoachTemplateMutation(userId, () => saveCoachTemplate(payload, userId));
     if (result.success) {
       setTemplates(result.templates);
-      const archivedOldest =
-        !replacedExisting &&
-        previousTemplateCount >= MAX_TEMPLATES &&
-        (result.templates?.length || 0) >= MAX_TEMPLATES;
-      const status = archivedOldest
-        ? `Template saved (oldest archived to keep ${MAX_TEMPLATES} max).`
-        : replacedExisting
-          ? 'Template updated'
-          : 'Template saved';
+      setTemplateUndo(result.undoToken);
+      const status = result.replacedTemplate
+        ? `Template saved; replaced "${result.replacedTemplate.label}". You can undo this replacement.`
+        : 'Template saved';
       setTemplateStatus(status);
       setNewTemplateLabel('');
-      scheduleTimeout(() => setTemplateStatus(''), TIMING.STATUS_DISPLAY_MEDIUM);
+      if (!result.undoToken) scheduleTimeout(() => setTemplateStatus(''), TIMING.STATUS_DISPLAY_MEDIUM);
     } else if (result.error) {
       setTemplateStatus(result.error);
       scheduleTimeout(() => setTemplateStatus(''), TIMING.STATUS_DISPLAY_MEDIUM);
@@ -476,7 +377,6 @@ function CoachSession({
   }, [
     newTemplateLabel,
     currentQuestion,
-    templates,
     topic,
     timeframe,
     depth,
@@ -486,8 +386,21 @@ function CoachSession({
     scheduleTimeout
   ]);
 
+  const handleUndoTemplateSave = useCallback(async () => {
+    if (!templateUndo) return;
+    const result = await runCoachTemplateMutation(userId, () => undoCoachTemplateSave(templateUndo, userId));
+    if (result.success) {
+      setTemplates(result.templates);
+      setTemplateUndo(null);
+      setTemplateStatus('Replacement undone. Your previous template is restored.');
+    } else setTemplateStatus(result.error || 'Could not undo this replacement.');
+  }, [templateUndo, userId]);
+
   const handleApplyTemplate = useCallback((template) => {
     if (!template) return;
+    setGenerationRequest(null);
+    setQuestionOrigin('reader');
+    if (!originalQuestion && template.savedQuestion) setOriginalQuestion(template.savedQuestion);
     if (template.topic && template.topic !== topic) {
       releasePrefill();
       setTopic(template.topic);
@@ -522,17 +435,19 @@ function CoachSession({
     topic,
     timeframe,
     depth,
+    originalQuestion,
     releasePrefill,
     clearAstroForecast,
     requestReviewFocus,
     announce
   ]);
 
-  const handleDeleteTemplate = useCallback((templateId) => {
+  const handleDeleteTemplate = useCallback(async (templateId) => {
     const removed = templates.find(template => template.id === templateId);
-    const result = deleteCoachTemplate(templateId, userId);
+    const result = await runCoachTemplateMutation(userId, () => deleteCoachTemplate(templateId, userId));
     if (result.success) {
       setTemplates(result.templates);
+      setTemplateUndo(null);
       setTemplateStatus(removed?.label ? `Removed "${removed.label}"` : 'Template removed');
       scheduleTimeout(() => setTemplateStatus(''), TIMING.STATUS_DISPLAY_SHORT);
     } else if (result.error) {
@@ -543,6 +458,8 @@ function CoachSession({
 
   const handleApplySuggestion = useCallback((suggestion, resolvedQuestion = '') => {
     if (!suggestion) return;
+    setGenerationRequest(null);
+    setQuestionOrigin('reader');
     if (suggestion.topic && suggestion.topic !== topic) {
       releasePrefill();
       setTopic(suggestion.topic);
@@ -564,6 +481,7 @@ function CoachSession({
     // asking the generator for a different variant.
     const exactQuestion = suggestion.question || resolvedQuestion;
     if (exactQuestion) {
+      if (!originalQuestion) setOriginalQuestion(exactQuestion);
       setQuestionText(exactQuestion);
       setAutoQuestionEnabled(false);
       clearAstroForecast();
@@ -578,6 +496,7 @@ function CoachSession({
     topic,
     timeframe,
     depth,
+    originalQuestion,
     releasePrefill,
     clearAstroForecast
   ]);
@@ -606,28 +525,73 @@ function CoachSession({
   }, [handleApplySuggestion, requestReviewFocus, announce]);
 
   const editQuestion = useCallback((text) => {
-    // Disabling generation also aborts any pending AI request in its effect.
-    // Future automatic questions require an explicit Remix or setting change.
+    setGenerationRequest(null);
     setAutoQuestionEnabled(false);
+    setQuestionOrigin('reader');
     setQuestionText(text.slice(0, USER_QUESTION_MAX_LENGTH));
     setPrefillSource(null);
-    pendingQuestionAnnouncementRef.current = null;
     clearAstroForecast();
   }, [clearAstroForecast]);
 
   const remixQuestion = useCallback(() => {
+    const nextCount = remixCount + 1;
+    setPreviousQuestion(currentQuestion);
     setPrefillSource(null);
-    setAutoQuestionEnabled(true);
-    setRemixCount(count => count + 1);
-    announceNextQuestion('New question');
-  }, [announceNextQuestion]);
+    setAutoQuestionEnabled(false);
+    setQuestionText(currentQuestion);
+    setRemixCount(nextCount);
+    clearAstroForecast();
+    const inputs = { ...generationInputs, seed: `${questionSeed}|${nextCount}`,
+      // AI always refines the displayed artifact, even when the wizard wrote
+      // its first version. Local fresh generation can still use the settings.
+      questionText: useCreative || questionOrigin === 'reader' ? currentQuestion : '' };
+    if (useCreative && canUseAIQuestions) {
+      setGenerationRequest({ inputs });
+      announce('Refining your question. You can keep editing.');
+    } else {
+      setGenerationRequest(null);
+      const question = inputs.questionText ? buildLocalQuestionRefinement(inputs.questionText) : buildGuidedQuestion(inputs);
+      setQuestionText(question);
+      announce(question === currentQuestion ? 'Your wording is preserved. You can refine it in the editor.' : `New wording: ${question}`);
+    }
+  }, [remixCount, currentQuestion, generationInputs, questionSeed, questionOrigin, useCreative, canUseAIQuestions, clearAstroForecast, announce]);
 
   const setCreativeMode = useCallback((enabled) => {
     releasePrefill();
     setUseCreative(enabled);
+  }, [releasePrefill]);
+
+  const restorePreviousQuestion = useCallback(() => {
+    if (!previousQuestion) return;
+    editQuestion(previousQuestion);
+    setPreviousQuestion('');
+    setStep(REVIEW_STEP);
+    requestReviewFocus();
+    announce('Your previous wording is restored.');
+  }, [previousQuestion, editQuestion, requestReviewFocus, announce]);
+
+  const restoreOriginalQuestion = useCallback(() => {
+    if (!originalQuestion) return;
+    setPreviousQuestion(currentQuestion);
+    editQuestion(originalQuestion);
+    setStep(REVIEW_STEP);
+    requestReviewFocus();
+    announce('Your original question is restored.');
+  }, [originalQuestion, currentQuestion, editQuestion, requestReviewFocus, announce]);
+
+  const startFresh = useCallback(() => {
+    setPreviousQuestion(currentQuestion);
+    setGenerationRequest(null);
+    setGeneration(null);
+    setPrefillSource(null);
+    setQuestionText('');
+    setQuestionOrigin('guided');
     setAutoQuestionEnabled(true);
-    announceNextQuestion(enabled ? 'Personalized question' : 'Guided question');
-  }, [releasePrefill, announceNextQuestion]);
+    setCustomFocus('');
+    setUseCreative(false);
+    setStep(0);
+    announce('Start a new question. Your original question is still available to restore.');
+  }, [currentQuestion, announce]);
 
   const openTemplatePanel = useCallback((intent = 'browse') => {
     setTemplatePanelIntent(intent === 'save' ? 'save' : 'browse');
@@ -654,9 +618,10 @@ function CoachSession({
   const goNext = useCallback(() => {
     if (step < REVIEW_STEP && canGoNext()) {
       setStep(step + 1);
+      if (step + 1 === REVIEW_STEP) requestReviewFocus();
       announceStep(step + 1);
     }
-  }, [step, canGoNext, announceStep]);
+  }, [step, canGoNext, announceStep, requestReviewFocus]);
 
   const goBack = useCallback(() => {
     if (step > 0) {
@@ -720,6 +685,8 @@ function CoachSession({
   useEffect(() => {
     if (!isOpen) return;
     draftSnapshotRef.current = {
+      entryQuestion: openingState.entryQuestion,
+      originalQuestion, previousQuestion, questionOrigin,
       step,
       topic,
       timeframe,
@@ -743,47 +710,32 @@ function CoachSession({
     };
   }, [userId]);
 
-  // Only asynchronous creative generation lives in an effect. Guided wording,
-  // loading and forecast visibility come from the current session inputs.
+  // Only an explicit generation action starts a request. Every edit/configuration
+  // change disposes it; a late result cannot replace newer reader wording.
   useEffect(() => {
-    if (!autoQuestionEnabled) return undefined;
+    if (!generationRequest) return undefined;
     const controller = new AbortController();
     let cancelled = false;
-    const settleAnnouncement = (message) => {
-      const prefix = pendingQuestionAnnouncementRef.current;
-      if (!prefix || cancelled) return;
-      pendingQuestionAnnouncementRef.current = null;
-      announce(`${prefix}: ${message}`);
-    };
     const timer = setTimeout(async () => {
-      if (!useCreative) {
-        settleAnnouncement(guidedQuestion);
-        return;
-      }
       try {
-        const { question, source, forecast } = await buildCreativeQuestion(generationInputs, {
-          signal: controller.signal, userId
-        });
+        const { question, source, forecast } = await buildCreativeQuestion(generationRequest.inputs, { signal: controller.signal, userId });
         if (cancelled || controller.signal.aborted) return;
-        const local = ['local', 'local-fallback', 'api-fallback', 'local-template'].includes(source);
-        const error = !question
-          ? 'Personalized mode is temporarily unavailable. Showing guided version.'
-          : local ? 'Using on-device generator for now.' : '';
-        setGeneration({ inputs: generationInputs, question: question || guidedQuestion, error, forecast: question ? forecast : null });
-        settleAnnouncement(`${question || guidedQuestion}${error ? ` ${error}` : ''}`);
+        const error = source === 'local-preserved' ? 'AI refinement is unavailable right now. Your wording is kept.'
+          : ['local', 'local-fallback', 'api-fallback', 'local-template'].includes(source) ? 'Using a guided question for now.' : '';
+        setQuestionText(question);
+        setQuestionOrigin('reader');
+        setGeneration({ error, forecast });
+        setGenerationRequest(null);
+        announce(`${question}${error ? ` ${error}` : ''}`);
       } catch (error) {
-        if (error?.name === 'AbortError' || cancelled) return;
-        const message = 'Personalized mode is temporarily unavailable. Showing guided version.';
-        setGeneration({ inputs: generationInputs, question: guidedQuestion, error: message, forecast: null });
-        settleAnnouncement(`${guidedQuestion} ${message}`);
+        if (cancelled || error?.name === 'AbortError') return;
+        setGenerationRequest(null);
+        setGeneration({ error: 'Refinement is unavailable right now. Your wording is kept.', forecast: null });
+        announce('Refinement is unavailable right now. Your wording is kept.');
       }
-    }, useCreative ? TIMING.CREATIVE_DEBOUNCE : TIMING.ANNOUNCE_DELAY);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [autoQuestionEnabled, useCreative, generationInputs, guidedQuestion, userId, announce]);
+    }, TIMING.CREATIVE_DEBOUNCE);
+    return () => { cancelled = true; clearTimeout(timer); controller.abort(); };
+  }, [generationRequest, userId, announce]);
 
   const value = {
     isOpen,
@@ -791,6 +743,9 @@ function CoachSession({
     spreadQuestionContext,
     onClose,
     canUseAIQuestions,
+    originalQuestion, previousQuestion, framingSuggestions,
+    startFresh, restoreOriginalQuestion, restorePreviousQuestion,
+    templateUndo, handleUndoTemplateSave,
     step,
     setStep,
     reviewFocusRequest,
@@ -829,18 +784,11 @@ function CoachSession({
     guidedQuestion,
     currentQuestion,
     hasQuestion,
-    isQuestionAssessable,
-    questionNudge,
-    questionQuality,
     isManualQuestion,
-    qualityLevel,
     summary,
     footerSummary,
     footerSummaryCompact,
     questionContextChips,
-    qualityHelperText,
-    qualityHighlights,
-    normalizedQualityScore,
     suggestionPageCount,
     visibleSuggestions,
     setTimeframe,

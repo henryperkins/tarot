@@ -67,6 +67,11 @@ describe('coach drafts', () => {
 });
 
 describe('isUnchangedCoachSession', () => {
+  it('retains changes to recoverable original and prior wording', () => {
+    assert.strictEqual(isUnchangedCoachSession({ ...draft, originalQuestion: 'My original concern?' }, draft), false);
+    assert.strictEqual(isUnchangedCoachSession({ ...draft, previousQuestion: 'My previous wording?' }, draft), false);
+    assert.strictEqual(isUnchangedCoachSession({ ...draft, questionOrigin: 'reader' }, draft), false);
+  });
   const recommendation = { question: 'What is The Hermit asking of me?', source: 'card:The Hermit' };
   const opening = {
     ...draft,

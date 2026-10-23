@@ -15,6 +15,10 @@ export const COACH_DRAFT_TTL_MS = 30 * 60 * 1000;
 
 const SESSION_FIELDS = [
   'step',
+  'entryQuestion',
+  'originalQuestion',
+  'previousQuestion',
+  'questionOrigin',
   'topic',
   'timeframe',
   'depth',

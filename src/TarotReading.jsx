@@ -1357,6 +1357,7 @@ export default function TarotReading() {
           title="question coach"
           isOpen={isIntentionCoachOpen}
           selectedSpread={selectedSpread}
+          initialQuestion={userQuestion}
           onClose={handleCoachClose}
           onApply={handleCoachApply}
           prefillRecommendation={pendingCoachPrefill || coachRecommendation}

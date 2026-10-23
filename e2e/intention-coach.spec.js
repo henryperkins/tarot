@@ -27,7 +27,7 @@ const PLUS_USER = {
   subscription_status: 'active',
   subscription_provider: 'stripe'
 };
-const STAYS_AS_WRITTEN = 'The question already in place stays as written until you Remix or change a setting.';
+const STAYS_AS_WRITTEN = 'Your existing wording stays as written until you ask for a new version.';
 // Every Decision template weighs the paths; no generic template names one.
 const DECISION_SHAPED = /\bpaths?\b/;
 
@@ -103,16 +103,11 @@ async function selectSpread(page, name) {
 
 // The topic step's note on how the spread shapes the question.
 function spreadNote(coach) {
-  return coach.getByText('Shaped for your spread', { exact: true }).locator('../..');
+  return coach.getByText(/^Shaped for your spread:/).locator('..');
 }
 
 function reviewQuestion(coach) {
   return coach.getByRole('textbox', { name: 'Your Question', exact: true, includeHidden: true });
-}
-
-// A review chip on the current step, read as "Type:" then its label.
-function contextChip(coach, type) {
-  return coach.getByRole('tabpanel').getByText(`${type}:`, { exact: true }).locator('..');
 }
 
 for (const platform of ['desktop', 'handset @mobile']) {
@@ -121,7 +116,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page);
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+      await coach.getByRole('tab', { name: 'Review' }).press('Enter');
       await page.evaluate(() => document.fonts.ready);
       const field = reviewQuestion(coach);
       const question = Array.from({ length: 10 }, () =>
@@ -148,10 +143,10 @@ for (const platform of ['desktop', 'handset @mobile']) {
 
       await field.fill('');
       await expect.poll(() => field.evaluate(element => element.clientHeight)).toBeLessThan(originalHeight);
-      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeDisabled();
+      await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeDisabled();
       await field.fill(editedQuestion);
       await expect.poll(fitsContent).toBeLessThanOrEqual(1);
-      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
       await expect(coach).toHaveCount(0);
       await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(editedQuestion);
     });
@@ -160,7 +155,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page);
       await gotoReading(page);
       let coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       const question = 'How can I make room for rest this week?\nWhat can I change in my daily routine?';
       const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
       await expect(field).not.toHaveValue('');
@@ -171,7 +166,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await expect(coach).toHaveCount(0);
       coach = await openCoachWithButton(page);
       await expect(coach.getByRole('textbox', { name: 'Your Question', exact: true })).toHaveValue(question);
-      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
 
       await expect(coach).toHaveCount(0);
       await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
@@ -191,9 +186,9 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page);
       await gotoReading(page);
       let coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       let field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
-      const useQuestion = coach.getByRole('button', { name: 'Use question', exact: true });
+      const useQuestion = coach.getByRole('button', { name: 'Use this question', exact: true });
       await field.fill('');
       await expect(field).toHaveValue('');
       await expect(useQuestion).toBeDisabled();
@@ -206,11 +201,11 @@ for (const platform of ['desktop', 'handset @mobile']) {
       coach = await openCoachWithButton(page);
       field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
       await expect(field).toHaveValue('');
-      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeDisabled();
+      await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeDisabled();
 
-      await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+      await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
       await expect(field).not.toHaveValue('');
-      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+      await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeEnabled();
     });
 
     test('applying a suggestion keeps its previewed wording and focuses the editor', async ({ page }) => {
@@ -232,7 +227,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
         expect(preview.length).toBeGreaterThan(0);
 
         await card.click();
-        await expect(coach.getByRole('tab', { name: 'Depth' })).toHaveAttribute('aria-selected', 'true');
+        await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
         const field = reviewQuestion(coach);
         await expect(field).toHaveValue(preview);
         await expect(field).toBeFocused();
@@ -240,41 +235,42 @@ for (const platform of ['desktop', 'handset @mobile']) {
       }
 
       await coach.getByRole('tab', { name: 'Timeframe' }).click();
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       await expect(reviewQuestion(coach)).toHaveValue(preview);
       await page.keyboard.press('Escape');
       await expect(coach).toHaveCount(0);
       coach = await openCoachWithButton(page);
       await expect(reviewQuestion(coach)).toHaveValue(preview);
 
-      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
       await expect(coach).toHaveCount(0);
       await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(preview);
       await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tarot_coach_history_anon'))?.[0]?.question))
         .toBe(preview);
     });
 
-    test('Remix and a changed setting release the selected wording', async ({ page }) => {
+    test('settings preserve selected wording until explicit generation and restore is available', async ({ page }) => {
       await seedApp(page, { focusAreas: ['love'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
       const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
-      const pick = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
-      await pick.click();
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
       const field = reviewQuestion(coach);
-      await expect(contextChip(coach, 'Mode')).toContainText('Custom question');
-
-      await coach.getByRole('button', { name: 'Remix', exact: true }).click();
-      await expect(contextChip(coach, 'Topic')).toContainText('Love & Relationships');
+      const selected = await field.inputValue();
+      await coach.getByRole('textbox', { name: 'Add a detail (optional)' }).filter({ visible: true }).fill('our community garden');
+      await expect(field).toHaveValue(selected);
+      await coach.getByRole('tab', { name: 'Timeframe' }).click();
+      await coach.getByRole('radio', { name: /^Next 30 days/ }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
+      await expect(field).toHaveValue(selected);
+      await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
+      // A conservative local refinement may retain unfamiliar wording rather
+      // than inventing a new concern. It must retain a recoverable version.
       await expect(field).not.toHaveValue('');
-
-      await pick.click();
-      await expect(contextChip(coach, 'Mode')).toContainText('Custom question');
-      await coach.getByRole('textbox', { name: 'Add a detail (optional)' }).fill('our community garden');
-      await expect(field).toHaveValue(/our community garden/);
-      await expect(contextChip(coach, 'Topic')).toContainText('Love & Relationships');
+      await coach.getByRole('button', { name: 'Restore my wording', exact: true }).click();
+      await expect(field).toHaveValue(selected);
     });
 
     test('normal motion reveals the selected question in the review editor', async ({ page }) => {
@@ -290,29 +286,21 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await expect(reviewQuestion(coach)).toBeInViewport();
     });
 
-    test('normal-motion quality celebration expires after framing guidance', async ({ page }) => {
+    test('normal motion keeps framing suggestions ungraded without celebratory effects', async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await seedApp(page);
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       const field = reviewQuestion(coach);
-      await field.fill('What now?');
-      const clockStart = new Date('2026-10-22T12:00:00Z');
-      await page.clock.install({ time: clockStart });
-      await page.clock.pauseAt(new Date(clockStart.getTime() + 100));
-      const question = 'What can I learn about my relationship this month?';
-      await field.fill(question);
-      await page.clock.runFor(32);
-      const burst = coach.locator('[class~="motion-safe:animate-ping"]');
-      await expect(burst).toHaveCount(1);
-      await field.fill('What can I learn about my relationship meant to be this month?');
-      await expect(coach.getByText(/A reading can.t promise an outcome/)).toBeVisible();
-      await expect(burst).toHaveCount(0);
-      await page.clock.runFor(700);
-      await field.fill(question);
-      await expect(coach.getByText('Excellent', { exact: true })).toBeVisible();
-      await expect(burst).toHaveCount(0);
+      await field.fill('How can I guarantee that my partner comes back to me this week?');
+      await expect(coach.getByText(/This asks for a guaranteed outcome/)).toBeVisible();
+      await expect(coach.locator('[class~="motion-safe:animate-ping"]')).toHaveCount(0);
+      await field.fill('What can I learn about my relationship this month?');
+      await expect(coach.getByText(/This asks for a guaranteed outcome/)).toHaveCount(0);
+      await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
+      await expect(coach.locator('[class~="motion-safe:animate-ping"]')).toHaveCount(0);
+      await expect(field).toBeFocused();
     });
 
     test('dismissing the template library after a selection keeps focus on its opener', async ({ page }) => {
@@ -340,50 +328,43 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await expect(depthTab).toBeFocused();
     });
 
-    test('framing guidance takes priority over grades without blocking use', async ({ page }) => {
+    test('framing guidance stays ungraded and does not block using valid text', async ({ page }) => {
       await seedApp(page);
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       const field = reviewQuestion(coach);
       for (const [question, guidance] of [
-        ['What is the guaranteed outcome of my relationship this month?', /A reading can.t promise an outcome/],
-        ['Will my relationship improve this month?', /This reads as a yes-or-no question/]
+        ['How can I guarantee that my partner comes back to me this week?', /This asks for a guaranteed outcome/],
+        ['Will my relationship change this month?', /This reads as a yes-or-no question/]
       ]) {
         await field.fill(question);
         await expect(field).toHaveValue(question);
         await expect(coach.getByText(guidance)).toBeVisible();
         await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
-        await expect(coach.getByText('Excellent - ready to anchor into your spread.')).toHaveCount(0);
         await expect(coach.getByText('Open-ended', { exact: true })).toHaveCount(0);
-        await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+        await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeEnabled();
       }
     });
 
-    test('non-Latin questions stay editable without English grades or advice', async ({ page }) => {
+    test('unsupported-language questions stay editable without automated assessment', async ({ page }) => {
       await seedApp(page);
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       const field = reviewQuestion(coach);
-      const ungraded = 'Clarity scoring is available for English questions. Keep writing in the language that fits.';
-      const arabic = 'كيف يمكنني أن أجد التوازن بين عملي وعائلتي هذا الشهر؟';
-      const chinese = '如何在这周更好地支持我的家人？';
-
-      await field.fill(arabic);
-      await expect(coach.getByText(ungraded)).toBeVisible();
-      await expect(coach.getByText('Name the person, role, or situation to ground the question')).toHaveCount(0);
-      await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
-
-      await field.fill(chinese);
-      await expect(coach.getByText(ungraded)).toBeVisible();
-      await expect(coach.getByText('Add more detail to your question')).toHaveCount(0);
-      await expect(field).toHaveValue(chinese);
-      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
-
-      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      const questions = ['كيف يمكنني أن أجد التوازن بين عملي وعائلتي هذا الشهر؟', '如何在这周更好地支持我的家人？', '¿Cómo puedo cuidar mi relación con mi pareja esta semana?'];
+      for (const question of questions) {
+        await field.fill(question);
+        await expect(field).toHaveValue(question);
+        await expect(coach.getByText('Question framing', { exact: true })).toHaveCount(0);
+        await expect(coach.getByText('Excellent', { exact: true })).toHaveCount(0);
+        await expect(coach.getByText(/Clarity scoring is available/)).toHaveCount(0);
+        await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeEnabled();
+      }
+      await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
       await expect(coach).toHaveCount(0);
-      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(chinese);
+      await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(questions.at(-1));
     });
 
     test('the suggestions summary names only the sources in use', async ({ page }) => {
@@ -402,7 +383,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page);
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
       const library = page.getByRole('dialog', { name: 'Template library' });
       await field.fill('');
@@ -431,16 +412,17 @@ for (const platform of ['desktop', 'handset @mobile']) {
       });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      await coach.getByRole('tab', { name: 'Depth' }).click();
+      await coach.getByRole('tab', { name: 'Review' }).click();
       await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+      await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
       await expect.poll(() => calls).toBe(1);
       const field = reviewQuestion(coach);
       await expect(field).not.toHaveValue('');
-      await expect(coach.getByRole('button', { name: 'Use question', exact: true })).toBeEnabled();
+      await expect(coach.getByRole('button', { name: 'Use this question', exact: true })).toBeEnabled();
       await expect(coach.locator('[aria-busy="true"]')).toHaveCount(0);
       const wording = 'How can I preserve my deliberate wording after an unavailable provider?';
       await field.fill(wording);
-      await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+      await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
       await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(wording);
       expect(calls).toBe(1);
     });
@@ -506,8 +488,9 @@ for (const platform of ['desktop', 'handset @mobile']) {
       try {
         await gotoReading(page);
         const coach = await openCoachWithButton(page);
-        await coach.getByRole('tab', { name: 'Depth' }).click();
+        await coach.getByRole('tab', { name: 'Review' }).click();
         await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+        await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
         await requestStarted;
         const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
         const show = suggestions.getByRole('button', { name: 'Show', exact: true });
@@ -563,8 +546,9 @@ for (const platform of ['desktop', 'handset @mobile']) {
       try {
         await gotoReading(page);
         const coach = await openCoachWithButton(page);
-        await coach.getByRole('tab', { name: 'Depth' }).click();
+        await coach.getByRole('tab', { name: 'Review' }).click();
         await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+        await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
         await requestStarted;
         const question = 'How can I choose a pace that supports my wellbeing this month?';
         const field = coach.getByRole('textbox', { name: 'Your Question', exact: true });
@@ -572,7 +556,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
         await expect.poll(() => page.evaluate(() => window.__coachQuestionRequestAborted)).toBe(true);
         releaseResponse();
         await expect(field).toHaveValue(question);
-        await coach.getByRole('button', { name: 'Use question', exact: true }).click();
+        await coach.getByRole('button', { name: 'Use this question', exact: true }).click();
         await expect(page.locator('#quick-intention,#question-input').filter({ visible: true }).first()).toHaveValue(question);
       } finally {
         releaseResponse();
@@ -587,7 +571,7 @@ test.describe('Guided intention coach responsive review @mobile', () => {
     await seedApp(page);
     await gotoReading(page);
     const coach = await openCoachWithButton(page);
-    await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+    await coach.getByRole('tab', { name: 'Review' }).press('Enter');
     await page.evaluate(async () => {
       await document.fonts.ready;
       document.documentElement.style.fontSize = '32px';
@@ -620,7 +604,8 @@ test.describe('Guided intention coach responsive review @mobile', () => {
     expect(geometry.dialogOverflow).toBe(false);
     expect(geometry.scrollOverflow).toBe(false);
 
-    const useQuestion = coach.getByRole('button', { name: 'Use question', exact: true });
+    const useQuestion = coach.getByRole('button', { name: 'Use this question', exact: true });
+    await useQuestion.scrollIntoViewIfNeeded();
     const footerBox = await useQuestion.boundingBox();
     expect(footerBox.x).toBeGreaterThanOrEqual(0);
     expect(footerBox.x + footerBox.width).toBeLessThanOrEqual(320);
@@ -636,7 +621,7 @@ test.describe('Guided intention coach responsive review @mobile', () => {
     await seedApp(page, { user: PLUS_USER, templates: [TEMPLATE] });
     await gotoReading(page);
     const coach = await openCoachWithButton(page);
-    await coach.getByRole('tab', { name: 'Depth' }).press('Enter');
+    await coach.getByRole('tab', { name: 'Review' }).press('Enter');
 
     const shortTargets = dialog => dialog.evaluate(element => [...element.querySelectorAll('button,input,textarea')]
       .filter(control => control.getClientRects().length && getComputedStyle(control).visibility !== 'hidden')
@@ -730,7 +715,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     expect(focusedId).toBe('step-tab-timeframe');
   });
 
-  test('choice cards are a radio group: arrows move focus, Space selects', async ({ page }) => {
+  test('choice cards are a radio group: arrows move focus and select', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
@@ -746,8 +731,9 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await radios.nth(checkedIndex).focus();
     await page.keyboard.press('ArrowDown');
     await expect(radios.nth(nextIndex)).toBeFocused();
-    // Moving focus alone must not change the choice (or drop a prefilled question).
-    await expect(radios.nth(checkedIndex)).toHaveAttribute('aria-checked', 'true');
+    // Standard radio arrows select immediately; protected wording is tested
+    // separately and no longer relies on a nonstandard activation model.
+    await expect(radios.nth(checkedIndex)).toHaveAttribute('aria-checked', 'false');
 
     await page.keyboard.press('Space');
     await expect(radios.nth(nextIndex)).toHaveAttribute('aria-checked', 'true');
@@ -767,33 +753,38 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
     await expect(back).toBeFocused();
     await expect(back).toHaveAttribute('aria-disabled', 'true');
-    await expect(coach.getByRole('status')).toHaveText('Step 1 of 3: Topic');
+    await expect(coach.getByRole('status')).toHaveText('Step 1 of 4: Topic');
   });
 
-  test('a review chip hands focus to the choice it points at', async ({ page }) => {
+  test('a review setting opens its choice without replacing the edited question', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
-
-    await coach.getByRole('tab', { name: 'Depth' }).click();
-    await coach.getByRole('button', { name: /^Topic:/ }).focus();
-    await page.keyboard.press('Enter');
-
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    const question = 'What can help me speak more openly with my sister this week?';
+    await reviewQuestion(coach).fill(question);
+    // Existing wording is not labelled with inferred defaults. Open the
+    // neutral setting action, then verify the real choice and text protection.
+    await coach.getByRole('button', { name: 'Topic', exact: true }).click();
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      coach.getByRole('radiogroup', { name: TOPIC_PROMPT }).getByRole('radio', { checked: true })
-    ).toBeFocused();
+    await expect(coach.getByRole('radiogroup', { name: TOPIC_PROMPT })).toBeVisible();
+    await expect(coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
+      .getByRole('radio', { checked: true })).toBeFocused();
+    await coach.getByRole('radio', { name: /^Career & Purpose/ }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    await expect(reviewQuestion(coach)).toHaveValue(question);
   });
 
-  test('Escape closes an open tooltip before the coach', async ({ page }) => {
+  test('Escape closes an open suggestion-provenance tooltip before the coach', async ({ page }) => {
     await seedApp(page);
+    await page.addInitScript(() => localStorage.setItem('tarot_coach_stats_snapshot_anon', JSON.stringify({
+      stats: { frequentCards: [{ name: 'The Hermit', count: 2 }] },
+      meta: { entryCount: 2, signalsUsed: [{ label: 'Recurring card', detail: 'The Hermit appears in two readings.' }] }
+    })));
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
-
-    await coach.getByRole('tab', { name: 'Depth' }).click();
-    await coach.getByRole('button', { name: 'About question quality' }).focus();
+    await coach.getByRole('button', { name: 'Why am I seeing these?' }).focus();
     await expect(page.getByRole('tooltip')).toBeVisible();
-
     await page.keyboard.press('Escape');
     await expect(page.getByRole('tooltip')).toHaveCount(0);
     await expect(coach).toBeVisible();
@@ -828,7 +819,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(coach).toBeVisible();
     await expect(templatesButton).toBeFocused();
 
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     await coach.getByRole('button', { name: 'Save as template' }).click();
     const nameField = library.getByRole('textbox', { name: 'Template name' });
     await expect(nameField).toBeFocused();
@@ -838,7 +829,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
 
     await library.getByRole('button', { name: `Apply template ${TEMPLATE.label}` }).click();
     await expect(library).toHaveCount(0);
-    await expect(coach.getByRole('tab', { name: 'Depth' })).toHaveAttribute('aria-selected', 'true');
+    await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
     await expect(reviewQuestion(coach)).toBeFocused();
     await expect(coach.getByRole('status')).toContainText(`Template "${TEMPLATE.label}" applied.`);
@@ -867,15 +858,19 @@ test.describe('Guided intention coach keyboard and layers', () => {
     ).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('a journal recommendation opens with its own question', async ({ page }) => {
+  test('a journal recommendation is optional and applies its exact preview to review', async ({ page }) => {
     const question = 'What is The Hermit asking me to notice this month?';
     await seedApp(page, {
       recommendation: { question, label: 'The Hermit', source: 'card:The Hermit', topicValue: 'growth' }
     });
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
-
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
+    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+    const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+    if (await show.count()) await show.click();
+    await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
+    await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(question);
   });
 
@@ -943,7 +938,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     // untouched session would bring it back.
     await page.evaluate(() => localStorage.removeItem('tarot_coach_recommendation_anon'));
     coach = await openCoachWithShortcut(page);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     await expect(reviewQuestion(coach)).not.toHaveValue(question);
   });
 
@@ -975,7 +970,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
 });
 
 test.describe('Guided intention coach and the selected spread', () => {
-  test('the Decision spread shapes the note, the question and its chips', async ({ page }) => {
+  test('the Decision spread shapes the note and generated review question', async ({ page }) => {
     await seedApp(page, { user: PLUS_USER });
     await gotoReading(page);
     await selectSpread(page, /Decision \/ Two-Path/);
@@ -984,14 +979,13 @@ test.describe('Guided intention coach and the selected spread', () => {
     // The note explains the spread's shape; it suggests no topic.
     const note = spreadNote(coach);
     await expect(note).toBeVisible();
-    await expect(note).toContainText('Decision. Two paths are read side by side');
-    await expect(note).not.toContainText(STAYS_AS_WRITTEN);
+    await expect(note).toContainText('Decision.');
+    await expect(note).toContainText('Two paths are read side by side');
     await expect(note.getByRole('button')).toHaveCount(0);
     await expect(coach.getByText(/we suggest exploring/i)).toHaveCount(0);
 
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     await expect(reviewQuestion(coach)).toHaveValue(DECISION_SHAPED);
-    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
     // The spread is chosen on the page, so its chip is a label, not a button.
     await expect(coach.getByRole('button', { name: /^Spread:/ })).toHaveCount(0);
   });
@@ -1008,7 +1002,8 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(career).toContainText('Based on your interests');
     // The old box said this spread suggested Wellbeing while Career was checked.
     const note = spreadNote(coach);
-    await expect(note).toContainText('Five-Card Clarity. Five cards circle the core of the matter');
+    await expect(note).toContainText('Five-Card Clarity.');
+    await expect(note).toContainText('Five cards circle the core of the matter');
     await expect(note).not.toContainText(/wellbeing|suggest/i);
   });
 
@@ -1017,7 +1012,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await gotoReading(page);
     await selectSpread(page, /Five-Card Clarity/);
     let coach = await openCoachWithShortcut(page);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     const savedQuestion = await reviewQuestion(coach).inputValue();
 
     await page.keyboard.press('Escape');
@@ -1028,18 +1023,17 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
-    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
     await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
-    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Three-Card Story$/);
   });
 
-  test('a restored draft generates a new question when a setting changes', async ({ page }) => {
+  test('a restored draft preserves its question when a setting changes', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
     await selectSpread(page, /Five-Card Clarity/);
     let coach = await openCoachWithShortcut(page);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     const savedQuestion = await reviewQuestion(coach).inputValue();
     await page.keyboard.press('Escape');
     await expect(coach).toHaveCount(0);
@@ -1048,10 +1042,8 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
     await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
       .getByRole('radio', { name: /^Career & Purpose/ }).click();
-    await coach.getByRole('tab', { name: 'Depth' }).click();
-    await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
-    await expect(reviewQuestion(coach)).toHaveValue(/my career direction and purpose/);
-    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Five-Card Clarity$/);
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
   });
 
   test('an AI draft stays as written on reopen without another generation', async ({ page }) => {
@@ -1068,8 +1060,9 @@ test.describe('Guided intention coach and the selected spread', () => {
     await gotoReading(page);
     await selectSpread(page, /Relationship Snapshot/);
     let coach = await openCoachWithShortcut(page);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
+    await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
 
     await page.keyboard.press('Escape');
@@ -1077,16 +1070,16 @@ test.describe('Guided intention coach and the selected spread', () => {
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     expect(generations).toBe(1);
 
-    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
+    await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
     await expect(reviewQuestion(coach)).toHaveValue('What new question could replace my saved intention?');
     expect(generations).toBe(2);
   });
 
-  test('a saved template keeps its words until Remix shapes a question for the spread', async ({ page }) => {
+  test('a saved template keeps its words through settings and conservative local generation', async ({ page }) => {
     await seedApp(page, { user: PLUS_USER, templates: [TEMPLATE] });
     await gotoReading(page);
     await selectSpread(page, /Decision \/ Two-Path/);
@@ -1097,20 +1090,17 @@ test.describe('Guided intention coach and the selected spread', () => {
     await library.getByRole('button', { name: `Apply template ${TEMPLATE.label}` }).click();
     await expect(library).toHaveCount(0);
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
-    await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
-    await expect(contextChip(coach, 'Spread')).toHaveCount(0);
 
     await coach.getByRole('tab', { name: 'Topic' }).click();
     await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
-    await coach.getByRole('tab', { name: 'Depth' }).click();
-    await coach.getByRole('button', { name: 'Remix', exact: true }).click();
-    await expect(reviewQuestion(coach)).toHaveValue(DECISION_SHAPED);
-    await expect(contextChip(coach, 'Spread')).toHaveText(/^Spread:\s*Decision$/);
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
+    await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
   });
 
-  test('a journal recommendation keeps its own question on a chosen spread', async ({ page }) => {
+  test('a chosen journal recommendation retains its own words on a selected spread', async ({ page }) => {
     const question = 'What is The Hermit asking me to notice this month?';
     await seedApp(page, {
       recommendation: { question, label: 'The Hermit', source: 'card:The Hermit', topicValue: 'growth' }
@@ -1118,16 +1108,19 @@ test.describe('Guided intention coach and the selected spread', () => {
     await gotoReading(page);
     await selectSpread(page, /Three-Card Story/);
     const coach = await openCoachWithShortcut(page);
-
-    const note = spreadNote(coach);
-    await expect(note).toContainText('Three-Card Story. Three cards read as a story');
-    await expect(note).toContainText(`follow that arc. ${STAYS_AS_WRITTEN}`);
-
-    await coach.getByRole('tab', { name: 'Depth' }).click();
+    await expect(spreadNote(coach)).toContainText('Three-Card Story.');
+    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+    const show = suggestions.getByRole('button', { name: 'Show', exact: true });
+    if (await show.count()) await show.click();
+    await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
+    await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(question);
-    await expect(contextChip(coach, 'Mode')).toHaveText(/^Mode:\s*Custom question$/);
-    await expect(contextChip(coach, 'Spread')).toHaveCount(0);
+    await coach.getByRole('tab', { name: 'Topic' }).click();
+    await coach.getByRole('radio', { name: /^Career & Purpose/ }).click();
+    await coach.getByRole('tab', { name: 'Review' }).click();
+    await expect(reviewQuestion(coach)).toHaveValue(question);
   });
+
 });
 
 test.describe('Guided intention coach sheet gestures', () => {
@@ -1183,7 +1176,7 @@ test.describe('Guided intention coach sheet gestures', () => {
       await page.keyboard.press('Shift+G');
       await expect(coach).toBeVisible({ timeout: 500 });
     }).toPass();
-    await expect(coach.getByRole('tab', { selected: true })).toHaveAccessibleName(/2\s*Timeframe/);
+    await expect(coach.getByRole('tab', { selected: true })).toHaveAccessibleName('Timeframe');
   });
 });
 
@@ -1198,6 +1191,6 @@ test.describe('Quick intention card @mobile', () => {
 
     await page.getByRole('button', { name: 'Open guided intention coach' }).first().click();
     const coach = page.getByRole('dialog', { name: COACH_NAME });
-    await expect(coach.getByRole('tab', { selected: true })).toHaveAccessibleName(/1\s*Topic/);
+    await expect(coach.getByRole('tab', { selected: true })).toHaveAccessibleName('Topic');
   });
 });

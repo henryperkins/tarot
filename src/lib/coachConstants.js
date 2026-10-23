@@ -1,7 +1,8 @@
 export const STEPS = [
   { id: 'topic', label: 'Topic' },
   { id: 'timeframe', label: 'Timeframe' },
-  { id: 'depth', label: 'Depth' }
+  { id: 'depth', label: 'Depth' },
+  { id: 'review', label: 'Review' }
 ];
 
 export const COACH_PREFS_KEY = 'tarot-coach-preferences';

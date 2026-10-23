@@ -196,6 +196,7 @@ export function buildLocalCreativeQuestion({ focus, timeframePhrase, depthLabel,
 
 export async function callLlmApi(prompt, metadata, options = {}) {
   const { signal } = options;
+  signal?.throwIfAborted();
   try {
     const response = await fetch('/api/generate-question', {
       method: 'POST',
@@ -211,19 +212,33 @@ export async function callLlmApi(prompt, metadata, options = {}) {
     }
 
     const data = await response.json();
-    if (data && typeof data === 'object') {
+    signal?.throwIfAborted();
+    if (data && typeof data === 'object' && !Array.isArray(data)
+      && typeof data.question === 'string' && data.question.trim()
+      && isValidQuestionForecast(data.forecast)) {
       return {
         question: data.question,
-        provider: data.provider || data.source || null,
-        model: data.model || null,
+        provider: typeof data.provider === 'string' ? data.provider : typeof data.source === 'string' ? data.source : null,
+        model: typeof data.model === 'string' ? data.model : null,
         forecast: data.forecast || null
       };
     }
     return null;
   } catch (error) {
+    signal?.throwIfAborted();
+    if (error?.name === 'AbortError') throw error;
     console.error('LLM API call failed:', error);
     return null;
   }
+}
+
+function isValidQuestionForecast(forecast) {
+  if (forecast == null) return true;
+  if (typeof forecast !== 'object' || Array.isArray(forecast)) return false;
+  if (forecast.highlights !== undefined && (!Array.isArray(forecast.highlights)
+    || !forecast.highlights.every(item => typeof item === 'string' && item.trim()))) return false;
+  if (forecast.days != null && (typeof forecast.days !== 'number' || !Number.isFinite(forecast.days) || forecast.days <= 0)) return false;
+  return forecast.source == null || typeof forecast.source === 'string';
 }
 
 /**
@@ -234,19 +249,21 @@ export async function callLlmApi(prompt, metadata, options = {}) {
  * @param {string} params.timeframe - Time scope (today, week, month, etc.)
  * @param {string} params.depth - Depth level (pulse, guided, lesson, deep)
  * @param {string} [params.customFocus] - Optional custom focus text
+ * @param {string} [params.questionText] - Existing wording to refine; takes priority over defaults and journal context
  * @param {number|string} [params.seed] - Optional seed for deterministic output
  * @param {string[]} [params.focusAreas] - Onboarding focus areas for personalization
  * @param {string} [params.spreadKey] - Selected spread. Only the key is sent; the
  *   server resolves the spread's name and positions itself.
- * @returns {Promise<Object>} { question: string, source: 'api'|'local' }
+ * @returns {Promise<Object>} { question: string, source: string, forecast: Object|null }
  */
-export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, seed, focusAreas, spreadKey }, options = {}) {
+export async function buildCreativeQuestion({ topic, timeframe, depth, customFocus, questionText, seed, focusAreas, spreadKey }, options = {}) {
   const { signal, userId = null } = options;
   const topicData = INTENTION_TOPIC_OPTIONS.find(option => option.value === topic) || INTENTION_TOPIC_OPTIONS[0];
   const timeframeData = INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === timeframe) || INTENTION_TIMEFRAME_OPTIONS[0];
   const depthData = INTENTION_DEPTH_OPTIONS.find(option => option.value === depth) || INTENTION_DEPTH_OPTIONS[0];
 
   const focus = customFocus?.trim() || topicData.focus;
+  const refinementInput = typeof questionText === 'string' && questionText.trim() ? questionText : null;
   const timeframeClause = timeframeData?.phrase || 'the current moment';
   const normalizedFocusAreas = Array.isArray(focusAreas)
     ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
@@ -287,7 +304,9 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     : '';
 
   const promptParts = [
-    `Generate a tarot question about ${focus} for ${timeframeClause}.`,
+    refinementInput
+      ? `Refine this existing tarot question: ${refinementInput}\nPreserve its subject and any stated timeframe. Do not invent a deadline; topic defaults and journal recommendations are secondary.`
+      : `Generate a tarot question about ${focus} for ${timeframeClause}.`,
     `The desired depth is ${depthData.label}.`,
     personalizationNote
   ].filter(Boolean);
@@ -312,11 +331,14 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
     focusAreas: normalizedFocusAreas,
     spreadKey: typeof spreadKey === 'string' ? spreadKey : null
   };
+  if (refinementInput) metadata.questionText = refinementInput;
 
   let apiResult = null;
   try {
     apiResult = await callLlmApi(prompt, metadata, { signal });
   } catch (error) {
+    signal?.throwIfAborted();
+    if (error?.name === 'AbortError') throw error;
     console.warn('Creative question API failed, falling back to local generator:', error);
   }
 
@@ -324,8 +346,14 @@ export async function buildCreativeQuestion({ topic, timeframe, depth, customFoc
   const apiSource = apiResult?.provider || 'api';
   const apiForecast = apiResult?.forecast || null;
 
-  if (apiQuestion) {
+  if (typeof apiQuestion === 'string' && apiQuestion.trim()) {
     return { question: apiQuestion, source: apiSource, forecast: apiForecast };
+  }
+
+  // A local template cannot preserve an arbitrary concern's meaning. Keep
+  // the existing wording exact when explicit refinement is unavailable.
+  if (refinementInput) {
+    return { question: refinementInput, source: 'local-preserved', forecast: null };
   }
 
   // Local creative fallback adds variety instead of repeating guided wording

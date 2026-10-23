@@ -154,7 +154,6 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
       id: `history-${last.id}`,
       source: 'history',
       label: 'Revisit your last question',
-      helper: last.question,
       question: last.question
     });
   }

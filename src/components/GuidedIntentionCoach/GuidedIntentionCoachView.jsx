@@ -1,17 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState, useId } from 'react';
 import FocusTrap from 'focus-trap-react';
-import {
-  ChartLine,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  BookmarkSimple,
-  Info,
-  Sparkle,
-  MagicWand,
-  X,
-  ArrowsClockwise
-} from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Check, BookmarkSimple, Sparkle, MagicWand, X, ArrowsClockwise } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { useLandscape } from '../../hooks/useLandscape';
@@ -19,959 +8,388 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSwipeDismiss } from '../../hooks/useSwipeDismiss';
 import { useKeyboardOffset } from '../../hooks/useKeyboardOffset';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
-import { Tooltip } from '../Tooltip';
-import {
-  INTENTION_TOPIC_OPTIONS,
-  INTENTION_TIMEFRAME_OPTIONS,
-  INTENTION_DEPTH_OPTIONS,
-  buildGuidedQuestion
-} from '../../lib/intentionCoach';
+import { useSettledValue } from '../../hooks/useSettledValue';
+import { INTENTION_TOPIC_OPTIONS, INTENTION_TIMEFRAME_OPTIONS, INTENTION_DEPTH_OPTIONS, buildGuidedQuestion } from '../../lib/intentionCoach';
 import { MAX_TEMPLATES } from '../../lib/coachStorage';
 import { MOBILE_COACH_DIALOG_ID } from '../mobileActionBarConstants';
 import { CUSTOM_FOCUS_MAX_LENGTH, STEPS } from '../../lib/coachConstants';
 import { useGuidedIntentionCoach } from '../../contexts/GuidedIntentionCoachContext';
 import { USER_QUESTION_MAX_LENGTH } from '../../../shared/contracts/readingRequestLimits.js';
-import { QualityLevelIcon } from '../QualityLevelIcon';
 import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';
 import { CoachTemplatePanel } from './CoachTemplatePanel';
+import '../../styles/coach.css';
 
-const baseOptionClass =
-  'text-left rounded-2xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
-const infoButtonClass =
-  'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-secondary transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60';
-// Footer actions follow the mobile action bar's docked pair: a candlelight
-// primary and a quiet bordered secondary. Focus is left to the global outline,
-// which carries the offset the design system asks for.
-const footerButtonBase =
-  'inline-flex min-w-0 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition touch-manipulation';
-const footerPrimaryClass =
-  `${footerButtonBase} bg-accent text-surface hover:bg-primary disabled:opacity-50 disabled:cursor-not-allowed`;
-const footerSecondaryClass =
-  `${footerButtonBase} border border-accent/30 bg-surface-muted text-accent hover:bg-surface aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-surface-muted`;
-
-function getTopicLabel(value) {
-  return INTENTION_TOPIC_OPTIONS.find(option => option.value === value)?.label || null;
-}
-
-function getTimeframeLabel(value) {
-  return INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === value)?.label || null;
-}
-
-function getDepthLabel(value) {
-  return INTENTION_DEPTH_OPTIONS.find(option => option.value === value)?.label || null;
-}
+const REVIEW_STEP = 3;
+const optionClass = 'relative text-left rounded-xl border bg-surface-muted/50 px-4 py-4 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+const quietButton = 'inline-flex min-h-touch min-w-touch items-center justify-center gap-2 rounded-lg px-2 text-sm text-secondary hover:text-main hover:bg-secondary/10 transition';
+const footerButton = 'inline-flex min-w-0 min-h-cta items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition touch-manipulation';
+const getTopicLabel = value => INTENTION_TOPIC_OPTIONS.find(option => option.value === value)?.label || null;
+const getTimeframeLabel = value => INTENTION_TIMEFRAME_OPTIONS.find(option => option.value === value)?.label || null;
+const getDepthLabel = value => INTENTION_DEPTH_OPTIONS.find(option => option.value === value)?.label || null;
 
 export function GuidedIntentionCoachView({ returnFocusRef }) {
   const {
-    isOpen,
-    selectedSpread,
-    spreadQuestionContext,
-    onClose,
-    canUseAIQuestions,
-    step,
-    setStep,
-    reviewFocusRequest,
-    topic,
-    timeframe,
-    depth,
-    customFocus,
-    useCreative,
-    currentQuestion,
-    questionLoading,
-    questionError,
-    announcement,
-    prefillSource,
-    templates,
-    newTemplateLabel,
-    setNewTemplateLabel,
-    templateStatus,
-    questionHistory,
-    personalizedSuggestions,
-    suggestionsPage,
-    isSuggestionsExpanded,
-    isTemplatePanelOpen,
-    templatePanelIntent,
-    astroHighlights,
-    astroWindowDays,
-    astroSource,
-    coachSnapshotLabel,
-    coachSnapshotDetail,
-    focusAreaSuggestedTopic,
-    prefillSourceDescription,
-    isQuestionAssessable,
-    questionNudge,
-    questionQuality,
-    isManualQuestion,
-    qualityLevel,
-    footerSummary,
-    footerSummaryCompact,
-    questionContextChips,
-    qualityHelperText,
-    qualityHighlights,
-    normalizedQualityScore,
-    suggestionPageCount,
-    visibleSuggestions,
-    setTimeframe,
-    setTopic,
-    setDepth,
-    setCustomFocus,
-    setSuggestionsPage,
-    setSuggestionsExpanded,
-    editQuestion,
-    remixQuestion,
-    setCreativeMode,
-    openTemplatePanel,
-    closeTemplatePanel,
-    releasePrefill,
-    handleSaveTemplate,
-    handleApplyTemplate,
-    handleDeleteTemplate,
-    handleSuggestionPick,
-    handleApplyHistoryQuestion,
-    canGoNext,
-    goNext,
-    goBack,
+    isOpen, selectedSpread, spreadQuestionContext, onClose, canUseAIQuestions,
+    step, setStep, reviewFocusRequest, topic, timeframe, depth, customFocus,
+    useCreative, currentQuestion, isManualQuestion, questionLoading, questionError, announcement,
+    prefillSource, prefillSourceDescription, templates, newTemplateLabel,
+    setNewTemplateLabel, templateStatus, templateUndo, handleUndoTemplateSave,
+    questionHistory, personalizedSuggestions, suggestionsPage, isSuggestionsExpanded,
+    isTemplatePanelOpen, templatePanelIntent, astroHighlights, astroWindowDays,
+    coachSnapshotLabel, coachSnapshotDetail, focusAreaSuggestedTopic,
+    originalQuestion, previousQuestion, framingSuggestions = [], startFresh,
+    restoreOriginalQuestion, restorePreviousQuestion, suggestionPageCount,
+    visibleSuggestions, setTimeframe, setTopic, setDepth, setCustomFocus,
+    setSuggestionsPage, setSuggestionsExpanded, editQuestion, remixQuestion,
+    setCreativeMode, openTemplatePanel, closeTemplatePanel, releasePrefill,
+    handleSaveTemplate, handleApplyTemplate, handleDeleteTemplate,
+    handleSuggestionPick, handleApplyHistoryQuestion, canGoNext, goNext, goBack,
     handleApply
   } = useGuidedIntentionCoach();
 
+  const isSmallScreen = useSmallScreen();
   const isLandscape = useLandscape();
   const prefersReducedMotion = useReducedMotion();
-  const isSmallScreen = useSmallScreen();
-  const viewportOffset = useKeyboardOffset();
-  const effectiveOffset = Math.max(0, viewportOffset);
-  const questionRows = isLandscape ? 2 : 3;
-  const questionInputRef = useAutoGrow(currentQuestion, questionRows, Infinity, isOpen && step === 2);
-
+  const keyboardOffset = Math.max(0, useKeyboardOffset());
+  const questionInputRef = useAutoGrow(currentQuestion, isLandscape ? 2 : 3, Infinity, isOpen && step === REVIEW_STEP);
   const modalRef = useRef(null);
+  const scrollRef = useRef(null);
+  const footerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const depthSectionRef = useRef(null);
+  const reviewHeadingRef = useRef(null);
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
-  const handledReviewFocusRequestRef = useRef(0);
+  const previousReviewRef = useRef({ step: null, request: -1 });
+  const [footerInFlow, setFooterInFlow] = useState(false);
   const titleId = useId();
+  const reviewHeadingId = useId();
+  const questionId = useId();
+  const questionHelpId = useId();
   const topicPromptId = useId();
   const timeframePromptId = useId();
   const depthPromptId = useId();
-  const questionInputId = useId();
-  const questionHelpId = useId();
+  const customFocusId = useId();
+  const settledFraming = useSettledValue(framingSuggestions.slice(0, 2).join(' '));
+  const framingAnnouncement = framingSuggestions.length ? settledFraming : '';
 
-  // A responsive layout can replace the opener that DeferredDialog captured
-  // (for example, the phone card becoming the desktop question panel). Prefer
-  // whichever coach opener is visible now, then the preparation card, then a
-  // stable reading heading.
   const getFallbackFocus = useCallback(() => {
     const candidates = [
-      ...document.querySelectorAll(
-        '[aria-label="Open guided coach (Shift+G)"], [aria-label="Open guided intention coach"]'
-      ),
-      ...document.querySelectorAll('[data-coach-fallback-focus]'),
-      ...document.querySelectorAll('[data-reading-focus-target]')
+      ...document.querySelectorAll('[aria-label="Open guided coach (Shift+G)"], [aria-label="Open guided intention coach"]'),
+      ...document.querySelectorAll('[data-coach-fallback-focus], [data-reading-focus-target]')
     ];
-    return candidates.find(element => element instanceof HTMLElement
-      && element.isConnected
-      && !element.matches(':disabled')
-      && !element.closest('[inert], [hidden], [aria-hidden="true"]')
-      && element.getClientRects().length > 0
-      && getComputedStyle(element).visibility !== 'hidden') || null;
+    return candidates.find(element => element instanceof HTMLElement && element.isConnected
+      && !element.matches(':disabled') && !element.closest('[inert], [hidden], [aria-hidden="true"]')
+      && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden') || null;
   }, []);
 
   useModalA11y(isOpen, {
-    onClose,
-    containerRef: modalRef,
-    trapFocus: false,
-    initialFocusRef: closeButtonRef,
-    returnFocusRef,
-    getFallbackFocus,
-    // Back closes the innermost layer first, like Escape.
+    onClose, containerRef: modalRef, trapFocus: false,
+    initialFocusRef: step === REVIEW_STEP ? questionInputRef : closeButtonRef,
+    returnFocusRef, getFallbackFocus,
     onBack: () => (isTemplatePanelOpen ? closeTemplatePanel() : onClose()),
-    backGuardId: 'intentionCoach',
+    backGuardId: 'intentionCoach'
   });
 
-  // A picked suggestion or template lands on the review step with its result
-  // below the configuration. Reveal and focus the editable question once the
-  // step has committed, so the action's destination is the question itself.
   useEffect(() => {
-    if (!isOpen || step !== STEPS.length - 1 || isTemplatePanelOpen
-      || reviewFocusRequest <= handledReviewFocusRequestRef.current) return undefined;
-    // The template layer restores focus on its own zero-delay timer. Queue this
-    // after that restore so the editor is the final focus destination.
+    if (!isOpen || isTemplatePanelOpen) return undefined;
+    const last = previousReviewRef.current;
+    const requestChanged = last.request !== reviewFocusRequest;
+    const enteredReview = step === REVIEW_STEP && (last.step !== REVIEW_STEP || requestChanged);
+    const fromStepTab = document.activeElement?.getAttribute('role') === 'tab';
+    previousReviewRef.current = { step, request: reviewFocusRequest };
+    if (!enteredReview) return undefined;
+    // Let a closing template layer restore its opener before moving to the
+    // chosen question. Only step entry/picks move focus, never editor updates.
     const timer = setTimeout(() => {
-      const field = questionInputRef.current;
-      if (!field) return;
-      handledReviewFocusRequestRef.current = reviewFocusRequest;
-      field.focus({ preventScroll: true });
-      field.scrollIntoView({
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'center'
-      });
+      // Arrow navigation keeps the active tab focused. Footer entry, initial
+      // entry and explicit suggestion/template picks land in the editor.
+      if (!fromStepTab || requestChanged) questionInputRef.current?.focus({ preventScroll: true });
+      reviewHeadingRef.current?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion ? 'auto' : 'smooth' });
     }, 0);
     return () => clearTimeout(timer);
-  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, prefersReducedMotion, questionInputRef]);
+  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, questionInputRef, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const measure = () => {
+      const available = modalRef.current?.clientHeight || 0;
+      const footer = footerRef.current?.getBoundingClientRect().height || 0;
+      if (available && footer) setFooterInFlow(footer > available * 0.25);
+    };
+    const observer = new ResizeObserver(measure);
+    if (modalRef.current) observer.observe(modalRef.current);
+    if (footerRef.current) observer.observe(footerRef.current);
+    measure();
+    window.visualViewport?.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.visualViewport?.removeEventListener('resize', measure);
+    };
+  }, [isOpen, step, keyboardOffset]);
 
   const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({
-    onDismiss: onClose,
-    threshold: 120,
-    resistance: 0.5
+    onDismiss: onClose, threshold: 120, resistance: 0.5
   });
 
   useEffect(() => {
-    if (!isOpen) return;
-    setSuggestionsExpanded(!isSmallScreen);
+    if (isOpen) setSuggestionsExpanded(!isSmallScreen);
   }, [isOpen, isSmallScreen, setSuggestionsExpanded]);
 
-  const [showExcellentBurst, setShowExcellentBurst] = useState(false);
-  const prevQualityScoreRef = useRef(questionQuality.score);
-
-  useEffect(() => {
-    const prev = prevQualityScoreRef.current;
-    prevQualityScoreRef.current = questionQuality.score;
-
-    if (prefersReducedMotion) return;
-    if (isQuestionAssessable && !questionNudge && prev < 85 && questionQuality.score >= 85) {
-      const rafId = requestAnimationFrame(() => setShowExcellentBurst(true));
-      return () => cancelAnimationFrame(rafId);
-    }
-  }, [questionQuality.score, prefersReducedMotion, isQuestionAssessable, questionNudge]);
-
-  // Guidance changes may hide the burst, but must not cancel its expiration.
-  useEffect(() => {
-    if (!showExcellentBurst) return undefined;
-    const timeoutId = setTimeout(() => setShowExcellentBurst(false), 650);
-    return () => clearTimeout(timeoutId);
-  }, [showExcellentBurst]);
-
-  const buildSuggestionPreview = useCallback((suggestion) => {
+  const buildSuggestionPreview = useCallback(suggestion => {
     if (!suggestion) return '';
     if (suggestion.question) return suggestion.question;
-
-    const suggestionTopic = suggestion.topic || topic;
-    const suggestionTimeframe = suggestion.timeframe || timeframe;
-    const suggestionDepth = suggestion.depth || depth;
-    const suggestionFocus = typeof suggestion.customFocus === 'string' ? suggestion.customFocus.trim() : '';
-    const suggestionSeed = [
-      'suggestion',
-      suggestion.id || suggestion.label || 'preview',
-      suggestionTopic,
-      suggestionTimeframe,
-      suggestionDepth,
-      suggestionFocus
-    ].join('|');
-
+    const nextTopic = suggestion.topic || topic;
+    const nextTimeframe = suggestion.timeframe || timeframe;
+    const nextDepth = suggestion.depth || depth;
+    const nextFocus = typeof suggestion.customFocus === 'string' ? suggestion.customFocus.trim() : '';
     return buildGuidedQuestion({
-      topic: suggestionTopic,
-      timeframe: suggestionTimeframe,
-      depth: suggestionDepth,
-      customFocus: suggestionFocus || undefined,
-      seed: suggestionSeed,
-      spreadKey: selectedSpread
+      topic: nextTopic, timeframe: nextTimeframe, depth: nextDepth,
+      customFocus: nextFocus || undefined, spreadKey: selectedSpread,
+      seed: ['suggestion', suggestion.id || suggestion.label || 'preview', nextTopic, nextTimeframe, nextDepth, nextFocus].join('|')
     });
   }, [topic, timeframe, depth, selectedSpread]);
 
-  const handleStepKeyDown = (event, currentIndex) => {
-    let nextIndex = null;
-
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      nextIndex = (currentIndex + 1) % STEPS.length;
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      nextIndex = (currentIndex - 1 + STEPS.length) % STEPS.length;
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      nextIndex = STEPS.length - 1;
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      setStep(currentIndex);
-      return;
-    }
-
-    if (nextIndex !== null) {
-      setStep(nextIndex);
-      // Focus in the same keystroke: deferring it let a quick second press
-      // act on the tab the first press had just left.
-      stepButtonRefs.current[nextIndex]?.focus();
-    }
+  const selectStep = index => {
+    setStep(index);
+    if (index !== REVIEW_STEP) scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  // A chip or step change can hide the control that had focus along with its
-  // panel; hand focus to the choice the user is about to change instead.
-  const focusCheckedOption = (stepIndex, focusOptions) => {
-    requestAnimationFrame(() => {
-      const panel = modalRef.current?.querySelector(`#step-panel-${STEPS[stepIndex]?.id}`);
-      const target = panel?.querySelector('[role="radio"][aria-checked="true"]') || stepButtonRefs.current[stepIndex];
-      target?.focus(focusOptions);
-    });
-  };
-
-  const handleChipClick = (chip) => {
-    if (typeof chip.step === 'number') {
-      const isSameStep = chip.step === step;
-      setStep(chip.step);
-      if (isSameStep && chip.type === 'Depth') {
-        depthSectionRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-      }
-      focusCheckedOption(chip.step, isSameStep ? { preventScroll: true } : undefined);
-    }
-    if (chip.action === 'focus') {
-      customFocusRef.current?.focus();
-    }
-  };
-
-  // Single-choice cards behave like the spread selector: arrows move focus and
-  // Space or Enter selects. Selecting on arrow would discard a prefilled
-  // question while the user was only passing over the other options.
-  const handleOptionKeyDown = (event, index, count, select) => {
-    let nextIndex = null;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (index + 1) % count;
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (index - 1 + count) % count;
-    } else if (event.key === 'Home') {
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      nextIndex = count - 1;
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      select();
-      return;
-    }
-
-    if (nextIndex === null) return;
+  const handleStepKeyDown = (event, index) => {
+    let nextIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % STEPS.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + STEPS.length) % STEPS.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = STEPS.length - 1;
+    else return;
     event.preventDefault();
-    const radios = event.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll('[role="radio"]');
-    radios?.[nextIndex]?.focus();
+    selectStep(nextIndex);
+    stepButtonRefs.current[nextIndex]?.focus();
   };
 
-  const renderOptionGroup = ({ options, selectedValue, onSelect, labelledBy, gridClassName, renderExtra }) => {
-    const hasSelection = options.some(option => option.value === selectedValue);
-    return (
-      <div role="radiogroup" aria-labelledby={labelledBy} className={`grid gap-3 ${gridClassName}`}>
-        {options.map((option, index) => {
-          const isSelected = option.value === selectedValue;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              tabIndex={isSelected || (!hasSelection && index === 0) ? 0 : -1}
-              className={`${baseOptionClass} relative ${isSelected ? 'border-accent bg-accent/10 shadow-lg shadow-accent/20' : 'border-secondary/30 hover:border-accent/50 hover:bg-accent/5'}`}
-              onClick={() => onSelect(option.value)}
-              onKeyDown={event => handleOptionKeyDown(event, index, options.length, () => onSelect(option.value))}
-            >
-              {/* Selection must survive forced colors and not rest on border colour alone. */}
-              {isSelected && (
-                <span
-                  className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-surface"
-                  aria-hidden="true"
-                >
-                  <Check className="h-3.5 w-3.5" weight="bold" />
-                </span>
-              )}
-              <span className="block pr-8 font-medium text-main">{option.label}</span>
-              <span className="block text-sm text-muted">{option.description}</span>
-              {renderExtra?.(option)}
-            </button>
-          );
-        })}
+  const selectSetting = (setter, current, value) => {
+    if (value !== current) releasePrefill();
+    setter(value);
+  };
+
+  const renderOptions = (options, selected, setter, promptId, columns = 'sm:grid-cols-2') => (
+    <div role="radiogroup" aria-labelledby={promptId} className={`grid gap-3 ${columns}`}>
+      {options.map((option, index) => (
+        <button
+          key={option.value} type="button" role="radio" aria-checked={selected === option.value}
+          tabIndex={selected === option.value || (!options.some(item => item.value === selected) && index === 0) ? 0 : -1}
+          className={`${optionClass} ${selected === option.value ? 'border-accent bg-accent/10' : 'border-secondary/30 hover:border-accent/50'}`}
+          onClick={() => selectSetting(setter, selected, option.value)}
+          onKeyDown={event => {
+            let next;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % options.length;
+            else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = options.length - 1;
+            else return;
+            event.preventDefault();
+            selectSetting(setter, selected, options[next].value);
+            event.currentTarget.closest('[role="radiogroup"]')?.querySelectorAll('[role="radio"]')[next]?.focus();
+          }}
+        >
+          {selected === option.value && <span className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-surface" aria-hidden="true"><Check className="h-3.5 w-3.5" weight="bold" /></span>}
+          <span className="block pr-8 font-medium text-main">{option.label}</span>
+          <span className="block text-sm text-muted">{option.description}</span>
+          {option.value === focusAreaSuggestedTopic && <span className="mt-2 block text-xs text-secondary">Based on your interests</span>}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderDetail = suffix => (
+    <div className="space-y-2">
+      <label htmlFor={`${customFocusId}-${suffix}`} className="block text-sm font-medium text-main">Add a detail (optional)</label>
+      <input
+        ref={suffix === 'review' ? customFocusRef : undefined}
+        id={`${customFocusId}-${suffix}`} type="text" value={customFocus}
+        maxLength={CUSTOM_FOCUS_MAX_LENGTH} autoComplete="off" enterKeyHint="done"
+        onChange={event => { releasePrefill(); setCustomFocus(event.target.value); }}
+        placeholder="e.g. a conversation, a creative launch, a potential move"
+        className="coach-detail w-full min-h-touch rounded-xl border border-secondary/40 bg-surface-muted/40 px-3 py-3 text-base text-main caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
+      />
+    </div>
+  );
+
+  const renderReview = () => (
+    <section className="coach-review" aria-labelledby={reviewHeadingId}>
+      <h3 ref={reviewHeadingRef} id={reviewHeadingId} className="font-serif text-xl sm:text-2xl text-main">Review your question</h3>
+      <div className="space-y-2" aria-busy={questionLoading}>
+        <label htmlFor={questionId} className="block text-sm font-medium text-main">Your Question</label>
+        <textarea
+          ref={questionInputRef} id={questionId} value={currentQuestion}
+          onChange={event => editQuestion(event.target.value)}
+          rows={isLandscape ? 2 : 3} maxLength={USER_QUESTION_MAX_LENGTH} dir="auto"
+          aria-describedby={questionHelpId} placeholder="Write your question in your own words…"
+          className="coach-question block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 font-serif text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
+        />
+        <p id={questionHelpId} className="text-xs text-secondary">Edit the wording before using your question. Framing suggestions are optional.</p>
+      </div>
+      {framingSuggestions.length > 0 && (
+        <div className="coach-framing space-y-2">
+          <p className="text-sm font-medium text-main">Question framing</p>
+          <ul className="space-y-2 text-sm text-secondary">
+            {framingSuggestions.slice(0, 2).map(suggestion => <li key={suggestion}>{suggestion}</li>)}
+          </ul>
+        </div>
+      )}
+      {questionLoading && <p className="text-sm text-secondary">Refining your wording…</p>}
+      {questionError && <p className="text-sm text-secondary">{questionError}</p>}
+      {previousQuestion && <button type="button" className={`${quietButton} justify-start underline underline-offset-4`} onClick={restorePreviousQuestion}>Restore my wording</button>}
+      {prefillSource && prefillSourceDescription && <p className="text-xs text-secondary">Starting from {prefillSourceDescription}.</p>}
+      <div className="coach-adjustments space-y-4">
+        <h4 className="text-base font-medium text-main">Adjust your question</h4>
+        <p className="text-sm text-secondary">Your wording stays as written when you change a setting. Choose Generate new wording when you want a new version.</p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Question settings">
+          {[['Topic', getTopicLabel(topic), 0], ['Timeframe', getTimeframeLabel(timeframe), 1], ['Depth', getDepthLabel(depth), 2]].map(([name, label, index]) => (
+            <button key={name} type="button" className={`${quietButton} border border-secondary/30`} onClick={() => {
+              selectStep(index);
+              requestAnimationFrame(() => {
+                const selected = modalRef.current?.querySelector(`#step-panel-${STEPS[index].id} [role="radio"][aria-checked="true"]`);
+                (selected || stepButtonRefs.current[index])?.focus();
+              });
+            }}>{isManualQuestion ? name : `${name}: ${label}`}</button>
+          ))}
+        </div>
+        {renderDetail('review')}
+        {canUseAIQuestions ? (
+          <label className="inline-flex min-h-touch items-center gap-2 cursor-pointer text-sm text-secondary">
+            <input type="checkbox" checked={useCreative} onChange={event => setCreativeMode(event.target.checked)} className="h-4 w-4 rounded border-secondary/60 text-secondary focus:ring-secondary" />
+            <MagicWand className="h-4 w-4" aria-hidden="true" /> Personalize with AI
+          </label>
+        ) : <p className="text-xs text-secondary">AI refinement is available on Plus and Pro.</p>}
+        {canUseAIQuestions && <p className="text-xs text-secondary">AI refinement can use journal themes and recent questions when available.</p>}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={remixQuestion} disabled={questionLoading} className={`${quietButton} border border-secondary/40 disabled:opacity-50`}><ArrowsClockwise className="h-4 w-4 shrink-0" aria-hidden="true" />Generate new wording</button>
+          <button type="button" onClick={() => openTemplatePanel('save')} aria-haspopup="dialog" className={`${quietButton} underline underline-offset-4`}>Save as template</button>
+        </div>
+        {astroHighlights?.length > 0 && (
+          <div className="space-y-2 text-sm text-secondary">
+            <p>Symbolic astrology context{astroWindowDays ? ` · ${astroWindowDays} days` : ''}</p>
+            <ul className="space-y-1">{astroHighlights.map((item, index) => <li key={index}>{item}</li>)}</ul>
+            <p className="text-xs">Astrology here is symbolic context, not a prediction.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const renderStep = id => {
+    if (id === 'topic') return (
+      <div className="space-y-4">
+        <p id={topicPromptId} className="text-base text-main">What area do you want to explore?</p>
+        {spreadQuestionContext && <p className="text-sm text-secondary"><span className="font-medium text-main">Shaped for your spread: {spreadQuestionContext.shortName}.</span> {spreadQuestionContext.hint} Your existing wording stays as written until you ask for a new version.</p>}
+        {renderOptions(INTENTION_TOPIC_OPTIONS, topic, setTopic, topicPromptId, 'md:grid-cols-2')}
       </div>
     );
-  };
-
-  const selectTopic = (value) => {
-    if (value !== topic) releasePrefill();
-    setTopic(value);
-  };
-
-  const selectTimeframe = (value) => {
-    if (value !== timeframe) releasePrefill();
-    setTimeframe(value);
-  };
-
-  const selectDepth = (value) => {
-    if (value !== depth) releasePrefill();
-    setDepth(value);
-  };
-
-  const renderStepPanelContent = (panelId) => {
-    if (panelId === 'topic') {
-      return (
-        <div className="space-y-4">
-          <p id={topicPromptId} className="text-sm text-muted">What area do you want to explore?</p>
-          {/* Says how the spread shapes the question, never which topic to
-              pick: the checked topic may come from the reader's interests. */}
-          {spreadQuestionContext && (
-            <div className="rounded-lg bg-accent/10 border border-accent/30 px-3 py-2">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkle className="h-3 w-3 text-accent" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-wider text-accent">Shaped for your spread</span>
-              </div>
-              <p className="text-xs text-secondary">
-                <span className="font-medium text-main">{spreadQuestionContext.shortName}</span>. {spreadQuestionContext.hint}
-                {isManualQuestion && ' The question already in place stays as written until you Remix or change a setting.'}
-              </p>
-            </div>
-          )}
-          {renderOptionGroup({
-            options: INTENTION_TOPIC_OPTIONS,
-            selectedValue: topic,
-            onSelect: selectTopic,
-            labelledBy: topicPromptId,
-            gridClassName: 'md:grid-cols-2',
-            renderExtra: option => (focusAreaSuggestedTopic && option.value === focusAreaSuggestedTopic ? (
-              <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-surface/70 px-3 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-secondary">
-                Based on your interests
-              </span>
-            ) : null)
-          })}
-        </div>
-      );
-    }
-
-    if (panelId === 'timeframe') {
-      return (
-        <div className="space-y-4">
-          <p id={timeframePromptId} className="text-sm text-muted">When do you need guidance for?</p>
-          {renderOptionGroup({
-            options: INTENTION_TIMEFRAME_OPTIONS,
-            selectedValue: timeframe,
-            onSelect: selectTimeframe,
-            labelledBy: timeframePromptId,
-            gridClassName: 'sm:grid-cols-2'
-          })}
-        </div>
-      );
-    }
-
-    if (panelId === 'depth') {
-      return (
-        <div className="space-y-6">
-          <div ref={depthSectionRef} className="space-y-4">
-            <p id={depthPromptId} className="text-sm text-muted">How deep do you want to go?</p>
-            {renderOptionGroup({
-              options: INTENTION_DEPTH_OPTIONS,
-              selectedValue: depth,
-              onSelect: selectDepth,
-              labelledBy: depthPromptId,
-              gridClassName: 'md:grid-cols-2'
-            })}
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="custom-focus" className="text-sm font-medium text-accent">
-              Add a detail (optional)
-            </label>
-            <input
-              ref={customFocusRef}
-              id="custom-focus"
-              type="text"
-              value={customFocus}
-              maxLength={CUSTOM_FOCUS_MAX_LENGTH}
-              autoComplete="off"
-              enterKeyHint="done"
-              onChange={event => {
-                releasePrefill();
-                setCustomFocus(event.target.value);
-              }}
-              placeholder="e.g. a potential move, a creative launch, a new relationship"
-              className="w-full rounded-xl border border-secondary/40 bg-surface/80 px-4 py-3 text-main caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
-            />
-          </div>
-
-          <div className="rounded-2xl border border-accent/30 bg-accent/5 p-[12px] sm:p-4 space-y-4">
-            <div className="flex flex-col gap-2">
-              <div>
-                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
-                  <Sparkle className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                  Review & Refine
-                </p>
-                <p className="text-xs text-secondary mt-1">
-                  Tap a tag to adjust that setting or toggle AI for a creative spin.
-                </p>
-              </div>
-
-              {questionContextChips.length > 0 && (
-                <div className="flex flex-wrap gap-2 py-2">
-                  {questionContextChips.map((chip, idx) => {
-                    const chipClassName = 'inline-flex max-w-full items-center rounded-full border border-secondary/40 bg-surface/50 px-3 py-1 text-2xs uppercase tracking-[0.2em] text-secondary';
-                    const chipContent = (
-                      <>
-                        <span className="font-bold mr-1 shrink-0">{chip.type}:</span>
-                        <span className="truncate">{chip.label}</span>
-                      </>
-                    );
-                    // A chip with nowhere to go (the custom-question mode, the
-                    // spread) is a label, not a button that silently does nothing.
-                    if (typeof chip.step !== 'number' && chip.action !== 'focus') {
-                      return (
-                        <span key={`${chip.label}-${idx}`} className={chipClassName}>
-                          {chipContent}
-                        </span>
-                      );
-                    }
-                    return (
-                      <button
-                        key={`${chip.label}-${idx}`}
-                        type="button"
-                        onClick={() => handleChipClick(chip)}
-                        className={`${chipClassName} min-h-touch min-w-touch hover:bg-secondary/10 hover:border-secondary transition`}
-                      >
-                        {chipContent}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {canUseAIQuestions ? (
-                  <label className="inline-flex min-h-touch min-w-touch max-w-full flex-wrap items-center gap-2 rounded-full border border-secondary/40 bg-surface/50 px-3 py-1.5 text-2xs text-secondary cursor-pointer select-none hover:bg-secondary/5 transition">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-secondary/60 bg-transparent text-secondary focus:ring-secondary"
-                      checked={useCreative}
-                      onChange={event => setCreativeMode(event.target.checked)}
-                    />
-                    <span className="inline-flex min-w-0 flex-wrap items-center gap-1 font-medium">
-                      <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                      Personalize with AI
-                    </span>
-                  </label>
-                ) : (
-                  <span className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border border-secondary/20 bg-surface/30 px-3 py-1.5 text-2xs text-secondary select-none" title="Upgrade to Plus or Pro for AI-powered personalization">
-                    <MagicWand className="h-3.5 w-3.5 opacity-50" aria-hidden="true" />
-                    <span className="font-medium">AI Personalization</span>
-                    <span className="rounded bg-secondary/10 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider text-secondary">Plus</span>
-                    {/* The title tooltip never reaches touch or screen reader users. */}
-                    <span className="sr-only">: available on the Plus and Pro plans</span>
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={remixQuestion}
-                  className="inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border border-secondary/60 bg-transparent px-3 py-1.5 text-2xs font-semibold text-secondary hover:bg-secondary/10 transition"
-                >
-                  <ArrowsClockwise className="h-3.5 w-3.5" aria-hidden="true" />
-                  Remix
-                </button>
-              </div>
-              <p className="text-2xs text-secondary">
-                Creative mode uses journal themes and recent questions when available.
-              </p>
-            </div>
-
-            {prefillSource && prefillSourceDescription && (
-              <p className="text-xs text-secondary wrap-break-word">
-                <span className="font-semibold text-secondary">Auto-filled</span> from {prefillSourceDescription}.
-              </p>
-            )}
-            {questionLoading && (
-              <p className={`text-xs text-accent ${prefersReducedMotion ? '' : 'animate-pulse'}`}>Weaving a personalized prompt…</p>
-            )}
-            {questionError && (
-              <p className="text-xs text-accent">{questionError}</p>
-            )}
-
-            <div className="rounded-2xl border border-secondary/30 bg-surface/60 p-[12px] sm:p-5 space-y-3 text-center" aria-busy={questionLoading}>
-              <label htmlFor={questionInputId} className="flex flex-wrap items-center justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary">
-                <Sparkle className="h-4 w-4 text-secondary" aria-hidden="true" />
-                Your Question
-              </label>
-              <textarea
-                ref={questionInputRef}
-                id={questionInputId}
-                value={currentQuestion}
-                onChange={event => editQuestion(event.target.value)}
-                rows={questionRows}
-                maxLength={USER_QUESTION_MAX_LENGTH}
-                dir="auto"
-                aria-describedby={questionHelpId}
-                placeholder="Write your question in your own words…"
-                className="block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 px-4 py-3 font-serif text-xl sm:text-2xl text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
-              />
-              <p id={questionHelpId} className="text-xs text-secondary">
-                Edit the wording before using your question.
-              </p>
-            </div>
-            {/* Using the question lives in the footer, which is always on screen. */}
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={() => openTemplatePanel('save')}
-                aria-haspopup="dialog"
-                className="inline-flex min-h-touch min-w-touch items-center justify-center px-2 text-2xs text-secondary underline decoration-secondary/40 underline-offset-4 transition hover:decoration-secondary"
-              >
-                Save as template
-              </button>
-            </div>
-
-            {astroHighlights.length > 0 && (
-              <div className="rounded-2xl border border-secondary/30 bg-surface/50 p-4 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-secondary">
-                  <span className="inline-flex items-center gap-2 uppercase tracking-[0.2em]">
-                    <MagicWand className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                    Astro window{astroWindowDays ? ` · ${astroWindowDays} days` : ''}
-                  </span>
-                  {astroSource && <span className="text-2xs text-muted">{astroSource}</span>}
-                </div>
-                <ul className="grid gap-1 text-sm text-main text-left">
-                  {astroHighlights.map((item, idx) => (
-                    <li key={`astro-${idx}`} className="flex items-start gap-2">
-                      <span className="mt-[5px] h-1.5 w-1.5 rounded-full bg-secondary/70" aria-hidden="true" />
-                      <span className="leading-snug text-secondary">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-2xs text-secondary">
-                  Astrology here is symbolic context, not a prediction.
-                </p>
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-secondary/30 bg-surface/40 p-3 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-secondary">
-                <span className="inline-flex flex-wrap items-center gap-1">
-                  <ChartLine className="h-4 w-4 text-secondary" aria-hidden="true" />
-                  Question quality
-                  <Tooltip
-                    content="Checks for open-ended wording, specificity, and timeframe."
-                    position="top"
-                    triggerClassName={infoButtonClass}
-                    ariaLabel="About question quality"
-                  >
-                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
-                  </Tooltip>
-                </span>
-                {isQuestionAssessable && !questionNudge && (
-                  <span className="text-xs font-semibold text-secondary">
-                    <span className="relative inline-flex items-center">
-                      <QualityLevelIcon level={qualityLevel} />
-                      {showExcellentBurst && (
-                        <Sparkle
-                          className="absolute -top-2 -right-2 h-3.5 w-3.5 text-accent motion-safe:animate-ping"
-                          weight="fill"
-                          aria-hidden="true"
-                        />
-                      )}
-                    </span>
-                    <span className="ml-1">{qualityLevel.label}</span>
-                  </span>
-                )}
-              </div>
-              {isQuestionAssessable && !questionNudge ? (
-                <>
-                  {/* The level label above already carries the score for assistive tech. */}
-                  <div className="h-2 w-full rounded-full bg-surface-muted/80 overflow-hidden" aria-hidden="true">
-                    <div
-                      className={`h-full ${prefersReducedMotion ? '' : 'transition-all duration-500'} ${
-                        normalizedQualityScore >= 85
-                          ? 'bg-accent'
-                          : normalizedQualityScore >= 65
-                            ? 'bg-secondary'
-                            : 'bg-secondary/50'
-                      }`}
-                      style={{ width: `${normalizedQualityScore}%` }}
-                    />
-                  </div>
-                  <p className="text-2xs text-secondary">{qualityHelperText}</p>
-                  {qualityHighlights.length > 0 && (
-                    <div className="flex flex-wrap justify-center gap-2 text-2xs uppercase tracking-[0.3em] text-secondary">
-                      {qualityHighlights.map(label => (
-                        <span
-                          key={label}
-                          className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-1 rounded-full border border-secondary/30 px-2 py-1"
-                        >
-                          <Check className="h-3 w-3" aria-hidden="true" />
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                // A phrasing warning or an unsupported language has no honest
-                // numeric grade, so the guidance stands on its own.
-                <p className="text-2xs text-secondary">{qualityHelperText}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
+    if (id === 'timeframe') return (
+      <div className="space-y-4">
+        <p id={timeframePromptId} className="text-base text-main">When do you want to explore?</p>
+        <p className="text-sm text-secondary">Choose a timeframe if it helps. You can remove it from your question at review.</p>
+        {renderOptions(INTENTION_TIMEFRAME_OPTIONS, timeframe, setTimeframe, timeframePromptId)}
+      </div>
+    );
+    if (id === 'depth') return (
+      <div className="space-y-5">
+        <p id={depthPromptId} className="text-base text-main">How deep do you want to go?</p>
+        {renderOptions(INTENTION_DEPTH_OPTIONS, depth, setDepth, depthPromptId, 'md:grid-cols-2')}
+        {renderDetail('depth')}
+      </div>
+    );
+    if (id === 'review') return renderReview();
     return null;
   };
 
-  if (!isOpen) {
-    return null;
-  }
-
-  const safeAreaXClass = !isSmallScreen && isLandscape
-    ? 'pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))]'
-    : '';
+  if (!isOpen) return null;
   const closesFromFooter = isSmallScreen && step === 0;
-  const footerPaddingStyle = !isSmallScreen && effectiveOffset
-    ? { paddingBottom: `calc(var(--safe-pad-bottom) + ${effectiveOffset + 16}px)` }
-    : undefined;
+  const suggestions = (
+    <CoachSuggestionsPanel
+      personalizedSuggestions={personalizedSuggestions} isSuggestionsExpanded={isSuggestionsExpanded}
+      setSuggestionsExpanded={setSuggestionsExpanded} suggestionPageCount={suggestionPageCount}
+      suggestionsPage={suggestionsPage} setSuggestionsPage={setSuggestionsPage}
+      visibleSuggestions={visibleSuggestions} buildSuggestionPreview={buildSuggestionPreview}
+      handleSuggestionPick={handleSuggestionPick} getTopicLabel={getTopicLabel}
+      getTimeframeLabel={getTimeframeLabel} getDepthLabel={getDepthLabel}
+      coachSnapshotLabel={coachSnapshotLabel} coachSnapshotDetail={coachSnapshotDetail}
+    />
+  );
 
   return (
-    <div
-      className={`fixed inset-0 z-70 flex ${isSmallScreen ? 'items-end pt-[max(16px,var(--safe-pad-top))]' : 'items-center'} justify-center`}
-      style={isSmallScreen && effectiveOffset ? { paddingBottom: `${effectiveOffset}px` } : undefined}
-    >
-      <div
-        className={`${isSmallScreen ? 'mobile-drawer-overlay' : 'bg-main/90 backdrop-blur'} absolute inset-0 ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* useModalA11y owns initial focus. Without an initialFocus of its own,
-          the trap's deferred activation focus keeps whatever is already
-          focused inside the dialog instead of pulling it back to Close when
-          the timer runs late. */}
-      <FocusTrap
-        active={isOpen}
-        focusTrapOptions={{
-          escapeDeactivates: false,
-          clickOutsideDeactivates: false,
-          returnFocusOnDeactivate: false,
-          allowOutsideClick: true,
-        }}
-      >
+    <div className={`fixed inset-0 z-70 flex justify-center ${isSmallScreen ? 'items-end pt-[max(16px,var(--safe-pad-top))]' : 'items-center'}`} style={keyboardOffset ? { paddingBottom: `${keyboardOffset}px` } : undefined}>
+      <div className={`absolute inset-0 ${isSmallScreen ? 'mobile-drawer-overlay' : 'bg-main/90 backdrop-blur'} ${prefersReducedMotion ? '' : 'animate-fade-in'}`} onClick={onClose} aria-hidden="true" />
+      <FocusTrap active={isOpen} focusTrapOptions={{ escapeDeactivates: false, clickOutsideDeactivates: false, returnFocusOnDeactivate: false, allowOutsideClick: true }}>
         <div
-          ref={modalRef}
-          id={MOBILE_COACH_DIALOG_ID}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className={`relative w-full flex flex-col wrap-anywhere focus:outline-hidden selection:bg-accent selection:text-surface ${
-            isSmallScreen
-              ? `mobile-drawer ${prefersReducedMotion ? '' : 'animate-slide-up'}`
-              : `h-auto ${isLandscape ? 'max-h-[98vh]' : 'max-h-[90vh]'} max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-(--ui-elevated-shadow) ${prefersReducedMotion ? '' : 'animate-pop-in'}`
-          }`}
-          style={{
-            ...(isSmallScreen ? {
-              maxHeight: 'calc(100% - 8px)',
-              // Present only while dragging or sliding out, so the entrance
-              // animation keeps control of transform at rest.
-              transform: swipeDismissStyle.transform,
-              transition: prefersReducedMotion ? 'none' : swipeDismissStyle.transition
-            } : undefined)
-          }}
-          // The template library is its own layer; dragging in it must not
-          // dismiss the coach underneath.
+          ref={modalRef} id={MOBILE_COACH_DIALOG_ID} role="dialog" aria-modal="true" aria-labelledby={titleId}
+          className={`coach-dialog relative w-full flex flex-col min-h-0 wrap-anywhere focus:outline-hidden selection:bg-accent selection:text-surface ${isSmallScreen ? `mobile-drawer ${prefersReducedMotion ? '' : 'animate-slide-up'}` : `max-w-3xl mx-4 rounded-3xl border border-secondary/30 bg-surface shadow-(--ui-elevated-shadow) ${prefersReducedMotion ? '' : 'animate-pop-in'}`}`}
+          style={{ maxHeight: isSmallScreen ? 'calc(100% - 8px)' : isLandscape ? '98%' : '90%', ...(isSmallScreen ? { transform: swipeDismissStyle.transform, transition: prefersReducedMotion ? 'none' : swipeDismissStyle.transition } : {}) }}
           {...(isSmallScreen && !isTemplatePanelOpen ? swipeDismissHandlers : {})}
         >
-          {isSmallScreen && (
-            <div className="mobile-drawer__handle" aria-hidden="true" />
-          )}
-
-          <p className="sr-only" role="status" aria-live="polite">
-            {announcement}
-          </p>
-
-          {/* On phones the header shares the form's scroll area, so enlarged
-              text cannot squeeze the editable content out of the sheet. */}
-          <div className={isSmallScreen ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-themed' : 'contents'}>
-            <div className={isSmallScreen ? 'mobile-drawer__header px-4 pt-3 pb-3' : 'relative border-b border-accent/15'}>
-              <div className={`flex items-start justify-between gap-3 ${isSmallScreen ? '' : `px-4 pt-8 sm:px-10 sm:pt-6 ${isLandscape ? 'pb-3' : 'pb-4 sm:pb-5'}`}`}>
-                <div className="min-w-0 space-y-1 wrap-break-word">
-                  <h2 id={titleId} className={`font-serif ${isSmallScreen ? 'text-lg text-accent' : `text-main ${isLandscape ? 'text-xl' : 'text-2xl'}`}`}>
-                    Shape a question with clarity
-                  </h2>
-                  {!isLandscape && (
-                    <p className={`${isSmallScreen ? 'text-[0.78rem] text-muted' : 'text-sm text-muted'} leading-snug max-w-88`}>
-                      Answer three quick prompts and we&apos;ll craft an open-ended question you can drop
-                      directly into your reading.
-                    </p>
-                  )}
+          {isSmallScreen && <div className="mobile-drawer__handle" aria-hidden="true" />}
+          <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
+          <p className="sr-only" aria-live="polite">{framingAnnouncement}</p>
+          <div ref={scrollRef} className="coach-dialog__scroll scrollbar-themed">
+            <div className="coach-dialog__header">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <h2 id={titleId} className="font-serif text-xl sm:text-2xl text-main">Shape a question with clarity</h2>
+                  {!isLandscape && <p className="text-sm text-secondary">Keep what matters. Shape the wording before you use it.</p>}
                 </div>
-
-                <button
-                  ref={closeButtonRef}
-                  type="button"
-                  onClick={onClose}
-                  className={isSmallScreen ? 'mobile-drawer__close shrink-0' : 'absolute top-4 right-4 sm:top-6 sm:right-6 min-h-touch min-w-touch flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-surface-muted/50 z-10 touch-manipulation transition-colors'}
-                  aria-label="Close intention coach"
-                >
-                  <X className="w-5 h-5" aria-hidden="true" />
-                </button>
+                <button ref={closeButtonRef} type="button" onClick={onClose} className={`${quietButton} shrink-0`} aria-label="Close intention coach"><X className="h-5 w-5" aria-hidden="true" /></button>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                <button type="button" className={`${quietButton} underline underline-offset-4`} onClick={startFresh}>Start fresh</button>
+                {originalQuestion && <button type="button" className={`${quietButton} underline underline-offset-4`} onClick={restoreOriginalQuestion}>Restore original question</button>}
               </div>
             </div>
-
-            <div className={isSmallScreen ? 'mobile-drawer__body' : 'flex-1 overflow-y-auto overscroll-contain min-h-0 scrollbar-themed'}>
-              <div
-                className={`flex flex-col gap-6 px-[12px] pb-6 sm:px-10 sm:pb-6 ${isLandscape ? 'pt-4 gap-4' : 'pt-4 sm:pt-6'} ${safeAreaXClass}`}
-              >
-                <CoachSuggestionsPanel
-                  personalizedSuggestions={personalizedSuggestions}
-                  isSuggestionsExpanded={isSuggestionsExpanded}
-                  setSuggestionsExpanded={setSuggestionsExpanded}
-                  suggestionPageCount={suggestionPageCount}
-                  suggestionsPage={suggestionsPage}
-                  setSuggestionsPage={setSuggestionsPage}
-                  visibleSuggestions={visibleSuggestions}
-                  buildSuggestionPreview={buildSuggestionPreview}
-                  handleSuggestionPick={handleSuggestionPick}
-                  getTopicLabel={getTopicLabel}
-                  getTimeframeLabel={getTimeframeLabel}
-                  getDepthLabel={getDepthLabel}
-                  coachSnapshotLabel={coachSnapshotLabel}
-                  coachSnapshotDetail={coachSnapshotDetail}
-                />
-
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div
-                      className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent flex-wrap"
-                      role="tablist"
-                      aria-label="Coach wizard steps"
-                    >
-                      {STEPS.map((entry, index) => (
-                        <Fragment key={entry.id}>
-                          <button
-                            ref={el => {
-                              stepButtonRefs.current[index] = el;
-                            }}
-                            type="button"
-                            id={`step-tab-${entry.id}`}
-                            role="tab"
-                            aria-selected={index === step}
-                            aria-controls={`step-panel-${entry.id}`}
-                            tabIndex={index === step ? 0 : -1}
-                            className={`rounded-full px-3 py-1 min-h-touch min-w-touch touch-manipulation transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${
-                              index === step
-                                ? 'bg-accent text-surface shadow-lg shadow-accent/20 forced-colors:underline forced-colors:underline-offset-4'
-                                : 'bg-surface-muted text-muted hover:bg-surface-muted/80 hover:text-accent'
-                            }`}
-                            onClick={() => setStep(index)}
-                            onKeyDown={(e) => handleStepKeyDown(e, index)}
-                          >
-                            {/* Phones show the number; the name stays in the
-                                accessible label ("1 Topic") so voice control
-                                and screen readers both get it. */}
-                            <span className="sm:hidden">{index + 1}</span>
-                            {' '}
-                            <span className="sr-only sm:not-sr-only">{entry.label}</span>
-                          </button>
-                          {index < STEPS.length - 1 && <span className="text-accent/30" aria-hidden="true">·</span>}
-                        </Fragment>
-                      ))}
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                      <p className="text-xs text-secondary font-medium">
-                        Step {step + 1} of {STEPS.length}
-                      </p>
+            <div className="coach-dialog__body">
+              <div className="coach-step-nav">
+                <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Coach wizard steps">
+                  {STEPS.map((entry, index) => (
+                    <Fragment key={entry.id}>
                       <button
-                        type="button"
-                        onClick={() => openTemplatePanel('browse')}
-                        aria-haspopup="dialog"
-                        className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-secondary/40 px-3 py-1.5 text-2xs uppercase tracking-[0.2em] text-secondary hover:bg-secondary/10 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/60"
-                      >
-                        <BookmarkSimple className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
-                        Templates
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className={`rounded-2xl border border-accent/30 bg-surface-muted/40 ${isLandscape ? 'p-3' : 'p-[12px] sm:p-5'}`}>
-                    {STEPS.map((entry, index) => (
-                      <div
-                        key={entry.id}
-                        id={`step-panel-${entry.id}`}
-                        role="tabpanel"
-                        aria-labelledby={`step-tab-${entry.id}`}
-                        hidden={step !== index}
-                        aria-hidden={step !== index}
-                        tabIndex={step === index ? 0 : -1}
-                      >
-                        {renderStepPanelContent(entry.id)}
-                      </div>
-                    ))}
-                  </div>
+                        ref={element => { stepButtonRefs.current[index] = element; }} type="button"
+                        id={`step-tab-${entry.id}`} role="tab" aria-selected={index === step}
+                        aria-controls={`step-panel-${entry.id}`} tabIndex={index === step ? 0 : -1}
+                        className={`coach-step min-h-touch rounded-lg px-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${index === step ? 'bg-accent text-surface forced-colors:underline' : 'text-secondary hover:bg-secondary/10'}`}
+                        onClick={() => selectStep(index)} onKeyDown={event => handleStepKeyDown(event, index)}
+                      >{entry.label}</button>
+                    </Fragment>
+                  ))}
                 </div>
+                <p className="text-xs text-secondary">Step {step + 1} of {STEPS.length}</p>
               </div>
+              {STEPS.map((entry, index) => (
+                <div key={entry.id} id={`step-panel-${entry.id}`} role="tabpanel" aria-labelledby={`step-tab-${entry.id}`} hidden={step !== index} tabIndex={step === index ? 0 : -1} className="coach-step-panel">
+                  {renderStep(entry.id)}
+                </div>
+              ))}
+              <div className="coach-library-tools">
+                <button type="button" onClick={() => openTemplatePanel('browse')} aria-haspopup="dialog" className={quietButton}><BookmarkSimple className="h-4 w-4" aria-hidden="true" />Templates</button>
+              </div>
+              {suggestions}
+              <p className="mt-4 text-xs text-secondary">Unfinished wording stays available while this page is open. Reloading starts a new coach session.</p>
             </div>
-          </div>
-
-          <div
-            className={`shrink-0 ${isSmallScreen ? 'mobile-drawer__footer' : 'bg-surface border-t border-accent/20 px-4 sm:px-10 pb-safe sm:pb-6'} ${isLandscape ? 'pt-2' : isSmallScreen ? '' : 'pt-4'} ${safeAreaXClass}`}
-            style={!isSmallScreen ? footerPaddingStyle : undefined}
-          >
-            <div className={`flex sm:flex-row sm:items-center sm:justify-between ${isLandscape ? 'flex-row flex-wrap items-center gap-2' : 'flex-col gap-3'}`}>
-              <div className={`min-w-0 wrap-break-word text-xs text-muted ${isLandscape ? 'block' : 'hidden sm:block'}`}>
-                <p>
-                  {isLandscape ? footerSummaryCompact : footerSummary}
-                </p>
-              </div>
-              <div className={isLandscape
-                ? 'flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2'
-                : 'grid w-full grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3 sm:flex sm:w-auto sm:items-center'}>
-                {/* aria-disabled, not disabled: disabling the focused button on
-                    the first step would drop keyboard focus to the page. On
-                    phones the first step's button closes the coach instead, so
-                    closing does not need the far top corner. */}
-                <button
-                  type="button"
-                  onClick={closesFromFooter ? onClose : goBack}
-                  aria-disabled={(step === 0 && !closesFromFooter) || undefined}
-                  aria-label={isLandscape ? (closesFromFooter ? 'Close' : 'Back') : undefined}
-                  className={`${footerSecondaryClass} ${isLandscape ? 'min-h-touch px-3 py-2' : 'min-h-cta px-4 py-2 sm:flex-none'}`}
-                >
-                  {closesFromFooter
-                    ? <X className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    : <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}
-                  {!isLandscape && <span>{closesFromFooter ? 'Close' : 'Back'}</span>}
+            <footer ref={footerRef} className={`coach-dialog__footer ${footerInFlow ? 'coach-dialog__footer--flow' : ''}`}>
+              <div className="coach-footer-actions">
+                <button type="button" onClick={closesFromFooter ? onClose : goBack} aria-disabled={(step === 0 && !closesFromFooter) || undefined} className={`${footerButton} border border-secondary/40 bg-surface-muted text-secondary aria-disabled:opacity-40`}>
+                  {closesFromFooter ? <X className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}{closesFromFooter ? 'Close' : 'Back'}
                 </button>
-                {step < STEPS.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    disabled={!canGoNext()}
-                    className={`${footerPrimaryClass} ${isLandscape ? 'min-h-touch px-4 py-2' : 'min-h-cta px-4 py-2 sm:flex-none'}`}
-                  >
-                    <span>Next</span>
-                    <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleApply}
-                    disabled={!currentQuestion.trim() || questionLoading}
-                    aria-label={isLandscape && !questionLoading ? 'Use question' : undefined}
-                    className={`${footerPrimaryClass} ${isLandscape ? 'min-h-touch px-4 py-2' : 'min-h-cta px-4 py-2 sm:flex-none'}`}
-                  >
-                    {/* Say why the button is unavailable while a personalized
-                        question is still being written. */}
-                    <span>{questionLoading ? 'Weaving…' : isLandscape ? 'Use' : 'Use question'}</span>
-                    <Sparkle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  </button>
-                )}
+                {step < REVIEW_STEP ? <button type="button" onClick={goNext} disabled={!canGoNext()} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{step === 2 ? 'Review question' : 'Next'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></button>
+                  : <button type="button" onClick={handleApply} disabled={!currentQuestion.trim() || questionLoading} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{questionLoading ? 'Refining…' : 'Use this question'}</span><Sparkle className="h-4 w-4 shrink-0" aria-hidden="true" /></button>}
               </div>
-            </div>
+            </footer>
           </div>
-
           <CoachTemplatePanel
-            isOpen={isTemplatePanelOpen}
-            intent={templatePanelIntent}
-            onClose={closeTemplatePanel}
-            prefersReducedMotion={prefersReducedMotion}
-            templates={templates}
-            newTemplateLabel={newTemplateLabel}
-            setNewTemplateLabel={setNewTemplateLabel}
-            templateStatus={templateStatus}
-            handleSaveTemplate={handleSaveTemplate}
-            handleApplyTemplate={handleApplyTemplate}
-            handleDeleteTemplate={handleDeleteTemplate}
-            questionHistory={questionHistory}
-            handleApplyHistoryQuestion={handleApplyHistoryQuestion}
-            maxTemplates={MAX_TEMPLATES}
-            getTopicLabel={getTopicLabel}
-            getTimeframeLabel={getTimeframeLabel}
-            getDepthLabel={getDepthLabel}
+            isOpen={isTemplatePanelOpen} intent={templatePanelIntent} onClose={closeTemplatePanel}
+            prefersReducedMotion={prefersReducedMotion} templates={templates} newTemplateLabel={newTemplateLabel}
+            setNewTemplateLabel={setNewTemplateLabel} templateStatus={templateStatus} templateUndo={templateUndo}
+            handleUndoTemplateSave={handleUndoTemplateSave} handleSaveTemplate={handleSaveTemplate}
+            handleApplyTemplate={handleApplyTemplate} handleDeleteTemplate={handleDeleteTemplate}
+            questionHistory={questionHistory} handleApplyHistoryQuestion={handleApplyHistoryQuestion}
+            maxTemplates={MAX_TEMPLATES} getTopicLabel={getTopicLabel} getTimeframeLabel={getTimeframeLabel} getDepthLabel={getDepthLabel}
           />
         </div>
       </FocusTrap>
