@@ -3,7 +3,18 @@ import { resolveDecisionPathContext } from './decisionPathContext.js';
 import { sanitizeReadingContext } from './readingCardContext.js';
 import { MAXIMUM_CARD_COUNT } from '../../shared/contracts/readingRequestLimits.js';
 
-/** Private request-local sources. Never send their text to ordinary telemetry. */
+/**
+ * @typedef {Object} ReadingContextSource
+ * @property {string} id Fixed question/reflections/card-N/pathA/pathB/focus-N ID.
+ * @property {'question'|'reflection'|'cardReflection'|'decisionPath'|'savedFocus'} kind
+ * @property {string} text Independently sanitized accepted source, before query cuts.
+ * @property {number} originalLength
+ * @property {number} sanitizedLength
+ * @property {number} [cardIndex]
+ * @property {string} [pathKey]
+ * @property {string} [origin]
+ */
+/** @returns {ReadingContextSource[]} Private request-local sources; never log text. */
 export function prepareReadingContextSources({ userQuestion, reflectionsText, cardsInfo = [], decisionPaths = {}, spreadKey, focusAreas = [] } = {}) {
   const cards = Array.isArray(cardsInfo) ? cardsInfo.slice(0, MAXIMUM_CARD_COUNT) : [];
   const fields = prepareUserContext(userQuestion, reflectionsText, cards);
@@ -16,7 +27,7 @@ export function prepareReadingContextSources({ userQuestion, reflectionsText, ca
     ...(id.startsWith('card-') ? { cardIndex: Number(id.slice(5)) } : {})
   }));
   sources.push(...resolveDecisionPathContext({ spreadKey, cardsInfo: cards, decisionPaths }).sources);
-  (Array.isArray(focusAreas) ? focusAreas : []).slice(0, 6).forEach((entry, index) => {
+  (Array.isArray(focusAreas) ? focusAreas : []).slice(0, 12).forEach((entry, index) => {
     const raw = typeof entry === 'string' ? entry : entry?.label || entry?.name || '';
     if (typeof raw !== 'string' || !raw) return;
     const text = sanitizeReadingContext(raw);
@@ -25,10 +36,31 @@ export function prepareReadingContextSources({ userQuestion, reflectionsText, ca
   return sources;
 }
 
+/** Cut at complete grapheme boundaries; offsets remain UTF-16 code units. */
 export function sliceContextUnicode(text, start, end) {
-  let from = Math.max(0, start);
-  let to = Math.max(from, end);
-  if (from > 0 && /[\uDC00-\uDFFF]/.test(text[from] || '')) from += 1;
-  if (to < text.length && /[\uDC00-\uDFFF]/.test(text[to] || '')) to -= 1;
-  return text.slice(from, to);
+  const from = Math.max(0, start);
+  const to = Math.max(from, Math.min(text.length, end));
+  if (from === 0 && to === text.length) return text;
+  if (typeof Intl.Segmenter === 'function') {
+    const segments = new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text);
+    let first = text.length;
+    let last = 0;
+    for (const segment of segments) {
+      const finish = segment.index + segment.segment.length;
+      if (segment.index >= from && finish <= to) {
+        first = Math.min(first, segment.index);
+        last = finish;
+      }
+      if (segment.index > to) break;
+    }
+    return first <= last ? text.slice(first, last) : '';
+  }
+  // Older runtimes: retain complete scalar/combining/ZWJ groups conservatively.
+  let offset = 0;
+  let result = '';
+  for (const match of text.matchAll(/(?:\p{Regional_Indicator}{2}|[^\p{M}\u200d])(?:[\p{M}\p{Emoji_Modifier}])*(?:\u200d[^\p{M}\u200d](?:[\p{M}\p{Emoji_Modifier}])*)*/gu)) {
+    offset = match.index + match[0].length;
+    if (match.index >= from && offset <= to) result += match[0];
+  }
+  return result;
 }

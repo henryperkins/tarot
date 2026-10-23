@@ -22,7 +22,7 @@ import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from '
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
-import { sanitizeQueryCoverage } from '../../../../shared/readingSourceUsage.js';
+import { sanitizeQueryCoverage, sanitizeContextSelection } from '../../../../shared/readingSourceUsage.js';
 import { buildMemorySourceUsage, buildUserContextSourceUsage } from '../sourceUsage.js';
 
 function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostics = [] }) {
@@ -422,6 +422,7 @@ export function buildEnhancedClaudePrompt({
   userContextInputStats = {},
   decisionPaths,
   contextInputText,
+  contextSelection: suppliedContextSelection = null,
   reflectionsText,
   themes,
   spreadAnalysis,
@@ -457,13 +458,7 @@ export function buildEnhancedClaudePrompt({
   const pathContext = resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths });
   decisionPaths = pathContext.decisionPaths;
   userContextInputStats = { ...pathContext.inputStats, ...userContextInputStats };
-  const selectedMemories = useSavedMemories === false ? { memories: [] } : selectMemoriesForReading(memories, {
-    sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
-    displayName: personalization?.displayName,
-    referenceTime: memorySelection?.referenceTime
-  });
-  memories = selectedMemories.memories;
-  const contextSelection = resolveContextSelection({
+  const contextSelection = suppliedContextSelection || resolveContextSelection({
     userQuestion,
     reflectionsText,
     ...(spreadKey === 'decision' ? { decisionPaths } : {}),
@@ -471,9 +466,16 @@ export function buildEnhancedClaudePrompt({
     focusAreas: personalization?.focusAreas,
     contextInputText
   }, spreadKey);
+  const selectedMemories = useSavedMemories === false ? { memories: [] } : selectMemoriesForReading(memories, {
+    sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
+    contextSelection,
+    displayName: personalization?.displayName,
+    referenceTime: memorySelection?.referenceTime
+  });
+  memories = selectedMemories.memories;
   const diagnostics = Array.isArray(contextDiagnostics) ? contextDiagnostics : [];
 
-  const normalizedContextValue = normalizeContext(context, {
+  const normalizedContextValue = normalizeContext(contextSelection.context, {
     onUnknown: (message) => diagnostics.push(message),
     allowFallback: true,
     fallback: 'general'
@@ -538,6 +540,7 @@ export function buildEnhancedClaudePrompt({
           deckStyle: resolvedDeckStyle,
           env: promptBudgetEnv,
           userQuery: graphRAGContextInput || userQuestion || '',
+          keywordQuery: selection.retrievalContentText,
           questionContext
         });
 
@@ -549,6 +552,8 @@ export function buildEnhancedClaudePrompt({
           questionContext,
           contextSource: selection.source,
           contextClarifiedBy: selection.clarifiedBy,
+          contextSelection: sanitizeContextSelection(selection),
+          queryCoverage: sanitizeQueryCoverage(selection.queryCoverage),
           semanticScoringRequested: semanticRequested,
           semanticScoringUsed,
           semanticScoringFallback,
@@ -999,6 +1004,7 @@ export function buildEnhancedClaudePrompt({
     // Spread key used for prompt structure selection (from getSpreadKey)
     spreadKey,
     deckStyle: resolvedDeckStyle,
+    contextSelection: sanitizeContextSelection(contextSelection),
     queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
     context: {
       provided: context || null,
@@ -1130,6 +1136,7 @@ export function buildEnhancedClaudePrompt({
       }
     }
     retrievalSummary.queryCoverage = promptMeta.queryCoverage;
+    retrievalSummary.contextSelection = promptMeta.contextSelection;
     retrievalSummary.disabledByEnv = !graphragEnabled;
     if (!graphragEnabled) retrievalSummary.skippedReason = 'disabled_by_env';
     retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';

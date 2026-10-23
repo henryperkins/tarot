@@ -39,14 +39,13 @@ import {
   buildExperienceLine,
   getToneStyle,
   buildPersonalizedClosing,
-  canUseSavedFocus,
   getDepthProfile,
   sanitizeDisplayName,
   TONE_STYLES,
   FRAME_VOCABULARY
 } from './narrative/styleHelpers.js';
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
-import { sanitizeQueryCoverage } from '../../shared/readingSourceUsage.js';
+import { sanitizeQueryCoverage, sanitizeContextSelection } from '../../shared/readingSourceUsage.js';
 import { buildMemorySourceUsage, buildUserContextSourceUsage } from './narrative/sourceUsage.js';
 import { formatPassagesForPrompt } from './graphRAG.js';
 import { buildReadingRedactionOptions } from './promptEngineering.js';
@@ -56,6 +55,7 @@ import {
   maybeLogPromptPayload
 } from './readingTelemetry.js';
 import { withSpan } from './tracingSpans.js';
+import { getSpreadKey } from './readingQuality.js';
 import { resolveContextSelection } from './contextDetection.js';
 import { collectQuerentReflections } from './querentReflections.js';
 
@@ -724,6 +724,16 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     contextDiagnostics = []
   } = payload;
 
+  // Original positions can supply effective decision labels without reflections.
+  const hasLegacyDecisionPaths = !payload.contextSelection && getSpreadKey(spreadInfo?.name, spreadInfo?.key) === 'decision'
+    && resolveDecisionPathContext({ spreadKey: 'decision', cardsInfo, decisionPaths: payload.decisionPaths }).sources.length > 0;
+  // Internal callers without a route decision derive it once for all retries.
+  payload.contextSelection ||= resolveContextSelection({
+    userQuestion, reflectionsText, decisionPaths: payload.decisionPaths,
+    ...(hasLegacyDecisionPaths || payload.decisionPaths || reflectionsText !== undefined || cardsInfo?.some(card => card?.userReflection) ? { cardsInfo } : {}),
+    focusAreas: payload.personalization?.focusAreas, contextInputText
+  }, getSpreadKey(spreadInfo?.name, spreadInfo?.key));
+
   const deckStyle = payload.deckStyle || spreadInfo?.deckStyle || cardsInfo?.[0]?.deckStyle || analysis?.themes?.deckStyle || 'rws-1909';
 
   const promptProvider = options.providerLabel || 'OpenAI Responses';
@@ -744,6 +754,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
 
   // Build enhanced prompts using narrative builder
   const { systemPrompt, userPrompt, promptMeta, memoryRetention, contextDiagnostics: promptDiagnostics } = buildEnhancedClaudePrompt({
+    contextSelection: payload.contextSelection,
     userContextInputStats: payload.userContextInputStats,
     decisionPaths: payload.decisionPaths,
     spreadInfo,
@@ -1312,7 +1323,6 @@ export async function composeReadingEnhanced(payload, env = null) {
     cardsInfo: rawCardsInfo,
     userQuestion,
     analysis,
-    context,
     personalization = null,
     visionInsights = []
   } = payload;
@@ -1345,7 +1355,7 @@ export async function composeReadingEnhanced(payload, env = null) {
   // A topic can be specific in the graph taxonomy (for example grief) while
   // its reading label remains general. Use the shared source decision instead
   // of the reading label to keep saved interests from steering any fallback.
-  const contextSelection = resolveContextSelection({
+  const contextSelection = payload.contextSelection ||= resolveContextSelection({
     userQuestion,
     reflectionsText: payload.reflectionsText,
     cardsInfo,
@@ -1354,8 +1364,7 @@ export async function composeReadingEnhanced(payload, env = null) {
   }, spreadKey);
   const hasCurrentTopic = contextSelection.source === 'question'
     || contextSelection.source === 'reflections'
-    || contextSelection.source === 'decisionPaths'
-    || !canUseSavedFocus(context);
+    || contextSelection.source === 'decisionPaths';
   const composerPersonalization = personalization && hasCurrentTopic
     ? { ...personalization, focusAreas: [] }
     : personalization;
@@ -1382,7 +1391,7 @@ export async function composeReadingEnhanced(payload, env = null) {
       userQuestion,
       reflectionsText,
       themes,
-      context
+      context: contextSelection.context
     },
     async (enhancedPayload, reasoningOptions = {}) => {
       const mergedOptions = {
@@ -1419,6 +1428,8 @@ export async function composeReadingEnhanced(payload, env = null) {
   // Ensure promptMeta exists for telemetry
   payload.promptMeta = {
     backend: 'local-composer',
+    contextSelection: sanitizeContextSelection(contextSelection),
+    context: { provided: contextSelection.context, normalized: contextSelection.context, source: contextSelection.source, clarifiedBy: contextSelection.clarifiedBy },
     queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
     estimatedTokens: null,
     slimmingSteps: []
@@ -1435,6 +1446,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     payload.promptMeta.graphRAG = {
       ...retrievalSummary,
       queryCoverage: payload.promptMeta.queryCoverage,
+      contextSelection: payload.promptMeta.contextSelection,
       includedInPrompt: false,
       injectedIntoPrompt: false,
       passagesProvided,

@@ -8,6 +8,7 @@ export const CONTEXT_KEYWORDS = {
     'partner',
     'partnership',
     'marriage',
+    'wedding',
     'married',
     'spouse',
     'crush',
@@ -148,6 +149,7 @@ export const GRAPH_RAG_CONTEXT_KEYWORDS = {
     'partner',
     'partnership',
     'marriage',
+    'wedding',
     'married',
     'spouse',
     'boyfriend',
@@ -410,4 +412,37 @@ export function countMatches(text, keywords) {
 export function matchedContextPhrases(text, keywords = []) {
   const words = ` ${normalizeContextWords(text)} `;
   return [...new Set(keywords.map(normalizeContextWords))].filter((phrase) => phrase && words.includes(` ${phrase} `));
+}
+
+/** Explicit rejection of a topic, rather than a negative action within it. */
+export function excludedContextRanges(text = '') {
+  const ranges = [];
+  const pattern = /\b(?:not\s+(?:asking\s+about|about|seeking\s+(?:guidance|advice)\s+(?:on|about))|(?:do\s+not|don['’‘ʼ＇]t)\s+want\s+(?:guidance|advice|a\s+reading)\s+(?:on|about))\b[^.!?。！？;；\n]*/giu;
+  for (const match of text.matchAll(pattern)) {
+    const boundary = match[0].search(/,?\s+\b(?:but|instead|rather)\b|,\s+I\s+(?:need|want)\b/iu);
+    ranges.push({ start: match.index, end: match.index + (boundary < 0 ? match[0].length : boundary) });
+  }
+  return ranges;
+}
+
+/** Original UTF-16 offsets survive normalization and plural matching. */
+export function contextPhraseMatches(text = '', keywords = [], { includeExcluded = false } = {}) {
+  const tokens = [...text.matchAll(/[\p{L}\p{N}]+/gu)].map(match => ({ word: normalizeContextWords(match[0]), start: match.index, end: match.index + match[0].length }));
+  const exclusions = excludedContextRanges(text);
+  const result = [];
+  for (const phrase of new Set(keywords.map(normalizeContextWords))) {
+    const words = phrase.split(' ');
+    if (!phrase) continue;
+    tokens.forEach((token, index) => {
+      if (!words.every((word, offset) => tokens[index + offset]?.word === word)) return;
+      const end = tokens[index + words.length - 1].end;
+      const excluded = exclusions.some(range => token.start >= range.start && token.start < range.end);
+      if (includeExcluded || !excluded) result.push({ phrase, start: token.start, end, excluded });
+    });
+  }
+  return result.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+export function positiveContextPhrases(text, keywords) {
+  return [...new Set(contextPhraseMatches(text, keywords).map(match => match.phrase))];
 }

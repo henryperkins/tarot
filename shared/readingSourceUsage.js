@@ -10,6 +10,8 @@ export const USER_INPUT_KEYS = Object.freeze([
 export const USAGE_REASON_COPY = Object.freeze({
   unverified_reference_provenance: 'Reference provenance could not be verified.',
   projection_rejected: 'References could not be verified for the selected deck.',
+  explicit_topic_exclusion: 'This topic was explicitly excluded from reference matching.',
+  topic_projection: 'Only relevant parts were used for reference matching.',
   query_budget: 'Excerpted for reference matching; the reading may include more of your note.',
   source_char_limit: 'Shortened for reference matching.',
   duplicate: 'Included once for reference matching.',
@@ -111,15 +113,33 @@ export function sanitizeSourceUsage(value) {
 // narrative inclusion. Only fixed field identities may cross this boundary.
 export function sanitizeQueryCoverage(value) {
   if (!Array.isArray(value)) return [];
-  const known = new Set(['question', 'reflections', 'pathA', 'pathB', ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, i) => `card-${i}`), ...Array.from({ length: 6 }, (_, i) => `focus-${i}`)]);
+  const known = new Set(['question', 'reflections', 'pathA', 'pathB', ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, i) => `card-${i}`), ...Array.from({ length: 12 }, (_, i) => `focus-${i}`)]);
   const seen = new Set();
   return value.flatMap(field => {
     if (!isRecord(field) || !known.has(field.id) || seen.has(field.id)) return [];
     seen.add(field.id);
     const entry = { id: field.id };
-    copyCounts(entry, field, ['originalLength', 'sanitizedLength', 'eligibleLength', 'includedLength']);
-    copyFlags(entry, field, ['included', 'truncated']);
-    if (field.reason != null) entry.reason = reasonCode(field.reason);
+    copyCounts(entry, field, ['originalLength', 'sanitizedLength', 'classifiedLength', 'eligibleLength', 'topicEligibleLength', 'includedLength']);
+    copyFlags(entry, field, ['included', 'truncated', 'mixed']);
+    if (['keyword', 'limited'].includes(field.classificationSupport)) entry.classificationSupport = field.classificationSupport;
+    if (Object.hasOwn(field, 'reason')) entry.reason = field.reason === null ? null : reasonCode(field.reason);
     return [entry];
   });
+}
+
+/** Text-free projection of a private server context decision. */
+export function sanitizeContextSelection(value) {
+  if (!isRecord(value) || value.version !== 1) return null;
+  const contexts = ['general', 'love', 'career', 'self', 'spiritual', 'wellbeing', 'decision', 'relationship'];
+  const graphContexts = ['general', 'grief', 'relationship', 'career', 'health', 'spiritual', 'transition', 'shadow', 'creative', 'manifestation', 'personal', 'leadership', 'parenting', 'legal', 'calling', 'boundaries', 'clarity', 'acceptance', 'values', 'life-cycle'];
+  const sources = ['question', 'reflections', 'decisionPaths', 'focusAreas', 'spread', 'none'];
+  const ids = new Set(['question', 'reflections', 'pathA', 'pathB', ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, i) => `card-${i}`), ...Array.from({ length: 12 }, (_, i) => `focus-${i}`)]);
+  return {
+    version: 1,
+    context: contexts.includes(value.context) ? value.context : 'general',
+    graphRAGContext: graphContexts.includes(value.graphRAGContext) ? value.graphRAGContext : 'general',
+    source: sources.includes(value.source) ? value.source : 'none',
+    clarifiedBy: sources.includes(value.clarifiedBy) ? value.clarifiedBy : null,
+    selectedSourceIds: Array.isArray(value.selectedSourceIds) ? [...new Set(value.selectedSourceIds.filter(id => ids.has(id)))] : []
+  };
 }

@@ -1,6 +1,6 @@
 import { prepareReadingContextSources } from './readingContextSources.js';
 import { buildReadingRetrievalQuery } from './readingRetrievalQuery.js';
-import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_PRIORITY, countMatches, matchedContextPhrases } from './readingContextVocabulary.js';
+import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_PRIORITY, countMatches, positiveContextPhrases, contextPhraseMatches } from './readingContextVocabulary.js';
 import { normalizeContext } from './narrative/helpers.js';
 import { sanitizeText } from './utils.js';
 import {
@@ -109,6 +109,15 @@ function leadingContexts(scores) {
   return highest > 0 ? Object.keys(scores).filter((key) => scores[key] === highest) : [];
 }
 
+/**
+ * Resolve a private version-1 server decision from complete separate sources.
+ * retrievalContentText is the content-only lexical companion to retrievalQuery.
+ * Legacy contextInputText is lower-fidelity compatibility data, considered only
+ * when structured background fields are absent. Never accept this result on wire.
+ * @returns {{version: 1, context: string, graphRAGContext: string, source: string,
+ * clarifiedBy: string|null, selectedSourceIds: string[], retrievalQuery: string,
+ * retrievalContentText: string, queryCoverage: Object[], excludedContexts: Object}}
+ */
 export function resolveContextSelection(input = {}, spreadKey, options = {}) {
   const hasStructured = Array.isArray(input.sources) || typeof input.reflectionsText === 'string'
     || Array.isArray(input.focusAreas) || Array.isArray(input.cardsInfo) || input.decisionPaths;
@@ -118,16 +127,19 @@ export function resolveContextSelection(input = {}, spreadKey, options = {}) {
     reflectionsText: !hasStructured && input.contextInputText !== input.userQuestion
       ? input.contextInputText : input.reflectionsText
   });
+  const excludedContexts = Object.fromEntries([['reading', CONTEXT_KEYWORDS], ['graph', GRAPH_RAG_CONTEXT_KEYWORDS]].map(([taxonomy, vocabulary]) => [taxonomy,
+    Object.entries(vocabulary).filter(([, keywords]) => sources.some(entry => entry.kind === 'question' && contextPhraseMatches(entry.text, keywords, { includeExcluded: true }).some(match => match.excluded))).map(([key]) => key)
+  ]));
   const group = (source, entries) => ({
     source, entries,
-    reading: scores(entries, CONTEXT_KEYWORDS),
-    graph: scores(entries, GRAPH_RAG_CONTEXT_KEYWORDS)
+    reading: scores(entries, CONTEXT_KEYWORDS, excludedContexts.reading),
+    graph: scores(entries, GRAPH_RAG_CONTEXT_KEYWORDS, excludedContexts.graph)
   });
   // Count distinct phrases across the complete sources, never repeated copies.
-  function scores(entries, vocabulary) {
+  function scores(entries, vocabulary, excluded) {
     return Object.fromEntries(Object.entries(vocabulary).map(([key, keywords]) => {
-      const phrases = new Set(entries.flatMap((entry) => matchedContextPhrases(entry.text, keywords)));
-      return [key, [...phrases].reduce((sum, phrase) => sum + (phrase.includes(' ') ? 3 : 2), 0)];
+      const phrases = new Set(entries.flatMap((entry) => positiveContextPhrases(entry.text, keywords)));
+      return [key, excluded.includes(key) ? 0 : [...phrases].reduce((sum, phrase) => sum + (phrase.includes(' ') ? 3 : 2), 0)];
     }));
   }
   const question = group('question', sources.filter((entry) => entry.kind === 'question'));
@@ -135,12 +147,13 @@ export function resolveContextSelection(input = {}, spreadKey, options = {}) {
   const paths = group('decisionPaths', sources.filter((entry) => entry.kind === 'decisionPath'));
   const focus = group('focusAreas', sources.filter((entry) => entry.kind === 'savedFocus'));
   const hasEvidence = (entry) => [...Object.values(entry.reading), ...Object.values(entry.graph)].some((score) => score > 0);
-  const specificQuestion = question.entries.some((entry) => countMatches(entry.text, QUESTION_TOPIC_KEYWORDS) > 0);
+  const specificQuestion = question.entries.some((entry) => positiveContextPhrases(entry.text, QUESTION_TOPIC_KEYWORDS).length > 0);
   const selected = (specificQuestion && hasEvidence(question) ? question : null)
-    || [notes, paths, focus].find(hasEvidence) || (hasEvidence(question) ? question : null);
+    || [notes, paths, focus].find(hasEvidence);
   const normalizedSpread = typeof spreadKey === 'string' ? spreadKey.toLowerCase() : '';
   let clarifiedBy = null;
-  const pick = (taxonomy, priority, spreadDefault) => {
+  const contributors = new Set();
+  const pick = (taxonomy, priority) => {
     let candidates = leadingContexts(selected[taxonomy]);
     if (selected === question && candidates.length > 1) {
       for (const background of [notes, paths]) {
@@ -148,25 +161,27 @@ export function resolveContextSelection(input = {}, spreadKey, options = {}) {
         if (narrowed.length && narrowed.length < candidates.length) {
           candidates = narrowed;
           clarifiedBy = background.source;
+          background.entries.forEach(entry => contributors.add(entry));
         }
       }
     }
-    if (candidates.includes(spreadDefault)) return spreadDefault;
     return priority.find((key) => candidates.includes(key)) || candidates[0] || 'general';
   };
   const result = {
+    version: 1,
+    excludedContexts,
     context: selected
-      ? normalizeContext(pick('reading', ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual'], SPREAD_CONTEXT_DEFAULTS[normalizedSpread]), options)
+      ? normalizeContext(pick('reading', ['decision', 'wellbeing', 'love', 'career', 'self', 'spiritual']), options)
       : inferContext('', spreadKey, options),
-    graphRAGContext: selected ? pick('graph', GRAPH_RAG_CONTEXT_PRIORITY, GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread]) : inferGraphRAGContext('', spreadKey),
+    graphRAGContext: selected ? pick('graph', GRAPH_RAG_CONTEXT_PRIORITY) : inferGraphRAGContext('', spreadKey),
     source: selected?.source || (SPREAD_CONTEXT_DEFAULTS[normalizedSpread] || GRAPH_RAG_SPREAD_DEFAULTS[normalizedSpread] ? 'spread' : 'none'),
     clarifiedBy,
     selectedSourceIds: []
   };
-  result.selectedSourceIds = (selected?.entries || []).filter((entry) => countMatches(entry.text,
-    [...(CONTEXT_KEYWORDS[result.context] || []), ...(GRAPH_RAG_CONTEXT_KEYWORDS[result.graphRAGContext] || [])]) > 0).map((entry) => entry.id);
+  result.selectedSourceIds = [...new Set([...(selected?.entries || []), ...contributors])].filter((entry) => positiveContextPhrases(entry.text,
+    [...(CONTEXT_KEYWORDS[result.context] || []), ...(GRAPH_RAG_CONTEXT_KEYWORDS[result.graphRAGContext] || [])]).length > 0).map((entry) => entry.id);
   const query = buildReadingRetrievalQuery(sources, result, options);
-  return { ...result, retrievalQuery: query.text, queryCoverage: query.coverage };
+  return { ...result, retrievalQuery: query.text, retrievalContentText: query.contentText, queryCoverage: query.coverage };
 }
 
 export function inferContext(userQuestion, spreadKey, options = {}) {

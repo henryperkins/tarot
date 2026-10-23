@@ -20,9 +20,9 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | Phase | Tasks | State | Evidence / next action |
 | --- | --- | --- | --- |
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
-| 1 | 1–2 | Task 1 complete; Task 2 pending | Canonical/caller meaning, validated transport and memory reuse control reviewed; authoritative context next. |
+| 1 | 1–2 | Complete | Validated transport and one authoritative context selection reviewed, including all accepted sources and bounded query projection. |
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
-| 3 | 5–6 | Pending | Bounded ranking and compatible memory selection. |
+| 3 | 5–6 | Active | Ranking implementation and reviewed selector integration follow the Task 2 checkpoint. |
 | 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
@@ -142,3 +142,16 @@ Pattern projection now precedes deck adaptation/scoring. Thirty independent gene
 ### Parallel work boundary
 
 Task 6 pure selector work is prepared against Task 2's agreed full-span interface, with disjoint ownership. Its route/builder integration and completion are gated on reviewed Task 2. No pending partial task is represented as a completed phase.
+
+Task 6 selector review round 1/5: three P2 findings addressed, zero open (same-subject age retractions, uncertain current age authorization, and punctuated/multiclause style conflicts). Complete selector suite: **195 passed**; independent scoped re-review: seven regression tests and 21 additional assertions passed. Pure selector accepted for integration only; route loading, frozen propagation and final Task 6 review remain pending.
+
+Interim preservation check: all 92 captured primary files and its HEAD/index still match; the original candidate HEAD/index remains unchanged. Evidence: `preservation-interim.json` in the private recovery directory.
+
+## Task 2 — Authoritative context and bounded query
+
+Every accepted current source participates in classification before query allocation. A private versioned selection is resolved once and shared by analysis, retrieval, provider builds, fallback and text-free telemetry. The semantic query and content-only keyword projection remain separate; full compatible spans are available to memory selection before query budgeting. All 78 card notes and 12 saved interests retain independent coverage.
+
+- Initial expanded validation: **192 passed**. Final review-fix covering suite: **143 passed**; changed-file lint and diff checks passed.
+- Review round 1/5: three P2 findings addressed, zero open. Saturated queries preserve complete negative clauses or omit them explicitly; ordinary excerpts respect word/grapheme boundaries; typographic apostrophes preserve topic exclusions; internal/grouped decision sources retain effective legacy labels and cached selection identity.
+- Independent re-review: **13 targeted tests passed**; spec and quality approved. Narrow grammar/keyword classification limitations remain explicit; this is not a general multilingual semantic classifier.
+- Shared file ownership is released to Tasks 5 and 6. Task 5 owns retrieval/embeddings/orchestration; Task 6 owns memory admission, route loading and frozen selection propagation. Neither task is complete until its integration review passes.

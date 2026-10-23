@@ -140,17 +140,18 @@ export function retrievePassages(graphKeys, options = {}) {
   const candidates = collectPassageCandidates(graphKeys, options);
   const disabled = options.env?.DISABLE_QUALITY_FILTERING === 'true' || options.env?.DISABLE_QUALITY_FILTERING === true;
   const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
+  const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
   const scored = candidates.map((passage) => ({
     ...passage,
-    relevance: scoreKeywordRelevance(passage.promptText, userQuery),
-    relevanceScore: disabled ? 1 : scoreKeywordRelevance(passage.promptText, userQuery),
+    relevance: scoreKeywordRelevance(passage.promptText, keywordQuery),
+    relevanceScore: disabled ? 1 : scoreKeywordRelevance(passage.promptText, keywordQuery),
     _qualityFilteringDisabled: disabled,
     _contextMatch: passageContextMatch(passage, options.questionContext),
-    _priorityOnly: disabled || !retrievalQueryTerms(userQuery).length
+    _priorityOnly: disabled || !retrievalQueryTerms(keywordQuery).length
   }));
   Object.defineProperty(scored, 'retrievalStats', { value: {
-    ...candidates.retrievalStats, candidatesScored: !disabled && userQuery.trim() ? scored.length : 0,
-    scoringMethod: disabled ? 'bypassed' : retrievalQueryTerms(userQuery).length ? 'keyword' : 'priority',
+    ...candidates.retrievalStats, candidatesScored: !disabled && keywordQuery.trim() ? scored.length : 0,
+    scoringMethod: disabled ? 'bypassed' : retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority',
     embeddingBatchCount: 0, embeddingCacheHits: 0
   } });
   return selectPassageCandidates(scored, { ...options, maxPassages, qualityFilteringDisabled: disabled });
@@ -410,7 +411,7 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
 
   // Keyword overlap scoring (fast, cheap)
   // Uses word boundary matching to avoid false positives from substrings
-  const queryTerms = queryText
+  const queryTerms = (typeof options.keywordQuery === 'string' ? options.keywordQuery : queryText)
     .toLowerCase()
     .split(/\W+/)
     .filter((t) => t.length > 3);
@@ -650,7 +651,9 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   if (!isValidPassageLimit(maxPassages)) return [];
   const startedAt = Date.now();
   const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
+  const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
   const hasQuery = Boolean(userQuery.trim());
+  const hasKeywordQuery = retrievalQueryTerms(keywordQuery).length > 0;
   const semanticRequested = options.enableSemanticScoring ?? isSemanticScoringAvailable(env);
   const disabled = env?.DISABLE_QUALITY_FILTERING === 'true' || env?.DISABLE_QUALITY_FILTERING === true;
   const candidates = collectPassageCandidates(graphKeys, { ...options, includeMetadata: true });
@@ -669,7 +672,7 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
       : !isSemanticScoringAvailable(env) ? 'embeddings-not-configured'
         : valid ? null : anyValid ? 'embeddings-partial-failure' : embeddingStats.failureReason || 'embeddings-failed';
   const scored = candidates.map((passage, index) => {
-    const keywordScore = scoreKeywordRelevance(passage.promptText, userQuery);
+    const keywordScore = scoreKeywordRelevance(passage.promptText, keywordQuery);
     return {
       ...passage,
       relevance: keywordScore,
@@ -679,13 +682,13 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
       _semanticScoringAttempted: attempted,
       _semanticScoringSucceeded: Boolean(valid),
       _contextMatch: passageContextMatch(passage, questionContext),
-      _priorityOnly: !hasQuery || disabled
+      _priorityOnly: !valid && !hasKeywordQuery || disabled
     };
   });
   Object.defineProperty(scored, 'retrievalStats', { value: {
     ...candidates.retrievalStats,
-    candidatesScored: hasQuery && !disabled ? scored.length : 0,
-    scoringMethod: disabled ? 'bypassed' : !hasQuery ? 'priority' : valid ? 'semantic' : 'keyword',
+    candidatesScored: (valid || hasKeywordQuery) && !disabled ? scored.length : 0,
+    scoringMethod: disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority',
     semanticScoringFallbackReason: fallback,
     embeddingBatchCount: embeddingStats.batchCount || 0,
     embeddingCacheHits: embeddingStats.cacheHits || 0,

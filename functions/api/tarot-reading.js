@@ -936,8 +936,12 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       cardsInfo,
       focusAreas: personalization?.focusAreas
     };
+    const preparedContextSources = prepareReadingContextSources(contextSources);
+    const contextSelection = resolveContextSelection({ sources: preparedContextSources }, contextSources.spreadKey, {
+      onUnknown: (message) => contextDiagnostics.push(message)
+    });
     const contextInputText = buildContextInferenceInput(contextSources);
-    const memorySelection = useSavedMemories === false ? { memories: [], selectedIds: [], stats: { candidatesProvided: 0 }, disabledByRequest: true } : selectMemoriesForReading(memoryCandidates, { sources: prepareReadingContextSources(contextSources), displayName: personalization?.displayName, referenceTime: startTime });
+    const memorySelection = useSavedMemories === false ? { memories: [], selectedIds: [], stats: { candidatesProvided: 0 }, disabledByRequest: true } : selectMemoriesForReading(memoryCandidates, { sources: preparedContextSources, contextSelection, displayName: personalization?.displayName, referenceTime: startTime });
     const memories = memorySelection.memories;
 
     console.log(`[${requestId}] Subscription context:`, {
@@ -1163,6 +1167,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       userQuestion,
       contextInputText,
       contextSources,
+      contextSelection,
       subscriptionTier,
       location: sanitizedLocation
     }, requestId, env);
@@ -1174,9 +1179,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const contextSelection = resolveContextSelection(contextSources, analysis.spreadKey, {
-      onUnknown: (message) => contextDiagnostics.push(message)
-    });
     const context = contextSelection.context;
     console.log(`[${requestId}] Context inferred: ${context} (source: ${contextSelection.source})`);
     analysis.reasoning = buildReadingReasoning(
@@ -1232,6 +1234,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reflectionsText,
       analysis,
       context,
+      contextSelection,
       contextInputText,
       contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,

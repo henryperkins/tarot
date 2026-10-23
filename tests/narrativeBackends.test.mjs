@@ -10,6 +10,8 @@ import {
   getLocalComposerLanguageSupport,
   runNarrativeBackend
 } from '../functions/lib/narrativeBackends.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 import { applyGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
 import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
 import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
@@ -92,7 +94,8 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: relationshipAnalysis,
         spreadKey: 'relationship'
       },
-      context: 'general'
+      context: 'general',
+      contextSelection: resolveContextSelection({}, 'general')
     };
     const payloadB = {
       spreadInfo: spreadInfoB,
@@ -104,7 +107,8 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: relationshipAnalysis,
         spreadKey: 'relationship'
       },
-      context: 'general'
+      context: 'general',
+      contextSelection: resolveContextSelection({}, 'general')
     };
 
     const resultA = await composeReadingEnhanced(payloadA);
@@ -231,9 +235,7 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: null,
         spreadKey: 'single',
         graphRAGPayload: {
-          passages: [
-            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
-          ],
+          passages: collectPassageCandidates({ singleMajorNumber: 17, singleMajorName: 'The Star', totalMajors: 1 }).slice(0, 1),
           initialPassageCount: 1,
           retrievalSummary: {
             semanticScoringRequested: false,
@@ -288,9 +290,7 @@ describe('composeReadingEnhanced', () => {
         spreadAnalysis: null,
         spreadKey: 'single',
         graphRAGPayload: {
-          passages: [
-            { type: 'major-arcana', patternId: '17', sourceDeck: 'rws-1909', title: 'Healing Arc', text: 'Renewal often follows surrender.', archetypalText: 'Renewal often follows surrender.', source: 'Tableu Tarot Canon' }
-          ],
+          passages: collectPassageCandidates({ singleMajorNumber: 17, singleMajorName: 'The Star', totalMajors: 1 }).slice(0, 1),
           initialPassageCount: 1,
           retrievalSummary: {}
         }
@@ -317,7 +317,7 @@ describe('composeReadingEnhanced', () => {
     const payload = {
       spreadInfo: { name: 'One-Card Insight', key: 'single' },
       cardsInfo,
-      userQuestion: 'How do I rebuild trust in my direction?',
+      userQuestion: 'How do I rebuild trust in my career?',
       reflectionsText: 'I feel split between caution and hope.',
       visionInsights: [
         {

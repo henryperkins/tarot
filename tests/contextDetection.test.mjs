@@ -173,3 +173,46 @@ describe('current intent precedence', () => {
     assert.doesNotMatch(selection.retrievalQuery, /Love & relationships/);
   });
 });
+
+it('excludes explicitly rejected topics without treating negative action constraints as exclusions', () => {
+  const selected = contextDetection.resolveContextSelection({ userQuestion: 'I am not asking about career, work, or my job. I need help with my relationship.', reflectionsText: 'My career and job concern me.' }, 'single');
+  assert.equal(selected.context, 'love');
+  assert.equal(selected.graphRAGContext, 'relationship');
+  assert.doesNotMatch(selected.retrievalQuery, /reflections:/);
+  for (const userQuestion of ['I am not ready for a career change.', 'I cannot leave my job.', 'I do not want to quit my job.']) {
+    const result = contextDetection.resolveContextSelection({ userQuestion }, 'single');
+    assert.equal(result.context, 'career');
+    assert.ok(result.retrievalQuery.includes(userQuestion));
+  }
+});
+
+it('keeps fixed current-evidence tie priority independent of spread defaults', () => {
+  const result = contextDetection.resolveContextSelection({ userQuestion: 'My job and relationship need attention.' }, 'decision');
+  assert.equal(result.context, 'love');
+  assert.equal(result.graphRAGContext, 'relationship');
+});
+
+it('records clarification sources as selected evidence contributors', () => {
+  const result = contextDetection.resolveContextSelection({ userQuestion: 'My job and relationship need attention.', cardsInfo: [{ userReflection: 'My job and career are urgent.' }] }, 'single');
+  assert.equal(result.clarifiedBy, 'reflections');
+  assert.ok(result.selectedSourceIds.includes('card-0'));
+});
+
+it('equivalent apostrophes preserve topic exclusions and original matching offsets', async () => {
+  const { contextPhraseMatches, CONTEXT_KEYWORDS } = await import('../functions/lib/readingContextVocabulary.js');
+  const selections = [];
+  for (const apostrophe of ["'", '’', '‘', 'ʼ', '＇']) {
+    const userQuestion = `I don${apostrophe}t want advice about career.`;
+    const selected = contextDetection.resolveContextSelection({ userQuestion, reflectionsText: 'My marriage and partner need attention.' }, 'single');
+    assert.equal(selected.context, 'love');
+    assert.equal(selected.source, 'reflections');
+    const [evidence] = contextPhraseMatches(userQuestion, CONTEXT_KEYWORDS.career, { includeExcluded: true });
+    assert.equal(evidence.excluded, true);
+    assert.equal(userQuestion.slice(evidence.start, evidence.end), 'career');
+    selections.push([selected.context, selected.graphRAGContext, selected.source, selected.selectedSourceIds]);
+    const action = contextDetection.resolveContextSelection({ userQuestion: `I don${apostrophe}t want to leave my career.` }, 'single');
+    assert.equal(action.context, 'career');
+    assert.equal(action.source, 'question');
+  }
+  assert.ok(selections.every(selection => JSON.stringify(selection) === JSON.stringify(selections[0])));
+});

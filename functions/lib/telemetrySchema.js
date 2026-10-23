@@ -1,4 +1,4 @@
-import { sanitizeSourceUsage, sanitizeQueryCoverage, USAGE_REASON_COPY } from '../../shared/readingSourceUsage.js';
+import { sanitizeSourceUsage, sanitizeQueryCoverage, sanitizeContextSelection, USAGE_REASON_COPY } from '../../shared/readingSourceUsage.js';
 import { normalizeInferenceUsage } from './inferenceAttempts.js';
 /**
  * Telemetry Schema Module
@@ -81,6 +81,7 @@ export function buildPromptTelemetry(promptMeta) {
     truncation,
     hardCap: promptMeta.hardCap || null,
     context: promptMeta.context || null,
+    contextSelection: sanitizeContextSelection(promptMeta.contextSelection),
     sourceUsage: sanitizeSourceUsage(promptMeta.sourceUsage),
     queryCoverage: sanitizeQueryCoverage(promptMeta.queryCoverage),
     memories,
@@ -112,6 +113,7 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
   return {
     ...candidateCounts,
     queryCoverage: sanitizeQueryCoverage(graphRAGStats.queryCoverage),
+    contextSelection: sanitizeContextSelection(graphRAGStats.contextSelection),
     scoringMethod: ['keyword', 'semantic', 'priority', 'bypassed', 'mixed'].includes(graphRAGStats.scoringMethod) ? graphRAGStats.scoringMethod : null,
     includedInPrompt: graphRAGStats.includedInPrompt || false,
     disabledByEnv: graphRAGStats.disabledByEnv || false,
