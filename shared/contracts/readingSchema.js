@@ -130,6 +130,7 @@ export const readingRequestSchema = z.object({
     a: z.string().max(DECISION_PATH_MAX_LENGTH).optional(),
     b: z.string().max(DECISION_PATH_MAX_LENGTH).optional()
   }).strict().optional(),
+  useSavedMemories: z.boolean().optional(),
   reversalFrameworkOverride: optionalCleanString(),
   deckStyle: optionalCleanString(),
   visionProof: optionalVisionProofSchema.optional(),

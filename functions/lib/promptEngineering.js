@@ -410,12 +410,13 @@ function redactNameWithBoundary(text, rawName) {
  * @param {Array<{text: string}>} [params.memories] - Stored memories used in the prompt
  * @returns {Object} Sanitized redaction options
  */
-export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories, decisionPaths } = {}) {
+export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories, decisionPaths, cardsInfo } = {}) {
   return buildPromptRedactionOptions({
     personalization,
     userQuestion,
     reflectionsText,
     additionalTextSources: [
+      ...(cardsInfo || []).flatMap(card => [card?.callerMeaning, card?.userReflection]).filter(Boolean),
       ...Object.values(decisionPaths || {}).filter(value => typeof value === 'string'),
       ...(Array.isArray(memories) ? memories.map((memory) => memory?.text).filter(Boolean) : [])
     ]

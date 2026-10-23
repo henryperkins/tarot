@@ -3,7 +3,7 @@ import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { getDeckAlias } from '../../shared/vision/deckAssets.js';
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
-import { sanitizeReadingCard } from './readingCardContext.js';
+import { sanitizeReadingCard, sanitizeReadingContext } from './readingCardContext.js';
 
 const canonicalCards = new Map(
   [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card) => [card.name.toLowerCase(), card])
@@ -38,6 +38,9 @@ export function resolveReadingCards(cardsInfo, deckStyle = 'rws-1909') {
       );
     }
 
+    const canonicalMeaning = card.orientation === 'Reversed' ? canonical.reversed : canonical.upright;
+    const incomingMeaning = sanitizeReadingContext(card.meaning).slice(0, 1000);
+    const differs = incomingMeaning && incomingMeaning.toLowerCase().replace(/\s+/g, ' ').trim() !== canonicalMeaning.toLowerCase().replace(/\s+/g, ' ').trim();
     const number = canonical.number ?? null;
     const alias = getDeckAlias(canonical, deckStyle);
     // Explicit fields prevent extra client properties from bypassing resolution
@@ -57,12 +60,13 @@ export function resolveReadingCards(cardsInfo, deckStyle = 'rws-1909') {
       deckStyle,
       orientation: card.orientation,
       position: card.position,
-      meaning: card.meaning,
+      meaning: canonicalMeaning,
+      ...(differs ? { callerMeaning: incomingMeaning } : {}),
       userReflection: card.userReflection ?? null
     });
     return {
       ...resolved,
-      meaning: resolved.meaning || (card.orientation === 'Reversed' ? canonical.reversed : canonical.upright)
+      meaning: canonicalMeaning
     };
   });
 }

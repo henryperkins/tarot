@@ -546,6 +546,10 @@ function buildLocalComposerSourceUsage(payload, promptMeta, graphRAGPayload, { f
       reason: !text && stats.originalLength ? 'sanitized_empty' : stats.limitApplied ? 'input_limit' : null
     };
   }
+  for (const [index, card] of (payload?.cardsInfo || []).entries()) {
+    if (!card?.callerMeaning) continue;
+    reflectionFields[`interpretation-${index}`] = { originalLength: card.callerMeaning.length, sanitizedLength: card.callerMeaning.length, includedLength: 0, omitted: true, reason: 'not_used_by_backend' };
+  }
   const cardFields = Object.entries(reflectionFields).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas)
     ? personalization.focusAreas.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
@@ -762,6 +766,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
     promptBudgetEnv: env,
     personalization: payload.personalization,
     memories: payload.memories,
+    useSavedMemories: payload.useSavedMemories,
     memorySelection: payload.memorySelection,
     enableSemanticScoring,
     subscriptionTier: payload.subscriptionTier,
@@ -781,6 +786,7 @@ export function buildOpenAIResponsesPrompts(env, payload, requestId = 'unknown',
   const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
   const promptRedactionOptions = buildReadingRedactionOptions({
     personalization: payload.personalization,
+    cardsInfo: payload.cardsInfo,
     userQuestion,
     reflectionsText: querentReflections,
     memories: payload.memories,
@@ -1502,6 +1508,7 @@ export async function composeReadingEnhanced(payload, env = null) {
   );
 
   payload.promptMeta.sourceUsage.memories = buildMemorySourceUsage(payload.promptMeta.memories.candidateCount, payload.promptMeta.memories.selectedCount, 0, 'not_used_by_backend');
+  if (payload.useSavedMemories === false) payload.promptMeta.sourceUsage.memories.skippedReason = 'disabled_by_request';
 
   // Return reading with null prompts (local composer doesn't use LLM prompts)
   return {

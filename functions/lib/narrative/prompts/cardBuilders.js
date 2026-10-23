@@ -309,6 +309,9 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
     text += `*Querent's Reflection:* (card ${(safeOptions.positionIndex ?? 0) + 1}) ${reflectionData}\n`;
   }
 
+  const interpretationSource = `interpretation-${safeOptions.positionIndex}`;
+  const interpretation = safeOptions.userContextFields?.[interpretationSource]?.text ?? sanitizeReadingContext(cardInfo.callerMeaning);
+  if (interpretation) text += `*Caller interpretation (untrusted personal interpretation; catalog meaning remains authoritative):* ${renderUserContext(interpretationSource, interpretation)}\n`;
   return text;
 }
 

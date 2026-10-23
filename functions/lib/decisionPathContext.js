@@ -11,9 +11,10 @@ const isBoilerplate = text => /^(?:energy\s*(?:&|and)\s*likely outcome|energy\s*
 
 /** Resolve request-local facts only. Raw safety text must never enter telemetry. */
 export function resolveDecisionPathContext({ spreadKey, cardsInfo = [], decisionPaths = {} } = {}) {
-  const result = { decisionPaths: {}, sources: [], inputStats: {}, rawSafetyText: '' };
+  const result = { decisionPaths: {}, sources: [], inputStats: {}, rawSafetyText: '', diagnostics: [] };
   Object.defineProperty(result.decisionPaths, NORMALIZED_PATHS, { value: true });
   if (spreadKey !== 'decision') {
+    if (Object.keys(decisionPaths || {}).length) result.diagnostics.push('decisionPaths:not_applicable');
     Object.freeze(result.decisionPaths);
     return result;
   }

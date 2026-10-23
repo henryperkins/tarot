@@ -438,6 +438,7 @@ export function buildEnhancedClaudePrompt({
   promptBudgetEnv = null,
   personalization = null,
   memories = [],
+  useSavedMemories = true,
   memorySelection = null,
   enableSemanticScoring = null,
   subscriptionTier = null,
@@ -456,7 +457,7 @@ export function buildEnhancedClaudePrompt({
   const pathContext = resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths });
   decisionPaths = pathContext.decisionPaths;
   userContextInputStats = { ...pathContext.inputStats, ...userContextInputStats };
-  const selectedMemories = selectMemoriesForReading(memories, {
+  const selectedMemories = useSavedMemories === false ? { memories: [] } : selectMemoriesForReading(memories, {
     sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
     displayName: personalization?.displayName,
     referenceTime: memorySelection?.referenceTime
@@ -1334,6 +1335,7 @@ export function buildEnhancedClaudePrompt({
   };
 
   promptMeta.sourceUsage.memories = buildMemorySourceUsage(promptMeta.memories.candidateCount, memories.length, retainedSlots.length);
+  if (useSavedMemories === false) promptMeta.sourceUsage.memories.skippedReason = 'disabled_by_request';
 
   // Return final prompts (potentially truncated to fit hard cap)
   return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, memoryRetention, contextDiagnostics: diagnostics };

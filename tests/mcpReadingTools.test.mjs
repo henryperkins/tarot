@@ -145,7 +145,7 @@ describe('start_tarot_reading', () => {
     });
     assert.equal(structuredContent.status, 'complete');
     assert.deepEqual(structuredContent.cardsInfo[1], {
-      position: 'Present', card: 'Three of Cups', orientation: 'Reversed', meaning: 'Excess',
+      position: 'Present', card: 'Three of Cups', orientation: 'Reversed', meaning: MINOR_ARCANA.find(card => card.name === 'Three of Cups').reversed, callerMeaning: 'Excess',
       number: null, suit: 'Cups', rank: 'Three', rankValue: 3
     });
   });
@@ -199,7 +199,8 @@ describe('start_tarot_reading', () => {
       'My own hope'
     ]);
     const { structuredContent } = await call('get_tarot_reading_status', { jobId: started.structuredContent.jobId });
-    assert.deepEqual(structuredContent.cardsInfo.map((card) => card.meaning), sent);
+    assert.deepEqual(structuredContent.cardsInfo.map((card) => card.meaning), [sent[0], sent[1], MAJOR_ARCANA.find(card => card.name === 'The Star').upright]);
+    assert.equal(structuredContent.cardsInfo[2].callerMeaning, 'My own hope');
   });
 
   it('refuses an unknown card before any job starts', async () => {

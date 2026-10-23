@@ -248,6 +248,7 @@ export function ReadingProvider({ children }) {
         }
     }, [restoreReady, authLoading, initialSnapshot, visualNamespace, updateGestureSource]);
 
+    const [useSavedMemories, setUseSavedMemories] = useState(() => initialSnapshot?.useSavedMemories !== false);
     const [reflections, setReflections] = useState(() => initialSnapshot?.reflections || {});
     const [lastCardsForFeedback, setLastCardsForFeedback] = useState(() => (
         Array.isArray(restoredAnalysis?.lastCardsForFeedback) ? restoredAnalysis.lastCardsForFeedback : []
@@ -287,6 +288,7 @@ export function ReadingProvider({ children }) {
         setSpreadAnalysis(null);
         setAnalysisContext(null);
         setReflections({});
+        setUseSavedMemories(true);
         setLastCardsForFeedback([]);
         setFollowUps([]);
         setReasoning(null);
@@ -339,6 +341,7 @@ export function ReadingProvider({ children }) {
                 sessionSeed,
                 ritual: { hasKnocked, knockCount, hasCut, cutIndex, knockTimes: knockTimesRef.current },
                 question: userQuestion,
+                useSavedMemories,
                 reflections,
                 narrative: finishedReading,
                 followUp: { draft: followUpComposer.draft, includeJournal: followUpComposer.includeJournal, turns: followUps },
@@ -353,7 +356,7 @@ export function ReadingProvider({ children }) {
     }, [
         restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, drawDeckStyleId, isSpreadDealt, revealedCards,
         dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
-        userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
+        userQuestion, useSavedMemories, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
         readingMeta, lastCardsForFeedback, followUpComposer, followUps
     ]);
 
@@ -559,6 +562,7 @@ export function ReadingProvider({ children }) {
             setNarrativePhase('idle');
             setJournalStatus(null);
             setReflections({});
+            if (reading?.length) setUseSavedMemories(true);
             setFollowUps([]);
             cardsInfoRef.current = [];
             visionAnalysis.setVisionResults([]);
@@ -567,7 +571,7 @@ export function ReadingProvider({ children }) {
             setShowAllHighlights(false);
             setSrAnnouncement('');
         });
-    }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration]);
+    }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration, reading]);
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
@@ -696,10 +700,11 @@ export function ReadingProvider({ children }) {
             seed: sessionSeed || null,
             fingerprint: fingerprint || null,
             question: questionKey || null,
+            useSavedMemories,
             reflections: reflectionsKey || null,
             personalization: personalizationKey || null
         });
-    }, [reading, selectedSpread, sessionSeed, userQuestion, reflections, personalizationForRequest]);
+    }, [reading, selectedSpread, sessionSeed, userQuestion, useSavedMemories, reflections, personalizationForRequest]);
 
     const streamReadingJob = useCallback(async ({ jobId, jobToken, cursor = 0, resume = false }) => {
         if (!jobId || !jobToken) return;
@@ -1312,6 +1317,7 @@ export function ReadingProvider({ children }) {
                 // Card reflections travel on cardsInfo[].userReflection; this field is
                 // for notes not tied to a card, which this flow does not collect.
                 reflectionsText: '',
+                useSavedMemories,
                 reversalFrameworkOverride: reversalFramework,
                 deckStyle: deckStyleId
             };
@@ -1467,6 +1473,7 @@ export function ReadingProvider({ children }) {
         isGenerating,
         selectedSpread,
         userQuestion,
+        useSavedMemories,
         reflections,
         sessionSeed,
         deckStyleId,
@@ -1749,6 +1756,7 @@ export function ReadingProvider({ children }) {
         readingMeta, setReadingMeta, visualResume,
         journalStatus, setJournalStatus,
         reflections, setReflections,
+        useSavedMemories, setUseSavedMemories,
         followUps, setFollowUps,
         followUpIdentity,
         followUpDraft: followUpComposer.draft, setFollowUpDraft,
@@ -1783,6 +1791,7 @@ export function ReadingProvider({ children }) {
         visualResume,
         journalStatus,
         reflections,
+        useSavedMemories,
         followUps,
         followUpIdentity, followUpComposer, setFollowUpDraft, setIncludeJournalContext,
         lastCardsForFeedback,

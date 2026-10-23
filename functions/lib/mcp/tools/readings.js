@@ -9,10 +9,13 @@ import * as z from 'zod';
 
 import { ReadingCardResolutionError, resolveReadingCards } from '../../readingCardResolution.js';
 import { cancelMcpJob, getMcpJobSnapshot, startReadingJob } from '../../readingJobs.js';
+import { resolveDecisionPathContext } from '../../decisionPathContext.js';
 import { drawForSpread } from '../../serverDraw.js';
 import { REVERSAL_FRAMEWORK_OVERRIDES } from '../../spreadAnalysis.js';
 import {
   CARD_MEANING_MAX_LENGTH,
+  CARD_REFLECTION_MAX_LENGTH,
+  DECISION_PATH_MAX_LENGTH,
   REFLECTIONS_TEXT_MAX_LENGTH,
   USER_QUESTION_MAX_LENGTH
 } from '../../../../shared/contracts/readingSchema.js';
@@ -69,6 +72,8 @@ const reversalLensInput = z.enum(REVERSAL_FRAMEWORK_OVERRIDES).describe(
 
 const readingContext = {
   userQuestion: z.string().max(USER_QUESTION_MAX_LENGTH).optional(),
+  decisionPaths: z.object({ a: z.string().max(DECISION_PATH_MAX_LENGTH).optional(), b: z.string().max(DECISION_PATH_MAX_LENGTH).optional() }).strict().optional(),
+  useSavedMemories: z.boolean().optional(),
   reflectionsText: z.string().max(REFLECTIONS_TEXT_MAX_LENGTH).optional(),
   reversalFrameworkOverride: reversalLensInput.optional(),
   deckStyle: deckStyleSchema.optional(),
@@ -87,8 +92,9 @@ const suppliedCard = z.object({
   card: z.string().trim().min(1),
   orientation: anyOrientationSchema,
   meaning: z.string().trim().min(1).max(CARD_MEANING_MAX_LENGTH).optional().describe(
-    "The user's own meaning for this card. Omit it when they gave none; Tableu then uses the card's standard upright or reversed meaning."
+    "The user's own interpretation, retained separately as untrusted personal context. Tableu always derives the card's standard meaning from its catalog. Omit when none was supplied."
   ),
+  userReflection: z.string().max(CARD_REFLECTION_MAX_LENGTH).optional(),
   number: z.number().int().optional(),
   suit: z.string().optional(),
   rank: z.string().optional(),
@@ -141,6 +147,8 @@ const statusOutput = z.object({
   gateBlocked: z.boolean().optional(),
   gateReason: z.enum(['crisis_gate', 'withheld']).optional(),
   error: z.string().optional(),
+  decisionPaths: z.object({ a: z.string().optional(), b: z.string().optional() }).optional(),
+  useSavedMemories: z.boolean().optional(),
   timedOut: z.boolean().optional()
 });
 
@@ -213,6 +221,8 @@ export function toCompactStatus(data) {
     spreadInfo: snapshot.spreadInfo ?? null,
     cardsInfo: Array.isArray(snapshot.cardsInfo) ? snapshot.cardsInfo : []
   };
+  if (snapshot.decisionPaths) compact.decisionPaths = snapshot.decisionPaths;
+  if (typeof snapshot.useSavedMemories === 'boolean') compact.useSavedMemories = snapshot.useSavedMemories;
   if (snapshot.seed) compact.seed = String(snapshot.seed);
   if (status === 'error') compact.error = readingErrorText({ error: data?.error, errorCode: data?.errorCode });
   if (status !== 'complete') return compact;
@@ -311,6 +321,8 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           spreadInfo: drawn.spreadInfo,
           cardsInfo: drawn.cardsInfo,
           userQuestion: input.userQuestion,
+          decisionPaths: input.decisionPaths,
+          useSavedMemories: input.useSavedMemories,
           reflectionsText: input.reflectionsText,
           reversalFrameworkOverride: input.reversalFrameworkOverride,
           deckStyle: drawn.deckStyle,
@@ -321,6 +333,10 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           spreadInfo: drawn.spreadInfo,
           cardsInfo,
           userQuestion: input.userQuestion ?? null,
+          reflectionsText: input.reflectionsText ?? null,
+          rawDecisionPaths: input.decisionPaths ?? null,
+          decisionPaths: resolveDecisionPathContext({ spreadKey: input.spreadInfo.key, cardsInfo: drawn.cardsInfo, decisionPaths: input.decisionPaths }).decisionPaths,
+          useSavedMemories: input.useSavedMemories !== false,
           deckStyle: drawn.deckStyle,
           personalization: input.personalization ?? null,
           seed
@@ -382,6 +398,8 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           spreadInfo: input.spreadInfo,
           cardsInfo,
           userQuestion: input.userQuestion,
+          decisionPaths: input.decisionPaths,
+          useSavedMemories: input.useSavedMemories,
           reflectionsText: input.reflectionsText,
           reversalFrameworkOverride: input.reversalFrameworkOverride,
           deckStyle,
@@ -392,6 +410,10 @@ export function registerReadingTools(server, { env, user, sleep = defaultSleep, 
           spreadInfo: { name: input.spreadInfo.name, key: input.spreadInfo.key },
           cardsInfo: cardsInfo.map((card, index) => toPublicCard(card, catalog[index])),
           userQuestion: input.userQuestion ?? null,
+          reflectionsText: input.reflectionsText ?? null,
+          rawDecisionPaths: input.decisionPaths ?? null,
+          decisionPaths: resolveDecisionPathContext({ spreadKey: input.spreadInfo.key, cardsInfo: input.cardsInfo, decisionPaths: input.decisionPaths }).decisionPaths,
+          useSavedMemories: input.useSavedMemories !== false,
           deckStyle,
           personalization: input.personalization ?? null,
           seed: null

@@ -225,3 +225,28 @@ test('authentication refresh on reload mounts a fresh journal without the former
     expect(fixture.annotationRequests).toEqual([]);
   } finally { await fixture.close(); }
 });
+
+test('saved memory reuse is keyboard accessible and survives retry and new reading', async ({ page }) => {
+  const { createNarrativeFixture, openSetup } = await import('./helpers/narrativeFixtures.js');
+  const fixture = await createNarrativeFixture(page);
+  try {
+    await openSetup(page);
+    const reuse = page.getByRole('checkbox', { name: 'Use saved memories in this reading.', exact: true });
+    await expect(reuse).toBeChecked();
+    await reuse.focus();
+    await page.keyboard.press('Space');
+    await expect(reuse).not.toBeChecked();
+    await startReading(page, fixture, { setup: false, complete: false });
+    await expect.poll(() => fixture.requests.reading.length).toBe(1);
+    expect(fixture.requests.reading[0].useSavedMemories).toBe(false);
+    await fixture.emit('reading', 'error', { message: 'Please retry this reading.' });
+    await page.getByRole('button', { name: 'Retry interpretation', exact: true }).filter({ visible: true }).first().click();
+    await expect.poll(() => fixture.requests.reading.length).toBe(2);
+    expect(fixture.requests.reading[1].useSavedMemories).toBe(false);
+    await fixture.emit('reading', 'done', { fullText: fixture.narrative, requestId: 'memory-retry', provider: 'fixture' });
+    await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
+    await page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true }).filter({ visible: true }).first().click();
+    await page.getByRole('dialog', { name: 'Start a new reading?' }).getByRole('button', { name: 'Start new reading', exact: true }).click();
+    await expect(reuse).toBeChecked();
+  } finally { await fixture.close(); }
+});

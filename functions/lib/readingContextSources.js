@@ -7,7 +7,7 @@ import { MAXIMUM_CARD_COUNT } from '../../shared/contracts/readingRequestLimits.
 export function prepareReadingContextSources({ userQuestion, reflectionsText, cardsInfo = [], decisionPaths = {}, spreadKey, focusAreas = [] } = {}) {
   const cards = Array.isArray(cardsInfo) ? cardsInfo.slice(0, MAXIMUM_CARD_COUNT) : [];
   const fields = prepareUserContext(userQuestion, reflectionsText, cards);
-  const sources = Object.entries(fields).filter(([, field]) => field.originalLength > 0).map(([id, field]) => ({
+  const sources = Object.entries(fields).filter(([id, field]) => !id.startsWith('interpretation-') && field.originalLength > 0).map(([id, field]) => ({
     id,
     kind: id === 'question' ? 'question' : id === 'reflections' ? 'reflection' : 'cardReflection',
     text: field.text,

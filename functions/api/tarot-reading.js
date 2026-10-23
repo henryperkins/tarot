@@ -471,6 +471,7 @@ async function finalizeReading({
     userQuestion,
     reflectionsText,
     memories: narrativePayload.memories,
+    cardsInfo,
     decisionPaths: narrativePayload.decisionPaths
   });
 
@@ -824,6 +825,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       userQuestion,
       reflectionsText,
       decisionPaths: rawDecisionPaths,
+      useSavedMemories = true,
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle,
@@ -924,8 +926,8 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       personalization,
       storedPersonalization,
       memories: memoryCandidates
-    } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization);
-    const contextDiagnostics = [];
+    } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization, { useSavedMemories });
+    const contextDiagnostics = [...decisionPathContext.diagnostics];
     const contextSources = {
       spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
       decisionPaths,
@@ -935,7 +937,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
       focusAreas: personalization?.focusAreas
     };
     const contextInputText = buildContextInferenceInput(contextSources);
-    const memorySelection = selectMemoriesForReading(memoryCandidates, { sources: prepareReadingContextSources(contextSources), displayName: personalization?.displayName, referenceTime: startTime });
+    const memorySelection = useSavedMemories === false ? { memories: [], selectedIds: [], stats: { candidatesProvided: 0 }, disabledByRequest: true } : selectMemoriesForReading(memoryCandidates, { sources: prepareReadingContextSources(contextSources), displayName: personalization?.displayName, referenceTime: startTime });
     const memories = memorySelection.memories;
 
     console.log(`[${requestId}] Subscription context:`, {
@@ -1238,6 +1240,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       personalization: personalization || null,
       memories,
       memorySelection,
+      useSavedMemories,
       memoryAccessOwnerId: user?.id || null,
       onReadingMemoryUsage,
       subscriptionTier,

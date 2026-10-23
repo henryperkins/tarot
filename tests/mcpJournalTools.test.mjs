@@ -306,3 +306,24 @@ describe('add_reflection_to_journal_entry', () => {
     assert.match(result.content[0].text, /name the card/);
   });
 });
+
+it('saves decision labels, general notes, card reflections and caller interpretations from its own snapshot', async () => {
+  const ctx = await session();
+  const started = await ctx.call('start_tarot_reading', {
+    spreadInfo: { name: 'Decision', key: 'decision' }, decisionPaths: { a: '', b: 'Path B: Move home' },
+    reflectionsText: 'My whole-reading note', useSavedMemories: false,
+    cardsInfo: ['Heart', 'Path A: original job', 'Path B: original home'].map(position => ({ position, card: 'The Sun', orientation: 'Upright', meaning: 'My sense of renewal', userReflection: 'My card note' }))
+  });
+  assert.equal(started.isError, undefined, JSON.stringify(started));
+  await ctx.jobs.settle();
+  const saved = await ctx.call('save_reading_to_journal', { jobId: started.structuredContent.jobId });
+  assert.equal(saved.isError, undefined, JSON.stringify(saved));
+  const [row] = entries(ctx.d1);
+  assert.equal(JSON.parse(row.reflections_json).Overall, 'My whole-reading note');
+  const cards = JSON.parse(row.cards_json);
+  assert.equal(cards[0].userReflection, 'My card note');
+  assert.equal(cards[0].callerMeaning, 'My sense of renewal');
+  assert.deepEqual(cards[1].decisionPath, { key: 'a', label: '', rawLabel: '' });
+  assert.deepEqual(cards[2].decisionPath, { key: 'b', label: 'Move home', rawLabel: 'Path B: Move home' });
+  assert.equal(cards[1].position, 'Path A: original job');
+});

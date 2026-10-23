@@ -241,7 +241,7 @@ export async function resolveReadingPersonalizationContext(db, userId, requestPe
   );
 
   let memories = [];
-  if (db && userId) {
+  if (options.useSavedMemories !== false && db && userId) {
     const memoryLoader = typeof options.loadMemories === 'function' ? options.loadMemories : getMemories;
     try {
       memories = await memoryLoader(db, userId, {

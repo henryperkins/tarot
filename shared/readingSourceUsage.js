@@ -26,6 +26,7 @@ export const USAGE_REASON_COPY = Object.freeze({
   no_usable_evidence: 'The image could not be read clearly enough to include.',
   diagnostics_disabled: 'Image details were not included in this reading.',
   not_used_by_backend: 'This reading method did not include this input.',
+  disabled_by_request: 'You chose not to use saved memories in this reading.',
   disabled_by_env: 'This additional source was unavailable.',
   retrieval_failed_or_empty: 'No additional reference passages were available.',
   no_patterns_detected: 'No additional reference passages were needed.',
@@ -90,7 +91,7 @@ export function sanitizeSourceUsage(value) {
       }
       if (isRecord(input.fields)) {
         entry.fields = {};
-        for (const name of ['question', 'reflections', 'pathA', 'pathB', ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, index) => `card-${index}`)]) {
+        for (const name of ['question', 'reflections', 'pathA', 'pathB', ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, index) => `card-${index}`), ...Array.from({ length: MAXIMUM_CARD_COUNT }, (_, index) => `interpretation-${index}`)]) {
           const field = input.fields[name];
           if (!isRecord(field)) continue;
           const clean = {};

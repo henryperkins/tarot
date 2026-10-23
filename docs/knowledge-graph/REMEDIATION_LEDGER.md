@@ -20,7 +20,7 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | Phase | Tasks | State | Evidence / next action |
 | --- | --- | --- | --- |
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
-| 1 | 1–2 | In progress | Contracts, memory toggle, canonical meaning, authoritative context and span query. |
+| 1 | 1–2 | Task 1 complete; Task 2 pending | Canonical/caller meaning, validated transport and memory reuse control reviewed; authoritative context next. |
 | 2 | 3–4 | Task 3 complete; Task 4 pending | Major counts and conditional highlights reviewed; passage/enrichment projection next. |
 | 3 | 5–6 | Pending | Bounded ranking and compatible memory selection. |
 | 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
@@ -116,3 +116,15 @@ Implemented independently alongside Task 1 under the plan's explicit dependency 
 - Final focused result: **221 passed, zero failed/skipped**, including Worker graph and real shared builder regression suites.
 - Independent review R1 identified absent indices in non-triad families; fixed with interleaved/duplicate/equal-rank/court/deck-specific tests. Fix round 1/5: one addressed, zero open. Final spec and quality review approved.
 - Review/report and red/green logs are in this plan's workspace and external evidence directory. Full prompt boundary qualification remains Task 7/9.
+
+## Task 1 — Input authority and transport
+
+Task 1 core scope is implemented and independently approved. Resolved meanings are catalog-owned; differing caller interpretations remain labelled untrusted narrative context and cannot become classification or memory-support evidence. Strict MCP/public jobs transport effective decision labels, per-card notes and optional memory reuse. The native signed-in checkbox persists opt-out through initial draw/retry and restores true for a new reading. Minimal existing MCP save plumbing preserves the accepted notes/labels using existing storage columns.
+
+- Final focused gate: **251 passed, zero failed**. Mocked Chromium keyboard/submission/retry/new-reading E2E: **one passed**. Owned-source lint and diff checks passed. Real-account/device coverage is not claimed.
+- A full-suite attempt with the strict network blocker was stopped after it also blocked localhost gateway lifecycle tests. This is incomplete harness evidence, not full qualification or a source regression. Preserve its log; Task 9 uses an externally blocked, loopback-allowed harness.
+- Independent review: core specification/quality accepted; one concrete integration defect is assigned below to required Task 7, not waived.
+
+### Required follow-on finding T1-R1 (P2, owner Task 7)
+
+A prompt with only Sun caller interpretation `defeat and betrayal` reports `interpretation-0.includedLength: 19` but aggregate `sourceUsage.userContext.requested/used` false and `skippedReason: not_provided`. Update aggregate accounting from final interpretation fields, and cover both provider inclusion and local-composer deliberate omission. This must be fixed before integrated qualification.

@@ -1,7 +1,7 @@
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { sanitizeReadingContext, getReadingContextInputStats } from '../../readingCardContext.js';
-import { CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH, DECISION_PATH_MAX_LENGTH, MAXIMUM_CARD_COUNT } from '../../../../shared/contracts/readingSchema.js';
+import { CARD_MEANING_MAX_LENGTH, CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH, DECISION_PATH_MAX_LENGTH, MAXIMUM_CARD_COUNT } from '../../../../shared/contracts/readingSchema.js';
 import { estimateTokenCount } from './budgeting.js';
 
 function cleanText(value, cardReflection = false) {
@@ -32,6 +32,9 @@ export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inp
     if (Object.hasOwn(decisionPaths, key)) add(id, decisionPaths[key], DECISION_PATH_MAX_LENGTH, true);
   }
   (cardsInfo || []).slice(0, MAXIMUM_CARD_COUNT).forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
+  (cardsInfo || []).slice(0, MAXIMUM_CARD_COUNT).forEach((card, index) => {
+    if (card?.callerMeaning) add(`interpretation-${index}`, card.callerMeaning, CARD_MEANING_MAX_LENGTH, true);
+  });
   const dedupKey = (text) => text.trim().toLowerCase().replace(/\s+/g, ' ');
   const duplicate = Object.keys(fields).find((key) => key.startsWith('card-') && fields.reflections.text && dedupKey(fields[key].text) === dedupKey(fields.reflections.text));
   if (duplicate) fields.reflections.duplicateOf = duplicate;
@@ -45,7 +48,7 @@ export function renderUserContext(source, value) {
 
 export function parseUserContext(prompt) {
   const result = new Map();
-  for (const match of prompt.matchAll(/<user_context source="(question|reflections|pathA|pathB|card-\d+)">([^\n]*?)<\/user_context>/g)) {
+  for (const match of prompt.matchAll(/<user_context source="(question|reflections|pathA|pathB|card-\d+|interpretation-\d+)">([^\n]*?)<\/user_context>/g)) {
     try {
       const value = JSON.parse(match[2]);
       if (typeof value === 'string' || (value?.omittedForBudget === true && typeof value.head === 'string' && typeof value.tail === 'string')) result.set(match[1], value);

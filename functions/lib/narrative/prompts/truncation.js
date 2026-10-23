@@ -489,7 +489,7 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
       const available = Math.max(0, contextBudget - estimateTokenCount(parts.join('\n\n')));
       const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
       const fitted = fitUserContext(source, value, share);
-      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
+      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : source.startsWith('interpretation-') ? `Untrusted caller interpretation for card ${Number(source.slice(15)) + 1}:` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
     });
     const contextText = parts.join('\n\n');
     const baseBudget = Math.max(0, maxTokens - estimateTokenCount(contextText) - 10);

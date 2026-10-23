@@ -268,7 +268,7 @@ test('provider fallback recomputes retention for the accepted final capped promp
     if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
     return Response.json({ id: 'accepted', model: 'test-openai', output_text: 'The Sun invites career exploration. Your choices shape outcomes.', usage: { input_tokens: 10, output_tokens: 10 } });
   });
-  const input = { ...routeFixture, spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo: Array.from({ length: 78 }, (_, index) => ({ card: 'The Sun', number: 19, position: `Focus ${index}`, orientation: 'Upright', meaning: 'Career exploration in the current workplace '.repeat(20), userReflection: 'Career exploration and workplace choices. '.repeat(47) })) };
+  const input = { ...routeFixture, spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo: Array.from({ length: 78 }, (_, index) => ({ card: 'The Sun', number: 19, position: `Focus ${index} ${'custom role '.repeat(45)}`, orientation: 'Upright', meaning: 'Positivity, fun, warmth, success, vitality', userReflection: 'Career exploration and workplace choices. '.repeat(47) })) };
   const tasks = [];
   const response = await onRequestPost({ request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }), env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', OPENAI_API_KEY: 'synthetic-test-key', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' }, principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise) });
   const body = await response.json();
@@ -310,4 +310,29 @@ test('candidate telemetry counts every loaded row, including notes rejected befo
   assert.equal(result.stats.selectedCount, 1);
   assert.equal(result.stats.exclusionReasons.unsafe, 1);
   assert.equal(db.calls.filter(call => call.write).length, 0);
+});
+
+test('explicit memory opt-out makes zero candidate reads and zero access writes in the real reading route', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const db = routeDatabase();
+  insert(db, 'relevant', { text: 'Navigating career uncertainty' });
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const prompts = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    prompts.push(JSON.parse(init.body));
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites a reflective career choice. Your choices shape outcomes.' } }] });
+  });
+  const tasks = [];
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', body: JSON.stringify({ ...routeFixture, useSavedMemories: false }) }),
+    env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' },
+    principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise)
+  });
+  const body = await response.json();
+  await Promise.all(tasks);
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.deepEqual(db.calls.filter(call => /user_memories/.test(call.sql)), []);
+  assert.equal(JSON.stringify(prompts).includes('Navigating career uncertainty'), false);
+  assert.deepEqual(body.sourceUsage.memories, { requested: false, used: false, candidatesProvided: 0, memoriesSelected: 0, memoriesUsedInPrompt: 0, skippedReason: 'disabled_by_request' });
 });

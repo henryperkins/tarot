@@ -89,6 +89,7 @@ export function buildReadingSnapshot({
   ritual = {},
   question = '',
   reflections,
+  useSavedMemories = true,
   narrative = null,
   analysis = null,
   followUp = null,
@@ -122,6 +123,7 @@ export function buildReadingSnapshot({
     },
     question: typeof question === 'string' ? question : '',
     reflections: toReflections(reflections),
+    useSavedMemories: useSavedMemories !== false,
     narrative: narrative && typeof narrative.raw === 'string' && narrative.raw.trim()
       ? {
         raw: narrative.raw,
