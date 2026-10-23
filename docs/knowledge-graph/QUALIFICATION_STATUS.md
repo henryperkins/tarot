@@ -2,9 +2,39 @@
 
 ## Current October 23 remediation candidate
 
-Branch: `codex/reading-context-remediation-20261023`; reviewed base: `680516f0c13054f1a86b3f60d824e46427dec803`. Reading prompt **1.4.0**, evaluator **2.5.0**. See the [current plan](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md) and [remediation ledger](REMEDIATION_LEDGER.md).
+**Offline implementation and deterministic qualification are complete. This candidate is not qualified for release.** Human editorial approval and live qualification remain separate, unrun requirements.
 
-**Not qualified for release.** Phases 0–4 and offline documentation are implemented. Independent whole-change review passed 648 focused tests plus 14 corrective probes after four integration corrections. The first frozen-source gate on `115bbd02` then found a private-name persistence-redaction regression, obsolete test fixtures and an evaluation relay storage mismatch. Root reported 5,278 passed, nine failed and two intentional installed-CLI skips, with one relay file incomplete; this is not a passing root qualification. Worker graph, deterministic prompt gate, lint, build, docs and identity checks passed. The failed attempt is preserved. All repairs are now independently approved with 158 fixture/relay tests, 173 privacy/prompt/access tests and an additional storage-bound probe; a fresh committed-source complete gate remains pending. Human review of 525 reference projections and 30 direct partial themes, subscription-generated readings, bounded live embeddings, provider input limits, publication and deployment remain separate and unrun for this candidate.
+Branch: `codex/reading-context-remediation-20261023`. Original reviewed base: `680516f0c13054f1a86b3f60d824e46427dec803`. Qualified executable/test checkpoint: **`e51022f3661b4a07c6c0f0b92af28f1a7e3e1da3`**, tree `66b7e89f9dc7b8e6215610caba639a109e204070`. Reading prompt **1.4.0**; evaluator **2.5.0**. See the [current plan](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md) and [remediation ledger](REMEDIATION_LEDGER.md).
+
+### Passed final-source offline checks
+
+| Check | Result |
+| --- | --- |
+| Root Node suite | **5,305 passed**, zero failed/cancelled; two installed-CLI opt-in checks intentionally skipped (5,307 total). |
+| Worker knowledge graph suite | **47 passed**, zero failed/skipped. |
+| Deterministic prompt gate | **849 fixtures, 2,523 provider-target builds, 525 deck projections, 21 actual passage-cap selections** passed; includes 720 partial permutations and 30 complete controls. |
+| Full ESLint and Vite build | Passed; build emits an `onnxruntime-web` eval warning. |
+| Documentation, plan links and diff | 245 maintained Markdown files, both plans' five local links/anchors and `git diff --check` passed. |
+| Source and tooling stability | All **3,364 tracked/nonignored source paths**, toolchain/harness hashes and Git index match before/after; final Git status clean. |
+| Independent review | Whole-change review and subsequent qualification-repair review approved; the last repair review passed 158 fixture/relay tests, 173 privacy/prompt/access tests and an additional storage-bound probe. These overlap other suites. |
+
+The final source-path digest is `7f321e7993bac3048d7c2e12d8ed0fd65baf3340f038118fb8e852b7470b8ff1`. Exact commands, exits, durations, corpus/fixture identities and artifact hashes are recorded in the private evidence directory `/home/ubuntu/.cache/tarot-reading-context-remediation-20261023/task9-final-e51022f3-qualification-2/`. The raw prompt-gate artifact retains its development/null source label; the external qualification manifest binds it to this identical before/after source. Subsequent status-only documentation does not change qualified executable/test bytes.
+
+Final qualification manifest SHA-256: `ee71fa578293c4a7f2ac81259358b800080d02a88db7ee9fea9768ad6193c367`; report SHA-256: `3f1ed7e8ba6394392bcccd334ab17b7e094c354a93655e229642721893983ded`.
+
+The first full attempt on `115bbd02` is preserved as failed/incomplete, including nine leaf failures and one incomplete relay file. It exposed W5 private-name persistence redaction and obsolete harness/fixture assumptions. Those were repaired, independently reviewed and qualified under the new source above; the failed attempt was not relabelled or discarded. Earlier whole-change memory-retraction/ownership failures and the historical October 22 live failures are also retained.
+
+### Prepared comparison and remaining lanes
+
+Task 10 v4 recaptured **24 candidate and 24 original-baseline final provider requests** with a blocked-network harness, synthetic principals/providers and real in-memory SQL. The exact same inputs and harness mechanics were used for both sources. All 48 prompt hashes match the corresponding v3 captures after fresh execution. The candidate omits retracted employer memories without access stamps and considers an older relevant ninth memory across all three decks. Three multilingual cases per source return an explicit postcapture `503 reading_safety_unavailable` because selective evaluation is intentionally unavailable; these are prompt-construction captures, not accepted generated-reading or safety qualification.
+
+The v4 report/index/manifests are in `/home/ubuntu/.cache/tarot-reading-context-remediation-20261023/task10-preparation/`. Comparison manifest SHA-256: `523c9ced708dd056a55da7d8866e020cecbc28723a3494ff1687ffda669699d7`. Artifact index SHA-256: `2aa7b2e75f967d9aef9400c4bd54ad72a2a37f8f801060caf609cd8422202511`; all 72 new indexed files were independently rehashed. Historical v1–v3 artifacts and the old 18-case evidence remain unchanged.
+
+- **Human editorial approval:** 525 reference projections and 30 direct partial themes remain pending; zero agent checks are represented as human approval.
+- **Subscription generation:** required `npm run ci:narrative-check` and the 48-output baseline/candidate comparison remain unrun for this source. Every live output row records zero attempts and null actual output/usage. The executable capture harness has no live mode; future subscription execution remains a separate authorized stage.
+- **Workers AI:** actual embedding relevance, failure/cache behavior and p95 latency remain unrun for this source.
+- **Provider capacity:** Modal's serving window, tokenizer, output reserve and overflow/truncation policy require configuration inspection and bounded live qualification.
+- **Release:** no push, merge, plugin publication, migration, deployment, production flags/binding check or live application verification occurred. Rollback and receipt-draining requirements are documented in the [input contract](../reading-context-inputs.md#compatibility-release-and-rollback-checklist).
 
 The following October 22 record is preserved as historical evidence. Its passing tests, source hashes, failed provider attempts, 18-case comparison and usage observations do **not** qualify the October 23 implementation.
 

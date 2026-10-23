@@ -24,8 +24,8 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
 | 3 | 5–6 | Complete | Full-set bounded ranking and compatible frozen memory selection independently reviewed. |
 | 4 | 7–8 | Complete | Final provider retention and durable completion receipt independently reviewed. |
-| 5 deterministic | 9 | Active, ready for repeat gate | All qualification repairs independently approved; first failed/incomplete attempt preserved. A new committed source must pass the complete gate. |
-| 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
+| 5 deterministic | 9 | Complete | Final source e51022f3 passes the full root/Worker/prompt/lint/build/docs/identity gate; failed first attempt preserved. |
+| 5 editorial/live | 10 | Offline preparation complete; live unrun | V4 captures all 24 baseline + 24 candidate requests; 48 live output rows unrun; 525 + 30 human reviews pending. |
 | 6 | 11 | Offline documentation complete; release separate | Prompt 1.4.0 and maintained contracts reviewed. Publication/deployment/live verification remain unrun. |
 
 ## Requirement-to-test ownership
@@ -38,7 +38,7 @@ This table maps the combined reviews to the implemented contracts and regression
 | F2 deck fidelity | 1, 4, 7, 10 | `graphRAGDeckProjection`, `knowledgeGraphContextPipeline` | Verified pattern/deck projection, selected aliases, enrichment provenance and provider builds; 525 human review rows pending. |
 | F3 complete classification | 2, 9 | `readingContextSources`, `readingRetrievalQuery` | Every accepted source classified before a separate query budget, including 78 notes and decisive late clauses. |
 | F4 decision labels | 1, 2, 6, 7 | `decisionPathContext`, `readingContextTransport` | Validated A/B labels, explicit clears, request identity, MCP/jobs/journal propagation and one authoritative selection. |
-| F5 memory relevance/access | 6, 7, 8 | `readingMemorySelection`, `readingMemoryAccess`, `userMemoryAccess`, job suites | Bounded compatible frozen selection, final complete-block retention and durable accepted-attempt receipts. W5 persistence-redaction follow-up is tracked below. |
+| F5 memory relevance/access | 6, 7, 8 | `readingMemorySelection`, `readingMemoryAccess`, `userMemoryAccess`, job suites | Bounded compatible frozen selection, final complete-block retention and durable accepted-attempt receipts. W5 persistence-redaction follow-up is resolved below. |
 | F6 full candidate recall | 4, 5 | `graphRAGCandidateSelection`, `graphRAGProvenance` | All eligible projected variants compete before allowance; coherent whole-set fallback and shared embedding deadline. |
 | F7 attribution | 4 | `graphRAGDeckProjection`, `passageCandidates` | Internal canon wording and verified distinct enrichment/source-tradition provenance. |
 | F8 context/count metadata | 2, 3, 7 | `graphContext`, `promptContextRetention` | Authoritative selection provenance; total Major slots independent of journey ties. |
@@ -48,7 +48,7 @@ This table maps the combined reviews to the implemented contracts and regression
 | V4 conditional pattern prose | 3, 4, 7 | `knowledgeGraphPartialTriads`, `knowledgeGraphContextPipeline` | Positions/reversals remain authoritative; local missing-card guards and actual lower-level fallback use. |
 | V5 MCP parity | 1, 7 | `mcpServer`, `mcpReadingTools`, `readingContextTransport` | Real strict handlers accept bounded fields and forward them through jobs with principal isolation. |
 | V6 interpretation provenance | 1, 7 | `readingCardResolution`, `readingSchema`, `readingInputUsage` | Server catalog meaning plus separately bounded untrusted caller interpretation; actual retention only. |
-| V7 local/UI truthfulness | 7 | `sourceUsageSummary`, `narrativeBackends`, `readingInputUsage` | Reasoning-local omission, preview separation and accepted-attempt indices. Legacy fixture follow-up is tracked below. |
+| V7 local/UI truthfulness | 7 | `sourceUsageSummary`, `narrativeBackends`, `readingInputUsage` | Reasoning-local omission, preview separation and accepted-attempt indices. Legacy fixture follow-up is resolved below. |
 | V8 memory reuse/control | 1, 6, 7 | `userMemory`, `userPersonalization`, `readingContextTransport` | Request boolean and signed-in UI, no candidate read on opt-out, conservative supported-fact admission. |
 
 ## Phase 0 integration decisions
@@ -243,3 +243,17 @@ W5 is resolved: current/selected name hints keep their existing priority, with a
 The relay now uses the existing transaction-aware storage helper, and bounded tests cover durable JSON completion, independent simultaneous SSE streams, cursor replay and subscriber cleanup. The full previously incomplete file and its direct qualification consumer pass. Fixture changes retain the intended budget, advisory memory, note retention and package-integrity assertions. Frozen published plugin bytes remain unchanged.
 
 Implementer evidence: 554 privacy covering tests; 85 fixture tests; 73 relay tests plus 24 direct-consumer tests. Independent review passed 158 fixture/relay tests and 173 privacy/prompt/access tests, plus a maximum-union optional-archive probe. Counts overlap and are not additive. All 12 pending paths were hash-verified; review file-map SHA-256 `c317300362d575e9827bc1d51ccfc38f74e37cd95389b599b0d24ca6c6a4504e`. No actionable finding remains in this repair review. Parent edits after that snapshot only record this verdict in status documentation. These focused results do not replace the new whole-source gate.
+
+## Final frozen-source deterministic qualification
+
+Task 9 passes on commit `e51022f3661b4a07c6c0f0b92af28f1a7e3e1da3`, tree `66b7e89f9dc7b8e6215610caba639a109e204070`. Root: **5,305 passed, zero failed/cancelled, two intentional installed-CLI skips** (5,307 total). Worker graph: **47 passed**. Expanded gate: **849 fixtures, 2,523 provider-target builds, 525 projections, 21 actual caps**. Lint, Vite build, 245 maintained Markdown files, both plans' five links/anchors, diff and corpus identity checks all pass. The build emits an `onnxruntime-web` eval warning; no baseline attribution is assumed.
+
+All 3,364 source paths, toolchain/guard/harness hashes and index bytes matched before/after; post-run status was clean. Source digest: `7f321e7993bac3048d7c2e12d8ed0fd65baf3340f038118fb8e852b7470b8ff1`. The raw development-labelled gate remains unchanged and is externally bound to this source. Exact receipts and artifacts are in `task9-final-e51022f3-qualification-2/` in the private evidence directory. No required offline failure remains unclassified or waived. Final ledger/status edits record these results without changing executable or test bytes.
+
+Qualification manifest SHA-256: `ee71fa578293c4a7f2ac81259358b800080d02a88db7ee9fea9768ad6193c367`; report SHA-256: `3f1ed7e8ba6394392bcccd334ab17b7e094c354a93655e229642721893983ded`.
+
+## Task 10 offline handoff and separate live boundary
+
+V4 uniformly recaptures all 24 original-base and 24 final-candidate cases using the same blocked-network capture-only harness and inputs. Candidate identity is the qualified checkpoint above; baseline remains `680516f0`. All before/after source checks pass, all 48 prompt hashes match the corresponding fresh v3 comparison, and all 72 new indexed artifacts were independently rehashed. Actual SQL verifies older relevant memory selection; all three decks exclude the retracted employer memory and its access stamp. Three multilingual cases per source intentionally stop with `reading_safety_unavailable` after provider-input capture; no accepted multilingual reading is claimed.
+
+The new manifest is `task10-preparation/comparison-manifest-v4.json`, SHA-256 `523c9ced708dd056a55da7d8866e020cecbc28723a3494ff1687ffda669699d7`; the artifact index is `artifact-index-v4.json`, SHA-256 `2aa7b2e75f967d9aef9400c4bd54ad72a2a37f8f801060caf609cd8422202511`. Every future live output row remains **UNRUN with zero attempts**. Human approval of 525 projections and 30 direct themes, subscription narrative gates/comparison, real embeddings, provider capacity and release stages remain separate. The capture harness has no live mode; preparing it does not authorize or claim a subscription executor or successful generated readings. All old failures and manifests remain intact.
