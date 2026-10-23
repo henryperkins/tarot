@@ -89,6 +89,9 @@ const CAPITALIZED_TOKEN_PATTERN = new RegExp(String.raw`^${NAME_TOKEN}$`, 'u');
 const LOWERCASE_TOKEN_PATTERN = new RegExp(String.raw`^${LOWERCASE_NAME_TOKEN}$`, 'u');
 const INITIAL_TOKEN_PATTERN = new RegExp(String.raw`^\p{Lu}\.?$`, 'u');
 const NAME_HINT_PATTERNS = [
+  // Keep explicit relationship introductions separate from broad with/about
+  // patterns, which can consume a lowercase prefix before the actual name.
+  new RegExp(String.raw`\bmy\s+(?:partner|spouse|friend|mother|father|sister|brother|boss|manager|coworker|colleague|mentor|client|child|son|daughter|ex|roommate)\s+(${NAME_SEQUENCE})`, 'gu'),
   new RegExp(
     String.raw`\bbetween\s+(${NAME_SEQUENCE})\s+and\s+(${NAME_SEQUENCE})`,
     'giu'
@@ -407,14 +410,15 @@ function redactNameWithBoundary(text, rawName) {
  * @param {Array<{text: string}>} [params.memories] - Stored memories used in the prompt
  * @returns {Object} Sanitized redaction options
  */
-export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories } = {}) {
+export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories, decisionPaths } = {}) {
   return buildPromptRedactionOptions({
     personalization,
     userQuestion,
     reflectionsText,
-    additionalTextSources: Array.isArray(memories)
-      ? memories.map((memory) => memory?.text).filter(Boolean)
-      : []
+    additionalTextSources: [
+      ...Object.values(decisionPaths || {}).filter(value => typeof value === 'string'),
+      ...(Array.isArray(memories) ? memories.map((memory) => memory?.text).filter(Boolean) : [])
+    ]
   });
 }
 
@@ -550,6 +554,7 @@ export async function buildPromptEngineeringPayload(params) {
     reflectionsText,
     personalization = null,
     nameHints,
+    decisionPaths,
     disableAutomaticNameExtraction = false,
     redactionOptions = {},
     stripUserContent: shouldStripUserContent = true,
@@ -578,6 +583,7 @@ export async function buildPromptEngineeringPayload(params) {
     userQuestion,
     reflectionsText,
     nameHints,
+    additionalTextSources: Object.values(decisionPaths || {}).filter(value => typeof value === 'string'),
     disableAutomaticNameExtraction
   });
 
@@ -693,7 +699,7 @@ function stripCommonUserContent(text) {
   if (!text || typeof text !== 'string') return text || '';
 
   // Remove serialized data before prose regexes can consume a closing tag.
-  let result = text.replace(/<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '[USER_CONTEXT_REDACTED]');
+  let result = text.replace(/<reading_memory slot="memory-\d+">[^\n]*?<\/reading_memory>/g, '[MEMORY_REDACTED]').replace(/<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '[USER_CONTEXT_REDACTED]');
 
   // Strip user questions - **Question**: format (multiline support)
   // Matches from **Question**: to the next blank line or next ** header

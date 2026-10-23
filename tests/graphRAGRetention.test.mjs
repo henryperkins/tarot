@@ -20,6 +20,7 @@ function quiet(t) {
 test('budget ranking retains the exact passages rather than the first retrieved entries', t => {
   quiet(t);
   const passages = [0.1, 0.9, 0.3, 0.8].map((relevanceScore, index) => ({
+    type: 'major-arcana', patternId: String(index), sourceDeck: 'rws-1909', source: 'Tableu Tarot Canon',
     id: `reference-${index}`, title: `Reference ${index}`, relevanceScore,
     text: `Reference ${index} explores practice and reflection. `.repeat(280)
   }));

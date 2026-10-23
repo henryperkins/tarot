@@ -1,7 +1,7 @@
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { sanitizeReadingContext, getReadingContextInputStats } from '../../readingCardContext.js';
-import { CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
+import { CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH, DECISION_PATH_MAX_LENGTH, MAXIMUM_CARD_COUNT } from '../../../../shared/contracts/readingSchema.js';
 import { estimateTokenCount } from './budgeting.js';
 
 function cleanText(value, cardReflection = false) {
@@ -11,7 +11,7 @@ function cleanText(value, cardReflection = false) {
   return check.isInjection ? check.sanitizedText || '' : safe;
 }
 
-export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inputStats = {}) {
+export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inputStats = {}, decisionPaths = {}) {
   const fields = {};
   const add = (key, value, limit, cardReflection = false) => {
     const original = typeof value === 'string' ? value : '';
@@ -21,14 +21,17 @@ export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inp
       originalLength: inputStats[key]?.originalLength ?? original.length,
       sanitizationChanged: Boolean(inputStats[key]?.sanitizationChanged || original !== sanitized),
       sanitizationTruncated: Boolean(inputStats[key]?.sanitizationTruncated || stats.sanitizationTruncated),
-      sanitizedLength: sanitized.length,
+      sanitizedLength: inputStats[key]?.sanitizedLength ?? sanitized.length,
       text: sliceUnicode(sanitized, 0, limit),
-      limitApplied: sanitized.length > limit
+      limitApplied: Boolean(inputStats[key]?.limitApplied || sanitized.length > limit)
     };
   };
   add('question', userQuestion, USER_QUESTION_MAX_LENGTH);
   add('reflections', reflectionsText, REFLECTIONS_TEXT_MAX_LENGTH);
-  cardsInfo.forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
+  for (const [key, id] of [['a', 'pathA'], ['b', 'pathB']]) {
+    if (Object.hasOwn(decisionPaths, key)) add(id, decisionPaths[key], DECISION_PATH_MAX_LENGTH, true);
+  }
+  (cardsInfo || []).slice(0, MAXIMUM_CARD_COUNT).forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
   const dedupKey = (text) => text.trim().toLowerCase().replace(/\s+/g, ' ');
   const duplicate = Object.keys(fields).find((key) => key.startsWith('card-') && fields.reflections.text && dedupKey(fields[key].text) === dedupKey(fields.reflections.text));
   if (duplicate) fields.reflections.duplicateOf = duplicate;
@@ -42,7 +45,7 @@ export function renderUserContext(source, value) {
 
 export function parseUserContext(prompt) {
   const result = new Map();
-  for (const match of prompt.matchAll(/<user_context source="(question|reflections|card-\d+)">([^\n]*?)<\/user_context>/g)) {
+  for (const match of prompt.matchAll(/<user_context source="(question|reflections|pathA|pathB|card-\d+)">([^\n]*?)<\/user_context>/g)) {
     try {
       const value = JSON.parse(match[2]);
       if (typeof value === 'string' || (value?.omittedForBudget === true && typeof value.head === 'string' && typeof value.tail === 'string')) result.set(match[1], value);

@@ -53,7 +53,7 @@ describe('GraphRAG scoring provenance', () => {
     assert.equal(strategy, 'mixed');
   });
 
-  it('reports mixed ranking when embeddings fail for only some passages', async (t) => {
+  it('uses one consistent keyword ranking when embeddings fail for any candidate', async (t) => {
     clearEmbeddingCache();
     t.after(clearEmbeddingCache);
     // Give only the Fool's Journey stage passage an unusable vector; the question
@@ -70,7 +70,9 @@ describe('GraphRAG scoring provenance', () => {
     );
 
     assert.ok(graphRAGPayload.passages.some((p) => p._semanticScoringSucceeded === false), 'Scenario precondition');
-    assert.equal(graphRAGPayload.rankingStrategy, 'mixed');
+    assert.equal(graphRAGPayload.rankingStrategy, 'keyword');
+    assert.ok(graphRAGPayload.passages.every(p => p._semanticScoringSucceeded === false));
+    assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'embeddings-partial-failure');
   });
 
   it('reports that nothing was scored when there is no question to score against', async () => {
@@ -204,3 +206,20 @@ describe('below-threshold passages keep their qualification in the prompt', () =
     assert.match(userPrompt, /WEAK QUESTION MATCH:/);
   });
 });
+
+for (const reason of ['embeddings-timeout', 'embeddings-invalid-response']) {
+  it(`keeps ${reason} through actual retrieval and bounded telemetry`, async t => {
+    clearEmbeddingCache();
+    t.after(clearEmbeddingCache);
+    t.mock.method(console, 'warn', () => {});
+    const run = reason === 'embeddings-timeout'
+      ? async () => { throw new DOMException('Synthetic timeout', 'AbortError'); }
+      : async () => ({ data: [] });
+    const { graphRAGPayload } = await analyzeTriad(embeddingsEnv(run));
+    assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, reason);
+    const telemetry = buildGraphRAGTelemetry(graphRAGPayload.retrievalSummary);
+    assert.equal(telemetry.semanticScoring.fallback, true);
+    assert.equal(telemetry.semanticScoring.fallbackReason, reason);
+    assert.equal(buildGraphRAGTelemetry({ semanticScoringFallbackReason: 'Private name from a note' }).semanticScoring.fallbackReason, null);
+  });
+}

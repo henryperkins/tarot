@@ -7,6 +7,15 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
 
     if (!graphMeta) return alerts;
 
+    const reasonAlerts = {
+        no_patterns_detected: 'GraphRAG: no patterns detected',
+        projection_rejected: 'GraphRAG: deck projection rejected reference candidates',
+        unverified_reference_provenance: 'GraphRAG: unverified reference provenance',
+        retrieval_failed_or_empty: 'GraphRAG: retrieval failed or empty',
+        removed_for_budget: 'GraphRAG: references removed for budget'
+    };
+    if (Object.hasOwn(reasonAlerts, graphMeta.skippedReason)) alerts.push(reasonAlerts[graphMeta.skippedReason]);
+
     // Only warn when GraphRAG had something to contribute but was omitted.
     // If no passages were retrieved (e.g. no graph keys/patterns), omission is expected.
     const passagesProvided =

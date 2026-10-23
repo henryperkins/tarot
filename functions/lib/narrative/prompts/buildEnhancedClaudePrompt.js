@@ -1,3 +1,9 @@
+import { buildGraphContext } from '../../graphContext.js';
+import { prepareReadingContextSources } from '../../readingContextSources.js';
+import { selectMemoriesForReading } from '../../readingMemorySelection.js';
+import { parseMemoryBlocks } from '../../userMemory.js';
+import { projectPassageForDeck } from '../../graphRAGProjection.js';
+import { resolveDecisionPathContext } from '../../decisionPathContext.js';
 import { prepareUserContext, summarizeUserContext } from './userContext.js';
 import { normalizeContext } from '../helpers.js';
 import {
@@ -16,7 +22,8 @@ import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from '
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
-import { buildUserContextSourceUsage } from '../sourceUsage.js';
+import { sanitizeQueryCoverage } from '../../../../shared/readingSourceUsage.js';
+import { buildMemorySourceUsage, buildUserContextSourceUsage } from '../sourceUsage.js';
 
 function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostics = [] }) {
   const candidates = [];
@@ -27,10 +34,10 @@ function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostic
     }
   };
 
-  addCandidate(themes?.deckStyle, 'themes');
-  addCandidate(spreadInfo?.deckStyle, 'spreadInfo');
   addCandidate(deckStyle, 'options');
+  addCandidate(spreadInfo?.deckStyle, 'spreadInfo');
   addCandidate(cardsInfo?.find((c) => c?.deckStyle)?.deckStyle, 'cards');
+  addCandidate(themes?.deckStyle, 'themes');
 
   const resolved = candidates.length > 0 ? candidates[0].value : 'rws-1909';
   const uniqueValues = Array.from(new Set(candidates.map((c) => c.value)));
@@ -413,6 +420,7 @@ export function buildEnhancedClaudePrompt({
   cardsInfo,
   userQuestion,
   userContextInputStats = {},
+  decisionPaths,
   contextInputText,
   reflectionsText,
   themes,
@@ -420,7 +428,7 @@ export function buildEnhancedClaudePrompt({
   context,
   visionInsights,
   visionEvidence = [],
-  deckStyle = 'rws-1909',
+  deckStyle,
   graphRAGPayload = null,
   ephemerisContext = null,
   ephemerisForecast = null,
@@ -430,6 +438,7 @@ export function buildEnhancedClaudePrompt({
   promptBudgetEnv = null,
   personalization = null,
   memories = [],
+  memorySelection = null,
   enableSemanticScoring = null,
   subscriptionTier = null,
   variantOverrides = null
@@ -444,9 +453,20 @@ export function buildEnhancedClaudePrompt({
     : { ...baseThemes, reversalDescription: { ...DEFAULT_REVERSAL_DESCRIPTION } };
 
   const spreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key);
+  const pathContext = resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths });
+  decisionPaths = pathContext.decisionPaths;
+  userContextInputStats = { ...pathContext.inputStats, ...userContextInputStats };
+  const selectedMemories = selectMemoriesForReading(memories, {
+    sources: prepareReadingContextSources({ spreadKey, userQuestion, reflectionsText, cardsInfo, decisionPaths }),
+    displayName: personalization?.displayName,
+    referenceTime: memorySelection?.referenceTime
+  });
+  memories = selectedMemories.memories;
   const contextSelection = resolveContextSelection({
     userQuestion,
     reflectionsText,
+    ...(spreadKey === 'decision' ? { decisionPaths } : {}),
+    ...(spreadKey === 'decision' || reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
     focusAreas: personalization?.focusAreas,
     contextInputText
   }, spreadKey);
@@ -470,9 +490,14 @@ export function buildEnhancedClaudePrompt({
     cardsInfo,
     diagnostics
   });
-  if (!activeThemes.deckStyle && resolvedDeckStyle) {
-    activeThemes.deckStyle = resolvedDeckStyle;
-  }
+  activeThemes.deckStyle = resolvedDeckStyle;
+  const graphEnv = resolveGraphEnv(promptBudgetEnv);
+  activeThemes.knowledgeGraph = {
+    ...activeThemes.knowledgeGraph,
+    narrativeHighlights: isGraphRAGEnabled(graphEnv)
+      ? buildGraphContext(cardsInfo, { deckStyle: resolvedDeckStyle })?.narrativeHighlights || []
+      : []
+  };
 
   const promptBudget = getPromptBudgetForTarget(budgetTarget, { env: promptBudgetEnv });
 
@@ -490,7 +515,6 @@ export function buildEnhancedClaudePrompt({
     activeThemes?.knowledgeGraph?.graphRAGPayload ||
     null;
   let graphRAGInjectionDisabled = false;
-  const graphEnv = resolveGraphEnv(promptBudgetEnv);
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
@@ -510,6 +534,8 @@ export function buildEnhancedClaudePrompt({
         // be called in performSpreadAnalysis() and passed via graphRAGPayload
         const retrievedPassages = retrievePassages(activeThemes.knowledgeGraph.graphKeys, {
           maxPassages,
+          deckStyle: resolvedDeckStyle,
+          env: promptBudgetEnv,
           userQuery: graphRAGContextInput || userQuestion || '',
           questionContext
         });
@@ -587,10 +613,32 @@ export function buildEnhancedClaudePrompt({
     }
   }
 
-  const userContextFields = prepareUserContext(userQuestion, reflectionsText, cardsInfo, userContextInputStats);
+  if (effectiveGraphRAGPayload) {
+    const provided = Array.isArray(effectiveGraphRAGPayload.passages) ? effectiveGraphRAGPayload.passages : [];
+    const projected = provided.map((passage, index) => {
+      const candidate = projectPassageForDeck(passage, resolvedDeckStyle);
+      return candidate ? { ...candidate, selectedPayloadIndex: index } : null;
+    }).filter(Boolean);
+    const unverified = (provided.length > 0 && !projected.length)
+      || (!provided.length && Boolean(effectiveGraphRAGPayload.formattedBlock));
+    effectiveGraphRAGPayload = {
+      ...effectiveGraphRAGPayload,
+      passages: projected,
+      initialPassageCount: effectiveGraphRAGPayload.initialPassageCount ?? provided.length,
+      unverifiedReferenceProvenance: unverified,
+      retrievalSummary: {
+        ...effectiveGraphRAGPayload.retrievalSummary,
+        projectionRejected: provided.length - projected.length,
+        ...(unverified ? { skippedReason: 'unverified_reference_provenance' } : {})
+      }
+    };
+  }
+
+  const userContextFields = prepareUserContext(userQuestion, reflectionsText, cardsInfo, userContextInputStats, decisionPaths);
 
   const baseControls = {
     userContextFields,
+    decisionPaths,
     // Source precedence contract:
     // spread/cards > validated matched vision > current user context > stored memory > GraphRAG > ephemeris.
     // These controls can slim or suppress enrichment, but must not alter drawn-card identity/positions.
@@ -599,7 +647,7 @@ export function buildEnhancedClaudePrompt({
     ephemerisForecast: astroForecast,
     transitResonances: astroTransits,
     includeGraphRAG: !graphRAGInjectionDisabled,
-    graphRAGSummaryOnly: false,
+    graphRAGSummaryOnly: Boolean(effectiveGraphRAGPayload?.unverifiedReferenceProvenance && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)),
     includeEphemeris: astroRelevant,
     includeForecast: astroRelevant,
     includeDeckContext: true,
@@ -950,6 +998,7 @@ export function buildEnhancedClaudePrompt({
     // Spread key used for prompt structure selection (from getSpreadKey)
     spreadKey,
     deckStyle: resolvedDeckStyle,
+    queryCoverage: sanitizeQueryCoverage(contextSelection.queryCoverage),
     context: {
       provided: context || null,
       normalized: normalizedContext,
@@ -1029,7 +1078,7 @@ export function buildEnhancedClaudePrompt({
           )
           : 0
       )
-      : (graphRAGIncludedSummary ? 0 : null);
+      : (graphRAGIncludedSummary || payload.unverifiedReferenceProvenance ? 0 : null);
     const trimmedCount = typeof passagesUsed === 'number'
       ? Math.max(0, initialPassageCount - passagesUsed)
       : null;
@@ -1079,7 +1128,9 @@ export function buildEnhancedClaudePrompt({
         retrievalSummary.budgetTrimmedStrategy = payload.rankingStrategy;
       }
     }
+    retrievalSummary.queryCoverage = promptMeta.queryCoverage;
     retrievalSummary.disabledByEnv = !graphragEnabled;
+    if (!graphragEnabled) retrievalSummary.skippedReason = 'disabled_by_env';
     retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
     if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
       if (!graphragEnabled) {
@@ -1174,13 +1225,32 @@ export function buildEnhancedClaudePrompt({
     }
   }
 
+  for (const key of ['pathA', 'pathB']) {
+    const field = contextRetention[key];
+    const provided = Boolean(field?.originalLength);
+    const used = Boolean(field?.includedLength);
+    userContextUsage[`${key}Provided`] = provided;
+    userContextUsage[`${key}Used`] = used;
+    if (!provided) continue;
+    userContextUsage.requested = true;
+    userContextUsage.providedInputs.push(key);
+    if (used) {
+      userContextUsage.used = true;
+      userContextUsage.usedInputs.push(key);
+      userContextUsage.skippedReason = null;
+    } else {
+      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, [key]: field.reason || 'removed_for_budget' };
+      if (!userContextUsage.used) userContextUsage.skippedReason = 'provided_but_not_used';
+    }
+  }
+
   // Ranking can reorder candidates during slimming. Preserve their original
   // positions so the client can select exactly what survived the final block.
   const retainedPassages = graphRAGMode === 'full' && promptMeta.graphRAG?.parseStatus === 'complete'
     ? (controls.graphRAGPayload?.passages || []).slice(0, promptMeta.graphRAG.passagesUsedInPrompt || 0)
     : [];
   const passageIndices = retainedPassages
-    .map(passage => effectiveGraphRAGPayload?.passages?.indexOf(passage) ?? -1)
+    .map(passage => passage.selectedPayloadIndex ?? -1)
     .filter(index => index >= 0);
 
   const patternLines = built.sourceUsageSignals?.patternLines || [];
@@ -1251,6 +1321,20 @@ export function buildEnhancedClaudePrompt({
     }
   };
 
+  const retainedSlots = [...parseMemoryBlocks(finalUser).keys()];
+  const memoryRetention = {
+    retainedSlots,
+    slotToId: Object.fromEntries(memories.flatMap((memory, index) => memory.id ? [[`memory-${index}`, memory.id]] : []))
+  };
+  promptMeta.memories = {
+    candidateCount: memorySelection?.candidateCount ?? selectedMemories.candidateCount,
+    selectedCount: memories.length,
+    retainedCount: retainedSlots.length,
+    exclusionReasons: memorySelection?.exclusionReasons || selectedMemories.exclusionReasons
+  };
+
+  promptMeta.sourceUsage.memories = buildMemorySourceUsage(promptMeta.memories.candidateCount, memories.length, retainedSlots.length);
+
   // Return final prompts (potentially truncated to fit hard cap)
-  return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, contextDiagnostics: diagnostics };
+  return { systemPrompt: finalSystem, userPrompt: finalUser, promptMeta, memoryRetention, contextDiagnostics: diagnostics };
 }

@@ -6,8 +6,8 @@ function dropIncompleteReadingContextLines(text) {
   // Reading context is serialized on one line. Keep each data boundary intact
   // when a budget cut lands within it, before appending trusted instructions.
   return text.split('\n').filter((line) => {
-    const outsideCompleteBlocks = line.replace(/<reading_context>[^\n]*?<\/reading_context>|<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '');
-    return !/<\/?(?:reading_context|user_context)\b/.test(outsideCompleteBlocks);
+    const outsideCompleteBlocks = line.replace(/<reading_memory slot="memory-[0-2]">[^\n]*?<\/reading_memory>|<reading_context>[^\n]*?<\/reading_context>|<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '');
+    return !/<\/?(?:reading_context|user_context|reading_memory)\b/.test(outsideCompleteBlocks);
   }).join('\n').trim();
 }
 
@@ -489,7 +489,7 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
       const available = Math.max(0, contextBudget - estimateTokenCount(parts.join('\n\n')));
       const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
       const fitted = fitUserContext(source, value, share);
-      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
+      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
     });
     const contextText = parts.join('\n\n');
     const baseBudget = Math.max(0, maxTokens - estimateTokenCount(contextText) - 10);
@@ -511,10 +511,16 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   } = splitUserPromptSections(text, options.spreadKey);
 
   const separatorTokens = estimateTokenCount('\n\n');
+  // The full footer outranks optional intro/enrichment when it fits alongside
+  // the question and drawn cards. A percentage-only reserve lets those optional
+  // sections crowd out action, card-name and ethics instructions unnecessarily.
+  const coreWithInstructions = [questionBlock, cardsText, instructions].filter(Boolean).join('\n\n');
   const instructionReserve = instructions
     ? Math.min(
       estimateTokenCount(instructions),
-      Math.max(80, Math.floor(maxTokens * 0.18))
+      estimateTokenCount(coreWithInstructions) <= maxTokens
+        ? estimateTokenCount(instructions)
+        : Math.max(80, Math.floor(maxTokens * 0.18))
     )
     : 0;
   const bodyBudget = Math.max(0, maxTokens - instructionReserve - (instructions ? separatorTokens : 0));

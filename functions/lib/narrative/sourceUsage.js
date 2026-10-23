@@ -11,6 +11,8 @@ const USER_CONTEXT_FIELD_CONFIG = Object.freeze({
     providedProp: 'cardReflectionsProvided',
     usedProp: 'cardReflectionsUsed'
   }),
+  pathA: Object.freeze({ providedProp: 'pathAProvided', usedProp: 'pathAUsed' }),
+  pathB: Object.freeze({ providedProp: 'pathBProvided', usedProp: 'pathBUsed' }),
   focusAreas: Object.freeze({
     providedProp: 'focusAreasProvided',
     usedProp: 'focusAreasUsed'
@@ -80,4 +82,17 @@ export function buildUserContextSourceUsage(fieldStates = {}, options = {}) {
   }
 
   return result;
+}
+
+/** Public counts only. Memory identities remain in private memoryRetention. */
+export function buildMemorySourceUsage(candidateCount = 0, selectedCount = 0, retainedCount = 0, skippedReason = 'removed_for_budget') {
+  const count = (value, cap) => Number.isInteger(value) && value >= 0 ? Math.min(value, cap) : 0;
+  const candidatesProvided = count(candidateCount, 100);
+  const memoriesSelected = count(selectedCount, 3);
+  const memoriesUsedInPrompt = Math.min(count(retainedCount, 3), memoriesSelected);
+  return {
+    requested: candidatesProvided > 0, used: memoriesUsedInPrompt > 0,
+    candidatesProvided, memoriesSelected, memoriesUsedInPrompt,
+    skippedReason: memoriesUsedInPrompt ? null : !candidatesProvided ? 'not_provided' : memoriesSelected ? skippedReason : 'not_relevant'
+  };
 }

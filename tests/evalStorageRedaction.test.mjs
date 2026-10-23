@@ -45,7 +45,7 @@ test('stored eval metrics redact a name that reaches the reading only through me
           card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.',
           userReflection: "Sarah's silence still hurts."
         }],
-        userQuestion: 'What supports me today?'
+        userQuestion: 'What grounded, practical advice supports me today?'
       })
     }),
     env: {

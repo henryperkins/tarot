@@ -159,7 +159,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/zai-org/glm-5.3');
-      assert.equal(result.promptVersion, '2.4.0');
+      assert.equal(result.promptVersion, '2.5.0');
     });
 
     test('keeps a bounded evidence block from the evaluator response', async () => {

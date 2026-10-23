@@ -134,7 +134,8 @@ describe('resolveReadingPersonalizationContext', () => {
       userId: 'user-1',
       options: {
         scope: 'global',
-        limit: 8
+        limit: 100,
+        markAccess: false
       }
     }]);
   });
