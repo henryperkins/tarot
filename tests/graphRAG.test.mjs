@@ -385,87 +385,34 @@ describe('GraphRAG Retrieval', () => {
 });
 
 describe('GraphRAG Formatting', () => {
-  test('formatPassagesForPrompt: formats passages as markdown', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'The Healing Arc',
-        text: 'Death clears away what must die...',
-        source: 'Rachel Pollack, Seventy-Eight Degrees of Wisdom'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: true,
-      markdown: true
-    });
-
+  const registered = (type = 'triad', patternId = 'death-temperance-star') => ({ ...getPassagesForPattern(type, patternId).passages[0], type, patternId, priority: 1 });
+  test('formatPassagesForPrompt: formats registered passages as markdown', () => {
+    const passage = registered();
+    const formatted = formatPassagesForPrompt([{ ...passage, source: 'Rachel Pollack, Seventy-Eight Degrees of Wisdom' }]);
     assert.ok(formatted.includes('**Retrieved Wisdom from Tarot Tradition:**'));
     assert.ok(formatted.includes('**The Healing Arc**'));
-    assert.ok(formatted.includes('"Death clears away what must die..."'));
+    assert.ok(formatted.includes(`"${passage.text}"`));
     assert.ok(formatted.includes('— Tableu Tarot Canon'));
     assert.ok(!formatted.includes('Rachel Pollack'));
   });
-
   test('formatPassagesForPrompt: plain text format', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'The Healing Arc',
-        text: 'Death clears away...',
-        source: 'Test Source'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: true,
-      markdown: false
-    });
-
+    const formatted = formatPassagesForPrompt([registered()], { markdown: false });
     assert.ok(formatted.includes('Retrieved Wisdom from Tarot Tradition:'));
-    assert.ok(!formatted.includes('**'), 'Should not include markdown formatting');
+    assert.ok(!formatted.includes('**'));
     assert.ok(formatted.includes('(Source: Tableu Tarot Canon)'));
   });
-
   test('formatPassagesForPrompt: omits source when requested', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'Test',
-        text: 'Test text',
-        source: 'Should not appear'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: false,
-      markdown: true
-    });
-
-    assert.ok(!formatted.includes('Should not appear'));
-    assert.ok(!formatted.includes('—'));
+    const formatted = formatPassagesForPrompt([registered()], { includeSource: false });
+    assert.ok(formatted.includes(registered().text));
+    assert.ok(!formatted.includes('— Tableu Tarot Canon'));
   });
-
   test('formatPassagesForPrompt: handles empty array', () => {
-    const formatted = formatPassagesForPrompt([]);
-    assert.strictEqual(formatted, '', 'Should return empty string for empty array');
+    assert.equal(formatPassagesForPrompt([]), '');
   });
-
-  test('formatPassagesForPrompt: numbers passages correctly', () => {
-    const passages = [
-      { type: 'major-arcana', patternId: '0', priority: 1, title: 'First', text: 'Text 1' },
-      { type: 'major-arcana', patternId: '1', priority: 2, title: 'Second', text: 'Text 2' },
-      { type: 'major-arcana', patternId: '2', priority: 3, title: 'Third', text: 'Text 3' }
-    ];
-
+  test('formatPassagesForPrompt: numbers registered passages correctly', () => {
+    const passages = [0, 1, 2].map(id => registered('major-arcana', String(id)));
     const formatted = formatPassagesForPrompt(passages);
-
-    assert.ok(formatted.includes('1. **First**'));
-    assert.ok(formatted.includes('2. **Second**'));
-    assert.ok(formatted.includes('3. **Third**'));
+    passages.forEach((passage, index) => assert.ok(formatted.includes(`${index + 1}. **${getPassagesForPattern('major-arcana', passage.patternId).title}**`)));
   });
 });
 
@@ -581,16 +528,16 @@ describe('GraphRAG Passage Ranking', () => {
 });
 
 describe('GraphRAG Quality Filtering', () => {
-  test('scorePassageRelevance: returns neutral score for empty inputs', async () => {
+  test('scorePassageRelevance: returns zero for empty inputs', async () => {
     const score1 = await scorePassageRelevance('', 'test query');
     const score2 = await scorePassageRelevance('test passage', '');
     const score3 = await scorePassageRelevance(null, 'test');
     const score4 = await scorePassageRelevance('test', null);
 
-    assert.strictEqual(score1, 0.5, 'Should return 0.5 for empty passage');
-    assert.strictEqual(score2, 0.5, 'Should return 0.5 for empty query');
-    assert.strictEqual(score3, 0.5, 'Should return 0.5 for null passage');
-    assert.strictEqual(score4, 0.5, 'Should return 0.5 for null query');
+    assert.strictEqual(score1, 0);
+    assert.strictEqual(score2, 0);
+    assert.strictEqual(score3, 0);
+    assert.strictEqual(score4, 0);
   });
 
   test('scorePassageRelevance: keyword matching increases score', async () => {
@@ -1132,26 +1079,26 @@ describe('Malformed Data Handling', () => {
 
   test('formatPassagesForPrompt: handles passage without source field', () => {
     const passages = [
-      { type: 'triad', priority: 1, title: 'Test Title', text: 'Test text content' }
+      { ...getPassagesForPattern('triad', 'death-temperance-star').passages[0], type: 'triad', patternId: 'death-temperance-star', source: undefined }
       // Note: no 'source' field
     ];
 
     const formatted = formatPassagesForPrompt(passages, { includeSource: true });
 
-    assert.ok(formatted.includes('Test text content'), 'Should include text');
+    assert.ok(formatted.includes(getPassagesForPattern('triad', 'death-temperance-star').passages[0].text), 'Should include text');
     assert.ok(!formatted.includes('— null'), 'Should not output "— null"');
     assert.ok(!formatted.includes('— undefined'), 'Should not output "— undefined"');
   });
 
   test('formatPassagesForPrompt: handles passage without title or theme', () => {
     const passages = [
-      { type: 'triad', priority: 1, text: 'Just text, no title', source: 'Tableu Tarot Canon' }
+      { ...getPassagesForPattern('triad', 'death-temperance-star').passages[0], type: 'triad', patternId: 'death-temperance-star', title: undefined, theme: undefined }
     ];
 
     const formatted = formatPassagesForPrompt(passages);
 
     // Should not crash, text should still appear
-    assert.ok(formatted.includes('Just text, no title'), 'Should include text');
+    assert.ok(formatted.includes(getPassagesForPattern('triad', 'death-temperance-star').passages[0].text), 'Should include text');
   });
 
   test('deduplicatePassages: handles null passage in array', () => {

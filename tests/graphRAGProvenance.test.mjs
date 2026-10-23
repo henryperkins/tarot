@@ -94,11 +94,11 @@ describe('GraphRAG scoring provenance', () => {
     assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'quality-filtering-disabled');
   });
 
-  it('gives a fallback reason when requested semantic scoring never ran for lack of patterns', async () => {
+  it('gives graph-disabled precedence when semantic scoring is requested without graph opt-in', async () => {
     const { graphRAGPayload } = await analyzeTriad({});
 
     assert.equal(graphRAGPayload.semanticScoringFallback, true, 'Scenario precondition');
-    assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'no-graph-patterns');
+    assert.equal(graphRAGPayload.retrievalSummary.semanticScoringFallbackReason, 'graphrag-disabled');
   });
 
   it('reports keyword ranking and why, when configured embeddings fail', async (t) => {
@@ -222,3 +222,32 @@ for (const reason of ['embeddings-timeout', 'embeddings-invalid-response']) {
     assert.equal(buildGraphRAGTelemetry({ semanticScoringFallbackReason: 'Private name from a note' }).semanticScoring.fallbackReason, null);
   });
 }
+
+
+for (const semantic of [false, true]) for (const binding of [false, true]) {
+  it(`orchestration bypass precedes semantic=${semantic} binding=${binding}`, async t => {
+    t.mock.method(console, 'log', () => {});
+    t.mock.method(console, 'warn', () => {});
+    let calls = 0;
+    const env = { GRAPHRAG_ENABLED: true, DISABLE_QUALITY_FILTERING: true, ...(binding ? { AI: { run() { calls++; } } } : {}) };
+    const { graphRAGPayload: payload } = await performSpreadAnalysis(TRIAD_SPREAD, TRIAD_CARDS, { userQuestion: 'hope', enableSemanticScoring: semantic, subscriptionTier: 'pro' }, 'bypass-mode', env);
+    assert.equal(calls, 0);
+    assert.equal(payload.rankingStrategy, 'bypassed');
+    assert.equal(payload.retrievalSummary.retrievalMode, 'bypassed');
+    assert.equal(payload.retrievalSummary.semanticScoringFallbackReason, 'quality-filtering-disabled');
+    assert.equal(payload.qualityMetrics.semanticScoringAttempted, false);
+    assert.equal(payload.qualityMetrics.semanticScoringUsed, false);
+    assert.ok(payload.passages.every(row => row.relevanceScore === undefined));
+  });
+}
+
+it('graph disabled precedes bypass and semantic requests at orchestration', async t => {
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  let calls = 0;
+  const { graphRAGPayload: payload } = await performSpreadAnalysis(TRIAD_SPREAD, TRIAD_CARDS, { userQuestion: 'hope', enableSemanticScoring: true }, 'disabled-mode', { GRAPHRAG_ENABLED: false, DISABLE_QUALITY_FILTERING: true, AI: { run() { calls++; } } });
+  assert.equal(calls, 0);
+  assert.equal(payload.retrievalSummary.retrievalMode, 'disabled');
+  assert.equal(payload.retrievalSummary.semanticScoringFallbackReason, 'graphrag-disabled');
+  assert.deepEqual(payload.passages, []);
+});

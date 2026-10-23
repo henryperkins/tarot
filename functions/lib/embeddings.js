@@ -14,7 +14,8 @@ export const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 
 const MAX_INPUT_LENGTH = 8000;
 const MAX_TEXTS_PER_REQUEST = 100;
-const EMBEDDING_TIMEOUT_MS = 3000;
+export const EMBEDDING_TIMEOUT_MS = 3000;
+const MAX_CONCURRENT_BATCHES = 2;
 
 /**
  * Calculate cosine similarity between two vectors.
@@ -45,7 +46,7 @@ export function cosineSimilarity(a, b) {
   }
 
   // Clamp to [0, 1] to handle floating point imprecision
-  return Math.max(0, Math.min(1, dot / magnitude));
+  return Number.isFinite(dot / magnitude) ? Math.max(0, Math.min(1, dot / magnitude)) : 0;
 }
 
 /**
@@ -120,8 +121,9 @@ export async function embedTextWithMetadata(text, options = {}) {
 
 /**
  * Embed several texts with one Workers AI request per MAX_TEXTS_PER_REQUEST
- * uncached texts. A text without a valid vector falls back to the
- * pseudo-embedding on its own; the rest of its batch keeps real vectors.
+ * uncached texts, with at most two concurrent batches under one 3-second
+ * deadline. Per-vector fallbacks are tagged; retrieval requires the entire set
+ * to be real and coherent before using any semantic score.
  *
  * @param {string[]} texts - Texts to embed
  * @param {Object} [options] - Options
@@ -139,50 +141,101 @@ export async function embedTextsWithMetadata(texts, options = {}) {
 
   const { env } = options;
   const stats = options.stats || {};
-  Object.assign(stats, { inputCount: inputs.length, inputCharacters: inputs.reduce((sum, input) => sum + input.length, 0), cacheHits: 0, batchCount: 0 });
+  Object.assign(stats, { inputCount: inputs.length, inputCharacters: inputs.reduce((sum, input) => sum + input.length, 0), cacheHits: 0, batchCount: 0, peakConcurrency: 0, cacheSizeBefore: embeddingCache.size, cacheMaxSize: MAX_CACHE_SIZE });
   if (!isEmbeddingProviderAvailable(env)) {
+    stats.failureReason = 'embeddings-not-configured';
+    stats.cacheSizeAfter = embeddingCache.size;
     return results;
   }
+  const controller = new AbortController();
+  const deadline = Math.min(Date.now() + EMBEDDING_TIMEOUT_MS, Number.isFinite(options.deadline) ? options.deadline : Infinity);
+  const stop = reason => {
+    stats.failureReason = reason;
+    controller.abort();
+  };
+  const cancelled = () => stop('embeddings-cancelled');
+  const timeoutId = setTimeout(() => stop('embeddings-timeout'), Math.max(0, deadline - Date.now()));
+  options.signal?.addEventListener('abort', cancelled, { once: true });
+  if (options.signal?.aborted) cancelled();
+  const expired = () => {
+    if (!controller.signal.aborted && Date.now() >= deadline) stop('embeddings-timeout');
+    return controller.signal.aborted;
+  };
+  // This race settles even when the provider ignores AbortSignal. Only the
+  // scheduler consumes a response, so late resolutions cannot write the cache.
+  const request = async texts => {
+    let abortListener;
+    const aborted = new Promise(resolve => {
+      abortListener = () => resolve(null);
+      controller.signal.addEventListener('abort', abortListener, { once: true });
+    });
+    try {
+      const response = await Promise.race([
+        Promise.resolve().then(() => expired() ? null : env.AI.run(EMBEDDING_MODEL, { text: texts, truncate_inputs: true }, { signal: controller.signal })),
+        aborted
+      ]);
+      if (expired()) return null;
+      const vectors = response?.data;
+      if (!Array.isArray(vectors) || vectors.length !== texts.length) {
+        stats.failureReason ||= 'embeddings-invalid-response';
+        return null;
+      }
+      return vectors;
+    } catch (error) {
+      if (!controller.signal.aborted) stats.failureReason ||= error?.name === 'AbortError' ? 'embeddings-timeout' : 'embeddings-failed';
+      return null;
+    } finally {
+      controller.signal.removeEventListener('abort', abortListener);
+    }
+  };
 
-  // Positions per distinct text, so duplicates share one request slot.
   const positions = new Map();
   inputs.forEach((input, index) => {
     if (!input) return;
     if (!positions.has(input)) positions.set(input, []);
     positions.get(input).push(index);
   });
-
   const uncached = [];
   const cacheKeys = new Map();
-  for (const [input, indexes] of positions) {
-    // Hash the full input, not a prefix, so shared prefixes never reuse a vector.
-    const cacheKey = await sha256Hex(JSON.stringify([EMBEDDING_MODEL, input]));
-    cacheKeys.set(input, cacheKey);
-    const cached = embeddingCache.get(cacheKey);
-    if (cached) {
-      stats.cacheHits += 1;
-      indexes.forEach((index) => { results[index] = { embedding: cached, source: 'workers-ai' }; });
-    } else {
-      uncached.push({ input, indexes, cacheKey });
+  try {
+    for (const [input, indexes] of positions) {
+      if (expired()) break;
+      const cacheKey = await sha256Hex(JSON.stringify([EMBEDDING_MODEL, input]));
+      if (expired()) break;
+      cacheKeys.set(input, cacheKey);
+      const cached = embeddingCache.get(cacheKey);
+      if (cached) {
+        stats.cacheHits++;
+        indexes.forEach(index => { results[index] = { embedding: cached, source: 'workers-ai' }; });
+      } else uncached.push({ input, indexes, cacheKey });
     }
+    const batches = [];
+    for (let start = 0; start < uncached.length; start += MAX_TEXTS_PER_REQUEST) batches.push(uncached.slice(start, start + MAX_TEXTS_PER_REQUEST));
+    let nextBatch = 0;
+    let active = 0;
+    const worker = async () => {
+      while (!expired() && nextBatch < batches.length) {
+        const batch = batches[nextBatch++];
+        stats.batchCount++;
+        active++;
+        stats.peakConcurrency = Math.max(stats.peakConcurrency, active);
+        const vectors = await request(batch.map(entry => entry.input));
+        active--;
+        if (expired()) return;
+        batch.forEach((entry, offset) => {
+          const embedding = toUnitVector(vectors?.[offset]);
+          if (!embedding) { stats.failureReason ||= 'embeddings-invalid-vector'; return; }
+          cacheEmbedding(entry.cacheKey, embedding);
+          entry.indexes.forEach(index => { results[index] = { embedding, source: 'workers-ai' }; });
+        });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_BATCHES, batches.length) }, worker));
+  } finally {
+    clearTimeout(timeoutId);
+    options.signal?.removeEventListener('abort', cancelled);
+    stats.cacheSizeAfter = embeddingCache.size;
   }
-
-  const batches = [];
-  for (let start = 0; start < uncached.length; start += MAX_TEXTS_PER_REQUEST) {
-    batches.push(uncached.slice(start, start + MAX_TEXTS_PER_REQUEST));
-  }
-
-  stats.batchCount = batches.length;
-  await Promise.all(batches.map(async (batch) => {
-    const vectors = await fetchWorkersAIEmbeddings(env, batch.map((entry) => entry.input), stats);
-    batch.forEach((entry, offset) => {
-      const embedding = toUnitVector(vectors?.[offset]);
-      // Do not cache fallbacks; a subsequent call may succeed after an API outage.
-      if (!embedding) return;
-      cacheEmbedding(entry.cacheKey, embedding);
-      entry.indexes.forEach((index) => { results[index] = { embedding, source: 'workers-ai' }; });
-    });
-  }));
 
   // A mismatched dimension makes every participating cache entry suspect:
   // neither the query nor a majority of candidate vectors proves the model's
@@ -196,6 +249,7 @@ export async function embedTextsWithMetadata(texts, options = {}) {
     }
   }
 
+  stats.cacheSizeAfter = embeddingCache.size;
   return results;
 }
 
@@ -206,43 +260,6 @@ function cacheEmbedding(cacheKey, embedding) {
     embeddingCache.delete(firstKey);
   }
   embeddingCache.set(cacheKey, embedding);
-}
-
-/**
- * Request one batch of embeddings from Workers AI.
- *
- * @param {Object} env - Worker environment with the AI binding
- * @param {string[]} texts - Non-empty texts, at most MAX_TEXTS_PER_REQUEST
- * @returns {Promise<Array|null>} One raw vector per text, or null if the request failed
- */
-async function fetchWorkersAIEmbeddings(env, texts, stats) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
-
-  try {
-    const response = await env.AI.run(
-      EMBEDDING_MODEL,
-      // Truncate rather than reject text past the model's token limit.
-      { text: texts, truncate_inputs: true },
-      { signal: controller.signal }
-    );
-    const vectors = response?.data;
-    if (!Array.isArray(vectors) || vectors.length !== texts.length) {
-      stats.failureReason = 'embeddings-invalid-response';
-      console.warn(
-        `[Embeddings] Workers AI returned ${Array.isArray(vectors) ? vectors.length : 'no'} vectors for ${texts.length} texts`
-      );
-      return null;
-    }
-    return vectors;
-  } catch (err) {
-    stats.failureReason = err?.name === 'AbortError' ? 'embeddings-timeout' : 'embeddings-failed';
-    const reason = stats.failureReason;
-    console.warn(`[Embeddings] Workers AI embedding failed: ${reason}`);
-    return null;
-  } finally {
-    clearTimeout(timeoutId);
-  }
 }
 
 /**

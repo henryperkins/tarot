@@ -20,7 +20,13 @@ import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
 import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
+import { ARCHETYPAL_TRIADS } from '../src/data/knowledgeGraphData.js';
 import { TRIAD_PASSAGES } from '../functions/lib/knowledgeBase.js';
+
+const partialIdentity = id => {
+  const triad = ARCHETYPAL_TRIADS.find(row => row.id === id);
+  return { id, matchedCards: triad.cards.slice(0, 2), missingCards: triad.cards.slice(2) };
+};
 
 describe('GraphRAG court lineage retrieval', () => {
   test('retrievePassages: court lineage alliance (priority 5)', () => {
@@ -80,7 +86,7 @@ describe('GraphRAG partial triad retrieval', () => {
     }));
 
     try {
-      const passages = retrievePassages({ triadIds: ['magician-chariot-world'] });
+      const passages = retrievePassages({ triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')] });
       assert.strictEqual(passages.length, 1);
       assert.strictEqual(passages[0].isPartialPattern, true);
     } finally {
@@ -91,6 +97,7 @@ describe('GraphRAG partial triad retrieval', () => {
   test('retrievePassages: partial triad (priority 6)', () => {
     const graphKeys = {
       triadIds: ['magician-chariot-world'],
+      partialTriads: [partialIdentity('magician-chariot-world')],
       completeTriadIds: []
     };
 
@@ -99,12 +106,13 @@ describe('GraphRAG partial triad retrieval', () => {
     assert.strictEqual(passages.length, 1, 'Should retrieve the partial triad passage');
     assert.strictEqual(passages[0].type, 'triad');
     assert.strictEqual(passages[0].patternId, 'magician-chariot-world');
-    assert.strictEqual(passages[0].priority, 6, 'Partial triads rank below every complete pattern');
+    assert.strictEqual(passages[0].priority, 6, 'Partial triads lose structural ties to complete patterns');
   });
 
   test('retrievePassages: partial triad metadata marks it incomplete', () => {
     const graphKeys = {
       triadIds: ['hermit-hangedman-moon'],
+      partialTriads: [partialIdentity('hermit-hangedman-moon')],
       completeTriadIds: []
     };
 
@@ -129,9 +137,10 @@ describe('GraphRAG partial triad retrieval', () => {
     assert.strictEqual(triads[0].priority, 1);
   });
 
-  test('retrievePassages: complete triads outrank partial triads', () => {
+  test('retrievePassages: complete triads outrank partial triads without content relevance', () => {
     const graphKeys = {
       triadIds: ['death-temperance-star', 'magician-chariot-world'],
+      partialTriads: [partialIdentity('magician-chariot-world')],
       completeTriadIds: ['death-temperance-star']
     };
 
@@ -192,7 +201,7 @@ describe('GraphRAG pattern coverage telemetry', () => {
   });
 
   test('summary-only prompts name newly retrieved pattern families', () => {
-    const block = buildGraphRAGReferenceBlock('celtic', {}, {
+    const block = buildGraphRAGReferenceBlock('celtic', { knowledgeGraph: { graphKeys: { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], dyadPairs: [{ cards: [8, 11], significance: 'medium' }, { cards: [13, 14], significance: 'medium' }], courtLineages: [{ suit: 'Cups', significance: 'alliance' }] } } }, {
       env: { GRAPHRAG_ENABLED: 'true' },
       graphRAGSummaryOnly: true,
       graphRAGPayload: {
@@ -328,30 +337,8 @@ describe('Traditional wisdom reaches the prompt for court-lineage-only spreads',
 });
 
 describe('Partial-triad passages carry an explicit absent-card guardrail', () => {
-  const partialTriadPayload = {
-    passages: [
-      {
-        type: 'triad',
-        patternId: 'magician-chariot-world',
-        title: 'The Mastery Arc',
-        text: 'You have tools and agency (The Magician). Align competing impulses (The Chariot).',
-        source: 'Tableu Tarot Canon',
-        isPartialPattern: true
-      }
-    ]
-  };
-
-  const completePatternPayload = {
-    passages: [
-      {
-        type: 'court-lineage',
-        patternId: 'Cups:alliance',
-        title: 'Cups Court Alliance',
-        text: 'Multiple Cups courts suggest feelings are organizing into relationship.',
-        source: 'Tableu Tarot Canon'
-      }
-    ]
-  };
+  const partialTriadPayload = { passages: retrievePassages({ triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')] }) };
+  const completePatternPayload = { passages: retrievePassages({ courtLineages: [{ suit: 'Cups', significance: 'alliance' }] }) };
 
   test('warns that a partial arc names cards which may be absent', () => {
     const block = buildGraphRAGReferenceBlock('celtic', {}, {
@@ -377,7 +364,7 @@ describe('Partial-triad passages carry an explicit absent-card guardrail', () =>
 
   test('retrievePassages flags partial triads independently of includeMetadata', () => {
     const [passage] = retrievePassages(
-      { triadIds: ['magician-chariot-world'], completeTriadIds: [] },
+      { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], completeTriadIds: [] },
       { maxPassages: 1 }
     );
 
@@ -390,6 +377,12 @@ describe('Partial-triad passages carry an explicit absent-card guardrail', () =>
       { maxPassages: 1 }
     );
 
-    assert.strictEqual(passage.isPartialPattern, undefined);
+    assert.strictEqual(passage.isPartialPattern, false);
   });
+});
+
+
+test('unverified partial keys and forged summary counts cannot supply graph evidence', () => {
+  assert.deepEqual(retrievePassages({ triadIds: ['magician-chariot-world'] }), []);
+  assert.equal(buildGraphRAGReferenceBlock('celtic', {}, { env: { GRAPHRAG_ENABLED: true }, graphRAGSummaryOnly: true, graphRAGPayload: { retrievalSummary: { patternsDetected: { partialTriads: 100 } } } }), '');
 });

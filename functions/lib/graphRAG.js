@@ -1,4 +1,5 @@
-import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms } from './graphRAGCandidates.js';
+import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms, resolveRetrievalMode } from './graphRAGCandidates.js';
+export { resolveRetrievalMode } from './graphRAGCandidates.js';
 import { projectPassageForDeck } from './graphRAGProjection.js';
 // functions/lib/graphRAG.js
 // GraphRAG (Graph-Enhanced Retrieval-Augmented Generation) for tarot readings
@@ -28,50 +29,6 @@ import {
   isSemanticEmbedding
 } from './embeddings.js';
 import { getPassageSource } from '../../shared/passageSource.js';
-
-// ============================================================================
-// HELPER: Word Boundary Matching
-// ============================================================================
-
-/**
- * Escape special regex characters in a string.
- * @param {string} str - String to escape
- * @returns {string} Escaped string safe for use in RegExp
- */
-function escapeRegexChars(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Check if a keyword appears as a whole word in text.
- * Uses word boundaries to avoid substring matches.
- *
- * LIMITATION: JavaScript's \b word boundary is ASCII-only [A-Za-z0-9_].
- * This means:
- * - Accented characters (café, naïve, über) may not match correctly
- * - Non-Latin scripts (Chinese, Japanese, Arabic) have no word boundaries
- * - Hyphenated words like "self-love" treat hyphens as boundaries
- *
- * This is acceptable for English-centric tarot terminology but should be
- * revisited if i18n support is needed. Consider using Unicode-aware regex
- * with \p{L} character class or space-based splitting for broader support.
- *
- * @param {string} text - Text to search in (should be lowercase)
- * @param {string} keyword - Keyword to find (should be lowercase)
- * @returns {boolean} True if keyword appears as whole word
- *
- * @example
- * matchesWholeWord('i love tarot', 'love')     // true
- * matchesWholeWord('beloved cards', 'love')    // false (substring)
- * matchesWholeWord('the art of reading', 'art') // true
- * matchesWholeWord('heart and soul', 'art')    // false (substring)
- */
-function matchesWholeWord(text, keyword) {
-  if (!text || !keyword) return false;
-  const escaped = escapeRegexChars(keyword);
-  const pattern = new RegExp(`\\b${escaped}\\b`);
-  return pattern.test(text);
-}
 
 /**
  * Determine the number of passages to retrieve based on spread complexity
@@ -135,23 +92,27 @@ export function getPassageCountForSpread(spreadKey, tier = 'plus') {
  * const passages = retrievePassages(graphKeys, { maxPassages: 3 });
  */
 export function retrievePassages(graphKeys, options = {}) {
-  const maxPassages = options.maxPassages ?? 3;
+  const maxPassages = options.maxPassages === undefined ? 3 : options.maxPassages;
   if (!isValidPassageLimit(maxPassages)) return [];
   const candidates = collectPassageCandidates(graphKeys, options);
   const disabled = options.env?.DISABLE_QUALITY_FILTERING === 'true' || options.env?.DISABLE_QUALITY_FILTERING === true;
   const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
   const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
-  const scored = candidates.map((passage) => ({
+  const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, keywordQuery });
+  const scored = candidates.map(passage => ({
     ...passage,
-    relevance: scoreKeywordRelevance(passage.promptText, keywordQuery),
-    relevanceScore: disabled ? 1 : scoreKeywordRelevance(passage.promptText, keywordQuery),
+    ...(mode === 'keyword' ? { relevance: scoreKeywordRelevance(passage.promptText, keywordQuery), relevanceScore: scoreKeywordRelevance(passage.promptText, keywordQuery) } : {}),
     _qualityFilteringDisabled: disabled,
+    _semanticScoringAttempted: false,
+    _semanticScoringSucceeded: false,
     _contextMatch: passageContextMatch(passage, options.questionContext),
-    _priorityOnly: disabled || !retrievalQueryTerms(keywordQuery).length
+    _priorityOnly: mode !== 'keyword'
   }));
   Object.defineProperty(scored, 'retrievalStats', { value: {
-    ...candidates.retrievalStats, candidatesScored: !disabled && keywordQuery.trim() ? scored.length : 0,
-    scoringMethod: disabled ? 'bypassed' : retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority',
+    ...candidates.retrievalStats, candidatesScored: mode === 'keyword' ? scored.length : 0,
+    retrievalMode: mode, scoringMethod: mode,
+    semanticScoringAttempted: false, semanticScoringUsed: false,
+    semanticScoringFallbackReason: disabled ? 'quality-filtering-disabled' : null,
     embeddingBatchCount: 0, embeddingCacheHits: 0
   } });
   return selectPassageCandidates(scored, { ...options, maxPassages, qualityFilteringDisabled: disabled });
@@ -399,28 +360,17 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
   } = options;
 
   if (!userQuery || !passage) {
-    return 0.5; // Default neutral score
+    return 0; // No content overlap can be measured
   }
 
   const queryText = typeof userQuery === 'string' ? userQuery : '';
   const passageText = typeof passage === 'string' ? passage : '';
 
   if (!queryText.trim() || !passageText.trim()) {
-    return 0.5;
+    return 0;
   }
 
-  // Keyword overlap scoring (fast, cheap)
-  // Uses word boundary matching to avoid false positives from substrings
-  const queryTerms = (typeof options.keywordQuery === 'string' ? options.keywordQuery : queryText)
-    .toLowerCase()
-    .split(/\W+/)
-    .filter((t) => t.length > 3);
-  const passageLower = passageText.toLowerCase();
-  const keywordMatches = queryTerms.filter((term) =>
-    matchesWholeWord(passageLower, term)
-  );
-  const keywordScore =
-    queryTerms.length > 0 ? keywordMatches.length / queryTerms.length : 0;
+  const keywordScore = scoreKeywordRelevance(passageText, typeof options.keywordQuery === 'string' ? options.keywordQuery : queryText);
 
   // Semantic similarity (requires embeddings API)
   let semanticScore = 0.5; // Default to neutral if semantic scoring is disabled
@@ -443,8 +393,8 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
       if (semanticStatus) {
         semanticStatus.succeeded = true;
       }
-    } catch (err) {
-      console.warn('[GraphRAG] Semantic scoring failed:', err.message);
+    } catch (_err) {
+      console.warn('[GraphRAG] Semantic scoring failed');
       if (semanticStatus) {
         semanticStatus.succeeded = false;
       }
@@ -577,11 +527,9 @@ function comparePassagesForPrompt(a, b, scoreField) {
     return scoreB - scoreA;
   }
 
-  const keywordA = typeof a.relevance === 'number' ? a.relevance : 0;
-  const keywordB = typeof b.relevance === 'number' ? b.relevance : 0;
-  if (keywordA !== keywordB) {
-    return keywordB - keywordA;
-  }
+  const contextA = a._contextMatch || 0;
+  const contextB = b._contextMatch || 0;
+  if (contextA !== contextB) return contextB - contextA;
 
   const priorityA = typeof a.priority === 'number' ? a.priority : Infinity;
   const priorityB = typeof b.priority === 'number' ? b.priority : Infinity;
@@ -646,6 +594,11 @@ function isValidSemanticVector(result, dimensions = null) {
     && vector.some((value) => value !== 0);
 }
 
+// Explicit whole-registry budget: overflow falls back for the complete eligible
+// set, never to a truncated semantic shortlist. Registry qualification must
+// validate this bound when approved enrichment changes the compiled corpus.
+export const MAX_SEMANTIC_REGISTRY_PASSAGES = 1000;
+
 export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const { maxPassages = 5, questionContext = '', minRelevanceScore = 0.3, enableDeduplication = true, env = null } = options;
   if (!isValidPassageLimit(maxPassages)) return [];
@@ -656,44 +609,50 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const hasKeywordQuery = retrievalQueryTerms(keywordQuery).length > 0;
   const semanticRequested = options.enableSemanticScoring ?? isSemanticScoringAvailable(env);
   const disabled = env?.DISABLE_QUALITY_FILTERING === 'true' || env?.DISABLE_QUALITY_FILTERING === true;
+  const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, semanticRequested, keywordQuery });
   const candidates = collectPassageCandidates(graphKeys, { ...options, includeMetadata: true });
   const embeddingStats = {};
+  const registryOverflow = candidates.retrievalStats.registryPassageCount > MAX_SEMANTIC_REGISTRY_PASSAGES;
   let embeddings = [];
-  const attempted = Boolean(semanticRequested && hasQuery && candidates.length && !disabled);
-  if (attempted) {
-    embeddings = await embedTextsWithMetadata([userQuery, ...candidates.map((entry) => entry.promptText)], { env, stats: embeddingStats });
-  }
+  const attempted = Boolean(mode === 'semantic' && hasQuery && candidates.length && isSemanticScoringAvailable(env) && !registryOverflow);
+  if (attempted) embeddings = await embedTextsWithMetadata([userQuery, ...candidates.map(entry => entry.promptText)], { env, stats: embeddingStats, deadline: startedAt + 3000, signal: options.signal });
   const valid = attempted && isValidSemanticVector(embeddings[0])
     && embeddings.length === candidates.length + 1
-    && embeddings.slice(1).every((entry) => isValidSemanticVector(entry, embeddings[0].embedding.length));
-  const anyValid = attempted && embeddings.some((entry) => isValidSemanticVector(entry));
-  const fallback = !semanticRequested ? null : disabled ? 'quality-filtering-disabled' : !hasQuery ? 'no-query'
+    && embeddings.slice(1).every(entry => isValidSemanticVector(entry, embeddings[0].embedding.length));
+  const anyValid = attempted && embeddings.some(entry => isValidSemanticVector(entry));
+  const fallback = disabled ? 'quality-filtering-disabled' : !semanticRequested ? null : !hasQuery ? 'no-query'
     : !candidates.length ? (candidates.retrievalStats.projectionRejected ? 'projection-rejected' : 'no-passages')
-      : !isSemanticScoringAvailable(env) ? 'embeddings-not-configured'
-        : valid ? null : anyValid ? 'embeddings-partial-failure' : embeddingStats.failureReason || 'embeddings-failed';
+      : registryOverflow ? 'embeddings-registry-overflow' : !isSemanticScoringAvailable(env) ? 'embeddings-not-configured'
+        : valid ? null : ['embeddings-timeout', 'embeddings-cancelled'].includes(embeddingStats.failureReason) ? embeddingStats.failureReason
+          : anyValid ? 'embeddings-partial-failure' : embeddingStats.failureReason === 'embeddings-invalid-vector' ? 'embeddings-partial-failure' : embeddingStats.failureReason || 'embeddings-failed';
+  const scoringMethod = disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority';
   const scored = candidates.map((passage, index) => {
-    const keywordScore = scoreKeywordRelevance(passage.promptText, keywordQuery);
+    const keywordScore = disabled || scoringMethod === 'priority' ? null : scoreKeywordRelevance(passage.promptText, keywordQuery);
     return {
       ...passage,
-      relevance: keywordScore,
-      relevanceScore: disabled ? 1 : valid ? 0.3 * keywordScore + 0.7 * cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : keywordScore,
+      ...(keywordScore === null ? {} : { relevance: keywordScore, relevanceScore: valid ? 0.3 * keywordScore + 0.7 * cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : keywordScore }),
       _qualityFilteringDisabled: disabled,
       _semanticScoringEnabled: Boolean(semanticRequested),
       _semanticScoringAttempted: attempted,
       _semanticScoringSucceeded: Boolean(valid),
       _contextMatch: passageContextMatch(passage, questionContext),
-      _priorityOnly: !valid && !hasKeywordQuery || disabled
+      _priorityOnly: scoringMethod === 'priority' || disabled
     };
   });
   Object.defineProperty(scored, 'retrievalStats', { value: {
     ...candidates.retrievalStats,
-    candidatesScored: (valid || hasKeywordQuery) && !disabled ? scored.length : 0,
-    scoringMethod: disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority',
+    candidatesScored: ['semantic', 'keyword'].includes(scoringMethod) ? scored.length : 0,
+    retrievalMode: mode, scoringMethod,
+    semanticScoringAttempted: attempted, semanticScoringUsed: Boolean(valid),
     semanticScoringFallbackReason: fallback,
     embeddingBatchCount: embeddingStats.batchCount || 0,
     embeddingCacheHits: embeddingStats.cacheHits || 0,
     embeddingInputCount: embeddingStats.inputCount || 0,
     embeddingInputCharacters: embeddingStats.inputCharacters || 0,
+    embeddingCacheSizeBefore: embeddingStats.cacheSizeBefore || 0,
+    embeddingCacheSizeAfter: embeddingStats.cacheSizeAfter || 0,
+    embeddingCacheMaxSize: embeddingStats.cacheMaxSize || 100,
+    embeddingPeakConcurrency: embeddingStats.peakConcurrency || 0,
     retrievalElapsedMs: Date.now() - startedAt
   } });
   return selectPassageCandidates(scored, { maxPassages, minRelevanceScore, enableDeduplication, qualityFilteringDisabled: disabled });
@@ -716,7 +675,7 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     maxRelevance: 0,
     belowRelevanceThresholdPassages: 0,
     semanticScoringUsed: false,
-    semanticScoringAttempted: false
+    semanticScoringAttempted: passages?.retrievalStats?.semanticScoringAttempted === true
   };
 
   if (Array.isArray(passages) && passages.length > 0) {

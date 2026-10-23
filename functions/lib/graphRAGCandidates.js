@@ -1,4 +1,4 @@
-import { getPassagesForPattern } from './knowledgeBase.js';
+import { getPassagesForPattern, listKnowledgeBasePassages } from './knowledgeBase.js';
 import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
 
 const CONTEXT_ALIASES = {
@@ -30,7 +30,7 @@ function withStats(passages, stats) {
 /** Enumerate all variants once; this is the single dispatch for pattern families. */
 export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', includeMetadata = false } = {}) {
   const candidates = [];
-  const stats = { candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
+  const stats = { registryPassageCount: listKnowledgeBasePassages().length, candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
   if (!graphKeys || typeof graphKeys !== 'object') return withStats(candidates, stats);
   const identities = new Set();
   const add = (type, patternId, priority, extra = {}, metadata = {}, entry = getPassagesForPattern(type, patternId)) => {
@@ -96,16 +96,28 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
   return withStats(candidates, stats);
 }
 
-const normalizeText = (text) => text.normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
-const QUERY_STOP_WORDS = new Set(['what', 'when', 'where', 'which', 'this', 'that', 'have', 'from', 'with', 'about', 'card', 'reading']);
+export const normalizePassageText = (text) => text.normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
+// Query values are supplied separately from semantic scaffolding. Strip only
+// explicit labels here as defense for legacy callers; ordinary prose survives.
+const QUERY_STOP_WORDS = new Set('what when where which this that have from with about card cards reading does into your would could should their there them these those will been being were then than'.split(' '));
+const tokenize = text => typeof text === 'string' ? text.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [] : [];
 export function retrievalQueryTerms(query) {
-  return [...new Set((query.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((word) => word.length > 3 && !QUERY_STOP_WORDS.has(word)))];
+  const content = typeof query === 'string' ? query.replace(/\b(?:question|reflections):/giu, '') : '';
+  return [...new Set(tokenize(content).filter(word => word.length > 3 && !QUERY_STOP_WORDS.has(word)))];
 }
 export function scoreKeywordRelevance(text, query) {
   const terms = retrievalQueryTerms(query);
-  if (!query.trim() || !terms.length) return 0.5;
-  const words = new Set(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
-  return terms.length ? terms.filter((term) => words.has(term)).length / terms.length : 0;
+  if (!terms.length) return 0;
+  const words = new Set(tokenize(text));
+  return terms.filter(term => words.has(term)).length / terms.length;
+}
+
+/** Resolve precedence before choosing any retrieval/scoring helper. */
+export function resolveRetrievalMode({ graphEnabled = true, qualityFilteringDisabled = false, semanticRequested = false, keywordQuery = '' } = {}) {
+  if (!graphEnabled) return 'disabled';
+  if (qualityFilteringDisabled) return 'bypassed';
+  if (semanticRequested) return 'semantic';
+  return retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority';
 }
 
 function compareCandidates(a, b) {
@@ -120,27 +132,26 @@ function compareCandidates(a, b) {
 export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5, minRelevanceScore = 0.3, enableDeduplication = true, qualityFilteringDisabled = false } = {}) {
   if (!isValidPassageLimit(maxPassages)) return [];
   const stats = { ...(scoredCandidates.retrievalStats || {}), variantsRemoved: 0, deduplicatedCandidates: 0, thresholdRejected: 0, finalSelectedCount: 0 };
-  const variants = new Map();
-  for (const candidate of [...scoredCandidates].filter((entry) => entry && typeof entry.candidateId === 'string' && typeof entry.patternKey === 'string' && typeof entry.promptText === 'string' && entry.promptText.trim()).sort(compareCandidates)) {
-    if (variants.has(candidate.patternKey)) { stats.variantsRemoved++; continue; }
-    variants.set(candidate.patternKey, candidate);
+  const patterns = new Set();
+  const texts = new Set();
+  const eligible = [];
+  const sorted = [...scoredCandidates].filter(entry => entry && typeof entry.candidateId === 'string' && typeof entry.patternKey === 'string' && typeof entry.promptText === 'string' && entry.promptText.trim()).sort(qualityFilteringDisabled || scoredCandidates.every(entry => entry?._priorityOnly)
+    ? (a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || (b._contextMatch || 0) - (a._contextMatch || 0) || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0)
+    : compareCandidates);
+  for (const candidate of sorted) {
+    if (patterns.has(candidate.patternKey)) { stats.variantsRemoved++; continue; }
+    const key = enableDeduplication && !qualityFilteringDisabled ? normalizePassageText(candidate.promptText) : null;
+    if (key !== null && texts.has(key)) { stats.deduplicatedCandidates++; continue; }
+    // Reserve a pattern only after its variant adds distinct text. A duplicate
+    // top variant must leave the next variant free to compete globally.
+    patterns.add(candidate.patternKey);
+    if (key !== null) texts.add(key);
+    eligible.push(candidate);
   }
-  let eligible = [...variants.values()];
-  if (enableDeduplication && !qualityFilteringDisabled) {
-    const texts = new Set();
-    eligible = eligible.filter((candidate) => {
-      const key = normalizeText(candidate.promptText);
-      if (texts.has(key)) { stats.deduplicatedCandidates++; return false; }
-      texts.add(key); return true;
-    });
-  }
-  stats.patternsRepresented = variants.size;
-  let retained = qualityFilteringDisabled ? eligible : eligible.filter((candidate) => !Number.isFinite(candidate.relevanceScore) || candidate.relevanceScore >= minRelevanceScore);
+  stats.patternsRepresented = patterns.size;
+  const retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore);
   stats.thresholdRejected = eligible.length - retained.length;
-  if (!retained.length && eligible.length) retained = [{ ...eligible[0], belowRelevanceThreshold: true }];
-  if (qualityFilteringDisabled || retained.every((entry) => entry._priorityOnly)) {
-    retained.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || compareCandidates(a, b));
-  }
+  if (!retained.length && eligible.length) retained.push({ ...eligible[0], belowRelevanceThreshold: true });
   const selected = retained.slice(0, maxPassages);
   stats.finalSelectedCount = selected.length;
   return withStats(selected, stats);

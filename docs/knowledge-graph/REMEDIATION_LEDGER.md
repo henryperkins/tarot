@@ -22,8 +22,8 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
 | 1 | 1–2 | Complete | Validated transport and one authoritative context selection reviewed, including all accepted sources and bounded query projection. |
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
-| 3 | 5–6 | Task 6 complete; Task 5 in review | Compatible frozen memory selection reviewed; bounded full-set ranking implementation awaits independent review. |
-| 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
+| 3 | 5–6 | Complete | Full-set bounded ranking and compatible frozen memory selection independently reviewed. |
+| 4 | 7–8 | Active | Accepted-attempt retention and durable completion receipt. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
 | 6 | 11 | Separate | Documentation can be prepared; integration/release actions require their own authorization. |
@@ -164,3 +164,16 @@ Preferences load separately before safety/context handling. The generation path 
 - The whole-note guard rejects unsupported/ambiguous facts, conflicting subjects or current preferences, recognized restricted health details, and bounded same-subject negations/retractions. It preserves numeric/measurement and unrelated-person controls. This deliberately limited grammar is not universal language or health classification.
 - Pure-selector review round 1/5 addressed three P2 findings; the parent subsequently found and verified a bounded employment-contraction gap, fixed with direct-guard and selector regressions before final review. Full independent integration review: **spec and quality pass**, with **11 targeted tests passed**.
 - Existing save/delete behavior and completion/access implementation are unchanged by this task. Final retention and durable accepted-result receipts remain Tasks 7 and 8.
+
+## Task 5 — Full eligible ranking and bounded embeddings
+
+All eligible registry-backed variants are projected before comparable content scoring and final allowance. Distinct normalized Unicode terms replace repeated raw counts. Global selection can choose a nonduplicate alternate variant; modes resolve disabled, bypass, semantic, keyword and priority explicitly. Semantic failure falls back over the complete eligible set. The shared deadline is at most 3,000 ms, batches at most 100 texts, concurrency at most two, and ignored cancellation cannot leave a pending caller or admit late cache writes.
+
+- Final enforced-network-blocked gate: **296 passed**, zero failures/cancellations; scoped lint and diff checks pass. Independent spec/quality review passed with **11 targeted tests**.
+- The explicit compiled-registry semantic budget is 1,000 passages. Overflow scores the entire eligible set lexically and never embeds a first-N shortlist. Current registry: 145 passages. A bulk graph projects 122 variants; cold query plus passages uses batches 100 + 23, and repeat execution reuses 100 cached vectors and sends 23. The cache remains 100; full-corpus warmth is not claimed.
+- Inherited Task 4 synthetic fixtures were replaced by verified records and numeric matched subsets while retaining negative provenance tests. Old failed evidence is preserved.
+- Task 7 owns bounded public retention of new diagnostics/reason enums. Real embedding relevance, latency and editorial quality remain unqualified.
+
+## Phase 4 interface and parallel ownership
+
+Ruling: Tasks 7 and 8 may develop disjoint pieces against the plan's fixed private usage contract `{ userId, ids, completedAt, requestId, attemptId }`. Task 7 owns route/backend accepted-attempt identity and final retention; Task 8 owns durable storage/replay, the memory persistence outcome and job test helpers. Task 8 integration/review must use the completed Task 7 producer and may not infer acceptance from public metadata. Shared route changes are serialized through Task 7; no two agents edit the same file. Phase 4 closes only after both final integration reviews pass.

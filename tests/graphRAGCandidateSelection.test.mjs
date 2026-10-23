@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { retrievePassages, retrievePassagesWithQuality, buildQualityRetrievalSummary } from '../functions/lib/graphRAG.js';
-import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
+import { clearEmbeddingCache, getEmbeddingCacheStats } from '../functions/lib/embeddings.js';
 import * as canon from '../functions/lib/knowledgeBase.js';
 const { TRIAD_PASSAGES } = canon;
-import { projectPassageForDeck } from '../functions/lib/graphRAGProjection.js';
+import { scorePassageRelevance, getPassageCountForSpread, MAX_SEMANTIC_REGISTRY_PASSAGES } from '../functions/lib/graphRAG.js';
 const candidatesModule = await import('../functions/lib/graphRAGCandidates.js').catch(() => ({}));
 const keys = { completeTriadIds: ['death-temperance-star'], foolsJourneyStageKey: 'integration', dyadPairs: [{ cards: [13, 17], significance: 'high' }, { cards: [13, 14], significance: 'medium' }] };
 
@@ -35,10 +35,11 @@ test('all variants enumerate with unique stable candidate identities', () => {
   assert.equal(new Set(result.map(p => p.candidateId)).size, result.length);
   assert.equal(result.filter(p => p.type === 'triad').length, 4);
   assert.ok(result.every(p => p.crossDeckReference && !p.promptVisualAnchors.length));
-  for (const candidate of result) assert.deepEqual(JSON.parse(candidate.candidateId), [candidate.type, candidate.patternId, candidate.context || 'general', candidate.sourceDeck]);
+  for (const candidate of result) assert.deepEqual(JSON.parse(candidate.candidateId), [candidate.type, candidate.patternId, candidate.context || 'general', candidate.isPartialPattern ? candidate.matchedCards : null, candidate.sourceId]);
 });
 
-const candidate = (id, text, score = 0.8) => ({ ...projectPassageForDeck({ type: 'major-arcana', patternId: id, text, archetypalText: text }), relevanceScore: score });
+// Pure selection records exercise ranking without weakening registry projection.
+const candidate = (id, text, score = 0.8, variant = 'general') => ({ candidateId: `${id}:${variant}`, patternKey: id, patternId: id, promptText: text, relevanceScore: score, priority: 3 });
 test('full content deduplication preserves different tails beyond 100 characters', () => {
   assert.equal(typeof candidatesModule.selectPassageCandidates, 'function');
   const prefix = 'A'.repeat(120);
@@ -191,4 +192,159 @@ test('a mixed two-batch outage uses one keyword scale and recovers with cached g
   assert.equal(after.scoringMethod, 'semantic');
   assert.ok(after.embeddingCacheHits > 0);
   assert.equal(after.embeddingBatchCount, 1);
+});
+
+
+test('distinct meaningful Unicode terms share one scorer and labels add no relevance', async () => {
+  for (const query of ['café hope mystery', 'café hope hope hope mystery', 'question: café hope mystery reflections:']) {
+    assert.equal(await scorePassageRelevance('café hope', query), 2 / 3);
+    assert.equal(candidatesModule.scoreKeywordRelevance('café hope', query), 2 / 3);
+  }
+  assert.deepEqual(candidatesModule.retrievalQueryTerms('ＣＡＦÉ café hope'), ['café', 'hope']);
+});
+
+test('global selection lets the next variant compete after its best text duplicates a winner', () => {
+  const result = candidatesModule.selectPassageCandidates([
+    candidate('first', 'shared text', 1),
+    candidate('second', 'shared text', 0.9),
+    candidate('second', 'distinct text', 0.8, 'career'),
+    candidate('third', 'other text', 0.7)
+  ], { maxPassages: 3 });
+  assert.deepEqual(result.map(row => row.candidateId), ['first:general', 'second:career', 'third:general']);
+});
+
+test('Fool Magician World scores every safe candidate at cap one', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const graphKeys = { completeTriadIds: ['fool-magician-world'], foolsJourneyStageKey: 'initiation', dyadPairs: [{ cards: [0, 1], significance: 'high' }, { cards: [0, 21], significance: 'high' }], triadIds: ['fool-magician-world', 'magician-chariot-world'], partialTriads: [{ id: 'magician-chariot-world', matchedCards: [1, 21], missingCards: [7] }] };
+  const candidates = candidatesModule.collectPassageCandidates(graphKeys);
+  const winner = candidates.find(row => row.patternId === '0-1');
+  const embedded = [];
+  const result = await retrievePassagesWithQuality(graphKeys, { userQuery: 'quorbit', maxPassages: 1, env: { AI: { run: async (_model, { text }) => { embedded.push(...text); return { data: text.map(value => value === 'quorbit' || value === winner.promptText ? [1, 0] : [0, 1]) }; } } } });
+  assert.equal(result[0].patternId, '0-1');
+  assert.ok(candidates.every(row => embedded.includes(row.promptText)));
+  assert.equal(result.retrievalStats.candidatesScored, candidates.length);
+});
+
+test('semantic scorer includes safe content beyond character 500', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const text = 'neutral '.repeat(80) + 'career';
+  const score = await scorePassageRelevance(text, 'career', { enableSemanticScoring: true, env: { AI: { run: async (_model, { text: inputs }) => ({ data: inputs.map(input => input.includes('career') ? [1, 0] : [0, 1]) }) } } });
+  assert.equal(score, 1);
+});
+
+test('mode precedence resolves once before dispatch', () => {
+  const awaitMode = candidatesModule.resolveRetrievalMode || (() => 'missing');
+  assert.equal((awaitMode)({ graphEnabled: false, qualityFilteringDisabled: true, semanticRequested: true, keywordQuery: 'hope' }), 'disabled');
+  assert.equal((awaitMode)({ qualityFilteringDisabled: true, semanticRequested: true, keywordQuery: 'hope' }), 'bypassed');
+  assert.equal((awaitMode)({ semanticRequested: true, keywordQuery: 'hope' }), 'semantic');
+  assert.equal((awaitMode)({ semanticRequested: false, keywordQuery: 'hope' }), 'keyword');
+  assert.equal((awaitMode)({ semanticRequested: false, keywordQuery: '' }), 'priority');
+});
+
+test('bypass without semantic mode skips lexical scores and no-query priority has no confidence', () => {
+  const bypass = retrievePassages(keys, { userQuery: 'hope hope hope', env: { DISABLE_QUALITY_FILTERING: true } });
+  assert.ok(bypass.every(row => row.relevance === undefined && row.relevanceScore === undefined));
+  assert.equal(bypass.retrievalStats.semanticScoringAttempted, false);
+  assert.equal(bypass.retrievalStats.semanticScoringFallbackReason, 'quality-filtering-disabled');
+  const priority = retrievePassages(keys);
+  assert.ok(priority.every(row => row.relevanceScore === undefined));
+  assert.equal(priority.retrievalStats.candidatesScored, 0);
+});
+
+for (const [spread, paid] of Object.entries({ single: 1, threeCard: 2, fiveCard: 3, celtic: 5, decision: 3, relationship: 2, general: 3 })) {
+  for (const tier of ['free', 'plus', 'pro']) test(`${spread} ${tier} cap is final only`, () => {
+    const cap = tier === 'free' ? Math.max(1, Math.floor(paid / 2)) : paid;
+    assert.equal(getPassageCountForSpread(spread, tier), cap);
+    const result = retrievePassages(keys, { userQuery: 'hope', maxPassages: cap });
+    assert.ok(result.length <= cap);
+    assert.equal(result.retrievalStats.candidatesProjected, candidatesModule.collectPassageCandidates(keys).length);
+  });
+}
+
+
+test('ordinary question is a content term while keywordQuery excludes semantic labels', async () => {
+  assert.deepEqual(candidatesModule.retrievalQueryTerms('a question about hope'), ['question', 'hope']);
+  assert.equal(await scorePassageRelevance('question', 'question: zebra', { keywordQuery: 'zebra' }), 0);
+});
+
+test('compiled registry stays within the reviewed semantic runtime budget', () => {
+  assert.ok(canon.listKnowledgeBasePassages().length <= MAX_SEMANTIC_REGISTRY_PASSAGES, 'Registry growth requires explicit runtime budget review');
+});
+
+test('registry overflow falls back across all candidates without embedding a first-N subset', async (t) => {
+  const entry = TRIAD_PASSAGES['death-temperance-star'];
+  const originalLength = entry.passages.length;
+  t.after(() => { entry.passages.length = originalLength; });
+  for (let index = 0; index < MAX_SEMANTIC_REGISTRY_PASSAGES; index++) entry.passages.push({ ...entry.passages[0], sourceId: `growth-${index}`, text: `Unique safe registry meaning ${index}.`, archetypalText: `Unique safe registry meaning ${index}.` });
+  let calls = 0;
+  const result = await retrievePassagesWithQuality({ completeTriadIds: ['death-temperance-star'] }, { userQuery: 'meaning', env: { AI: { run() { calls++; } } } });
+  assert.equal(calls, 0);
+  assert.equal(result.retrievalStats.semanticScoringFallbackReason, 'embeddings-registry-overflow');
+  assert.equal(result.retrievalStats.candidatesProjected, originalLength + MAX_SEMANTIC_REGISTRY_PASSAGES);
+  assert.equal(result.retrievalStats.candidatesScored, originalLength + MAX_SEMANTIC_REGISTRY_PASSAGES);
+  assert.equal(result.retrievalStats.scoringMethod, 'keyword');
+});
+
+test('all invalid query and candidate vectors use a coherent keyword scale', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const result = await retrievePassagesWithQuality(keys, { userQuery: 'hope mystery', env: { AI: { run: async (_model, { text }) => ({ data: text.map(() => [0, 0]) }) } } });
+  assert.ok(result.every(row => !row._semanticScoringSucceeded));
+  assert.equal(result.retrievalStats.scoringMethod, 'keyword');
+  assert.equal(result.retrievalStats.semanticScoringFallbackReason, 'embeddings-partial-failure');
+});
+
+
+test('empty scorer input never fabricates a neutral confidence', async () => {
+  assert.equal(await scorePassageRelevance('meaning', ''), 0);
+  assert.equal(await scorePassageRelevance('', 'hope'), 0);
+});
+
+for (const limit of [null, '1']) test(`noninteger explicit limit ${JSON.stringify(limit)} avoids embeddings`, async () => {
+  let calls = 0;
+  const env = { AI: { run() { calls++; } } };
+  assert.deepEqual(retrievePassages(keys, { maxPassages: limit }), []);
+  assert.deepEqual(await retrievePassagesWithQuality(keys, { maxPassages: limit, userQuery: 'hope', env }), []);
+  assert.equal(calls, 0);
+});
+
+
+test('bypass selection ignores preexisting relevance even within one structural priority', () => {
+  const result = candidatesModule.selectPassageCandidates([
+    { ...candidate('high-score', 'same text', 1), _contextMatch: 0 },
+    { ...candidate('context-match', 'same text', 0), _contextMatch: 2 }
+  ], { qualityFilteringDisabled: true, maxPassages: 2 });
+  assert.deepEqual(result.map(row => row.patternId), ['context-match', 'high-score']);
+});
+
+test('relevance then context then structural priority then stable identity determine ties', () => {
+  const records = [
+    { ...candidate('z', 'z', 0.8), priority: 1, _contextMatch: 0 },
+    { ...candidate('b', 'b', 0.8), priority: 6, _contextMatch: 2 },
+    { ...candidate('a', 'a', 0.8), priority: 6, _contextMatch: 2 },
+    { ...candidate('best', 'best', 0.9), priority: 6, _contextMatch: 0 }
+  ];
+  assert.deepEqual(candidatesModule.selectPassageCandidates(records).map(row => row.patternId), ['best', 'a', 'b', 'z']);
+  assert.deepEqual(candidatesModule.selectPassageCandidates(records.map(row => ({ ...row }))).map(row => row.patternId), ['best', 'a', 'b', 'z']);
+});
+
+test('a late batch makes the entire eligible ranking keyword-only and cannot change its cache', { timeout: 1000 }, async t => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let started, finish, lateSize;
+  const ready = new Promise(resolve => { started = resolve; });
+  const pending = retrievePassagesWithQuality(bulkGraphKeys(), { userQuery: 'hope mystery', maxPassages: 5, env: { AI: { run: async (_model, { text }) => {
+    if (text.length === 100) return { data: text.map(() => [1, 0]) };
+    lateSize = text.length; started();
+    return new Promise(resolve => { finish = resolve; });
+  } } } });
+  await ready;
+  t.mock.timers.tick(3000);
+  const result = await pending;
+  assert.equal(result.retrievalStats.semanticScoringFallbackReason, 'embeddings-timeout');
+  assert.equal(result.retrievalStats.scoringMethod, 'keyword');
+  assert.ok(result.every(row => row._semanticScoringAttempted && !row._semanticScoringSucceeded && row.relevanceScore === candidatesModule.scoreKeywordRelevance(row.promptText, 'hope mystery')));
+  const before = getEmbeddingCacheStats().size;
+  finish({ data: Array.from({ length: lateSize }, () => [1, 0]) });
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(getEmbeddingCacheStats().size, before);
 });
