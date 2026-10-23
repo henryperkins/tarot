@@ -12,6 +12,11 @@
 // - MAJOR_ARCANA_PASSAGES: single Major Arcana archetypes keyed by card number
 // - DYAD_PASSAGES: 2-card synergies keyed by "<major>-<major>"
 // - SUIT_PROGRESSION_PASSAGES: Minor Arcana developmental arcs
+//
+// Reviewed web-sourced passages live in the generated knowledgeBaseEnrichment.js
+// and are merged into MAJOR_ARCANA_PASSAGES at import time.
+
+import { ENRICHED_MAJOR_ARCANA_PASSAGES } from './knowledgeBaseEnrichment.js';
 
 /**
  * Curated passages for archetypal triads.
@@ -1900,6 +1905,36 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
         ]
     }
 };
+
+/**
+ * Merge reviewed enrichment passages into the Major Arcana table.
+ *
+ * Enriched passages always carry a context more specific than "general", so
+ * they are selected only for a matching reading context and never displace the
+ * hand-written canon passage for the same card.
+ */
+function mergeEnrichedPassages(base, enriched) {
+    for (const [cardNumber, entry] of Object.entries(enriched || {})) {
+        const target = base[cardNumber];
+        if (!target || !Array.isArray(entry?.passages)) {
+            continue;
+        }
+        for (const passage of entry.passages) {
+            if (!passage?.text || passage.context === 'general') {
+                continue;
+            }
+            target.passages.push({
+                source: passage.source || 'Tableu Tarot Canon',
+                context: passage.context,
+                text: passage.text,
+                tags: passage.tags || []
+            });
+        }
+    }
+    return base;
+}
+
+mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, ENRICHED_MAJOR_ARCANA_PASSAGES);
 
 /**
  * Get all passages for a specific pattern.

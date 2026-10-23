@@ -93,6 +93,9 @@ lerna-debug.log*
 coverage/
 /data/evaluations/runs/
 
+# Local fetched sources, review queue, and enrichment provenance
+/data/enrichment/
+
 # Playwright
 /test-results/
 /playwright-report/
