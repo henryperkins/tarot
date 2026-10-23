@@ -14,13 +14,26 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.3.0';
+export const READING_PROMPT_VERSION = '1.4.0';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.4.0',
+    date: '2026-10-23',
+    notes: 'Preserve authoritative current context and accepted-attempt source inclusion.',
+    changes: [
+      'Classified independently bounded current sources once and projected eligible mixed-topic spans into a separate bounded retrieval query.',
+      'Kept orientation-aware catalog meanings authoritative and tracked caller interpretations separately from factual context.',
+      'Used matched-only deck-safe registered references, verified enrichment provenance and full eligible relevance-first ranking with comparable whole-set fallback.',
+      'Replaced unsupported skipped-integration wording in the Death and Star partial highlight with a matched-card theme.',
+      'Selected compatible memories once from a bounded pool, honored per-reading opt-out and tracked only complete blocks retained by the accepted backend attempt.',
+      'Recorded initial-reading access timestamps after successful server acceptance, with best-effort direct persistence and private durable-job receipt replay.'
+    ]
+  },
   {
     version: '1.3.0',
     date: '2026-10-22',

@@ -314,12 +314,15 @@ export async function prepareNarrativeSamplePayload(sample, { env = {}, referenc
   const deckStyle = sample.deckStyle || spreadInfo.deckStyle || 'rws-1909';
   const rawCards = sample.cards.map((cardDef, index) => ({
     ...buildCardEntry(getCardByName(cardDef.name), cardDef.position || spreadInfo.positions[index] || `Position ${index + 1}`, normalizeOrientation(cardDef.orientation)),
+    ...(typeof cardDef.meaning === 'string' ? { meaning: cardDef.meaning } : {}),
+    ...(typeof cardDef.wireName === 'string' ? { card: cardDef.wireName } : {}),
     ...(typeof cardDef.userReflection === 'string' ? { userReflection: cardDef.userReflection } : {})
   }));
   const parsed = safeParseReadingRequest({
     spreadInfo: { ...spreadInfo, key: sample.spreadKey }, cardsInfo: rawCards,
     userQuestion: sample.userQuestion || '', reflectionsText: sample.reflectionsText || '',
-    ...(sample.decisionPaths ? { decisionPaths: sample.decisionPaths } : {})
+    ...(sample.decisionPaths ? { decisionPaths: sample.decisionPaths } : {}),
+    ...(sample.useSavedMemories !== undefined ? { useSavedMemories: sample.useSavedMemories } : {})
   });
   if (!parsed.success) throw new Error(`Sample ${sample.id} is not a valid reading request: ${parsed.error}`);
   const cardsInfo = resolveReadingCards(parsed.data.cardsInfo, deckStyle);
@@ -330,20 +333,21 @@ export async function prepareNarrativeSamplePayload(sample, { env = {}, referenc
   };
   const sources = prepareReadingContextSources(contextSources);
   const selection = resolveContextSelection({ sources }, sample.spreadKey);
-  const memorySelection = selectMemoriesForReading(sample.memories || [], { sources, displayName: sample.personalization?.displayName, referenceTime: Date.parse(referenceTime) });
+  const useSavedMemories = parsed.data.useSavedMemories !== false;
+  const memorySelection = selectMemoriesForReading(useSavedMemories ? sample.memories || [] : [], { sources, contextSelection: selection, displayName: sample.personalization?.displayName, personalization: sample.personalization, referenceTime: Date.parse(referenceTime) });
   const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
     deckStyle, userQuestion: contextSources.userQuestion,
-    reflectionsText: contextSources.reflectionsText, contextSources: { sources },
+    reflectionsText: contextSources.reflectionsText, contextSources: { sources }, contextSelection: selection,
     subscriptionTier: sample.subscriptionTier || 'pro', referenceTime
   }, `eval-${sample.id}`, env);
   return {
     spreadInfo, cardsInfo, userQuestion: contextSources.userQuestion,
     reflectionsText: contextSources.reflectionsText, decisionPaths,
     userContextInputStats: inputStats,
-    analysis, context: selection.context, contextInputText: selection.retrievalQuery,
+    analysis, contextSelection: selection, context: selection.context, contextInputText: selection.retrievalQuery,
     contextDiagnostics: [], visionInsights: [], deckStyle,
     personalization: sample.personalization || null,
-    memories: memorySelection.memories, memorySelection,
+    useSavedMemories, memories: memorySelection.memories, memorySelection,
     subscriptionTier: sample.subscriptionTier || 'pro', narrativeEnhancements: [],
     graphRAGPayload: analysis.graphRAGPayload || null,
     promptMeta: null, variantPromptOverrides: null

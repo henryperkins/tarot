@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
 import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrativeBuilder.js';
 import { prepareUserContext, parseUserContext } from '../functions/lib/narrative/prompts/userContext.js';
@@ -183,11 +184,7 @@ test('reading jobs honor cleared and replaced restricted legacy labels with card
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Offline job fallback must not call external services'); });
   for (const replacement of ['', 'Stay in this role']) {
     await t.test(replacement ? 'replacement' : 'clear', async () => {
-      const job = new ReadingJob({
-        blockConcurrencyWhile: callback => callback(),
-        storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
-        waitUntil: promise => promise.catch(() => {})
-      }, { GPT_SERVICE_TOKEN: 'svc_0123456789abcdef0123456789abcdef01234567', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
+      const job = new ReadingJob(createReadingJobState(), { GPT_SERVICE_TOKEN: 'svc_0123456789abcdef0123456789abcdef01234567', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
       t.after(() => job.closeSubscribers());
       const cardsInfo = cards.map((card, index) => index === 1 ? { ...card, position: 'Path A: stay with my attorney', userReflection: 'I need time to collect my children.' } : card);
       const started = await startReadingJob({
@@ -262,7 +259,7 @@ test('job start validation and Durable Object execution preserve raw explicit cr
   t.mock.method(console, 'log', () => {});
   t.mock.method(console, 'warn', () => {});
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('No provider should run'); });
-  const state = { blockConcurrencyWhile: callback => callback(), storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} }, waitUntil: promise => promise.catch(() => {}) };
+  const state = createReadingJobState();
   const job = new ReadingJob(state, { GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false' });
   t.after(() => job.closeSubscribers());
   let forwarded;
@@ -484,7 +481,7 @@ test('nested path prefixes remain the same fact through actual route, provider, 
   assert.equal(parseUserContext(providerPrompt).get('pathA'), expected);
   const { startReadingJob } = await import('../functions/lib/readingJobs.js');
   const { ReadingJob } = await import('../src/worker/readingJob.js');
-  const job = new ReadingJob({ blockConcurrencyWhile: callback => callback(), storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} }, waitUntil: promise => promise.catch(() => {}) }, { GPT_SERVICE_TOKEN: 'svc_0123456789abcdef0123456789abcdef01234567', MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false' });
+  const job = new ReadingJob(createReadingJobState(), { GPT_SERVICE_TOKEN: 'svc_0123456789abcdef0123456789abcdef01234567', MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false' });
   t.after(() => job.closeSubscribers());
   let forwarded;
   const started = await startReadingJob({
@@ -611,12 +608,8 @@ test('reading jobs preserve decision language gating and explicit label override
   const requests = mockEnglishDecisionProvider(t);
   for (const entry of decisionLanguageCases.filter(entry => entry.side === 'a')) {
     await t.test(entry.name, async () => {
-      const tasks = [];
-      const job = new ReadingJob({
-        blockConcurrencyWhile: callback => callback(),
-        storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
-        waitUntil: promise => tasks.push(promise)
-      }, decisionLanguageEnv);
+      const state = createReadingJobState();
+      const job = new ReadingJob(state, decisionLanguageEnv);
       t.after(() => job.closeSubscribers());
       const started = await startReadingJob({
         env: { READING_JOBS: { idFromName: id => id, get: () => ({ fetch: (url, init) => job.fetch(new Request(url, init)) }) } },
@@ -625,7 +618,7 @@ test('reading jobs preserve decision language gating and explicit label override
       });
       assert.equal(started.ok, true);
       await job.runningPromise;
-      await Promise.all(tasks);
+      while (state.pending.size) await Promise.all([...state.pending]);
       assert.equal(job.job.status, entry.blocked ? 'error' : 'complete');
       if (entry.blocked) assert.equal(job.job.errorCode, 'reading_safety_unavailable');
       else assert.equal(job.job.result.provider, 'modal-qwen');

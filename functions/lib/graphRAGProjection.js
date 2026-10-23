@@ -83,7 +83,10 @@ export function projectPassageForDeck(passage, deckStyle = 'rws-1909') {
   const subset = projected.isPartialPattern ? projected.matchedCards : null;
   const entry = getPassagesForPattern(projected.type, projected.patternId);
   const cardNumbers = subset || (projected.type === 'major-arcana' ? [Number(projected.patternId)] : projected.type === 'triad' ? ARCHETYPAL_TRIADS.find(row => row.id === projected.patternId)?.cards : entry?.cards) || [];
-  const sourceUrls = (Array.isArray(projected.sourceUrls) ? projected.sourceUrls : projected.sourceUrl ? [projected.sourceUrl] : []).filter(url => typeof url === 'string' && /^https?:\/\//i.test(url));
+  const sourceUrls = [...new Set([
+    ...(Array.isArray(projected.sourceUrls) ? projected.sourceUrls : []),
+    projected.sourceUrl
+  ].filter(url => typeof url === 'string' && /^https?:\/\//i.test(url)))];
   const candidateId = JSON.stringify([projected.type, projected.patternId, projected.context || 'general', subset, projected.sourceId]);
   return { ...projected,
     title: adaptNames(projected.title, deckStyle), theme: adaptNames(projected.theme, deckStyle),

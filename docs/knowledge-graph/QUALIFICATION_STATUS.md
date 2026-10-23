@@ -1,5 +1,15 @@
 # Knowledge graph and context qualification status
 
+## Current October 23 remediation candidate
+
+Branch: `codex/reading-context-remediation-20261023`; reviewed base: `680516f0c13054f1a86b3f60d824e46427dec803`. Reading prompt **1.4.0**, evaluator **2.5.0**. See the [current plan](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md) and [remediation ledger](REMEDIATION_LEDGER.md).
+
+**Not qualified for release.** Phases 0–4 and offline documentation are implemented and reviewed. Fresh whole-change review approved the integrated source after repairing contrast-negation and wedding-ownership memory defects, updating obsolete job test doubles and correcting a stale enrichment comment. Independent final coverage passed 648 focused tests plus 14 corrective probes. The final frozen-source root/Worker/prompt/lint/build/docs gate remains pending; development prompt-gate counts are not final qualification. Human review of 525 reference projections and 30 direct partial themes, subscription-generated readings, bounded live embeddings, provider input limits, publication and deployment remain separate and unrun for this candidate.
+
+The following October 22 record is preserved as historical evidence. Its passing tests, source hashes, failed provider attempts, 18-case comparison and usage observations do **not** qualify the October 23 implementation.
+
+## Historical October 22 candidate record
+
 Recorded: 2026-10-22
 Implementation branch: `codex/knowledge-graph-context-20261022`
 Implementation base: `7164fc21c6c9e5988c0c4ac368f843cc5cd0c1df`

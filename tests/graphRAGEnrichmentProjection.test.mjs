@@ -40,3 +40,45 @@ for (const reviewed of [false, true]) {
     if (!reviewed) assert.ok(thoth.retrievalStats.projectionRejectedReasons.missing_or_unapproved_meaning_projection > 0);
   });
 }
+
+import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
+
+function withEnrichment(t, fields) {
+  const entry = MAJOR_ARCANA_PASSAGES[17];
+  const length = entry.passages.length;
+  t.after(() => entry.passages.splice(length));
+  mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, { 17: { passages: [{
+    context: 'career', sourceId: 'synthetic-source-url-regression',
+    text: 'Patient career practice keeps a useful possibility open.',
+    archetypalText: 'Patient career practice keeps a useful possibility open.',
+    projectionReviewStatus: 'approved', ...fields
+  }] } });
+  return collectPassageCandidates({ totalMajors: 1, singleMajorNumber: 17 }, { deckStyle: 'thoth-a1' })
+    .find(row => row.sourceId === 'synthetic-source-url-regression');
+}
+
+test('merged enrichment sourceUrl survives selected-deck projection and final reference attribution', t => {
+  const candidate = withEnrichment(t, { sourceUrl: 'https://synthetic.invalid/single-source' });
+  assert.ok(candidate);
+  assert.deepEqual(candidate.sourceUrls, ['https://synthetic.invalid/single-source']);
+  const built = buildEnhancedClaudePrompt({
+    spreadInfo: { key: 'single', name: 'One card' },
+    cardsInfo: [{ card: 'The Star', number: 17, position: 'Theme', meaning: 'Hope.', orientation: 'Upright' }],
+    themes: {}, deckStyle: 'thoth-a1', graphRAGPayload: { passages: [candidate] },
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+  });
+  assert.match(built.userPrompt, /https:\/\/synthetic\.invalid\/single-source/);
+});
+
+test('merged enrichment retains distinct safe array and singular URLs without duplicate or unsafe links', t => {
+  const candidate = withEnrichment(t, {
+    sourceUrl: 'https://synthetic.invalid/singular',
+    sourceUrls: ['https://synthetic.invalid/array', 'javascript:alert(1)', null, 'https://synthetic.invalid/array', 'data:text/plain,unsafe']
+  });
+  assert.deepEqual(candidate.sourceUrls, ['https://synthetic.invalid/array', 'https://synthetic.invalid/singular']);
+});
+
+test('invalid singular source URL cannot enter projected attribution', t => {
+  const candidate = withEnrichment(t, { sourceUrl: 'javascript:alert(1)', sourceUrls: ['http://synthetic.invalid/safe'] });
+  assert.deepEqual(candidate.sourceUrls, ['http://synthetic.invalid/safe']);
+});

@@ -3,12 +3,13 @@ import { test } from 'node:test';
 import * as graph from '../functions/lib/knowledgeGraph.js';
 import { ARCHETYPAL_TRIADS } from '../src/data/knowledgeGraphData.js';
 import { buildGraphContext } from '../functions/lib/graphContext.js';
+import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 
 // Explicit authored expectations: never derive these keys from the lookup under test.
 const pairs = [
   ['death-temperance-star', [13, 14], 'Transformation actively seeking balance'],
   ['death-temperance-star', [14, 17], 'Patient integration leading to renewal'],
-  ['death-temperance-star', [13, 17], 'Dramatic shift from ending to rebirth (skipping integration)'],
+  ['death-temperance-star', [13, 17], 'Change accompanied by renewed possibility'],
   ['devil-tower-sun', [15, 16], 'Attachments meet necessary disruption'],
   ['devil-tower-sun', [16, 19], 'Upheaval clearing the path to clarity'],
   ['devil-tower-sun', [15, 19], 'From shadow to light (sudden liberation)'],
@@ -177,4 +178,26 @@ test('a missing authored pair uses a neutral matched-card statement', () => {
   } finally {
     triad.partialNarrative = saved;
   }
+});
+
+
+test('Death plus Star final highlights and provider prompts do not invent skipped integration', () => {
+  const cardsInfo = [
+    { number: 13, card: 'Death', position: 'Past', orientation: 'Upright', meaning: 'Change and transformation.' },
+    { number: 17, card: 'The Star', position: 'Present', orientation: 'Reversed', meaning: 'Reconnecting with hope.' },
+    { card: 'Two of Cups', suit: 'Cups', rankValue: 2, position: 'Future', orientation: 'Upright', meaning: 'Connection.' }
+  ];
+  const context = buildGraphContext(cardsInfo);
+  const highlight = context.narrativeHighlights.find(entry => entry.id === 'death-temperance-star');
+  const built = buildEnhancedClaudePrompt({
+    cardsInfo, spreadInfo: { key: 'threeCard', name: 'Three Card Spread' },
+    userQuestion: 'What can I reflect on?', deckStyle: 'rws-1909',
+    themes: { knowledgeGraph: context },
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false' }
+  });
+  for (const text of [highlight.text, built.userPrompt]) {
+    assert.doesNotMatch(text, /skipping integration|skipp(?:ed|ing) (?:the )?(?:slow )?integration|Temperance.?s integrative work/i);
+  }
+  assert.match(highlight.text, /Change accompanied by renewed possibility/);
+  assert.match(built.userPrompt, /Change accompanied by renewed possibility/);
 });

@@ -111,7 +111,7 @@ export const ARCHETYPAL_TRIADS = [
       '13-14': 'Transformation actively seeking balance',
       '14-17': 'Patient integration leading to renewal',
       '13-17':
-        'Dramatic shift from ending to rebirth (skipping integration)'
+        'Change accompanied by renewed possibility'
     }
   },
 

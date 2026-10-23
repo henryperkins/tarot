@@ -2,11 +2,69 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as selection from '../functions/lib/readingMemorySelection.js';
 import { resolveContextSelection } from '../functions/lib/contextDetection.js';
+import { prepareReadingContextSources } from '../functions/lib/readingContextSources.js';
+import { projectReadingContextSpans } from '../functions/lib/readingRetrievalQuery.js';
 
 const note = (id, text, extra = {}) => ({ id, text, category: 'general', scope: 'global', ...extra });
 const choose = (text, memory, options = {}) => selection.selectMemoriesForReading([note('target', memory)], {
   sources: [{ id: 'question', kind: 'question', text }], ...options
 }).memories.map(row => row.id);
+
+const contrastRetractions = [
+  ['employment', 'I work at Acme', 'I no longer work at Acme'],
+  ['wedding', 'I am planning a wedding', 'I canceled my wedding'],
+  ['wedding-owner', 'I am planning a wedding', 'Alice canceled my wedding'],
+  ['wedding-owner-spelling', 'I am planning a wedding', 'My friend cancelled my wedding'],
+  ['age', 'I am 42', 'I am not 42']
+];
+const contrastBoundaries = [' but ', ' BUT ', ' But ', '. But ', '; but ', '; But, ', '.\nBUT, '];
+
+for (const [kind, previous, retraction] of contrastRetractions) {
+  test(`projected contrast clauses preserve the ${kind} retraction at actual memory admission`, () => {
+    for (const boundary of contrastBoundaries) {
+      const text = `${previous}${boundary}${retraction}.`;
+      const sources = prepareReadingContextSources({ userQuestion: 'What should I know?', reflectionsText: text });
+      const acceptedText = sources.find(source => source.id === 'reflections').text;
+      const contextSelection = resolveContextSelection({ sources });
+      const projected = projectReadingContextSpans(sources, contextSelection).flatMap(entry => entry.spans);
+      assert.ok(projected.some(span => span.text.includes(retraction)), 'The complete original negative clause must reach admission');
+      assert.ok(!['supported', 'nonfactual'].includes(selection.checkMemoryCompatibility(previous, sources).status), text);
+      const selected = selection.selectMemoriesForReading([note('obsolete', previous, { category: 'life_context' })], { sources, contextSelection });
+      assert.deepEqual(selected.selectedIds, [], text);
+      assert.equal(sources.find(source => source.id === 'reflections').text, acceptedText);
+    }
+  });
+}
+
+test('contrast normalization preserves matching subjects and bounded uncertainty or measurement guards', () => {
+  for (const [memory, positive, unrelated] of [
+    ['I work at Acme', 'I work at Acme', 'Bob no longer works at Acme'],
+    ['I am planning a wedding', 'I am planning a wedding', 'Alice canceled her wedding'],
+    ['I am 42', 'I am 42', 'My friend is not 42']
+  ]) {
+    for (const boundary of contrastBoundaries) {
+      const sources = prepareReadingContextSources({ userQuestion: 'What should I know?', reflectionsText: `${positive}${boundary}${unrelated}.` });
+      assert.deepEqual(selection.selectMemoriesForReading([note('same-subject', memory)], { sources, contextSelection: resolveContextSelection({ sources }) }).selectedIds, ['same-subject'], `${positive}${boundary}${unrelated}`);
+    }
+    assert.deepEqual(choose(`${positive} but ${positive}.`, memory), ['target']);
+  }
+  for (const [current, memory] of [
+    ['But if I work at Acme', 'I work at Acme'],
+    ['But Alice and Bob work at Acme', 'Bob works at Acme'],
+    ['But I am 42 miles from home', 'I am 42'],
+    ['But my child is 8.5 months old', 'My child is 8'],
+    ['But I am not planning a wedding', 'I am planning a wedding']
+  ]) assert.deepEqual(choose(current, memory), [], current);
+  assert.deepEqual(choose('I work at Acme', 'but I work at Acme'), [], 'Current contrast normalization must not expand stored-memory grammar');
+});
+
+test('negated wedding cancellation is neither an ownership veto nor positive planning authority', () => {
+  for (const text of ['Alice did not cancel my wedding', "Alice didn't cancel my wedding", 'Alice never canceled my wedding']) {
+    assert.deepEqual(choose(`I am planning a wedding. But ${text}.`, 'I am planning a wedding'), ['target'], text);
+    assert.deepEqual(choose(text, 'I am planning a wedding'), [], text);
+  }
+  assert.equal(selection.checkMemoryCompatibility('I canceled my wedding', [{ id: 'reflections', text: 'I canceled my wedding.' }]).status, 'supported', 'The existing same-actor cancellation grammar remains supported');
+});
 
 const cases = [
   ['I turn 42 this year', 'I am 42 years old', true],

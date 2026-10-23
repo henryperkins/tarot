@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active
-Last reviewed: 2026-10-10
+Last reviewed: 2026-10-23
 
 The Tableu ChatGPT plugin reaches the backend through an MCP endpoint on the
 main Worker, `https://tarot.lakefrontdev.com/mcp`, protected by OAuth 2.1 that
@@ -59,6 +59,16 @@ Design: `docs/superpowers/specs/2026-09-22-chatgpt-mcp-journal-design.md`.
 | `save_reading_to_journal` | Saves a finished reading from its job, verbatim and idempotently, within 24 hours; refuses support messages and withheld readings |
 | `add_reflection_to_journal_entry` | Appends the user's exact words to the whole reading or one card; idempotent |
 
+## Reading-context parity and privacy
+
+Draw and supplied-card start tools accept optional strict `decisionPaths: { a?, b? }` (80 characters each) and boolean `useSavedMemories` (default true). Empty path strings explicitly clear, omission permits legacy decision-position fallback, and nondecision spreads ignore labels with `not_applicable`. Question/general notes limits are 2,000/5,000; supplied cards are 1–78 with per-card `userReflection` up to 2,000. Drawing tools have no pre-draw card notes. Unknown MCP input properties and malformed types are rejected.
+
+Supplied `meaning` (up to 1,000) is optional caller interpretation. The server resolves canonical identity/orientation/catalog meaning, derives differing caller text as `callerMeaning`, and forwards the original input through the job for the route to revalidate. Caller text cannot become catalog truth, classification input or factual memory authorization. Do not supply derived `callerMeaning` as a request field. Private snapshots and journal cards preserve notes and raw/effective labels with original positions; see the [input/source-use contract](../../reading-context-inputs.md) and [maintained tool contract](plugin/references/actions-contract.md).
+
+Compact MCP status returns the existing reading/support/withheld outcome and narrow `themes`, plus effective `decisionPaths` and `useSavedMemories` when present. Public cards can include derived `callerMeaning` and `userReflection`. MCP does not promise the full web API `sourceUsage`/GraphRAG object. Receipt contents, memory IDs and private run/attempt mappings never enter MCP output.
+
+Successful durable terminal acceptance atomically stores a separate private memory receipt. Cancellation before the guarded acceptance write wins; overlap after that guard cannot undo acceptance, while public success and DB dispatch wait for durable completion. Restart replay performs only the original idempotent DB update, never generation or timestamp refresh from status reads. Retry is bounded and cannot extend 24-hour MCP/one-hour web retention. Direct request persistence remains best effort. Receipt-aware or drained compatible rollback is required to preserve pending accounting; old envelope rewrites can drop run/attempt identity even if receipt bytes survive. This adds no D1 migration.
+
 ## Configuration
 
 | Name | Kind | Value |
@@ -83,7 +93,7 @@ under Task 18 of the implementation plan. Local checks do not authorize either.
 2. Run `npm run migrations:status`, then `npm run migrations:apply` to apply
    migrations `0030` and `0031` to production before merging. Verify that no
    migrations remain pending.
-3. Open the PR. CI runs the unit tests and Playwright.
+3. Run required local checks and record their exact source identity. GitHub Actions billing is permanently unavailable; Actions success is not a release prerequisite. Publish/merge only within the authorized stage.
 
 ### Merge
 
@@ -95,8 +105,7 @@ fresh release QA once, then applies pending D1 migrations, builds the frontend,
 and deploys the Worker. See [release checks](../../vision-evaluation-integrity.md)
 for the current gate and evidence requirements.
 
-Wait for the build for the merge commit to succeed and verify the active Worker
-version before merging another PR. Builds can finish out of commit order;
+Use `npm run deploy` on the subscription-authenticated host for an authorized release. Hosted Workers Builds requires its own private subscription gateway for live QA; local Claude Code login does not supply that hosted credential. Record local checks, then independently verify the active Worker version/traffic and live assets before the controlled reading lane. Consult the [ledger](../../knowledge-graph/REMEDIATION_LEDGER.md) and [qualification status](../../knowledge-graph/QUALIFICATION_STATUS.md). Builds can finish out of commit order;
 a successful newer build alone does not prove it is the version serving traffic.
 
 OAuth grants and clients use `OAUTH_KV`; registration
@@ -156,8 +165,7 @@ Never deploy from a working tree with uncommitted `wrangler.jsonc` changes.
   without relinking, as long as the grants haven't expired.
 - In allowlist mode, `npx wrangler secret delete MCP_ALLOWED_USER_IDS` has the
   same effect.
-- To roll back the code, revert the PR. Migrations 0030 and 0031 are additive;
-  leave them in place.
+- Roll back only to the recorded, reviewed compatible source/Worker identity after checking pending receipts and paired client/schema behavior (`useSavedMemories:false`, explicit label clears and catalog authority). Drain pending receipts or use a receipt-aware target; an arbitrary old build cannot promise access-accounting continuity. Migrations 0030 and 0031 are additive; leave them in place. See the [release/rollback checklist](../../reading-context-inputs.md#compatibility-release-and-rollback-checklist).
 
 ## Local development
 

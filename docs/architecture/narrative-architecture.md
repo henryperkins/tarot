@@ -2,15 +2,35 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-23
 
 ## Source Precedence Contract
 
 Spread understanding follows a strict precedence order so enrichment never overrides drawn-card truth:
 
-`spread/cards > validated matched vision > question/reflections/focus areas > stored memory > GraphRAG > ephemeris`
+`spread/cards > validated matched vision > current question/notes/card reflections/effective paths > saved interests and compatible memories > GraphRAG > ephemeris`
 
-Guardrail: Enrichment layers may add nuance, but they must not replace drawn card identity, card count, or position semantics. Stored memory is a lower-precedence context source than the current question, reflections, and focus areas.
+Guardrail: Enrichment layers may add nuance, but they must not replace drawn card identity, card count, or position semantics. Current inputs override saved interests and stored memory; saved focus cannot authorize a personal fact. Catalog meaning is resolved by identity/orientation; caller interpretation is separate untrusted context.
+
+
+The implemented reading-context sequence is:
+
+```mermaid
+flowchart LR
+  A[Prepare all accepted current sources] --> B[One private server selection]
+  B --> C[Analysis and matched patterns]
+  C --> D[Pattern then deck projection]
+  D --> E[Rank all eligible variants]
+  E --> F[Provider-specific final budgeted input]
+  F --> G[Accepted attempt and final source usage]
+  G --> H[Direct best-effort access write]
+  G --> I[Durable terminal result plus private receipt]
+  I --> J[Persistence-only receipt replay]
+```
+
+Classification precedes the bounded query projection. Query/excerpt coverage, selected candidates and final payload inclusion are separate. Candidate memories are conservatively selected once (100 candidates, three selected) and complete retained blocks determine accepted-attempt inclusion. Each provider attempt owns its metadata; rejected attempts and canned safety replacement do not lend source-use claims to accepted text. Public usage proves inclusion, never attention or reliance.
+
+Jobs atomically write terminal state and a separate private `readingMemoryReceipt` key. Cancellation before the acceptance guard wins; overlapping cancellation after that guard cannot undo acceptance. Public success and DB stamping follow durable completion. Restart replay validates the accepted identities and performs only the original idempotent DB update, never generation. Direct access persistence can be lost on process termination. Private memory IDs/run/attempt mappings remain outside metadata, events and snapshots. Older envelope rewrites can remove replay identity even if receipt bytes survive; accounting continuity requires receipt-aware or drained compatible rollback. See the [reading input/source-use contract and release checklist](../reading-context-inputs.md), [ledger](../knowledge-graph/REMEDIATION_LEDGER.md) and [qualification status](../knowledge-graph/QUALIFICATION_STATUS.md).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -218,6 +238,8 @@ calls `buildReadingWithReasoning()` around the selected spread builder; supporte
 builders use the reasoning for intent-aware openings, connectors, emphasis, and
 synthesis. LLM backends continue to use the same spread analysis and prompt path,
 with the reasoning object available as metadata.
+
+Normal reasoning local composition does not render direct pattern highlights, GraphRAG references, memories or caller interpretations; its usage reports `not_used_by_backend`. Lower-level no-reasoning spread builders may render safe pattern synthesis, and count only actual rendered inclusion. Explicit debug reference appendices do not establish normal reading use. UI/journal references use the accepted attempt's final retained indices/projected identities; the context-independent five-passage retrieval remains a preview. Summary-only references count as zero full passages; opaque unverifiable legacy references are omitted and unknown legacy counts stay unknown.
 
 ## Key Components
 

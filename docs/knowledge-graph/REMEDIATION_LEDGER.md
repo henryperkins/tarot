@@ -24,13 +24,13 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
 | 3 | 5–6 | Complete | Full-set bounded ranking and compatible frozen memory selection independently reviewed. |
 | 4 | 7–8 | Complete | Final provider retention and durable completion receipt independently reviewed. |
-| 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
+| 5 deterministic | 9 | Active, ready for final gate | Fresh whole-change review approved after four corrections. Final frozen-source qualification is next. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
-| 6 | 11 | Separate | Documentation can be prepared; integration/release actions require their own authorization. |
+| 6 | 11 | Offline documentation complete; release separate | Prompt 1.4.0 and maintained contracts reviewed. Publication/deployment/live verification remain unrun. |
 
 ## Requirement-to-test ownership
 
-All entries below remain open until their task's final-source checks and review pass. Candidate tests are reusable evidence targets, not proof that this specification is already satisfied.
+This table preserves the baseline coverage gaps and their task ownership. The task records below document their implementation and independent review; the final whole-source qualification gate remains separate. Historical candidate tests alone are not current qualification.
 
 | Requirement | Owner tasks | Reused regression coverage | Missing acceptance coverage / status |
 | --- | --- | --- | --- |
@@ -206,4 +206,19 @@ Final parsed blocks determine reference and memory inclusion for each provider a
 
 ## Final documentation inspection follow-up
 
-The authored Death–Star partial theme still said “skipping integration” even after its wrapper became conditional. That phrase can imply an absent stage was bypassed. A narrow graph-data and final-prompt regression fix is assigned to the offline documentation task before source freeze; all other authored pair meanings and the separate pending human editorial lane remain intact.
+The authored Death–Star partial theme still said “skipping integration” even after its wrapper became conditional. That phrase can imply an absent stage was bypassed. The reviewed replacement is “Change accompanied by renewed possibility,” with a final-highlight/provider-prompt regression. Independent partial-triad suite: **41 passed**; implementer overlapping partial/pipeline suite: **88 passed**. All other authored pair meanings and the separate pending human editorial lane remain intact. Frozen historical fixture bytes are unchanged; a sixth typed migration records this new expectation in the v2 fixture.
+
+## Offline Task 11 documentation/version preparation
+
+Maintained runtime, input, API/MCP, provider, source-usage and release/rollback documentation is reviewed. Reading prompt version is **1.4.0**, locally unused before this change; the full historical 1.3.0 entry and evaluator 2.5.0 are preserved. A draft OpenAPI mismatch was corrected before freeze: the direct API still requires a nonempty legacy `meaning` field and exact `Upright`/`Reversed`; MCP's optional meaning/lowercase adapter is a distinct contract. Actual schema probes and all 13 owned hashes were independently checked. The implementer validated 238 maintained Markdown files, 13 OpenAPI schemas and 27 local references. These checks do not close the final qualification or release lanes.
+
+## Fresh whole-change review: resolved integration fixes
+
+- **W1, P1, resolved:** A leading contrast conjunction on a projected current clause hid explicit employment, wedding and age retractions. Actual direct/job probes reproduced obsolete final prompt inclusion and timestamp stamping. Current-claim parsing now normalizes the preserved contrast boundary without changing source/query text, topic precedence or stored-memory grammar. Full-path regressions prevent retained obsolete blocks and access writes.
+- **W2, test integration, resolved:** Older decision-context and safety-delivery tests manually constructed jobs without transactional storage or active-run identity. They now use the existing transaction-aware helper and real lifecycle while retaining original behavior assertions. This was a fixture incompatibility, not a demonstrated runtime defect.
+- **W3, documentation, resolved:** The old enrichment-merge comment now reflects full-variant relevance ranking; the merge implementation is preserved.
+- **W4, P2, resolved:** `Alice canceled my wedding` was incorrectly attributed only to actor Alice, allowing the user's obsolete wedding memory. A bounded current-source veto now recognizes the explicit user-owned event without creating positive factual authority or general coreference. Negated-cancellation, unrelated-event and existing same-actor controls remain covered.
+
+Corrective round 1: **434 implementer tests passed**. Fresh independent whole-change review approved all 133 changed/new files after **648 focused tests** and **14 saved corrective probes** passed, including eight actual direct/job cases. No actionable review finding remains open. Earlier failures are preserved. The reviewed file-map SHA-256 is `ba7a8074a2ecb13f8f49075903ddbe3655fbb26af0405dd8c74edc929685421b`; subsequent parent edits to this ledger and qualification status record the verdict without changing executable/test bytes.
+
+The expanded development gate passed 849 fixtures, 2,523 provider-target builds, 525 projections and 21 actual cap selections before the corrective review. It must now run against the committed final source with the root/Worker/lint/build/docs gates; those earlier results are not final-source qualification.

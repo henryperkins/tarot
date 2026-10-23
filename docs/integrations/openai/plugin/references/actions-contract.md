@@ -1,6 +1,6 @@
 # Tableu tools contract
 
-Updated 2026-10-09 for instructions 0.29.0 (upload packages 1.0.2 and 1.0.3), the public release of the Tableu app in ChatGPT. Live tool schemas and responses take precedence. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
+Maintained source updated 2026-10-23 for reading-context parity. Published upload packages retain their frozen historical contracts; this edit does not publish or install a new package. Live tool schemas and responses take precedence. Source inspection and unit tests do not establish successful live OAuth or ChatGPT behavior.
 
 The attached Tableu app supplies these tools. Only invoke a tool actually exposed in the current conversation. Each person connects their own Tableu account.
 
@@ -14,9 +14,12 @@ There are no journal read, list, search, edit, delete, export, sharing, voice, i
 
 | Tool | Required input | Optional input |
 |---|---|---|
-| `draw_tarot_reading` | `spreadInfo { name, key }` | `userQuestion`, `reflectionsText`, `deckStyle`, `allowReversals`, `seed`, `personalization`, `reversalFrameworkOverride` |
-| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation }` | `userQuestion`, `reflectionsText`, `deckStyle`, `personalization`, `reversalFrameworkOverride`; each card can include `meaning`, `number`, `suit`, `rank`, `rankValue` |
+| `draw_tarot_reading` | `spreadInfo { name, key }` | `userQuestion`, `reflectionsText`, `deckStyle`, `allowReversals`, `seed`, `personalization`, `reversalFrameworkOverride`, `decisionPaths`, `useSavedMemories` |
+| `start_tarot_reading` | `spreadInfo { name, key }`, `cardsInfo[] { position, card, orientation }` | `userQuestion`, `reflectionsText`, `deckStyle`, `personalization`, `reversalFrameworkOverride`, `decisionPaths`, `useSavedMemories`; each card can include `meaning`, `userReflection`, `number`, `suit`, `rank`, `rankValue` |
 
+- Question/general notes limits are 2,000/5,000 characters; supplied cards are 1–78 and each `userReflection` is at most 2,000. Supplied `meaning` is the user's interpretation (at most 1,000), not canonical authority. Omit it when none was provided; the server resolves orientation-aware catalog meaning and derives a differing interpretation separately as `callerMeaning`. Never send derived `callerMeaning` as input.
+- `decisionPaths` is a strict object with optional `a`/`b` strings of at most 80 characters. Empty string explicitly clears; omission permits legacy decision-position fallback. Null, nonstrings and unknown keys are rejected. Other spreads ignore labels with `not_applicable`; original positions remain unchanged.
+- `useSavedMemories` is an optional boolean, default true. Explicit false bypasses loading, selection and initial-reading access writes for this reading; it does not delete stored memories or change follow-up capture.
 - Spread keys: `single`, `threeCard`, `fiveCard`, `decision`, `relationship`, `celtic`.
 - Deck keys: `rws-1909`, `thoth-a1`, `marseille-classic`.
 - `personalization` supports `displayName`, `focusAreas[]` (at most 12 nonempty strings, each at most 40 characters), `preferredSpreadDepth` (short/standard/deep), `readingTone` (gentle/balanced/blunt), `spiritualFrame` (psychological/spiritual/mixed/playful), and `tarotExperience` (newbie/intermediate/experienced). Unknown properties are rejected. Use known preferences.
@@ -34,7 +37,7 @@ Both creation tools return `jobId` and `status: running`. Draw also returns `car
 | `get_tarot_reading_status` | `jobId` | One status check; use wait when waiting for completion |
 | `cancel_tarot_reading` | `jobId` | `jobId`, `status: cancelled / complete / error` |
 
-Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, and nullable `spreadInfo`. Optional fields are `reading`, `supportMessage`, `error`, `seed`, `timedOut`, `gateBlocked`, `gateReason` (`crisis_gate` or `withheld`), and `themes`. themes is limited to dominantSuit, dominantElement, majorCount, reversalCount, and reversalFramework. Returned card fields are position, card, orientation (Upright/Reversed), meaning, number, suit, rank, and rankValue; meaning and identity metadata can be null. Preserve actual values and do not fill absent result fields by invention.
+Status results contain `jobId`, `status` (running/complete/error), `cardsInfo`, and nullable `spreadInfo`. Optional fields are `reading`, `supportMessage`, `error`, `seed`, `timedOut`, `gateBlocked`, `gateReason` (`crisis_gate` or `withheld`), and `themes`, plus effective `decisionPaths` and `useSavedMemories` when present. The compact result intentionally omits the web API’s full `sourceUsage`/GraphRAG diagnostics and private receipt/run/attempt/memory identities. themes is limited to dominantSuit, dominantElement, majorCount, reversalCount, and reversalFramework. Returned card fields are position, card, orientation (Upright/Reversed), meaning, number, suit, rank, and rankValue, plus optional derived `callerMeaning` and `userReflection`; meaning is canonical and meaning/identity metadata can be null. Preserve actual values and do not fill absent result fields by invention.
 
 - Running, including `timedOut: true`: wait again on the same job. A wait timeout is not job failure and never authorizes a second reading.
 - Complete with a nonempty reading: present the returned narrative. A reading that Tableu vetted after a failed first draft comes back as an ordinary reading.
@@ -51,7 +54,11 @@ Require the user's explicit save request or an unambiguous yes immediately after
 
 Required input: `{ jobId, context? }`. The server copies the completed reading from the connected account's own job; the model never supplies the narrative, cards, or personalization. Context is love/career/self/spiritual/wellbeing/decision/general; include it only when clearly supported.
 
-A ChatGPT job is retained for 24 hours after finishing. After expiry, report the returned rejection and stop: there is no payload-mode or expired-job fallback. Empty input, reading-text payloads, another account's job, unfinished jobs, failed or empty results, support messages, and withheld readings cannot be saved. Never manufacture an identifier or recreate a reading to bypass these checks. A successful quality_gate_streaming replacement is an ordinary saveable reading.
+Private snapshots preserve general notes, raw/effective decision labels and memory reuse. Journal saves retain notes in the existing reflections column, per-card notes/caller interpretations in stored cards and decision labels in card `decisionPath` metadata, preserving original positions.
+
+Memory access is recorded only for complete retained blocks of a successfully accepted result. Durable receipt replay persists the original timestamp without generating another reading or refreshing retention; status/wait/save reads do not establish new inclusion. Public counts on other surfaces establish inclusion, not model reliance. Receipt-aware or drained compatible rollback is required for pending access accounting because old envelope writes can remove replay identities. See the [maintained input contract](../../../../reading-context-inputs.md).
+
+A ChatGPT job is retained for 24 hours after finishing (web jobs: one hour). After expiry, report the returned rejection and stop: there is no payload-mode or expired-job fallback. Empty input, reading-text payloads, another account's job, unfinished jobs, failed or empty results, support messages, and withheld readings cannot be saved. Never manufacture an identifier or recreate a reading to bypass these checks. A successful quality_gate_streaming replacement is an ordinary saveable reading.
 
 Successful responses contain `entry { id }`, `deduplicated`, `outcome: saved / already_saved`, and optional boolean `seedShared`. When saving isn't included with the account, the result says so; relay it without naming plans or suggesting an upgrade.
 - Saved: a new entry was created.

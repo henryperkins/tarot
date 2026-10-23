@@ -120,6 +120,57 @@ function routeDatabase() {
 }
 const routeFixture = { spreadInfo: { name: 'One-Card Insight', key: 'single' }, cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }], userQuestion: 'How can I approach a career change?', reflectionsText: '' };
 
+for (const [kind, previous, retraction] of [
+  ['employment', 'I work at Acme', 'I no longer work at Acme'],
+  ['wedding', 'I am planning a wedding', 'I canceled my wedding'],
+  ['wedding-owner', 'I am planning a wedding', 'Alice canceled my wedding'],
+  ['age', 'I am 42', 'I am not 42']
+]) {
+  for (const transport of ['direct', 'job']) {
+    test(`${kind} contrast retraction reaches neither final ${transport} memory blocks nor private access accounting`, async t => {
+      const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+      const db = routeDatabase();
+      t.after(() => db.sqlite.close());
+      insert(db, 'obsolete-contrast-note', { text: previous });
+      for (const name of ['log', 'warn']) t.mock.method(console, name, () => {});
+      let finalPrompt = '';
+      t.mock.method(globalThis, 'fetch', async (_url, init) => {
+        finalPrompt = JSON.parse(init.body).messages.at(-1).content;
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites exploration. Your choices shape outcomes.' } }] });
+      });
+      const env = { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+      const payload = { ...routeFixture, userQuestion: 'What should I know?', reflectionsText: `${previous} but ${retraction}.` };
+      let retained;
+      const receipts = [];
+      if (transport === 'direct') {
+        const tasks = [];
+        const response = await onRequestPost({ env, principal: { userId: 'owner' }, onReadingMemoryUsage: usage => receipts.push(usage), waitUntil: task => tasks.push(task), request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+        const body = await response.json();
+        assert.equal(response.status, 200, JSON.stringify(body));
+        await Promise.all(tasks);
+        retained = body.sourceUsage.memories.memoriesUsedInPrompt;
+      } else {
+        const state = createReadingJobState();
+        const job = new ReadingJob(state, env, { runReading: context => onRequestPost({ ...context, onReadingMemoryUsage: usage => { receipts.push(usage); context.onReadingMemoryUsage(usage); } }) });
+        await job.initialized;
+        t.after(() => job.closeSubscribers());
+        Object.assign(job.job, { jobId: 'contrast-job', token: 'contrast-token', status: 'running', principalUserId: 'owner' });
+        job.runId = 'contrast-run';
+        await job.persistState();
+        await job.runJob(payload, {}, { userId: 'owner' });
+        while (state.pending.size) await Promise.all([...state.pending]);
+        assert.equal(job.job.status, 'complete', job.job.error);
+        retained = job.job.meta.sourceUsage.memories.memoriesUsedInPrompt;
+      }
+      assert.equal(finalPrompt.includes('<reading_memory slot='), false, 'An obsolete memory must not enter final provider input');
+      assert.equal(retained, 0);
+      assert.deepEqual(receipts, [], 'No private accepted-memory receipt is produced');
+      assert.equal(db.calls.filter(call => call.write && /UPDATE user_memories/.test(call.sql)).length, 0);
+      assert.equal(db.sqlite.prepare('SELECT last_accessed_at FROM user_memories').get().last_accessed_at, null);
+    });
+  }
+}
+
 test('actual reading route stamps selected retained IDs only after final acceptance', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' }); insert(db, 'unrelated', { text: 'Enjoys woodland hiking' }); insert(db, 'private-detail', { text: 'I am 42 years old' });

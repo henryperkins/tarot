@@ -2199,9 +2199,9 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
 /**
  * Merge reviewed enrichment passages into the Major Arcana table.
  *
- * Enriched passages always carry a context more specific than "general", so
- * they are selected only for a matching reading context and never displace the
- * hand-written canon passage for the same card.
+ * Approved context-specific variants join the eligible registry alongside
+ * preserved hand-written entries. Selection ranks their projected relevance;
+ * matching context breaks score ties rather than guaranteeing canon priority.
  */
 export function mergeEnrichedPassages(base, enriched) {
     for (const [cardNumber, entry] of Object.entries(enriched || {})) {

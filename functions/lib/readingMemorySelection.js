@@ -178,11 +178,18 @@ function nonfactualKind(text) {
   return words.every(word => THEME_WORDS.has(word) || ['a', 'an', 'the', 'and', 'on', 'in', 'of', 'for', 'with'].includes(word)) ? 'theme' : null;
 }
 
-function memoryClauses(text) {
+function memoryClauses(text, { currentSource = false } = {}) {
+  const connector = currentSource ? '[Aa][Nn][Dd]|[Bb][Uu][Tt]' : 'and|but';
+  const separator = new RegExp(String.raw`\s+(?:${connector})\s+(?=(?:[Ii]\b|[Mm]y\b|[\p{Lu}][\p{L}'-]*\s+(?:is|turns?|works?)\b|(?:am\s+)?considering\b))|\s*&\s*(?=[Ii]\b|[Mm]y\b)|,(?!\d)\s*(?=[\p{Lu}][\p{L}'-]*\s+(?:is|turns?)\b)`, 'u');
   return text.normalize('NFKC').replace(/[’‘]/g, "'")
     .split(/[;!\n]+|(?<!\d)\.|\.(?!\d)|(?<=[?？])/)
     .flatMap(clause => {
-      const parts = clause.split(/\s+(?:and|but)\s+(?=(?:[Ii]\b|[Mm]y\b|[\p{Lu}][\p{L}'-]*\s+(?:is|turns?|works?)\b|(?:am\s+)?considering\b))|\s*&\s*(?=[Ii]\b|[Mm]y\b)|,(?!\d)\s*(?=[\p{Lu}][\p{L}'-]*\s+(?:is|turns?)\b)/u);
+      // Query projection preserves original contrast wording/offsets. Only at
+      // current-claim parsing may its leading connector be removed; the full
+      // subject, predicate and negative qualifier remain intact. Stored-note
+      // grammar and source/query text are unchanged.
+      const currentClause = currentSource ? clause.trim().replace(/^but(?:\s*,)?\s+/i, '') : clause;
+      const parts = currentClause.split(separator);
       const complete = [];
       let pending = parts.shift() || '';
       for (const part of parts) {
@@ -215,9 +222,16 @@ function eventClaim(text, displayName) {
 function unresolvedRetraction(text, displayName) {
   const employment = new RegExp(String.raw`^(${SUBJECT})\s+(?:no\s+longer|do(?:es)?\s+not)\s+works?\s+there$`, 'u').exec(text);
   const canceled = new RegExp(String.raw`^(${SUBJECT})\s+cancel(?:l)?ed\s+it$`, 'u').exec(text);
-  const match = employment || canceled;
+  const canceledUserWedding = new RegExp(String.raw`^(${SUBJECT})\s+cancel(?:l)?ed\s+my\s+wedding$`, 'u').exec(text);
+  const match = employment || canceled || canceledUserWedding;
   if (!match) return null;
   const subjectKey = ownerFromPrefix(match[1], { displayName: normalize(sanitizeDisplayName(displayName) || ''), source: 'memory', fragment: text, kind: 'event' });
+  // An explicit "my wedding" identifies the user's event even when someone
+  // else canceled it. This can only veto; it cannot authorize a stored claim
+  // that the user was the cancellation actor. Self cancellations already have
+  // exact event evidence and need no additional veto. Negated/unknown
+  // cancellation predicates do not match this bounded past-tense grammar.
+  if (canceledUserWedding) return subjectKey && subjectKey !== 'self' ? { kind: 'wedding', subjectKey: 'self' } : null;
   // This records a veto, never an employer or an event resolved from a pronoun.
   return subjectKey ? { kind: employment ? 'employment' : 'unspecified_event', subjectKey } : null;
 }
@@ -278,7 +292,7 @@ export function checkMemoryCompatibility(memory, currentSources = [], { displayN
   const currentVetoes = roleVetoes(current);
   const memoryDetails = extractPersonalDetailClaims(text, { displayName, source: 'memory' });
   if (memoryDetails.ambiguous) return reject('ambiguous', 'unmatched_detail');
-  const currentClauses = current.flatMap(source => memoryClauses(source.text).map(text => ({ ...source, text })));
+  const currentClauses = current.flatMap(source => memoryClauses(source.text, { currentSource: true }).map(text => ({ ...source, text })));
   const evidence = currentClauses.map(source => currentDetailEvidence(source, displayName));
   const detailEvidence = evidence.flatMap(result => result.claims);
   const ambiguousDetails = evidence.flatMap(result => result.ambiguousClaims);

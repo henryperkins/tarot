@@ -2,7 +2,7 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-10-17
+Last reviewed: 2026-10-23
 
 This guide maps the selected providers by capability. The integrated master candidate combines native OpenAI Responses and Azure retirement with explicit ElevenLabs/Deepgram narration, owner subscription routing, gated visual cues and saved visual recovery. Defaults come from source and [wrangler.jsonc](../wrangler.jsonc); deployment overrides, credential availability and live provider health require separate verification. Configuration entries below are names, never secret values.
 
@@ -120,13 +120,19 @@ Each hosted model below uses Cloudflare's `AI` binding. The model author and the
 | Async reading grader | `@cf/zai-org/glm-5.3`, effort `low` | `EVAL_ENABLED`, `EVAL_MODEL`, `EVAL_REASONING_EFFORT`, `EVAL_TIMEOUT_MS`; committed `EVAL_ENABLED=true` | [evaluation.js](../functions/lib/evaluation.js) |
 | Synchronous quality gate | `@cf/zai-org/glm-5.3-flash`, effort `low` | `EVAL_GATE_ENABLED`, `EVAL_GATE_MODEL`, `EVAL_GATE_REASONING_EFFORT`, `EVAL_GATE_TIMEOUT_MS`, `EVAL_GATE_FAILURE_MODE`; committed gate flag is `false` | [evaluation.js](../functions/lib/evaluation.js) |
 | Coach action extraction | `@cf/zai-org/glm-5.3-flash`, effort `low` | Fixed in code; background extraction when journal entries are saved | [coachSuggestion.js](../functions/lib/coachSuggestion.js), [journalEntries.js](../functions/lib/journalEntries.js) |
-| GraphRAG embeddings | `@cf/baai/bge-m3` | `GRAPHRAG_ENABLED`, `ENABLE_SEMANTIC_SCORING`; local pseudo-embedding / keyword scoring fallback when model embeddings are unavailable | [embeddings.js](../functions/lib/embeddings.js), [graphRAG.js](../functions/lib/graphRAG.js) |
+| GraphRAG embeddings | `@cf/baai/bge-m3` | `GRAPHRAG_ENABLED`, `ENABLE_SEMANTIC_SCORING`; real whole-set semantic scoring or comparable whole-set keyword fallback; explicit semantic-off makes zero embedding calls | [embeddings.js](../functions/lib/embeddings.js), [graphRAG.js](../functions/lib/graphRAG.js) |
 | Coach / journal similarity | `@cf/baai/bge-m3` | Separate embedding implementation with its own timeouts/provenance; journal search yields no matches when unavailable | [coachSuggestion.js](../functions/lib/coachSuggestion.js), [journalSearch.js](../functions/lib/journalSearch.js) |
 | Server vision | `@cf/meta/llama-3.2-11b-vision-instruct` | Optional `llama-vision`, or `hybrid` with CLIP, selected by server `VISION_BACKEND_DEFAULT`; requires `AI` | [llamaVision.js](../functions/lib/llamaVision.js), [visionBackends.js](../shared/vision/visionBackends.js) |
 | Reader voice without ElevenLabs key | `@cf/deepgram/aura-2-en`, speaker `cora` | Configuration selection described in [voice and generated media](#voice-and-generated-media) | [tts.js](../functions/api/tts.js) |
 | Story illustration | `@cf/black-forest-labs/flux-2-dev` | Fixed model; `FEATURE_STORY_ART=true` in committed config; no alternate provider chain | [generate-story-art.js](../functions/api/generate-story-art.js) |
 | Independent visual cues | Explicit `VISUAL_CUE_MODEL`; no default model | Requires `VISUAL_CUE_PROVIDER=workers-ai`, `AI.run` and a model; independent of text generation | See [visual observer](#independent-visual-observer) |
 | Evaluator qualification candidate | `@cf/cloudflare/clef-flash` versus `@cf/zai-org/glm-5.3-flash` | Operator-only comparison; dry-run by default, explicit `--live` uses `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_AUTH_TOKEN`. The comparison result does not automatically qualify or install the candidate | [clefQualification.js](../scripts/evaluation/lib/clefQualification.js), [qualifyEvaluators.js](../scripts/evaluation/qualifyEvaluators.js) |
+
+GraphRAG resolves graph-disabled before quality-filtering bypass, semantic, keyword and priority. Disabled defaults and explicit semantic-off remain effective. Semantic scores use real, finite, nonzero dimension-compatible query/candidate vectors only, blending `0.3 * keyword + 0.7 * cosine`. Any required vector failure falls back across the complete eligible set; helper pseudo-vectors cannot qualify as semantic. Projection/provenance checks precede scoring and also apply under bypass.
+
+The compiled registry budget is 1,000 passages; overflow embeds no subset and records `embeddings-registry-overflow` with whole-set keyword fallback. A single retrieval work deadline is capped at 3,000 ms, with batches of at most 100 texts and at most two concurrent batches. Cancellation/timeout stops queued work and late results cannot populate cache. The unchanged cache has 100 entries; partial reuse is not a warm full corpus. Numeric diagnostics distinguish requested mode, actual scoring method, discovery/projection/scoring/selection, cache/batches and elapsed time. These deterministic mechanics do not establish real embedding relevance or live p95 performance. Actual production flags and the AI binding require live observation, independently of committed settings. See [runtime graph reference](knowledge-graph/README.md) and [qualification status](knowledge-graph/QUALIFICATION_STATUS.md).
+
+Modal full readings retain the existing uncapped application policy. This is not evidence of deployed serving window, tokenizer, output reserve or absence of truncation. Serving configuration and bounded accepted-input/overflow probes remain a separate qualification lane. Any resulting policy change invalidates affected final-source qualification. Claude/OpenAI retain existing soft budgets, opt-in slimming and estimated hard caps of 25,000/20,000 tokens.
 
 `EVAL_GATEWAY_ID` optionally attaches grading feedback to Cloudflare AI Gateway logs. It does not replace the grading model or select the narrative provider. GraphRAG content comes from the app's authored [knowledgeBase.js](../functions/lib/knowledgeBase.js), with optional semantic ranking; it is not an external search provider.
 

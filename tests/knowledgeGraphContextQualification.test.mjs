@@ -8,7 +8,7 @@ const sample = {
   userQuestion: 'Which path deserves attention?', reflectionsText: '',
   cards: ['Two of Pentacles', 'Queen of Wands', 'The Chariot', 'Two of Swords', 'Judgement'].map((name, index) => ({ name, orientation: 'Upright', ...(index === 4 ? { userReflection: 'A career job interview needs preparation.' } : {}) })),
   decisionPaths: { a: 'take the library job', b: 'continue the studio contract' },
-  memories: [{ id: 'synthetic-career', scope: 'global', category: 'life_context', text: 'Rehearsing a career job interview helps me prepare.' }, { id: 'synthetic-off-topic', scope: 'global', category: 'general', text: 'I collect shells along the coast.' }]
+  memories: [{ id: 'synthetic-career', scope: 'global', category: 'life_context', text: 'Career guidance' }, { id: 'synthetic-off-topic', scope: 'global', category: 'general', text: 'I collect shells along the coast.' }]
 };
 
 test('narrative sample plumbing exercises actual current card/path/memory inputs and final retention', async () => {
@@ -36,13 +36,25 @@ test('sample plumbing supports valid custom spreads without changing accepted in
 
 test('deterministic assembly gate exercises the frozen corpus and actual provider/fallback boundaries', async () => {
   const { spawnSync } = await import('node:child_process');
-  const execution = spawnSync(process.execPath, ['scripts/evaluation/verifyNarrativePromptAssembly.js', '--json'], { cwd: new URL('..', import.meta.url), encoding: 'utf8', timeout: 60000 });
+  const execution = spawnSync(process.execPath, ['scripts/evaluation/verifyNarrativePromptAssembly.js', '--json'], { cwd: new URL('..', import.meta.url), encoding: 'utf8', timeout: 180000 });
   assert.equal(execution.status, 0, execution.stderr || execution.stdout);
   const result = JSON.parse(execution.stdout);
   assert.equal(result.partialPairsChecked, 30);
   assert.equal(result.completeTriadsChecked, 10);
   assert.equal(result.pairedCasesChecked, 18);
-  assert.ok(result.casesChecked >= 70);
+  const { loadQualificationManifest } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  const manifest = loadQualificationManifest();
+  assert.equal(result.casesChecked, manifest.caseOrder.length);
+  assert.equal(result.frozenCasesChecked, 73);
+  assert.equal(result.matrixPartialCasesChecked, 720);
+  assert.equal(result.matrixCompleteCasesChecked, 30);
+  assert.equal(result.deckProjectionsChecked, (result.canonPassagesChecked + result.partialProjectionRowsChecked) * 3);
+  assert.equal(result.partialProjectionRowsChecked, 30);
+  assert.equal(result.passageCapsChecked, 21);
+  assert.equal(result.providerBuildsChecked, (73 + 750 + manifest.v2.cases.filter(row => row.executor === 'prompt').length) * 3);
+  assert.deepEqual(result.executedCaseIds, manifest.caseOrder);
+  assert.equal(result.developmentFiltered, false);
+  assert.equal(result.manifest.sourceIdentity, null);
   assert.equal(result.pairedFixtureHash, 'ae2ab4ee406b7b085d6e6f9887b32c7159bb9bf9522b1e33b7f040106acc1c95');
   assert.deepEqual(result.providerBudgets, { claude: 25000, openai: 20000, modal: null });
   assert.equal(result.boundaries['summary-only'].mode, 'summary');
@@ -68,4 +80,73 @@ test('qualification rejects an incorrect authored expectation instead of accepti
   const corpus = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-cases.json', import.meta.url), 'utf8'));
   corpus.cases[0].expected.partialNarrative = 'An unsupported invented narrative';
   await assert.rejects(runDeterministicQualification({ corpus }), /partial-death-temperance-star-13-14/);
+});
+
+test('sample adapter preserves authoritative selection, explicit memory opt-out and caller interpretation', async () => {
+  const payload = await samples.prepareNarrativeSamplePayload({
+    ...sample, useSavedMemories: false,
+    cards: sample.cards.map((card, index) => index ? card : { ...card, meaning: 'My partner is 42 and needs health guidance.' })
+  }, { env: { GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false' } });
+  assert.equal(payload.useSavedMemories, false);
+  assert.deepEqual(payload.memories, []);
+  assert.equal(payload.memorySelection.candidateCount, 0);
+  assert.equal(payload.contextSelection.context, 'career');
+  assert.equal(payload.analysis.graphRAGPayload.retrievalSummary.contextSelection.context, payload.contextSelection.context);
+  assert.equal(payload.cardsInfo[0].callerMeaning, 'My partner is 42 and needs health guidance.');
+  assert.notEqual(payload.cardsInfo[0].meaning, payload.cardsInfo[0].callerMeaning);
+  assert.ok(!payload.contextSelection.selectedSourceIds.some(id => id.startsWith('interpretation-')));
+});
+
+test('v2 manifest expands stable complete matrix without modifying frozen evidence', async () => {
+  const gate = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  assert.equal(typeof gate.loadQualificationManifest, 'function');
+  const manifest = gate.loadQualificationManifest();
+  assert.equal(manifest.frozen.rawHash, '578e615034eaef0e188ae04986cfc9834b62c80943dae089873582cb0cd2ee29');
+  assert.equal(manifest.frozen.caseIds.length, 73);
+  assert.equal(manifest.matrix.partial.length, 720);
+  assert.equal(manifest.matrix.complete.length, 30);
+  assert.equal(manifest.caps.length, 21);
+  assert.equal(new Set(manifest.caseOrder).size, manifest.caseOrder.length);
+  assert.equal(manifest.sourceIdentity, null, 'infrastructure does not freeze an unqualified source commit');
+});
+
+
+test('v2 manifest protects every pair permutation and approved expectation migration', async () => {
+  const { loadQualificationManifest } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  const manifest = loadQualificationManifest();
+  assert.equal(manifest.v2.partialMatrix.seeds.length, 30);
+  const migrations = Object.values(manifest.v2.expectationMigrations);
+  assert.equal(migrations.length, 6);
+  const memoryMigrations = migrations.filter(migration => migration.type === 'memory-admission');
+  assert.equal(memoryMigrations.length, 5);
+  for (const migration of memoryMigrations) {
+    assert.equal(migration.oldExpected.memoriesSelected, 1);
+    assert.equal(migration.newExpected.memoriesSelected, 0);
+    assert.deepEqual(migration.newExpected.memoryIds, []);
+    assert.ok(migration.reason.length > 30);
+  }
+  const partialMigrations = migrations.filter(migration => migration.type === 'partial-pattern-meaning');
+  assert.equal(partialMigrations.length, 1);
+  const partial = manifest.v2.expectationMigrations['partial-death-temperance-star-13-17'];
+  assert.equal(partial.oldExpected.partialNarrative, 'Dramatic shift from ending to rebirth (skipping integration)');
+  assert.equal(partial.newExpected.partialNarrative, 'Change accompanied by renewed possibility');
+  assert.ok(partial.reason.length > 30);
+  assert.equal(manifest.v2.partialMatrix.seeds.find(seed => seed.id === 'partial-death-temperance-star-13-17').expected.partialNarrative, 'Change accompanied by renewed possibility');
+  const altered = structuredClone(manifest.v2);
+  altered.partialMatrix.orientations.pop();
+  assert.throws(() => loadQualificationManifest({ v2: altered }));
+});
+
+test('fixed output probes expose detected allowances and deterministic editorial blind spots', async () => {
+  const { probeOutputQuality } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  const probes = await probeOutputQuality();
+  assert.equal(probes.length, 7);
+  const byId = Object.fromEntries(probes.map(row => [row.id, row]));
+  assert.deepEqual(byId['undrawn-within-allowance'].hallucinations, ['The Moon']);
+  assert.equal(byId['undrawn-within-allowance'].shouldBlock, false);
+  assert.equal(byId['undrawn-above-allowance'].shouldBlock, true);
+  for (const id of ['ambiguous-name-spread-assertion', 'foreign-scene-without-card-name', 'unrelated-memory', 'irrelevant-valid-prose']) {
+    assert.equal(byId[id].shouldBlock, false);
+    assert.equal(byId[id].editorialReviewRequired, true);
+  }
 });
