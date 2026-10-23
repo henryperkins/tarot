@@ -23,7 +23,7 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 1 | 1–2 | Complete | Validated transport and one authoritative context selection reviewed, including all accepted sources and bounded query projection. |
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
 | 3 | 5–6 | Complete | Full-set bounded ranking and compatible frozen memory selection independently reviewed. |
-| 4 | 7–8 | Active | Accepted-attempt retention and durable completion receipt. |
+| 4 | 7–8 | Complete | Final provider retention and durable completion receipt independently reviewed. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
 | 6 | 11 | Separate | Documentation can be prepared; integration/release actions require their own authorization. |
@@ -177,3 +177,33 @@ All eligible registry-backed variants are projected before comparable content sc
 ## Phase 4 interface and parallel ownership
 
 Ruling: Tasks 7 and 8 may develop disjoint pieces against the plan's fixed private usage contract `{ userId, ids, completedAt, requestId, attemptId }`. Task 7 owns route/backend accepted-attempt identity and final retention; Task 8 owns durable storage/replay, the memory persistence outcome and job test helpers. Task 8 integration/review must use the completed Task 7 producer and may not infer acceptance from public metadata. Shared route changes are serialized through Task 7; no two agents edit the same file. Phase 4 closes only after both final integration reviews pass.
+
+## Qualification infrastructure findings and rulings
+
+Task 9 infrastructure is being prepared during Phase 4; final qualification remains pending until integrated source and the offline documentation/version update are complete. The old 73-case fixture bytes, order and historical expectations remain unchanged. Intentional contract changes require a separately hashed versioned expectation migration with old/new values and reasons; failed cases may not be silently removed.
+
+- Old rehearsal-memory prose is outside the new whole-fact grammar. Omission is intentional; new versioned fixtures must still prove supported/relevant positive selection and selected-then-budget-removed retention.
+- The old `wrong-subject-memory` question contains a separate parenting clause and a transition question. Executed current selection is `general/transition`, and compatible-span projection excludes the separate parenting clause. The pure subject guard still correctly supports the child, but the selector deliberately declines that nonselected-topic evidence. Ruling: record this conservative omission explicitly, preserve/assert the full current question in the final narrative input, and add a parenting-context positive-child/wrong-self control. Do not weaken compatible-span admission or change the frozen historical fixture.
+- A source-URL-only enrichment fixture exposed provenance loss when an empty `sourceUrls` array shadows `sourceUrl`. This is a required projection integration fix, assigned narrowly to the Task 9 infrastructure agent with a failing regression and independent review. Do not hide it by changing the fixture to the generated array shape.
+
+## Task 8 — Durable accepted-result accounting
+
+The consumer is implemented and independently approved against the current Task 7 private producer. Accepted terminal result, fixed expiry and a separate private `readingMemoryReceipt` key commit atomically before public completion or D1 dispatch. Restart replays only the idempotent access update; run/attempt/request guards prevent stale streams, progress writes and acknowledgments from replacing a newer run or recreating purged storage. Three persisted rounds with at most two D1 attempts each bound optional retries without extending retention.
+
+- Implementer gate: **133 prescribed tests plus 17 visual-configuration tests passed**. Independent concurrency review: **133 prescribed tests plus 11 actual transport tests passed**; scoped lint/diff checks pass. Tests use synthetic storage/providers, not live Cloudflare runtime evidence.
+- Cancellation ruling: cancellation observed before the accepted transaction's guard wins. An overlapping cancellation after that serialization point can receive success after durable completion. Physical network arrival before a storage acknowledgment is not a guarantee of winning cancellation. This explicitly clarifies the plan's “before terminal commit” wording. The [Cloudflare input-gate definition](https://developers.cloudflare.com/durable-objects/reference/glossary/) supports the ordering premise; the offline fake does not emulate those runtime gates.
+- Rollback limitation: older code ignores the separate key but can erase matching run/attempt identities from the job envelope. Accounting-compatible rollback requires a receipt-aware target or verified draining; keeping receipt bytes alone does not ensure later replay. Identity checks are not relaxed to recover an unverifiable receipt.
+- Producer source reviewed: SHA-256 `9f7a29ef99996c33ec88143c690cf763b7b729ffe7541bf033b8cdeeafc459db`. Earlier manifest identity is preserved as historical evidence.
+
+## Task 7 — Final retention and transport integration
+
+Final parsed blocks determine reference and memory inclusion for each provider attempt. Unverified legacy reference prose cannot enter generation, and opaque historical counts remain unknown. Caller interpretations now participate in aggregate user-context retention, closing T1-R1. The UI distinguishes retained references from labeled historical previews and links projected card names using the selected deck while retaining source-tradition credit. Normal local reasoning, lower-level pattern composition and explicit debug reference rendering report their actual distinct behavior.
+
+- Frozen implementer gate: **254 prescribed tests plus 64 UI/model/render/spread tests passed**; all 27 owned files pass lint/diff checks. Independent review: **305 covering tests passed**, followed by **47 overlapping pipeline tests** after the final positive-memory fixture correction. These counts are separate overlapping evidence, not an additive total.
+- Actual handlers and captured mocked transports cover Claude, Modal and OpenAI across direct JSON/SSE, public job start/status/stream and authenticated MCP. Large-input builds cover ten Japanese card notes and 78-card custom spreads with and without slimming. This is offline construction/static-render evidence, not live providers or device validation.
+- A real-route cancellation regression exposed a missing analysis signal. The route now passes the task signal into retrieval and checks abort around analysis; ignored late embedding completion cannot start generation or populate the cache.
+- Task 7 and Task 8 share one local Phase 4 checkpoint because the producer/consumer contract and transaction-aware transport fixtures depend on one another. Both tasks received explicit independent approval before integration. No remote publication or deployment is implied.
+
+## Final documentation inspection follow-up
+
+The authored Death–Star partial theme still said “skipping integration” even after its wrapper became conditional. That phrase can imply an absent stage was bypassed. A narrow graph-data and final-prompt regression fix is assigned to the offline documentation task before source freeze; all other authored pair meanings and the separate pending human editorial lane remain intact.

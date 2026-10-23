@@ -3,7 +3,7 @@ import { MAXIMUM_CARD_COUNT } from './contracts/readingRequestLimits.js';
 // A bounded, text-free snapshot for the reading UI and personal journal.
 // Do not copy prompts, user text, image URLs or arbitrary telemetry into it.
 export const USER_INPUT_KEYS = Object.freeze([
-  'question', 'reflections', 'pathA', 'pathB', 'cardReflections', 'focusAreas', 'displayName',
+  'question', 'reflections', 'pathA', 'pathB', 'cardReflections', 'callerInterpretations', 'focusAreas', 'displayName',
   'experience', 'tone', 'frame', 'depth'
 ]);
 
@@ -48,6 +48,33 @@ const countKeys = ['eligibleUploads', 'telemetryOnlyUploads', 'evidencePacketsUs
 const fieldCounts = ['originalLength', 'sanitizedLength', 'eligibleLength', 'includedLength', 'representedLength'];
 const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'sanitizationTruncated', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
 
+export const GRAPH_RAG_FALLBACK_REASONS = Object.freeze(['embeddings-failed', 'embeddings-not-configured', 'embeddings-partial-failure', 'embeddings-timeout', 'embeddings-invalid-response', 'embeddings-cancelled', 'embeddings-registry-overflow', 'no-passages', 'no-query', 'quality-filtering-disabled', 'not-prefetched', 'graphrag-disabled', 'no-graph-patterns', 'retrieval-skipped', 'projection-rejected']);
+const GRAPH_RAG_COUNT_KEYS = ['registryPassageCount', 'candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'retainedPassageCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'embeddingCacheSizeBefore', 'embeddingCacheSizeAfter', 'embeddingCacheMaxSize', 'embeddingPeakConcurrency', 'retrievalElapsedMs', 'budgetTrimmedTo', 'intermediateBudgetPassageCount'];
+const DECK_STYLES = ['rws-1909', 'thoth-a1', 'marseille-classic'];
+
+/** Fixed diagnostics only; missing historical measurements remain absent. */
+export function sanitizeGraphRAGDiagnostics(input) {
+  if (!isRecord(input)) return {};
+  const clean = {};
+  for (const key of GRAPH_RAG_COUNT_KEYS) {
+    if (Number.isFinite(input[key]) && input[key] >= 0) clean[key] = Math.min(100000000, Math.floor(input[key]));
+  }
+  if (['disabled', 'bypassed', 'semantic', 'keyword', 'priority'].includes(input.retrievalMode)) clean.retrievalMode = input.retrievalMode;
+  if (['keyword', 'semantic', 'priority', 'bypassed', 'mixed'].includes(input.scoringMethod)) clean.scoringMethod = input.scoringMethod;
+  if (GRAPH_RAG_FALLBACK_REASONS.includes(input.semanticScoringFallbackReason)) clean.semanticScoringFallbackReason = input.semanticScoringFallbackReason;
+  if (['complete', 'partial', 'absent'].includes(input.parseStatus)) clean.parseStatus = input.parseStatus;
+  if (DECK_STYLES.includes(input.selectedDeck)) clean.selectedDeck = input.selectedDeck;
+  if (Array.isArray(input.sourceDecks)) clean.sourceDecks = [...new Set(input.sourceDecks.filter(deck => DECK_STYLES.includes(deck)))];
+  if (isRecord(input.projectionRejectedReasons)) {
+    clean.projectionRejectedReasons = {};
+    for (const reason of ['unknown_deck', 'unverified_registry_content', 'unverified_matched_subset', 'missing_or_unapproved_meaning_projection', 'projection_unavailable']) {
+      const count = input.projectionRejectedReasons[reason];
+      if (Number.isFinite(count) && count >= 0) clean.projectionRejectedReasons[reason] = Math.min(100000000, Math.floor(count));
+    }
+  }
+  return clean;
+}
+
 function copyCounts(target, input, keys) {
   for (const key of keys) {
     if (Number.isFinite(input[key]) && input[key] >= 0) target[key] = Math.min(100000, Math.floor(input[key]));
@@ -81,6 +108,7 @@ export function sanitizeSourceUsage(value) {
       entry.passageIndices = [...new Set(input.passageIndices
         .filter(index => Number.isInteger(index) && index >= 0 && index < 100))].slice(0, 30);
     }
+    if (key === 'graphRAG') Object.assign(entry, sanitizeGraphRAGDiagnostics(input));
     if (key === 'userContext') {
       copyFlags(entry, input, USER_INPUT_KEYS.flatMap(name => [`${name}Provided`, `${name}Used`]));
       for (const list of ['usedInputs', 'providedInputs']) {

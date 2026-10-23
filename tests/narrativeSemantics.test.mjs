@@ -222,6 +222,14 @@ test('spread insights uses an h2 panel title with h3 immediate subsections', () 
   assert.match(markup, /^<section[^>]*aria-labelledby="([^"]+)"[^>]*>\s*<h2[^>]*id="\1"/, 'The panel is a region named by its title');
 });
 
+test('historical references render with an explicit preview label and no confirmed-source claim', () => {
+  const markup = render(SpreadPatterns, { previewPassages: [{ title: 'Historical reference', text: 'A historical background passage.' }] });
+  assert.match(markup, /Traditional wisdom preview/);
+  assert.match(markup, /inclusion in the generated reading is unverified/);
+  assert.match(markup, /aria-label="Traditional wisdom preview passages"/);
+  assert.doesNotMatch(markup, /aria-label="Traditional wisdom passages"/);
+});
+
 test('collapsed feedback disclosure controls a mounted, hidden panel', () => {
   const markup = render(FeedbackPanel, { requestId: 'reading-semantics' });
   const targetId = markup.match(/aria-controls="([^"]+)"/)?.[1];
@@ -258,6 +266,19 @@ test('traditional passages expose native list items and their source tradition',
   assert.match(markup, /Rider-Waite-Smith reference/);
   assert.match(markup, /Thoth/);
   assert.match(markup, /imagery/);
+});
+
+test('projected reference names link through the selected deck while crediting their source tradition', () => {
+  const markup = render(SpreadPatterns, {
+    themes: { deckStyle: 'thoth-a1' },
+    passages: [{ type: 'court-lineage', sourceDeck: 'rws-1909', projectedDeck: 'thoth-a1', promptText: 'Knight of Cups invites reflection.', title: 'Knight of Cups', text: 'Knight of Cups invites reflection.' }],
+    cards: [{ name: 'Prince of Cups', canonicalName: 'Knight of Cups', position: 'Past' }, { name: 'Knight of Cups', canonicalName: 'King of Cups', position: 'Future' }],
+    onSelectCard: () => {}
+  });
+  assert.match(markup, /aria-label="View Knight of Cups — Future"/);
+  assert.doesNotMatch(markup, /aria-label="View Prince of Cups — Past"/);
+  assert.match(markup, /Rider-Waite-Smith reference/);
+  assert.match(markup, /wording is adapted/);
 });
 
 test('card mentions offer detail actions only for cards in the current spread', () => {

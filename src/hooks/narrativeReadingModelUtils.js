@@ -147,20 +147,22 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
 export function getTraditionalPassages(themes, readingMeta) {
   if (readingMeta?.provider === 'safe-fallback') return [];
   const usage = readingMeta?.sourceUsage?.graphRAG;
-  const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages
-    || (usage ? [] : themes?.knowledgeGraph?.retrievedPassages)
-    || [];
-  if (!Array.isArray(candidates)) return [];
-  if (usage?.used === false || usage?.mode === 'none' || usage?.mode === 'summary' || usage?.passagesUsedInPrompt === 0) return [];
-  if (Array.isArray(usage?.passageIndices)) {
-    return getVisibleTraditionalPassages([...new Set(usage.passageIndices)]
-      .filter(index => Number.isInteger(index) && index >= 0 && index < candidates.length)
-      .map(index => candidates[index]));
-  }
-  // Older trimmed snapshots record only a count, which cannot identify the
-  // retained references after ranking. Do not guess which candidates survived.
-  if (Number.isFinite(usage?.passagesUsedInPrompt) && usage.passagesUsedInPrompt !== candidates.length) return [];
-  return getVisibleTraditionalPassages(candidates);
+  const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages;
+  if (!usage?.used || usage.mode !== 'full' || !Number.isInteger(usage.passagesUsedInPrompt)
+    || usage.passagesUsedInPrompt <= 0 || !Array.isArray(candidates) || !Array.isArray(usage.passageIndices)) return [];
+  const indices = [...new Set(usage.passageIndices)];
+  if (indices.length !== usage.passagesUsedInPrompt
+    || indices.some(index => !Number.isInteger(index) || index < 0 || index >= candidates.length)) return [];
+  const retained = indices.map(index => candidates[index]);
+  if (retained.some(passage => !passage?.candidateId || !passage.projectionId || !passage.projectedDeck || (usage.selectedDeck && passage.projectedDeck !== usage.selectedDeck) || typeof passage.promptText !== 'string')) return [];
+  return getVisibleTraditionalPassages(retained.map(passage => ({ ...passage, text: passage.promptText })));
+}
+
+/** Historical/unconditioned material is never evidence of generation inclusion. */
+export function getTraditionalPassagePreview(themes, readingMeta) {
+  if (readingMeta?.sourceUsage?.graphRAG || readingMeta?.provider === 'safe-fallback') return [];
+  return getVisibleTraditionalPassages(themes?.knowledgeGraph?.retrievedPassages
+    || themes?.knowledgeGraph?.graphRAGPayload?.passages || []).slice(0, 5);
 }
 
 export function deriveNarrativeVisibility({
@@ -183,15 +185,17 @@ export function deriveNarrativeVisibility({
   cinematicCard
 }) {
   const traditionalPassages = getTraditionalPassages(themes, readingMeta);
+  const traditionalPreviewPassages = getTraditionalPassagePreview(themes, readingMeta);
   const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
   const hasTraditionalInsights = traditionalPassages.length > 0;
+  const hasTraditionalPreview = traditionalPreviewPassages.length > 0;
   const hasHighlightPanel = Boolean(highlightItems.length && visibleCount > 0 && revealedCardsSize === visibleCount);
   const cardsFullyRevealed = Boolean(visibleCount > 0 && revealedCardsSize >= visibleCount);
-  const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
+  const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasTraditionalPreview || hasHighlightPanel || canShowVisionPanel;
   const focusToggleAvailable = hasInsightPanels;
   const shouldShowSpreadInsights = cardsFullyRevealed
     && !isShuffling
-    && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+    && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights || hasTraditionalPreview);
   const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
   const canUseMediaGallery = Boolean(isAuthenticated && canAutoGenerateVisuals);
   const isReadingComplete = Boolean(
@@ -215,6 +219,7 @@ export function deriveNarrativeVisibility({
 
   return {
     traditionalPassages,
+    traditionalPreviewPassages,
     hasPatternHighlights,
     hasTraditionalInsights,
     hasHighlightPanel,
@@ -362,6 +367,7 @@ export function buildNarrativeSurfaceModel({
   themes,
   highlightItems,
   traditionalPassages,
+  traditionalPreviewPassages,
   insightCards,
   isLandscape
 }) {
@@ -392,6 +398,7 @@ export function buildNarrativeSurfaceModel({
     themes,
     highlightItems,
     traditionalPassages,
+    traditionalPreviewPassages,
     insightCards,
     layoutClassName: isLandscape ? 'space-y-4' : 'space-y-8'
   };

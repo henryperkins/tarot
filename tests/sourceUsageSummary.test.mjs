@@ -10,6 +10,13 @@ test('absent, empty and invalid metadata never invent sources', () => {
   }
 });
 
+test('caller interpretation is a separate personal input in bounded summaries', () => {
+  const result = formatUsageSummary({ userContext: { requested: true, used: true, providedInputs: ['callerInterpretations'], usedInputs: ['callerInterpretations'], callerInterpretationsProvided: true, callerInterpretationsUsed: true, fields: { 'interpretation-0': { originalLength: 19, includedLength: 19 } } } });
+  assert.equal(result.rows.length, 1);
+  assert.match(result.rows[0].detail, /your card interpretations/i);
+  assert.equal(result.rows[0].state, 'used');
+});
+
 test('real builder output includes Standard depth and card notes without warning about optional sources', () => {
   const built = buildEnhancedClaudePrompt({
     spreadInfo: { name: 'One-Card Insight', key: 'single' },

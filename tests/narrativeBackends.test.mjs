@@ -63,6 +63,15 @@ async function withMockedFetch(mockFetch, fn) {
 }
 
 describe('composeReadingEnhanced', () => {
+  it('lower-level composition without reasoning rebuilds safe highlights from drawn cards', async () => {
+    const { buildThreeCardReading } = await import('../functions/lib/narrativeBuilder.js');
+    const cardsInfo = [major('The Sun', 19, 'Past'), major('Temperance', 14, 'Present'), major('The Star', 17, 'Future')];
+    const themes = await analyzeSpreadThemes(cardsInfo);
+    themes.knowledgeGraph = { ...themes.knowledgeGraph, narrativeHighlights: [{ text: 'UNTRUSTED-PATTERN Death completed your grief and career loss.' }] };
+    const result = await buildThreeCardReading({ cardsInfo, themes, spreadAnalysis: analyzeThreeCard(cardsInfo), userQuestion: 'What supports me?', context: 'general' });
+    assert.doesNotMatch(result, /UNTRUSTED-PATTERN|Death completed|your grief and career loss/);
+    assert.match(themes.knowledgeGraph.narrativeHighlights[0].text, /UNTRUSTED-PATTERN/, 'Do not mutate shared analysis');
+  });
   it('passes spreadInfo through spread dispatch so remedy rotation can vary by spread metadata', async () => {
     const cardsInfo = [
       minor('Ace of Wands', 'Wands', 'Ace', 1, 'You / your energy', 'Upright'),
@@ -251,9 +260,10 @@ describe('composeReadingEnhanced', () => {
     });
     assert.ok(result.reading.includes('## Traditional Wisdom'));
     assert.equal(payload.promptMeta.graphRAG.debugVisibleInOutput, true);
-    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 1);
-    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, true);
-    assert.ok(formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
+    assert.equal(payload.promptMeta.graphRAG.passagesUsedInPrompt, 0);
+    assert.equal(payload.promptMeta.graphRAG.debugPassagesRendered, 1);
+    assert.equal(result.promptMeta.sourceUsage.graphRAG.used, false);
+    assert.ok(!formatUsageSummary(result.promptMeta.sourceUsage).rows.some(row => row.label === 'Traditional wisdom'));
   });
 
   it('does not claim detected patterns as wisdom used by the local composer', async () => {

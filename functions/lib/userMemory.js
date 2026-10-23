@@ -440,17 +440,23 @@ export async function markReadingMemoriesAccessed(db, userId, ids, accessedAt) {
   }
 }
 
-/** Access persistence cannot invalidate a successful reading. Retries reuse completion time. */
+/**
+ * Access persistence cannot invalidate a successful reading. Retries reuse
+ * completion time; the durable caller clears its receipt only after true.
+ * @returns {Promise<boolean>} Whether all scoped updates completed successfully.
+ */
 export async function persistReadingMemoryAccess(db, usage) {
-  if (!usage) return;
+  if (!usage || !db?.prepare || !usage.userId || !Array.isArray(usage.ids) || !usage.ids.length
+    || !Number.isFinite(usage.completedAt) || usage.completedAt <= 0) return false;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await markReadingMemoriesAccessed(db, usage.userId, usage.ids, usage.completedAt);
-      return;
+      return true;
     } catch {
       if (attempt === 1) console.warn('[reading-memory-access] persistence_failed');
     }
   }
+  return false;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { sanitizeSourceUsage, sanitizeQueryCoverage, sanitizeContextSelection, USAGE_REASON_COPY } from '../../shared/readingSourceUsage.js';
+import { sanitizeSourceUsage, sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics, GRAPH_RAG_FALLBACK_REASONS, USAGE_REASON_COPY } from '../../shared/readingSourceUsage.js';
 import { normalizeInferenceUsage } from './inferenceAttempts.js';
 /**
  * Telemetry Schema Module
@@ -108,7 +108,7 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
   const optionalBoolean = (value) =>
     typeof value === 'boolean' ? value : null;
 
-  const candidateCounts = Object.fromEntries(['candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'retrievalElapsedMs'].flatMap(key => Number.isFinite(graphRAGStats[key]) && graphRAGStats[key] >= 0 ? [[key, Math.min(100000000, Math.floor(graphRAGStats[key]))]] : []));
+  const candidateCounts = sanitizeGraphRAGDiagnostics(graphRAGStats);
 
   return {
     ...candidateCounts,
@@ -128,7 +128,7 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
       used: graphRAGStats.semanticScoringUsed || false,
       attempted: graphRAGStats.semanticScoringAttempted || false,
       fallback: graphRAGStats.semanticScoringFallback || false,
-      fallbackReason: ['embeddings-failed', 'embeddings-not-configured', 'embeddings-partial-failure', 'embeddings-timeout', 'embeddings-invalid-response', 'no-passages', 'no-query', 'quality-filtering-disabled', 'not-prefetched', 'graphrag-disabled', 'no-graph-patterns', 'retrieval-skipped', 'projection-rejected'].includes(graphRAGStats.semanticScoringFallbackReason) ? graphRAGStats.semanticScoringFallbackReason : null
+      fallbackReason: GRAPH_RAG_FALLBACK_REASONS.includes(graphRAGStats.semanticScoringFallbackReason) ? graphRAGStats.semanticScoringFallbackReason : null
     },
     quality: graphRAGStats.qualityMetrics ? {
       averageRelevance: optionalNumber(graphRAGStats.qualityMetrics.averageRelevance),

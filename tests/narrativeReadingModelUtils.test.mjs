@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { validatePassageAssociationsPayload } from '../shared/contracts/readingPassageAssociations.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
 import { retrievePassages } from '../functions/lib/graphRAG.js';
 
 import {
@@ -11,6 +13,7 @@ import {
   buildStoryArtCards,
   deriveNarrativeVisibility,
   getTraditionalPassages,
+  getTraditionalPassagePreview,
   selectCinematicCard
 } from '../src/hooks/narrativeReadingModelUtils.js';
 
@@ -37,7 +40,8 @@ describe('traditional passage display', () => {
   for (const location of ['graphRAGPayload', 'retrievedPassages']) {
     test(`omits partial quotations from ${location} without changing the stored references`, () => {
       const knowledgeGraph = location === 'graphRAGPayload' ? { graphRAGPayload: { passages } } : { retrievedPassages: passages };
-      assert.deepEqual(getTraditionalPassages({ knowledgeGraph }).map(passage => passage.id), ['complete', 'ordinary']);
+      assert.deepEqual(getTraditionalPassages({ knowledgeGraph }), []);
+      assert.deepEqual(getTraditionalPassagePreview({ knowledgeGraph }).map(passage => passage.id), ['complete', 'ordinary']);
       assert.equal(passages.length, 4);
       assert.equal(passages[1].text, 'An arc mentioning an undrawn card.');
     });
@@ -45,13 +49,15 @@ describe('traditional passage display', () => {
 
   test('hides the real partial Healing Arc quotation that names absent Temperance', () => {
     // Death and The Star match two cards; Temperance is not drawn.
-    const retrieved = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: [] });
+    const partialKeys = buildGraphContext([{ card: 'Death', number: 13 }, { card: 'The Star', number: 17 }]).graphKeys;
+    const retrieved = collectPassageCandidates(partialKeys).filter(passage => passage.type === 'triad' && passage.isPartialPattern);
     assert.equal(retrieved.length, 1);
-    assert.match(retrieved[0].text, /Temperance/);
+    assert.match(retrieved[0].authoredDisplayText, /Temperance/);
+    assert.doesNotMatch(retrieved[0].promptText, /Temperance/);
     assert.deepEqual(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: retrieved } } }), []);
 
     const complete = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: ['death-temperance-star'] });
-    assert.equal(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: complete } } }).length, 1);
+    assert.equal(getTraditionalPassagePreview({ knowledgeGraph: { graphRAGPayload: { passages: complete } } }).length, 1);
   });
 
   test('partial-only references do not create an empty panel or focus toggle', () => {

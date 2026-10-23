@@ -273,7 +273,7 @@ export async function buildDecisionReading({
   // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
   const synthesisSection = reasoning
     ? buildReasoningSynthesis(normalizedCards, reasoning, themes, userQuestion, context)
-    : buildPatternSynthesis(themes);
+    : buildPatternSynthesis(themes, cardsInfo, spreadInfo?.deckStyle);
   if (synthesisSection) {
     sections.push(synthesisSection);
   }

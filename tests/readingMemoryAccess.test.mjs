@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import * as memory from '../functions/lib/userMemory.js';
+import { ReadingJob } from '../src/worker/readingJob.js';
+import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
@@ -54,21 +56,22 @@ async function runMemoryJob(t, { cancelBeforeDone = false, failed = false, datab
   const tasks = [];
   const completedAt = Date.now() - 1000;
   if (databaseFailure) db.prepare = () => { throw new Error('private-database-message'); };
-  const job = new ReadingJob({
-    blockConcurrencyWhile: callback => callback(),
-    storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
-    waitUntil: promise => { tasks.push(promise); }
-  }, { DB: db }, { runReading: async options => {
-    if (typeof options.onReadingMemoryUsage === 'function') options.onReadingMemoryUsage({ userId: 'owner', ids: ['selected'], completedAt });
+  const state = createReadingJobState();
+  const originalWait = state.waitUntil;
+  state.waitUntil = promise => { tasks.push(promise); originalWait(promise); };
+  const job = new ReadingJob(state, { DB: db }, { runReading: async options => {
+    if (typeof options.onReadingMemoryUsage === 'function') options.onReadingMemoryUsage({ userId: 'owner', ids: ['selected'], completedAt, requestId: 'fixed', attemptId: 'memory-attempt' });
     if (cancelBeforeDone) job.cancelRun();
     if (failed) return Response.json({ message: 'Provider failed' }, { status: 500 });
     return Response.json({ reading: 'The Sun invites exploration. Your choices shape outcomes.', requestId: 'fixed', provider: 'test' });
   } });
   await job.initialized;
   Object.assign(job.job, { jobId: 'job', token: 'token', status: 'running' });
+  job.runId = 'memory-run';
+  await job.persistState();
   t.after(() => job.closeSubscribers());
   await job.runJob({}, {});
-  await Promise.all(tasks);
+  await drain(state);
   return { job, db, tasks, completedAt };
 }
 
@@ -420,4 +423,447 @@ test('real route forwards current preferences and excludes unrelated or restrict
   assert.deepEqual(db.calls.filter(call => !call.write && /FROM user_memories/.test(call.sql)).map(call => call.args.at(-1)), [100]);
   assert.doesNotMatch(JSON.stringify(body), /I live in Paris|allergic to shellfish|Prefers gentle language|memorySelection|selectedIds/);
   assert.deepEqual(db.sqlite.prepare('SELECT id FROM user_memories WHERE last_accessed_at IS NOT NULL').all().map(row => row.id), ['career']);
+});
+
+const RECEIPT_KEY = 'readingMemoryReceipt';
+const nextTurn = () => new Promise(resolve => setImmediate(resolve));
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+async function drain(state) {
+  while (state.pending.size) await Promise.all([...state.pending]);
+}
+function storedReceipt({ completedAt = Date.now() - 60000, ...extra } = {}) {
+  return { version: 1, receiptId: 'receipt-1', jobId: 'receipt-job', runId: 'run-1', userId: 'owner', ids: ['retained'], requestId: 'accepted-request', attemptId: 'attempt-B', completedAt, attempts: 0, nextAttemptAt: 0, ...extra };
+}
+function completedState(receipt = storedReceipt()) {
+  const state = createReadingJobState();
+  state.stored.set('job', { job: { status: 'complete', jobId: 'receipt-job', token: 'token', principalUserId: null, result: { reading: 'Accepted reading.', provider: 'test', requestId: 'accepted-request', gateBlocked: false }, expiresAt: Date.now() + 600000 }, runId: 'run-1', acceptedAttemptId: 'attempt-B', events: [], nextEventId: 1 });
+  state.stored.set(RECEIPT_KEY, receipt);
+  return state;
+}
+async function startReceiptJob(t, { state = createReadingJobState(), db = database(), runReading, usage, provider = 'test' } = {}) {
+  if (!db.sqlite.prepare("SELECT id FROM user_memories WHERE id='retained'").get()) insert(db, 'retained');
+  const completedAt = Date.now() - 5000;
+  const job = new ReadingJob(state, { DB: db }, { runReading: runReading || (async context => {
+    context.onReadingMemoryUsage(usage || { userId: 'owner', ids: ['retained'], completedAt, requestId: 'accepted-request', attemptId: 'attempt-B' });
+    return Response.json({ reading: 'Accepted reading.', provider, requestId: 'accepted-request' });
+  }) });
+  t.after(() => job.closeSubscribers());
+  await job.fetch(new Request('https://jobs/start', { method: 'POST', headers: { 'X-Job-Token': 'token' }, body: JSON.stringify({ jobId: 'receipt-job', payload: {} }) }));
+  return { job, state, db, completedAt };
+}
+
+test('durable memory receipt waits for atomic terminal commit before D1 and public done', async t => {
+  const state = createReadingJobState();
+  const barrier = deferred();
+  let atCommit = false;
+  state.hooks.beforeCommit = async snapshot => {
+    if (snapshot.get('job')?.job.status === 'complete' && snapshot.has(RECEIPT_KEY)) {
+      atCommit = true;
+      await barrier.promise;
+    }
+  };
+  t.after(() => barrier.resolve());
+  const { job, db } = await startReceiptJob(t, { state });
+  for (let turn = 0; turn < 20 && !atCommit; turn++) await nextTurn();
+  assert.equal(atCommit, true, 'successful terminal state and receipt must use one transaction');
+  assert.equal(state.stored.get('job').job.status, 'running');
+  assert.equal(job.job.status, 'running', 'uncommitted success must not become publicly visible');
+  assert.equal(job.events.some(event => event.event === 'done'), false);
+  assert.equal(db.calls.filter(call => call.write).length, 0);
+  barrier.resolve();
+  await drain(state);
+  assert.equal(state.stored.get('job').job.status, 'complete');
+  assert.equal(job.events.filter(event => event.event === 'done').length, 1);
+  assert.ok(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at);
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+});
+
+test('durable memory receipt restart replays only persistence with original completion time', async t => {
+  const receipt = storedReceipt();
+  const state = completedState(receipt);
+  const db = database(); insert(db, 'retained');
+  let generated = 0;
+  const job = new ReadingJob(state, { DB: db }, { runReading: async () => { generated++; throw new Error('must not generate'); } });
+  await job.initialized;
+  await drain(state);
+  assert.equal(generated, 0);
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at, Math.floor(receipt.completedAt / 1000));
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  for (const path of ['/status', '/stream']) {
+    const response = await job.fetch(new Request(`https://jobs${path}`, { headers: { 'X-Job-Token': 'token' } }));
+    assert.doesNotMatch(await response.text(), /retained|attempt-B|memoryReceipt|completedAt|run-1/);
+  }
+  const writes = db.calls.filter(call => call.write).length;
+  await job.appendEvent('done', { fullText: 'Duplicate', requestId: 'accepted-request' });
+  await drain(state);
+  assert.equal(db.calls.filter(call => call.write).length, writes);
+  t.after(() => job.closeSubscribers());
+});
+
+test('durable memory receipt failed terminal storage stamps nothing and never exposes success', async t => {
+  const state = createReadingJobState();
+  state.hooks.beforeCommit = snapshot => {
+    if (snapshot.get('job')?.job.status === 'complete') throw new Error('private storage detail');
+  };
+  const warnings = [];
+  t.mock.method(console, 'warn', (...args) => warnings.push(args.join(' ')));
+  const { job, db } = await startReceiptJob(t, { state });
+  await drain(state);
+  assert.notEqual(job.job.status, 'complete');
+  assert.notEqual(state.stored.get('job').job.status, 'complete');
+  assert.equal(job.events.some(event => event.event === 'done'), false);
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  assert.equal(db.calls.filter(call => call.write).length, 0);
+  assert.doesNotMatch(warnings.join('\n'), /private storage detail/);
+});
+
+test('durable memory receipt retains failed persistence for alarm retry without extending retention', async t => {
+  const state = completedState();
+  const expiry = state.stored.get('job').job.expiresAt;
+  const db = database(); insert(db, 'retained');
+  const original = db.prepare.bind(db);
+  let offline = true;
+  db.prepare = sql => {
+    if (offline && /UPDATE user_memories/.test(sql)) throw new Error('private D1 detail');
+    return original(sql);
+  };
+  const warnings = [];
+  t.mock.method(console, 'warn', (...args) => warnings.push(args.join(' ')));
+  const job = new ReadingJob(state, { DB: db });
+  await job.initialized;
+  await drain(state);
+  const pending = state.stored.get(RECEIPT_KEY);
+  assert.ok(pending, 'failed optional write must remain recoverable');
+  assert.ok(pending.attempts > 0);
+  assert.ok(state.alarm.at < expiry, 'retry and retention must share the alarm');
+  assert.equal(state.stored.get('job').job.status, 'complete');
+  assert.equal(state.stored.get('job').job.expiresAt, expiry);
+  offline = false;
+  const retryTime = state.alarm.at;
+  t.mock.method(Date, 'now', () => retryTime);
+  await job.alarm();
+  await drain(state);
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  assert.equal(state.alarm.at, expiry);
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at, Math.floor(pending.completedAt / 1000));
+  assert.doesNotMatch(warnings.join('\n'), /retained|owner|private D1 detail/);
+});
+
+for (const change of [
+  { name: 'running result', mutate: state => { state.stored.get('job').job.status = 'running'; } },
+  { name: 'gate replacement', mutate: state => { state.stored.get('job').job.result.gateBlocked = true; } },
+  { name: 'safe fallback', mutate: state => { state.stored.get('job').job.result.provider = 'safe-fallback'; } },
+  { name: 'wrong request', mutate: state => { state.stored.get(RECEIPT_KEY).requestId = 'discarded-request'; } },
+  { name: 'wrong run', mutate: state => { state.stored.get(RECEIPT_KEY).runId = 'old-run'; } },
+  { name: 'wrong principal', mutate: state => { state.stored.get('job').job.principalUserId = 'different-owner'; } },
+  { name: 'expired job', mutate: state => { state.stored.get('job').job.expiresAt = Date.now() - 1; } }
+]) test(`durable memory receipt never replays ${change.name}`, async () => {
+  const state = completedState(); change.mutate(state);
+  const db = database(); insert(db, 'retained');
+  const job = new ReadingJob(state, { DB: db });
+  await job.initialized;
+  await drain(state);
+  assert.equal(db.calls.filter(call => call.write).length, 0);
+});
+
+test('memory persistence reports success, exhaustion and malformed input explicitly', async t => {
+  const db = database(); insert(db, 'retained');
+  const usage = { userId: 'owner', ids: ['retained'], completedAt: Date.now() };
+  assert.equal(await memory.persistReadingMemoryAccess(db, usage), true);
+  assert.equal(await memory.persistReadingMemoryAccess(db, { ...usage, ids: [] }), false);
+  assert.equal(await memory.persistReadingMemoryAccess(null, usage), false);
+  t.mock.method(console, 'warn', () => {});
+  assert.equal(await memory.persistReadingMemoryAccess({ prepare() { throw new Error('private'); } }, usage), false);
+});
+
+test('durable memory receipt cancellation before terminal response drops staged usage', async t => {
+  const ready = deferred();
+  const finish = deferred();
+  const { job, state, db } = await startReceiptJob(t, { runReading: async context => {
+    context.onReadingMemoryUsage({ userId: 'owner', ids: ['retained'], completedAt: Date.now() - 1000, requestId: 'accepted-request', attemptId: 'attempt-B' });
+    ready.resolve();
+    await finish.promise;
+    return Response.json({ reading: 'Too late.', provider: 'test', requestId: 'accepted-request' });
+  } });
+  await ready.promise;
+  await job.cancelRun();
+  finish.resolve();
+  await drain(state);
+  assert.equal(state.stored.get('job').job.status, 'error');
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  assert.equal(db.calls.filter(call => call.write).length, 0);
+});
+
+function holdMemoryWrite(db) {
+  const original = db.prepare.bind(db);
+  const entered = deferred();
+  const release = deferred();
+  db.prepare = sql => {
+    const statement = original(sql);
+    if (!/UPDATE user_memories/.test(sql)) return statement;
+    return { bind(...args) {
+      const query = statement.bind(...args);
+      return { ...query, async run() { entered.resolve(); await release.promise; return query.run(); } };
+    } };
+  };
+  return { entered, release };
+}
+
+test('durable memory receipt cancellation after terminal commit preserves accepted inclusion', async t => {
+  const db = database(); insert(db, 'retained');
+  const held = holdMemoryWrite(db);
+  const { job, state, completedAt } = await startReceiptJob(t, { db });
+  await held.entered.promise;
+  assert.equal(state.stored.get('job').job.status, 'complete');
+  assert.ok(state.stored.get(RECEIPT_KEY));
+  await job.cancelRun();
+  held.release.resolve();
+  await drain(state);
+  assert.equal(job.job.status, 'complete');
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at, Math.floor(completedAt / 1000));
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+});
+
+test('durable memory receipt acknowledgment failure replays fixed timestamp after restart', async t => {
+  const receipt = storedReceipt();
+  const state = completedState(receipt);
+  const db = database(); insert(db, 'retained');
+  let fail = true;
+  state.hooks.beforeCommit = snapshot => {
+    if (fail && !snapshot.has(RECEIPT_KEY)) throw new Error('private ack failure');
+  };
+  t.mock.method(console, 'warn', () => {});
+  const old = new ReadingJob(state, { DB: db });
+  await old.initialized;
+  await drain(state);
+  assert.ok(state.stored.get(RECEIPT_KEY));
+  assert.equal(db.calls.filter(call => call.write).length, 1);
+  const newer = Math.floor(receipt.completedAt / 1000) + 100;
+  db.sqlite.prepare('UPDATE user_memories SET last_accessed_at=?').run(newer);
+  const retryTime = state.stored.get(RECEIPT_KEY).nextAttemptAt;
+  t.mock.method(Date, 'now', () => retryTime);
+  fail = false;
+  const restarted = new ReadingJob(state, { DB: db }, { runReading: () => assert.fail('restart must not regenerate') });
+  await restarted.initialized;
+  await drain(state);
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  assert.equal(db.calls.filter(call => call.write).length, 2);
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at, newer);
+  assert.ok(db.calls.filter(call => call.write).every(call => call.args[0] === Math.floor(receipt.completedAt / 1000)));
+});
+
+test('durable memory receipt late acknowledgment cannot recreate purged job or alarm', async t => {
+  const state = completedState();
+  const db = database(); insert(db, 'retained');
+  const held = holdMemoryWrite(db);
+  const job = new ReadingJob(state, { DB: db });
+  await job.initialized;
+  await held.entered.promise;
+  await job.purge();
+  held.release.resolve();
+  await drain(state);
+  assert.equal(state.stored.size, 0);
+  assert.equal(state.alarm.at, null);
+  assert.equal(job.job.jobId, null);
+  t.after(() => job.closeSubscribers());
+});
+
+test('durable memory receipt retries stay bounded across restarts and expire with job', async t => {
+  const state = completedState();
+  const expiry = state.stored.get('job').job.expiresAt;
+  let attempts = 0;
+  const db = { prepare() { attempts++; throw new Error('private failure'); } };
+  t.mock.method(console, 'warn', () => {});
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  let job = new ReadingJob(state, { DB: db });
+  await job.initialized; await drain(state);
+  for (let round = 0; round < 2; round++) {
+    now = state.alarm.at;
+    job = new ReadingJob(state, { DB: db });
+    await job.initialized; await drain(state);
+  }
+  assert.equal(attempts, 6, 'three durable rounds with two bounded D1 attempts each');
+  assert.equal(state.alarm.at, expiry);
+  const restarted = new ReadingJob(state, { DB: db });
+  await restarted.initialized; await drain(state);
+  assert.equal(attempts, 6);
+  now = expiry;
+  await restarted.alarm();
+  assert.equal(state.stored.size, 0);
+  assert.equal(state.alarm.at, null);
+});
+
+test('durable memory receipt cancellation before queued terminal guard wins over delayed progress', async t => {
+  const state = createReadingJobState();
+  const progress = deferred();
+  const progressEntered = deferred();
+  const provider = deferred();
+  const rawPut = state.storage.put;
+  state.storage.put = async (key, value) => {
+    if (key === 'job' && value.job.meta?.holdProgress && value.job.status === 'running') {
+      progressEntered.resolve(); await progress.promise;
+    }
+    return rawPut(key, value);
+  };
+  const { job, db } = await startReceiptJob(t, { state, runReading: async context => {
+    context.onReadingMemoryUsage({ userId: 'owner', ids: ['retained'], completedAt: Date.now(), requestId: 'accepted-request', attemptId: 'attempt-B' });
+    await provider.promise;
+    return Response.json({ reading: 'Cancelled before terminal commit.', provider: 'test', requestId: 'accepted-request' });
+  } });
+  job.job.meta = { holdProgress: true };
+  job.appendEvent('meta', job.job.meta);
+  await progressEntered.promise;
+  provider.resolve();
+  await nextTurn();
+  const cancelled = job.cancelRun();
+  progress.resolve();
+  await cancelled;
+  await drain(state);
+  assert.equal(state.stored.get('job').job.status, 'error');
+  assert.equal(state.stored.has(RECEIPT_KEY), false);
+  assert.equal(job.events.some(event => event.event === 'done'), false);
+  assert.equal(db.calls.filter(call => call.write).length, 0);
+});
+
+test('durable memory receipt cancellation queued behind guarded commit cannot publish competing error', async t => {
+  const state = createReadingJobState();
+  const barrier = deferred();
+  const entered = deferred();
+  state.hooks.beforeCommit = async snapshot => {
+    if (snapshot.get('job')?.job.status === 'complete' && snapshot.has(RECEIPT_KEY)) {
+      entered.resolve(); await barrier.promise;
+    }
+  };
+  t.after(() => barrier.resolve());
+  const { job, db, completedAt } = await startReceiptJob(t, { state });
+  await entered.promise;
+  const cancellation = job.cancelRun();
+  assert.equal(job.events.some(event => event.event === 'error'), false);
+  barrier.resolve();
+  await cancellation;
+  await drain(state);
+  assert.equal(job.job.status, 'complete');
+  assert.deepEqual(job.events.filter(event => ['done', 'error'].includes(event.event)).map(event => event.event), ['done']);
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at, Math.floor(completedAt / 1000));
+});
+
+test('durable memory receipt old run progress and finally cannot change a restarted job', async t => {
+  const state = createReadingJobState();
+  const db = database(); insert(db, 'retained'); insert(db, 'discarded');
+  let firstContext;
+  let oldStream;
+  let calls = 0;
+  const secondStarted = deferred();
+  const secondFinish = deferred();
+  const { job } = await startReceiptJob(t, { state, db, runReading: async context => {
+    calls++;
+    if (calls === 1) {
+      firstContext = context;
+      return new Response(new ReadableStream({ start(controller) { oldStream = controller; } }), { headers: { 'content-type': 'text/event-stream' } });
+    }
+    context.onReadingMemoryUsage({ userId: 'owner', ids: ['retained'], completedAt: Date.now() - 1000, requestId: 'new-request', attemptId: 'new-attempt' });
+    secondStarted.resolve();
+    await secondFinish.promise;
+    return Response.json({ reading: 'New run reading.', provider: 'test', requestId: 'new-request' });
+  } });
+  await nextTurn();
+  oldStream.enqueue(new TextEncoder().encode('event: delta\ndata: {"text":"Old run prose."}\n\n'));
+  await nextTurn();
+  await job.cancelRun();
+  const restarted = await job.fetch(new Request('https://jobs/start', { method: 'POST', headers: { 'X-Job-Token': 'token' }, body: JSON.stringify({ jobId: 'receipt-job', payload: {} }) }));
+  assert.equal(restarted.status, 200);
+  await nextTurn();
+  assert.equal(calls, 2, 'an errored job can start a fresh run while the old stream settles');
+  await secondStarted.promise;
+  const newPromise = job.runningPromise;
+  firstContext.onReadingMemoryUsage({ userId: 'owner', ids: ['discarded'], completedAt: Date.now(), requestId: 'old-request', attemptId: 'old-attempt' });
+  oldStream.enqueue(new TextEncoder().encode('event: meta\ndata: {"provider":"obsolete"}\n\nevent: delta\ndata: {"text":"Stale delta."}\n\n'));
+  await nextTurn();
+  assert.equal(job.job.meta, null);
+  assert.equal(job.textSoFar, '');
+  assert.equal(job.events.length, 0);
+  assert.equal(job.runningPromise, newPromise, 'old finally must not clear the new run promise');
+  secondFinish.resolve();
+  await drain(state);
+  assert.equal(job.job.result.reading, 'New run reading.');
+  assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='discarded'").get().last_accessed_at, null);
+  assert.ok(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='retained'").get().last_accessed_at);
+});
+
+test('memory access replay after partial batch failure keeps original timestamp and current row guards', async t => {
+  const db = database();
+  const ids = Array.from({ length: 100 }, (_, index) => `batch-${index}`);
+  for (const id of ids) insert(db, id);
+  const completedAt = Date.now() - 10000;
+  // Rows can change after selection and before accepted inclusion is recorded.
+  db.sqlite.prepare("UPDATE user_memories SET expires_at=1 WHERE id='batch-1'").run();
+  db.sqlite.prepare("UPDATE user_memories SET user_id='other' WHERE id='batch-2'").run();
+  db.sqlite.prepare("UPDATE user_memories SET scope='session' WHERE id='batch-3'").run();
+  const original = db.prepare.bind(db);
+  let writes = 0;
+  db.prepare = sql => {
+    const statement = original(sql);
+    if (!/UPDATE user_memories/.test(sql)) return statement;
+    return { bind(...args) {
+      assert.ok(args.length <= 100, 'three reserved bindings leave at most 97 IDs');
+      const query = statement.bind(...args);
+      return { ...query, async run() {
+        writes++;
+        if (writes === 2) return { success: false };
+        return query.run();
+      } };
+    } };
+  };
+  t.mock.method(console, 'warn', () => {});
+  assert.equal(await memory.persistReadingMemoryAccess(db, { userId: 'owner', ids, completedAt }), true);
+  assert.equal(writes, 4);
+  const rows = db.sqlite.prepare('SELECT id,last_accessed_at FROM user_memories').all();
+  for (const row of rows) assert.equal(row.last_accessed_at, ['batch-1', 'batch-2', 'batch-3'].includes(row.id) ? null : Math.floor(completedAt / 1000));
+});
+
+test('real subscription producer stages private request and attempt identity before durable job completion', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  for (const cancel of [false, true]) await t.test(cancel ? 'cancel before source done' : 'accepted terminal source', async () => {
+    const db = routeDatabase(); insert(db, 'private-subscription-note', { text: 'Navigating career uncertainty' });
+    const state = createReadingJobState();
+    const receipts = [];
+    let upstream;
+    t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({ start(controller) { upstream = controller; } }), { headers: { 'content-type': 'text/event-stream' } }));
+    const env = { DB: db, TEXT_PROVIDER: 'codex-subscription', CODEX_SUBSCRIPTION_OWNER_USER_ID: 'owner', CODEX_SUBSCRIPTION_GATEWAY_URL: 'https://codex.test', CODEX_SUBSCRIPTION_GATEWAY_TOKEN: 'synthetic', CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+    const job = new ReadingJob(state, env, { runReading: context => onRequestPost({ ...context, onReadingMemoryUsage: usage => { receipts.push(usage); context.onReadingMemoryUsage(usage); } }) });
+    await job.fetch(new Request('https://jobs/start', { method: 'POST', headers: { 'X-Job-Token': 'token' }, body: JSON.stringify({ jobId: 'subscription-job', payload: routeFixture, principal: { userId: 'owner' } }) }));
+    for (let turn = 0; turn < 20 && !upstream; turn++) await nextTurn();
+    assert.ok(upstream, 'real route must reach mocked subscription stream');
+    const text = 'The Sun invites career exploration. Your choices shape outcomes.';
+    const send = (type, value) => upstream.enqueue(new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(value)}\n\n`));
+    send('delta', { text });
+    if (cancel) await job.cancelRun();
+    else send('done', { text, structured: null, provider: 'codex-subscription', model: 'synthetic', modelSource: 'configured', usage: {} });
+    await drain(state);
+    assert.equal(receipts.length, cancel ? 0 : 1);
+    if (!cancel) {
+      const usage = receipts[0];
+      assert.ok(Object.isFrozen(usage) && Object.isFrozen(usage.ids));
+      assert.deepEqual(usage.ids, ['private-subscription-note']);
+      assert.equal(usage.requestId, job.job.result.requestId);
+      assert.match(usage.attemptId, /^[a-f0-9-]{36}$/);
+      assert.notEqual(usage.attemptId, usage.requestId);
+      assert.equal(job.job.status, 'complete');
+      assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='private-subscription-note'").get().last_accessed_at, Math.floor(usage.completedAt / 1000));
+      assert.doesNotMatch(JSON.stringify(job.job), /attemptId|memoryReceipt|slotToId|private-subscription-note/);
+    } else {
+      assert.equal(job.job.status, 'error');
+      assert.equal(db.sqlite.prepare("SELECT last_accessed_at FROM user_memories WHERE id='private-subscription-note'").get().last_accessed_at, null);
+    }
+    assert.equal(state.stored.has(RECEIPT_KEY), false);
+    job.closeSubscribers();
+    db.sqlite.close();
+  });
 });

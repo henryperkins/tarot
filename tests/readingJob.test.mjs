@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ReadingJob } from '../src/worker/readingJob.js';
 import { readReadingJobEvents } from '../src/lib/readingJobStream.js';
+import { createReadingJobState, hangingRunner } from './helpers/fakeReadingJobs.mjs';
 
 test('background jobs return crisis support when a note disclosure follows a sanitizer trigger', async (t) => {
   t.mock.method(console, 'log', () => {});
@@ -9,11 +10,7 @@ test('background jobs return crisis support when a note disclosure follows a san
   const fetchMock = t.mock.method(globalThis, 'fetch', async () => {
     return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Moon invites reflection. Your choices shape outcomes.' } }] });
   });
-  const job = new ReadingJob({
-    blockConcurrencyWhile: (callback) => callback(),
-    storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} },
-    waitUntil: (promise) => promise.catch(() => {})
-  }, { MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
+  const job = new ReadingJob(createReadingJobState(), { MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test-qwen', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' });
   t.after(() => job.closeSubscribers());
   const start = await job.fetch(new Request('https://jobs/start', {
     method: 'POST',
@@ -51,7 +48,7 @@ test('resuming after metadata restores attribution through the real stream clien
   const sourceUsage = { spreadCards: { used: true, requested: true }, memories: { used: true, requested: true, candidatesProvided: 100, memoriesSelected: 3, memoriesUsedInPrompt: 2 } };
   job.appendEvent('meta', { provider: 'test', sourceUsage });
   job.appendEvent('delta', { text: 'Partial text.' });
-  job.appendEvent('done', { fullText: 'Complete text.' });
+  await job.appendEvent('done', { fullText: 'Complete text.' });
   t.mock.method(globalThis, 'fetch', (url, options) => job.fetch(new Request(`https://jobs/stream?cursor=${new URL(url, 'https://jobs').searchParams.get('cursor')}`, options)));
   const events = [];
   for await (const event of readReadingJobEvents({ jobId: 'job-1', jobToken: 'secret', cursor: 2 })) events.push(event);
@@ -62,12 +59,15 @@ test('resuming after metadata restores attribution through the real stream clien
 async function createJob(t) {
   t.mock.timers.enable({ apis: ['setInterval'] });
   const writes = [];
-  const job = new ReadingJob({
-    blockConcurrencyWhile: (callback) => callback(),
-    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} }
-  }, {});
+  const state = createReadingJobState();
+  const put = state.storage.put;
+  state.storage.put = (...args) => { writes.push(args); return put(...args); };
+  const job = new ReadingJob(state, {});
   await job.initialized;
   Object.assign(job.job, { jobId: 'job-1', token: 'secret', status: 'running' });
+  job.runId = 'test-run';
+  await job.persistState();
+  writes.length = 0;
   t.after(() => job.closeSubscribers());
   const response = await job.fetch(new Request('https://jobs/stream', {
     headers: { 'X-Job-Token': 'secret' }
@@ -97,7 +97,7 @@ for (const terminal of ['done', 'error']) {
   test(`${terminal} closes heartbeat subscribers and is replayable`, async (t) => {
     const { job, reader } = await createJob(t);
     const subscriber = [...job.subscribers][0];
-    job.appendEvent(terminal, terminal === 'done' ? { fullText: 'A reading.' } : { message: 'Failed.' });
+    await job.appendEvent(terminal, terminal === 'done' ? { fullText: 'A reading.' } : { message: 'Failed.' });
     assert.equal(job.subscribers.size, 0);
     assert.equal(subscriber.heartbeat, null);
     t.mock.timers.tick(30000);
@@ -117,7 +117,6 @@ for (const terminal of ['done', 'error']) {
 }
 
 test('held fake annotation promise does not block narrative deltas or done', async () => {
-  const writes = [];
   const observedSnapshots = [];
   let resolveFakeAnnotation;
   const fakeAnnotationPromise = new Promise(resolve => { resolveFakeAnnotation = resolve; });
@@ -140,11 +139,9 @@ test('held fake annotation promise does not block narrative deltas or done', asy
     }
   };
 
-  const job = new ReadingJob({
-    blockConcurrencyWhile: (callback) => callback(),
-    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} },
-    waitUntil: () => {}
-  }, env);
+  const state = createReadingJobState();
+  // Keep the real runner from racing these manually delivered visual events.
+  const job = new ReadingJob(state, env, { runReading: hangingRunner() });
   await job.initialized;
 
   const visualBinding = {
@@ -169,7 +166,7 @@ test('held fake annotation promise does not block narrative deltas or done', asy
   // Append deltas while fakeAnnotationPromise is still unresolved
   job.appendEvent('delta', { text: 'Sentence one. ' });
   job.appendEvent('delta', { text: 'Sentence two. ' });
-  job.appendEvent('done', { fullText: 'Sentence one. Sentence two. Final.' });
+  await job.appendEvent('done', { fullText: 'Sentence one. Sentence two. Final.' });
 
   // Job reached complete status without waiting for visual annotation
   assert.equal(job.job.status, 'complete');
@@ -181,7 +178,6 @@ test('held fake annotation promise does not block narrative deltas or done', asy
 });
 
 test('non-prefix final replacement increments visualBinding sourceRevision', async () => {
-  const writes = [];
   const observedSnapshots = [];
 
   const fakeVisualStub = {
@@ -201,11 +197,9 @@ test('non-prefix final replacement increments visualBinding sourceRevision', asy
     }
   };
 
-  const job = new ReadingJob({
-    blockConcurrencyWhile: (callback) => callback(),
-    storage: { get: async () => null, put: async (...args) => writes.push(args), setAlarm: async () => {} },
-    waitUntil: () => {}
-  }, env);
+  const state = createReadingJobState();
+  // Keep the real runner from racing these manually delivered visual events.
+  const job = new ReadingJob(state, env, { runReading: hangingRunner() });
   await job.initialized;
 
   const visualBinding = {
@@ -229,7 +223,7 @@ test('non-prefix final replacement increments visualBinding sourceRevision', asy
 
   job.appendEvent('delta', { text: 'Delivered initial prose.' });
   // Final replacement: e.g. safe-fallback text that does NOT start with textSoFar
-  job.appendEvent('done', { fullText: 'Safe fallback substitution that replaces previous prose.' });
+  await job.appendEvent('done', { fullText: 'Safe fallback substitution that replaces previous prose.' });
 
   assert.equal(job.visualBinding.sourceRevision, 1);
   assert.equal(observedSnapshots[1].binding.sourceRevision, 1);

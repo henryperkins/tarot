@@ -11,6 +11,7 @@ const USER_CONTEXT_FIELD_CONFIG = Object.freeze({
     providedProp: 'cardReflectionsProvided',
     usedProp: 'cardReflectionsUsed'
   }),
+  callerInterpretations: Object.freeze({ providedProp: 'callerInterpretationsProvided', usedProp: 'callerInterpretationsUsed' }),
   pathA: Object.freeze({ providedProp: 'pathAProvided', usedProp: 'pathAUsed' }),
   pathB: Object.freeze({ providedProp: 'pathBProvided', usedProp: 'pathBUsed' }),
   focusAreas: Object.freeze({

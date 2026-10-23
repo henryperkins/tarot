@@ -734,12 +734,13 @@ async function finalizeReading({
   }
 
   narrativePayload.signal?.throwIfAborted();
-  if (!wasGateBlocked && finalProvider !== 'safe-fallback' && narrativePayload.memoryAccessOwnerId) {
+  if (!wasGateBlocked && finalProvider !== 'safe-fallback' && narrativePayload.memoryAccessOwnerId
+    && narrativePayload.memoryAttemptId && narrativePayload.acceptedMemoryAttemptId === narrativePayload.memoryAttemptId) {
     const retention = narrativePayload.memoryRetention;
     const selectedIds = new Set((narrativePayload.memories || []).map(memory => memory.id).filter(Boolean));
     const ids = [...new Set((retention?.retainedSlots || []).map(slot => retention.slotToId?.[slot]).filter(id => selectedIds.has(id)))];
     if (ids.length) {
-      const usage = { userId: narrativePayload.memoryAccessOwnerId, ids, completedAt: Date.now() };
+      const usage = Object.freeze({ userId: narrativePayload.memoryAccessOwnerId, ids: Object.freeze(ids.slice(0, 3)), completedAt: Date.now(), requestId, attemptId: narrativePayload.acceptedMemoryAttemptId });
       if (typeof narrativePayload.onReadingMemoryUsage === 'function') {
         // Durable jobs commit only after their own cancellation/terminal guard.
         narrativePayload.onReadingMemoryUsage(usage);
@@ -770,6 +771,13 @@ export const onRequestGet = async ({ env }) => {
     timestamp: new Date().toISOString()
   });
 };
+
+/** Private identity and retention belong to one attempt, never its predecessor. */
+function beginMemoryAttempt(payload) {
+  payload.memoryAttemptId = crypto.randomUUID();
+  payload.acceptedMemoryAttemptId = null;
+  payload.memoryRetention = { retainedSlots: [], slotToId: {} };
+}
 
 /**
  * Resolve the caller for a reading.
@@ -1173,9 +1181,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     console.log(`[${requestId}] Memory candidates selected`, { selectedCount: memories.length });
 
     // STEP 1: Comprehensive spread analysis
+    taskSignal.throwIfAborted();
     console.log(`[${requestId}] Starting spread analysis...`);
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
+      signal: taskSignal,
       reversalFrameworkOverride,
       deckStyle,
       userQuestion,
@@ -1185,6 +1195,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       subscriptionTier,
       location: sanitizedLocation
     }, requestId, env);
+    taskSignal.throwIfAborted();
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
       spreadKey: analysis.spreadKey,
@@ -1274,6 +1285,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
       && !evalGatePolicy.effectiveEvalGateEnabled;
     if (codexLiveEnabled) {
+      beginMemoryAttempt(narrativePayload);
       let acceptedMemoryUsage = null;
       // Final checking can still be cancelled. Commit only when the stream
       // accepts its terminal done event, after that last abort check.
@@ -1317,6 +1329,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             throw error;
           }
           narrativePayload.signal = signal;
+          narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
           narrativePayload.promptMeta.inference = { provider: streamProvider, model: result.model, modelSource: result.modelSource };
           const { responsePayload } = await taskDeadline.run(() => finalizeReading({
             env, requestId, startTime, reading: result.text, provider: streamProvider, deckStyle, analysis,
@@ -1419,6 +1432,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     if (canUseOpenAIStreaming) {
       const streamProvider = 'openai-native';
+      beginMemoryAttempt(narrativePayload);
 
       // A/B Testing: assign per-provider so targeting is accurate
       const {
@@ -1528,6 +1542,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           } else {
             streamState = 'accepted';
             streamReason = null;
+            narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
             narrativePayload.promptMeta.inference = { provider: streamProvider, model: streamModel };
             let gateOverride = null;
             if (shouldSafetyScanStreaming) {
@@ -1723,6 +1738,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         continue;
       }
       console.log(`[${requestId}] Attempting narrative backend ${backendProvider} (${backend.label})...`);
+      beginMemoryAttempt(narrativePayload);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
       // Reset diagnostics each attempt to avoid carrying alerts across backends
@@ -1793,6 +1809,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         }
 
         // Associate captured prompts/usage with the accepted backend attempt only.
+        narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
         capturedPrompts = attemptPrompts;
         capturedUsage = attemptUsage;
         capturedReasoningSummary = attemptReasoningSummary;

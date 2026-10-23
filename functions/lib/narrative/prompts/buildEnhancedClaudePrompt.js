@@ -22,7 +22,7 @@ import { estimateTokenCount, getHardCapBudget, getPromptBudgetForTarget } from '
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
-import { sanitizeQueryCoverage, sanitizeContextSelection } from '../../../../shared/readingSourceUsage.js';
+import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../../../shared/readingSourceUsage.js';
 import { buildMemorySourceUsage, buildUserContextSourceUsage } from '../sourceUsage.js';
 
 function resolveDeckStyle({ deckStyle, spreadInfo, themes, cardsInfo, diagnostics = [] }) {
@@ -635,11 +635,11 @@ export function buildEnhancedClaudePrompt({
     effectiveGraphRAGPayload = {
       ...effectiveGraphRAGPayload,
       passages: projected,
-      initialPassageCount: effectiveGraphRAGPayload.initialPassageCount ?? provided.length,
+      initialPassageCount: provided.length,
       unverifiedReferenceProvenance: unverified,
       retrievalSummary: {
         ...effectiveGraphRAGPayload.retrievalSummary,
-        projectionRejected: provided.length - projected.length,
+        projectionRejected: (effectiveGraphRAGPayload.retrievalSummary?.projectionRejected || 0) + provided.length - projected.length,
         ...(unverified ? { skippedReason: 'unverified_reference_provenance' } : {})
       }
     };
@@ -1065,32 +1065,19 @@ export function buildEnhancedClaudePrompt({
     const passagesInPrompt = graphRAGParse.status === 'complete'
       ? graphRAGParse.passageCount
       : null;
-    const formattedBlockFallbackPresent = typeof payload.formattedBlock === 'string' && payload.formattedBlock.trim().length > 0;
     const graphRAGIncludedFull = graphragEnabled &&
       controls.includeGraphRAG !== false &&
       graphRAGParse.status === 'complete' &&
-      graphRAGBlockPresent &&
-      (
-        (typeof passagesInPrompt === 'number' && passagesInPrompt > 0) ||
-        formattedBlockFallbackPresent
-      );
+      graphRAGBlockPresent && passagesInPrompt > 0;
     const graphRAGIncludedSummary = graphragEnabled &&
       controls.graphRAGSummaryOnly === true &&
       graphRAGSummaryParse.complete === true;
     const graphRAGInjectionMode = graphRAGIncludedFull
       ? 'full'
       : (graphRAGIncludedSummary ? 'summary' : 'none');
-    const passagesUsed = graphRAGParse.status === 'complete'
-      ? (
-        graphRAGIncludedFull
-          ? (
-            typeof passagesInPrompt === 'number' && passagesInPrompt > 0
-              ? passagesInPrompt
-              : (initialPassageCount > 0 ? initialPassageCount : null)
-          )
-          : 0
-      )
-      : (graphRAGIncludedSummary || payload.unverifiedReferenceProvenance ? 0 : null);
+    const passagesUsed = graphRAGIncludedFull
+      ? Math.min(graphRAGParse.passageCount, passagesAfterSlimming)
+      : 0;
     const trimmedCount = typeof passagesUsed === 'number'
       ? Math.max(0, initialPassageCount - passagesUsed)
       : null;
@@ -1124,6 +1111,9 @@ export function buildEnhancedClaudePrompt({
 
     retrievalSummary.passagesProvided = initialPassageCount;
     retrievalSummary.passagesUsedInPrompt = passagesUsed;
+    retrievalSummary.retainedPassageCount = passagesUsed;
+    retrievalSummary.selectedDeck = resolvedDeckStyle;
+    retrievalSummary.sourceDecks = [...new Set((payload.passages || []).map(passage => passage.sourceDeck).filter(Boolean))];
     retrievalSummary.parseStatus = graphRAGParse.status;
     retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
     retrievalSummary.summaryBlockPresent = graphRAGSummaryParse.present;
@@ -1135,7 +1125,9 @@ export function buildEnhancedClaudePrompt({
     if (payload.budgetTrimmedCount) {
       retrievalSummary.truncatedForBudget = true;
       retrievalSummary.budgetTrimmedFrom = payload.budgetTrimmedFrom ?? initialPassageCount;
+      // Historical budgetTrimmedTo describes ranking, before final block removal.
       retrievalSummary.budgetTrimmedTo = payload.budgetTrimmedTo ?? passagesUsed;
+      retrievalSummary.intermediateBudgetPassageCount = retrievalSummary.budgetTrimmedTo;
       if (payload.rankingStrategy) {
         retrievalSummary.budgetTrimmedStrategy = payload.rankingStrategy;
       }
@@ -1222,18 +1214,21 @@ export function buildEnhancedClaudePrompt({
   }
 
   const userContextUsage = buildPromptUserContextSourceUsage(built.sourceUsageSignals, finalUser, finalSystem);
-  const cardRetention = Object.entries(contextRetention).filter(([key]) => key.startsWith('card-')).map(([, field]) => field);
-  userContextUsage.cardReflectionsProvided = cardRetention.some((field) => field.originalLength > 0);
-  userContextUsage.cardReflectionsUsed = cardRetention.some((field) => field.includedLength > 0);
-  if (userContextUsage.cardReflectionsProvided) {
+  for (const [group, prefix] of [['cardReflections', 'card-'], ['callerInterpretations', 'interpretation-']]) {
+    const fields = Object.entries(contextRetention).filter(([key]) => key.startsWith(prefix)).map(([, field]) => field);
+    const provided = fields.some(field => field.originalLength > 0);
+    const used = fields.some(field => field.includedLength > 0);
+    userContextUsage[`${group}Provided`] = provided;
+    userContextUsage[`${group}Used`] = used;
+    if (!provided) continue;
     userContextUsage.requested = true;
-    userContextUsage.providedInputs.push('cardReflections');
-    if (userContextUsage.cardReflectionsUsed) {
+    userContextUsage.providedInputs.push(group);
+    if (used) {
       userContextUsage.used = true;
-      userContextUsage.usedInputs.push('cardReflections');
+      userContextUsage.usedInputs.push(group);
       userContextUsage.skippedReason = null;
     } else {
-      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, cardReflections: cardRetention.some((field) => field.budgetTruncated) ? 'removed_for_budget' : 'sanitized_empty' };
+      userContextUsage.skippedInputs = { ...userContextUsage.skippedInputs, [group]: fields.some(field => field.budgetTruncated) ? 'removed_for_budget' : 'sanitized_empty' };
       if (!userContextUsage.used) userContextUsage.skippedReason = 'provided_but_not_used';
     }
   }
@@ -1294,6 +1289,8 @@ export function buildEnhancedClaudePrompt({
       fields: contextRetention
     },
     graphRAG: {
+      ...sanitizeGraphRAGDiagnostics(promptMeta.graphRAG),
+      retainedPassageCount: promptMeta.graphRAG?.passagesUsedInPrompt ?? 0,
       requested: hasGraphRAGSource,
       used: graphRAGMode !== 'none',
       mode: graphRAGMode,

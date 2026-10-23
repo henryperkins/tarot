@@ -13,6 +13,44 @@ const reflection = 'The golden colors remind me of a quiet afternoon at home. '.
 const card = { card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth and renewal.', userReflection: reflection };
 const fixture = (overrides = {}) => ({ spreadInfo: { name: 'One-Card Insight', key: 'single' }, cardsInfo: [card], userQuestion: question, reflectionsText: reflections, context: 'general', budgetTarget: 'openai', ...overrides });
 
+it('counts sole caller interpretations separately in provider aggregates and honest local omission', async () => {
+  const { composeReadingEnhanced } = await import('../functions/lib/narrativeBackends.js');
+  const payload = fixture({ cardsInfo: [{ ...card, userReflection: '', callerMeaning: 'defeat and betrayal' }], userQuestion: '', reflectionsText: '' });
+  const built = buildEnhancedClaudePrompt(payload);
+  const usage = built.promptMeta.sourceUsage.userContext;
+  assert.equal(usage.requested, true);
+  assert.equal(usage.used, true);
+  assert.equal(usage.callerInterpretationsProvided, true);
+  assert.equal(usage.callerInterpretationsUsed, true);
+  assert.ok(usage.usedInputs.includes('callerInterpretations'));
+  assert.equal(usage.cardReflectionsProvided, false);
+  assert.equal(usage.fields['interpretation-0'].includedLength, 19);
+  assert.doesNotMatch(stripUserPromptContent(built.userPrompt), /defeat and betrayal/);
+  const local = await composeReadingEnhanced({ ...payload, analysis: { themes: {}, spreadKey: 'single' } });
+  const omitted = local.promptMeta.sourceUsage.userContext;
+  assert.equal(omitted.requested, true);
+  assert.equal(omitted.used, false);
+  assert.equal(omitted.callerInterpretationsUsed, false);
+  assert.equal(omitted.skippedInputs.callerInterpretations, 'not_used_by_backend');
+});
+
+it('budgets 78 caller interpretations independently and redacts their serialized content', t => {
+  t.mock.method(console, 'warn', () => {});
+  const sentinel = 'PERSONAL_INTERPRETATION_SENTINEL';
+  const callerMeaning = 'このカードは私自身の解釈と記憶を表しています。'.repeat(60).slice(0, 1000 - sentinel.length) + sentinel;
+  const built = buildEnhancedClaudePrompt(fixture({ spreadInfo: { key: 'custom', name: 'Custom Spread' }, cardsInfo: Array.from({ length: 78 }, (_, index) => ({ ...card, position: `Focus ${index + 1}`, userReflection: '', callerMeaning })), userQuestion: '', reflectionsText: '', promptBudgetEnv: { GRAPHRAG_ENABLED: 'false', ENABLE_PROMPT_SLIMMING: 'false' } }));
+  const usage = built.promptMeta.sourceUsage.userContext;
+  const fields = Object.entries(usage.fields).filter(([key]) => key.startsWith('interpretation-')).map(([, field]) => field);
+  assert.equal(fields.length, 78);
+  assert.equal(usage.callerInterpretationsProvided, true);
+  assert.equal(usage.callerInterpretationsUsed, fields.some(field => field.includedLength > 0));
+  assert.equal(usage.cardReflectionsProvided, false);
+  assert.ok(fields.some(field => field.budgetTruncated && field.includedLength < field.eligibleLength));
+  assert.ok(fields.every(field => field.originalLength === 1000));
+  assert.doesNotMatch(stripUserPromptContent(built.userPrompt), /このカード|PERSONAL_INTERPRETATION_SENTINEL/);
+  assert.doesNotMatch(JSON.stringify(built.promptMeta), /このカード|PERSONAL_INTERPRETATION_SENTINEL/);
+});
+
 it('preserves accepted tail constraints in the real reading API request to Modal', async (t) => {
   const requests = [];
   t.mock.method(console, 'log', () => {});
