@@ -70,10 +70,35 @@ for (const backend of ['openai-native', 'local-composer']) {
       const metadata = readingMetadataFromEntry({ sourceUsage: payload.sourceUsage });
       const usage = formatUsageSummary(metadata.sourceUsage);
       const row = usage.rows.find(row => row.label === 'Your question & notes');
-      assert.equal(row.state, expectedState);
+      // The supplied noncanonical meaning becomes a caller interpretation.
+      // Local composition retains notes but explicitly omits that interpretation.
+      const localInterpretationOmitted = backend === 'local-composer';
+      const rowState = localInterpretationOmitted ? 'partial' : expectedState;
+      assert.equal(row.state, rowState);
       assert.equal(row.detail.includes('Shortened: card notes.'), shortened);
-      assert.equal(usage.summary.attention, expectedState === 'partial' ? 1 : 0);
-      assert.equal(metadata.sourceUsage.userContext.fields['card-0'].originalLength, note.trim().length);
+      assert.equal(usage.summary.attention, rowState === 'partial' ? 1 : 0);
+      const context = metadata.sourceUsage.userContext;
+      const noteField = context.fields['card-0'];
+      assert.equal(noteField.originalLength, note.trim().length);
+      assert.equal(context.callerInterpretationsUsed, !localInterpretationOmitted);
+      const interpretationField = context.fields['interpretation-0'];
+      assert.equal(interpretationField.omitted, localInterpretationOmitted);
+      if (localInterpretationOmitted) {
+        assert.equal(interpretationField.includedLength, 0);
+        assert.equal(interpretationField.reason, 'not_used_by_backend');
+        assert.match(row.detail, /Your card interpretations: This reading method did not include this input\./);
+        assert.doesNotMatch(payload.reading, /Warmth and renewal\./);
+      } else {
+        assert.equal(interpretationField.includedLength, fixture.cardsInfo[0].meaning.length);
+      }
+      if (expectedState === 'used') {
+        assert.equal(noteField.includedLength, note.trim().length, 'an omitted interpretation does not imply an omitted note');
+        assert.equal(noteField.omitted, false);
+        assert.equal(noteField.limitApplied, false);
+        assert.equal(context.cardReflectionsUsed, true);
+        assert.match(row.detail, /Included: [^.]*card notes\b[^.]*\./);
+        if (localInterpretationOmitted) assert.ok(payload.reading.includes(note.trim()), 'local note attribution follows actual rendered content');
+      }
     });
   }
 }

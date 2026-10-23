@@ -24,32 +24,32 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
 | 3 | 5–6 | Complete | Full-set bounded ranking and compatible frozen memory selection independently reviewed. |
 | 4 | 7–8 | Complete | Final provider retention and durable completion receipt independently reviewed. |
-| 5 deterministic | 9 | Active, ready for final gate | Fresh whole-change review approved after four corrections. Final frozen-source qualification is next. |
+| 5 deterministic | 9 | Active, ready for repeat gate | All qualification repairs independently approved; first failed/incomplete attempt preserved. A new committed source must pass the complete gate. |
 | 5 editorial/live | 10 | Separate, unrun | Human approval, subscription generation, Workers AI and provider-limit verification. |
 | 6 | 11 | Offline documentation complete; release separate | Prompt 1.4.0 and maintained contracts reviewed. Publication/deployment/live verification remain unrun. |
 
 ## Requirement-to-test ownership
 
-This table preserves the baseline coverage gaps and their task ownership. The task records below document their implementation and independent review; the final whole-source qualification gate remains separate. Historical candidate tests alone are not current qualification.
+This table maps the combined reviews to the implemented contracts and regression ownership. The records below retain earlier failures and review corrections; final whole-source qualification is a separate gate.
 
-| Requirement | Owner tasks | Reused regression coverage | Missing acceptance coverage / status |
+| Requirement | Owner tasks | Regression coverage | Implemented contract / remaining boundary |
 | --- | --- | --- | --- |
-| F1 partial arcs | 3, 4, 7, 9 | `knowledgeGraphPartialTriads`, `graphRAGDeckProjection` | Partial references still contain absent-stage prose; add all-pair final projection tests. |
-| F2 deck fidelity | 1, 4, 7, 10 | `graphRAGDeckProjection`, `knowledgeGraphContextPipeline` | Matched subset, aliases, enrichment and provider-boundary projections; human review pending. |
-| F3 complete classification | 2, 9 | `readingContextSources`, `readingRetrievalQuery` | Decisive late clauses and all 78 sources independent of query budget. |
-| F4 decision labels | 1, 2, 6, 7 | `decisionPathContext` | MCP parity, request identity, effective-label transport and new context object. |
-| F5 memory relevance/access | 6, 7, 8 | `readingMemorySelection`, `readingMemoryAccess`, `userMemoryAccess` | Negation, health admission, opt-out, accepted-attempt retention and crash receipt. |
-| F6 full candidate recall | 4, 5 | `graphRAGCandidateSelection`, `graphRAGProvenance` | Comparable fallback, full projected embeddings, deadline and all-variant competition. |
-| F7 attribution | 4 | `graphRAGDeckProjection`, `passageCandidates` | Verified source identity, explicit internal canon wrapper and enriched provenance. |
-| F8 context/count metadata | 2, 3, 7 | `graphContext`, `promptContextRetention` | Single selection object; Major count independent of journey ties. |
-| V1 mixed spans | 2 | `readingRetrievalQuery` | Sentence/clause selection with negation, source coverage and bounded excerpts. |
-| V2 opaque legacy counts | 7 | `graphRAGRetention`, `sourceUsageSummary` | Remove selected-count fallback; only verified registry content may enter generation. |
-| V3 normalized ranking | 5 | `graphRAGCandidateSelection`, `graphRAG` | Repetition/scaffolding, mode ordering and bounded relevance-first policy. |
-| V4 conditional pattern prose | 3, 4, 7 | `knowledgeGraphPartialTriads`, `knowledgeGraphContextPipeline` | Positions/reversals and missing-card local guards; actual lower-level fallback use. |
-| V5 MCP parity | 1, 7 | `mcpServer`, `mcpReadingTools` | New fields accepted by actual strict tool handlers and forwarded to jobs. |
-| V6 interpretation provenance | 1, 7 | `readingCardResolution`, `readingSchema` | Canonical catalog meaning plus bounded caller interpretation and retention. |
-| V7 local/UI truthfulness | 7 | `sourceUsageSummary`, `narrativeBackends` | Reasoning local path, preview separation and accepted-attempt indices. |
-| V8 memory reuse/control | 1, 6, 7 | `userMemory`, `userPersonalization` | Request boolean/UI, zero reads on opt-out, restricted fact admission. |
+| F1 partial arcs | 3, 4, 7, 9 | `knowledgeGraphPartialTriads`, `graphRAGDeckProjection`, qualification corpus | All 30 numeric pairs and ten complete controls; matched-only final references and conditional direct themes. Human semantic approval pending. |
+| F2 deck fidelity | 1, 4, 7, 10 | `graphRAGDeckProjection`, `knowledgeGraphContextPipeline` | Verified pattern/deck projection, selected aliases, enrichment provenance and provider builds; 525 human review rows pending. |
+| F3 complete classification | 2, 9 | `readingContextSources`, `readingRetrievalQuery` | Every accepted source classified before a separate query budget, including 78 notes and decisive late clauses. |
+| F4 decision labels | 1, 2, 6, 7 | `decisionPathContext`, `readingContextTransport` | Validated A/B labels, explicit clears, request identity, MCP/jobs/journal propagation and one authoritative selection. |
+| F5 memory relevance/access | 6, 7, 8 | `readingMemorySelection`, `readingMemoryAccess`, `userMemoryAccess`, job suites | Bounded compatible frozen selection, final complete-block retention and durable accepted-attempt receipts. W5 persistence-redaction follow-up is tracked below. |
+| F6 full candidate recall | 4, 5 | `graphRAGCandidateSelection`, `graphRAGProvenance` | All eligible projected variants compete before allowance; coherent whole-set fallback and shared embedding deadline. |
+| F7 attribution | 4 | `graphRAGDeckProjection`, `passageCandidates` | Internal canon wording and verified distinct enrichment/source-tradition provenance. |
+| F8 context/count metadata | 2, 3, 7 | `graphContext`, `promptContextRetention` | Authoritative selection provenance; total Major slots independent of journey ties. |
+| V1 mixed spans | 2 | `readingRetrievalQuery`, `readingMemorySelection` | Compatible sentence/clause projection with preserved negatives, complete-source coverage and bounded excerpts. Limited grammar remains explicit. |
+| V2 opaque legacy counts | 7 | `graphRAGRetention`, `sourceUsageSummary` | Unknown counts stay unknown; unverified legacy prose cannot enter generation. |
+| V3 normalized ranking | 5 | `graphRAGCandidateSelection`, `graphRAG` | Distinct Unicode terms, no generated lexical scaffolding, explicit modes and relevance-first deterministic ties. |
+| V4 conditional pattern prose | 3, 4, 7 | `knowledgeGraphPartialTriads`, `knowledgeGraphContextPipeline` | Positions/reversals remain authoritative; local missing-card guards and actual lower-level fallback use. |
+| V5 MCP parity | 1, 7 | `mcpServer`, `mcpReadingTools`, `readingContextTransport` | Real strict handlers accept bounded fields and forward them through jobs with principal isolation. |
+| V6 interpretation provenance | 1, 7 | `readingCardResolution`, `readingSchema`, `readingInputUsage` | Server catalog meaning plus separately bounded untrusted caller interpretation; actual retention only. |
+| V7 local/UI truthfulness | 7 | `sourceUsageSummary`, `narrativeBackends`, `readingInputUsage` | Reasoning-local omission, preview separation and accepted-attempt indices. Legacy fixture follow-up is tracked below. |
+| V8 memory reuse/control | 1, 6, 7 | `userMemory`, `userPersonalization`, `readingContextTransport` | Request boolean and signed-in UI, no candidate read on opt-out, conservative supported-fact admission. |
 
 ## Phase 0 integration decisions
 
@@ -105,9 +105,9 @@ Recorded commands and complete logs are retained in the external evidence direct
 - Preservation: all 92 captured primary files, both original plans, primary/candidate HEAD/status/index and historical fixture bytes unchanged.
 - Phase 0 diff check passed.
 
-## Known unresolved candidate gaps
+## Historical Phase 0 candidate gaps
 
-Partial references still contain full arcs; Major counts still depend on journey detection; prompt selection is recomputed; mixed sources and negated memories remain unsafe; opaque legacy retention fallback remains; memory receipts are not durable; enriched projections are not yet adapted. These are required follow-on work, not waived findings.
+At Phase 0, partial references still contained full arcs; Major counts depended on journey detection; prompt selection was recomputed; mixed sources and negated memories remained unsafe; opaque legacy retention fallback remained; memory receipts were not durable; enriched projections were not yet adapted. These baseline gaps drove the implemented tasks below. They are historical observations, not the current implementation status.
 
 ## Task 3 — Graph facts and direct highlights
 
@@ -219,6 +219,27 @@ Maintained runtime, input, API/MCP, provider, source-usage and release/rollback 
 - **W3, documentation, resolved:** The old enrichment-merge comment now reflects full-variant relevance ranking; the merge implementation is preserved.
 - **W4, P2, resolved:** `Alice canceled my wedding` was incorrectly attributed only to actor Alice, allowing the user's obsolete wedding memory. A bounded current-source veto now recognizes the explicit user-owned event without creating positive factual authority or general coreference. Negated-cancellation, unrelated-event and existing same-actor controls remain covered.
 
-Corrective round 1: **434 implementer tests passed**. Fresh independent whole-change review approved all 133 changed/new files after **648 focused tests** and **14 saved corrective probes** passed, including eight actual direct/job cases. No actionable review finding remains open. Earlier failures are preserved. The reviewed file-map SHA-256 is `ba7a8074a2ecb13f8f49075903ddbe3655fbb26af0405dd8c74edc929685421b`; subsequent parent edits to this ledger and qualification status record the verdict without changing executable/test bytes.
+Corrective round 1: **434 implementer tests passed**. Fresh independent whole-change review approved all 133 changed/new files after **648 focused tests** and **14 saved corrective probes** passed, including eight actual direct/job cases. No actionable review finding remained open at that review; W5 was discovered by the later root qualification attempt below. Earlier failures are preserved. The reviewed file-map SHA-256 is `ba7a8074a2ecb13f8f49075903ddbe3655fbb26af0405dd8c74edc929685421b`; subsequent parent edits to this ledger and qualification status record the verdict without changing executable/test bytes.
 
-The expanded development gate passed 849 fixtures, 2,523 provider-target builds, 525 projections and 21 actual cap selections before the corrective review. It must now run against the committed final source with the root/Worker/lint/build/docs gates; those earlier results are not final-source qualification.
+The expanded development gate passed 849 fixtures, 2,523 provider-target builds, 525 projections and 21 actual cap selections before the corrective review. Those earlier results were development evidence; the subsequent frozen-source attempt is recorded below.
+
+
+## First frozen-source qualification attempt
+
+Commit `115bbd02ecc1d4f15b563d4871764993ba1266e6`, tree `05878e1c48dd6aaab629e9e462b571734460ca96`, remained identical across all 3,363 captured source paths. The root runner reported 5,278 passed, nine failed and two intentional installed-CLI skips. One relay test file was incomplete after a verified owned child was terminated; these counts do not establish complete root coverage. Worker graph (47), expanded deterministic prompt gate (849 fixtures / 2,523 provider builds / 525 projections / 21 cap selections), lint, build, docs, diff, plan links and corpus capture passed. No live model or production call occurred.
+
+The immutable failed-attempt manifest is retained under `task9-final-115bbd02-qualification-1/` in the private evidence directory, SHA-256 `c1490342a05b744e4f7438e5e2b923a99151f30fa6e563ff05df1cefda349783`. The root failures are not waived or called baseline-only. Repairs require a new source identity and qualification attempt.
+
+- **W5, P2:** Generation selection removed an already-loaded private name from persistence-redaction hints. A canned provider response independently containing that name then stored it unredacted. The repair must keep private candidate-name coverage separate from memory generation eligibility, without injecting omitted notes or changing retention/access accounting.
+- **Evaluation relay integration:** The cue relay's storage fake lacks the transactional methods required by the real job completion path. Update the fake to the shared storage contract and make relay tests terminate within explicit bounds.
+- **Fixture contract migrations:** Verified references must replace forged reference pressure/inclusion fixtures; positive advisory memory must satisfy the supported grammar; local-composer retention must match actual rendering; frozen published plugin instructions must remain distinct from the maintained future contract. Preserve the original behavioral assertions and historical package bytes.
+
+Ruling: Apply W5's private candidate-name hints to optional redacted prompt/response persistence as well as ordinary evaluation storage. A name already known to the same request must not lose protection merely because a different persistence option is enabled. Keep the existing explicit unredacted-storage authorization contract and generic hint cap unchanged. The additional lane is a consistency correction; no baseline comparison establishes that it was newly introduced by this branch.
+
+### Qualification repairs: independently approved
+
+W5 is resolved: current/selected name hints keep their existing priority, with a separate bounded private candidate union used only for default evaluation storage and optional redacted prompt/response storage. All four finalizer paths carry the hints; opt-out, generation inputs, memory retention and access receipts remain unchanged. A narrow possessive-regex escape correction was also required for current-name coverage; the original base independently confirms that error predates this remediation.
+
+The relay now uses the existing transaction-aware storage helper, and bounded tests cover durable JSON completion, independent simultaneous SSE streams, cursor replay and subscriber cleanup. The full previously incomplete file and its direct qualification consumer pass. Fixture changes retain the intended budget, advisory memory, note retention and package-integrity assertions. Frozen published plugin bytes remain unchanged.
+
+Implementer evidence: 554 privacy covering tests; 85 fixture tests; 73 relay tests plus 24 direct-consumer tests. Independent review passed 158 fixture/relay tests and 173 privacy/prompt/access tests, plus a maximum-union optional-archive probe. Counts overlap and are not additive. All 12 pending paths were hash-verified; review file-map SHA-256 `c317300362d575e9827bc1d51ccfc38f74e37cd95389b599b0d24ca6c6a4504e`. No actionable finding remains in this repair review. Parent edits after that snapshot only record this verdict in status documentation. These focused results do not replace the new whole-source gate.

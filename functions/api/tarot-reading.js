@@ -26,6 +26,7 @@ import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import {
   buildPromptEngineeringPayload,
   buildReadingRedactionOptions,
+  buildMemoryCandidateRedactionNames,
   shouldAllowUnredactedPromptStorage,
   shouldPersistPrompts
 } from '../lib/promptEngineering.js';
@@ -415,6 +416,7 @@ async function finalizeReading({
   capturedReasoningSummary = null,
   waitUntil,
   personalization,
+  candidateNameHints = [],
   backendErrors = [],
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
@@ -471,6 +473,7 @@ async function finalizeReading({
     userQuestion,
     reflectionsText,
     memories: narrativePayload.memories,
+    candidateNameHints,
     cardsInfo,
     decisionPaths: narrativePayload.decisionPaths
   });
@@ -618,6 +621,8 @@ async function finalizeReading({
         userQuestion,
         reflectionsText,
         personalization,
+        redactionOptions: readingRedactionOptions,
+        candidateNameHints,
         skipPIIRedaction
       });
     } catch (err) {
@@ -1165,6 +1170,11 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     // Preferences inform context before safety/entitlement exits; memory storage
     // is touched only after those exits and only when reuse is enabled.
     const memoryCandidates = await loadReadingMemoryCandidates(env?.DB, user?.id, { useSavedMemories });
+    // Persistence-only hints stay outside the frozen generation selection and
+    // narrative payload. Explicit opt-out performs neither reads nor extraction.
+    const candidateNameHints = useSavedMemories === false
+      ? []
+      : buildMemoryCandidateRedactionNames(memoryCandidates);
     const memorySelection = useSavedMemories === false
       ? Object.freeze({
         memories: Object.freeze([]), selectedIds: Object.freeze([]),
@@ -1335,7 +1345,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             env, requestId, startTime, reading: result.text, provider: streamProvider, deckStyle, analysis,
             narrativePayload, contextDiagnostics, cardsInfo, userQuestion, reflectionsText: querentReflections,
             context, visionMetrics, abAssignment: attemptAssignment, capturedPrompts, capturedUsage: result.usage,
-            waitUntil, personalization, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
+            waitUntil, personalization, candidateNameHints, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
             allowGateBlocking: true, rejectGateBlocked: true, evalGateEnv, evalGatePolicy,
             promptDebugAllowed: promptDebugAccess.allowed
           }));
@@ -1582,6 +1592,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               capturedUsage: streamUsage,
               waitUntil,
               personalization,
+              candidateNameHints,
               backendErrors: [],
               acceptedQualityMetrics: qualityMetrics,
               allowGateBlocking: true,
@@ -1672,6 +1683,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 capturedUsage: null,
                 waitUntil,
                 personalization,
+                candidateNameHints,
                 backendErrors: [],
                 acceptedQualityMetrics: null,
                 allowGateBlocking: false,
@@ -1914,6 +1926,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       capturedReasoningSummary,
       waitUntil,
       personalization,
+      candidateNameHints,
       backendErrors,
       acceptedQualityMetrics,
       gateNotice: streamingGateNotice,

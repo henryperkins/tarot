@@ -5,7 +5,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  runReadingCueEvaluation, createVisualCueSession, createReadingCueRelay,
+  runReadingCueEvaluation, createVisualCueSession, createReadingCueRelay, createCueMemoryState,
   openCueRoundBudget, createBoundedCueAdapter, createWorkersAiRestAdapter,
   estimateCueUsageCost, buildCueDeliverySchedule, createCueRunIdentity,
   DEFAULT_CUE_CANDIDATES, CUE_PRICING_SNAPSHOT
@@ -26,8 +26,50 @@ const fake = run => ({ offline: true, run });
 const response = proposals => ({ response: JSON.stringify({ proposals }), model: candidate.model,
   usage: { prompt_tokens: 10, completion_tokens: 10 } });
 const register = adapter => adapter.registerSession({ runId: 'run', caseId: star.id });
+const relayFetch = (input, init = {}) => fetch(input, { ...init, signal: init.signal
+  ? AbortSignal.any([init.signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000) });
+async function within(promise, label, timeoutMs = 5000) {
+  let timer;
+  try {
+    return await Promise.race([promise, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Timed out waiting for ${label}`)), timeoutMs);
+    })]);
+  } finally { clearTimeout(timer); }
+}
 const literal = { localAlias: 'pool', kind: 'literal', quote: star.opportunities.find(o => o.kind === 'literal').anchors[0].quote,
   targets: [{ spreadIndex: 2, detailIds: ['pool-pour'] }] };
+
+test('cue state supports production terminal storage and drains nested job work', { timeout: 10000 }, async () => {
+  const state = createCueMemoryState();
+  await state.storage.put('job', { status: 'running' });
+  await state.storage.put('readingMemoryReceipt', { obsolete: true });
+  await state.storage.transaction(async storage => {
+    assert.equal((await storage.get('job')).status, 'running');
+    await storage.put('job', { status: 'complete' });
+    await storage.delete('readingMemoryReceipt');
+    await storage.setAlarm(12345);
+  });
+  await assert.rejects(state.storage.transaction(async storage => {
+    await storage.put('job', { status: 'failed' });
+    await storage.setAlarm(54321);
+    throw new Error('rollback completion');
+  }), /rollback completion/);
+  assert.deepEqual(await state.storage.get('job'), { status: 'complete' });
+  assert.equal(await state.storage.get('readingMemoryReceipt'), undefined);
+  assert.equal(await state.storage.getAlarm(), 12345);
+  const observed = [];
+  state.waitUntil(tick().then(() => {
+    observed.push('parent');
+    state.waitUntil(tick().then(() => { observed.push('child'); }));
+  }));
+  await within(state.drain(), 'nested job work');
+  assert.deepEqual(observed, ['parent', 'child']);
+  assert.equal(state.work.length, 2);
+  await state.storage.deleteAlarm();
+  await state.storage.deleteAll();
+  assert.equal(await state.storage.getAlarm(), null);
+  assert.equal(await state.storage.get('job'), undefined);
+});
 
 test('controlled offline session dispatches through finite fixture initial admission', async () => {
   let calls = 0;
@@ -756,34 +798,38 @@ test('frozen schedules preserve raw UTF-16 bytes, sentence timing, and unrestric
   assert.deepEqual(buildCueDeliverySchedule(star.raw, 'final-only').map(e => e.type), ['done']);
 });
 
-test('relay offers scoped ordinary reading/visual routes and JSON upstream observer', async () => {
+test('relay offers scoped ordinary reading/visual routes and JSON upstream observer', { timeout: 15000 }, async () => {
   const relay = await createReadingCueRelay({ caseData: star, candidate, runId: 'relay-test', schedule: 'final-only',
     sourceMode: 'json', aiAdapter: fake(async () => response([literal])) });
   try {
     assert.match(relay.origin, /^http:\/\/127\.0\.0\.1:\d+$/);
-    const bad = await fetch(`${relay.origin}/api/tarot-reading/visuals/another`);
+    const bad = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/another`);
     assert.equal(bad.status, 404);
-    const started = await fetch(`${relay.origin}/api/tarot-reading/jobs`, { method: 'POST', body: '{}' });
+    const started = await relayFetch(`${relay.origin}/api/tarot-reading/jobs`, { method: 'POST', body: '{}' });
     assert.deepEqual(await started.json(), relay.startData);
     relay.startSchedule();
-    const report = await relay.completion;
+    const report = await within(relay.completion, 'JSON relay completion');
+    assert.equal(report.narrativeStatus, 'complete');
+    const stored = await relay.readingJob.state.storage.get('job');
+    assert.equal(stored.job.status, 'complete');
+    assert.equal(stored.events.at(-1).event, 'done');
     assert.equal(report.narrativeRawSha256, star.rawSha256);
     assert.equal(report.ledger.raw, star.raw);
     assert.equal(report.ledger.cues.length, 1);
-    const visual = await fetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}`, {
+    const visual = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}`, {
       headers: { 'X-Visual-Token': relay.startData.visualJobToken }
     });
     const payload = await visual.json();
     assert.equal(payload.status, 'complete');
     assert.equal(JSON.stringify(payload).includes('usage'), false);
     assert.equal(report.clockDomain, 'server Date.now');
-  } finally { await relay.close(); }
+  } finally { await within(relay.close(), 'JSON relay cleanup'); }
 });
 
-test('relay cancellation before schedule cleans owned work without dispatch', async () => {
+test('relay cancellation before schedule cleans owned work without dispatch', { timeout: 15000 }, async () => {
   const relay = await createReadingCueRelay({ caseData: star, candidate, runId: 'cancel-test', aiAdapter: fake(async () => assert.fail('cancelled dispatch')) });
-  await relay.close();
-  const report = await relay.completion;
+  await within(relay.close(), 'cancelled relay cleanup');
+  const report = await within(relay.completion, 'cancelled relay completion');
   assert.equal(report.status, 'cancelled');
   assert.equal(report.attempts.length, 0);
   await tick();
@@ -869,35 +915,66 @@ test('REST adapter factory is offline until explicit invocation and sanitizes fa
   assert.equal(count, 1);
 });
 
-test('burst relay preserves real independent SSE ledgers, cursor continuity, and exact source', async () => {
+test('burst relay preserves real independent SSE ledgers, cursor continuity, and exact source', { timeout: 15000 }, async () => {
   const relay = await createReadingCueRelay({ caseData: star, candidate, schedule: 'burst', runId: 'burst-test',
     aiAdapter: fake(async () => response([literal])), frontendOrigin: 'http://127.0.0.1:5174' });
   try {
-    const unknownOrigin = await fetch(`${relay.origin}/api/tarot-reading/jobs`, { method: 'POST', headers: { Origin: 'https://unowned.example' } });
+    const unknownOrigin = await relayFetch(`${relay.origin}/api/tarot-reading/jobs`, { method: 'POST', headers: { Origin: 'https://unowned.example' } });
     assert.equal(unknownOrigin.status, 403);
-    const wrongToken = await fetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}`, {
+    const wrongToken = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}`, {
       headers: { 'X-Visual-Token': 'another-case' }
     });
     assert.equal(wrongToken.status, 403);
+    // Subscribe before releasing prose so both independent ledgers must deliver
+    // their terminal event to a continuous client, as well as support replay.
+    const narrativeLive = await relayFetch(`${relay.origin}/api/tarot-reading/jobs/${relay.startData.jobId}/stream`, {
+      headers: { 'X-Job-Token': relay.startData.jobToken }
+    });
+    const visualLive = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}/stream`, {
+      headers: { 'X-Visual-Token': relay.startData.visualJobToken }
+    });
+    const liveStreams = Promise.all([narrativeLive.text(), visualLive.text()]);
+    // Observe rejection immediately even when completion is the first await.
+    liveStreams.catch(() => {});
     relay.startSchedule();
-    const report = await relay.completion;
+    const report = await within(relay.completion, 'burst relay completion');
+    assert.equal(report.narrativeStatus, 'complete');
+    const [liveNarrativeText, liveVisualText] = await within(liveStreams, 'continuous SSE completion');
+    assert.match(liveNarrativeText, /event: delta/);
+    assert.match(liveNarrativeText, /event: done/);
+    assert.match(liveVisualText, /event: done/);
+    const parseEvents = text => text.split('\n\n').filter(block => block.includes('data: ')).map(block => ({
+      type: block.match(/event: (\w+)/)?.[1], data: JSON.parse(block.match(/data: (.+)/)[1])
+    }));
+    const liveNarrativeEvents = parseEvents(liveNarrativeText);
+    const liveVisualEvents = parseEvents(liveVisualText);
+    assert.deepEqual(liveNarrativeEvents.map(event => event.data.eventId), report.serverEvents.map(event => event.id));
+    assert.equal(liveNarrativeEvents.filter(event => event.type === 'delta').map(event => event.data.text).join(''), star.raw);
+    assert.equal(liveNarrativeEvents.at(-1).data.fullText, star.raw);
+    assert.deepEqual(liveVisualEvents.filter(event => event.type !== 'snapshot').map(event => event.data.eventId),
+      relay.session.job.events.map(event => event.id));
+    assert.deepEqual(liveVisualEvents.at(-1).data.cues.map(cue => cue.id), report.ledger.cues.map(cue => cue.id));
     assert.equal(report.narrativeSourceMatchesCase, true);
     assert.equal(report.sourceMatchesCase, true);
     assert.ok(report.scheduleEvents.filter(e => e.type === 'delta').length > 3);
-    const narrative = await fetch(`${relay.origin}/api/tarot-reading/jobs/${relay.startData.jobId}/stream?cursor=1`, {
+    const resumeAfterId = report.serverEvents.find(event => event.type === 'delta').id;
+    const narrative = await relayFetch(`${relay.origin}/api/tarot-reading/jobs/${relay.startData.jobId}/stream?cursor=${resumeAfterId}`, {
       headers: { 'X-Job-Token': relay.startData.jobToken }
     });
-    const text = await narrative.text();
+    const text = await within(narrative.text(), 'narrative cursor replay');
     assert.ok(text.includes('event: done'));
-    const visual = await fetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}/stream`, {
+    assert.deepEqual(parseEvents(text).map(event => event.data.eventId),
+      report.serverEvents.filter(event => event.type === 'meta' || event.id > resumeAfterId).map(event => event.id));
+    const visual = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${relay.startData.readingResultId}/stream`, {
       headers: { 'X-Visual-Token': relay.startData.visualJobToken }
     });
-    const visualText = await visual.text();
+    const visualText = await within(visual.text(), 'visual cursor replay');
     assert.ok(visualText.includes('event: snapshot'));
     assert.ok(visualText.includes(report.ledger.cues[0].id));
     assert.equal(visualText.includes('reasoningTokens'), false);
+    assert.equal(relay.readingJob.subscribers.size, 0);
     assert.equal(relay.session.job.subscribers.size, 0);
-  } finally { await relay.close(); }
+  } finally { await within(relay.close(), 'burst relay cleanup'); }
 });
 
 test('D1 completion ordering cannot relabel per-request cancellation and provider rejection', async t => {
@@ -943,7 +1020,7 @@ test('exposed request template mutation cannot weaken frozen output bound', asyn
   assert.equal((await budget.snapshot()).attempts.length, 0);
 });
 
-test('actual visual client uses canonical encoded stream, snapshot recovery and reconnect routes', async () => {
+test('actual visual client uses canonical encoded stream, snapshot recovery and reconnect routes', { timeout: 15000 }, async () => {
   const { readVisualJobEvents } = await import('../src/lib/readingVisualStream.js');
   const relay = await createReadingCueRelay({ caseData: star, candidate, runId: 'encoded-client', schedule: 'burst' });
   const requests = [];
@@ -951,7 +1028,7 @@ test('actual visual client uses canonical encoded stream, snapshot recovery and 
   const controller = new AbortController();
   const fetchImpl = async (path, options) => {
     requests.push(path);
-    const result = await fetch(new URL(path, relay.origin), options);
+    const result = await relayFetch(new URL(path, relay.origin), options);
     assert.equal(result.status, 200);
     if (cutFirstStream && path.includes('/stream')) {
       cutFirstStream = false;
@@ -967,21 +1044,23 @@ test('actual visual client uses canonical encoded stream, snapshot recovery and 
   try {
     const events = readVisualJobEvents({ env: modelClientEnv, readingResultId: relay.startData.readingResultId,
       visualJobToken: relay.startData.visualJobToken, fetchImpl, signal: controller.signal, retryDelay: 1, maxFailures: 2 });
-    assert.equal((await events.next()).value.event, 'snapshot');
-    assert.equal((await events.next()).value.event, 'snapshot');
+    assert.equal((await within(events.next(), 'initial client snapshot')).value.event, 'snapshot');
+    assert.equal((await within(events.next(), 'reconnected client snapshot')).value.event, 'snapshot');
     const terminal = events.next();
     relay.startSchedule();
-    assert.equal((await terminal).done, false);
-    await relay.completion;
-    for await (const _event of events) { /* Consume actual client terminal envelope. */ }
+    assert.equal((await within(terminal, 'client terminal event')).done, false);
+    await within(relay.completion, 'client relay completion');
+    await within((async () => {
+      for await (const _event of events) { /* Consume actual client terminal envelope. */ }
+    })(), 'client terminal envelope');
     const encoded = encodeURIComponent(relay.startData.readingResultId);
     assert.ok(requests.includes(`/api/tarot-reading/visuals/${encoded}`));
     assert.ok(requests.filter(path => path.includes(`/visuals/${encoded}/stream`)).length >= 2);
-    const wrong = await fetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent('cue:another-case')}`);
+    const wrong = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent('cue:another-case')}`);
     assert.equal(wrong.status, 404);
-    const doubleEncoded = await fetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent(encoded)}`);
+    const doubleEncoded = await relayFetch(`${relay.origin}/api/tarot-reading/visuals/${encodeURIComponent(encoded)}`);
     assert.equal(doubleEncoded.status, 404);
-  } finally { controller.abort(); await relay.close(); }
+  } finally { controller.abort(); await within(relay.close(), 'client relay cleanup'); }
 });
 
 for (const stop of ['cancel', 'deadline']) {

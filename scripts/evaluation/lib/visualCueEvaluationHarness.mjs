@@ -14,6 +14,7 @@ import { getVectorGestureDetails } from '../../../src/data/cardGestureArtwork.js
 import { buildVisualCuePrompt } from '../../../shared/generation/visualCuePrompt.js';
 import { visualCueProposalSchema, visualCueResponseSchema, canonicalVisualCueJSON } from '../../../shared/contracts/visualCueBatches.js';
 import { createD1 } from '../../../tests/helpers/d1Sqlite.mjs';
+import { createReadingJobState } from '../../../tests/helpers/fakeReadingJobs.mjs';
 import { loadReadingCueCases, scoreReadingCueRun, rankReadingCueCandidates } from './readingCueQualification.mjs';
 import { CUE_PRICING_SNAPSHOT, cueDigest, openCueRoundBudget } from './visualCueEvaluationBudget.mjs';
 export { CUE_PRICING_SNAPSHOT, openCueRoundBudget, estimateCueUsageCost, createWorkersAiRestAdapter } from './visualCueEvaluationBudget.mjs';
@@ -209,9 +210,11 @@ export function createBoundedCueAdapter({ live = false, aiAdapter, budget, candi
 }
 
 export function createCueMemoryState() {
-  const values = new Map();
+  // Use the same serialized, rollback-capable storage as the real ReadingJob
+  // tests: terminal completion atomically commits the job and private receipt.
+  const { storage } = createReadingJobState();
   const work = [];
-  return { storage: { get: async key => structuredClone(values.get(key)), put: async (key, value) => values.set(key, structuredClone(value)), setAlarm: async () => {} },
+  return { storage,
     blockConcurrencyWhile: callback => callback(), waitUntil: promise => { work.push(promise); }, work,
     async drain() { for (let offset = 0; offset < work.length;) { const batch = work.slice(offset); offset = work.length; await Promise.allSettled(batch); } } };
 }
