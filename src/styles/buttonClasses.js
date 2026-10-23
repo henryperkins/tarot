@@ -37,3 +37,9 @@ export const COMPACT_SYNC_ACTION_BUTTON_CLASS = [
   'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
   'disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation',
 ].join(' ');
+
+export const JOURNEY_TEXT_BUTTON_CLASS = [
+  'inline-flex items-center justify-center gap-1 min-h-touch min-w-touch px-2 py-2 rounded-lg',
+  'text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation',
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
+].join(' ');

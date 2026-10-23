@@ -37,6 +37,7 @@ import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
+import { JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
 import EmptyState from './sections/EmptyState';
 import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
@@ -87,6 +88,7 @@ export default function JourneyMobileSheet({
   exportStats,
   // Other props
   isAuthenticated,
+  journalSummary,
   userId,
   onCreateShareLink,
   onStartReading,
@@ -104,7 +106,9 @@ export default function JourneyMobileSheet({
   const navigate = useNavigate();
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('cards');
+  const [selectedTab, setActiveTab] = useState('cards');
+  const activeTab = !isAuthenticated && selectedTab === 'summary' ? 'cards' : selectedTab;
+  const tabRefs = useRef({});
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const [saveNotice, setSaveNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -189,6 +193,20 @@ export default function JourneyMobileSheet({
     }
     setActiveTab(tabKey);
   }, [activeTab, showAllPatterns]);
+
+  const handleTabKeyDown = (event, tabKey) => {
+    const index = visibleTabs.findIndex((tab) => tab.key === tabKey);
+    let nextIndex;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % visibleTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + visibleTabs.length) % visibleTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = visibleTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextKey = visibleTabs[nextIndex].key;
+    handleTabChange(nextKey);
+    tabRefs.current[nextKey]?.focus();
+  };
 
   const clearSaveTimeout = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -694,10 +712,13 @@ export default function JourneyMobileSheet({
                 <button
                   key={tab.key}
                   id={`journey-tab-${tab.key}`}
+                  ref={(element) => { tabRefs.current[tab.key] = element; }}
                   onClick={() => handleTabChange(tab.key)}
+                  onKeyDown={(event) => handleTabKeyDown(event, tab.key)}
                   onFocus={(event) => event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })}
                   role="tab"
                   aria-selected={activeTab === tab.key}
+                  tabIndex={activeTab === tab.key ? 0 : -1}
                   aria-controls="journey-tabpanel"
                   className={`
                     flex shrink-0 items-center justify-center gap-1.5
@@ -719,8 +740,9 @@ export default function JourneyMobileSheet({
 
             {/* Tab content with safe area padding and overscroll containment */}
             <div
-              className="journey-sheet__body min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3"
+              className="journey-sheet__body min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring-color)"
               role="tabpanel"
+              tabIndex={0}
               id="journey-tabpanel"
               aria-labelledby={`journey-tab-${activeTab}`}
             >
@@ -768,7 +790,7 @@ export default function JourneyMobileSheet({
                       type="button"
                       onClick={handlePatternsToggle}
                       aria-expanded={showAllPatterns}
-                      className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                      className={JOURNEY_TEXT_BUTTON_CLASS}
                     >
                       {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                     </button>
@@ -792,7 +814,8 @@ export default function JourneyMobileSheet({
               {activeTab === 'summary' && isAuthenticated && (
                 <JournalSummarySection
                   isAuthenticated={isAuthenticated}
-                  entryCount={allEntries?.length || 0}
+                  allEntries={allEntries}
+                  journalSummary={journalSummary}
                   filteredEntries={filteredEntries}
                   filtersApplied={filtersApplied}
                 />

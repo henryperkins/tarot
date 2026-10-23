@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
+import { useJournalSummary } from '../hooks/useJournalSummary';
 import { JournalFilters } from './JournalFilters.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
@@ -49,7 +50,7 @@ import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './Jo
 export default function Journal() {
   // Context hooks
   const { isAuthenticated, user } = useAuth();
-  const { canUseCloudJournal } = useSubscription();
+  const { canUseCloudJournal, canUseAdvancedInsights } = useSubscription();
   const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
   const { publish: showToast } = useToast();
   const navigate = useNavigate();
@@ -76,6 +77,12 @@ export default function Journal() {
     syncSource,
     reload: reloadJournal
   } = useJournal({ completeHistory: true });
+
+  const journalSummary = useJournalSummary({
+    userId: user?.id,
+    entries,
+    enabled: isAuthenticated && canUseAdvancedInsights,
+  });
 
   // Layout detection
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
@@ -637,6 +644,7 @@ export default function Journal() {
       <div className="w-full">
         <InsightsErrorBoundary>
           <ReadingJourney
+            journalSummary={journalSummary}
             entries={entries}
             filteredEntries={filteredEntries}
             filtersActive={journeyFiltersActive}
@@ -750,6 +758,7 @@ export default function Journal() {
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
         <ReadingJourney
+          journalSummary={journalSummary}
           entries={entries}
           filteredEntries={filteredEntries}
           filtersActive={journeyFiltersActive}

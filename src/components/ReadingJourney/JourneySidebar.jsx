@@ -29,6 +29,7 @@ import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
+import { JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
@@ -119,6 +120,7 @@ export default function JourneySidebar({
   exportStats,
   // Other props
   isAuthenticated,
+  journalSummary,
   userId,
   onCreateShareLink,
   onStartReading,
@@ -568,7 +570,7 @@ export default function JourneySidebar({
                   type="button"
                   onClick={handlePatternsToggle}
                   aria-expanded={showAllPatterns}
-                  className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className={JOURNEY_TEXT_BUTTON_CLASS}
                 >
                   {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                 </button>
@@ -604,7 +606,8 @@ export default function JourneySidebar({
             >
             <JournalSummarySection
               isAuthenticated={isAuthenticated}
-              entryCount={allEntries?.length || 0}
+              allEntries={allEntries}
+              journalSummary={journalSummary}
               filteredEntries={filteredEntries}
               filtersApplied={filtersApplied}
             />

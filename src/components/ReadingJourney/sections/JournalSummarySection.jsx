@@ -10,9 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkle, Robot, Brain, CaretRight } from '@phosphor-icons/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useJournalSummary } from '../../../hooks/useJournalSummary';
+import { getSummaryCandidates } from '../../../lib/journalSummarySource';
 import { useSubscription } from '../../../contexts/SubscriptionContext';
-import { JOURNEY_PRIMARY_BUTTON_CLASS } from '../../../styles/buttonClasses';
+import { JOURNEY_PRIMARY_BUTTON_CLASS, JOURNEY_TEXT_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 /**
  * Provider badge component showing AI vs Heuristic.
@@ -85,7 +85,7 @@ function UpgradeCTA() {
           </p>
           <button
             onClick={() => navigate('/pricing')}
-            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-main transition-colors"
+            className={JOURNEY_TEXT_BUTTON_CLASS}
           >
             Upgrade to Plus
             <CaretRight className="h-3 w-3" aria-hidden="true" />
@@ -116,7 +116,7 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
       )}
 
       {/* Summary content */}
-      <div className="prose prose-sm prose-invert max-w-none text-muted-high leading-relaxed">
+      <div className="journal-narrative-prose prose prose-sm max-w-none text-muted-high leading-relaxed wrap-break-word">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -128,6 +128,7 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
             ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 text-sm mb-2">{children}</ol>,
             li: ({ children }) => <li className="text-muted-high">{children}</li>,
             strong: ({ children }) => <strong className="font-semibold text-main">{children}</strong>,
+            a: ({ children, href }) => <a href={href} className="text-accent underline underline-offset-4 hover:text-main rounded-sm focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)">{children}</a>,
           }}
         >
           {summary}
@@ -139,7 +140,7 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
         <button
           type="button"
           onClick={onClear}
-          className="text-xs text-muted/80 hover:text-muted-high transition-colors"
+          className={JOURNEY_TEXT_BUTTON_CLASS}
         >
           Generate new summary
         </button>
@@ -151,25 +152,25 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
 /**
  * @param {Object} props
  * @param {boolean} props.isAuthenticated - User auth state
- * @param {number} props.entryCount - Number of entries available
+ * @param {Array} props.allEntries - Entries available in the journal
+ * @param {Object} props.journalSummary - Summary state owned by the journal page
  * @param {Array} props.filteredEntries - Filtered entries (when filters applied)
  * @param {boolean} props.filtersApplied - Whether filters are active in the journal view
  */
-function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntries = [], filtersApplied = false }) {
+function JournalSummarySection({ isAuthenticated, allEntries = [], filteredEntries = [], filtersApplied = false, journalSummary }) {
   const { canUseAdvancedInsights } = useSubscription();
-  const { result, isLoading, error, canGenerate, generate, clear } = useJournalSummary();
+  const { result, isLoading, error, notice, pendingContext, canGenerate, generate, clear } = journalSummary;
   const [limit, setLimit] = useState(5);
   const [userScopeMode, setUserScopeMode] = useState(null);
-  const [summaryContext, setSummaryContext] = useState(null);
 
+  const entryCount = getSummaryCandidates(allEntries).length;
   const hasEntries = entryCount > 0;
   const filteredCount = Array.isArray(filteredEntries) ? filteredEntries.length : 0;
   const scopeMode = filtersApplied ? (userScopeMode || 'filters') : 'recent';
   const isFilterScope = scopeMode === 'filters';
   // Count how many filtered entries have cloud IDs (required for API scoped summary)
-  const filteredIdsCount = isFilterScope
-    ? filteredEntries.filter((e) => e?.id != null).length
-    : 0;
+  const filteredCandidates = getSummaryCandidates(filteredEntries);
+  const filteredIdsCount = filteredCandidates.length;
   const scopeHasEntries = !isFilterScope || filteredIdsCount > 0;
   const recentLabel = filtersApplied ? 'Recent (unfiltered)' : 'Recent';
   const showUnfilteredNote = filtersApplied && scopeMode === 'recent';
@@ -187,24 +188,18 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   const handleGenerate = () => {
     if (!canGenerate || isLoading || !scopeHasEntries) return;
     const entryIds = isFilterScope
-      ? filteredEntries
-        .map((entry) => entry?.id)
-        .filter((id) => id !== null && id !== undefined)
+      ? filteredCandidates.map((entry) => entry.id)
       : undefined;
     // Use filteredIdsCount (not filteredCount) when scoped to filters, since local-only entries are excluded
     const nextLimit = Math.min(limit, isFilterScope ? filteredIdsCount : entryCount);
-    setSummaryContext({
+    const context = {
       scopeMode,
-      limit: nextLimit,
-      filteredCount: isFilterScope ? filteredIdsCount : filteredCount,
-      entryCount
-    });
-    generate({ entryIds, limit: nextLimit });
-  };
-
-  const handleClear = () => {
-    setSummaryContext(null);
-    clear();
+      scopeNote: isFilterScope
+        ? `Summarized ${nextLimit} of ${filteredIdsCount} entries from the filters used when generated.`
+        : `Summarized ${nextLimit} recent entries selected when generated (unfiltered).`,
+      loadingNote: scopeNote,
+    };
+    generate({ entryIds, limit: nextLimit, context });
   };
 
   // Not authenticated - don't show anything
@@ -231,14 +226,8 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
 
   // Show existing summary
   if (result) {
-    const summaryScopeNote = summaryContext
-      ? (summaryContext.scopeMode === 'filters'
-        ? `Summarized ${Math.min(summaryContext.limit, summaryContext.filteredCount)} of ${summaryContext.filteredCount} filtered entries`
-        : `Summarized last ${Math.min(summaryContext.limit, summaryContext.entryCount)} entries (unfiltered)`)
-      : scopeNote;
-    const isSummaryUnfiltered = summaryContext
-      ? summaryContext.scopeMode === 'recent'
-      : scopeMode === 'recent';
+    const summaryScopeNote = result.context?.scopeNote;
+    const isSummaryUnfiltered = result.context?.scopeMode === 'recent';
     const summaryScopeNoteWithWarning = (filtersApplied && isSummaryUnfiltered)
       ? `${summaryScopeNote} Filters aren't applied to this summary.`
       : summaryScopeNote;
@@ -247,7 +236,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
         summary={result.summary}
         meta={result.meta}
         scopeNote={summaryScopeNoteWithWarning}
-        onClear={handleClear}
+        onClear={clear}
       />
     );
   }
@@ -256,9 +245,9 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs text-muted-high">
+        <div role="status" className="flex items-center gap-2 text-xs text-muted-high">
           <Sparkle className="h-4 w-4 animate-pulse" aria-hidden="true" />
-          {scopeNote || 'Generating your journal summary...'}
+          {pendingContext?.loadingNote || 'Generating your journal summary...'}
         </div>
         <LoadingSkeleton />
       </div>
@@ -268,6 +257,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
   // Default: show generate UI
   return (
     <div className="space-y-3">
+      {notice && <p role="status" className="text-xs text-muted-high">{notice}</p>}
       {/* Info text - positioned before selector for better screen reader flow */}
       <p id="summary-info" className="text-xs sm:text-2xs text-muted/70">
         AI analyzes your readings to surface patterns, themes, and guidance.
@@ -279,6 +269,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
           <div className="inline-flex rounded-full border border-secondary/20 bg-surface-muted/40 p-1">
             <button
               type="button"
+              aria-pressed={scopeMode === 'recent'}
               onClick={() => {
                 setUserScopeMode('recent');
               }}
@@ -291,6 +282,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
             </button>
             <button
               type="button"
+              aria-pressed={scopeMode === 'filters'}
               onClick={() => {
                 setUserScopeMode('filters');
               }}
@@ -354,7 +346,7 @@ function JournalSummarySection({ isAuthenticated, entryCount = 0, filteredEntrie
 
       {/* Error display */}
       {error && (
-        <p className="text-sm sm:text-xs text-error/80 mt-2">
+        <p role="alert" className="text-sm sm:text-xs text-error mt-2">
           {error}
         </p>
       )}

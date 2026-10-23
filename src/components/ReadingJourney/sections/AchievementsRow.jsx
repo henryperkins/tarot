@@ -76,12 +76,20 @@ function AchievementsRow({ badges = [] }) {
   return (
     <div>
       <p className="flex items-center gap-1.5 text-xs text-muted mb-2">
-        <Medal className="h-3 w-3" />
+        <Medal className="h-3 w-3" aria-hidden="true" />
         Achievements
       </p>
 
       <div
-        className="flex gap-2 overflow-x-auto pb-2"
+        role="region"
+        aria-label="Achievements"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          event.currentTarget.scrollLeft += event.key === 'ArrowRight' ? 144 : -144;
+        }}
+        className="flex gap-2 overflow-x-auto pb-2 rounded focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)"
         style={{ scrollPaddingInline: '4px' }}
       >
         {badges.slice(0, 6).map((badge, index) => {
@@ -107,11 +115,11 @@ function AchievementsRow({ badges = [] }) {
                 <FallbackIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
               )}
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-medium whitespace-nowrap truncate max-w-[100px]">
+                <span className="text-xs font-medium text-main whitespace-nowrap">
                   {badge.card_name || 'Badge'}
                 </span>
                 {typeof count === 'number' && Number.isFinite(count) && (
-                  <span className="text-2xs opacity-70">×{count} appearances</span>
+                  <span className="text-2xs text-muted-high">×{count} appearances</span>
                 )}
               </div>
             </div>

@@ -15,11 +15,12 @@ const ROMAN_NUMERALS = [
 function getHeatColor(count, maxCount) {
   if (count === 0) return 'var(--border-warm-subtle)';
   const intensity = Math.min(count / maxCount, 1);
-  if (intensity > 0.8) return 'rgb(var(--brand-primary-rgb) / 0.8)';
-  if (intensity > 0.6) return 'rgb(var(--brand-primary-rgb) / 0.6)';
-  if (intensity > 0.4) return 'rgb(var(--brand-primary-rgb) / 0.4)';
-  if (intensity > 0.2) return 'rgb(var(--brand-primary-rgb) / 0.25)';
-  return 'rgb(var(--brand-primary-rgb) / 0.15)';
+  // Keep the strongest fill below the text contrast ceiling in both themes.
+  if (intensity > 0.8) return 'rgb(var(--brand-primary-rgb) / 0.3)';
+  if (intensity > 0.6) return 'rgb(var(--brand-primary-rgb) / 0.24)';
+  if (intensity > 0.4) return 'rgb(var(--brand-primary-rgb) / 0.18)';
+  if (intensity > 0.2) return 'rgb(var(--brand-primary-rgb) / 0.12)';
+  return 'rgb(var(--brand-primary-rgb) / 0.06)';
 }
 
 function handleRowKeyDown(event) {
@@ -82,7 +83,7 @@ function MajorArcanaMap({ data = [] }) {
                 className={`
                   shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors
-                  ${count > 0 ? 'text-main' : 'text-muted/50'}
+                  ${count > 0 ? 'text-main' : 'text-muted'}
                 `}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
@@ -112,7 +113,7 @@ function MajorArcanaMap({ data = [] }) {
                 className={`
                   shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
                   text-2xs xs:text-2xs font-medium transition-colors
-                  ${count > 0 ? 'text-main' : 'text-muted/50'}
+                  ${count > 0 ? 'text-main' : 'text-muted'}
                 `}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
@@ -125,9 +126,33 @@ function MajorArcanaMap({ data = [] }) {
         </div>
       </div>
 
-      <p className="mt-2 text-2xs text-muted/70">
-        Heat intensity = frequency
+      <p className="mt-2 text-2xs text-muted">
+        Stronger color means more appearances in this scope.
       </p>
+      <details className="mt-1">
+        <summary className="min-h-touch cursor-pointer rounded-lg px-2 py-3 text-xs font-medium text-accent hover:text-main focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)">
+          Card names and counts
+        </summary>
+        <table className="w-full text-xs text-muted-high">
+          <caption className="sr-only">Major Arcana appearances in this scope</caption>
+          <thead>
+            <tr className="border-b border-(--border-warm-subtle)">
+              <th scope="col" className="py-2 text-left font-medium">Card</th>
+              <th scope="col" className="py-2 text-right font-medium">Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MAJOR_ARCANA_NAMES.map((name, index) => (
+              <tr key={name} className="border-b border-(--border-warm-subtle)">
+                <th scope="row" className="py-2 pr-3 text-left font-normal">
+                  <span className="text-muted">{ROMAN_NUMERALS[index]} · </span>{name}
+                </th>
+                <td className="py-2 text-right tabular-nums">{countMap.get(index) || 0}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
     </div>
   );
 }

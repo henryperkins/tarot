@@ -905,6 +905,7 @@
     "src/lib/journal/fetchEntryById.js",
     "src/lib/journal/utils.js",
     "src/lib/journalInsights.js",
+    "src/lib/journalSummarySource.js",
     "src/lib/mediaGalleryConstants.js",
     "src/lib/memoryApi.js",
     "src/lib/microcopy.js",

@@ -58,7 +58,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
               key={`${card.name}-${index}`}
               className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm rounded-lg bg-surface-muted/40 px-3 py-3 min-h-touch hover:bg-surface-muted/60 transition-colors"
             >
-              <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
+              <div className="flex flex-wrap min-w-0 flex-[1_1_12rem] items-center gap-x-2 gap-y-1">
                 <span
                   className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent shrink-0"
                   aria-hidden="true"
@@ -71,7 +71,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                     aria-label={`${suitName} suit`}
                   />
                 )}
-                <span className="min-w-0 text-main wrap-break-word">
+                <span className="min-w-0 flex-[1_1_8ch] text-main wrap-break-word">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>

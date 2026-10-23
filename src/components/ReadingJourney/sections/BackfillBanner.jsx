@@ -80,7 +80,7 @@ export default function BackfillBanner({
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
-          className="ml-auto min-h-touch inline-flex items-center text-(--status-error) hover:text-[color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
+          className="ml-auto min-h-touch min-w-touch shrink-0 px-2 inline-flex items-center justify-center text-(--status-error) hover:text-[color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
         >
           {isBackfilling ? 'Retrying...' : 'Retry'}
         </button>
