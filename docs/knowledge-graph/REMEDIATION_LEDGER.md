@@ -21,7 +21,7 @@ The user authorized phase-by-phase implementation in an isolated worktree on Oct
 | --- | --- | --- | --- |
 | 0 | 0 | Complete | 73 code/test files ported; 575 integrated tests and deterministic gate pass; independent integration review clean. |
 | 1 | 1–2 | Task 1 complete; Task 2 pending | Canonical/caller meaning, validated transport and memory reuse control reviewed; authoritative context next. |
-| 2 | 3–4 | Task 3 complete; Task 4 pending | Major counts and conditional highlights reviewed; passage/enrichment projection next. |
+| 2 | 3–4 | Complete (editorial approval pending) | Matched-only partial references, verified provenance and deck projection reviewed; 525 editorial rows remain pending. |
 | 3 | 5–6 | Pending | Bounded ranking and compatible memory selection. |
 | 4 | 7–8 | Pending | Accepted-attempt retention and durable completion receipt. |
 | 5 deterministic | 9 | Pending | Final-source frozen regressions and independent whole-change review. |
@@ -128,3 +128,17 @@ Task 1 core scope is implemented and independently approved. Resolved meanings a
 ### Required follow-on finding T1-R1 (P2, owner Task 7)
 
 A prompt with only Sun caller interpretation `defeat and betrayal` reports `interpretation-0.includedLength: 19` but aggregate `sourceUsage.userContext.requested/used` false and `skippedReason: not_provided`. Update aggregate accounting from final interpretation fields, and cover both provider inclusion and local-composer deliberate omission. This must be fixed before integrated qualification.
+
+## Task 4 — Pattern/deck projection and provenance
+
+Pattern projection now precedes deck adaptation/scoring. Thirty independent general pair references replace complete-arc variants for partial patterns; unsafe/unknown subsets are omitted. Exact registry content authorizes generation fields, with authored history kept separate. Canonical and enriched variants have distinct source identities but share their graph-pattern selection slot. Enrichment preserves the current merge/general-context exclusion and reviewed rows, while full-text approval and cross-deck projection approval remain distinct.
+
+- Final focused gate: **102 passed, zero failed**; scoped lint/diff checks pass.
+- Review round 1/5: two P2 findings addressed, zero open. Legacy summaries now derive only validated graph facts, and selected-deck suit/short-name aliases are covered by independent literal tests. No unverified summary prose/counts or nominal confidence survives. Independent re-review approved.
+- Actual editorial matrix: **435 full + 90 pair = 525 pending rows**; zero active enriched additions. This matrix and agent review do not supply human approval.
+- Original frozen fixture unchanged. Old formatter/retention fixtures that inject arbitrary unregistered prose must migrate to verified registry content in Tasks 5/7/9 while retaining their behavioral assertions. Alias expectations in the qualification harness must use explicit selected-deck names.
+- A prematurely started root test run was stopped and preserved as interrupted, not qualification. Broad verification remains Task 9 on final integrated source.
+
+### Parallel work boundary
+
+Task 6 pure selector work is prepared against Task 2's agreed full-span interface, with disjoint ownership. Its route/builder integration and completion are gated on reviewed Task 2. No pending partial task is represented as a completed phase.

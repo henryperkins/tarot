@@ -2203,7 +2203,7 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
  * they are selected only for a matching reading context and never displace the
  * hand-written canon passage for the same card.
  */
-function mergeEnrichedPassages(base, enriched) {
+export function mergeEnrichedPassages(base, enriched) {
     for (const [cardNumber, entry] of Object.entries(enriched || {})) {
         const target = base[cardNumber];
         if (!target || !Array.isArray(entry?.passages)) {
@@ -2214,10 +2214,15 @@ function mergeEnrichedPassages(base, enriched) {
                 continue;
             }
             target.passages.push({
-                source: passage.source || 'Tableu Tarot Canon',
+                ...passage,
+                source: passage.source || 'Tableu Tarot Canon (research-informed interpretation)',
+                sourceId: passage.sourceId || `enriched:${cardNumber}:${passage.context}:${target.passages.length}`,
+                sourceDeck: passage.sourceDeck || 'rws-1909',
                 context: passage.context,
                 text: passage.text,
-                tags: passage.tags || []
+                tags: passage.tags || [],
+                isEnriched: true,
+                projectionReviewStatus: passage.projectionReviewStatus || 'pending'
             });
         }
     }
@@ -2302,4 +2307,28 @@ export function getKnowledgeBaseStats() {
         marseilleNumerology: Object.keys(MARSEILLE_NUMEROLOGY_PASSAGES).length,
         totalPassages
     };
+}
+
+/** Enumerate the actual merged registry, including approved enrichment. */
+export function listKnowledgeBasePassages() {
+    const rows = [];
+    const visit = (entries, type, path = []) => {
+        for (const [key, entry] of Object.entries(entries)) {
+            if (!entry.passages) { visit(entry, type, [...path, key]); continue; }
+            const patternId = [...path, key].join(':');
+            for (const [index, passage] of entry.passages.entries()) {
+                rows.push({ ...passage, type, patternId, title: entry.title, theme: entry.theme, registryIndex: index });
+            }
+        }
+    };
+    for (const [type, entries] of Object.entries({ triad: TRIAD_PASSAGES, 'fools-journey': FOOLS_JOURNEY_PASSAGES, 'major-arcana': MAJOR_ARCANA_PASSAGES, dyad: DYAD_PASSAGES, 'suit-progression': SUIT_PROGRESSION_PASSAGES, 'court-lineage': COURT_LINEAGE_PASSAGES, 'thoth-suit': THOTH_SUIT_PASSAGES, 'marseille-numerology': MARSEILLE_NUMEROLOGY_PASSAGES })) visit(entries, type);
+    return rows;
+}
+
+// Stable identities describe authored material, never a claim of human approval.
+for (const row of listKnowledgeBasePassages()) {
+    const passage = getPassagesForPattern(row.type, row.patternId).passages[row.registryIndex];
+    passage.sourceId ||= `tableu:${row.type}:${row.patternId}:${row.context || 'general'}:${row.registryIndex}`;
+    passage.projectionVersion ||= 'meaning-v1';
+    passage.projectionReviewStatus ||= 'pending';
 }

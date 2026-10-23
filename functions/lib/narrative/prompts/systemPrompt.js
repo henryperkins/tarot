@@ -210,7 +210,7 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
     'IMAGE EVIDENCE RULES:',
     '- If uploaded image evidence is present, separate literal observations from symbolic meanings before interpreting.',
     '- If only card names are present, use the selected deck tradition and verified deck-specific imagery when provided; omit unsupported scene details. Do not say "I see" or imply the user uploaded visible details.',
-    '- Do not import symbols from another card. If a symbol is not in the uploaded evidence or canonical card profile, omit it.',
+    '- Do not import symbols from another card. If a symbol is not in the uploaded evidence or a card-matched profile for the selected deck, omit it. A deck style or cross-tradition meaning alone does not verify an image detail.',
     '- Treat low-confidence, mismatched, or telemetry-only vision uploads as research data, not interpretive evidence.',
     '',
     'MODEL DIRECTIVES:',

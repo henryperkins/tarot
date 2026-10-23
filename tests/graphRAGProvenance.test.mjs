@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { rankPassagesForPrompt } from '../functions/lib/graphRAG.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGReferenceBlock.js';
+import { TRIAD_PASSAGES } from '../functions/lib/knowledgeBase.js';
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
 import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
@@ -154,10 +155,8 @@ describe('below-threshold passages keep their qualification in the prompt', () =
   const weakPayload = {
     passages: [
       {
-        type: 'triad',
-        title: 'The Healing Arc',
-        text: 'Endings clear space for patient renewal.',
-        source: 'Tableu Tarot Canon',
+        ...TRIAD_PASSAGES['death-temperance-star'].passages[0],
+        type: 'triad', patternId: 'death-temperance-star',
         relevanceScore: 0,
         belowRelevanceThreshold: true
       }

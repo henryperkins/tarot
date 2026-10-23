@@ -1,5 +1,5 @@
 import { getPassagesForPattern } from './knowledgeBase.js';
-import { projectPassageForDeck } from './graphRAGProjection.js';
+import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
 
 const CONTEXT_ALIASES = {
   grief: ['grief', 'loss', 'mourning', 'bereavement'],
@@ -30,21 +30,28 @@ function withStats(passages, stats) {
 /** Enumerate all variants once; this is the single dispatch for pattern families. */
 export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', includeMetadata = false } = {}) {
   const candidates = [];
-  const stats = { candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0 };
+  const stats = { candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
   if (!graphKeys || typeof graphKeys !== 'object') return withStats(candidates, stats);
   const identities = new Set();
   const add = (type, patternId, priority, extra = {}, metadata = {}, entry = getPassagesForPattern(type, patternId)) => {
     for (const passage of entry?.passages || []) {
-      const identity = JSON.stringify([type, String(patternId), passage.context || 'general']);
+      const identity = JSON.stringify([type, String(patternId), passage.context || 'general', passage.sourceId || passage.text, extra.matchedCards || null]);
       if (identities.has(identity)) continue;
       identities.add(identity);
       stats.candidatesDiscovered += 1;
-      const projected = projectPassageForDeck({
+      const patternInput = {
         ...passage, type, patternId: String(patternId), priority,
         title: entry.title, theme: entry.theme, ...extra,
         ...(includeMetadata ? { metadata } : {})
-      }, deckStyle);
-      if (!projected) { stats.projectionRejected += 1; continue; }
+      };
+      const patternProjected = projectPassageForPattern(patternInput);
+      const projected = patternProjected && projectPassageForDeck(patternProjected, deckStyle);
+      if (!projected) {
+        stats.projectionRejected += 1;
+        const reason = getPassageProjectionRejectionReason(patternInput, deckStyle) || 'projection_unavailable';
+        stats.projectionRejectedReasons[reason] = (stats.projectionRejectedReasons[reason] || 0) + 1;
+        continue;
+      }
       candidates.push(projected);
     }
   };

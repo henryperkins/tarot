@@ -220,6 +220,9 @@ export function formatPassagesForPrompt(passages, options = {}) {
 
     const source = getPassageSource(passage);
     lines.push(`  Source tradition: ${source.label}.`);
+    if (passage.cardNames?.length) lines.push(`  Matched cards: ${passage.cardNames.join(', ')}.`);
+    if (passage.projectionVersion) lines.push(`  Projection version: ${passage.projectionVersion}; human editorial status: ${passage.projectionReviewStatus || 'pending'}.`);
+    if (passage.sourceUrls?.length) lines.push(`  Source provenance (background research, not quotations): ${passage.sourceUrls.join(', ')}.`);
     if (passage.crossDeckReference) {
       lines.push('  Cross-deck reference: archetypal meaning is background; its imagery is not evidence of the selected deck.');
     }

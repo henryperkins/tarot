@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
+import { MAJOR_ARCANA_PASSAGES } from '../functions/lib/knowledgeBase.js';
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import {
   scorePassageRelevance,
@@ -193,10 +194,8 @@ describe('GraphRAG fallback behavior', () => {
     const graphRAGPayload = {
       passages: [
         {
-          type: 'major-arcana', patternId: '14',
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         }
       ],
       formattedBlock: [
@@ -268,16 +267,12 @@ describe('GraphRAG fallback behavior', () => {
     const graphRAGPayload = {
       passages: [
         {
-          type: 'major-arcana', patternId: '14',
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         },
         {
-          type: 'major-arcana', patternId: '16',
-          title: 'The Tower',
-          source: 'Tableu Tarot Canon',
-          text: 'Sudden upheaval breaks false structures apart.'
+          ...MAJOR_ARCANA_PASSAGES[16].passages[0],
+          type: 'major-arcana', patternId: '16'
         }
       ],
       formattedBlock: [
@@ -311,6 +306,7 @@ describe('GraphRAG fallback behavior', () => {
 
     assert.ok(userPrompt.includes('Temperance'));
     assert.ok(!userPrompt.includes('Sudden upheaval breaks false structures apart.'));
+    assert.ok(!userPrompt.includes(MAJOR_ARCANA_PASSAGES[16].passages[0].text));
     assert.equal(promptMeta.graphRAG?.passagesProvided, 2);
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });

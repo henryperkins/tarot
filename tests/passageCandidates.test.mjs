@@ -287,3 +287,18 @@ test('the knowledge base keeps one general canon passage per major card', () => 
   assert.equal(entry.title, 'The Fool');
   assert.equal(entry.theme, 'Beginnings & Open Faith');
 });
+
+test('projection review remains independent of full-prose approval and preserves source identity', () => {
+  const columns = ['candidate_id', 'card_number', 'card_name', 'context', 'source_id', 'source_url', 'source_title', 'source_method', 'draft_text', 'draft_tags', 'projection_text', 'projection_version', 'projection_verdict', 'human_verdict'];
+  const prose = 'Let curiosity lead while keeping one practical boundary in view. A small experiment can offer useful information without asking you to commit before you are ready.';
+  const meaning = 'Bring curiosity to a manageable experiment and keep your choices open. Notice what you learn from a small step before deciding how much time or energy to invest.';
+  const row = { candidate_id: 'synthetic-source-0', card_number: '0', card_name: 'The Fool', context: 'transition', source_id: 'research:synthetic-fool', source_url: 'https://example.com/fool', source_title: 'Synthetic background', source_method: 'fetch', draft_text: prose, draft_tags: 'curiosity experiment boundaries', projection_text: meaning, projection_version: 'meaning-v1', projection_verdict: '', human_verdict: 'approve' };
+  const csv = data => `${columns.join(',')}\n${stringifyRow(columns.map(column => data[column]))}\n`;
+  const pending = selectApprovedRows(csv(row)).approved[0];
+  assert.equal(pending.sourceId, row.source_id);
+  assert.equal(pending.archetypalText, meaning);
+  assert.equal(pending.projectionReviewStatus, 'pending');
+  const approved = selectApprovedRows(csv({ ...row, projection_verdict: 'approve' })).approved[0];
+  assert.equal(approved.projectionReviewStatus, 'approved');
+  assert.deepEqual(approved.sourceUrls, [row.source_url]);
+});
