@@ -720,7 +720,7 @@ function CoachSession({
       try {
         const { question, source, forecast } = await buildCreativeQuestion(generationRequest.inputs, { signal: controller.signal, userId });
         if (cancelled || controller.signal.aborted) return;
-        const error = source === 'local-preserved' ? 'AI refinement is unavailable right now. Your wording is kept.'
+        const error = source === 'local-preserved' ? 'Your wording is kept as written. You can edit it directly or try again.'
           : ['local', 'local-fallback', 'api-fallback', 'local-template'].includes(source) ? 'Using a guided question for now.' : '';
         setQuestionText(question);
         setQuestionOrigin('reader');

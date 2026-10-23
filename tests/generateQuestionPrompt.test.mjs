@@ -95,9 +95,9 @@ describe('generate-question current concern refinement', () => {
       ephemerisForecast: { highlights: ['Full Moon in Aries on Oct 10'] }
     });
     assert.ok(input.includes(questionText));
-    assert.ok(/refine/i.test(instructions));
+    assert.ok(/editing|minimal edit|refine/i.test(instructions));
     assert.ok(/preserve.*subject/i.test(instructions));
-    assert.ok(/preserve.*(?:timeframe|timing|date)/i.test(instructions));
+    assert.ok(/(?:copy|preserve).*(?:timeframe|timing|date)/i.test(instructions));
     assert.ok(/do not invent.*(?:deadline|timeframe)/i.test(instructions));
     assert.ok(/(?:defaults|recommendations).*secondary|(?:defaults|recommendations).*subordinate/i.test(instructions));
     assert.ok(!/you may echo the timing/i.test(instructions));

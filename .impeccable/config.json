@@ -59,6 +59,15 @@
         "reason": "Claude triage: DESIGN.md declares Inter Variable as the body family; the legal pages mirror the app's type system"
       },
       {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "src/styles/tailwind.css"
+        ],
+        "createdAt": "2026-10-18T07:24:55.723Z",
+        "reason": "Codex triage: DESIGN.md Typography and docs/design-contract.md explicitly specify Inter Variable for body text and controls. Both normal and italic declarations are unchanged from HEAD; preserve the established type system during the scoped Journey P1 fixes."
+      },
+      {
         "rule": "design-system-font",
         "value": "source serif 4",
         "files": [
@@ -95,5 +104,12 @@
         "reason": "Codex triage: DESIGN.md intentionally specifies Inter Variable for body text. Support shares the established legal.css typography with Privacy."
       }
     ]
+  },
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
   }
 }

@@ -1,0 +1,102 @@
+{
+  "retrievedAt": "2026-10-23T19:10:30.364Z",
+  "current": {
+    "requestId": "05c6af17-1b8d-4526-b1d5-2930b369cc4a",
+    "versionId": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+    "success": true,
+    "errors": [],
+    "count": 7,
+    "events": [
+      {
+        "timestamp": 1792782184182,
+        "source": {
+          "level": "error",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Backend openai-native failed: HTTP 429"
+        }
+      },
+      {
+        "timestamp": 1792782184182,
+        "source": {
+          "level": "error",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Non-retryable error or max retries exceeded: HTTP 429"
+        }
+      },
+      {
+        "timestamp": 1792782180021,
+        "source": {
+          "level": "warn",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Attempt 3 failed: HTTP 429. Retrying in 3551ms..."
+        }
+      },
+      {
+        "timestamp": 1792782177528,
+        "source": {
+          "level": "warn",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Attempt 2 failed: HTTP 429. Retrying in 1708ms..."
+        }
+      },
+      {
+        "timestamp": 1792782172332,
+        "source": {
+          "level": "warn",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Attempt 2 failed: Modal Chat Completions returned HTTP 503.. Retrying in 1870ms..."
+        }
+      },
+      {
+        "timestamp": 1792782171068,
+        "source": {
+          "level": "warn",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Attempt 1 failed: Modal Chat Completions returned HTTP 503.. Retrying in 1080ms..."
+        }
+      },
+      {
+        "timestamp": 1792782170658,
+        "source": {
+          "level": "error",
+          "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Backend claude-api failed: Claude API request failed (HTTP 400)."
+        }
+      }
+    ]
+  },
+  "baseline": {
+    "window": {
+      "from": "2026-10-23T00:00:00Z",
+      "to": "2026-10-23T18:00:00Z"
+    },
+    "success": true,
+    "errors": [],
+    "count": 12,
+    "events": [
+      {
+        "timestamp": 1792748113408,
+        "version": "0c2aaf24-ae15-47c0-936a-65b47541cb0b",
+        "message": "[c05ca08a-55ef-4003-a2f7-7ff500ee7e9b] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "timestamp": 1792748103056,
+        "version": "0c2aaf24-ae15-47c0-936a-65b47541cb0b",
+        "message": "[c05ca08a-55ef-4003-a2f7-7ff500ee7e9b] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "timestamp": 1792748098701,
+        "version": "0c2aaf24-ae15-47c0-936a-65b47541cb0b",
+        "message": "[c05ca08a-55ef-4003-a2f7-7ff500ee7e9b] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "timestamp": 1792731135726,
+        "version": "d661fc7d-e54a-4653-a49a-9f7a08aafe79",
+        "message": "[65116ddf-e552-4855-ac6c-5cc97e7e68c5] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "timestamp": 1792731125421,
+        "version": "d661fc7d-e54a-4653-a49a-9f7a08aafe79",
+        "message": "[65116ddf-e552-4855-ac6c-5cc97e7e68c5] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "timestamp": 1792731121479,
+        "version": "d661fc7d-e54a-4653-a49a-9f7a08aafe79",
+        "message": "[65116ddf-e552-4855-ac6c-5cc97e7e68c5] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      }
+    ]
+  }
+}

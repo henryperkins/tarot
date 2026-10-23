@@ -1,0 +1,298 @@
+{
+  "source": "be78c9a4d2370102a2ae0d9b295d28d426d4a828",
+  "primaryHead": "37b6a5402571be0a08a02c2462c494742f026822",
+  "primaryIsAncestorOfRelease": true,
+  "deploymentCheckedAt": "2026-10-23T20:14:38.187Z",
+  "activeDeployment": {
+    "id": "15afd0b5-0a25-49ab-b562-bd623d9bd90a",
+    "createdOn": "2026-10-23T18:58:40.039071Z",
+    "versions": [
+      {
+        "version_id": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "percentage": 100
+      }
+    ]
+  },
+  "providerSettings": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "ANTHROPIC_EFFORT",
+      "type": "plain_text",
+      "text": "xhigh"
+    },
+    {
+      "name": "ANTHROPIC_MODEL",
+      "type": "plain_text",
+      "text": "claude-opus-5-5"
+    },
+    {
+      "name": "ANTHROPIC_TIMEOUT_MS",
+      "type": "plain_text",
+      "text": "300000"
+    },
+    {
+      "name": "MODAL_ENDPOINT_URL",
+      "type": "plain_text"
+    },
+    {
+      "name": "MODAL_MODEL",
+      "type": "plain_text",
+      "text": "Qwen/Qwen3.8-Max-VL-Thinking"
+    },
+    {
+      "name": "MODAL_PROXY_TOKEN",
+      "type": "secret_text"
+    },
+    {
+      "name": "MODAL_PROXY_TOKEN_ID",
+      "type": "secret_text"
+    },
+    {
+      "name": "MODAL_PROXY_TOKEN_SECRET",
+      "type": "secret_text"
+    },
+    {
+      "name": "MODAL_REASONING_EFFORT",
+      "type": "plain_text",
+      "text": "high"
+    },
+    {
+      "name": "MODAL_STREAM",
+      "type": "plain_text"
+    },
+    {
+      "name": "MODAL_TEMPERATURE",
+      "type": "plain_text"
+    },
+    {
+      "name": "MODAL_TIMEOUT_MS",
+      "type": "plain_text",
+      "text": "300000"
+    },
+    {
+      "name": "MODAL_TOP_P",
+      "type": "plain_text"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "OPENAI_BASE_URL",
+      "type": "plain_text"
+    },
+    {
+      "name": "OPENAI_MODEL",
+      "type": "plain_text",
+      "text": "gpt-5.6-sol"
+    },
+    {
+      "name": "OPENAI_REASONING_EFFORT",
+      "type": "plain_text",
+      "text": "xhigh"
+    },
+    {
+      "name": "OPENAI_STREAMING_ENABLED",
+      "type": "plain_text"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": false,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    },
+    "issues": {
+      "enabled": true
+    }
+  },
+  "postReleaseLogQuery": {
+    "checkedAt": "2026-10-23T20:16:09.209Z",
+    "from": "2026-10-23T18:58:40.000Z",
+    "count": 20,
+    "statistics": {
+      "elapsed": 0.30665246,
+      "rows_read": 5883410,
+      "bytes_read": 155491951,
+      "abr_level": 1
+    },
+    "events": [
+      {
+        "time": "2026-10-23T19:04:55.364Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[a68502ae-a4a6-4b79-afe1-c12a7fae238c] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:04:40.071Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[84e9a3ed-4e5f-40d8-8648-420a31a56161] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:04:31.691Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[84e9a3ed-4e5f-40d8-8648-420a31a56161] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:04:28.759Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[84e9a3ed-4e5f-40d8-8648-420a31a56161] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:04:25.058Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[1215a11a-9775-4e3c-87b6-73ae7a56060a] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:04:15.531Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[1215a11a-9775-4e3c-87b6-73ae7a56060a] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:04:11.642Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[1215a11a-9775-4e3c-87b6-73ae7a56060a] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:04:07.554Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[c827fd0a-335c-4118-a19b-4c85ed326097] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:03:59.228Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[c827fd0a-335c-4118-a19b-4c85ed326097] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:03:54.814Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[c827fd0a-335c-4118-a19b-4c85ed326097] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:03:50.666Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[bd78a303-4907-4f2a-92a2-fc6c3143a805] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:03:40.337Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[bd78a303-4907-4f2a-92a2-fc6c3143a805] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:03:36.611Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[bd78a303-4907-4f2a-92a2-fc6c3143a805] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:03:21.098Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[d16c6e0c-1973-44ed-9681-6412ee1342ae] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:03:16.470Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[d16c6e0c-1973-44ed-9681-6412ee1342ae] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:03:12.289Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[722db115-c848-4325-a7fc-a9f9045fedb0] Backend openai-native failed: The operation was aborted"
+      },
+      {
+        "time": "2026-10-23T19:03:11.638Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[722db115-c848-4325-a7fc-a9f9045fedb0] Backend modal-qwen failed: Modal Chat Completions returned HTTP 503."
+      },
+      {
+        "time": "2026-10-23T19:03:08.054Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[722db115-c848-4325-a7fc-a9f9045fedb0] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      },
+      {
+        "time": "2026-10-23T19:03:04.182Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Backend openai-native failed: HTTP 429"
+      },
+      {
+        "time": "2026-10-23T19:02:50.658Z",
+        "version": "0aa03113-ff62-421c-bfb2-59b8dafb3531",
+        "message": "[05c6af17-1b8d-4526-b1d5-2930b369cc4a] Backend claude-api failed: Claude API request failed (HTTP 400)."
+      }
+    ]
+  },
+  "offlineReproduction": {
+    "network": "All fetch calls replaced with synthetic responses; no live requests",
+    "results": [
+      {
+        "name": "claude-spend-limit",
+        "upstreamStatus": 400,
+        "upstreamCode": "enforced_spend_limit_reached",
+        "fetches": 1,
+        "exposed": {
+          "message": "Claude API request failed (HTTP 400).",
+          "status": null,
+          "code": null,
+          "requestId": null,
+          "retryAfterMs": null
+        }
+      },
+      {
+        "name": "modal-service-unavailable",
+        "upstreamStatus": 503,
+        "upstreamCode": "service_unavailable",
+        "fetches": 3,
+        "exposed": {
+          "message": "Modal Chat Completions returned HTTP 503.",
+          "status": null,
+          "code": null,
+          "requestId": null,
+          "retryAfterMs": null
+        }
+      },
+      {
+        "name": "openai-insufficient_quota",
+        "upstreamStatus": 429,
+        "upstreamCode": "insufficient_quota",
+        "fetches": 4,
+        "exposed": {
+          "message": "HTTP 429",
+          "status": null,
+          "code": null,
+          "requestId": null,
+          "retryAfterMs": null
+        }
+      },
+      {
+        "name": "openai-rate_limit_exceeded",
+        "upstreamStatus": 429,
+        "upstreamCode": "rate_limit_exceeded",
+        "fetches": 4,
+        "exposed": {
+          "message": "HTTP 429",
+          "status": null,
+          "code": null,
+          "requestId": null,
+          "retryAfterMs": null
+        }
+      }
+    ],
+    "rawBodyExcludedFromLogs": true
+  },
+  "scope": {
+    "sourceEdits": 0,
+    "productionMutations": 0,
+    "liveModelCalls": 0,
+    "liveReadingSubmissions": 0
+  }
+}
