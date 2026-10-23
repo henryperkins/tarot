@@ -18,6 +18,8 @@
  *   CLOUDFLARE_D1_DATABASE_NAME - Optional D1 database name override
  *   STRICT_MIGRATION_CHECKS - Optional strict checksum mismatch policy (true/false)
  *   ALLOW_CHANGED_MIGRATIONS - Optional override for checksum mismatch policy (true/false)
+ *   BROWSERBASE_API_KEY - Required for application deploys (or set in .dev.vars)
+ *   BROWSERBASE_SMOKE_URL - Optional verification origin override (defaults to vars.APP_URL)
  */
 
 import { spawnSync } from 'child_process';
@@ -25,6 +27,7 @@ import { readdirSync, readFileSync } from 'fs';
 import { createHash } from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join, resolve } from 'path';
+import { parseSmokeArgs, resolveSmokeApiKey } from './browserbase/smoke.js';
 import { isDeepStrictEqual } from 'node:util';
 import { buildDeploymentConfig, createWorkerSettingsReader, getDeploymentEnvironment, verifyPreservedSettings, writeDeploymentConfig } from './lib/deploySettings.js';
 
@@ -367,6 +370,7 @@ function createRuntimeContext(argv = process.argv.slice(2), env = process.env) {
     verbose: cli.verbose,
     allowChangedMigrations: cli.allowChangedMigrations || parseBoolean(env.ALLOW_CHANGED_MIGRATIONS, false),
     strictMigrationChecks,
+    browserbaseUrl: env.BROWSERBASE_SMOKE_URL || wranglerConfig.vars?.APP_URL,
     d1DatabaseName: resolveD1DatabaseName({
       explicitDbName: cli.dbName,
       envDbName: env.CLOUDFLARE_D1_DATABASE_NAME,
@@ -843,6 +847,7 @@ function getReleaseConfig() {
  */
 export async function main(argv = process.argv.slice(2), env = process.env) {
   runtime = createRuntimeContext(argv, env);
+  let smokeTarget;
 
   console.log('');
   log('╔════════════════════════════════════════════════════════════╗', 'cyan');
@@ -865,6 +870,17 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   }
 
   if (!runtime.dryRun && !runtime.migrationsOnly) {
+    // Catch configuration problems before QA, migrations, or publication.
+    try {
+      smokeTarget = parseSmokeArgs(['--url', runtime.browserbaseUrl], env).targetUrl;
+      if (!resolveSmokeApiKey({ env, devVarsPath: join(ROOT_DIR, '.dev.vars') })) {
+        throw new Error('BROWSERBASE_API_KEY is required in the environment or .dev.vars.');
+      }
+    } catch (error) {
+      logError(`Browserbase preflight failed: ${error.message} No release commands were started.`);
+      process.exitCode = 1;
+      return;
+    }
     log('Running fresh release QA before remote changes...', 'cyan');
     const qa = spawnCommand('npm', ['run', 'ci:release-check'], { env });
     if (qa.status !== 0) {
@@ -901,6 +917,20 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     if (!deployOk) {
       logError('\nDeployment failed!');
       process.exit(1);
+    }
+    if (runtime.dryRun) {
+      log('  [DRY RUN] Would verify the deployed guest UI with Browserbase', 'yellow');
+    } else {
+      log('\nChecking the deployed guest UI with Browserbase...', 'cyan');
+      const smoke = spawnCommand('npm', ['run', 'test:e2e:browserbase'], {
+        // Keep the target in the child environment, outside shell command arguments.
+        env: { ...env, BROWSERBASE_SMOKE_URL: smokeTarget }
+      });
+      if (smoke.status !== 0) {
+        logError('Worker published, but Browserbase guest verification failed. Inspect the smoke report before treating the release as verified.');
+        process.exitCode = 1;
+        return;
+      }
     }
   }
 

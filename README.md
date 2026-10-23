@@ -101,6 +101,11 @@ npm run deploy
 
 The deploy flow is managed by `scripts/deploy.js` and supports migrations, dry runs, and local migration application via the npm scripts in `package.json`.
 
+Application deployments validate Browserbase configuration before release QA and
+run the [guest UI smoke checks](docs/browserbase-smoke.md) after publication.
+Use `npm run test:e2e:browserbase -- --url <public-https-origin>` to check an
+existing preview or production deployment separately.
+
 Use `npm run deploy` (or `npm run deploy:skip-migrations`) for application releases. After fresh release QA, the script reads the existing Worker's settings with your current Wrangler login or configured Cloudflare credentials. It refreshes those settings immediately before each upload and creates a private temporary config beside `wrangler.jsonc`. Existing dashboard variables, including values that differ from checked-in defaults, are inherited; defaults are uploaded only for new names. Existing secret bindings are inherited without reading their values. Logs, traces, and Issues settings are carried through Wrangler's separate monitoring update. The temporary config is removed after the upload, including on failure.
 
 A failed or malformed settings read stops the release before remote migrations, as does a configured resource binding that would replace an existing variable or secret. The script pins the Worker/account/API target and refuses to upload if `wrangler.jsonc` changes during the release. Only Cloudflare's explicit Worker-not-found response allows a first deployment, which uses the checked-in defaults and enables Issues. After an upload, the script checks variable values, secret names/types, and monitoring settings again; a mismatch fails the release without attempting an automatic settings repair. Credential retrieval disables Wrangler's debug-file logging; credentials are kept in memory and dashboard values are not written to the temporary config. Dry runs and migration-only operations do not read or modify Worker settings.

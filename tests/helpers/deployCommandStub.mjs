@@ -1,6 +1,6 @@
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
-import { basename } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { readFileSync, statSync } from 'node:fs';
 import fs from 'node:fs';
 
@@ -27,8 +27,11 @@ let attempts = 0;
 let built = false;
 const originalReadFile = fs.readFileSync;
 fs.readFileSync = (path, ...args) => {
+  if (process.env.TEST_BROWSERBASE_NO_KEY === '1' && resolve(String(path)) === resolve('.dev.vars')) {
+    throw Object.assign(new Error('No test credentials'), { code: 'ENOENT' });
+  }
   const content = originalReadFile(path, ...args);
-  if (built && process.env.TEST_CONFIG_TARGET_CHANGE === 'true' && String(path).endsWith('/wrangler.jsonc')) {
+  if (built && process.env.TEST_CONFIG_TARGET_CHANGE === 'true' && String(path).replaceAll('\\', '/').endsWith('/wrangler.jsonc')) {
     return String(content).replace('"name": "tableau"', '"name": "different-worker"');
   }
   return content;
@@ -51,8 +54,19 @@ globalThis.fetch = async (url, options) => {
 
 // Loaded only in the subprocess integration test. No child command, network
 // operation, migration, build or deployment is actually executed.
-childProcess.spawnSync = (command, args) => {
-  process.stdout.write(`COMMAND:${JSON.stringify({ command: basename(command), args })}\n`);
+childProcess.spawnSync = (command, args, options = {}) => {
+  // Record the same logical npm/npx command on Windows and Unix.
+  if (basename(command).toLowerCase() === 'cmd.exe' && args.slice(0, 3).join(' ') === '/d /s /c') {
+    [command, ...args] = args.slice(3);
+  }
+  const isSmoke = args.includes('test:e2e:browserbase');
+  const call = { command: basename(command), args };
+  if (isSmoke) call.targetUrl = options.env?.BROWSERBASE_SMOKE_URL;
+  process.stdout.write(`COMMAND:${JSON.stringify(call)}\n`);
+  if (isSmoke) return { status: Number(process.env.TEST_BROWSERBASE_SMOKE_EXIT || 0), stdout: '[]', stderr: '' };
+  if (args[0] === 'wrangler' && args[1] === 'deploy' && Number(process.env.TEST_WORKER_DEPLOY_EXIT || 0)) {
+    return { status: Number(process.env.TEST_WORKER_DEPLOY_EXIT), stdout: '', stderr: 'Upload rejected' };
+  }
   if (args.includes('auth') && args.includes('token')) {
     if (process.env.TEST_AUTH_FAIL === 'true') return { status: 1, stdout: 'private-auth-canary', stderr: 'private-auth-canary' };
     return { status: 0, stdout: '{"type":"oauth","token":"credential-canary"}', stderr: '' };

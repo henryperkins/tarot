@@ -4,7 +4,19 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 function deploy(args = [], qaExit = 0, overrides = {}) {
-  const result = spawnSync(process.execPath, ['--import', './tests/helpers/deployCommandStub.mjs', 'scripts/deploy.js', ...args], { encoding: 'utf8', env: { ...process.env, TEST_RELEASE_QA_EXIT: String(qaExit), ...overrides } });
+  const result = spawnSync(process.execPath, ['--import', './tests/helpers/deployCommandStub.mjs', 'scripts/deploy.js', ...args], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      BROWSERBASE_API_KEY: 'test-browserbase-key',
+      BROWSERBASE_SMOKE_URL: '',
+      TEST_BROWSERBASE_NO_KEY: '0',
+      TEST_BROWSERBASE_SMOKE_EXIT: '0',
+      TEST_WORKER_DEPLOY_EXIT: '0',
+      TEST_RELEASE_QA_EXIT: String(qaExit),
+      ...overrides
+    }
+  });
   const commands = result.stdout.split('\n').filter(line => line.startsWith('COMMAND:')).map(line => JSON.parse(line.slice(8)));
   const configs = result.stdout.split('\n').filter(line => line.startsWith('CONFIG:')).map(line => JSON.parse(line.slice(7)));
   const requests = result.stdout.split('\n').filter(line => line.startsWith('REQUEST:')).map(line => JSON.parse(line.slice(8)));
@@ -54,7 +66,8 @@ it('inherits dashboard variables and secrets instead of uploading conflicting lo
   assert.equal(result.configs[0].observability.logs.persist, false);
   assert.ok(result.requests.length >= 3, 'preflight, refresh, and post-deploy verification');
   assert.ok(result.requests.every(request => request.method === 'GET'));
-  assert.equal(result.configs[0].mode, 0o600);
+  // Windows reports mode bits independently of its ACL permissions.
+  if (process.platform !== 'win32') assert.equal(result.configs[0].mode, 0o600);
   assert.equal(existsSync(result.configs[0].configPath), false, 'temporary config removed');
   assert.equal(readFileSync('wrangler.jsonc', 'utf8'), before);
   assert.doesNotMatch(result.stdout + result.stderr, /credential-canary|dashboard-canary-value/);
@@ -137,4 +150,56 @@ it('refreshes dashboard variables after build and before retrying an upload', ()
   assert.equal(retry.configs[0].vars.includes('ANTHROPIC_MODEL'), true);
   assert.equal(retry.configs[1].vars.includes('ANTHROPIC_MODEL'), false);
   assert.ok(retry.configs.every(config => !existsSync(config.configPath)));
+});
+
+it('checks the deployed app only after a successful Worker publish', () => {
+  const result = deploy(['--skip-migrations']);
+  assert.equal(result.status, 0, result.stderr);
+  const publish = result.commands.findIndex(call => call.args.includes('deploy'));
+  const smoke = result.commands.findIndex(call => call.args.includes('test:e2e:browserbase'));
+  assert.ok(smoke > publish, 'Browserbase must run after the successful publish');
+  assert.deepEqual(result.commands[smoke], {
+    command: 'npm', args: ['run', 'test:e2e:browserbase'], targetUrl: 'https://tarot.lakefrontdev.com'
+  });
+});
+
+it('accepts an explicit deployed preview origin', () => {
+  const result = deploy(['--skip-migrations'], 0, { BROWSERBASE_SMOKE_URL: 'https://preview.example.com' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.commands.at(-1).targetUrl, 'https://preview.example.com');
+});
+
+it('fails before any release command when Browserbase credentials are missing', () => {
+  const result = deploy([], 0, { BROWSERBASE_API_KEY: '', TEST_BROWSERBASE_NO_KEY: '1' });
+  assert.equal(result.status, 1);
+  assert.deepEqual(result.commands, []);
+  assert.match(result.stderr, /BROWSERBASE_API_KEY/);
+});
+
+it('rejects an invalid smoke target before any release command', () => {
+  const result = deploy([], 0, { BROWSERBASE_SMOKE_URL: 'http://localhost:8787' });
+  assert.equal(result.status, 1);
+  assert.deepEqual(result.commands, []);
+});
+
+it('reports a failed post-publish check without claiming deployment completion', () => {
+  const result = deploy(['--skip-migrations'], 0, { TEST_BROWSERBASE_SMOKE_EXIT: '1' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /published.*Browserbase.*failed/i);
+  assert.doesNotMatch(result.stdout, /Deployment complete!/);
+  assert.equal(result.commands.filter(call => call.args.includes('deploy')).length, 1);
+});
+
+it('does not start a cloud check after a failed Worker publish', () => {
+  const result = deploy(['--skip-migrations'], 0, { TEST_WORKER_DEPLOY_EXIT: '1' });
+  assert.equal(result.status, 1);
+  assert.equal(result.commands.some(call => call.args.includes('test:e2e:browserbase')), false);
+});
+
+it('keeps dry runs and migration-only operations free of Browserbase requirements', () => {
+  for (const args of [['--dry-run', '--skip-migrations'], ['--migrations-only']]) {
+    const result = deploy(args, 0, { BROWSERBASE_API_KEY: '', TEST_BROWSERBASE_NO_KEY: '1' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.commands.some(call => call.args.includes('test:e2e:browserbase')), false);
+  }
 });
