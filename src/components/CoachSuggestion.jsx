@@ -206,23 +206,23 @@ export function CoachSuggestion({
         const focusCtaPlacement = focusAreasCtaPlacement || (isAmberTone ? 'before-actions' : 'after-actions');
         const classes = isAmberTone
             ? {
-                container: 'rounded-lg bg-primary/5 p-3 border border-primary/10',
-                headline: 'text-sm sm:text-xs text-accent/85 mb-2',
-                scope: 'mb-2 text-2xs uppercase tracking-[0.18em] text-accent/50',
-                badge: 'mb-2 flex items-center gap-1 text-2xs text-accent/80',
-                source: 'mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.18em] text-accent/60',
-                sourceTrigger: 'text-accent/60 hover:text-main',
+                container: 'rounded-lg bg-(--bg-surface) p-3 border border-primary/20',
+                headline: 'text-sm text-accent mb-2',
+                scope: 'mb-2 text-2xs uppercase tracking-[0.18em] text-muted',
+                badge: 'mb-2 flex items-center gap-1 text-xs text-accent',
+                source: 'mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.18em] text-muted',
+                sourceTrigger: 'text-accent hover:text-main',
                 theme: 'mb-2 space-y-1 text-2xs text-muted',
                 related: 'mb-2 text-2xs text-muted-high',
                 relatedTitle: 'text-2xs uppercase tracking-[0.18em] text-muted',
-                remaining: 'mt-1 text-2xs text-muted/70',
+                remaining: 'mt-1 text-xs text-muted',
                 statusMessage: 'mb-2 text-2xs text-muted',
                 actions: 'flex flex-wrap items-center gap-2',
                 startButton: `inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation ${FOCUS_RING_PRIMARY_50}`,
                 saveButton: `min-h-touch rounded-full border border-primary/25 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/40 transition-colors ${FOCUS_RING_PRIMARY_50}`,
                 openButton: `min-h-touch rounded-full border border-primary/20 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/35 transition-colors ${FOCUS_RING_PRIMARY_50}`,
-                status: 'text-2xs text-muted/70',
-                focusCta: 'mb-2 min-h-touch min-w-touch text-left text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
+                status: 'text-xs text-muted',
+                focusCta: 'mb-2 min-h-touch min-w-touch text-left text-xs text-accent underline underline-offset-4 hover:text-main transition-colors',
             }
             : {
                 container: 'rounded-lg bg-(--border-warm-subtle) p-3 border border-(--border-warm-light)',

@@ -112,7 +112,7 @@ for (const gestureStudyEnabled of [false, true]) {
     const markup = renderToStaticMarkup(createElement(MemoryRouter, null,
       createElement(AuthProvider, null, createElement(SubscriptionProvider, null, card))));
     assert.deepEqual(headings(markup), [
-      { level: 3, text: 'Journal entry' },
+      { level: 3, text: 'A reflection' },
       { level: 4, text: 'Opening' },
       { level: 5, text: 'Reflection' },
       { level: 6, text: 'Detail' },

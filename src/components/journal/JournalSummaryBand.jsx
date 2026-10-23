@@ -47,7 +47,7 @@ export function JournalSummaryBand({
   const prefersReducedMotion = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
+  const sourceLabel = dataSource === 'server' ? 'Cloud journal' : 'This browser';
   const showDecorations = summaryInView && !embedded;
   const containerClass = `panel-mystic bg-gradient-ambient rounded-3xl ${
     embedded ? 'mb-0' : 'mb-6'

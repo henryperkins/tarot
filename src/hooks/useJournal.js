@@ -5,15 +5,15 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 import { persistJournalInsights, clearJournalInsightsCache } from '../lib/journalInsights';
 import { invalidateNarrativeCache } from '../lib/safeStorage';
 import { fetchJournalEntryById } from '../lib/journal/fetchEntryById';
+import { readLocalJournalEntries, writeLocalJournalEntries, withLocalJournalStorageLock } from '../lib/journal/localJournalStorage.js';
 import { generateId } from '../lib/utils';
 import { dedupeEntries } from '../../shared/journal/dedupe.js';
-import { normalizeTimestamp } from '../../shared/journal/utils.js';
 import { readingGesturesEnabled, readingVisualRequestsEnabled } from '../lib/readingGestureSettings.js';
 import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAccountStorage.js';
 import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalResult, purgeDeletedJournalEntryStorage,
   subscribeToDeletedJournalEntries, journalNamespaceForKey } from '../lib/deletedJournalEntryStorage.js';
 import { visualStorageNamespace, writeVisualResume, patchVisualEntry,
-  persistJournalWithVisualFallback, VISUAL_SNAPSHOT_EVENT, readSavedVisualEntry, projectJournalEntryVisuals,
+  VISUAL_SNAPSHOT_EVENT, readSavedVisualEntry, projectJournalEntryVisuals,
   mergeCachedJournalVisuals, needsCloudVisualRefresh, requestSavedVisualRetry, adoptEntryVisuals,
   savedVisualSourceKey, publicVisualRetryState } from '../lib/readingVisualStorage.js';
 
@@ -48,14 +48,6 @@ function getCacheKey(userId) {
 function getLocalJournalKey(userId) {
   if (!userId) return LOCALSTORAGE_KEY;
   return `${LOCALSTORAGE_KEY}_${userId}`;
-}
-
-function sortEntriesNewestFirst(entries) {
-  return (Array.isArray(entries) ? entries : []).slice().sort((a, b) => {
-    const aTs = normalizeTimestamp(a?.ts) ?? 0;
-    const bTs = normalizeTimestamp(b?.ts) ?? 0;
-    return bTs - aTs;
-  });
 }
 
 function readLocalJournalArray(key) {
@@ -362,10 +354,9 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
         } else {
           const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
           const stored = localStorage.getItem(localKey);
-          if (stored) {
+          if (stored !== null) {
             try {
-              const parsed = JSON.parse(stored);
-              if (!Array.isArray(parsed)) throw new Error('Expected a journal entry list.');
+              const parsed = readLocalJournalEntries(localStorage, localKey, stored);
               const safeEntries = filterDeletedJournalEntries(namespace, dedupeEntries(parsed)).map(projectJournalEntryVisuals);
               setEntries(safeEntries);
               loadedEntries = safeEntries;
@@ -673,31 +664,36 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
           return { success: false, error: 'localStorage not available' };
         }
 
-        const savedAt = Date.now();
-        const newEntry = {
-          id: generateId('local'),
-          ts: savedAt,
-          ...entry
-        };
-
-        // Persist synchronously before reporting success; another hook instance's
-        // entries may be stale, so merge with the actual scoped storage bucket.
         const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
-        const existing = filterDeletedJournalEntries(namespace, readLocalJournalArray(localKey));
-        const duplicate = existing.find(item => sameJournalReading(item, entry));
-        if (duplicate) return { success: true, entry: duplicate, deduplicated: true };
-        const next = dedupeEntries([newEntry, ...existing]).slice(0, 100);
-        const persisted = persistJournalWithVisualFallback({ key: localKey, entries: next });
-        if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
-        if (visualRequestsEnabled && visualResume && entry.visualBinding
-          && (!visualResume.namespace || visualResume.namespace === namespace)) writeVisualResume({ namespace, entryId: newEntry.id, binding: entry.visualBinding,
-          resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
-        setEntries(persisted.entries);
-        setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
-        setLastLocalSaveAt(savedAt);
-        persistInsights(persisted.entries);
+        return await withLocalJournalStorageLock([localKey], () => {
+          if (isDeletedAccount(userId) || namespaceRef.current !== namespace) return { success: false, error: 'Account changed' };
+          const savedAt = Date.now();
+          const newEntry = {
+            id: generateId('local'),
+            ts: savedAt,
+            ...entry
+          };
 
-        return { success: true, entry: newEntry };
+          // Persist synchronously before reporting success; another hook instance's
+          // entries may be stale, so merge with the actual scoped storage bucket.
+          const existing = filterDeletedJournalEntries(namespace, readLocalJournalEntries(localStorage, localKey));
+          const duplicate = existing.find(item => sameJournalReading(item, entry));
+          if (duplicate) return { success: true, entry: duplicate, deduplicated: true };
+          const persisted = writeLocalJournalEntries({ storage: localStorage, key: localKey, entries: [newEntry] });
+          if (!persisted.ok) return { success: false, error: 'Your browser could not save this reading. Free some storage and try again.' };
+          const savedEntry = persisted.entries.find(item => item.id === newEntry.id || sameJournalReading(item, newEntry))
+            || persisted.entries.find(item => dedupeEntries([item, newEntry]).length === 1);
+          if (!savedEntry) return { success: false, error: 'This reading is no longer available.' };
+          if (visualRequestsEnabled && visualResume && entry.visualBinding
+            && (!visualResume.namespace || visualResume.namespace === namespace)) writeVisualResume({ namespace, entryId: savedEntry.id, binding: entry.visualBinding,
+            resumeHandle: visualResume, expiresAt: visualResume.expiresAt });
+          setEntries(persisted.entries);
+          setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
+          setLastLocalSaveAt(savedAt);
+          persistInsights(persisted.entries);
+
+          return { success: true, entry: savedEntry, ...(savedEntry.id !== newEntry.id ? { deduplicated: true } : {}) };
+        });
       }
     } catch (err) {
       console.error('Failed to save journal entry:', err);
@@ -756,29 +752,35 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
     let deletionEntries = [...entries, ...(readingResultId ? [{ id: entryId, readingResultId }] : [])];
     let retiredReadingResultIds = null;
     let retirementReceiptValid = !cloud;
+    let cloudDeletionConfirmed = false;
     try {
       if (cloud) {
         const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}`, { method: 'DELETE', credentials: 'include' });
         if (!response.ok) throw new Error('Failed to delete journal entry');
+        cloudDeletionConfirmed = true;
         const receipt = await response.json().catch(() => null);
         retirementReceiptValid = Array.isArray(receipt?.retiredReadingResultIds)
           && receipt.retiredReadingResultIds.every(id => typeof id === 'string' && id.length > 0 && id.length <= 256);
         retiredReadingResultIds = retirementReceiptValid ? receipt.retiredReadingResultIds : [];
-      } else {
-        // Local deletion is confirmed only after the actual authoritative bucket
-        // is rewritten. A storage failure creates no tombstone and no success.
-        if (typeof localStorage === 'undefined') throw new Error('localStorage not available');
-        const key = getLocalJournalKey(isAuthenticated ? userId : null);
-        const raw = localStorage.getItem(key);
-        const stored = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(stored)) throw new Error('Unable to read the local journal');
-        deletionEntries = [...deletionEntries, ...stored];
-        localStorage.setItem(key, JSON.stringify(stored.filter(item => item?.id !== entryId)));
       }
-      // Erase and fence synchronously before React can run a queued updater.
-      // The captured namespace still owns the confirmed response after a switch.
-      const erased = purgeDeletedJournalEntryStorage({ namespace, entryId, entries: deletionEntries, retiredReadingResultIds });
-      const cleanup = { ...erased, purged: erased.purged && retirementReceiptValid };
+      const key = getLocalJournalKey(isAuthenticated ? userId : null);
+      const cleanup = await withLocalJournalStorageLock([key], () => {
+        if (!cloud) {
+          if (isDeletedAccount(userId) || namespaceRef.current !== namespace) throw new Error('Account changed');
+          // Local deletion is confirmed only after the actual authoritative bucket
+          // is rewritten. A storage failure creates no tombstone and no success.
+          if (typeof localStorage === 'undefined') throw new Error('localStorage not available');
+          const stored = readLocalJournalEntries(localStorage, key);
+          deletionEntries = [...deletionEntries, ...stored];
+          const serialized = JSON.stringify(stored.filter(item => item?.id !== entryId));
+          localStorage.setItem(key, serialized);
+          if (localStorage.getItem(key) !== serialized) throw new Error('Your browser could not remove this reading. Try again.');
+        }
+        // Erase and fence synchronously before React can run a queued updater.
+        // The captured namespace still owns the confirmed response after a switch.
+        const erased = purgeDeletedJournalEntryStorage({ namespace, entryId, entries: deletionEntries, retiredReadingResultIds });
+        return { ...erased, purged: erased.purged && retirementReceiptValid };
+      });
       if (namespaceRef.current === namespace && !isDeletedAccount(userId)) {
         entriesRef.current = filterDeletedJournalEntries(namespace, entriesRef.current);
         setEntries(previous => filterDeletedJournalEntries(namespace, previous));
@@ -794,6 +796,18 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       }
       return { success: true, purged: true };
     } catch (err) {
+      if (cloudDeletionConfirmed) {
+        // Fence confirmed server deletion even when this browser cannot lock
+        // its cache. Avoid rewriting an unlocked whole-journal snapshot.
+        purgeDeletedJournalEntryStorage({ namespace, entryId, entries: deletionEntries, retiredReadingResultIds, rewriteBuckets: false });
+        if (namespaceRef.current === namespace && !isDeletedAccount(userId)) {
+          setEntries(previous => filterDeletedJournalEntries(namespace, previous));
+          setPagination(previous => ({ ...previous, total: typeof previous.total === 'number' ? Math.max(0, previous.total - 1) : null }));
+        }
+        const message = 'Reading deleted from your account, but this browser could not finish removing its saved data.';
+        setError(message);
+        return { success: true, purged: false, error: message };
+      }
       console.error('Failed to delete journal entry:', err);
       setError(err.message);
       return { success: false, error: err.message };
@@ -829,45 +843,44 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
     }
 
-    const legacyEntriesRaw = readLocalJournalArray(LOCALSTORAGE_KEY);
-    const legacyEntries = filterDeletedJournalEntries('anon', dedupeEntries(legacyEntriesRaw));
-    if (!legacyEntries.length) {
-      return { success: true, imported: 0, skipped: 0 };
-    }
-
-    const scopedKey = getLocalJournalKey(userId);
-    const scopedExistingRaw = readLocalJournalArray(scopedKey);
-    const scopedExisting = filterDeletedJournalEntries(namespace, dedupeEntries(scopedExistingRaw));
-
-    const merged = dedupeEntries([...legacyEntries, ...scopedExisting]);
-    const ordered = sortEntriesNewestFirst(merged);
-
-    // Keep local journal bounded to avoid quota issues.
-    const next = ordered.slice(0, 100);
-
     try {
-      if (isDeletedAccount(userId) || namespaceRef.current !== namespace) {
-        return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
-      }
-      localStorage.setItem(scopedKey, JSON.stringify(filterDeletedJournalEntries(namespace, next)));
-      setLastLocalSaveAt(Date.now());
-      if (removeLegacy) {
-        localStorage.removeItem(LOCALSTORAGE_KEY);
-      }
+      const scopedKey = getLocalJournalKey(userId);
+      let copiedGuestSnapshot = null;
+      let guestSourceRemoved = false;
+      return await withLocalJournalStorageLock([LOCALSTORAGE_KEY, scopedKey], () => {
+        if (isDeletedAccount(userId) || namespaceRef.current !== namespace) {
+          return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
+        }
+        const legacyRaw = localStorage.getItem(LOCALSTORAGE_KEY);
+        copiedGuestSnapshot = legacyRaw;
+        const legacyEntries = filterDeletedJournalEntries('anon', dedupeEntries(readLocalJournalEntries(localStorage, LOCALSTORAGE_KEY, legacyRaw)));
+        if (!legacyEntries.length) return { success: true, imported: 0, skipped: 0 };
+        if (isDeletedAccount(userId) || namespaceRef.current !== namespace) {
+          return { success: false, error: 'Account changed', imported: 0, skipped: 0 };
+        }
+        const persisted = writeLocalJournalEntries({ storage: localStorage, key: scopedKey, entries: legacyEntries });
+        if (!persisted.ok) return { success: false, error: persisted.error, imported: 0, skipped: 0 };
+        setLastLocalSaveAt(Date.now());
+        // A second tab may have added guest entries. Never clear a newer source.
+        if (removeLegacy && localStorage.getItem(LOCALSTORAGE_KEY) === legacyRaw) {
+          localStorage.removeItem(LOCALSTORAGE_KEY);
+          guestSourceRemoved = true;
+        }
+        setEntries(persisted.entries);
+        if (typeof window !== 'undefined') persistInsights(persisted.entries);
+        const imported = Math.max(0, persisted.entries.length - persisted.previousEntries.length);
+        return { success: true, imported, skipped: Math.max(0, legacyEntries.length - imported) };
+      }, { onOwnerDeleted: () => {
+        // Account deletion must not consume an unowned guest source. Both
+        // bucket locks still belong to this import while it is restored.
+        if (guestSourceRemoved && copiedGuestSnapshot !== null && localStorage.getItem(LOCALSTORAGE_KEY) === null) {
+          localStorage.setItem(LOCALSTORAGE_KEY, copiedGuestSnapshot);
+        }
+      } });
     } catch (error) {
       console.warn('Failed to import legacy local journal entries:', error);
-      return { success: false, error: 'Unable to write localStorage', imported: 0, skipped: 0 };
+      return { success: false, error: error.message || 'Unable to write localStorage', imported: 0, skipped: 0 };
     }
-
-    setEntries(next);
-    if (typeof window !== 'undefined') {
-      persistInsights(next);
-    }
-
-    const imported = Math.max(0, next.length - scopedExisting.length);
-    const skipped = Math.max(0, legacyEntries.length - imported);
-
-    return { success: true, imported, skipped };
   };
 
   const migrateToCloud = async () => {
@@ -890,24 +903,20 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
 
     try {
       const candidateKeys = [
-        LOCALSTORAGE_KEY,
-        getLocalJournalKey(user?.id || null)
+        getLocalJournalKey(user?.id || null),
+        LOCALSTORAGE_KEY
       ].filter(Boolean);
 
       // Symbols survive dedupe's object projection but never enter JSON/API
       // payloads. Retain each bucket's origin across migration awaits.
       const migrationNamespace = Symbol('journal-namespace');
+      const sourceSnapshots = new Map();
       const localEntries = candidateKeys.flatMap((key) => {
-        try {
-          const stored = localStorage.getItem(key);
-          if (!stored) return [];
-          const parsed = JSON.parse(stored);
-          return filterDeletedJournalEntries(journalNamespaceForKey(key), parsed)
-            .map(entry => ({ ...entry, [migrationNamespace]: journalNamespaceForKey(key) }));
-        } catch (error) {
-          console.warn('Failed to parse local journal storage during migration:', error);
-          return [];
-        }
+        const stored = localStorage.getItem(key);
+        sourceSnapshots.set(key, stored);
+        // Validate every exact source snapshot before sending any requests.
+        return filterDeletedJournalEntries(journalNamespaceForKey(key), readLocalJournalEntries(localStorage, key, stored))
+          .map(entry => ({ ...entry, [migrationNamespace]: journalNamespaceForKey(key) }));
       });
 
       const dedupedLocalEntries = dedupeEntries(localEntries);
@@ -1020,10 +1029,26 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       const totalLocal = dedupedLocalEntries.length;
       if (!isCurrent()) return accountChanged();
       if (totalLocal > 0 && migrated + skipped === totalLocal) {
-        candidateKeys.forEach((key) => {
-          if (key) localStorage.removeItem(key);
-        });
+        let guestSourceRemoved = false;
+        await withLocalJournalStorageLock(candidateKeys, () => {
+          if (!isCurrent()) return;
+          sourceSnapshots.forEach((snapshot, key) => {
+            // Never consume a new reading saved while migration was awaiting HTTP.
+            if (snapshot !== null && localStorage.getItem(key) === snapshot) {
+              localStorage.removeItem(key);
+              if (key === LOCALSTORAGE_KEY) guestSourceRemoved = true;
+            }
+          });
+        }, { onOwnerDeleted: () => {
+          const snapshot = sourceSnapshots.get(LOCALSTORAGE_KEY);
+          if (guestSourceRemoved && snapshot !== null && localStorage.getItem(LOCALSTORAGE_KEY) === null) {
+            localStorage.setItem(LOCALSTORAGE_KEY, snapshot);
+          }
+        } });
       }
+      if (!isCurrent()) return accountChanged();
+      const sourceRetained = candidateKeys.some(key => localStorage.getItem(key) !== null);
+      const failed = totalLocal - migrated - skipped;
 
       // Reload entries from API
       await loadEntries();
@@ -1036,9 +1061,11 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       }
 
       return {
-        success: true,
+        success: failed === 0,
         migrated,
-        skipped
+        skipped,
+        sourceRetained,
+        ...(failed > 0 ? { error: `${failed} local reading${failed === 1 ? '' : 's'} could not be uploaded. Your local copies have been kept; try again.` } : {})
       };
     } catch (err) {
       console.error('Migration failed:', err);

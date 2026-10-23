@@ -49,6 +49,8 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
   const timestampLabel = relativeTimeLabel || formattedTimestamp;
   const timestampTitle = relativeTimeLabel ? formattedTimestamp : undefined;
+  const questionTitle = typeof entry.question === 'string' ? entry.question.trim() : '';
+  const spreadTitle = entry.spread || entry.spreadName || 'Tarot Reading';
 
   const headerPadding = isCompactView
     ? 'px-[min(0.875rem,4vw)] py-3 sm:px-4 sm:py-3.5'
@@ -90,8 +92,9 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               {isCompactView ? (
                 <>
                   <h3 className="min-w-0 wrap-break-word text-sm font-semibold text-accent">
-                    {entry.spread || entry.spreadName || 'Reading'}
+                    {questionTitle || spreadTitle}
                   </h3>
+                  {questionTitle && <p className="mt-1 text-sm text-muted wrap-anywhere">{spreadTitle}</p>}
                   {timestampLabel && (
                     <p className="mt-1 wrap-break-word text-2xs text-muted">
                       {timestampLabel}
@@ -122,8 +125,9 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
                   {/* Title */}
                   <h3 className="mt-1 min-w-0 wrap-break-word font-serif text-lg sm:text-xl text-(--brand-primary) tracking-[0.04em] leading-normal">
-                    {entry.spread || entry.spreadName || 'Tarot Reading'}
+                    {questionTitle || spreadTitle}
                   </h3>
+                  {questionTitle && <p className="mt-1 text-sm text-muted wrap-anywhere">{spreadTitle}</p>}
                 </>
               )}
             </div>

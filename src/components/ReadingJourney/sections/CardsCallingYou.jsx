@@ -95,16 +95,16 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                 )}
                 <span
                   className="text-muted tabular-nums"
-                  aria-label={`appeared ${card.count} times`}
                 >
-                  {card.count}x
+                  <span aria-hidden="true">{card.count}x</span>
+                  <span className="sr-only">appeared {card.count} {card.count === 1 ? 'time' : 'times'}</span>
                 </span>
                 {card.reversedCount > 0 && (
                   <span
                     className="text-xs text-muted/70"
-                    aria-label={`${card.reversedCount} reversed`}
                   >
-                    ({card.reversedCount}↺)
+                    <span aria-hidden="true">({card.reversedCount}↺)</span>
+                    <span className="sr-only">{card.reversedCount} reversed</span>
                   </span>
                 )}
               </div>

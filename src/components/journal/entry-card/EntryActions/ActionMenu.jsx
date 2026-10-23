@@ -36,7 +36,7 @@ export const ActionMenu = memo(function ActionMenu({
       { key: 'export-md', label: 'Export Markdown', icon: FileText, onSelect: handleExportMarkdown }
     ];
 
-    if (isAuthenticated && onDelete) {
+    if (onDelete) {
       items.push({
         key: 'delete',
         label: 'Delete entry',
@@ -47,7 +47,7 @@ export const ActionMenu = memo(function ActionMenu({
     }
 
     return items;
-  }, [handleCopyCsv, handleExportCsv, handleExportMarkdown, handleDelete, isAuthenticated, onDelete]);
+  }, [handleCopyCsv, handleExportCsv, handleExportMarkdown, handleDelete, onDelete]);
 
   const menuStyle = useMemo(() => {
     if (!placement) return null;
@@ -109,7 +109,7 @@ export const ActionMenu = memo(function ActionMenu({
         })}
       </div>
 
-      <ShareLinksPanel {...shareLinksProps} pendingAction={pendingAction} onClose={onClose} />
+      {isAuthenticated && actions.onCreateShareLink && <ShareLinksPanel {...shareLinksProps} pendingAction={pendingAction} onClose={onClose} />}
     </div>
   );
 

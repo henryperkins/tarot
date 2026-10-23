@@ -1,3 +1,4 @@
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 // Task 11 client <-> server contract. The browser-side recovery functions talk to
 // the real Task 9/10 route handlers over an injected fetch. D1 is in-process
@@ -470,3 +471,5 @@ for (const race of ['delete', 'source replacement', 'account switch']) {
     assert.equal(f.calls(), 1);
   });
 }
+
+test.beforeEach(t => installJournalLocks(t));

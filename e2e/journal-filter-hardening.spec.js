@@ -80,12 +80,12 @@ for (const theme of ['dark', 'light']) {
     const fixture = await openFilters(page, theme);
     try {
       await page.evaluate(() => document.fonts.ready);
-      const anyDate = page.getByText('Any date', { exact: true }).filter({ visible: true }).first();
+      const anyDate = page.getByRole('button', { name: 'Timeframe', exact: true });
       const ratios = await anyDate.evaluate(node => {
         const rgb = value => {
-          if (value.startsWith('#')) return [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16)).concat(1);
-          const parts = value.match(/[\d.]+/g).map(Number);
-          return parts.length === 3 ? [...parts, 1] : parts;
+          const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+          const context = canvas.getContext('2d'); context.fillStyle = value; context.fillRect(0, 0, 1, 1);
+          const color = [...context.getImageData(0, 0, 1, 1).data]; return [...color.slice(0, 3), color[3] / 255];
         };
         const composite = (front, back) => front.slice(0, 3).map((value, i) => value * front[3] + back[i] * (1 - front[3])).concat(1);
         const lum = color => color.slice(0, 3).map(v => v / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((total, v, i) => total + v * [0.2126, 0.7152, 0.0722][i], 0);

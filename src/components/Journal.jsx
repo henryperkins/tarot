@@ -28,6 +28,7 @@ import { useJournalSharing } from '../hooks/useJournalSharing';
 import { AmberStarfield } from './AmberStarfield';
 import { JournalSummaryBand } from './journal/JournalSummaryBand';
 import { JournalEmptyState } from './journal/JournalEmptyState';
+import { JournalRecoveryState } from './journal/JournalRecoveryState';
 import { JournalFloatingControls } from './journal/JournalFloatingControls';
 import { JournalStatusBanner } from './journal/JournalStatusBanner';
 import {
@@ -49,7 +50,7 @@ import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './Jo
 
 export default function Journal() {
   // Context hooks
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { canUseCloudJournal, canUseAdvancedInsights } = useSubscription();
   const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
   const { publish: showToast } = useToast();
@@ -143,8 +144,6 @@ export default function Journal() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSavedIntentionsModal, setShowSavedIntentionsModal] = useState(false);
   const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
-  const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
-  const [hasScrolled, setHasScrolled] = useState(false);
   const [highlightNavigationKey, setHighlightNavigationKey] = useState(location.key);
   const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(location.state?.highlightEntryId ?? null);
   const [highlightStatus, setHighlightStatus] = useState(null);
@@ -354,28 +353,6 @@ export default function Journal() {
     return () => observer.disconnect();
   }, [isSmallSummary, showSummaryBand]);
 
-  useEffect(() => {
-    if (!historyFiltersEl || typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          setHistoryFiltersInView(entry.isIntersecting);
-        });
-      },
-      { threshold: 0.15 }
-    );
-    observer.observe(historyFiltersEl);
-    return () => observer.disconnect();
-  }, [historyFiltersEl]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handleScroll = () => setHasScrolled(window.scrollY > 200);
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   const resolveHighlightEntry = useCallback(async (entryId) => {
     if (!entryId) return;
 
@@ -506,6 +483,7 @@ export default function Journal() {
       if (typeof result.skipped === 'number' && result.skipped > 0) {
         parts.push(`${result.skipped} already existed`);
       }
+      if (result.sourceRetained) parts.push('Local copies changed during sync and have been kept; sync again to include new readings');
       showToast({
         type: 'success',
         title: 'Local entry results',
@@ -608,31 +586,33 @@ export default function Journal() {
   // - legacy: tarot_journal (anonymous)
   // - user-scoped: tarot_journal_<userId>
   const getLocalStorageEntryPresence = () => {
-    if (typeof localStorage === 'undefined') return false;
-    const state = {
-      hasLegacy: false,
-      hasScoped: false,
-    };
+    try {
+      if (typeof localStorage === 'undefined') return { hasLegacy: false, hasScoped: false };
+      const state = {
+        hasLegacy: false,
+        hasScoped: false,
+      };
 
-    const legacyKey = 'tarot_journal';
-    const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
+      const legacyKey = 'tarot_journal';
+      const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
 
-    const keysToCheck = [legacyKey, scopedKey].filter(Boolean);
-    for (const key of keysToCheck) {
-      const stored = localStorage.getItem(key);
-      if (!stored) continue;
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          if (key === legacyKey) state.hasLegacy = true;
-          if (scopedKey && key === scopedKey) state.hasScoped = true;
+      const keysToCheck = [legacyKey, scopedKey].filter(Boolean);
+      for (const key of keysToCheck) {
+        const stored = localStorage.getItem(key);
+        if (!stored) continue;
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            if (key === legacyKey) state.hasLegacy = true;
+            if (scopedKey && key === scopedKey) state.hasScoped = true;
+          }
+        } catch {
+          // Ignore malformed cache and keep scanning other keys.
         }
-      } catch {
-        // Ignore malformed cache and keep scanning other keys.
       }
-    }
 
-    return state;
+      return state;
+    } catch { return { hasLegacy: false, hasScoped: false }; }
   };
 
   // Compute each render so it updates after import/migration without needing
@@ -660,7 +640,7 @@ export default function Journal() {
             locale={locale}
             timezone={timezone}
             variant="sidebar"
-            onCreateShareLink={isAuthenticated ? createShareLink : null}
+            onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
             onStartReading={handleStartReading}
             showStartReadingCta={false}
             seasonWindow={scopeWindow}
@@ -736,7 +716,7 @@ export default function Journal() {
                 entry={entry}
                 openRequestKey={isHighlighted ? highlightNavigationKey : null}
                 isAuthenticated={isAuthenticated}
-                onCreateShareLink={isAuthenticated ? createShareLink : null}
+                onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
                 shareLinks={shareLinks}
                 shareLoading={shareLoading}
                 shareError={shareError}
@@ -774,7 +754,7 @@ export default function Journal() {
           locale={locale}
           timezone={timezone}
           variant="mobile"
-          onCreateShareLink={isAuthenticated ? createShareLink : null}
+          onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
           onStartReading={handleStartReading}
           showStartReadingCta={false}
           seasonWindow={scopeWindow}
@@ -792,7 +772,7 @@ export default function Journal() {
 
         <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-8">
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div className={fromReading ? 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6' : 'hidden'}>
             {fromReading && (
               <button
                 onClick={() => {
@@ -853,8 +833,6 @@ export default function Journal() {
             cardClass={cardClass}
           />
 
-          {mobileRailContent}
-
           {loading ? (
             <div className="space-y-4 py-6" aria-live="polite">
               {Array.from({ length: 3 }).map((_, index) => (
@@ -886,11 +864,11 @@ export default function Journal() {
                       <AmberStarfield />
                     </div>
                     <div className="relative z-10 space-y-5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-serif text-main">Journal history</h2>
+                          <h2 className="text-xl font-serif text-main">Saved readings</h2>
                         </div>
-                        <div className="flex flex-col items-start gap-1 sm:items-end">
+                        <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
                               Filtered: {filteredEntries.length}
@@ -901,7 +879,7 @@ export default function Journal() {
                           </div>
                           {monthSections.length > 1 && (
                             <div className="flex items-center gap-2">
-                              <label htmlFor="jump-to-month" className="text-2xs uppercase tracking-[0.22em] text-muted/80">
+                              <label htmlFor="jump-to-month" className="sr-only sm:not-sr-only sm:text-2xs sm:uppercase sm:tracking-[0.22em] sm:text-muted/80">
                                 Jump to month
                               </label>
                               <select
@@ -969,52 +947,16 @@ export default function Journal() {
                       )}
 
                       <div className="space-y-4">
-                        {showSummaryBand && (
-                          <JournalSummaryBand
-                            summaryRef={summaryRef}
-                            isMobileLayout={isMobileLayout}
-                            summaryInView={summaryInView}
-                            analyticsScope={analyticsScope}
-                            onScopeSelect={handleScopeSelect}
-                            customScope={customScope}
-                            onCustomScopeChange={handleCustomScopeChange}
-                            scopeError={scopeError}
-                            scopeLabel={scopeLabel}
-                            scopeEntryCount={scopeEntryCount}
-                            summaryCardData={summaryCardData}
-                            statNodes={statNodes}
-                            statNodeMap={statNodeMap}
-                            heroEntry={heroEntry}
-                            heroCards={heroCards}
-                            heroDateLabel={heroDateLabel}
-                            expandedCardIndex={expandedCardIndex}
-                            onExpandedCardChange={setExpandedCardIndex}
-                            onStartReading={handleStartReading}
-                            filtersActive={filtersActive}
-                            dataSource={summaryDataSource}
-                            embedded
-                          />
-                        )}
 
-                        <JournalFloatingControls
-                          hasEntries={hasEntries}
-                          hasScrolled={hasScrolled}
-                          historyFiltersEl={historyFiltersEl}
-                          historyFiltersInView={historyFiltersInView}
-                          filtersActive={filtersActive}
-                          activeFilterChips={activeFilterChips}
-                          onResetFilters={handleResetFilters}
-                          onRemoveFilter={handleRemoveFilter}
-                          onScrollToFilters={scrollToHistoryFilters}
-                          onStartReading={handleStartReading}
-                          isMobileLayout={isMobileLayout}
-                        />
+
                         <div
                           id="journal-history-filters"
                           ref={registerHistoryFiltersEl}
                           className="scroll-mt-24"
                         >
                           <JournalFilters
+                            ownerId={isAuthenticated ? user?.id : null}
+                            storageReady={!authLoading}
                             filters={filters}
                             onChange={setFilters}
                             contexts={CONTEXT_FILTERS}
@@ -1094,13 +1036,66 @@ export default function Journal() {
                           )}
                         </>
                       )}
+                        <JournalFloatingControls
+                          hasEntries={hasEntries}
+                          filtersActive={filtersActive}
+                          activeFilterChips={activeFilterChips}
+                          onResetFilters={handleResetFilters}
+                          onRemoveFilter={handleRemoveFilter}
+                          onScrollToFilters={scrollToHistoryFilters}
+                          onStartReading={handleStartReading}
+                          isMobileLayout={isMobileLayout}
+                        />
                     </div>
                   </section>
+                ) : journalError ? (
+                  <JournalRecoveryState cloud={isAuthenticated && canUseCloudJournal} onReload={reloadJournal} loading={loading} />
                 ) : (
                   <JournalEmptyState
                     shellClass={shellClass}
                     onStartReading={handleStartReading}
                   />
+                )}
+                {hasEntries && (
+                  <div className="space-y-4">
+                    {isMobileLayout && (
+                      <details className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4">
+                        <summary className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)">Your reading journey</summary>
+                        <div className="pt-3">{mobileRailContent}</div>
+                      </details>
+                    )}
+                    <details className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4">
+                      <summary className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)">Practice snapshot</summary>
+                      <div className="pt-3">
+                        {showSummaryBand && (
+                          <JournalSummaryBand
+                            summaryRef={summaryRef}
+                            isMobileLayout={isMobileLayout}
+                            summaryInView={summaryInView}
+                            analyticsScope={analyticsScope}
+                            onScopeSelect={handleScopeSelect}
+                            customScope={customScope}
+                            onCustomScopeChange={handleCustomScopeChange}
+                            scopeError={scopeError}
+                            scopeLabel={scopeLabel}
+                            scopeEntryCount={scopeEntryCount}
+                            summaryCardData={summaryCardData}
+                            statNodes={statNodes}
+                            statNodeMap={statNodeMap}
+                            heroEntry={heroEntry}
+                            heroCards={heroCards}
+                            heroDateLabel={heroDateLabel}
+                            expandedCardIndex={expandedCardIndex}
+                            onExpandedCardChange={setExpandedCardIndex}
+                            onStartReading={handleStartReading}
+                            filtersActive={filtersActive}
+                            dataSource={summaryDataSource}
+                            embedded
+                          />
+                        )}
+                      </div>
+                    </details>
+                  </div>
                 )}
               </div>
 

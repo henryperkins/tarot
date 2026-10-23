@@ -146,6 +146,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       actions={{
         ...actions,
         isAuthenticated,
+        onCreateShareLink,
         onDelete
       }}
       shareLinksProps={{

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { safeStorage } from '../../../../../lib/safeStorage';
 import { REVERSED_PATTERN } from '../../../../../lib/journalInsights';
 
@@ -135,7 +135,15 @@ export function useCardFan({ cards = [], isCollapsible, reduceMotion, defaultExp
   const stripRef = useRef(null);
   const cardRefs = useRef([]);
   const wasExpandedRef = useRef(false);
+  const restoreStackFocusRef = useRef(false);
   const showExpanded = !isCollapsible || isExpanded;
+
+  useLayoutEffect(() => {
+    if (!showExpanded && restoreStackFocusRef.current) {
+      restoreStackFocusRef.current = false;
+      stackButtonRef.current?.focus({ preventScroll: true });
+    }
+  }, [showExpanded]);
 
   const maxIndex = Math.max(0, cards.length - 1);
   const constrainedActiveIndex = Math.min(activeIndex, maxIndex);
@@ -182,9 +190,9 @@ export function useCardFan({ cards = [], isCollapsible, reduceMotion, defaultExp
 
   const handleCollapse = useCallback(() => {
     if (!isCollapsible) return;
+    restoreStackFocusRef.current = true;
     setIsExpanded(false);
     wasExpandedRef.current = false;
-    stackButtonRef.current?.focus();
   }, [isCollapsible]);
 
   const handleExpand = useCallback(() => {

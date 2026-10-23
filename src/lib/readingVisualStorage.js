@@ -4,6 +4,7 @@ import { boundVisualCueLedger } from './narrativeGestureSource.js';
 import { postSavedVisualRetry } from './readingVisualStream.js';
 import { isDeletedAccount, isDeletedAccountStorageKey } from './deletedAccountStorage.js';
 import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalResult, journalNamespaceForKey } from './deletedJournalEntryStorage.js';
+import { withLocalJournalStorageLock } from './journal/storageLock.js';
 
 const PRIVATE_PREFIX = 'tarot_visual_resume:';
 export const VISUAL_SNAPSHOT_EVENT = 'reading-visual-snapshot';
@@ -312,32 +313,36 @@ export function readSavedVisualEntry({ namespace, entryId, storage }) {
   return null;
 }
 
-/** Synchronous compare-and-set on the current owner's saved entry. Late work
+/** Locked compare-and-set on the current owner's saved entry. Late work
  * patches only an existing entry whose exact saved source and public state
  * version still match; it never inserts, recreates or touches another owner. */
-export function commitSavedVisualEntry({ namespace, entryId, sourceKey, expectedStateVersion, update, storage, isCurrent = () => true }) {
-  const target = storageOrDefault(storage);
-  if (!target || deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target }) || !isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
-  const writes = [];
-  let found = null;
-  for (const key of visualJournalKeys(namespace)) {
-    const entries = readJSON(target, key);
-    const index = Array.isArray(entries) ? entries.findIndex(item => item?.id === entryId) : -1;
-    if (index < 0) continue;
-    found = entries[index];
-    if (savedVisualSourceKey(found) !== sourceKey) return { committed: false, reason: 'source-changed', entry: found };
-    const version = publicVisualRetryState(found.visualState)?.stateVersion ?? 0;
-    if (expectedStateVersion !== undefined && version !== expectedStateVersion) return { committed: false, reason: 'stale-state', entry: found };
-    const next = update(found);
-    if (!next) return { committed: false, reason: 'unchanged', entry: found };
-    writes.push({ key, entries, index, next });
-  }
-  if (!found) return { committed: false, reason: 'entry-not-found', entry: null };
-  if (deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })) return { committed: false, reason: 'stale-owner', entry: null };
+export async function commitSavedVisualEntry({ namespace, entryId, sourceKey, expectedStateVersion, update, storage, isCurrent = () => true }) {
   try {
-    for (const { key, entries, index, next } of writes) target.setItem(key, JSON.stringify(filterDeletedJournalEntries(namespace, entries.map((item, at) => at === index ? next : item), { storage: target })));
-  } catch { return { committed: false, reason: 'storage-error', entry: found }; }
-  return { committed: true, reason: null, entry: writes.at(-1).next };
+    return await withLocalJournalStorageLock(visualJournalKeys(namespace), () => {
+      const target = storageOrDefault(storage);
+      if (!target || deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target }) || !isCurrent()) return { committed: false, reason: 'stale-owner', entry: null };
+      const writes = [];
+      let found = null;
+      for (const key of visualJournalKeys(namespace)) {
+        const entries = readJSON(target, key);
+        const index = Array.isArray(entries) ? entries.findIndex(item => item?.id === entryId) : -1;
+        if (index < 0) continue;
+        found = entries[index];
+        if (savedVisualSourceKey(found) !== sourceKey) return { committed: false, reason: 'source-changed', entry: found };
+        const version = publicVisualRetryState(found.visualState)?.stateVersion ?? 0;
+        if (expectedStateVersion !== undefined && version !== expectedStateVersion) return { committed: false, reason: 'stale-state', entry: found };
+        const next = update(found);
+        if (!next) return { committed: false, reason: 'unchanged', entry: found };
+        writes.push({ key, entries, index, next });
+      }
+      if (!found) return { committed: false, reason: 'entry-not-found', entry: null };
+      if (deletedVisualOwner(namespace, target) || isDeletedJournalEntry(namespace, entryId, { storage: target })) return { committed: false, reason: 'stale-owner', entry: null };
+      try {
+        for (const { key, entries, index, next } of writes) target.setItem(key, JSON.stringify(filterDeletedJournalEntries(namespace, entries.map((item, at) => at === index ? next : item), { storage: target })));
+      } catch { return { committed: false, reason: 'storage-error', entry: found }; }
+      return { committed: true, reason: null, entry: writes.at(-1).next };
+    }, { storage });
+  } catch { return { committed: false, reason: 'storage-error', entry: null }; }
 }
 
 const VISUAL_FIELDS = ['visual', 'visualSnapshot', 'visualBinding', 'visualState'];
@@ -391,25 +396,29 @@ export function patchVisualEntry(entry, { binding, cueLedger, status }) {
   return { ...entry, visual, visualSnapshot: visual };
 }
 
-export function patchSavedVisualSnapshot({ namespace, binding, cueLedger, status, storage }) {
-  const target = storageOrDefault(storage);
-  if (deletedVisualOwner(namespace, target) || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target })) return 0;
-  let patched = 0;
-  for (const key of visualJournalKeys(namespace)) {
-    try {
-      const entries = JSON.parse(target?.getItem(key) || 'null');
-      if (!Array.isArray(entries)) continue;
-      const next = filterDeletedJournalEntries(namespace, entries, { storage: target }).map(entry => patchVisualEntry(entry, { binding, cueLedger, status }));
-      if (!next.some((entry, index) => entry !== entries[index])) continue;
-      if (deletedVisualOwner(namespace, target)) return patched;
-      target.setItem(key, JSON.stringify(next));
-      patched += next.filter((entry, index) => entry !== entries[index]).length;
-    } catch { /* A cue cache failure must leave the existing prose intact. */ }
-  }
-  if (patched && TERMINAL.has(status)) removeVisualResume({ namespace, readingResultId: binding.readingResultId, binding, storage });
-  if (patched) dispatchVisualEvent({ namespace, binding, status,
-    cueLedger: cueLedger && typeof cueLedger === 'object' ? publicCueLedger(cueLedger) : null });
-  return patched;
+export async function patchSavedVisualSnapshot({ namespace, binding, cueLedger, status, storage }) {
+  try {
+    return await withLocalJournalStorageLock(visualJournalKeys(namespace), () => {
+      const target = storageOrDefault(storage);
+      if (deletedVisualOwner(namespace, target) || isDeletedJournalResult(namespace, binding?.readingResultId, { storage: target })) return 0;
+      let patched = 0;
+      for (const key of visualJournalKeys(namespace)) {
+        try {
+          const entries = JSON.parse(target?.getItem(key) || 'null');
+          if (!Array.isArray(entries)) continue;
+          const next = filterDeletedJournalEntries(namespace, entries, { storage: target }).map(entry => patchVisualEntry(entry, { binding, cueLedger, status }));
+          if (!next.some((entry, index) => entry !== entries[index])) continue;
+          if (deletedVisualOwner(namespace, target)) return patched;
+          target.setItem(key, JSON.stringify(next));
+          patched += next.filter((entry, index) => entry !== entries[index]).length;
+        } catch { /* A cue cache failure must leave the existing prose intact. */ }
+      }
+      if (patched && TERMINAL.has(status)) removeVisualResume({ namespace, readingResultId: binding.readingResultId, binding, storage });
+      if (patched) dispatchVisualEvent({ namespace, binding, status,
+        cueLedger: cueLedger && typeof cueLedger === 'object' ? publicCueLedger(cueLedger) : null });
+      return patched;
+    }, { storage });
+  } catch { return 0; }
 }
 
 const FAILURE_STATES = { failed: ['exhausted', 'annotation-failed'], error: ['exhausted', 'annotation-failed'],
@@ -464,7 +473,7 @@ export async function adoptSavedVisualReplay({ namespace, entryId, resume, cueLe
         retryStatus, sourceFingerprint: fingerprint, stateVersion: (state?.stateVersion ?? 0) + 1, reason } };
     };
   }
-  const result = commitSavedVisualEntry({ namespace, entryId, sourceKey, update, storage: target, isCurrent,
+  const result = await commitSavedVisualEntry({ namespace, entryId, sourceKey, update, storage: target, isCurrent,
     expectedStateVersion: Number.isSafeInteger(resume.stateVersion) ? resume.stateVersion : undefined });
   if (!result.committed) return reject(result.reason);
   endAttempt();
@@ -558,8 +567,8 @@ export async function requestSavedVisualRetry({ namespace, entry, cloud = false,
       throw retryFailure('storage');
     }
   }
-  const committed = commit ? commit({ entryId: entry.id, sourceKey, update })
-    : commitSavedVisualEntry({ namespace, entryId: entry.id, sourceKey, expectedStateVersion, update, storage: target, isCurrent: current });
+  const committed = await (commit ? commit({ entryId: entry.id, sourceKey, update })
+    : commitSavedVisualEntry({ namespace, entryId: entry.id, sourceKey, expectedStateVersion, update, storage: target, isCurrent: current }));
   if (!committed.committed) {
     if (wroteHandle) removeVisualResume({ namespace, entryId: entry.id, attemptId: keepHandle.attemptId, storage: target });
     // Another tab (or a newer cloud poll) already committed state for this exact source.

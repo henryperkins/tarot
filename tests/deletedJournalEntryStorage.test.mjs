@@ -6,8 +6,10 @@ import { parse } from '@babel/parser';
 import { persistJournalWithVisualFallback, writeVisualResume, readVisualResume, visualStorageNamespace, requestSavedVisualRetry, fingerprintSavedVisualEntry } from '../src/lib/readingVisualStorage.js';
 import { safeStorage, setCachedNarrative } from '../src/lib/safeStorage.js';
 import { persistJournalInsights, persistCoachStatsSnapshot, saveCoachRecommendation } from '../src/lib/journalInsights.js';
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 
 function storageFixture(t) {
+  installJournalLocks(t);
   const values = new Map();
   const storage = { get length() { return values.size; }, key: index => [...values.keys()][index],
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) };
@@ -117,6 +119,19 @@ test('failed cloud DELETE creates no tombstone and leaves prose and future saves
   t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render(); const before = new Map(values);
   assert.equal((await hook.deleteEntry(removed.id)).success, false); driver.flush(); assert.deepEqual(values, before);
   assert.equal((await hook.saveEntry(removed)).success, true); driver.flush(); assert.equal(driver.render().entries[0].id, removed.id);
+});
+
+test('confirmed cloud DELETE reports success and fences the entry if browser locking fails', async t => {
+  const owner = 'entry-cloud-lock-denied'; const { storage } = storageFixture(t); const removed = entry('lock-denied'); seed(storage, owner, [removed]);
+  const driver = await journalDriver(owner, async (_url, options) => options?.method === 'DELETE'
+    ? Response.json({ retiredReadingResultIds: [removed.readingResultId] }) : Response.json({ entries: [removed] }));
+  t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render();
+  navigator.locks = null;
+  const result = await hook.deleteEntry(removed.id); driver.flush();
+  assert.equal(result.success, true); assert.equal(result.purged, false);
+  assert.deepEqual(driver.render().entries, []);
+  assert.equal(storage.getItem(`tarot_deleted_journal_entry:user:${owner}:${removed.id}`) !== null, true);
+  assert.equal((await hook.saveEntry(removed)).success, false);
 });
 
 test('local deletion removes from actual storage before success and preserves entries absent from stale hook state', async t => {
@@ -405,8 +420,13 @@ test('full-history search identity includes owner and rejects an old queued resp
   const owner = 'entry-search-old'; const other = 'entry-search-new'; storageFixture(t); const old = entry('search-old-prose'); const current = entry('search-current-prose');
   const releases = []; const driver = await filterDriver(owner, Array.from({ length: 201 }, (_, i) => entry(`switch-loaded-${i}`)), () => new Promise(resolve => releases.push(resolve)));
   t.after(() => driver.close()); driver.render(true); releases[0](Response.json({ entries: [old] })); await settle();
-  driver.setOwner(other); const switched = driver.render(true); assert.deepEqual(switched.filteredEntries, [], 'old same-query result must not surface for new owner');
-  driver.flush(); assert.deepEqual(driver.render().filteredEntries, []);
+  driver.setOwner(other); const switched = driver.render(true);
+  assert.equal(switched.filters.query, '', 'private search text resets before exposing a new owner');
+  assert.equal(switched.filteredEntries.some(item => item.id === old.id), false, 'old queued result must not surface');
+  driver.flush();
+  const next = driver.render();
+  assert.equal(next.filteredEntries.some(item => item.id === old.id), false);
+  next.setFilters(previous => ({ ...previous, query: 'Private current' })); driver.flush(); driver.render(true);
   releases[1](Response.json({ entries: [current] })); await settle(); driver.flush(); assert.deepEqual(driver.render().filteredEntries, [current]);
 });
 

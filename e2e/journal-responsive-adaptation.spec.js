@@ -22,7 +22,7 @@ const entry = {
 };
 
 async function expectReadableTitle(article) {
-  const title = article.getByRole('heading', { name: 'Celtic Cross', exact: true });
+  const title = article.getByRole('heading', { name: entry.question, exact: true });
   await expect(title).toBeVisible();
   const bounds = await title.evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -60,7 +60,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         }, entry);
         try {
           await page.goto('/journal');
-          const article = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Celtic Cross', exact: true }) });
+          const article = page.getByRole('article').filter({ has: page.getByRole('heading', { name: entry.question, exact: true }) });
           await expect(article).toBeVisible();
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
           await page.evaluate(() => document.fonts.ready);
@@ -85,11 +85,11 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await compact.press('Enter');
           await expect(compact).toHaveAttribute('aria-pressed', 'true');
           await expectReadableTitle(article);
-          const expand = article.getByRole('button', { expanded: false }).filter({ has: page.getByRole('heading', { name: 'Celtic Cross' }) });
+          const expand = article.getByRole('button', { expanded: false }).filter({ has: page.getByRole('heading', { name: entry.question }) });
           // Exercise keyboard activation after the layout switch, as well as pointer menu access.
           await expand.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
           await expand.press('Enter');
-          await expect(article.getByRole('button', { expanded: true }).filter({ has: page.getByRole('heading', { name: 'Celtic Cross' }) })).toBeVisible();
+          await expect(article.getByRole('button', { expanded: true }).filter({ has: page.getByRole('heading', { name: entry.question }) })).toBeVisible();
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         } finally {
           await fixture.close();
@@ -190,7 +190,7 @@ function journalSavedMarkdownThemeTests() {
 
         await completion.getByRole('button', { name: /^View (saved entry|journal)$/i }).press('Enter');
         await expect(page).toHaveURL(/\/journal(?:\?|$)/);
-        const title = page.getByRole('heading', { name: saved[0].spread, exact: true });
+        const title = page.getByRole('heading', { name: saved[0].question, exact: true });
         await expect(title).toHaveJSProperty('tagName', 'H3');
         const article = page.getByRole('article').filter({ has: title });
         await expect(article).toHaveCount(1);

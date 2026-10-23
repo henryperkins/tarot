@@ -31,8 +31,17 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const SERVER_SEARCH_LIMIT = 25;
   const SERVER_SEARCH_MIN_QUERY = 3;
 
-  const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
-  const deferredQuery = useDeferredValue(filters.query);
+  const [filterState, setFilterState] = useState(() => ({ namespace, filters: { ...DEFAULT_FILTERS } }));
+  if (filterState.namespace !== namespace) setFilterState({ namespace, filters: { ...DEFAULT_FILTERS } });
+  const filters = filterState.namespace === namespace ? filterState.filters : DEFAULT_FILTERS;
+  const setFiltersInternal = useCallback(update => setFilterState(previous => {
+    if (namespaceRef.current !== namespace) return previous;
+    const current = previous.namespace === namespace ? previous.filters : { ...DEFAULT_FILTERS };
+    return { namespace, filters: typeof update === 'function' ? update(current) : update };
+  }), [namespace]);
+  const querySnapshot = useMemo(() => ({ namespace, query: filters.query }), [namespace, filters.query]);
+  const deferredSnapshot = useDeferredValue(querySnapshot);
+  const deferredQuery = deferredSnapshot.namespace === namespace ? deferredSnapshot.query : '';
   const [serverSearchResult, setServerSearchResult] = useState(IDLE_SERVER_SEARCH);
   const setServerSearch = useCallback(update => setServerSearchResult(previous => {
     if (namespaceRef.current !== namespace || isDeletedAccount(userId)) return previous;
@@ -61,7 +70,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const setFilters = useCallback((update) => {
     setFilterTimestamp(Date.now());
     setFiltersInternal(update);
-  }, []);
+  }, [setFiltersInternal]);
   const timeframeWindow = useMemo(
     () => getTimeframeWindow(filters.timeframe, new Date(filterTimestamp)),
     [filters.timeframe, filterTimestamp]
@@ -132,7 +141,9 @@ export function useJournalFilters(sourceEntries, options = {}) {
       : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: 'exact' };
 
   // Returning to a previous query starts fresh, including after a cleared search.
-  if (serverSearchResult.searchKey !== searchKey) setServerSearch(serverSearch);
+  // Render resets must settle before the new owner's layout effect can run.
+  // Keep the namespace guard on asynchronous responses, not this local reset.
+  if (serverSearchResult.searchKey !== searchKey) setServerSearchResult(serverSearch);
 
   // Wake when a reading enters/exits the window or either calendar endpoint
   // changes day. This also catches midnight/year rollover without polling.

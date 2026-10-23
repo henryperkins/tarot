@@ -1,255 +1,66 @@
-/**
- * JournalStatusBanner - Auth/sync status display for the journal
- * Shows different content for authenticated vs non-authenticated users
- */
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { UploadSimple } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
 import { FOCUS_RING_DEFAULT } from '../../styles/focusClasses';
-import { AmberStarfield } from '../AmberStarfield';
-import { AccountNudge } from '../nudges';
-import { JournalRefreshIcon } from '../JournalIcons';
 
-export function JournalStatusBanner({
-  isAuthenticated,
-  canUseCloudJournal,
-  lastSyncAt,
-  lastLocalSaveAt,
-  syncSource,
-  journalError,
-  loading,
-  localStoragePresence,
-  localEntryCount = 0,
-  onMigrate,
-  migrating,
-  onImportLegacy,
-  importingLegacy,
-  onReload,
-  shouldShowAccountNudge,
-  onDismissNudge,
-  onShowAuthModal,
-  cardClass
-}) {
+export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastSyncAt, lastLocalSaveAt,
+  syncSource, journalError, loading, localStoragePresence, localEntryCount = 0,
+  onMigrate, migrating, onImportLegacy, importingLegacy, onReload, onShowAuthModal }) {
   const navigate = useNavigate();
-  const hasLegacyLocalEntries = Boolean(localStoragePresence?.hasLegacy);
-  const hasScopedLocalEntries = Boolean(localStoragePresence?.hasScoped);
-  const hasLocalEntries = hasLegacyLocalEntries || hasScopedLocalEntries;
-  const showCachedNotice = canUseCloudJournal && syncSource === 'cache';
-  const showCloudSyncIssue = Boolean(journalError) && canUseCloudJournal;
-  const showMigrateCta = canUseCloudJournal && hasLocalEntries && !migrating;
-  const shouldRenderCloudBanner = showCachedNotice || showCloudSyncIssue || showMigrateCta || migrating;
-  const isCloudEnabled = isAuthenticated && canUseCloudJournal;
-
-  const [now, setNow] = useState(() => Date.now());
-
-  // Update 'now' periodically to keep relative times fresh
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60 * 1000);
+    const interval = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(interval);
   }, []);
-
-  const formatRelativeTime = useCallback((timestamp) => {
-    const value = Number(timestamp);
-    if (!Number.isFinite(value)) return null;
-    const diff = now - value;
-    if (!Number.isFinite(diff)) return null;
-    const minute = 60 * 1000;
-    const hour = 60 * minute;
-    const day = 24 * hour;
-    if (diff < minute) return 'just now';
-    if (diff < hour) {
-      const minutes = Math.round(diff / minute);
-      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-    }
-    if (diff < day) {
-      const hours = Math.round(diff / hour);
-      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-    }
-    const days = Math.round(diff / day);
-    return `${days} day${days === 1 ? '' : 's'} ago`;
-  }, [now]);
-
-  const syncTimeLabel = lastSyncAt ? formatRelativeTime(lastSyncAt) : null;
-  const localSaveLabel = lastLocalSaveAt ? `Saved locally ${formatRelativeTime(lastLocalSaveAt)}` : null;
-  const syncParts = [];
-  if (isCloudEnabled && (loading || !syncSource)) {
-    syncParts.push(journalError && !loading ? 'Sync issue' : 'Syncing');
-    syncParts.push('Cloud');
-  } else if (!isAuthenticated || !canUseCloudJournal || syncSource === 'local') {
-    syncParts.push('Local only');
-    if (localSaveLabel) {
-      syncParts.push(localSaveLabel);
-    }
-  } else if (syncSource === 'cache') {
-    syncParts.push('Saved copy');
-    syncParts.push('This device');
-  } else {
-    syncParts.push('Synced');
-    syncParts.push('Cloud');
-  }
-  if (syncTimeLabel && isCloudEnabled && syncSource !== 'local') {
-    syncParts.push(syncTimeLabel);
-  }
-  const syncLabel = syncParts.join(' | ') || 'Sync status';
-  const showSyncRefresh = syncSource === 'cache' && typeof onReload === 'function';
-
-  const syncPill = (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-2 rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted-high">
-        {syncLabel}
-      </span>
-      {showSyncRefresh && (
-        <button
-          type="button"
-          onClick={() => onReload()}
-          disabled={loading}
-          className={`inline-flex min-h-touch min-w-touch items-center px-2 text-sm font-semibold text-accent underline underline-offset-2 hover:text-main ${FOCUS_RING_DEFAULT} disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          Reload journal
-        </button>
-      )}
-    </div>
-  );
-
-  if (isAuthenticated && canUseCloudJournal && !shouldRenderCloudBanner) {
-    return (
-      <>
-        {syncPill}
-      </>
-    );
-  }
+  const cloud = isAuthenticated && canUseCloudJournal;
+  const cached = cloud && syncSource === 'cache';
+  const local = !cloud || syncSource === 'local';
+  const timestamp = cloud ? lastSyncAt : lastLocalSaveAt;
+  const elapsed = timestamp ? Math.max(0, Math.round((now - timestamp) / 60000)) : null;
+  const timeLabel = elapsed === null ? '' : elapsed < 1 ? ' · just now' : elapsed < 60 ? ` · ${elapsed} min ago` : ` · ${Math.round(elapsed / 60)}h ago`;
+  const label = journalError ? 'Journal needs attention' : loading && cloud ? 'Syncing cloud journal'
+    : cached ? 'Saved copy · this device' : local ? 'Local only · this browser' : `Synced · cloud${timeLabel}`;
+  const hasLegacy = Boolean(localStoragePresence?.hasLegacy);
+  const canMigrate = cloud && (hasLegacy || localStoragePresence?.hasScoped);
 
   return (
-    <>
-      {syncPill}
-      {isAuthenticated ? (
-        <div className={`mb-6 ${cardClass} p-5`}>
-          <AmberStarfield />
-          <div className="relative z-10 space-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              {!canUseCloudJournal && (
-                <p className="journal-prose text-muted-high">
-                  ✓ Signed in - Your journal is stored on this device
-                </p>
-              )}
-              {/* Cache fallback warning with timestamp and refresh CTA */}
-              {showCachedNotice && (
-                <p className="min-w-0 text-sm leading-relaxed text-warning">
-                  {lastSyncAt
-                    ? `Cloud journal couldn’t load. Showing the saved copy from ${new Date(lastSyncAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}.`
-                    : 'Cloud journal couldn’t load. Showing a saved copy from this device.'}
-                </p>
-              )}
+    <div className="mb-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="text-xs text-muted-high" role="status">{label}{local && !journalError ? timeLabel : ''}</p>
+        {local && (
+          <details className="relative text-xs text-muted">
+            <summary className={`min-h-touch content-center cursor-pointer rounded-lg px-2 ${FOCUS_RING_DEFAULT}`}>Storage and sync</summary>
+            <div className="mt-1 mb-3 max-w-xl space-y-2 rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-sm text-muted-high">
+              <p>Your readings are saved in this browser. Browser storage can be cleared or run out of space.</p>
+              {!journalError && <p>Local entries: {localEntryCount}.</p>}
+              <p>Cloud sync and backup are available with Tableu Plus or Pro.</p>
+              <button type="button" onClick={() => isAuthenticated ? navigate('/pricing') : onShowAuthModal()}
+                className={`${OUTLINE_BUTTON_CLASS} text-sm`}>{isAuthenticated ? 'View cloud journal plans' : 'Sign in'}</button>
             </div>
-
-            {/* Upgrade CTA for users without cloud journal - mention storage limit */}
-            {!canUseCloudJournal && (
-              <div className="flex flex-col gap-2 pt-1">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => navigate('/pricing')}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-primary/15 hover:border-primary/35 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
-                  >
-                    Upgrade to Cloud Journal
-                  </button>
-                  <span className="text-2xs text-muted/70">Sync across devices and keep a cloud backup</span>
-                </div>
-                <p className="text-2xs text-muted/70">
-                  Local entries: {localEntryCount}. Storage depends on your browser.
-                </p>
-              </div>
-            )}
-
-            {/* Sync error with retry */}
-            {showCloudSyncIssue && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-sm text-warning">Sync issue</span>
-                <button
-                  onClick={() => onReload()}
-                  disabled={loading}
-                  className={`inline-flex min-h-touch min-w-touch items-center gap-2 rounded-full border border-warning/25 bg-warning/10 px-3 py-2 text-sm font-medium text-warning transition-colors hover:bg-warning/15 ${FOCUS_RING_DEFAULT} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />
-                  {loading ? 'Retrying...' : 'Retry'}
-                </button>
-              </div>
-            )}
-
-            {/* Signed-in, no-cloud: offer explicit import from legacy unscoped local journal. */}
-            {!canUseCloudJournal && localStoragePresence?.hasLegacy && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted">
-                  We found local journal entries saved before you signed in.
-                  They aren&rsquo;t shown automatically to protect against shared-device mixups.
-                </p>
-                <button
-                  onClick={onImportLegacy}
-                  disabled={importingLegacy}
-                  className={`${OUTLINE_BUTTON_CLASS} mt-1`}
-                >
-                  <UploadSimple className="w-4 h-4" />
-                  {importingLegacy ? 'Importing...' : 'Import local entries into this account'}
-                </button>
-              </div>
-            )}
-
-            {/* Signed-in, cloud: migrate any local entries (legacy or scoped) into D1. */}
-            {showMigrateCta && (
-              <div className="space-y-2 pt-1">
-                <p className="text-sm text-muted">
-                  Add the entries saved on this device to your cloud journal. Local copies are removed only after every entry is added or already exists in the cloud.
-                </p>
-                <button
-                  onClick={onMigrate}
-                  className={OUTLINE_BUTTON_CLASS}
-                >
-                  <UploadSimple className="w-4 h-4" />
-                  Add local entries to cloud journal
-                </button>
-              </div>
-            )}
-            {migrating && (
-              <p className="text-sm text-muted">Adding local entries…</p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className={`mb-6 ${cardClass} p-5`}>
-          <AmberStarfield />
-          <div className="relative z-10 space-y-3 text-sm text-muted-high journal-prose">
-            <p>Your journal is currently stored locally in this browser only.</p>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-              <span>Local entries: {localEntryCount}</span>
-              <span>Storage depends on your browser.</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => onShowAuthModal()}
-              className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-primary/15 hover:border-primary/35 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              Sign in to sync
-            </button>
-            {shouldShowAccountNudge && (
-              <div className="mt-1">
-                <AccountNudge
-                  onCreateAccount={() => onShowAuthModal()}
-                  onDismiss={onDismissNudge}
-                />
-              </div>
-            )}
-          </div>
+          </details>
+        )}
+      </div>
+      {cached && <div className="rounded-xl border border-warning/30 bg-(--bg-surface) p-3 text-sm text-muted-high">
+        <p>Cloud journal could not load. Showing a saved copy from this device.</p>
+        <button type="button" onClick={onReload} disabled={loading} className={`${OUTLINE_BUTTON_CLASS} mt-2`}>Reload journal</button>
+      </div>}
+      {journalError && <p role="alert" className="rounded-xl border border-error/30 bg-(--bg-surface) p-3 text-sm text-error">{journalError}</p>}
+      {isAuthenticated && !cloud && hasLegacy && (
+        <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-sm text-muted-high space-y-2">
+          <p>Readings saved before sign-in are kept separate on shared browsers. Import them only if they belong to you.</p>
+          <button type="button" onClick={onImportLegacy} disabled={importingLegacy} className={OUTLINE_BUTTON_CLASS}>
+            <UploadSimple className="h-4 w-4" aria-hidden="true" />{importingLegacy ? 'Importing…' : 'Import local entries into this account'}
+          </button>
         </div>
       )}
-
-      {/* Show standalone error only when not handled in the banner (non-cloud authenticated users) */}
-      {journalError && !(isAuthenticated && canUseCloudJournal) && (
-        <div className="mb-4 rounded-lg border border-error/40 bg-error/10 p-3 text-sm text-error">
-          {journalError}
-        </div>
-      )}
-    </>
+      {canMigrate && <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-sm text-muted-high space-y-2">
+        <p>Add this browser&rsquo;s readings to your cloud journal. Local copies stay until every entry is added or already exists.</p>
+        <button type="button" onClick={onMigrate} disabled={migrating} className={OUTLINE_BUTTON_CLASS}>
+          <UploadSimple className="h-4 w-4" aria-hidden="true" />{migrating ? 'Adding local entries…' : 'Add local entries to cloud journal'}
+        </button>
+      </div>}
+    </div>
   );
 }
 

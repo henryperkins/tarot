@@ -1,5 +1,5 @@
 /**
- * JournalFloatingControls - Fixed position FAB buttons that appear on scroll
+ * Journal actions stay in document flow so saved writing remains unobscured.
  */
 
 import { X } from '@phosphor-icons/react';
@@ -10,9 +10,6 @@ import {
 
 export function JournalFloatingControls({
   hasEntries,
-  hasScrolled,
-  historyFiltersEl,
-  historyFiltersInView,
   filtersActive,
   activeFilterChips,
   onResetFilters,
@@ -26,15 +23,14 @@ export function JournalFloatingControls({
   const showActiveFilters = showFilterSummary && filtersActive && activeFilterChips.length > 0;
   const showFiltersButton = showFiltersShortcut;
   const showNewReading = isMobileLayout;
-  const visible = hasEntries && hasScrolled && historyFiltersEl && !historyFiltersInView
-    && (showActiveFilters || showFiltersButton || showNewReading);
+  const visible = hasEntries && (showActiveFilters || showFiltersButton || showNewReading);
 
   if (!visible) return null;
 
   return (
     <div
-      data-app-secondary="1" data-chrome-placement="bottom"
-      className="pointer-events-none fixed z-sticky-elevated flex max-w-[calc(100%-2rem)] flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))]"
+      role="group" aria-label="Journal actions"
+      className="relative flex flex-wrap items-center justify-end gap-3 border-t border-(--border-warm-light) pt-4"
     >
       {showActiveFilters && (
         <div className="pointer-events-auto max-w-sm rounded-2xl border border-(--border-warm-subtle) bg-(--surface-92) px-3 py-2 text-2xs text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
@@ -45,7 +41,7 @@ export function JournalFloatingControls({
                 key={`floating-${chip.key}`}
                 type="button"
                 onClick={() => onRemoveFilter?.(chip.key)}
-                className="inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted"
+                className="inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted"
                 aria-label={`Remove ${chip.label} filter`}
               >
                 {chip.label}
@@ -55,7 +51,7 @@ export function JournalFloatingControls({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+              className="inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
             >
               Reset
             </button>

@@ -84,7 +84,7 @@ function SeasonSummary({
   };
 
   return (
-    <div className="rounded-xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent p-4 border border-primary/10">
+    <div className="rounded-xl bg-(--bg-surface) p-4 border border-primary/20">
       {/* Season Label */}
       {seasonWindow && (
         <p className="text-sm sm:text-xs text-muted mb-2">{formatSeasonLabel()}</p>
@@ -111,7 +111,7 @@ function SeasonSummary({
               <span className="text-accent/80">🃏</span>
               {topCard.name}: {topCard.count}x
               {cardFrequencyReliable === false && (
-                <span className="ml-1 text-2xs uppercase tracking-[0.14em] text-accent/70">
+                <span className="ml-1 text-2xs uppercase tracking-[0.14em] text-accent">
                   emerging
                 </span>
               )}
@@ -136,7 +136,7 @@ function SeasonSummary({
           )}
         </div>
         {currentStreak > 0 && (
-          <p className="text-2xs text-muted/70">
+          <p className="text-xs text-muted">
             Across your journal. Counts from yesterday if no reading today (grace period).
           </p>
         )}

@@ -102,7 +102,7 @@ export function subscribeToDeletedJournalEntries(listener) {
 /** Called after server success, or after the required local journal write.
  * Only non-content entry/result IDs survive erasure. Shared result handles stay
  * live when another surviving entry in this exact namespace still uses them. */
-export function purgeDeletedJournalEntryStorage({ namespace, entryId, entries = [], retiredReadingResultIds = null, storage } = {}) {
+export function purgeDeletedJournalEntryStorage({ namespace, entryId, entries = [], retiredReadingResultIds = null, storage, rewriteBuckets = true } = {}) {
   if (!namespace || entryId == null) return { purged: false, entries: [] };
   const target = targetStorage(storage);
   let purged = Boolean(target);
@@ -151,6 +151,7 @@ export function purgeDeletedJournalEntryStorage({ namespace, entryId, entries = 
   }
   try { target?.removeItem(replayKey); } catch { purged = false; }
   for (const bucket of buckets) {
+    if (!rewriteBuckets) { purged = false; continue; }
     try { target.setItem(bucket.key, JSON.stringify(filterDeletedJournalEntries(namespace, bucket.entries, { storage: target }))); } catch { purged = false; }
   }
   const userId = userForNamespace(namespace);
