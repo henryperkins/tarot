@@ -1,7 +1,8 @@
 # Tarot Dealing And Reveal UX Remediation Plan (2026-06-22)
 
 Type: plan
-Status: active background document
+Status: historical reference
+Archived: 2026-10-23
 Last reviewed: 2026-06-22
 
 ## Scope

@@ -1,10 +1,19 @@
 # AI reliability and release checks
 
+Type: runbook
+Status: active reference
+Last reviewed: 2026-10-23
+
 The October 7 reliability changes require migrations 0033, 0034 and 0035 before
-activation. They protect paid feature access, settle server narration only after
-successful synthesis, return retryable safety-check outages, and preserve model
-provenance. See [feature safeguards](ai-feature-safeguards.md) for operational
-quota defaults and request limits.
+activation. They protect paid feature access, enforce D1 narration reservations,
+return retryable safety-check outages, and preserve model provenance.
+ElevenLabs consumes one monthly narration unit once it produces any nonempty
+audio, even if the request later fails, times out, or is cancelled. Deepgram
+settles only after all synthesis pieces finish successfully. ElevenLabs failures
+before audio production and Deepgram interruptions before synthesis completes
+release the reservation. See [narration safeguards](narration-safeguards.md) for accounting
+details and [feature safeguards](ai-feature-safeguards.md) for operational quota
+defaults and request limits.
 
 ## Provider budgets
 

@@ -1,5 +1,9 @@
 # Reading gestures development beta
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 ## Current aligner candidate
 
 The protected beta instructions below describe the earlier model-enabled development environment. Do not restart that checkout or reuse its ports to review the aligner candidate. Current work is recorded in the [aligner execution review](superpowers/reviews/2026-10-11-reading-aligner-release.md).

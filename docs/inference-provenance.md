@@ -1,5 +1,9 @@
 # Inference and evaluator provenance
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 Apply migration 0035 before activating the inference ledger and coach provenance.
 The migration preserves quality aggregate row IDs and values while replacing the
 old inline uniqueness constraint. Its new partial unique index protects rows with

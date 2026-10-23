@@ -1,5 +1,9 @@
 # Narration and media safeguards
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 Apply migration 0034 before enabling server narration. Narration fails closed with
 503 if D1 accounting is unavailable. Users choose **ElevenLabs** or **Deepgram**
 in the account Audio settings or reading audio controls. The preference is saved

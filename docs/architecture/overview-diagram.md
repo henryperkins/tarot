@@ -1,3 +1,5 @@
+# System overview diagram
+
 Type: reference
 Status: active reference
 Last reviewed: 2026-09-25

@@ -1,5 +1,9 @@
 # Browserbase guest UI smoke checks
 
+Type: runbook
+Status: active reference
+Last reviewed: 2026-10-23
+
 Run a short guest journey against a deployed Tableu origin in Browserbase Chrome:
 
 ```powershell

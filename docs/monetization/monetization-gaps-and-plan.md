@@ -1,6 +1,6 @@
 Type: plan
 Status: active background document
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-23
 
 **Phase 1 Implementation Complete ✅**
 
@@ -249,7 +249,7 @@ npm run deploy
   - Allow `DELETE /api/keys/:id` for any authenticated owner so downgraded users can revoke keys (✅ Phase 1).
   - Fix API-key auth so entitlements derive from the owning user’s current subscription (✅ Phase 2), or enforce revocation when subscription downgrades (optional hardening).
 - **API call limits**: ✅ enforced for API-key requests at 1,000/mo (per user) via D1 `usage_tracking.api_calls_count`.
-- **TTS alignment (optional hardening)**: ✅ authenticated users are metered in D1; anonymous users still use IP-based KV.
+- **TTS accounting**: ✅ D1 narration reservations enforce the shared provider allowance for both authenticated users and guests, with one active narration per identity and a minute attempt limit. Missing accounting fails closed; legacy guest KV counts are used only to seed D1 usage. See [narration safeguards](../narration-safeguards.md).
 
 5) **Stripe completeness**
 - Add `/api/create-portal-session` and wire AccountPage to it (✅ Phase 3).

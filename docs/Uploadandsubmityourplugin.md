@@ -8,6 +8,13 @@ description: "Bring your plugin to the directory and keep it up to date."
 tags:
   - "clippings"
 ---
+
+# Upload and submit your plugin
+
+Type: reference
+Status: historical snapshot
+Last reviewed: 2026-09-30
+
 If you’ve built a plugin and want to share it more broadly, the plugin directory helps people discover and use it in ChatGPT and Codex. Your plugin can include MCP connections, skills, or both.
 
 Submit the package you’ve already built as a ZIP, resolve automated findings, and submit it for review. Once approved, you choose when to publish.

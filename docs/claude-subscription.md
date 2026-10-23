@@ -1,5 +1,9 @@
 # Personal Claude subscription inference
 
+Type: runbook
+Status: active reference
+Last reviewed: 2026-10-23
+
 This optional mode sends non-Cloudflare text generation through the owner's
 Claude subscription using the official `claude -p` interface. It covers readings,
 follow-up answers and repairs, journal summaries, and offline

@@ -1,5 +1,9 @@
 # Private Tableu journal rollout
 
+Type: reference
+Status: historical reference
+Last reviewed: 2026-10-23
+
 > Historical adapter rollout record. Superseded on 2026-09-23 by the
 > [Worker MCP runbook](chatgpt-mcp.md). The adapter package and its installation
 > commands below are retired. Current journal browser coverage uses the Worker

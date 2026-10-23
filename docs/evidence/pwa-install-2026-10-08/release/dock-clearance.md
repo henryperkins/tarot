@@ -1,3 +1,9 @@
+# Dock clearance review - PR #102 (2026-10-08)
+
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 PR #102 dock clearance review, 2026-10-08.
 
 The bot's proposed landscape offset cause is refuted on the rendered path. `MobileActionBar` sets inline `bottom: 0`; Chromium and WebKit compute `bottom: 0px` despite the landscape stylesheet's safe-area offset. Its measured `offsetHeight` already includes bottom safe-area padding. Adding that inset again to `TarotReading` would reserve it twice. The page continues to own clearance once in its main; the shell has zero bottom padding.

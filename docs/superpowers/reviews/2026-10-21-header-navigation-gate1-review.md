@@ -6,7 +6,7 @@ Date: 2026-10-21. Status: **all reviewed Gate 1 findings addressed; ready for ow
 
 - Prototype worktree: `/home/ubuntu/tarot/.worktrees/header-nav-prototype-a`.
 - Branch: `prototype/header-nav-a-gate1-20261021`; unchanged base/HEAD: `804c84cd4356ae4ace801517390b60a66fc59bd3`.
-- [Approved design specification](/home/ubuntu/.codex/worktrees/1877/tarot/docs/superpowers/specs/2026-10-21-shared-app-navigation-design.md), preserved in the PR worktree.
+- [Approved design specification](../specs/2026-10-21-shared-app-navigation-design.md), preserved in the PR worktree.
 - [Actionable remediation checklist](../plans/2026-10-21-header-navigation-remediation.md), mapped to every finding, NAV criterion, and original implementation step.
 - Original nine findings and two smaller gaps are closed. All four follow-up P2 findings (R1–R4), including the final read-only review’s iOS choice and enlarged-text recovery regressions, are closed.
 
@@ -65,7 +65,7 @@ At 320×600 with 18px root text, both browser engines now record the same result
 | From taller portrait | Fixed | 284px | 61px | 118px |
 | Return from landscape | Fixed | 284px | 61px | 118px |
 
-The regression also checks no page overflow and a visible, unobscured Draw cards hit target. Its measurement waits for published clearance to agree with the rendered region before comparing histories; this avoids sampling an earlier resize publication in WebKit. [Chromium recovery](/tmp/tarot-nav-p2-fixes-oerphfeg/gate1-results/navigation-gate1-regressio-2c0d4--at-the-same-final-viewport-chromium/recovered.png), [WebKit recovery](/tmp/tarot-nav-p2-fixes-oerphfeg/gate1-results/navigation-gate1-regressio-fda41--same-final-viewport-webkit-webkit/recovered.png).
+The regression also checks no page overflow and a visible, unobscured Draw cards hit target. Its measurement waits for published clearance to agree with the rendered region before comparing histories; this avoids sampling an earlier resize publication in WebKit. Chromium and WebKit recovery screenshots were captured under the temporary evidence root and are not retained in the repository.
 
 ## Validation results
 
@@ -95,12 +95,14 @@ The prior full-prototype detector’s two typography advisories (17px wordmark a
 
 All **40 primary screenshots** were recaptured and inspected after the P2 fixes through eight contact sheets: five states (Reading setup/completed, Journal populated/empty, Account) × guest/Pro × dark/light × 1440×1000/390×844. Populated Journey panels and visible images were awaited before capture. These use synthetic intercepted API fixtures; they do not establish real production or approved local-reviewer authentication coverage.
 
+The contact sheets were written to a temporary review directory and are not retained in the repository; the captured filenames are recorded below.
+
 | Desktop | Handset |
 | --- | --- |
-| [Dark guest](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/1440-dark-guest.png) | [Dark guest](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/390-dark-guest.png) |
-| [Dark Pro](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/1440-dark-pro.png) | [Dark Pro](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/390-dark-pro.png) |
-| [Light guest](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/1440-light-guest.png) | [Light guest](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/390-light-guest.png) |
-| [Light Pro](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/1440-light-pro.png) | [Light Pro](/tmp/tarot-nav-p2-fixes-oerphfeg/reviewed-contact-sheets/390-light-pro.png) |
+| `1440-dark-guest.png` | `390-dark-guest.png` |
+| `1440-dark-pro.png` | `390-dark-pro.png` |
+| `1440-light-guest.png` | `390-light-guest.png` |
+| `1440-light-pro.png` | `390-light-pro.png` |
 
 The frame is visually consistent across primary routes and both themes. Navigation uses plain text with the active underline/dot, while the reading progress remains within the canvas. Handset progress no longer produces three stacked rows. The completed-reading heading outline in screenshots reflects the existing programmatic focus target; it is not a new container treatment.
 

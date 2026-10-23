@@ -1,5 +1,9 @@
 # Tableu submission readiness — October 7, 2026
 
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 The corrected 1.0.1 ZIP is now reproducible from tracked source. The Developer
 Portal saved submission remains unverified: its exact URL presents a human
 verification challenge, and the connected tool schemas still reject the

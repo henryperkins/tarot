@@ -1,5 +1,9 @@
 # Tailwind 4 migration verification
 
+Type: evidence
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 Tailwind 4.3.3 requires its PostCSS plugin and migrated utilities; the dependency-only PR #94 was insufficient. This migration follows the [official upgrade guide](https://tailwindcss.com/docs/upgrade-guide) and preserves the existing application theme, stylesheet precedence, blur sizes, white/black utility values, and transition behavior. Explicit application variables retain their original meanings. Tooltip collision corrections disable the independent translate property so it cannot apply a second offset.
 
 Local checks: build and lint passed; root tests 4,229 passed and two skipped; 21 reading-reference browser cases passed across Chromium desktop/phone and WebKit phone, including 200% text, focus restoration, cancellation, journal navigation, and Axe checks. Token contrast passed 24/24. The static WCAG scanner reported zero errors and 1,128 warnings; it is heuristic, and those warnings are not a clean accessibility certification.

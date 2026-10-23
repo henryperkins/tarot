@@ -1,5 +1,9 @@
 # Codex ChatGPT subscription provider
 
+Type: runbook
+Status: active reference
+Last reviewed: 2026-10-23
+
 Tableu can use the host's signed-in Codex CLI for personal reading generation,
 follow-ups (including their structured memory decisions and repairs), and journal
 summaries. Select `TEXT_PROVIDER=codex-subscription`. The existing Claude option

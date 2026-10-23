@@ -1,7 +1,8 @@
 # Regression Findings Remediation Plan (2026-03-05)
 
 Type: plan
-Status: active background document
+Status: historical reference
+Archived: 2026-10-23
 Last reviewed: 2026-04-23
 
 ## Scope

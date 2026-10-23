@@ -8,7 +8,7 @@
 
 **Tech stack:** React, Vite, existing viewport/sticky hooks, semantic CSS tokens, Node tests, Playwright Chromium/WebKit, an isolated local Worker and preview proxy.
 
-**Spec:** The authoritative, uncommitted [approved design specification](/home/ubuntu/.codex/worktrees/1877/tarot/docs/superpowers/specs/2026-10-21-shared-app-navigation-design.md) stays unchanged in the PR worktree. This plan completes the user's seven-step implementation plan; steps 1–6 are Gate 1 and step 7 remains Gate 2.
+**Spec:** The authoritative, uncommitted [approved design specification](../specs/2026-10-21-shared-app-navigation-design.md) stays unchanged in the PR worktree. This plan completes the user's seven-step implementation plan; steps 1–6 are Gate 1 and step 7 remains Gate 2.
 
 ## Global constraints
 

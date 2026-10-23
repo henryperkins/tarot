@@ -2,7 +2,7 @@
 
 Type: strategy
 Status: active background document
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-23
 
 This is a high-level strategy document. For the authoritative technical documentation of the implemented monetization features, see:
 - [`./monetization-logic.md`](./monetization-logic.md) — current implementation details and tier logic
@@ -43,7 +43,7 @@ This section records the current feature gates and separates shipped behavior fr
 ### 3.1. Intention Coach: AI-Powered Question Suggestions
 
 - **Concept:** The free tier provides a guided, template-based question builder. Paid tiers unlock a personalized "Creative Coach" that uses a configured LLM when available.
-- **Current provider path:** Free uses `local-template`. Plus/Pro use `openai-native` when `OPENAI_API_KEY` is configured, with `local-fallback` when OpenAI cannot complete the request.
+- **Current provider path:** Free uses `local-template` for new questions. Eligible Plus/Pro generation uses Workers AI through the `AI` binding, with `QUESTION_MODEL` defaulting to `@cf/zai-org/glm-5.3`; model failures use `local-fallback`. Existing wording uses `local-preserved` on local paths. This routing is independent of `TEXT_PROVIDER`; see the [implemented question behavior](monetization-logic.md#32-ai-question-generation-).
 - **Implementation Files:**
   - `src/lib/intentionCoach.js`: Contains the core logic.
   - `src/components/GuidedIntentionCoach.jsx`: The frontend component where the feature is surfaced.
@@ -142,7 +142,7 @@ This roadmap now distinguishes shipped work from remaining proposals.
 | Stripe REST checkout, subscription fields, webhooks | ✅ Shipped | Monthly/annual Plus/Pro prices, claim-first idempotency, and portal routing are implemented. |
 | Shared entitlements and usage enforcement | ✅ Shipped | Effective-tier gating covers readings, TTS, spreads, journals, API-key list/create, and API calls; authenticated key deletion remains available. |
 | React subscription context, pricing, nudges, account | ✅ Shipped | Hosted Checkout and Billing Portal flows are wired; usage meters cover readings, authenticated TTS, and API calls. |
-| Guided question generation | ✅ Shipped | Free uses a local template; Plus/Pro use native OpenAI Responses with local fallback. |
+| Guided question generation | ✅ Shipped | Free uses a local template; eligible Plus/Pro generation uses Workers AI with local fallback. Existing wording is preserved on local paths. |
 | Custom spread creation | ❌ Not shipped | Only a backend compatibility path exists; no user-facing builder or catalog. |
 | Pro developer documentation and API-key management UI | ⏳ Remaining | API endpoints and usage meters exist; dedicated user-facing docs/UI remain optional work. |
 | Conditional esoteric prompt layers | ⏳ Proposal | See §3.3; this is not current entitlement behavior. |

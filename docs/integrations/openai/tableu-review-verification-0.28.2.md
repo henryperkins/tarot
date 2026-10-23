@@ -1,5 +1,9 @@
 # Tableu 0.28.2 review preparation
 
+Type: review
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 Prepared 2026-09-29 against `henryperkins/tarot` master commit `1cfed0ad5f249b60b9767e87fb5ef4e328112756` and the existing private Tableu instruction package 0.28.1.
 
 ## Upload controls and artifacts
