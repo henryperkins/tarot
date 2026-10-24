@@ -410,4 +410,3 @@ test('multi-Major spreads enumerate every distinct valid Major at priority 7 whi
   assert.ok(Math.abs(cosinePointFour[0].relevanceScore - 0.4) < 1e-6);
   assert.notEqual(cosinePointFour[0].belowRelevanceThreshold, true);
 });
-

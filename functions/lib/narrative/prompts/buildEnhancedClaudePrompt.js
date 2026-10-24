@@ -22,7 +22,6 @@ import { DEFAULT_REVERSAL_DESCRIPTION } from './constants.js';
 import { createTokenEstimator, getHardCapBudget, getPromptBudgetForTarget, PromptBudgetError } from './budgeting.js';
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
 import {
-  countGraphRAGPassagesInPrompt,
   countNumberedGraphRAGPassages,
   parseGraphRAGReferenceBlock,
   parseGraphRAGSummaryBlock,
