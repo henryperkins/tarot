@@ -364,7 +364,10 @@ test('narrative metrics retain positive guarantees in exception constructions', 
     "This isn't just a guaranteed success; it is a transformation.",
     'This isn’t just a guaranteed success; it is a transformation.',
     "Success isn't a guaranteed result, but victory is guaranteed.",
-    'Success isn’t a guaranteed result, but victory is guaranteed.'
+    'Success isn’t a guaranteed result, but victory is guaranteed.',
+    "You won't fail; success is guaranteed.",
+    'This does not stop success being guaranteed.',
+    'Nothing can stop this, and a guaranteed win follows.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`exception-${index}`, claim)));
 
@@ -401,7 +404,12 @@ test('narrative gate accepts ordinary negated certainty including copular contra
     "The result wasn't guaranteed.",
     'The result wasn’t guaranteed.',
     "The outcomes weren't guaranteed.",
-    'The outcomes weren’t guaranteed.'
+    'The outcomes weren’t guaranteed.',
+    'The Fool doesn’t offer guaranteed footing. It offers a step forward.',
+    "This card can't promise a guaranteed outcome.",
+    'The plan does not come with guaranteed results.',
+    'You can begin without a guaranteed outcome.',
+    'There is no guaranteed endpoint, only a direction.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`negated-${index}`, claim)));
 

@@ -97,14 +97,16 @@ export function classifyCardMentions(text, { cardsInfo = [], deckStyle = 'rws-19
   const drawn = drawnCardKeys(cardsInfo, deckStyle);
   const terminology = TAROT_TERMINOLOGY_EXCLUSIONS.flatMap(pattern =>
     Array.from(text.matchAll(new RegExp(pattern.source, 'gi'))).map(match => [match.index, match.index + match[0].length]));
+  // "The Fool" in "the Fool's Journey" starts before the term, so test overlap, not the start.
+  const inTerminology = (start, end) => terminology.some(([termStart, termEnd]) => start < termEnd && end > termStart);
   const candidates = [];
   for (const entry of buildDeckAwarePatterns(deckStyle)) {
     for (const match of text.matchAll(new RegExp(entry.pattern.source, 'gi'))) {
-      if (terminology.some(([start, end]) => match.index >= start && match.index < end)) continue;
+      if (inTerminology(match.index, match.index + match[0].length)) continue;
       candidates.push({ ...entry, start: match.index, end: match.index + match[0].length, observed: match[0] });
     }
   }
-  candidates.push(...findFuzzyCardMentions(text, deckStyle));
+  candidates.push(...findFuzzyCardMentions(text, deckStyle).filter(mention => !inTerminology(mention.start, mention.end)));
   candidates.sort((a, b) => a.start - b.start || b.end - a.end
     || Number(drawn.has(b.canonical.toLowerCase())) - Number(drawn.has(a.canonical.toLowerCase()))
     || Number(canonicalCardKey(b.name, deckStyle) === b.canonical.toLowerCase()) - Number(canonicalCardKey(a.name, deckStyle) === a.canonical.toLowerCase()));
