@@ -3,6 +3,9 @@ import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRe
 import { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance } from './graphRAGLexical.js';
 export { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance };
 
+/** Priority of per-card Majors that only multi-Major spreads make eligible. */
+export const SUPPLEMENTAL_MAJOR_PRIORITY = 7;
+
 const CONTEXT_ALIASES = {
   grief: ['grief', 'loss', 'mourning', 'bereavement'],
   relationship: ['relationship', 'relationships', 'romantic', 'romance', 'love', 'partnership', 'marriage', 'dating'],
@@ -114,7 +117,7 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
   }
   if (!single) {
     for (const majorNumber of resolvedMajorNumbers) {
-      add('major-arcana', majorNumber, 7, {
+      add('major-arcana', majorNumber, SUPPLEMENTAL_MAJOR_PRIORITY, {
         cardNumber: majorNumber,
         cardName: getPassagesForPattern('major-arcana', majorNumber)?.title
       }, { cardNumber: majorNumber });
@@ -132,6 +135,12 @@ export function resolveRetrievalMode({ graphEnabled = true, qualityFilteringDisa
   if (qualityFilteringDisabled) return 'bypassed';
   if (semanticRequested) return 'semantic';
   return retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority';
+}
+
+// Measured bge-m3 cosines of unrelated passages reach the threshold band, so a
+// supplemental Major needs shared question terms before it counts as relevant.
+function lacksLexicalSupport(candidate) {
+  return candidate.type === 'major-arcana' && candidate.priority === SUPPLEMENTAL_MAJOR_PRIORITY && !(candidate.relevance > 0);
 }
 
 function compareCandidates(a, b) {
@@ -170,9 +179,11 @@ export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5
     eligible.push(candidate);
   }
   stats.patternsRepresented = patterns.size;
-  const retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore);
+  const retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly
+    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore && !lacksLexicalSupport(candidate));
   stats.thresholdRejected = eligible.length - retained.length;
-  if (!retained.length && eligible.length) retained.push({ ...eligible[0], belowRelevanceThreshold: true });
+  // The weak floor keeps a pre-existing pattern ahead of an unsupported supplemental Major.
+  if (!retained.length && eligible.length) retained.push({ ...(eligible.find(candidate => !lacksLexicalSupport(candidate)) || eligible[0]), belowRelevanceThreshold: true });
   const selected = retained.slice(0, maxPassages);
   stats.finalSelectedCount = selected.length;
   return withStats(selected, stats);
