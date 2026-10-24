@@ -2,7 +2,7 @@ import { getContextDescriptor, formatReversalLens } from '../helpers.js';
 import { buildAstrologicalWeatherSection, buildForecastSection } from '../../ephemerisIntegration.js';
 import { FRAME_GUIDANCE, TONE_GUIDANCE, resolveNarrativePreferenceContract } from '../styleHelpers.js';
 import { getDeckStyleNotes } from './deckStyle.js';
-import { estimateTokenCount } from './budgeting.js';
+import { createTokenEstimator } from './budgeting.js';
 import { sanitizeText } from '../../utils.js';
 
 function sanitizeExperimentOverride(value) {
@@ -52,6 +52,15 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
     '- Avoid purple prose, dramatic pauses, or "the universe whispers" energy. If a sentence sounds like it belongs on a greeting card or a horoscope app, rewrite it to sound like something you\'d actually say out loud.',
     '- Match the requested depth. Keep a quick check-in focused, and give a deep dive room for meaningful detail within its total length target.'
   ];
+
+  if (options.nonPresentAgeContext) {
+    lines.push(
+      '',
+      'AGE AND TIME',
+      '- Some accepted inputs mention a past, future, approaching or uncertain age. Keep each person and the original temporal wording together whenever age is mentioned. Do not calculate or guess a present age from a dated age, birthday, or reference time. An explicitly stated current age remains usable in its own scope.',
+      '- Apply this in openings, interpretations, examples, recaps and next steps. Keep “will be … this year/next year” future and “was … in [year]” past. Do not replace a future age with present-age advice such as “let them just be that age.” If today’s age is not given, use age-neutral guidance instead.'
+    );
+  }
 
   if (variantOverrides?.toneEmphasis) {
     lines.push(`- Tone emphasis: Lean ${variantOverrides.toneEmphasis} while staying grounded and compassionate.`);
@@ -248,7 +257,8 @@ export function buildSystemPrompt(spreadKey, themes, context, deckStyle, _userQu
   if (hasToneSection || hasFrameSection) {
     const basePrompt = lines.join('\n');
     const maxTokenBudget = Number.isFinite(options.maxTokenBudget) ? options.maxTokenBudget : null;
-    const baseTokens = estimateTokenCount(basePrompt);
+    const estimator = options.estimator ?? createTokenEstimator();
+    const baseTokens = estimator.estimate(basePrompt);
     const remainingBudget = maxTokenBudget ? maxTokenBudget - baseTokens : Infinity;
     if (remainingBudget > 400) {
       if (hasToneSection) {

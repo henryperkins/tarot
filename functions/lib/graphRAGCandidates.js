@@ -35,7 +35,7 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
   const identities = new Set();
   const add = (type, patternId, priority, extra = {}, metadata = {}, entry = getPassagesForPattern(type, patternId)) => {
     for (const passage of entry?.passages || []) {
-      const identity = JSON.stringify([type, String(patternId), passage.context || 'general', passage.sourceId || passage.text, extra.matchedCards || null]);
+      const identity = JSON.stringify([type, String(patternId), passage.context || 'general', passage.sourceId || passage.text, extra.matchedCardKeys || extra.matchedCards || null]);
       if (identities.has(identity)) continue;
       identities.add(identity);
       stats.candidatesDiscovered += 1;
@@ -76,10 +76,14 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
   for (const progression of Array.isArray(graphKeys.suitProgressions) ? graphKeys.suitProgressions : []) {
     const priority = { 'strong-progression': 4, 'emerging-progression': 5 }[progression?.significance];
     if (!priority) continue;
-    add('suit-progression', `${progression.suit}:${progression.stage}`, priority, { suit: progression.suit, stage: progression.stage }, { suit: progression.suit, stage: progression.stage });
+    add('suit-progression', `${progression.suit}:${progression.stage}`, priority, {
+      suit: progression.suit, stage: progression.stage, matchedCardKeys: progression.matchedCardKeys || [], matchedCardIndices: progression.matchedCardIndices || []
+    }, { suit: progression.suit, stage: progression.stage });
   }
   for (const lineage of Array.isArray(graphKeys.courtLineages) ? graphKeys.courtLineages : []) {
-    add('court-lineage', `${lineage.suit}:${lineage.significance}`, 5, { suit: lineage.suit, significance: lineage.significance }, { suit: lineage.suit, significance: lineage.significance });
+    add('court-lineage', `${lineage.suit}:${lineage.significance}`, 5, {
+      suit: lineage.suit, significance: lineage.significance, matchedCardKeys: lineage.matchedCardKeys || [], matchedCardIndices: lineage.matchedCardIndices || []
+    }, { suit: lineage.suit, significance: lineage.significance });
   }
   for (const [type, keys] of [['thoth-suit', graphKeys.thothSuits], ['marseille-numerology', graphKeys.marseilleRanks]]) {
     for (const id of Array.isArray(keys) ? keys : []) add(type, id, 3);

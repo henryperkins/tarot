@@ -1,3 +1,8 @@
+import { buildGraphContext } from '../../functions/lib/graphContext.js';
+import { retrievePassages } from '../../functions/lib/graphRAG.js';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { MINOR_ARCANA } from '../data/minorArcana.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { getCardForDeck, getOrientationMeaning } from '../lib/cardLookup.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
 import { extractShortLabel } from '../components/readingBoardUtils.js';
@@ -144,9 +149,10 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
   });
 }
 
-export function getTraditionalPassages(themes, readingMeta) {
+export function getTraditionalPassages(themes, readingMeta, selectedDeck) {
   if (readingMeta?.provider === 'safe-fallback') return [];
   const usage = readingMeta?.sourceUsage?.graphRAG;
+  if (selectedDeck && usage?.selectedDeck !== selectedDeck) return [];
   const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages;
   if (!usage?.used || usage.mode !== 'full' || !Number.isInteger(usage.passagesUsedInPrompt)
     || usage.passagesUsedInPrompt <= 0 || !Array.isArray(candidates) || !Array.isArray(usage.passageIndices)) return [];
@@ -159,10 +165,43 @@ export function getTraditionalPassages(themes, readingMeta) {
 }
 
 /** Historical/unconditioned material is never evidence of generation inclusion. */
-export function getTraditionalPassagePreview(themes, readingMeta) {
-  if (readingMeta?.sourceUsage?.graphRAG || readingMeta?.provider === 'safe-fallback') return [];
-  return getVisibleTraditionalPassages(themes?.knowledgeGraph?.retrievedPassages
-    || themes?.knowledgeGraph?.graphRAGPayload?.passages || []).slice(0, 5);
+function verifiedPreview(passage, selectedDeck) {
+  return passage?.projectedDeck === selectedDeck && typeof passage.candidateId === 'string'
+    && typeof passage.projectionVersion === 'string'
+    && passage.projectionId === JSON.stringify([passage.candidateId, passage.projectionVersion, selectedDeck])
+    && typeof passage.promptText === 'string' && passage.promptText.trim();
+}
+
+export function getTraditionalPassagePreview(themes, readingMeta, selectedDeck, recoveryContext = null) {
+  if (readingMeta?.sourceUsage?.graphRAG || readingMeta?.provider === 'safe-fallback'
+    || !Object.hasOwn(DECK_CATALOG, selectedDeck || '')) return [];
+  const candidates = themes?.knowledgeGraph?.retrievedPassages
+    || themes?.knowledgeGraph?.graphRAGPayload?.passages || [];
+  const valid = (Array.isArray(candidates) ? candidates : []).filter(passage => verifiedPreview(passage, selectedDeck));
+  if (valid.length) return getVisibleTraditionalPassages(valid.map(passage => ({ ...passage,
+    text: passage.promptText, previewOrigin: 'original' }))).slice(0, 5);
+  if (recoveryContext?.savedDeckStyle !== selectedDeck || !Array.isArray(recoveryContext?.cardsInfo)
+    || !recoveryContext.cardsInfo.length) return [];
+  const catalog = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+  const cards = recoveryContext.cardsInfo.map(card => {
+    const name = card?.canonicalName || card?.name;
+    const canonical = typeof name === 'string' ? catalog.find(entry => entry.name.toLowerCase() === name.toLowerCase())
+      : Number.isInteger(card?.number) ? MAJOR_ARCANA.find(entry => entry.number === card.number) : null;
+    if (!canonical || card.number != null && card.number !== canonical.number) return null;
+    return { ...card, ...canonical, canonicalName: canonical.name, canonicalKey: canonical.name.toLowerCase(),
+      card: canonical.name, orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright') };
+  });
+  if (cards.some(card => !card)) return [];
+  try {
+    const graph = buildGraphContext(cards, { deckStyle: selectedDeck });
+    if (!graph?.graphKeys) return [];
+    const rebuilt = retrievePassages(graph.graphKeys, { maxPassages: 5, includeMetadata: true,
+      deckStyle: selectedDeck, questionContext: recoveryContext.contextSelection?.graphRAGContext || 'general' });
+    return getVisibleTraditionalPassages(rebuilt.filter(passage => verifiedPreview(passage, selectedDeck))
+      .map(passage => ({ ...passage, text: passage.promptText, previewOrigin: 'reconstructed' }))).slice(0, 5);
+  } catch {
+    return [];
+  }
 }
 
 export function deriveNarrativeVisibility({
@@ -172,6 +211,8 @@ export function deriveNarrativeVisibility({
   narrativePhase,
   themes,
   readingMeta,
+  selectedDeck,
+  previewRecoveryContext,
   highlightItems = [],
   visibleCount,
   revealedCardsSize,
@@ -184,8 +225,8 @@ export function deriveNarrativeVisibility({
   storyArtCards = [],
   cinematicCard
 }) {
-  const traditionalPassages = getTraditionalPassages(themes, readingMeta);
-  const traditionalPreviewPassages = getTraditionalPassagePreview(themes, readingMeta);
+  const traditionalPassages = getTraditionalPassages(themes, readingMeta, selectedDeck);
+  const traditionalPreviewPassages = getTraditionalPassagePreview(themes, readingMeta, selectedDeck, previewRecoveryContext);
   const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
   const hasTraditionalInsights = traditionalPassages.length > 0;
   const hasTraditionalPreview = traditionalPreviewPassages.length > 0;

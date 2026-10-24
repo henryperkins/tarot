@@ -35,7 +35,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     }
   });
   if (!result.ok) {
-    return jsonResponse({ error: result.error }, { status: result.status });
+    return jsonResponse({ error: result.error, ...(result.code ? { code: result.code } : {}) }, { status: result.status });
   }
   return jsonResponse({
     jobId: result.jobId,

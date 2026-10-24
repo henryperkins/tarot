@@ -140,6 +140,38 @@ function makeSafeMockAI({ safetyFlag = true, safety = 1, tone = 4 } = {}) {
 }
 
 describe('streaming gate metadata', () => {
+  for (const transport of ['buffered', 'split-deltas', 'completed-reconciliation']) {
+    it(`rejects undrawn presence through ${transport} with evaluation disabled and resets accepted provenance`, async (t) => {
+      const falseReading = `${VALID_MODAL_READING}\n\nThe Moon appears in your spread.`;
+      t.mock.method(globalThis, 'fetch', async () => {
+        if (transport === 'buffered') return Response.json({ output_text: falseReading, model: 'rejected-fixture' });
+        if (transport === 'split-deltas') return new Response(createOpenAIStream([
+          `${VALID_MODAL_READING}\n\nThe Moon app`, 'ears in your spread.'
+        ]));
+        const events = [
+          `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: VALID_MODAL_READING })}\n\n`,
+          `event: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: {
+            status: 'completed', model: 'rejected-fixture', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: falseReading }] }]
+          } })}\n\n`
+        ];
+        return new Response(events.join(''));
+      });
+      const response = await onRequestPost({ request: makeRequest(BASE_PAYLOAD), env: {
+        OPENAI_API_KEY: 'fixture-key', OPENAI_BASE_URL: 'https://openai.example',
+        OPENAI_MODEL: 'fixture-model', OPENAI_STREAMING_ENABLED: transport === 'buffered' ? 'false' : 'true',
+        ALLOW_STREAMING_WITH_EVAL_GATE: 'true', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false',
+        STREAMING_QUALITY_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false'
+      } });
+      assert.equal(response.status, 200);
+      const events = await collectSSEEvents(response);
+      const done = events.find(event => event.event === 'done')?.data;
+      const meta = events.find(event => event.event === 'meta')?.data;
+      assert.equal(done.provider, 'local-composer');
+      assert.doesNotMatch(done.fullText, /The Moon appears in your spread/);
+      assert.ok(meta.backendErrors.some(error => error.qualityIssues?.includes('undrawn_card_assertion')));
+      assert.doesNotMatch(JSON.stringify(meta.promptMeta?.inference || {}), /rejected-fixture|responseShape/);
+    });
+  }
   // Token streaming runs only when the Responses API is the first provider, so
   // a streaming failure continues with the providers after it.
   for (const failure of ['http', 'stream-error', 'empty']) {

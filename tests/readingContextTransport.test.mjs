@@ -12,7 +12,7 @@ import { createFakeReadingJobs, readingRunner } from './helpers/fakeReadingJobs.
 
 const card = { card: 'The Sun', position: 'Theme', orientation: 'Upright', meaning: 'defeat and betrayal' };
 const spreadInfo = { name: 'Decision', key: 'decision' };
-const cardsInfo = ['Theme', 'Path A: old job', 'Path B: new home'].map(position => ({ ...card, position }));
+const cardsInfo = ['Theme', 'Path A: old job', 'Path B: new home'].map((position, index) => ({ ...card, card: ['The Sun', 'The Star', 'Temperance'][index], position }));
 
 test('explicit_clear_does_not_restore_position', () => {
   const result = resolveDecisionPathContext({ spreadKey: 'decision', cardsInfo, decisionPaths: { a: '' } });

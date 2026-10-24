@@ -14,13 +14,45 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.4.0';
+export const READING_PROMPT_VERSION = '1.5.2';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.5.2',
+    date: '2026-10-24',
+    notes: 'Address source defects discovered in subscription narrative qualification.',
+    changes: [
+      'Keep Marseille numerical themes symbolic instead of asserting generic rank layouts as observed artwork; remove unsupported Chariot reins from the sensory cue.',
+      'Preserve nonpresent age wording through interpretation and next-step guidance without deriving a current age.',
+      'Reserve every drawn card identity, position, orientation and canonical meaning during final budget fitting.'
+    ]
+  },
+  {
+    version: '1.5.1',
+    date: '2026-10-24',
+    notes: 'Resolve the completed agent editorial review findings.',
+    changes: [
+      'Project retrieved Minor and court references from actual drawn membership, including final payload rebuilding.',
+      'Make identified canon claims conditional and preserve reader agency in consequential contexts.',
+      'Align two partial Major themes with their pair references and adapt articles with selected-deck card names.'
+    ]
+  },
+  {
+    version: '1.5.0',
+    date: '2026-10-24',
+    notes: 'Preserve drawn-member themes, scoped current context and temporally compatible memory through calibrated prompt construction.',
+    changes: [
+      'Use canonical distinct membership and render only actual Minor stage members, with non-predictive complete-group relationships.',
+      'Scope excluded actions separately from whole-topic exclusions; retain relevant supplementary saved interests without redirecting current-led retrieval.',
+      'Require same-person, same-time agreement for age memories; preserve explicitly dated compatible non-present wording.',
+      'Use one immutable request-local estimator throughout construction, truncation and final retained-source accounting.',
+      'Keep projected/reconstructed preview provenance separate from accepted generation inclusion.'
+    ]
+  },
   {
     version: '1.4.0',
     date: '2026-10-23',

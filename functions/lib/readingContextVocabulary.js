@@ -26,6 +26,8 @@ export const CONTEXT_KEYWORDS = {
     'job',
     'work',
     'working',
+    'workplace',
+    'workplace boundaries',
     'boss',
     'coworker',
     'manager',
@@ -167,6 +169,8 @@ export const GRAPH_RAG_CONTEXT_KEYWORDS = {
     'job',
     'work',
     'working',
+    'workplace',
+    'workplace boundaries',
     'boss',
     'coworker',
     'manager',
@@ -420,7 +424,9 @@ export function excludedContextRanges(text = '') {
   const pattern = /\b(?:not\s+(?:asking\s+about|about|seeking\s+(?:guidance|advice)\s+(?:on|about))|(?:do\s+not|don['’‘ʼ＇]t)\s+want\s+(?:guidance|advice|a\s+reading)\s+(?:on|about))\b[^.!?。！？;；\n]*/giu;
   for (const match of text.matchAll(pattern)) {
     const boundary = match[0].search(/,?\s+\b(?:but|instead|rather)\b|,\s+I\s+(?:need|want)\b/iu);
-    ranges.push({ start: match.index, end: match.index + (boundary < 0 ? match[0].length : boundary) });
+    const excludedText = match[0].slice(0, boundary < 0 ? match[0].length : boundary);
+    const action = /(?:about|on)\s+(?:quitting|leaving|changing|switching|resigning|getting|taking|accepting|rejecting|ending|breaking|finding|moving)\b/iu.test(excludedText);
+    ranges.push({ start: match.index, end: match.index + excludedText.length, scope: action ? 'action' : 'topic' });
   }
   return ranges;
 }
@@ -436,8 +442,9 @@ export function contextPhraseMatches(text = '', keywords = [], { includeExcluded
     tokens.forEach((token, index) => {
       if (!words.every((word, offset) => tokens[index + offset]?.word === word)) return;
       const end = tokens[index + words.length - 1].end;
-      const excluded = exclusions.some(range => token.start >= range.start && token.start < range.end);
-      if (includeExcluded || !excluded) result.push({ phrase, start: token.start, end, excluded });
+      const exclusion = exclusions.find(range => token.start >= range.start && token.start < range.end);
+      const excluded = Boolean(exclusion);
+      if (includeExcluded || !excluded) result.push({ phrase, start: token.start, end, excluded, ...(exclusion ? { exclusionScope: exclusion.scope } : {}) });
     });
   }
   return result.sort((a, b) => a.start - b.start || a.end - b.end);

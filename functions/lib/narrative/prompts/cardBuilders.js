@@ -379,7 +379,7 @@ export function buildDeckSpecificContext(deckStyle, cardsInfo, options = {}) {
     if (!lines.length) {
       return '';
     }
-    return `\n**Marseille Pip Geometry**:\n${lines.join('\n')}\n\n`;
+    return `\n**Marseille Pip Themes**:\n${lines.join('\n')}\n\n`;
   }
 
   return '';

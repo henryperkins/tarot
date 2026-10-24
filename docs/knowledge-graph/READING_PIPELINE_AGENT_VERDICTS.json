@@ -1,0 +1,1615 @@
+{
+  "schemaVersion": 1,
+  "policy": "agent-review-with-owner-exceptions",
+  "reviewer": "Codex agent /root",
+  "reviewedAtUtc": "2026-10-24T06:01:55.147Z",
+  "humanReviewPerformed": false,
+  "scope": "All191 canon/pattern groups remain accepted across1167 variants. Version-only metadata changes revalidated against identical editorial material; the47-output narrative review and three subsequent prompt repairs have separate evidence and live-confirmation boundaries.",
+  "findings": [
+    {
+      "id": "E1",
+      "title": "Inherited canon declares reader circumstances or outcomes",
+      "severity": "important",
+      "disposition": "correction_required",
+      "ownerJudgmentRequired": false,
+      "reason": "The existing contract forbids unsupported current facts and guaranteed outcomes; no new style policy is needed.",
+      "examples": [
+        "A professional collapse becomes a new vision.",
+        "Victory is approaching culmination.",
+        "What is hidden will come to light."
+      ],
+      "recommendedCorrection": "Keep the card-specific meaning and useful direction, but make unprovided events conditional and outcomes possible. Apply the correction to native prose and meaning-only projections that share it.",
+      "exampleRevision": "If your work situation feels unsettled, The Tower, The Star and The Moon can offer themes of disruption, hope and uncertainty. Separate what is known from what is still unclear, and choose one manageable next step.",
+      "affectedGroupIds": [
+        "canon:tableu:triad:death-temperance-star:general:0",
+        "canon:tableu:triad:death-temperance-star:grief:1",
+        "canon:tableu:triad:death-temperance-star:transition:2",
+        "canon:tableu:triad:devil-tower-sun:general:0",
+        "canon:tableu:triad:devil-tower-sun:addiction:1",
+        "canon:tableu:triad:devil-tower-sun:career:3",
+        "canon:tableu:triad:hermit-hangedman-moon:therapy:2",
+        "canon:tableu:triad:magician-chariot-world:general:0",
+        "canon:tableu:triad:magician-chariot-world:career:1",
+        "canon:tableu:triad:magician-chariot-world:personal:3",
+        "canon:tableu:triad:empress-lovers-hierophant:romantic:1",
+        "canon:tableu:triad:fool-magician-world:personal:3",
+        "canon:tableu:triad:tower-star-moon:general:0",
+        "canon:tableu:triad:tower-star-moon:career:2",
+        "canon:tableu:triad:tower-star-moon:relationships:3",
+        "canon:tableu:major-arcana:17:general:0",
+        "canon:tableu:major-arcana:19:general:0",
+        "canon:tableu:major-arcana:21:general:0",
+        "canon:tableu:dyad:16-19:transition:1",
+        "canon:tableu:dyad:10-20:spiritual:1",
+        "canon:tableu:dyad:7-21:career:1",
+        "canon:tableu:dyad:18-19:general:0",
+        "canon:tableu:dyad:18-19:clarity:1",
+        "canon:tableu:dyad:0-21:life-cycle:1",
+        "canon:tableu:suit-progression:Pentacles:challenge:general:0",
+        "canon:tableu:court-lineage:Pentacles:alliance:general:0",
+        "canon:tableu:marseille-numerology:5:general:0",
+        "canon:tableu:marseille-numerology:7:general:0",
+        "canon:tableu:marseille-numerology:9:general:0"
+      ],
+      "status": "resolved_offline",
+      "resolutionEvidence": "docs/knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md; editorial-corrections qualification supplement"
+    },
+    {
+      "id": "E2",
+      "title": "Consequential directives override reader agency",
+      "severity": "important",
+      "disposition": "correction_required",
+      "ownerJudgmentRequired": false,
+      "reason": "The existing optional-guidance contract decides this; cards cannot require a breakup, resignation to a ruling, or compliance with a crisis.",
+      "examples": [
+        "Choose the clean ending over the slow drain.",
+        "accept what the system decides",
+        "Healing becomes possible when you stop arguing with reality.",
+        "the negotiation ends here"
+      ],
+      "recommendedCorrection": "Replace required endings, surrender and blame with optional reflection on boundaries, support and available choices. Preserve the original question and practical constraints.",
+      "exampleRevision": "Consider what is outside your control and what options remain. A pause can help you assess the situation while preserving your ability to choose a response.",
+      "affectedGroupIds": [
+        "canon:tableu:triad:devil-tower-sun:relationship:2",
+        "canon:tableu:triad:wheel-justice-hangedman:legal:1",
+        "canon:tableu:triad:wheel-justice-hangedman:healing:4",
+        "canon:tableu:dyad:15-16:shadow:1"
+      ],
+      "status": "resolved_offline",
+      "resolutionEvidence": "docs/knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md; editorial-corrections qualification supplement"
+    },
+    {
+      "id": "E3",
+      "title": "Retrieved Minor and court references still use whole-family meanings for partial membership",
+      "severity": "important",
+      "disposition": "correction_required",
+      "ownerJudgmentRequired": false,
+      "reason": "Direct highlights were repaired, but the independent retrieval channel retains generic stage/court prose without the drawn-member set. This conflicts with the matched-member contract.",
+      "examples": [
+        "Mid Cups asks for discernment: mixed feelings, grief, nostalgia, and tempting fantasies.",
+        "Late Swords can feel like rock bottom—then release.",
+        "the full spectrum of emotional leadership: innocence, pursuit, deep feeling, and mature care"
+      ],
+      "recommendedCorrection": "Carry actual canonical membership into retrieved Minor/court reference projection. Retain only drawn-member roles; reserve complete-family relationships for complete membership. Exercise the actual retained reference block as well as direct highlights.",
+      "exampleRevision": "For Four, Six and Seven of Cups, consider withdrawal, memory and possible choices. Relate only those drawn roles; do not add the missing Five of Cups mourning role.",
+      "affectedGroupIds": [
+        "canon:tableu:suit-progression:Cups:challenge:general:0",
+        "canon:tableu:suit-progression:Swords:mastery:general:0",
+        "canon:tableu:court-lineage:Wands:alliance:general:0",
+        "canon:tableu:court-lineage:Wands:council:general:0",
+        "canon:tableu:court-lineage:Cups:council:general:0"
+      ],
+      "status": "resolved_offline",
+      "resolutionEvidence": "docs/knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md; editorial-corrections qualification supplement"
+    },
+    {
+      "id": "E4",
+      "title": "Two direct Major themes contradict their safer matched-pair passages",
+      "severity": "important",
+      "disposition": "correction_required",
+      "ownerJudgmentRequired": false,
+      "reason": "The direct prompt channel must preserve the same absent-stage and agency boundaries as the pair reference. A possible-theme wrapper does not remove an incompatible authored assertion.",
+      "examples": [
+        "From shadow to light (sudden liberation)",
+        "Cycles demanding surrender"
+      ],
+      "recommendedCorrection": "Replace the Devil/Sun theme with Attachment considered alongside clarity and vitality, and the Wheel/Hanged Man theme with Changing conditions inviting a different perspective. Retain exact pair identity and existing positional/orientation qualifiers.",
+      "affectedGroupIds": [
+        "pair:devil-tower-sun:15-19",
+        "pair:wheel-justice-hangedman:10-12"
+      ],
+      "status": "resolved_offline",
+      "resolutionEvidence": "docs/knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md; editorial-corrections qualification supplement"
+    },
+    {
+      "id": "E5",
+      "title": "Thoth alias substitution produces The Fortune",
+      "severity": "minor",
+      "disposition": "correction_required",
+      "ownerJudgmentRequired": false,
+      "reason": "This is a grammatical substitution defect, not an editorial preference. The checked-in card label is Fortune.",
+      "examples": [
+        "The Fortune shows forces beyond your control",
+        "The Fortune turns"
+      ],
+      "recommendedCorrection": "Adapt the article with the explicit card label, preserving ordinary uses of fortune and unchanged RWS/Marseille labels. Add exact rendered-prose regressions.",
+      "affectedGroupIds": [
+        "canon:tableu:triad:wheel-justice-hangedman:legal:1",
+        "canon:tableu:triad:wheel-justice-hangedman:relationships:2",
+        "canon:tableu:triad:wheel-justice-hangedman:spiritual:3",
+        "canon:tableu:triad:wheel-justice-hangedman:healing:4",
+        "canon:tableu:dyad:10-20:spiritual:1"
+      ],
+      "status": "resolved_offline",
+      "resolutionEvidence": "docs/knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md; editorial-corrections qualification supplement"
+    }
+  ],
+  "verdicts": [
+    {
+      "groupId": "canon:tableu:triad:death-temperance-star:general:0",
+      "inputHash": "735b099e4722e85abbd3a7659b88a520b4425ee189883f0711c49be67e6f7365",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Ending, integration and hope remain distinct symbolic contributions. The ending is conditional, care is optional, and recovery is no longer assured. Native artwork is retained only in its source deck.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:death-temperance-star:grief:1",
+      "inputHash": "c0fe0b1521ce27938bb67d802e5f8830d9b00e2993c3952eeda2802d35eab047",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Grief now depends on what the reader described. Memory and manageable care remain useful without a timetable, promised relief or a requirement to learn from loss.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:death-temperance-star:transition:2",
+      "inputHash": "624ef4487f1fb4fbc544f99542b15869cd68eb2d8bd69c2e3481d9f7c5b1529e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The chapter change is explicitly conditional. Acclimation and a manageable practice preserve the integration meaning without declaring a current transition.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:death-temperance-star:shadow:3",
+      "inputHash": "cfa774cc03c1744ecce5b9cc4473fde817b1f61a12c6a10857c93381fb210245",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The release-and-integration interpretation stays within the complete three-card arc; the closing questions invite the reader to choose what applies."
+    },
+    {
+      "groupId": "canon:tableu:triad:devil-tower-sun:general:0",
+      "inputHash": "1791e8be344f680da5f85345dcf8ecf93e2455911c5a3961f65f4bc655c3853e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Attachment, disruption and clarity are a symbolic relationship. Examining restrictions remains useful without requiring collapse or predicting freedom; native anchors remain separate.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:devil-tower-sun:addiction:1",
+      "inputHash": "58a465d2ed4f78b1211b28cae8ed2d0213336c10db295b4423cf5c4fd5dacabd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The reader must have raised the habit or compulsion. Help and a manageable chosen step remain available suggestions without diagnosis, compulsory rupture or promised recovery.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:devil-tower-sun:relationship:2",
+      "inputHash": "6828db0200ac3e67503a19e9d6e89a95ddd47a3d7819fd8e5230b8fad93aa948",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Boundaries, conversations and support are optional. Staying, changing or leaving remains the reader's decision; neither a toxic relationship nor an ending is asserted.",
+      "resolvedFindingIds": [
+        "E2"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:devil-tower-sun:career:3",
+      "inputHash": "7eda1a059490054c22a0db3f5f58c02553f0fcc02596e3f19f441cbcd4e048c6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Restrictive work is conditional. Obligations, assumptions and sustaining interest preserve the card distinctions without forecasting an exit or successful replacement.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:devil-tower-sun:spiritual:4",
+      "inputHash": "524cce0cad4c100240b398f8eadc7120b4ccb6d5832d359cbd30aa10182c8c14",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Within the explicit spiritual context, inherited-belief imagery remains an interpretive frame; the invitation to examine beliefs does not require a particular event or absent card."
+    },
+    {
+      "groupId": "canon:tableu:triad:hermit-hangedman-moon:general:0",
+      "inputHash": "41aea70c72cd2456775af15057bbecaf7998b869c1deb0b34c5df16bfd91ccc6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection retains solitude, perspective and uncertainty while dropping RWS scenery; intuition is explicitly separated from factual proof."
+    },
+    {
+      "groupId": "canon:tableu:triad:hermit-hangedman-moon:spiritual:1",
+      "inputHash": "9fa930a323237ca95319226d285e392763c2e5b53a27175a48921874dc38c299",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Meditation, journaling and patience are optional practices associated with the complete arc; no forecast or specific life event is required."
+    },
+    {
+      "groupId": "canon:tableu:triad:hermit-hangedman-moon:therapy:2",
+      "inputHash": "6412aa2b366ebf61b810ea4045de73a62be4f5f5a163ef56e834a1c22262ba67",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Self-inquiry, perspective and uncertainty remain meaningful. Therapeutic work is conditional; no appointments, hidden material or breakthrough are invented.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:hermit-hangedman-moon:creative:3",
+      "inputHash": "3d89a6ee1071f95043a7f1da7f9a72ff060e2eab70dceec6fc02a0e998a30421",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Incubation is a creative metaphor and the practical suggestions are low-consequence options; no additional card, scene or life event is asserted."
+    },
+    {
+      "groupId": "canon:tableu:triad:hermit-hangedman-moon:grief:4",
+      "inputHash": "e92a2453f818c37498161a4edfbffa5d0e9911d18456a9943c30ebe68dc60061",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The grief-specific passage offers privacy and nonlinear pacing; it does not predict a deadline, identify a lost person or promise an outcome."
+    },
+    {
+      "groupId": "canon:tableu:triad:magician-chariot-world:general:0",
+      "inputHash": "9577f72206897093e7949bcf1ce703ae7d6e6bd3bb01138f77328d4c253db6b1",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Skills, direction and integration remain practical reflection lenses. Completion is a question rather than a prior success; native imagery is unchanged and cross-deck meaning has no foreign anchors.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:magician-chariot-world:career:1",
+      "inputHash": "c24c4079cb4c8ba79cb9b0140c871c45e2808ea401a85c05400dfe9dae97ffb2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "A feasible goal, resources and assessment retain career usefulness. Effort and skill no longer guarantee results or promotion.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:magician-chariot-world:creative:2",
+      "inputHash": "1fe25e536e0ec2c0adba2d8c542f866e5c3cdf3409c087274b67d430ecee6c6c",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Finishing is described as a creative process, with deadlines and iteration offered as practices; the final form is something that can be shared."
+    },
+    {
+      "groupId": "canon:tableu:triad:magician-chariot-world:personal:3",
+      "inputHash": "917a9268ffb9b20266762497e6f8bd54bf8b153dcda01e5da373f1a78be23c20",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The reader chooses whether a milestone fits. A small exploratory action replaces assumed readiness and success.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:magician-chariot-world:manifestation:4",
+      "inputHash": "a29de77de9d9e73ef7f678cac0becde6f9c4665a24ac863d64f48f673b733873",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The manifestation context is grounded in tools and follow-through rather than supernatural assurance; all three drawn themes remain represented."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-lovers-hierophant:general:0",
+      "inputHash": "9a33b03273817effe5e7a2af74fe3c83c627f0a729d282d1c8f9dc936d78f0f9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Nurture, choice and sustained practice remain balanced; the cross-deck text preserves their relationship without importing RWS objects."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-lovers-hierophant:romantic:1",
+      "inputHash": "1cbf7ab11c6af25d1bda62889d6bddf6413c2a210f17bfea5d706b8dfec06fec",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Nurture, choice and shared values survive. Commitment is conditional and freely chosen, without predicting a relationship trajectory.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-lovers-hierophant:creative:2",
+      "inputHash": "50328bac079e7bdf66af75a006c232251208b45e7b350bc9aefcafd32e4fcdbd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The creative metaphor maps care, choice and practice to the three cards; it suggests a routine without assigning personal events."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-lovers-hierophant:spiritual:3",
+      "inputHash": "9465b302fa091621294502947f79f95271fac33638b13e1c59a3a5ff26439e0f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The spiritual context supports discussion of chosen practice; commitment is framed around what the reader finds meaningful."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-lovers-hierophant:values:4",
+      "inputHash": "2dedd492ac6e823a1ebeb840b2688978f2faba5519198ba3bded98d47fbd20d7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Abundance and choice are symbolic themes; the substantive recommendation is consistency with chosen values, without an explicit financial or relationship prediction."
+    },
+    {
+      "groupId": "canon:tableu:triad:fool-magician-world:general:0",
+      "inputHash": "309065ef3571958bc04fea51e988893a30f4d5ceeb1d5af1bf5ff1fbe3643256",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The complete arc supports experimentation, skilled action and integration. The meaning-only projection removes scenery and retains a useful question about learning."
+    },
+    {
+      "groupId": "canon:tableu:triad:fool-magician-world:career:1",
+      "inputHash": "bc9dea5d944c853084a34b4a98827687af0bce6fca2ead0fa58a0230572cfe07",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Venture-building is presented with several possible examples rather than a particular promised job or launch; planning and follow-through remain practical suggestions."
+    },
+    {
+      "groupId": "canon:tableu:triad:fool-magician-world:creative:2",
+      "inputHash": "10a7c3fa0ea5d8b24f568d406419bb745f3d3606e8acc75204b82a07980ab3cb",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Rechecked the article-adapted deck labels. The creative cycle remains an interpretive metaphor and optional process, with the original source meaning preserved."
+    },
+    {
+      "groupId": "canon:tableu:triad:fool-magician-world:personal:3",
+      "inputHash": "c4d404c03cf364d3ec08559739b590e4b1b25e317bbce5618d789f0f161cb99a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Beginnings, agency and integration are questions to consider. No ongoing developmental cycle or new identity is assigned.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:fool-magician-world:spiritual:4",
+      "inputHash": "5836700c54026816833dd30f2bc9a0cfb15f60e5bd1dbf1e8ff30d4300addb75",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Soul and initiation language belongs to the explicitly spiritual frame; it describes a symbolic cycle without a concrete event or deadline."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-emperor-hierophant:general:0",
+      "inputHash": "0bc81be8ff9655db681e0af5101c181982ef984b45567d8a7f93e44f441c4eda",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection preserves care, structure and shared learning; examples of families and organizations stay examples rather than claims about the reader."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-emperor-hierophant:parenting:1",
+      "inputHash": "e498a56c54b43820fcb023a017daf8200ef67182bdf7555b73964688ae2e7b8a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Parenting context supports the general relationship between care, boundaries and teaching; no particular child, age or family event is introduced."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-emperor-hierophant:leadership:2",
+      "inputHash": "deb544964944f109ae3b24430293f74efc5c7c4dffa5e471ca98a67581ffc1cc",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Leadership advice connects culture, accountability and training and does not predict organizational success or assign hidden motives."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-emperor-hierophant:creative:3",
+      "inputHash": "ea72be72ccbab6ca96d07017cf0089137320d2b3d1abe3a04914fbc000066cb0",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The creative source gives a concrete relation between making, editing and teaching; projected text retains that meaning."
+    },
+    {
+      "groupId": "canon:tableu:triad:empress-emperor-hierophant:career:4",
+      "inputHash": "b03d2658b312ae8080d43886710625897f3f1eddb100b70f9bd4102c77a579e8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Allocation and knowledge sharing are symbolic work functions; no specific resources, credentials or promotion are claimed."
+    },
+    {
+      "groupId": "canon:tableu:triad:wheel-justice-hangedman:general:0",
+      "inputHash": "cabd5ac0e4412f6cf9de6a6fb45f0e89f29e7bbaa0760d68a8f669dd47d87b27",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The conditional opening acknowledges changes outside one's control while preserving responsibility; projected wording explicitly avoids abandoning agency."
+    },
+    {
+      "groupId": "canon:tableu:triad:wheel-justice-hangedman:legal:1",
+      "inputHash": "779614077f5310bb34d1b8eb324f26cc03cd087f394671519f0d06549e0b7716",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Known facts, fair process, qualified support and available options preserve agency. A reflective pause no longer requires accepting a ruling. Fortune and La Roue de Fortune have correct articles.",
+      "resolvedFindingIds": [
+        "E2",
+        "E5"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:wheel-justice-hangedman:relationships:2",
+      "inputHash": "d5efe08cb209f8eef1a66487be5bb501aeafad4e3291bcaa073ac4ce9d92e8ed",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Rechecked the bounded E5 label change: Fortune and La Roue de Fortune replace the erroneous article-plus-alias. The retained relationship passage offers accountability, boundaries and a chosen response.",
+      "resolvedFindingIds": [
+        "E5"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:wheel-justice-hangedman:spiritual:3",
+      "inputHash": "5c64fb1d2979d57f888d3d308acef9d0319bc4ca5bd2611fd705fdd9a1b46cb5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Rechecked the E5 article correction. The existing spiritual karma/surrender language remains a symbolic frame, with no newly prescribed legal or medical action; selected-deck labels are accurate.",
+      "resolvedFindingIds": [
+        "E5"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:wheel-justice-hangedman:healing:4",
+      "inputHash": "36cc45d7b44c1be6caa3218a86d7a5c2e55a891444e8e961e9f1a5250d80c23f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Support and pace are chosen according to the reader's needs. Acceptance can coexist with action; slow progress is not blamed on resistance. Selected-deck Wheel articles are corrected.",
+      "resolvedFindingIds": [
+        "E2",
+        "E5"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:tower-star-moon:general:0",
+      "inputHash": "027e673eea63be6a3cca2f8d5263826d261fb9b4f6c8b04b1ffc5461a42e19b0",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Disruption, hope and uncertainty are possible themes. Evidence accompanies intuition; no collapse or recovery is asserted. Native visual anchors remain source-deck-only. The heading now names Disruption, Hope and Uncertainty without assigning a prior crisis.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:tower-star-moon:trauma:1",
+      "inputHash": "ea5cd6ff4336241934197adf617d4637afba11f179b3c26c62243b5cc8a915de",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Rechecked the neutral heading and revised both prose forms: crisis depends on what the reader described; pace, support and attention to safety are optional, without a recovery timetable. The heading now names Disruption, Hope and Uncertainty without assigning a prior crisis."
+    },
+    {
+      "groupId": "canon:tableu:triad:tower-star-moon:career:2",
+      "inputHash": "4d9fd0673675dbdb51f27df69d5eb1235e33ec00f28b48d6d6727f0efcb64c3e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Unsettled work is conditional. Distinguishing known from unclear information and considering a manageable step retains useful guidance without inventing job loss or a calling. The heading now names Disruption, Hope and Uncertainty without assigning a prior crisis.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:tower-star-moon:relationships:3",
+      "inputHash": "700568777221b2e98198bc3ca8c76cfeb4fb9f44501b02943dbfba3bbae857fe",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Unsettled assumptions, hope and uncertainty remain symbolic options. Questions and boundaries replace an invented breakup and guaranteed restoration of self-worth. The heading now names Disruption, Hope and Uncertainty without assigning a prior crisis.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:triad:tower-star-moon:spiritual:4",
+      "inputHash": "04fcd5773690cbbf505b04c3d342e02f2ecdbcfbe47d6ec1aed3a9148690ea37",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The heading is a neutral set of themes. The revised spiritual passage explicitly frames disruption, hope/grace and mystery as a metaphor compatible with the reader's beliefs, without asserting a new faith. The heading now names Disruption, Hope and Uncertainty without assigning a prior crisis."
+    },
+    {
+      "groupId": "canon:tableu:triad:strength-hermit-wheel:general:0",
+      "inputHash": "b14bd6a4ba6adabc60662262b4922a6a61c6b4725bee5db36d5d732328ac7de5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Courage, reflection and changing cycles remain tied to the three cards; the projection softens a fixed sequence and retains agency."
+    },
+    {
+      "groupId": "canon:tableu:triad:strength-hermit-wheel:personal:1",
+      "inputHash": "c98e696bb679d01919d02bdc695db4382b0209b3602a33d429e36a176fb62ff5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Inner-beast wording is a metaphor for self-regulation, not a claim of foreign artwork. Patience and clarity remain optional practices."
+    },
+    {
+      "groupId": "canon:tableu:triad:strength-hermit-wheel:spiritual:2",
+      "inputHash": "cb09134a7a63b6eed2edcbdc9ec7c5c86404e3ac092ad3d75f001e83da314a43",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Divine timing belongs to the spiritual context; continued effort is retained alongside releasing control of outcomes."
+    },
+    {
+      "groupId": "canon:tableu:triad:strength-hermit-wheel:healing:3",
+      "inputHash": "546dcb0818ef6ce74c96f2de611bcbadab0c0b687731f63b86667af632fa9d16",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The healing context avoids shaming fluctuation and suggests observing what helps; it does not promise recovery or infer an age or diagnosis."
+    },
+    {
+      "groupId": "canon:tableu:triad:strength-hermit-wheel:creative:4",
+      "inputHash": "6508fc7bf6390d83815221d978ba0a35dd7a5fc70fd5675bafe99d228d5c6b60",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The creative passage encourages sustained practice despite variable inspiration; its general craft claim does not establish a particular achievement."
+    },
+    {
+      "groupId": "canon:tableu:fools-journey:initiation:general:0",
+      "inputHash": "9905a95e0f619b9b8bf1c24c15a1572d4dc2025eb1a8cb24d44c1ae175ad0e0f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The journey-stage passage asks about values, tools and identity without claiming that an absent Major card is drawn."
+    },
+    {
+      "groupId": "canon:tableu:fools-journey:integration:general:0",
+      "inputHash": "d419422792ae327d1233873bdcd634a34d842bed04917d346b0da5b8ebac23b2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The journey-stage language stays broad background about reflection and recalibration rather than importing a particular card or event."
+    },
+    {
+      "groupId": "canon:tableu:fools-journey:culmination:general:0",
+      "inputHash": "e076cd444ca9fda6fa1b4874bf672d3f7c69ae00ddc44c99f809e2de1aa57933",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Renewal remains a possibility and the invitation is reflective; broad journey context is not used as drawn-card proof."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:0:general:0",
+      "inputHash": "b2b56b693166fb1598d14c621b048f7bb3da6b2d587ae5af5b4b0ae331d5b9cf",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Fool passage invites curiosity and learning, with no concrete new role, trip or timed outcome asserted."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:1:general:0",
+      "inputHash": "fce9bd250645acc5e10e43a2a12fc9cbf11983c8f689ffafbe71dd2412e66e63",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Agency is encouraged without naming resources the user does not possess; intent and a feasible action are practical rather than predictive."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:2:general:0",
+      "inputHash": "b61694133974b2ba33463b0dce98041dd24586977d9cd9082b7ae4bbf7bfdcdb",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Priestess passage explicitly avoids forcing intuition into certainty; no hidden fact or outside person's intent is asserted."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:3:general:0",
+      "inputHash": "6e6eed95626061baef837f71d66e0217910afbd2a3c8f30f3d63f18085b92690",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Care and cultivation remain symbolic Empress themes; no pregnancy, wealth or family circumstance is inferred."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:4:general:0",
+      "inputHash": "5f457d1c46bbcbb7dc0fcde7cbf719d3b96fa66ca1065b93c7d33f61a02b0e03",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Emperor passage connects structure with boundaries and responsibility without assigning an authority figure or outcome."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:5:general:0",
+      "inputHash": "14d14d24fe436afe56aefb4145ff512831a5cbd7552f23b5efd1812c303820d8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Counsel, community and chosen practice are suggestions, not required obedience or claims of institutional authority."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:6:general:0",
+      "inputHash": "34105ae42539802db8b226bc8d613bbe5516ba32e67b19278fb58436b5f8b1d6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Lovers passage preserves choice and values without declaring an existing romance or a necessary relationship decision."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:7:general:0",
+      "inputHash": "9925292ede275866ffc811ccbc91e42e891f4b03c5bc708e14b66c360dfc6e81",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The cross-deck Chariot projection removes the literal reins and retains coordinated effort; it explicitly avoids claims about deck artwork."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:8:general:0",
+      "inputHash": "b191d7a40327914273769391884c3610e854f195a177e4ae806b958ef4edf9fb",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Gentle courage is a meaning-level comparison; no lion is asserted in another deck or external threat introduced."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:9:general:0",
+      "inputHash": "9a881492ffa6de2770d040b7db6f58192bb002bb213bb16b4fe91bf49a286570",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Temporary reflection is offered as a practice; the passage does not require isolation from support or predict an answer."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:10:general:0",
+      "inputHash": "0e54664ee4bf594cfd45543a62e05387b9da225bcc5449fb9a6f321d2cc89353",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Wheel language is broad symbolic change, paired with noticing actual conditions and adapting rather than predicting a specific turn."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:11:general:0",
+      "inputHash": "bb003fe6625c155e6cb36ce65478cafc1cb43690b337082a7b1085cb5b903eab",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Justice remains accountability and balance; the passage does not promise a legal ruling or determine blame."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:12:general:0",
+      "inputHash": "303bf340687fa78f7a89febe95db584b2b219e48be121774057d64928dd72063",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pause is a perspective-taking invitation; no requirement to accept harmful conditions or fixed waiting period is supplied."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:13:general:0",
+      "inputHash": "2ced8cf05c261a98c0d192154ac100527a2e76b7430e72ee8b65a4a2c1b45fb8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Death is interpreted as symbolic completion and change; no literal death, person or scheduled ending is predicted."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:14:general:0",
+      "inputHash": "fd45ab47707ab90e96e531f2ed9e08389d0561ffc5532cf30681f2ec310ea00a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Temperance supports moderation and integration with no promised treatment outcome or foreign-deck visual claim."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:15:general:0",
+      "inputHash": "eeef172fbcb0c7f6d98f1d7755b0d0d7e3e4c845011300544a91c800ee73d25d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Devil passage invites examining an attachment; it does not identify a substance, abusive person or diagnosis."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:16:general:0",
+      "inputHash": "a5d22b58428a86ba14e32de294bbb0c96e5731679710411cfffaa345a94a4f6c",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Tower passage uses disruption metaphor without naming a concrete loss; native and projected meanings agree."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:17:general:0",
+      "inputHash": "a1b32463007b2484ebdc37b9f652e745c32b1a6a2bae569e280fc484e5ea7697",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Hope and care are possibilities with a small practical invitation. No prior hardship or recovery outcome is assumed.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:18:general:0",
+      "inputHash": "066cc957e6653c7974851a7b754f5d8ed929456ac2863e2c1bf404c0bd455a1e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Moon passage preserves uncertainty and cautions against forced certainty; instincts are not treated as proof of hidden events."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:19:general:0",
+      "inputHash": "5f6b17edbf401ffbfbaa5c89f223fda6db2ff12db6b712326b71b7b99981bfa6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Clarity and warmth retain the Sun's meaning. Acknowledgment of what is working is conditional, and joy is not compulsory or forecast.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:20:general:0",
+      "inputHash": "ec48280222ea7932c030d3cccd76eb64c02c906b15498db03f74f39c95e0d207",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Judgement is a symbolic invitation to reflection and response; forgiveness is not tied to an invented person or event."
+    },
+    {
+      "groupId": "canon:tableu:major-arcana:21:general:0",
+      "inputHash": "5a2eb077b64594194790fcbfb7ab4e53af4a1c4f6f65bf6157dfe9c0c7c9c436",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Completion and integration are questions rather than accomplishments attributed to the reader. Unfinished work remains possible.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:13-17:general:0",
+      "inputHash": "226190384a5c3a16a01468a89eab05a2808b7d86e49a30e76ac3e09f82a9bbf5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The dyad makes renewal possible rather than certain and retains the two cards; the cross-deck text removes source artwork."
+    },
+    {
+      "groupId": "canon:tableu:dyad:13-17:grief:1",
+      "inputHash": "fa1409c87143cb2117c5904a1123ba6c300968e8d88c6abc3af3225fc5f6d9de",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The grief-context source offers ordinary care and support rather than a prognosis; no absent Temperance stage is inserted."
+    },
+    {
+      "groupId": "canon:tableu:dyad:16-19:general:0",
+      "inputHash": "4258b0b3ad6ec0a36e530c1633060c8b9e8f9cb1df0e8092af7fe47ccf28df12",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The opening is conditional and the projection explicitly rejects guaranteed outcomes; native imagery belongs only to the two supplied RWS cards."
+    },
+    {
+      "groupId": "canon:tableu:dyad:16-19:transition:1",
+      "inputHash": "1681b52cf5e40f93e2e18e38bc1ebb607fd4dd6a41a7365f876beb0580b0c0cc",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Disruption and clarity are linked without declaring destruction necessary or joy inevitable. Verifiable facts, repair and routines remain optional useful directions.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:15-6:general:0",
+      "inputHash": "7d0e10a8cafd3848a519745c99f49c4f993328c8a225bfc5b91157333503fe0c",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Attachment and values are distinct; the projection avoids asserting a particular coercive relationship while preserving choice."
+    },
+    {
+      "groupId": "canon:tableu:dyad:15-6:relationship:1",
+      "inputHash": "17510baf6135ae6a78890be3d9db548ecb5c471ffc9c70ac398bdb456aebd3b4",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Jealousy, secrecy and control are examples within a conditional relationship discussion, not findings about another person."
+    },
+    {
+      "groupId": "canon:tableu:dyad:15-6:addiction:2",
+      "inputHash": "08e4a71553cad7e6190ae5fb612b9c7cfbf094c748ea2054d9828510b016ed68",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "In the addiction context, support and boundaries are suggestions; the passage does not identify a substance, diagnose the reader or prescribe a treatment change."
+    },
+    {
+      "groupId": "canon:tableu:dyad:0-1:general:0",
+      "inputHash": "e90bd2a0359837f54b6592cc9e2885a8834a6ec339b41349d3d638302c0820c7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Fool/Magician dyad supports experiments and skills; the projection removes scenes without losing the practical distinction."
+    },
+    {
+      "groupId": "canon:tableu:dyad:0-1:manifestation:1",
+      "inputHash": "909c141016376147d4bc1604b1d58ac440b5d3b49b24136d89e31c5dd5d63386",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Method, tools and practice develop the same two-card meaning without requiring an absent completion card."
+    },
+    {
+      "groupId": "canon:tableu:dyad:15-16:general:0",
+      "inputHash": "8cf1aea024468bc10bf57fcc9f8110a880914c18c27c8658ad1a1fa64d27ca2d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The conditional source and projection allow reassessment without predicting a crisis; disruption is not asserted to have happened."
+    },
+    {
+      "groupId": "canon:tableu:dyad:15-16:shadow:1",
+      "inputHash": "a611ab0b6b1e689a979642a8286e43a262e6234545fe6d10119094167275750b",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Attachment and assumptions remain examinable without compulsory crisis or rupture. Reassessment, options and support preserve reader agency.",
+      "resolvedFindingIds": [
+        "E2"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:10-20:general:0",
+      "inputHash": "386380c5ef6abe7218bdf2194a7c4e0289cdac546fd33c6d86b11a5d6bebe76e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection ties changing conditions to a conscious response and explicitly avoids fixed destiny; no particular event is supplied."
+    },
+    {
+      "groupId": "canon:tableu:dyad:10-20:spiritual:1",
+      "inputHash": "4a9cbaf4896867930e281e08539d68fb758e5428783df64f5b686894c03381e9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Changing conditions and conscious choice remain meaningful. A recurring pattern is conditional; no ending or successful pattern break is guaranteed. Wheel articles are correct across decks.",
+      "resolvedFindingIds": [
+        "E1",
+        "E5"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:17-20:general:0",
+      "inputHash": "38e6a467e63dd20e7ae693141b3c27eff96ab00955eb7dae7ad435a4d911c75a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection turns hope into a possible direction and retains conscious response; the two-card association remains clear without an absent stage."
+    },
+    {
+      "groupId": "canon:tableu:dyad:17-20:calling:1",
+      "inputHash": "f096faa6188d249b10e654b4cdfe0dc13f876442fcbad0052820c486c0bd4980",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The calling-context suggestions are examples of small actions selected by the reader; no particular job or message outcome is promised."
+    },
+    {
+      "groupId": "canon:tableu:dyad:7-21:general:0",
+      "inputHash": "b4681cb59546a7dda1b8cc19f8cf42afeab40d96e8ef01ae86e5b4ab95d30654",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection frames completion as a task focus and explicitly avoids promising victory; selected-deck names and source imagery remain separated."
+    },
+    {
+      "groupId": "canon:tableu:dyad:7-21:career:1",
+      "inputHash": "0f9f1781939ee60b699c870ae61564a28688ca7d371b1efc797c16fa2b634e0f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Focus and completion retain concrete work guidance. Checking remaining work, documenting lessons and rest are conditional on the task; no victory is forecast.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:9-2:general:0",
+      "inputHash": "eb95a5a19e849aaeac7b024c1d68745d4583907333928e722b601135aea2fadc",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection retains reflection and patience while distinguishing intuition from proof; the source anchors belong only to the supplied RWS cards."
+    },
+    {
+      "groupId": "canon:tableu:dyad:9-2:spiritual:1",
+      "inputHash": "be3f45f8ea9cadfcbf29fe405b3d2a4393dcbc21de09b1c75482203f50a499d8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Dreams and subtle cues are described within a spiritual reflection practice, without treating any sign as an externally verified fact."
+    },
+    {
+      "groupId": "canon:tableu:dyad:12-13:general:0",
+      "inputHash": "f25609b722d690d2bc5dfdfe4565da87384ed76112ac8fd41debca88ebe00027",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection describes possible reduced resistance and patience without requiring a particular ending or absent integration stage."
+    },
+    {
+      "groupId": "canon:tableu:dyad:12-13:transition:1",
+      "inputHash": "7154f78fb5aae0775852442e397c17c20327e6bd448ff5d8932c27860bb5fab6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The transition passage uses some endings rather than a guaranteed event; release and urgency are reflective themes, not a required timeline."
+    },
+    {
+      "groupId": "canon:tableu:dyad:8-11:general:0",
+      "inputHash": "f9815b41205abbda81a2a46f47ee731cd2b8b35e0680ef280bceef559067cb50",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Compassion and accountability are preserved together; adapted names retain the two canonical identities and imagery stays in the native source."
+    },
+    {
+      "groupId": "canon:tableu:dyad:8-11:boundaries:1",
+      "inputHash": "fa8941005e64426cc53f16790824e04aec338a2a82d0408c8671d2ac72351e85",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Boundary-setting is framed as calm and fair action rather than punishment or a factual claim about someone else's behavior."
+    },
+    {
+      "groupId": "canon:tableu:dyad:2-5:general:0",
+      "inputHash": "fa5930f37d1d233396712ca653b82850d2ec33ce4337a7790efd61380f6c8aa9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Inner knowing and tradition can disagree; the passage invites questions and does not elevate intuition to certainty."
+    },
+    {
+      "groupId": "canon:tableu:dyad:2-5:spiritual:1",
+      "inputHash": "77d9096f57ccda2b5df626527273c0a0bed9530e13a22b1a3049c8aee83a7420",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The spiritual passage explicitly tests teachings against experience and rejects blind obedience; no particular belief must be accepted."
+    },
+    {
+      "groupId": "canon:tableu:dyad:4-3:general:0",
+      "inputHash": "3d4de25f53135bb6faa85f73a4e1c2a554d553b3c67bdab9b878eb31bb31f77d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection converts fertility into nurture and structure without asserting pregnancy or family status; the relationship between meanings is preserved."
+    },
+    {
+      "groupId": "canon:tableu:dyad:4-3:creative:1",
+      "inputHash": "1e79692c3d154f5567c95e473bfcabd8a8bc943957a1f09ec7e1bbef10aff0f7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Planning and support are practical options for creative work; the passage describes potential rather than a guaranteed finished result."
+    },
+    {
+      "groupId": "canon:tableu:dyad:5-15:general:0",
+      "inputHash": "dd7cd1b5f0ba3310a746427eedcc04aee30f035bd7083efec3b82193721ae05b",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection explicitly avoids assuming coercion and preserves assessment of inherited beliefs; native imagery is removed across decks."
+    },
+    {
+      "groupId": "canon:tableu:dyad:5-15:shadow:1",
+      "inputHash": "f6caf54d8e63ac7111d3ee6fea6416ffa31d4cf8480b562280861683d4f368cd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The conditional opening permits reevaluation while retaining freedom and responsibility; it does not identify an actual controlling group."
+    },
+    {
+      "groupId": "canon:tableu:dyad:18-19:general:0",
+      "inputHash": "2b9935a4eb745941bddfd981fa8f500dd1e0eecbf8c83bd242c73bc6a7e53b87",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Uncertainty and possible clarity replace guaranteed revelation. Evidence is emphasized without inventing hidden facts; original native imagery is retained separately.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:18-19:clarity:1",
+      "inputHash": "bc5cd5a79ac62b4edb0c7deea257a0db1951f50ecf14b9225ae18e1a9eb57a95",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Fact-checking, open questions and time remain useful options. Insight is possible rather than a promised reward for ceasing to seek certainty.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:0-21:general:0",
+      "inputHash": "fe3bd7f0175baaabbbfd79eadc07c457915ac017b0fe14c2863f46be59fd5a9a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection makes renewed curiosity possible after completion; it does not insist on a specific completed life event."
+    },
+    {
+      "groupId": "canon:tableu:dyad:0-21:life-cycle:1",
+      "inputHash": "6c322eec25b41d63c90ad0ebfebe601f245f5e8d35ae291126dc6dbb38ea5d9c",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Beginning and completion are reflective questions. The reader is not assigned a life stage or changed identity.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:dyad:13-14:general:0",
+      "inputHash": "76129aa2ff2f310d3fe94fb9be940f505e494f45d258873f5915348bf897f45f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair connects release and integration; its conditional after-an-ending guidance does not import the absent Star or promise recovery."
+    },
+    {
+      "groupId": "canon:tableu:dyad:13-14:healing:1",
+      "inputHash": "e70effa7cf56300bb7fac472e3efb204de865b0b43951aabc3e27853db29196d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The healing-context guidance is paced routine and care; no cure, diagnosis or concrete personal history is added."
+    },
+    {
+      "groupId": "canon:tableu:dyad:11-12:general:0",
+      "inputHash": "e9f8bc9e775effde74a4cde39ab788ba23993b8717362092300da6de670e8d51",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The projection balances acceptance with remaining responsibility and alternative perspectives; no legal outcome or compulsory resignation is asserted."
+    },
+    {
+      "groupId": "canon:tableu:dyad:11-12:acceptance:1",
+      "inputHash": "bc17335cde42dd46405858c442a0a96a34f04896a8949fe7b1d15fdee60620d2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The acceptance-context source conditions its response on an honest assessment; it does not declare a specific external ruling or event."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Wands:beginning:general:0",
+      "inputHash": "8632f327d5c7ff302d1d33c27c2747d566626daedad50e687a1b26b43f7550dd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The beginning-stage reference describes general creative effort and practical structure without a particular unseen stage or outcome."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Wands:challenge:general:0",
+      "inputHash": "5d69a8b652b287c8f8d77070f8940ac0e08bda79974ad39f649a02cc08abbe55",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Can feel like heat is conditional and the advice is about choice and communication; no conflict is declared inevitable."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Wands:mastery:general:0",
+      "inputHash": "d0c7d40834a7f32bd20c6cb9af0b3847b4732802fd160108079b7df7c6374e0a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The mastery reference presents burnout as a possibility and offers boundaries and rest, not a diagnosis or promised result."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Cups:beginning:general:0",
+      "inputHash": "72cb029f2e9c89fdb888b46161190128b45d9021fc78b5393534d994bec8e06e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Connection and receptivity are symbolic themes with an invitation to notice what feels supportive; no particular relationship is invented."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Cups:challenge:general:0",
+      "inputHash": "bbfc193cce7e2f029969c33902a398c6977b0e4bf34aa9b6c3ddf2e9c96600f2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The source is now neutral about emotional attention and choice. Runtime member projection supplies only actual roles, so missing Five cannot contribute mourning. Complete-group meaning remains available when all members are present.",
+      "resolvedFindingIds": [
+        "E3"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Cups:mastery:general:0",
+      "inputHash": "2a4f70840117cf1405eb0d93fae04435ac4bcb8b50416ded1292716da5a64711",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The reference describes nourishment, boundaries and values without asserting a particular union or inevitable happy ending."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Swords:beginning:general:0",
+      "inputHash": "ae0f8c800d4485b4322f2d9f58ae10e92cf5a7714f3dc075f4bf4ab6f4d188a7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Clarity and compassionate choices remain general early-Swords themes; the passage does not require the absent Three's grief or an actual painful event."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Swords:challenge:general:0",
+      "inputHash": "4fbab7ea98b077c87a6ee2b35a2fd9c46e7c13dbce81e2882c44568f865221a8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Conflict and strategy stay broad and optional; peace, rest and avoiding a win-at-all-costs stance do not assert a particular quarrel."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Swords:mastery:general:0",
+      "inputHash": "5ee1dc2f372e49712cfb753a1ca6fc6e6e98564581da835bcb5e208a5c91e990",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The source no longer declares rock bottom followed by release. Actual membership governs pressure, anguish and ending roles; the Ten's role appears only when drawn.",
+      "resolvedFindingIds": [
+        "E3"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Pentacles:beginning:general:0",
+      "inputHash": "6565276179ab4804791f66ef6e0c0a637d334547048cb521c36a21c18a0ff6ec",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Skills, budgeting and practice are general practical suggestions, with no invented sum, possession or guaranteed gain."
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Pentacles:challenge:general:0",
+      "inputHash": "1a671ed58830719b6f4398d789e044a9a6d328b87c79345b0493fd1c3e6fd2d5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Resource stewardship remains useful without promising relief from planning or sharing. Runtime membership further limits individual rank meanings.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:suit-progression:Pentacles:mastery:general:0",
+      "inputHash": "f8afa6901d02ad30a46f266a900e3ef92725339bb09a5508fb5bcfd031828e8a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Craft, independence and continuity are symbolic resource themes; the imperative is attention to sustainable practice rather than a forecast of wealth."
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Wands:alliance:general:0",
+      "inputHash": "e802019000e245121525b3279cc1931c7d9b93f0ce71fd185ecaf03ae0a75f86",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Two drawn creative approaches are compared without enumerating four ranks or inventing allies. The retrieved role list is bound to the two actual members.",
+      "resolvedFindingIds": [
+        "E3"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Wands:council:general:0",
+      "inputHash": "09f358b6062bbeb96038faeb580c601b174b2582ab4043b38892a1925838f4ca",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Creative direction and responsibility remain optional topics. Missing ranks and an actual active team are not inferred; a complete council requires four drawn ranks.",
+      "resolvedFindingIds": [
+        "E3"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Cups:alliance:general:0",
+      "inputHash": "6e12172f53eacd2cb8cc7235846446074ae496206e437b41bd2645b1aeb2adb9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Emotional honesty, attunement and boundaries are shared themes; the passage does not assign a missing court rank or an actual family member."
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Cups:council:general:0",
+      "inputHash": "ab3549fb9fdee88c8af6f188a9f640fc5d9d86dcf16de63aac3811dd679c1727",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Care and emotional understanding remain symbolic possibilities. Missing Knight cannot add romantic expression, and no family situation or reconciliation is assumed.",
+      "resolvedFindingIds": [
+        "E3"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Swords:alliance:general:0",
+      "inputHash": "60bad59f159a121937de0e3eb4a3dd3d894fdbc37b87b349a25bf954de02faec",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The two-court Swords reference suggests precision and evidence without attributing motives or roles to an absent rank."
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Swords:council:general:0",
+      "inputHash": "e5377fcaae672058536f3bf35b7a82d8025090b2f3fd5ec346c0b715d97d5940",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Governance, evidence and clear communication remain symbolic possibilities; no actual tribunal, accusation or decision outcome is introduced."
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Pentacles:alliance:general:0",
+      "inputHash": "6ef3a82703f9c2f022064bb952a9bbda85e99143ba6ec7a605f8797db962a926",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Practical approaches remain useful. Support can be sought without being declared available, and security is not promised.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:court-lineage:Pentacles:council:general:0",
+      "inputHash": "7f8e979f260138fc4c3ea8bf75bca1ea8d151488d0aa077e259bb0093c67b6e6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Stewardship and planning are broad optional practices; no specific inheritance, wealth, family relationship or missing rank is asserted."
+    },
+    {
+      "groupId": "canon:tableu:thoth-suit:Wands:general:0",
+      "inputHash": "cedb1283110eb58817cad6ed1d75e22eb10b12376912bef45469c9267068e5c8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Thoth source is explicitly attributed as a tradition; will and directed effort are meanings, not claims about RWS artwork."
+    },
+    {
+      "groupId": "canon:tableu:thoth-suit:Cups:general:0",
+      "inputHash": "7d014cd7063bec55a2879bb03c02e2468117e54d69b0f68c2276f90bb2e134ba",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Thoth emotional metaphor stays at the meaning level and retains boundaries; no actual substance or relationship history is assigned."
+    },
+    {
+      "groupId": "canon:tableu:thoth-suit:Swords:general:0",
+      "inputHash": "eca8a315e25837c9918945f4196d9d2208d4a60fd77f9f1d2f173e73b924751a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Thoth thought metaphor invites testing assumptions and resting; it does not claim cruelty by a particular person."
+    },
+    {
+      "groupId": "canon:tableu:thoth-suit:Pentacles:general:0",
+      "inputHash": "872ce06ecc610c3c9ef199cb92ecfdc7cb9a162ca9d90c4530f7ef8c1d040ad2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The Thoth resource meaning survives Disks/Pentacles/Coins adaptation; cross-deck attribution is honest and no foreign scene is asserted."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:1:general:0",
+      "inputHash": "b7285cc1d3783760fd5cec05c362c173d5068d2a9bbf8db92ad25ee079aa59f2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "One is explicitly a numerological interpretive frame; focusing an intention is a suggestion rather than a forecast."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:2:general:0",
+      "inputHash": "7977ff3ce568538259323deb319bf8aac2b801bc221771b74fb851dcbbaa6389",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The numerology offers several possible responses to polarity rather than requiring partnership or predicting separation."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:3:general:0",
+      "inputHash": "3823ef6b4ee1759d17cbab6c322396cb1bf42d713470e216860c5e7ba051f043",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Growth and collaboration are symbolic themes with practical suggestions; no collaborator or outcome is invented."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:4:general:0",
+      "inputHash": "2b2801ab52e090a2e8aedb3f31163d97410d3ea41616278b923595050c9dea6b",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Foundation and boundaries describe a reflective frame; rules and resources are suggestions rather than claimed current facts."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:5:general:0",
+      "inputHash": "5363bbb453d144d150529e7d8c9a9f98f4f41e042b12ffb6b9931a545f55c679",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Tension and recalibration are a symbolic question. Friction is conditional on the described situation rather than predicted.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:6:general:0",
+      "inputHash": "6e8d5ff7d4834e165736a9463859c07ef270fed26b544fddfa8a867561a1acfb",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Repair and care are possible ways to explore harmony; the passage does not identify an actual conflict or promise reconciliation."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:7:general:0",
+      "inputHash": "f712b291dd1bb2d998c38ce47bfa7f5c169da4ee92a64eaf6d70c2961ab6a095",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Discernment and testing assumptions remain optional. The numerical pattern no longer establishes instability.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:8:general:0",
+      "inputHash": "5288640822afd3eea1c27fa635bdcd69652840413d337a0a8508172a7515b315",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The consistency language is a general practice metaphor, not a prediction of a particular success; no foreign scenery or absent card is asserted."
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:9:general:0",
+      "inputHash": "ae05249e6365cb815319a6b7b957b9b2c81add849b6bf21808bba4a9187fb0ed",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Fullness and stewardship invite assessment of readiness. Abundance or harvest is not attributed to the reader.",
+      "resolvedFindingIds": [
+        "E1"
+      ]
+    },
+    {
+      "groupId": "canon:tableu:marseille-numerology:10:general:0",
+      "inputHash": "de087ee576c3145e6215a0a62414c40e935c83cde2427d81dc903c20877f99b5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Completion and transition are the stated symbolic frame; no specific project or timed event is identified and the reader chooses what applies."
+    },
+    {
+      "groupId": "pair:death-temperance-star:14-17",
+      "inputHash": "2a7525f85d486842da9590b17a4eb4a1bf770a5539bc12a86b1f774ef646cdce",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The optional direct theme and pair passage both connect integration with hope; the supplied pair does not assume an absent ending or guaranteed recovery. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:death-temperance-star:13-17",
+      "inputHash": "9b1642a9200dafe5cb201431916a6f4c91b88b775e379798cea60f04723f9bfe",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Both channels use possibility and avoid the former skipped-integration claim; the absent Temperance stage stays absent. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:death-temperance-star:13-14",
+      "inputHash": "773f332c85ae3263cddd9ac0709a12b7385f1c92ae45ea5e6903a7c36a2623f4",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Change and measured adjustment are supported by Death/Temperance; no missing Star outcome is introduced. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:devil-tower-sun:16-19",
+      "inputHash": "5a1047665b91b1ef06491e37c2a895a246708bd11947dc4ec6eae7c3b879a90f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair explicitly distinguishes possible upheaval from established events; the direct theme is framed as a possible relation between Tower and Sun. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:devil-tower-sun:15-19",
+      "inputHash": "c2dd2a0a83d30091695bf1b4b378e95d9d641b029d68df9d2ffa62aa8bf34490",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Attachment, clarity and vitality align the direct theme with the pair passage. Neither supplies the missing Tower's sudden rupture. Position and reversal qualifications remain intact. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review.",
+      "resolvedFindingIds": [
+        "E4"
+      ]
+    },
+    {
+      "groupId": "pair:devil-tower-sun:15-16",
+      "inputHash": "904d23a3e83ac68b06a6cf7cb7eda86712fcc961ad55ce642fb6adf120e71dd7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Attachment and disruption correspond to the two drawn cards, while the full pair explicitly avoids asserting a crisis; no absent Sun recovery is added. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:hermit-hangedman-moon:12-18",
+      "inputHash": "0976f8ac12acddaac11c33a4e3710341d12d27a5959781ae286dc19c57f8f495",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Suspension and uncertainty are retained; checking impressions against evidence prevents shadow-language from becoming a factual claim. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:hermit-hangedman-moon:9-18",
+      "inputHash": "464c74d656b8212f3857fccb60a643b54239b1979c647dc81dfc9f31b8db64b5",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reflection and uncertainty remain symbolic inner-work themes; the pair explicitly separates impressions from observations. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:hermit-hangedman-moon:9-12",
+      "inputHash": "9a6becc8ad70ec9b01e8f718e781f11e8abaf393f49d5285a1046fab47f48eeb",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair permits a useful pause without isolation or indefinite waiting; the direct theme adds no absent Moon imagery or outcome. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:magician-chariot-world:7-21",
+      "inputHash": "165affa6f5541e655df3d7d79ee74a61ccda496cff093b7d3b4c9a2ab0203e9d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Direction and completion are explicitly symbolic, and the pair says completion does not establish an achieved outcome; the missing Magician adds no role. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:magician-chariot-world:1-21",
+      "inputHash": "477c381f07c1d407500b7cfc5fa55bff01388f0c4b0c3318807e0962b03624c1",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Skill and integration remain tied to the drawn Magician/World; the pair explicitly avoids assuming work is complete. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:magician-chariot-world:1-7",
+      "inputHash": "744328e157034157842e737c375b08056726fdf4dc910ee88339a91d91744d15",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Resources and focused action offer a concrete experiment without promising a World outcome or adding an absent card. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-lovers-hierophant:5-6",
+      "inputHash": "a8cbffe2588dfa8d29a609f22f65e6b07bb74447271b46473e2861f06bd4a62b",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Both channels explore personal values and tradition while preserving freely chosen commitment and agency. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-lovers-hierophant:3-5",
+      "inputHash": "28711704eff468848d9236e3d7211334cdf16d4fd3ec6f5ad09a8c9015bab82b",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Care and shared practice are supported by the two cards; the pair permits questioning rules rather than assuming an absent choice stage. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-lovers-hierophant:3-6",
+      "inputHash": "774b64854f0289cdd6a06ac672d56929470fde98b6b915e4d2eb404852097817",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Nurture and choice are held together, with capacity and values available for reader interpretation rather than obligation. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:fool-magician-world:1-21",
+      "inputHash": "580cee8e9b234612b20b7a9fc4eaf94ecb4ea536c5a83c3fba5e910b602835a4",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The direct theme is presented as a possible symbolic relation; the pair explicitly keeps completion open and does not import Chariot momentum. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:fool-magician-world:0-21",
+      "inputHash": "ea4251942a8c1f8818dc11944b953b3c9b8ada4c2aeab1c1e3baac997e78fb4d",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The leap image is supported by the Fool and the World supplies integration; the pair explicitly rejects assuming a completed cycle, so quantum leap is treated as metaphor rather than physics or prediction. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:fool-magician-world:0-1",
+      "inputHash": "0eebc643cb763b3a1dbdb7ed09a898a2352b7eee52b56fb172eb2bb98cb2f60f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Curiosity and skill remain a small experiment; no missing World completion is promised. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-emperor-hierophant:4-5",
+      "inputHash": "5c5a2932845383ba25aa30e51d63451b06610f5f80653023cf88bf3a308c642c",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Authority is questioned through purpose, service and accountability; tradition is not automatically validated. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-emperor-hierophant:3-5",
+      "inputHash": "5ac93a4334972442a329530ecddea4b0a6b78a3d2d34b9f9756d24fdfa25e16f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Nurture and practice stay connected to real needs, with tradition explicitly prevented from becoming automatic authority. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:empress-emperor-hierophant:3-4",
+      "inputHash": "7c41c79f888e80d3f4dcf5ec35614042edf93ffb806633de6bfe7af469881274",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Care and flexible boundaries are paired without importing a missing Hierophant institution or family event. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:wheel-justice-hangedman:11-12",
+      "inputHash": "8f69dbb61fea6151e2e178ee133ce2a26b36ec4596996169618e43739052cebd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Evidence and another perspective are preserved; delay does not prove any outcome and no absent Wheel event is supplied. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:wheel-justice-hangedman:10-12",
+      "inputHash": "bf7bd84bc892654156dca382e33a9812d1bd2cc6383daff7e2e2681beca5c82a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Changing conditions and another perspective align both channels. The direct theme no longer demands surrender, and the pair preserves agency without the missing Justice stage. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review.",
+      "resolvedFindingIds": [
+        "E4"
+      ]
+    },
+    {
+      "groupId": "pair:wheel-justice-hangedman:10-11",
+      "inputHash": "96c32e84abf91ee39a96333ee1bfac4a40af83dc06950a5f5df5f6f477b161ea",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair explicitly rejects deserved reward or punishment, keeping changing circumstances separate from personal responsibility. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:tower-star-moon:17-18",
+      "inputHash": "387a92bb04a18dc74e9b5acac743a79c779c3aa6aa6f8f09ea162ecf87b125b9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Hope and uncertainty coexist; the pair requires observation and does not infer the missing Tower crisis. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:tower-star-moon:16-18",
+      "inputHash": "161930846edae8ef18c77b77e666ee232ee67cc5bf8cf73a45f43d1064f4798f",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair asks what is known and unknown without promising the absent Star's recovery; mystery remains symbolic uncertainty. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:tower-star-moon:16-17",
+      "inputHash": "d68b28fa451ba127a48b4d9eb934c12fb61e5fc4f8365e138e7e64888970eb91",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair explicitly rejects a past crisis or completed recovery claim; the direct theme remains a possible Tower/Star relationship rather than history. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:strength-hermit-wheel:9-10",
+      "inputHash": "e65ff7c737eee8e13c67a8537f2a19105286956ea0d66e4dc89f03e9129bb4b7",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "The pair rejects fixed fate and grounds response in observed conditions; the short accepting-fate theme is read within that qualified symbolic frame. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:strength-hermit-wheel:8-10",
+      "inputHash": "9b7bb97e4fbefef98a5a4994f69ae0d7f594ada3cee930def3a74edbe00e0f43",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Resilience and flexibility preserve agency and explicitly avoid self-blame for uncontrollable conditions. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "pair:strength-hermit-wheel:8-9",
+      "inputHash": "7a9217807977fdf795a2dadfbe44d22a2a965e37215d756c1444067f17b1d8ec",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Gentleness and reflection remain resources, with explicit protection against isolation from support. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Wands:beginning",
+      "inputHash": "560cb1f991acd093c7fedee4222f3c5d2ecc1202cd8272b692f37c196f61693a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed source roles for inspiration, planning and expansion in both channels. Partial references use only their actual members; the full relationship remains conceptual and optional. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Wands:challenge",
+      "inputHash": "d23be77a5777d58625b9be4d42fe87e01b4ce04ab82e424f913077bfa0711e23",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed milestone, competition, recognition and perseverance as card roles. Neither channel treats missing roles as drawn or imposes a personal history or sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Wands:mastery",
+      "inputHash": "6e80e11e2eecec6f9efdb05adb65528a1c827f4701cc5bc2df9839168809bc5e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed pace, resilience and responsibility. Both channels retain actual ranks, and the complete relationship describes sustainable-effort tensions without forecasting progress or burnout. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Cups:beginning",
+      "inputHash": "dfda8343713043fab45e6e9108ecec42f5de627667179af0075bc31b77975020",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed openness, reciprocity and community as complementary symbolic themes. Actual member selection controls both direct and retrieved prose. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Cups:challenge",
+      "inputHash": "9916145e835da64aed5e98603696aa559a264b6e530bfa91f7ed33395025291e",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed withdrawal, mourning, memory and imagined possibilities. Missing Five excludes mourning in retrieved references as well as direct highlights; complete controls retain it as a symbolic role. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Cups:mastery",
+      "inputHash": "c36bf8d6e0495c92dc621b87a506d7ee3ba6d2f85e0388b2a76b8e92e95545c2",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed release, contentment and shared fulfillment as card meanings. Both channels qualify them as values and themes rather than predicted emotional outcomes. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Swords:beginning",
+      "inputHash": "0fdd0850afbf10cbd9212e32f62e601e5df12ad23c540c6a46bcb2ddd1675ba8",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed clarity, indecision and grief as card roles. Only drawn roles appear, and even the complete relationship explicitly avoids a required sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Swords:challenge",
+      "inputHash": "a4bcd8e182b8a51bf39198f9983a3e96749ee5bfd901e0b1982196f28f11b2ba",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed rest, conflict, transition and strategy. Actual membership controls roles, and the template compares approaches without inventing personal events. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Swords:mastery",
+      "inputHash": "d3990e1018e0e0f606277384c8057fdf53d5c2353bc6c082e6d7d6d4953708b9",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed constraint, anguish and painful ending as optional symbolic themes. Eight/Nine cannot inherit the Ten's ending or recovery; full controls preserve all actual roles. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Pentacles:beginning",
+      "inputHash": "a95b8fa571bbaf0ed1cb356beb7de360877e7205cbae9c42ae04e4fe1cda3b28",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed opportunity, adaptation and expertise/collaboration. Membership limits roles in both channels; these are reflective possibilities rather than evidence of prosperity. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Pentacles:challenge",
+      "inputHash": "601aeed7168e67d4afb8e906111d5ef2cacbb629ba7523eb2e219ab58a7bf3b3",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed holding, hardship, giving and assessment as symbolic roles. Missing ranks add no meaning, and no actual poverty or relief is inferred from the stage alone. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "minor:Pentacles:mastery",
+      "inputHash": "251a73b4dc7f22a4b1436a2117ba22ec906ea2673964274be95cb73607908e98",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed practice, independence and legacy. Complete relationships remain symbolic; neither channel guarantees wealth or assumes a family history. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "court:Wands",
+      "inputHash": "b9d4b44dfa88c7008a51e8f975ec56aecee2202083ca618259cfbdc0e2d6bc56",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed all four new roles: curiosity/inspiration, bold initiative, warmth/confidence, vision/leadership. Every two-, three- and four-rank subset keeps only its actual approaches and selected-deck names. No allies or team are invented. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "court:Cups",
+      "inputHash": "06780870140fb0490548e79c21e5b9a1d6c07b6a4556090452c7c134980066d6",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed openness/imagination, idealism/romantic expression, receptivity/empathy and emotional steadiness/compassionate leadership. Missing Knight contributes no pursuit role. Figures remain symbolic, without family or relationship claims. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "court:Swords",
+      "inputHash": "3a15f01dafff0e45446e0587e70f938166bf2b41e3d93358cd423915f24019bd",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed inquiry/alertness, assertive ideas, discernment/boundaries and reasoned judgment/ethical authority. Subsets remain distinct and optional, without inventing people, legal outcomes or conflict. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    },
+    {
+      "groupId": "court:Pentacles",
+      "inputHash": "227f7eae4f1787d2e35fd290820d5544efded56c5413632aa865d1511f7cae9a",
+      "reviewerType": "agent",
+      "status": "accepted",
+      "notes": "Reviewed study, dependable effort, practical care and resource management. Subsets preserve selected-deck court identities and imply neither available support nor wealth. Complete means all four actual ranks. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+    }
+  ]
+}

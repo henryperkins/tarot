@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 import * as memory from '../functions/lib/userMemory.js';
 import { ReadingJob } from '../src/worker/readingJob.js';
 import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
+import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
@@ -221,6 +223,74 @@ for (const [name, reflectionsText, expected] of [
   }
 }
 
+for (const { name, current, stored = 'My child is 8', expected = 0 } of [
+  { name: 'present', current: 'My child is 8', expected: 1 },
+  { name: 'reported middle-sentence age', current: 'She said: “I have a story. My child is 8. I am happy.”' },
+  { name: 'hypothetical quoted story age', current: 'Suppose this story is true: “It is summer. My child is 8. We live nearby.”' },
+  { name: 'bare future', current: 'My child will be 8' },
+  { name: 'future year against present', current: 'My child will be 8 in 2027' },
+  { name: 'next year against present', current: 'My child will be 8 next year' },
+  { name: 'past year against present', current: 'My child was 8 in 2024' },
+  { name: 'turning against present', current: 'My child is turning 8' },
+  { name: 'conflicting present', current: 'My child is 8. My child is 9' },
+  { name: 'present plus future', current: 'My child is 7. My child will be 8 in 2027', stored: 'My child is 7', expected: 1 },
+  { name: 'dated future agreement', current: 'My child will be 8 in 2027', stored: 'My child will be 8 in 2027', expected: 1 },
+  { name: 'dated past agreement', current: 'My child was 8 in 2024', stored: 'My child was 8 in 2024', expected: 1 },
+  { name: 'dated approaching agreement', current: 'My child is turning 8 on 2027-03-04', stored: 'My child turns 8 on 2027-03-04', expected: 1 },
+  { name: 'unanchored relative agreement', current: 'My child will be 8 next year', stored: 'My child will be 8 next year' }
+]) {
+  for (const transport of ['direct', 'job']) {
+    test(`temporal age ${name} controls exact ${transport} provider blocks and accepted access`, async t => {
+      const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+      const db = routeDatabase();
+      t.after(() => db.sqlite.close());
+      insert(db, 'private-temporal-age', { text: stored });
+      t.mock.method(console, 'log', () => {});
+      t.mock.method(console, 'warn', () => {});
+      let finalPrompt = '';
+      t.mock.method(globalThis, 'fetch', async (_url, init) => {
+        finalPrompt = JSON.parse(init.body).messages.at(-1).content;
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'The Sun invites exploration. Your choices shape outcomes.' } }] });
+      });
+      const env = { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+      const payload = { ...routeFixture, userQuestion: `${current}. How can I support my family?` };
+      let sourceUsage;
+      const receipts = [];
+      if (transport === 'direct') {
+        const tasks = [];
+        const response = await onRequestPost({ env, principal: { userId: 'owner' }, waitUntil: task => tasks.push(task), request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+        const body = await response.json();
+        assert.equal(response.status, 200, JSON.stringify(body));
+        await Promise.all(tasks);
+        sourceUsage = body.sourceUsage;
+        assert.doesNotMatch(JSON.stringify(body), /private-temporal-age|temporalStatus|temporalReference/);
+      } else {
+        const state = createReadingJobState();
+        const job = new ReadingJob(state, env, { runReading: context => onRequestPost({ ...context, onReadingMemoryUsage: usage => { receipts.push(usage); context.onReadingMemoryUsage(usage); } }) });
+        await job.initialized;
+        t.after(() => job.closeSubscribers());
+        Object.assign(job.job, { jobId: 'temporal-job', token: 'temporal-token', status: 'running', principalUserId: 'owner' });
+        job.runId = 'temporal-run';
+        await job.persistState();
+        await job.runJob(payload, {}, { userId: 'owner' });
+        await drain(state);
+        assert.equal(job.job.status, 'complete', job.job.error);
+        sourceUsage = job.job.meta.sourceUsage;
+        assert.deepEqual(receipts.flatMap(receipt => receipt.ids), expected ? ['private-temporal-age'] : []);
+        assert.doesNotMatch(JSON.stringify(job.job), /private-temporal-age|temporalStatus|temporalReference/);
+      }
+      const blocks = memory.parseMemoryBlocks(finalPrompt);
+      assert.deepEqual([...blocks.values()].map(block => block.text), expected ? [stored] : []);
+      assert.equal(sourceUsage.memories.memoriesSelected, expected);
+      assert.equal(sourceUsage.memories.memoriesUsedInPrompt, expected);
+      const accessedAt = db.sqlite.prepare('SELECT last_accessed_at FROM user_memories').get().last_accessed_at;
+      assert.equal(accessedAt !== null, expected > 0);
+      if (transport === 'job' && expected) assert.equal(accessedAt, Math.floor(receipts[0].completedAt / 1000));
+      if (!expected) assert.equal(db.calls.filter(call => call.write && /UPDATE user_memories/.test(call.sql)).length, 0);
+    });
+  }
+}
+
 test('actual reading route stamps selected retained IDs only after final acceptance', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' }); insert(db, 'unrelated', { text: 'Enjoys woodland hiking' }); insert(db, 'private-detail', { text: 'I am 42 years old' });
@@ -365,14 +435,17 @@ test('provider fallback recomputes retention for the accepted final capped promp
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' });
   t.mock.method(console, 'log', () => {}); t.mock.method(console, 'warn', () => {}); t.mock.method(console, 'error', () => {});
+  const acceptedReading = [...MAJOR_ARCANA, ...MINOR_ARCANA].map(card => `**${card.name}** invites career reflection.`).join(' ') + ' Your choices shape outcomes.';
   const requests = [];
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     const payload = JSON.parse(init.body);
     requests.push({ url: String(url), payload });
     if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
-    return Response.json({ id: 'accepted', model: 'test-openai', output_text: 'The Sun invites career exploration. Your choices shape outcomes.', usage: { input_tokens: 10, output_tokens: 10 } });
+    return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
   });
-  const input = { ...routeFixture, spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo: Array.from({ length: 78 }, (_, index) => ({ card: 'The Sun', number: 19, position: `Focus ${index} ${'custom role '.repeat(45)}`, orientation: 'Upright', meaning: 'Positivity, fun, warmth, success, vitality', userReflection: 'Career exploration and workplace choices. '.repeat(47) })) };
+  // Ordinary readings now reject repeated identities. Keep this cap/fallback
+  // regression on the complete distinct catalog rather than 78 repeated Suns.
+  const input = { ...routeFixture, spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo: [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), position: `Focus ${index}`, orientation: 'Upright', meaning: card.upright, userReflection: 'Career exploration and workplace choices. '.repeat(47) })) };
   const tasks = [];
   const response = await onRequestPost({ request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }), env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', OPENAI_API_KEY: 'synthetic-test-key', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' }, principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise) });
   const body = await response.json();
@@ -968,3 +1041,48 @@ test('real subscription producer stages private request and attempt identity bef
     db.sqlite.close();
   });
 });
+
+for (const outcome of ['accepted', 'canceled', 'failed']) {
+  test(`dated future memory from a real job is stamped only for ${outcome} completion`, async t => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+    t.mock.method(console, 'log', () => {});
+    t.mock.method(console, 'warn', () => {});
+    const stored = 'My child will be 8 in 2027';
+    const db = routeDatabase();
+    insert(db, 'private-future-note', { text: stored });
+    t.after(() => db.sqlite.close());
+    const state = createReadingJobState();
+    const receipts = [];
+    let upstream;
+    let providerInput;
+    t.mock.method(globalThis, 'fetch', async (_url, init) => {
+      providerInput = JSON.parse(init.body);
+      return new Response(new ReadableStream({ start(controller) { upstream = controller; } }), { headers: { 'content-type': 'text/event-stream' } });
+    });
+    const env = { DB: db, TEXT_PROVIDER: 'codex-subscription', CODEX_SUBSCRIPTION_OWNER_USER_ID: 'owner', CODEX_SUBSCRIPTION_GATEWAY_URL: 'https://codex.test', CODEX_SUBSCRIPTION_GATEWAY_TOKEN: 'synthetic', CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+    const job = new ReadingJob(state, env, { runReading: context => onRequestPost({ ...context, onReadingMemoryUsage: usage => { receipts.push(usage); context.onReadingMemoryUsage(usage); } }) });
+    t.after(() => job.closeSubscribers());
+    const payload = { ...routeFixture, userQuestion: `${stored}. How can I support my family?` };
+    await job.fetch(new Request('https://jobs/start', { method: 'POST', headers: { 'X-Job-Token': 'token' }, body: JSON.stringify({ jobId: 'future-job', payload, principal: { userId: 'owner' } }) }));
+    for (let turn = 0; turn < 20 && !upstream; turn++) await nextTurn();
+    assert.ok(upstream, 'actual job must reach the synthetic subscription stream');
+    const providerText = providerInput.userPrompt || providerInput.messages?.map(message => message.content).join('\n') || providerInput.prompt || '';
+    assert.deepEqual([...memory.parseMemoryBlocks(providerText).values()].map(block => block.text), [stored]);
+    const text = 'The Sun invites family reflection. Your choices shape outcomes.';
+    const send = (type, value) => upstream.enqueue(new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(value)}\n\n`));
+    send('delta', { text });
+    if (outcome === 'canceled') await job.cancelRun();
+    else if (outcome === 'failed') send('error', { message: 'Synthetic provider failure' });
+    else send('done', { text, structured: null, provider: 'codex-subscription', model: 'synthetic', modelSource: 'configured', usage: {} });
+    await drain(state);
+    assert.equal(receipts.length, outcome === 'accepted' ? 1 : 0);
+    assert.equal(job.job.status, outcome === 'accepted' ? 'complete' : 'error');
+    const accessedAt = db.sqlite.prepare('SELECT last_accessed_at FROM user_memories').get().last_accessed_at;
+    if (outcome === 'accepted') {
+      assert.deepEqual(receipts[0].ids, ['private-future-note']);
+      assert.equal(accessedAt, Math.floor(receipts[0].completedAt / 1000));
+    } else assert.equal(accessedAt, null);
+    assert.equal(state.stored.has(RECEIPT_KEY), false);
+    assert.doesNotMatch(JSON.stringify(job.job), /private-future-note|temporalStatus|temporalReference/);
+  });
+}

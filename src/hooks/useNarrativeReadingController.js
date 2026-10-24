@@ -27,6 +27,7 @@ export function useNarrativeReadingController({
   reading,
   reflections = null,
   deckStyleId,
+  savedDeckStyle = null,
   onSelectInsightCard,
   visibleCount,
   spreadPositions,
@@ -159,6 +160,8 @@ export function useNarrativeReadingController({
     narrativePhase,
     themes,
     readingMeta,
+    selectedDeck: deckStyleId,
+    previewRecoveryContext: { cardsInfo: reading, savedDeckStyle: savedDeckStyle || themes?.deckStyle || readingMeta?.deckStyle },
     highlightItems,
     visibleCount,
     revealedCardsSize: revealedCards?.size ?? revealedCards?.length ?? 0,
@@ -193,6 +196,9 @@ export function useNarrativeReadingController({
     storyArtCards,
     themes,
     readingMeta,
+    deckStyleId,
+    savedDeckStyle,
+    reading,
     visibleCount
   ]);
 

@@ -133,7 +133,7 @@ export const ARCHETYPAL_TRIADS = [
     partialNarrative: {
       '15-16': 'Attachments meet necessary disruption',
       '16-19': 'Upheaval clearing the path to clarity',
-      '15-19': 'From shadow to light (sudden liberation)'
+      '15-19': 'Attachment considered alongside clarity and vitality.'
     }
   },
 
@@ -265,7 +265,7 @@ export const ARCHETYPAL_TRIADS = [
     partialNarrative: {
       '10-11': 'Fate meeting accountability',
       '11-12': 'Truth requiring suspension of judgment',
-      '10-12': 'Cycles demanding surrender'
+      '10-12': 'Changing conditions inviting a different perspective.'
     }
   },
 
@@ -534,6 +534,8 @@ export const SUIT_PROGRESSIONS = {
     beginning: {
       ranks: [1, 2, 3],
       theme: 'Ignition',
+      summary: 'Creative intention can take several forms.',
+      completeTheme: 'Inspiration, planning, and expansion can inform one another.',
       narrative:
         'Ace: Pure creative spark → Two: Planning & vision → Three: Confident expansion',
       readingSignificance:
@@ -548,6 +550,8 @@ export const SUIT_PROGRESSIONS = {
     challenge: {
       ranks: [4, 5, 6, 7],
       theme: 'Testing the Fire',
+      summary: 'Creative effort can meet competing demands.',
+      completeTheme: 'Milestones, competition, recognition, and perseverance can be considered together.',
       narrative:
         'Four: Celebration → Five: Competition → Six: Victory → Seven: Defensive perseverance',
       readingSignificance:
@@ -563,6 +567,8 @@ export const SUIT_PROGRESSIONS = {
     mastery: {
       ranks: [8, 9, 10],
       theme: 'Culmination',
+      summary: 'Sustained effort invites reflection on pace and capacity.',
+      completeTheme: 'Momentum, resilience, and responsibility can reveal tensions around sustainable effort.',
       narrative:
         'Eight: Swift momentum → Nine: Guarded resilience → Ten: Overburdened completion',
       readingSignificance:
@@ -583,6 +589,8 @@ export const SUIT_PROGRESSIONS = {
     beginning: {
       ranks: [1, 2, 3],
       theme: 'Emotional Opening',
+      summary: 'Connection can be considered through distinct emotional themes.',
+      completeTheme: 'Openness, reciprocity, and community can offer complementary perspectives on connection.',
       narrative:
         'Ace: Overflowing heart → Two: Partnership & reciprocity → Three: Celebration & friendship',
       readingSignificance:
@@ -597,6 +605,8 @@ export const SUIT_PROGRESSIONS = {
     challenge: {
       ranks: [4, 5, 6, 7],
       theme: 'Emotional Complexity',
+      summary: 'Emotional attention can turn in different directions.',
+      completeTheme: 'Withdrawal, mourning, memory, and imagined possibilities can be explored as contrasting emotional themes.',
       narrative:
         'Four: Apathy → Five: Loss & grief → Six: Nostalgia → Seven: Overwhelming options',
       readingSignificance:
@@ -612,6 +622,8 @@ export const SUIT_PROGRESSIONS = {
     mastery: {
       ranks: [8, 9, 10],
       theme: 'Emotional Maturity',
+      summary: 'Emotional choices invite consideration of what matters.',
+      completeTheme: 'Release, contentment, and shared fulfillment can illuminate different values without promising an outcome.',
       narrative: 'Eight: Walking away → Nine: Wish fulfillment → Ten: Blessed union',
       readingSignificance:
         "You're in the emotional maturity phase—making conscious choices to release or embrace, finding authentic fulfillment.",
@@ -631,6 +643,8 @@ export const SUIT_PROGRESSIONS = {
     beginning: {
       ranks: [1, 2, 3],
       theme: 'Mental Clarity',
+      summary: 'Thought and discernment can take different forms.',
+      completeTheme: 'Clarity, indecision, and grief can be considered in relationship without requiring a sequence.',
       narrative:
         'Ace: Breakthrough insight → Two: Difficult choice → Three: Heartbreak',
       readingSignificance:
@@ -645,6 +659,8 @@ export const SUIT_PROGRESSIONS = {
     challenge: {
       ranks: [4, 5, 6, 7],
       theme: 'Mental Struggle',
+      summary: 'Different responses to mental strain can be compared.',
+      completeTheme: 'Rest, conflict, transition, and strategy offer contrasting approaches to difficulty.',
       narrative:
         'Four: Rest → Five: Hollow victory → Six: Transition → Seven: Strategy',
       readingSignificance:
@@ -660,6 +676,8 @@ export const SUIT_PROGRESSIONS = {
     mastery: {
       ranks: [8, 9, 10],
       theme: 'Mental Crisis & Liberation',
+      summary: 'Difficult thoughts invite care and perspective.',
+      completeTheme: 'Constraint, anguish, and painful endings can be explored together without diagnosing a crisis or promising recovery.',
       narrative:
         'Eight: Self-imprisonment → Nine: Anxiety → Ten: Rock bottom (then dawn)',
       readingSignificance:
@@ -667,7 +685,7 @@ export const SUIT_PROGRESSIONS = {
       cards: [
         { rank: 8, name: 'Eight of Swords', role: 'Bound by thought' },
         { rank: 9, name: 'Nine of Swords', role: 'Anguish' },
-        { rank: 10, name: 'Ten of Swords', role: 'Painful ending, daybreak coming' }
+        { rank: 10, name: 'Ten of Swords', role: 'Painful ending' }
       ],
       shadow: 'Crisis before breakthrough',
       light: 'The worst is over; dawn is promised'
@@ -681,6 +699,8 @@ export const SUIT_PROGRESSIONS = {
     beginning: {
       ranks: [1, 2, 3],
       theme: 'Material Foundation',
+      summary: 'Practical possibilities invite attention to resources.',
+      completeTheme: 'Opportunity, adaptation, and collaboration can inform the foundations of practical work.',
       narrative:
         'Ace: Seed of prosperity → Two: Juggling resources → Three: Skilled collaboration',
       readingSignificance:
@@ -695,6 +715,8 @@ export const SUIT_PROGRESSIONS = {
     challenge: {
       ranks: [4, 5, 6, 7],
       theme: 'Resource Management',
+      summary: 'Resource choices can involve competing priorities.',
+      completeTheme: 'Holding, hardship, generosity, and assessment can invite reflection on how resources are managed.',
       narrative:
         'Four: Holding tight → Five: Hardship → Six: Generosity → Seven: Patient assessment',
       readingSignificance:
@@ -710,6 +732,8 @@ export const SUIT_PROGRESSIONS = {
     mastery: {
       ranks: [8, 9, 10],
       theme: 'Material Mastery',
+      summary: 'Practical work can be viewed through craft and continuity.',
+      completeTheme: 'Practice, independence, and legacy can illuminate different relationships with material security.',
       narrative:
         'Eight: Diligent craftsmanship → Nine: Self-sufficiency → Ten: Lasting legacy',
       readingSignificance:
@@ -780,19 +804,20 @@ export const COURT_FAMILY_PATTERNS = {
 };
 
 /**
- * Marseille numerology + pip geometry themes
+ * Marseille rank meanings. These are interpretive themes, not evidence of a
+ * physical arrangement shared by every suit at that rank.
  */
 export const MARSEILLE_NUMERICAL_THEMES = {
-  1: { keyword: 'Essence', description: 'Single stem on the central axis—the seed of purpose asking for direction.', geometry: 'Vertical wand/cup anchoring the entire motif.' },
-  2: { keyword: 'Duality', description: 'Mirrored forms show dialogue, choice, and polarity seeking harmony.', geometry: 'Paired emblems meeting across a central flower.' },
-  3: { keyword: 'Expansion', description: 'Triadic symmetry indicates growth, creativity, and collaborative momentum.', geometry: 'Three-petal arcs forming a triangle of flow.' },
-  4: { keyword: 'Structure', description: 'Crossed stems create a stable lattice; emphasizes foundations and boundaries.', geometry: 'Quadrants built from intersecting batons or swords.' },
-  5: { keyword: 'Vital Shift', description: 'Center blossom disrupted—tension prompting recalibration and courage.', geometry: 'Central flower pierced or contrasted by the fifth symbol.' },
-  6: { keyword: 'Harmony', description: 'Balanced weaving of stems; receptive, beautiful equilibrium of forces.', geometry: 'Hexagonal arrangement framing a radiant center.' },
-  7: { keyword: 'Challenge', description: 'Asymmetry appears; invites introspection and faith beyond comfort.', geometry: 'Single emblem misaligned above or below the stable lattice.' },
-  8: { keyword: 'Movement', description: 'Loops and crossings accelerate—depicts cycles, diligence, and momentum.', geometry: 'Double loops suggesting infinity symbols within the pip art.' },
-  9: { keyword: 'Ripeness', description: 'Dense patternation shows fullness and stewardship of completion.', geometry: 'Three triads stacked, flowers blooming at intersections.' },
-10: { keyword: 'Threshold', description: 'Pip forms create portals—culmination transitioning into a new cycle.', geometry: 'Four pairs framing a central staff or sword, indicating closure.' }
+  1: { keyword: 'Essence', description: 'A beginning or seed of potential invites a direction for this suit’s energy.' },
+  2: { keyword: 'Duality', description: 'Dialogue, choice and different needs can seek a workable relationship.' },
+  3: { keyword: 'Expansion', description: 'Growth, creativity and collaboration can extend what has begun.' },
+  4: { keyword: 'Structure', description: 'Foundations, boundaries and repeatable forms can support or constrain.' },
+  5: { keyword: 'Vital Shift', description: 'Tension or change invites recalibration and courage.' },
+  6: { keyword: 'Harmony', description: 'Reciprocity, adjustment and a workable balance invite attention.' },
+  7: { keyword: 'Challenge', description: 'Discernment, reflection and a considered response can help with complexity.' },
+  8: { keyword: 'Movement', description: 'Diligence, repetition and directed effort can help sustain momentum.' },
+  9: { keyword: 'Ripeness', description: 'Fullness, self-assessment and stewardship of what has developed invite attention.' },
+  10: { keyword: 'Threshold', description: 'Culmination, responsibility and the possibility of a new cycle invite reflection.' }
 };
 
 export const DECK_STYLE_OVERRIDES = {

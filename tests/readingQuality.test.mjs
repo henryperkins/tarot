@@ -282,6 +282,27 @@ describe('analyzeCardCoverage', () => {
 // =============================================================================
 
 describe('detectHallucinatedCards', () => {
+  it('excludes clear absence, comparison, hypothetical and reported quotation mentions', () => {
+    const cards = [{ card: 'Temperance' }];
+    for (const text of [
+      'The Moon card and The Sun card are not drawn here.',
+      'Unlike The Moon card, this is a quieter reflection.',
+      'If you drew The Moon card, you could reflect.',
+      'You wrote, “The Moon appears in your spread.”'
+    ]) {
+      assert.deepStrictEqual(detectHallucinatedCards(text, cards), [], text);
+    }
+  });
+
+  it('tracks affirmative undrawn claims separately from uncertain mentions', () => {
+    const result = buildNarrativeMetrics('The Moon appears in your spread. The Tower suggests reflection.', [{ card: 'Temperance' }]);
+    assert.deepStrictEqual(result.undrawnCardAssertions, ['The Moon']);
+    assert.deepStrictEqual(result.hallucinatedCards, ['The Tower']);
+  });
+
+  it('does not grant ordinary vocabulary card context from a different occurrence', () => {
+    assert.deepStrictEqual(detectHallucinatedCards('Justice card is absent here; a sense of justice can guide you.', []), []);
+  });
   describe('RWS deck (default)', () => {
     it('detects hallucinated cards not in spread', () => {
       // Use full card names - "The Tower" not just "Tower"
@@ -363,7 +384,9 @@ describe('detectHallucinatedCards', () => {
     it('uses position context around the observed misspelling', () => {
       const text = 'Present: Justce. Outcome: Temperence. The Mooon card invites reflection.';
 
-      assert.deepStrictEqual(detectHallucinatedCards(text, []).sort(), ['Justice', 'Temperance', 'The Moon']);
+      const metrics = buildNarrativeMetrics(text, []);
+      assert.deepStrictEqual(metrics.hallucinatedCards, ['The Moon']);
+      assert.deepStrictEqual(metrics.undrawnCardAssertions.sort(), ['Justice', 'Temperance']);
     });
 
     it('keeps misspelled astronomical prose outside the card context check', () => {
@@ -577,7 +600,7 @@ describe('buildNarrativeMetrics', () => {
       cardsInfo,
       'thoth-a1'
     );
-    assert.ok(explicitCard.hallucinatedCards.includes('The Moon'));
+    assert.ok(explicitCard.undrawnCardAssertions.includes('The Moon'));
   });
 
   it('ignores reflections when detecting hallucinated cards', () => {

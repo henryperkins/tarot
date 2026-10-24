@@ -264,7 +264,7 @@ describe('GraphRAG Retrieval', () => {
   test('retrievePassages: suit progression (priority 4)', () => {
     const graphKeys = {
       suitProgressions: [
-        { suit: 'Wands', stage: 'beginning', significance: 'strong-progression' }
+        { suit: 'Wands', stage: 'beginning', significance: 'strong-progression', matchedCardKeys: ['ace of wands', 'two of wands', 'three of wands'] }
       ]
     };
 
@@ -280,7 +280,7 @@ describe('GraphRAG Retrieval', () => {
   test('retrievePassages: emerging suit progression (priority 5)', () => {
     const graphKeys = {
       suitProgressions: [
-        { suit: 'Cups', stage: 'challenge', significance: 'emerging-progression' }
+        { suit: 'Cups', stage: 'challenge', significance: 'emerging-progression', matchedCardKeys: ['four of cups', 'six of cups'] }
       ]
     };
 
@@ -298,7 +298,7 @@ describe('GraphRAG Retrieval', () => {
       completeTriadIds: ['death-temperance-star'],
       foolsJourneyStageKey: 'integration',
       dyadPairs: [{ cards: [13, 17], significance: 'high' }],
-      suitProgressions: [{ suit: 'Wands', stage: 'beginning', significance: 'strong-progression' }]
+      suitProgressions: [{ suit: 'Wands', stage: 'beginning', significance: 'strong-progression', matchedCardKeys: ['ace of wands', 'two of wands', 'three of wands'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 10 });

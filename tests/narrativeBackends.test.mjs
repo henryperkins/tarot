@@ -1061,6 +1061,9 @@ describe('Claude backend + dispatch coverage', () => {
       }, structuredClone(basePayload), 'req-openai-dispatch');
       assert.equal(openaiResult.reading, 'OpenAI dispatch reading.');
       assert.ok(openaiResult.promptMeta, 'OpenAI dispatch should return promptMeta');
+      assert.deepEqual(openaiResult.promptMeta.inference.responseShape, {
+        assistantMessageCount: 1, outputTextPieceCount: 1, aggregateFallbackUsed: false
+      });
 
       const claudeResult = await runNarrativeBackend('claude-api', {
         ANTHROPIC_API_KEY: 'claude-key'

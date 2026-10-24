@@ -216,3 +216,38 @@ it('equivalent apostrophes preserve topic exclusions and original matching offse
   }
   assert.ok(selections.every(selection => JSON.stringify(selection) === JSON.stringify(selections[0])));
 });
+
+describe('scoped exclusions preserve positive current authority and relevant interests', () => {
+  const questions = [
+    'I am not asking about quitting my job. How can I handle my boss at work?',
+    'I’m not asking about leaving my job; I need guidance on my workplace boundaries.',
+    'I am not asking about changing career but how can I handle my boss?',
+    'This is not about my job. How can I handle my boss?',
+    'I am not asking about quitting my job\nHow can I handle my boss?'
+  ];
+  for (const userQuestion of questions) it(`preserves career outside excluded scope: ${userQuestion}`, () => {
+    const selection = contextDetection.resolveContextSelection({ userQuestion, focusAreas: ['Love & relationships', 'Career & purpose'] }, 'threeCard');
+    assert.equal(selection.context, 'career');
+    assert.equal(selection.graphRAGContext, 'career');
+    assert.equal(selection.source, 'question');
+    assert.ok(selection.retrievalQuery.includes(userQuestion));
+    assert.doesNotMatch(selection.retrievalQuery, /Love & relationships|Career & purpose/);
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(['Love & relationships', 'Career & purpose'], selection), ['Career & purpose']);
+  });
+  it('keeps a whole-topic veto when no separate positive workplace request exists', () => {
+    const selection = contextDetection.resolveContextSelection({
+      userQuestion: 'I am not asking about career, work, or my job. I need help with my relationship.',
+      reflectionsText: 'My career matters.', focusAreas: ['Career & purpose', 'Love & relationships']
+    }, 'single');
+    assert.equal(selection.context, 'love');
+    assert.ok(selection.excludedContexts.reading.includes('career'));
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(['Career & purpose', 'Love & relationships'], selection), ['Love & relationships']);
+  });
+  it('retains a useful twelfth focus label when current sources are generic', () => {
+    const focusAreas = [...Array.from({length: 11}, (_, i) => `Interest ${i}`), 'Career & purpose'];
+    const selection = contextDetection.resolveContextSelection({ userQuestion: 'What should I consider?', focusAreas }, 'single');
+    assert.equal(selection.context, 'career');
+    assert.equal(selection.source, 'focusAreas');
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(focusAreas, selection), ['Career & purpose']);
+  });
+});

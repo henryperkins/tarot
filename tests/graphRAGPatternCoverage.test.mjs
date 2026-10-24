@@ -31,7 +31,7 @@ const partialIdentity = id => {
 describe('GraphRAG court lineage retrieval', () => {
   test('retrievePassages: court lineage alliance (priority 5)', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Cups', significance: 'alliance' }]
+      courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5 });
@@ -47,7 +47,7 @@ describe('GraphRAG court lineage retrieval', () => {
 
   test('retrievePassages: court lineage council', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Swords', significance: 'council' }]
+      courtLineages: [{ suit: 'Swords', significance: 'council', matchedCardKeys: ['page of swords', 'queen of swords', 'king of swords'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5 });
@@ -59,7 +59,7 @@ describe('GraphRAG court lineage retrieval', () => {
 
   test('retrievePassages: includes court lineage metadata when requested', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Wands', significance: 'alliance' }]
+      courtLineages: [{ suit: 'Wands', significance: 'alliance', matchedCardKeys: ['queen of wands', 'king of wands'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5, includeMetadata: true });
@@ -191,7 +191,7 @@ describe('GraphRAG pattern coverage telemetry', () => {
         { cards: [13, 17], significance: 'high' }
       ],
       courtLineages: [
-        { suit: 'Cups', significance: 'alliance' },
+        { suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] },
         { suit: 'Wands', significance: 'council' }
       ]
     }, []);
@@ -201,7 +201,7 @@ describe('GraphRAG pattern coverage telemetry', () => {
   });
 
   test('summary-only prompts name newly retrieved pattern families', () => {
-    const block = buildGraphRAGReferenceBlock('celtic', { knowledgeGraph: { graphKeys: { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], dyadPairs: [{ cards: [8, 11], significance: 'medium' }, { cards: [13, 14], significance: 'medium' }], courtLineages: [{ suit: 'Cups', significance: 'alliance' }] } } }, {
+    const block = buildGraphRAGReferenceBlock('celtic', { knowledgeGraph: { graphKeys: { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], dyadPairs: [{ cards: [8, 11], significance: 'medium' }, { cards: [13, 14], significance: 'medium' }], courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }] } } }, {
       env: { GRAPHRAG_ENABLED: 'true' },
       graphRAGSummaryOnly: true,
       graphRAGPayload: {
@@ -322,7 +322,7 @@ describe('Traditional wisdom reaches the prompt for court-lineage-only spreads',
             completeTriadIds: [],
             dyadPairs: [],
             suitProgressions: [],
-            courtLineages: [{ suit: 'Cups', significance: 'alliance' }]
+            courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }]
           }
         }
       },
@@ -338,7 +338,7 @@ describe('Traditional wisdom reaches the prompt for court-lineage-only spreads',
 
 describe('Partial-triad passages carry an explicit absent-card guardrail', () => {
   const partialTriadPayload = { passages: retrievePassages({ triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')] }) };
-  const completePatternPayload = { passages: retrievePassages({ courtLineages: [{ suit: 'Cups', significance: 'alliance' }] }) };
+  const completePatternPayload = { passages: retrievePassages({ courtLineages: [{ suit: 'Cups', significance: 'council', matchedCardKeys: ['page of cups', 'knight of cups', 'queen of cups', 'king of cups'] }] }) };
 
   test('warns that a partial arc names cards which may be absent', () => {
     const block = buildGraphRAGReferenceBlock('celtic', {}, {

@@ -409,7 +409,7 @@ export const MAJOR_ARCANA_IMAGERY = {
     visual: "Armored figure in chariot, two sphinxes (black and white) pulling, city behind, starry canopy above",
     upright: "Notice the Chariot's opposing sphinxes—mastery comes through directing contrary forces as one.",
     reversed: "The sphinxes pull in different directions; regain control by clarifying where you're heading.",
-    sensory: "Reins taut, momentum building, the tension of harnessed power"
+    sensory: "Momentum building, opposing pulls held in a steady direction"
   },
 
   8: { // Strength

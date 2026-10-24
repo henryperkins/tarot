@@ -29,7 +29,7 @@ test('final display needs verified selected indices and uses projected text; leg
   const [record] = collectPassageCandidates({ singleMajorNumber: 19, singleMajorName: 'The Sun', totalMajors: 1 }, { deckStyle: 'thoth-a1' });
   const themes = { knowledgeGraph: { graphRAGPayload: { passages: [record] }, retrievedPassages: [{ text: 'Earlier context-independent preview.' }] } };
   assert.deepEqual(getTraditionalPassages(themes), []);
-  assert.equal(modelUtils.getTraditionalPassagePreview(themes).length, 1);
+  assert.deepEqual(modelUtils.getTraditionalPassagePreview(themes, null, 'thoth-a1'), [], 'Unverifiable legacy prose requires saved-card reconstruction.');
   assert.deepEqual(getTraditionalPassages(themes, { sourceUsage: { graphRAG: { used: true, mode: 'full', passagesUsedInPrompt: 1 } } }), []);
   const meta = { sourceUsage: { graphRAG: { used: true, mode: 'full', passagesUsedInPrompt: 1, passageIndices: [0] } } };
   assert.equal(getTraditionalPassages(themes, meta)[0].text, record.promptText);
@@ -149,7 +149,7 @@ test('known omissions and ambiguous legacy trimming do not create a traditional 
     assert.equal(state.shouldShowSpreadInsights, false);
   }
   assert.equal(getTraditionalPassages(themes).length, 0, 'legacy counts do not prove final inclusion');
-  assert.equal(modelUtils.getTraditionalPassagePreview(themes).length, 2, 'historical entries remain displayable as preview');
+  assert.deepEqual(modelUtils.getTraditionalPassagePreview(themes, null, 'rws-1909'), [], 'Legacy prose without identity is omitted; narrative display is independent.');
 });
 
 test('retained passage indices survive bounded journal normalization without arbitrary text', () => {

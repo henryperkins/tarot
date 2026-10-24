@@ -105,6 +105,39 @@ export function getTextVerbosity(env = null, modelName = '') {
   return 'medium';
 }
 
+/** Extract the complete ordered answer; keep reasoning and shape diagnostics separate. */
+export function extractOpenAIResponseContent(data) {
+  const messages = [];
+  const summaries = [];
+  const responseShape = {
+    assistantMessageCount: 0,
+    outputTextPieceCount: 0,
+    aggregateFallbackUsed: false
+  };
+  for (const block of Array.isArray(data?.output) ? data.output : []) {
+    if (block?.type === 'message' && (block.role == null || block.role === 'assistant')) {
+      responseShape.assistantMessageCount += 1;
+      const pieces = (Array.isArray(block.content) ? block.content : [])
+        .filter(piece => piece?.type === 'output_text' && typeof piece.text === 'string');
+      responseShape.outputTextPieceCount += pieces.length;
+      const message = pieces.map(piece => piece.text).join('');
+      if (message.trim()) messages.push(message);
+    } else if (block?.type === 'reasoning') {
+      for (const summary of Array.isArray(block.summary) ? block.summary : []) {
+        if (summary?.type === 'summary_text' && typeof summary.text === 'string' && summary.text.trim()) {
+          summaries.push(summary.text);
+        }
+      }
+    }
+  }
+  let text = messages.join('\n\n').trim() || null;
+  if (!text && typeof data?.output_text === 'string' && data.output_text.trim()) {
+    text = data.output_text.trim();
+    responseShape.aggregateFallbackUsed = true;
+  }
+  return { text, reasoningSummary: summaries.join('\n').trim() || null, responseShape };
+}
+
 /**
  * Call OpenAI Responses API
  *
@@ -252,38 +285,7 @@ async function callOpenAIResponsesImpl(env, {
     console.warn('[openaiResponses] Failed to log OpenAI payload snapshot', logError);
   }
 
-  // Extract text content and reasoning summary from response
-  let text = null;
-  let reasoningSummaryText = null;
-
-  if (data.output && Array.isArray(data.output)) {
-    for (const block of data.output) {
-      if (block.type === 'message' && !text) {
-        const messagePieces = Array.isArray(block.content) ? block.content : [];
-        for (const piece of messagePieces) {
-          if (piece.type === 'output_text' && piece.text) {
-            text = piece.text.trim();
-            break;
-          }
-        }
-      } else if (block.type === 'reasoning' && !reasoningSummaryText) {
-        // Extract reasoning summary from the reasoning block
-        if (Array.isArray(block.summary)) {
-          reasoningSummaryText = block.summary
-            .filter(s => s.type === 'summary_text' && s.text)
-            .map(s => s.text)
-            .join('\n')
-            .trim() || null;
-        }
-      }
-      if (text && reasoningSummaryText) break;
-    }
-  }
-
-  // Fallback: try output_text property (some models use this)
-  if (!text && typeof data.output_text === 'string' && data.output_text.trim()) {
-    text = data.output_text.trim();
-  }
+  const { text, reasoningSummary: reasoningSummaryText, responseShape } = extractOpenAIResponseContent(data);
 
   if (!text) {
     throw new Error('OpenAI Responses API returned no text content.');
@@ -298,6 +300,7 @@ async function callOpenAIResponsesImpl(env, {
     return {
       text,
       reasoningSummary: reasoningSummaryText,
+      responseShape,
       model: data.model || null,
       usage: data.usage || null
     };

@@ -699,3 +699,14 @@ test('template repetition leaves lowercase words that double as Thoth titles alo
   ].join(' ');
   assert.equal(analyzeTemplateRepetition(reading, { deckStyle: 'thoth-a1' }).repeatedSentenceCount, 0);
 });
+
+test('narrative metrics and its gate reject one affirmative undrawn assertion with a distinct field', async () => {
+  const metrics = await computeMetrics([sampleWithGuidance('affirmative-undrawn-review', 'The Moon appears in your spread. You can consider a gentle pause.')]);
+  assert.deepEqual(metrics.perSample[0].undrawnCardAssertions, ['The Moon']);
+  assert.equal(metrics.undrawnCardAssertionCount, 1);
+  assert.ok(metrics.perSample[0].issueFlags.includes('undrawn-card-assertion(1)'));
+  await assert.rejects(verifyGate(metrics), error => {
+    assert.match(error.stderr, /Undrawn card assertion/);
+    return true;
+  });
+});

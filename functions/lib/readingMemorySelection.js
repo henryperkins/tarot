@@ -11,13 +11,14 @@ const CATEGORIES = new Set(['theme', 'card_affinity', 'communication', 'life_con
 const RELATIONS = 'child|kid|son|daughter|partner|spouse|husband|wife|mother|mom|mum|father|dad|parent|sister|brother|friend|grandmother|grandfather';
 const ALIASES = { kid: 'child', mom: 'mother', mum: 'mother', dad: 'father' };
 const MEASUREMENT_UNIT = /^\s*(?:(?:nautical|square|cubic|metric)\s+)*(?:miles?|yards?|feet|foot|inch(?:es)?|ounces?|stones?|ton(?:ne)?s?|(?:milli|centi|kilo)?met(?:er|re)s?|(?:milli|centi|kilo)?grams?|kilogrammes?|kilos?|(?:milli)?lit(?:er|re)s?|gallons?|mi|yds?|ft|[cmk]?m|kgs?|mg|g|lbs?|oz|ml|l|mph|kph)\b/i;
-const COPULA_NUMBER = /\b(?:am|is|are|was|were)\s+(\d{1,3})(?!\d)|'(?:m|s|re)\s+(\d{1,3})(?!\d)/i;
-const AGE_CONTINUATION = /^\s*(?:$|(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o|today|now|this\s+year)\b)/i;
+const COPULA_NUMBER = /\b(?:am|is|are|was|were|will\s+be)\s+(?:(?:not|never|no\s+longer)\s+)?(\d{1,3})(?!\d)|'(?:m|s|re)\s+(?:(?:not|never)\s+)?(\d{1,3})(?!\d)/i;
+const AGE_REFERENCE = String.raw`(?:in\s+(?:the\s+year\s+)?\d{4}|on\s+\d{4}-\d{2}-\d{2}|at\s+(?:my|the)\s+(?:graduation|wedding|retirement)|(?:next|last|this)\s+(?:year|month)|today|tomorrow|yesterday|now)`;
+const AGE_CONTINUATION = new RegExp(String.raw`^\s*(?:$|(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o|${AGE_REFERENCE})\b)`, 'i');
 // NFKC expands Unicode fractions to digits separated by the fraction slash.
 const FRACTION_START = String.raw`(?:(?:(?:a|an|one|two|three|four|five|six|seven|eight|nine|\d+)(?:\s+|[-–]))?(?:half|halves|thirds?|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?)\b|\d+\s*[/⁄]\s*\d+\b)`;
 const DETAIL_CLAUSE_SEPARATOR = new RegExp(String.raw`,(?!\d)\s*(?:and\s+)?|\s+(?:and(?!\s+${FRACTION_START})|but)\s+|\s*&(?!\s*${FRACTION_START})\s*`, 'i');
 const normalize = text => text.normalize('NFKC').replace(/[’‘]/g, "'").toLocaleLowerCase().replace(/\s+/g, ' ').trim();
-const claimKey = claim => `${claim.kind}:${claim.value}:${claim.subjectKey}`;
+const claimKey = claim => JSON.stringify([claim.kind, claim.value, claim.subjectKey, claim.temporalStatus, claim.temporalReference, claim.polarity]);
 const meaningfulTokens = text => new Set((normalize(text).match(/[\p{L}\p{N}]+(?:['-][\p{L}\p{N}]+)*/gu) || []).filter(token => token.length >= 4 && !STOP_WORDS.has(token)));
 
 /** Multiplicity can veto a role match without assigning any detail to a person. */
@@ -58,13 +59,13 @@ function bareAgeDetails(fragment) {
     if (/^[.,]\d|^\s*(?:[%°$€£]|cards?\b|pages?\b|degrees?\b|times?\b|dollars?\b|euros?\b|pounds?\b|cents?\b|usd\b|eur\b|gbp\b|hours?\b|minutes?\b|seconds?\b|days?\b|weeks?\b|months?\b|percent\b|per\s+(?:hour|day|week|month|year)\b|(?:an?|each)\s+(?:hour|day|week|month|year)\b)/i.test(suffix)) continue;
     // Unknown continuations cannot authorize an age. Keep them ambiguous so
     // a stored bare age cannot evade the detail guard as an ordinary note.
-    details.push({ kind: 'age', value: Number(numeric), index, ambiguous: !AGE_CONTINUATION.test(suffix) });
+    details.push({ kind: 'age', value: Number(numeric), index, numberStart: index, numberEnd: index + numeric.length, ambiguous: !AGE_CONTINUATION.test(suffix) });
   }
   return details;
 }
 
 function ownerFromPrefix(prefix, { displayName, source, fragment, kind }) {
-  const clean = prefix.trim().replace(new RegExp(`\\bmy\\s+(${RELATIONS})\\b`, 'gi'), (_match, role) => `my ${role.toLowerCase()}`).replace(/(?:\s+(?:am|is|are|was|will|be|a|an|almost|now|soon|about|to))+\s*$/gi, '').trim();
+  const clean = prefix.trim().replace(new RegExp(`\\bmy\\s+(${RELATIONS})\\b`, 'gi'), (_match, role) => `my ${role.toLowerCase()}`).replace(/(?:\s+(?:am|is|are|was|were|will|be|a|an|almost|now|soon|about|to|not|never|no|longer))+\s*$/gi, '').trim();
   if (/[&+,]|\b(?:and|or|nor)\b/i.test(clean)) return null;
   if (/\b(?:their|his|her|they|he|she|our|we|children|kids|parents|friends|siblings|both|two|three|other)\b/i.test(clean)) return null;
   // Possessive age modifiers may describe a following person, not the possessor.
@@ -84,12 +85,43 @@ function ownerFromPrefix(prefix, { displayName, source, fragment, kind }) {
   const named = /(?:^|\s)([\p{Lu}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)(?:'s)?\s*$/u.exec(clean);
   if (named) {
     const name = normalize(named[1]).replace(/'s$/, '');
-    if (!new Set(['turning', 'turn', 'turns', 'birthday', 'aged', 'age']).has(name)) return name === displayName ? 'self' : `name:${name}`;
+    if (!new Set(['turning', 'turn', 'turns', 'birthday', 'aged', 'age']).has(name)) return name === displayName || displayName && normalize(sanitizeDisplayName(named[1]) || '') === displayName ? 'self' : `name:${name}`;
   }
   if (displayName && normalize(clean).replace(/'s$/, '') === displayName) return 'self';
   if (kind === 'age' && source !== 'memory' && !clean && /^\s*turning\s+\d{1,3}\b/i.test(fragment)) return 'self';
   return null;
 }
+
+function ageTemporalEvidence(fragment, detail) {
+  const prefix = fragment.slice(0, detail.numberStart);
+  const suffix = normalize(fragment.slice(detail.numberEnd)).replace(/^(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b\s*/, '').trim();
+  const polarity = /\b(?:not|never|no\s+longer)\b/i.test(prefix) ? 'negative' : 'affirmative';
+  let temporalStatus = 'unknown';
+  if (/\b(?:turn(?:s|ing)?|almost)\s*$/i.test(prefix)) temporalStatus = 'approaching';
+  else if (/\bwill\s+be(?:\s+(?:not|never|no\s+longer|a|an|aged?))*\s*$/i.test(prefix)) temporalStatus = 'future';
+  else if (/\b(?:was|were)(?:\s+(?:not|never|no\s+longer|a|an|aged?))*\s*$/i.test(prefix)) temporalStatus = 'past';
+  else if (/(?:\b(?:am|is|are)|'(?:m|s|re))(?:\s+(?:not|never|no\s+longer|a|an|aged?))*\s*$/i.test(prefix)) temporalStatus = 'present';
+
+  let temporalReference = null;
+  const year = /^in\s+(?:the\s+year\s+)?(\d{4})$/.exec(suffix);
+  const date = /^on\s+(\d{4}-\d{2}-\d{2})$/.exec(suffix);
+  const event = /^at\s+(?:my|the)\s+(?:graduation|wedding|retirement)$/.exec(suffix);
+  if (year) temporalReference = `year:${year[1]}`;
+  if (date) {
+    const parsed = new Date(`${date[1]}T00:00:00Z`);
+    if (Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date[1]) temporalReference = `date:${date[1]}`;
+  }
+  if (event) temporalReference = `event:${suffix}`;
+  // Present copulas with a separate date/relative-time scope cannot authorize
+  // an unqualified current age. Do not infer an age or a date from timestamps.
+  if (temporalStatus === 'present' && suffix && !/^(?:reader|today|now|this\s+year)$/.test(suffix)) temporalStatus = 'unknown';
+  return { temporalStatus, polarity, temporalReference };
+}
+
+const admissibleAge = claim => claim.kind !== 'age' || claim.polarity === 'affirmative'
+  && (claim.temporalStatus === 'present' || ['past', 'future', 'approaching'].includes(claim.temporalStatus) && Boolean(claim.temporalReference));
+const sameTemporalScope = (left, right) => left.kind !== 'age' || left.temporalStatus === right.temporalStatus
+  && (left.temporalStatus === 'present' || left.temporalReference === right.temporalReference);
 
 /** A conservative, clause-local recognizer, not general person recognition. */
 export function extractPersonalDetailClaims(text, { displayName = '', source = 'memory' } = {}) {
@@ -115,13 +147,17 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
   });
   for (const fragment of fragments) {
     const details = bareAgeDetails(fragment);
-    const agePattern = /\b(?:turn(?:s|ing)?|aged?)\s+(\d{1,3})(?!\d)(?!\s+(?:cards?|pages?|degrees?|times?)\b)|\b(\d{1,3})(?!\d)\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b/gi;
+    const agePattern = /\b(?:turn(?:s|ing)?|aged?|almost)\s+(\d{1,3})(?!\d)(?!\s+(?:cards?|pages?|degrees?|times?)\b)|\b(\d{1,3})(?!\d)\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o)\b/gi;
     // A prefixed number needs the same age continuation as bare shorthand;
     // otherwise a fraction, range or non-year unit could become a year-age claim.
-    for (const match of fragment.matchAll(agePattern)) details.push({
-      kind: 'age', value: Number(match[1] || match[2]), index: match.index,
-      ambiguous: Boolean(match[1]) && !AGE_CONTINUATION.test(fragment.slice(match.index + match[0].length))
-    });
+    for (const match of fragment.matchAll(agePattern)) {
+      const numeric = match[1] || match[2];
+      const numberStart = match.index + match[0].indexOf(numeric);
+      details.push({
+        kind: 'age', value: Number(numeric), index: match.index, numberStart, numberEnd: numberStart + numeric.length,
+        ambiguous: Boolean(match[1]) && !AGE_CONTINUATION.test(fragment.slice(match.index + match[0].length))
+      });
+    }
     // These are ages, not ordinary durations. Their units are outside the
     // year-age matcher, so fail closed instead of equating eight months to eight years.
     for (const match of fragment.matchAll(/\b(?:days?|weeks?|months?)(?:\s+|[-–])old\b/gi)) {
@@ -136,7 +172,7 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
       }
       const subjectKey = ownerFromPrefix(fragment.slice(0, detail.index), { displayName: safeDisplayName, source, fragment, kind: detail.kind });
       if (!subjectKey) result.ambiguous = true;
-      else result.claims.push({ kind: detail.kind, value: detail.value, subjectKey });
+      else result.claims.push({ kind: detail.kind, value: detail.value, subjectKey, ...(detail.kind === 'age' ? ageTemporalEvidence(fragment, detail) : {}) });
     }
   }
   // An unnamed role is only a role-level match. Explicitly multiple people in
@@ -157,7 +193,7 @@ export function extractPersonalDetailClaims(text, { displayName = '', source = '
 // These admission grammars are intentionally small. Unknown factual language is
 // omitted; Unicode tokenization is not multilingual subject/negation analysis.
 const SUBJECT = String.raw`(?:[Ii]|[Mm]y\s+(?:${RELATIONS})(?:\s+[\p{Lu}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)?|[\p{Lu}][\p{L}'-]*(?:\s+[\p{Lu}][\p{L}'-]*)*)`;
-const AGE_CLAUSE = new RegExp(String.raw`^${SUBJECT}(?:'s|'m)?\s*(?:(?:am|is|are|was|will\s+be)\s+)?(?:a\s+)?(?:(?:turn(?:s|ing)?|aged?)\s+)?\d{1,3}(?:\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o))?(?:\s+(?:reader|today|now|this\s+year))?$`, 'u');
+const AGE_CLAUSE = new RegExp(String.raw`^${SUBJECT}(?:'s|'m)?\s*(?:(?:am|is|are|was|were|will\s+be|will)\s+)?(?:a\s+)?(?:(?:turn(?:s|ing)?|aged?|almost|about\s+to\s+turn)\s+)?\d{1,3}(?:\s*(?:years?\s+old|[-–]year[-–]old|y\s*\/\s*o))?(?:\s+(?:reader|${AGE_REFERENCE}))?$`, 'u');
 const BIRTHDAY_CLAUSE = new RegExp(String.raw`^(?:[Mm]y|${SUBJECT}(?:'s)?)\s+birthday(?:\s+is\s+approaching)?$`, 'u');
 const STYLE = /^(?:(?:i\s+)?prefer|prefers)\s+(?:(?:concise|brief|gentle|blunt|balanced|practical|direct|detailed|short|clear|simple|warm)\s+)*(?:advice|language|words|style|responses|readings|explanations|guidance)$/i;
 const FOOD_PREFERENCE = /^(?:i\s+(?:prefer|dislike)|prefers|dislikes)\s+(?:(?:vegetarian|vegan|simple|fresh|spicy)\s+)*(?:food|meals|shellfish|vegetables)$/i;
@@ -248,6 +284,18 @@ function contractedEmploymentVeto(text, displayName) {
   };
 }
 
+/** Quoted historical/reported prose cannot become current authority after splitting. */
+function maskQuotedEvidence(text) {
+  let masked = text;
+  for (const pattern of [/“[\s\S]*?”/gu, /"[\s\S]*?"/gu, /‘[\s\S]*?’(?![\p{L}\p{N}])/gu, /(?<![\p{L}\p{N}])'[\s\S]*?'(?![\p{L}\p{N}])/gu]) {
+    masked = masked.replace(pattern, ' [quoted]; ');
+  }
+  // Any remaining double opening quote has no verified end. Keep the
+  // preceding clause unsupported instead of promoting it by deleting a qualifier.
+  masked = masked.replace(/[“"][\s\S]*$/gu, ' [quoted]; ');
+  return masked;
+}
+
 function currentDetailEvidence(source, displayName) {
   const extracted = extractPersonalDetailClaims(source.text, { displayName, source: source.id || 'question' });
   const hypothetical = /^(?:if|unless|whether|suppose|assuming|perhaps|maybe|possibly|am|is|are|was|were|will|would|could|should)\b/i.test(source.text);
@@ -258,7 +306,7 @@ function currentDetailEvidence(source, displayName) {
   // authorize a memory. Unknown syntax remains unsupported.
   const affirmative = source.text.replace(/\b(?:no\s+longer|not|never)\s+/i, '');
   const negative = affirmative !== source.text && AGE_CLAUSE.test(affirmative)
-    ? extractPersonalDetailClaims(affirmative, { displayName, source: source.id || 'question' }).claims : [];
+    ? extractPersonalDetailClaims(affirmative, { displayName, source: source.id || 'question' }).claims.map(claim => ({ ...claim, polarity: 'negative' })) : [];
   return { claims: supported ? extracted.claims : [], ambiguousClaims: supported ? [] : extracted.claims, negative };
 }
 
@@ -288,7 +336,8 @@ export function checkMemoryCompatibility(memory, currentSources = [], { displayN
   if (typeof text !== 'string' || !text.trim()) return reject('ambiguous', 'malformed');
   if (containsSensitiveContent(text)) return reject('ambiguous', 'unsafe');
   if (RESTRICTED_HEALTH.test(text)) return reject('ambiguous', 'restricted_detail');
-  const current = (Array.isArray(currentSources) ? currentSources : []).filter(source => typeof source?.text === 'string');
+  const current = (Array.isArray(currentSources) ? currentSources : []).filter(source => typeof source?.text === 'string')
+    .map(source => ({ ...source, text: maskQuotedEvidence(source.text) }));
   const currentVetoes = roleVetoes(current);
   const memoryDetails = extractPersonalDetailClaims(text, { displayName, source: 'memory' });
   if (memoryDetails.ambiguous) return reject('ambiguous', 'unmatched_detail');
@@ -299,11 +348,12 @@ export function checkMemoryCompatibility(memory, currentSources = [], { displayN
   const negativeDetails = evidence.flatMap(result => result.negative);
   let supported = false;
   for (const claim of memoryDetails.claims) {
+    if (!admissibleAge(claim)) return reject('ambiguous', 'unmatched_detail');
     if (claim.subjectKey.startsWith('relation:') && currentVetoes.has(claim.subjectKey.slice(9))) return reject('ambiguous', 'unmatched_detail');
-    const sameSubject = detailEvidence.filter(candidate => candidate.subjectKey === claim.subjectKey && candidate.kind === claim.kind);
+    const sameSubject = detailEvidence.filter(candidate => candidate.subjectKey === claim.subjectKey && candidate.kind === claim.kind && admissibleAge(candidate) && sameTemporalScope(claim, candidate));
     if (sameSubject.some(candidate => candidate.value !== claim.value)) return reject('conflicting', 'conflicting_detail');
-    if (negativeDetails.some(candidate => claimKey(candidate) === claimKey(claim))) return reject('conflicting', 'conflicting_detail');
-    if (ambiguousDetails.some(candidate => candidate.kind === claim.kind && candidate.subjectKey === claim.subjectKey)) return reject('ambiguous', 'unmatched_detail');
+    if (negativeDetails.some(candidate => candidate.kind === claim.kind && candidate.subjectKey === claim.subjectKey && candidate.value === claim.value && sameTemporalScope(claim, candidate))) return reject('conflicting', 'conflicting_detail');
+    if (ambiguousDetails.some(candidate => candidate.kind === claim.kind && candidate.subjectKey === claim.subjectKey && sameTemporalScope(claim, candidate))) return reject('ambiguous', 'unmatched_detail');
     if (!sameSubject.some(candidate => claimKey(candidate) === claimKey(claim))) return reject('ambiguous', 'unmatched_detail');
     supported = true;
   }
@@ -374,7 +424,7 @@ export function selectMemoriesForReading(candidates, { sources = [], contextSele
     return Object.freeze(result);
   };
   if (!Number.isInteger(limit) || limit <= 0) return freeze();
-  const prepared = (Array.isArray(sources) ? sources : []).filter(source => source && typeof source.text === 'string' && !String(source.id || '').startsWith('interpretation-')).map(source => ({ ...source, kind: currentSourceKind(source) }));
+  const prepared = (Array.isArray(sources) ? sources : []).filter(source => source && typeof source.text === 'string' && !String(source.id || '').startsWith('interpretation-')).map(source => ({ ...source, text: maskQuotedEvidence(source.text), kind: currentSourceKind(source) }));
   const selection = contextSelection || resolveContextSelection({ sources: prepared });
   // A source ID or mandatory query excerpt does not authorize its other clauses.
   const current = projectReadingContextSpans(prepared, selection).filter(entry => entry.source.kind !== 'savedFocus').flatMap(entry => entry.spans.map(span => ({ ...entry.source, text: span.text })));

@@ -395,6 +395,10 @@ export default function TarotReading() {
     const followUpIntent = location.state?.followUpIntent;
     const normalizedIntent = followUpIntent === 'ask' ? 'ask' : 'continue';
 
+    // Retire the old stream and its checkpoint before installing saved history.
+    // Otherwise its input-mismatch cleanup can clear the newly restored prose.
+    cancelPersonalReading({ announce: false });
+
     const {
       cards = [],
       question = '',
@@ -470,7 +474,8 @@ export default function TarotReading() {
     setThemes,
     setUserQuestion,
     setJournalStatus,
-    setIsFollowUpOpen
+    setIsFollowUpOpen,
+    cancelPersonalReading
   ]);
 
 

@@ -10,7 +10,7 @@
  * card.
  */
 
-import { ReadingCardResolutionError, resolveReadingCards } from '../readingCardResolution.js';
+import { ReadingCardResolutionError, canonicalizeReadingCards } from '../readingCardResolution.js';
 import { classifyReadingResult, READING_OUTCOME } from './readingOutcome.js';
 
 export const SPREAD_KEYS = Object.freeze(['single', 'threeCard', 'fiveCard', 'decision', 'relationship', 'celtic']);
@@ -75,7 +75,7 @@ function readLabels(cards) {
 
 function resolveCatalogCards(labels, deckStyle) {
   try {
-    return resolveReadingCards(
+    return canonicalizeReadingCards(
       labels.map(({ card, position, orientation }) => ({ card, position, orientation, meaning: '' })),
       deckStyle
     );

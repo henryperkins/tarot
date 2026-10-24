@@ -18,12 +18,12 @@ describe('graphContext.buildGraphContext', () => {
         assert.equal(ctx.graphKeys.totalMajors, 2);
     });
 
-    it('counts valid Major slots independently of patterns and ignores invalid numeric metadata', () => {
+    it('counts distinct valid Majors independently of patterns and ignores invalid numeric metadata', () => {
         for (const [cards, expected] of [
             [[{ card: 'Eight of Cups', suit: 'Cups', rankValue: 8 }], 0],
             [[{ number: 0, card: 'The Fool' }], 1],
             [[{ number: 0 }, { number: 8 }, { number: 15 }, { number: 21 }], 4],
-            [[{ number: 14 }, { number: 14 }, { number: 17 }], 3],
+            [[{ number: 14 }, { number: 14 }, { number: 17 }], 2],
             [[{ number: -1 }, { number: 22 }, { number: 1.5 }, { number: NaN }, { number: '14' }], 0]
         ]) {
             assert.equal(buildGraphContext(cards)?.graphKeys.totalMajors, expected);

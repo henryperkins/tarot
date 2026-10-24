@@ -1,10 +1,10 @@
+import { resolveContextSelection, selectPromptFocusAreas } from '../../contextDetection.js';
 import { buildGraphContext } from '../../graphContext.js';
 import { isGraphRAGEnabled } from '../../graphRAG.js';
 import { resolveDecisionPathContext, decisionPathRoleCards } from '../../decisionPathContext.js';
 import { getContextDescriptor } from '../helpers.js';
 import { buildCardTransitNotes, generateTimingGuidance } from '../../ephemerisIntegration.js';
 import { buildExperienceLine, sanitizeDisplayName, resolveNarrativePreferenceContract } from '../styleHelpers.js';
-import { sanitizeText } from '../../utils.js';
 import { prepareUserContext, renderUserContext } from './userContext.js';
 import { formatReadingMemoriesForPrompt } from '../../userMemory.js';
 import { countDrawnSuits } from '../../readingSuitCounts.js';
@@ -162,15 +162,17 @@ export function buildUserPrompt(
   const rawFocusAreas = Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0
     ? personalization.focusAreas
     : [];
-  const sanitizedFocusAreas = rawFocusAreas
-    .slice(0, 5)
-    .map((entry) => (typeof entry === 'string' ? sanitizeText(entry, { maxLength: 40, addEllipsis: true, stripMarkdown: true, filterInstructions: true }) : ''))
-    .filter(Boolean);
+  const focusSelection = promptOptions.contextSelection || resolveContextSelection({
+    userQuestion, reflectionsText, cardsInfo, decisionPaths: paths, focusAreas: rawFocusAreas
+  }, spreadKey);
+  const sanitizedFocusAreas = selectPromptFocusAreas(
+    promptOptions.focusAreasForPrompt ?? rawFocusAreas, focusSelection
+  );
   recordUserContextSignal(userContextSignals, 'focusAreas', {
     provided: rawFocusAreas.some((entry) => typeof entry === 'string' && entry.trim().length > 0),
     eligible: sanitizedFocusAreas.length > 0,
     skippedReasonIfNotEligible: rawFocusAreas.some((entry) => typeof entry === 'string' && entry.trim().length > 0) && sanitizedFocusAreas.length === 0
-      ? 'sanitized_empty'
+      ? 'current_context_precedence'
       : null,
     skippedReasonIfMissing: 'removed_for_budget'
   });
@@ -285,7 +287,7 @@ export function buildUserPrompt(
     prompt += `\n${memorySection}\n\n`;
   }
 
-  const graphRAGSection = buildGraphRAGReferenceBlock(spreadKey, activeThemes, promptOptions);
+  const graphRAGSection = buildGraphRAGReferenceBlock(spreadKey, activeThemes, { ...promptOptions, cardsInfo });
   if (graphRAGSection) {
     prompt += `\n${graphRAGSection}\n`;
   }

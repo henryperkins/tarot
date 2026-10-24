@@ -317,6 +317,7 @@ function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requ
   const spreadKey = analysis?.spreadKey || null;
   const qualityMetrics = buildNarrativeMetrics(text, safeCards, deckStyle);
   const qualityIssues = [];
+  if (qualityMetrics.undrawnCardAssertions.length > 0) qualityIssues.push('undrawn_card_assertion');
   for (const mismatch of qualityMetrics.suitCountMismatches) {
     qualityIssues.push(`incorrect ${mismatch.suit} count (${mismatch.claimed} claimed; ${mismatch.actual} drawn)`);
   }
@@ -484,6 +485,7 @@ async function finalizeReading({
     reading: originalReading,
     userQuestion,
     cardsInfo,
+    deckStyle,
     spreadKey: analysis.spreadKey,
     requestId,
     displayName: personalization?.displayName,
@@ -1542,7 +1544,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             streamingFallback = true;
             streamingGateNotice = {
               blocked: true,
-              reason: 'quality_gate_streaming'
+              reason: qualityMetrics.undrawnCardAssertions.length > 0 ? 'undrawn_card_assertion' : 'quality_gate_streaming'
             };
           }
 

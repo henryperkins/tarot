@@ -1,4 +1,4 @@
-import { estimateTokenCount } from './budgeting.js';
+import { createTokenEstimator, PromptBudgetError } from './budgeting.js';
 import { USER_PROMPT_INSTRUCTION_HEADER } from './constants.js';
 import { parseUserContext, fitUserContext } from './userContext.js';
 
@@ -11,7 +11,7 @@ function dropIncompleteReadingContextLines(text) {
   }).join('\n').trim();
 }
 
-function truncatePrefixToTokenBudget(text, maxTokens) {
+function truncatePrefixToTokenBudget(text, maxTokens, estimator) {
   if (maxTokens <= 0) return '';
 
   // Find a prefix length that reliably fits under the budget according to our
@@ -21,7 +21,7 @@ function truncatePrefixToTokenBudget(text, maxTokens) {
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
     const candidate = text.slice(0, mid);
-    if (estimateTokenCount(candidate) <= maxTokens) {
+    if (estimator.estimate(candidate) <= maxTokens) {
       lo = mid;
     } else {
       hi = mid - 1;
@@ -40,7 +40,7 @@ function truncatePrefixToTokenBudget(text, maxTokens) {
 
   // Very small budgets or aggressive heading penalties can still put us slightly
   // over; back off conservatively to guarantee the constraint.
-  while (truncated && estimateTokenCount(truncated) > maxTokens) {
+  while (truncated && estimator.estimate(truncated) > maxTokens) {
     const nextLen = Math.floor(truncated.length * 0.9);
     if (nextLen <= 0) {
       truncated = '';
@@ -52,7 +52,7 @@ function truncatePrefixToTokenBudget(text, maxTokens) {
   return dropIncompleteReadingContextLines(truncated);
 }
 
-function truncateSuffixToTokenBudget(text, maxTokens) {
+function truncateSuffixToTokenBudget(text, maxTokens, estimator) {
   if (maxTokens <= 0) return '';
 
   // Find a suffix length that reliably fits under the budget.
@@ -61,7 +61,7 @@ function truncateSuffixToTokenBudget(text, maxTokens) {
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
     const candidate = text.slice(text.length - mid);
-    if (estimateTokenCount(candidate) <= maxTokens) {
+    if (estimator.estimate(candidate) <= maxTokens) {
       lo = mid;
     } else {
       hi = mid - 1;
@@ -77,7 +77,7 @@ function truncateSuffixToTokenBudget(text, maxTokens) {
 
   truncated = truncated.trim();
 
-  while (truncated && estimateTokenCount(truncated) > maxTokens) {
+  while (truncated && estimator.estimate(truncated) > maxTokens) {
     const nextLen = Math.floor(truncated.length * 0.9);
     if (nextLen <= 0) {
       truncated = '';
@@ -102,11 +102,12 @@ function truncateSuffixToTokenBudget(text, maxTokens) {
  * @returns {{ text: string, truncated: boolean, originalTokens: number }}
  */
 export function truncateToTokenBudget(text, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   if (!text || typeof text !== 'string') {
     return { text: '', truncated: false, originalTokens: 0 };
   }
 
-  const originalTokens = estimateTokenCount(text);
+  const originalTokens = estimator.estimate(text);
   if (originalTokens <= maxTokens) {
     return { text, truncated: false, originalTokens };
   }
@@ -116,31 +117,31 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
 
   if (!tailTokens) {
     return {
-      text: truncatePrefixToTokenBudget(text, maxTokens),
+      text: truncatePrefixToTokenBudget(text, maxTokens, estimator),
       truncated: true,
       originalTokens
     };
   }
 
-  const separatorTokens = estimateTokenCount(separator);
+  const separatorTokens = estimator.estimate(separator);
   const tailBudget = Math.min(tailTokens, Math.max(0, maxTokens - separatorTokens));
   const headBudget = Math.max(0, maxTokens - separatorTokens - tailBudget);
 
   if (headBudget <= 0) {
     return {
-      text: truncateSuffixToTokenBudget(text, maxTokens),
+      text: truncateSuffixToTokenBudget(text, maxTokens, estimator),
       truncated: true,
       originalTokens
     };
   }
 
-  let headText = truncatePrefixToTokenBudget(text, headBudget);
-  const tailText = truncateSuffixToTokenBudget(text, tailBudget);
+  let headText = truncatePrefixToTokenBudget(text, headBudget, estimator);
+  const tailText = truncateSuffixToTokenBudget(text, tailBudget, estimator);
   let combined = [headText, tailText].filter(Boolean).join(separator).trim();
 
-  while (combined && estimateTokenCount(combined) > maxTokens) {
+  while (combined && estimator.estimate(combined) > maxTokens) {
     if (!headText) {
-      combined = truncateSuffixToTokenBudget(text, maxTokens);
+      combined = truncateSuffixToTokenBudget(text, maxTokens, estimator);
       break;
     }
     const nextLen = Math.floor(headText.length * 0.9);
@@ -165,7 +166,7 @@ const USER_PROMPT_GRAPHRAG_MARKER = '## TRADITIONAL WISDOM (GraphRAG)';
 const USER_PROMPT_GRAPHRAG_SUMMARY_MARKER = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
 const USER_PROMPT_CARD_BOUNDARY_MARKERS = [
   '**Thoth Titles & Decans**',
-  '**Marseille Pip Geometry**',
+  '**Marseille Pip Themes**',
   '**Querent\'s Reflections**',
   '**VISION VALIDATION**',
   '**Vision Validation**',
@@ -236,23 +237,23 @@ function splitAtFirstMarker(text, markers = []) {
   };
 }
 
-function appendInstructionLine(parts, line, maxTokens) {
+function appendInstructionLine(parts, line, maxTokens, estimator) {
   const text = typeof line === 'string' ? line.trim() : '';
   if (!text) return false;
   const candidate = [...parts, text].join('\n').trim();
-  if (estimateTokenCount(candidate) > maxTokens) {
+  if (estimator.estimate(candidate) > maxTokens) {
     return false;
   }
   parts.push(text);
   return true;
 }
 
-function fitInstructionBlockToBudget(instructions, maxTokens) {
+function fitInstructionBlockToBudget(instructions, maxTokens, estimator) {
   const safeInstructions = typeof instructions === 'string' ? instructions.trim() : '';
   if (!safeInstructions || maxTokens <= 0) {
     return '';
   }
-  if (estimateTokenCount(safeInstructions) <= maxTokens) {
+  if (estimator.estimate(safeInstructions) <= maxTokens) {
     return safeInstructions;
   }
 
@@ -285,12 +286,12 @@ function fitInstructionBlockToBudget(instructions, maxTokens) {
   }
 
   const parts = [];
-  if (!appendInstructionLine(parts, header, maxTokens)) {
-    return truncatePrefixToTokenBudget(header, maxTokens);
+  if (!appendInstructionLine(parts, header, maxTokens, estimator)) {
+    return truncatePrefixToTokenBudget(header, maxTokens, estimator);
   }
 
   for (const line of selected) {
-    appendInstructionLine(parts, line, maxTokens);
+    appendInstructionLine(parts, line, maxTokens, estimator);
   }
 
   return parts.join('\n').trim();
@@ -348,23 +349,24 @@ function extractFallbackCardBlock(introRemainder) {
 }
 
 function appendWithinBudget(parts, segmentText, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   const raw = typeof segmentText === 'string' ? segmentText.trim() : '';
   if (!raw) return { added: false, truncated: false };
 
   const currentText = parts.filter(Boolean).join('\n\n').trim();
   const candidate = [currentText, raw].filter(Boolean).join('\n\n').trim();
-  if (estimateTokenCount(candidate) <= maxTokens) {
+  if (estimator.estimate(candidate) <= maxTokens) {
     parts.push(raw);
     return { added: true, truncated: false };
   }
 
-  const remainingTokens = Math.max(0, maxTokens - estimateTokenCount(currentText));
+  const remainingTokens = Math.max(0, maxTokens - estimator.estimate(currentText));
   if (remainingTokens <= 0) {
     return { added: false, truncated: true };
   }
 
   const truncateFn = options.keepTail ? truncateSuffixToTokenBudget : truncatePrefixToTokenBudget;
-  const fitted = truncateFn(raw, remainingTokens);
+  const fitted = truncateFn(raw, remainingTokens, estimator);
   if (!fitted) {
     return { added: false, truncated: true };
   }
@@ -450,16 +452,37 @@ function splitUserPromptSections(text, spreadKey) {
  * @param {number} maxTokens - Maximum tokens allowed
  * @param {Object} [options]
  * @param {string} [options.spreadKey] - Spread key for card-section marker detection
+ * @param {string} [options.cardInventory] - Complete canonical card data reserved atomically when fitting
  * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
  */
 export function truncateUserPromptSafely(text, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   if (!text || typeof text !== 'string') {
     return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
   }
 
-  const originalTokens = estimateTokenCount(text);
+  const originalTokens = estimator.estimate(text);
   if (originalTokens <= maxTokens) {
     return { text, truncated: false, originalTokens, preservedSections: [] };
+  }
+
+  if (typeof options.cardInventory === 'string' && options.cardInventory.trim() && !options.inventoryAllocated) {
+    // Reserve the complete canonical spread before fitting verbose prose. A
+    // later card may lose optional detail, but never its identity or position.
+    const inventory = options.cardInventory.trim();
+    const available = maxTokens - estimator.estimate(inventory) - estimator.estimate('\n\n') - 12;
+    if (available <= 0) throw new PromptBudgetError();
+    const body = truncateUserPromptSafely(text, available, {
+      ...options, estimator, cardInventory: undefined, inventoryAllocated: true
+    });
+    const result = [inventory, body.text].filter(Boolean).join('\n\n');
+    if (estimator.estimate(result) > maxTokens) throw new PromptBudgetError();
+    return {
+      text: result,
+      truncated: true,
+      originalTokens,
+      preservedSections: ['drawn-cards', ...body.preservedSections]
+    };
   }
 
   const userContext = parseUserContext(text);
@@ -470,30 +493,30 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     const stripped = text.replace(/^.*<user_context source="[^"]+">[^\n]*?<\/user_context>[^\n]*\n?/gm, '');
     const instructionIdx = stripped.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
     const instructions = instructionIdx < 0 ? '' : stripped.slice(instructionIdx).trim();
-    const instructionTokens = estimateTokenCount(instructions);
+    const instructionTokens = estimator.estimate(instructions);
     const baseReserve = Math.min(
-      estimateTokenCount(stripped),
+      estimator.estimate(stripped),
       instructionTokens + Math.ceil(Math.max(0, maxTokens - instructionTokens) * 0.5)
     );
     const contextBudget = Math.max(0, maxTokens - baseReserve - 10);
     const parts = [];
     const question = userContext.get('question');
     if (question !== undefined) {
-      const fitted = fitUserContext('question', question, contextBudget);
+      const fitted = fitUserContext('question', question, contextBudget, { estimator });
       if (fitted) parts.push(`**Question**: ${fitted}`);
     }
     const remaining = [...userContext.entries()].filter(([source]) => source !== 'question');
     // Small sources go first so unused shares flow to larger fields.
     remaining.sort((a, b) => JSON.stringify(a[1]).length - JSON.stringify(b[1]).length);
     remaining.forEach(([source, value], index) => {
-      const available = Math.max(0, contextBudget - estimateTokenCount(parts.join('\n\n')));
+      const available = Math.max(0, contextBudget - estimator.estimate(parts.join('\n\n')));
       const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
-      const fitted = fitUserContext(source, value, share);
+      const fitted = fitUserContext(source, value, share, { estimator });
       if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : source.startsWith('interpretation-') ? `Untrusted caller interpretation for card ${Number(source.slice(15)) + 1}:` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
     });
     const contextText = parts.join('\n\n');
-    const baseBudget = Math.max(0, maxTokens - estimateTokenCount(contextText) - 10);
-    const base = truncateUserPromptSafely(stripped, baseBudget, { ...options, contextAllocated: true });
+    const baseBudget = Math.max(0, maxTokens - estimator.estimate(contextText) - 10);
+    const base = truncateUserPromptSafely(stripped, baseBudget, { ...options, estimator, contextAllocated: true });
     const baseInstructionIdx = base.text.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
     const body = baseInstructionIdx < 0 ? base.text : base.text.slice(0, baseInstructionIdx).trim();
     const tail = baseInstructionIdx < 0 ? '' : base.text.slice(baseInstructionIdx);
@@ -510,16 +533,16 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     instructions
   } = splitUserPromptSections(text, options.spreadKey);
 
-  const separatorTokens = estimateTokenCount('\n\n');
+  const separatorTokens = estimator.estimate('\n\n');
   // The full footer outranks optional intro/enrichment when it fits alongside
   // the question and drawn cards. A percentage-only reserve lets those optional
   // sections crowd out action, card-name and ethics instructions unnecessarily.
   const coreWithInstructions = [questionBlock, cardsText, instructions].filter(Boolean).join('\n\n');
   const instructionReserve = instructions
     ? Math.min(
-      estimateTokenCount(instructions),
-      estimateTokenCount(coreWithInstructions) <= maxTokens
-        ? estimateTokenCount(instructions)
+      estimator.estimate(instructions),
+      estimator.estimate(coreWithInstructions) <= maxTokens
+        ? estimator.estimate(instructions)
         : Math.max(80, Math.floor(maxTokens * 0.18))
     )
     : 0;
@@ -542,13 +565,13 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
       if (!raw) continue;
       const currentText = bodyParts.filter(Boolean).join('\n\n').trim();
       const candidate = [currentText, raw].filter(Boolean).join('\n\n').trim();
-      if (estimateTokenCount(candidate) <= bodyBudget) {
+      if (estimator.estimate(candidate) <= bodyBudget) {
         bodyParts.push(raw);
         preservedSections.push(segment.key);
       }
       continue;
     }
-    const result = appendWithinBudget(bodyParts, segment.value, bodyBudget);
+    const result = appendWithinBudget(bodyParts, segment.value, bodyBudget, { estimator });
     if (result.added) {
       preservedSections.push(segment.key);
     }
@@ -561,12 +584,12 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   }
 
   if (instructions) {
-    const currentTokens = estimateTokenCount(finalParts.join('\n\n').trim());
+    const currentTokens = estimator.estimate(finalParts.join('\n\n').trim());
     const availableForInstructions = Math.max(
       0,
       maxTokens - currentTokens - (finalParts.length > 0 ? separatorTokens : 0)
     );
-    const fittedInstructions = fitInstructionBlockToBudget(instructions, availableForInstructions);
+    const fittedInstructions = fitInstructionBlockToBudget(instructions, availableForInstructions, estimator);
     if (fittedInstructions) {
       finalParts.push(fittedInstructions);
       preservedSections.push('instructions');
@@ -575,10 +598,10 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
 
   let resultText = finalParts.join('\n\n').trim();
   if (!resultText) {
-    resultText = truncatePrefixToTokenBudget(text, maxTokens);
+    resultText = truncatePrefixToTokenBudget(text, maxTokens, estimator);
   }
-  if (estimateTokenCount(resultText) > maxTokens) {
-    resultText = truncatePrefixToTokenBudget(resultText, maxTokens);
+  if (estimator.estimate(resultText) > maxTokens) {
+    resultText = truncatePrefixToTokenBudget(resultText, maxTokens, estimator);
   }
 
   return {
@@ -597,6 +620,7 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
 const CRITICAL_SECTION_MARKERS = [
   { start: 'ETHICS', end: null },           // Ethics guidance - never truncate
   { start: 'CORE PRINCIPLES', end: null },  // Core behavior rules - never truncate
+  { start: 'AGE AND TIME', end: null },      // Conditional personal-fact timing guidance
   { start: 'MODEL DIRECTIVES:', end: null } // Model behavior directives - never truncate
 ];
 
@@ -644,7 +668,7 @@ function extractCriticalSections(text) {
   return { sections, totalChars };
 }
 
-function buildMinimalCriticalPrompt(criticalSections, maxTokens) {
+function buildMinimalCriticalPrompt(criticalSections, maxTokens, estimator) {
   if (!Array.isArray(criticalSections) || criticalSections.length === 0) {
     return { text: '', preservedSections: [] };
   }
@@ -661,14 +685,14 @@ function buildMinimalCriticalPrompt(criticalSections, maxTokens) {
     if (!content) continue;
 
     const candidate = [...parts, content].join('\n\n').trim();
-    if (estimateTokenCount(candidate) <= maxTokens) {
+    if (estimator.estimate(candidate) <= maxTokens) {
       parts.push(content);
       preservedSections.push(section.marker);
       continue;
     }
 
     if (parts.length === 0) {
-      const truncated = truncateToTokenBudget(content, maxTokens);
+      const truncated = truncateToTokenBudget(content, maxTokens, { estimator });
       return { text: truncated.text, preservedSections: [section.marker] };
     }
 
@@ -687,12 +711,13 @@ function buildMinimalCriticalPrompt(criticalSections, maxTokens) {
  * @param {number} maxTokens - Maximum tokens allowed
  * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
  */
-export function truncateSystemPromptSafely(text, maxTokens) {
+export function truncateSystemPromptSafely(text, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   if (!text || typeof text !== 'string') {
     return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
   }
 
-  const originalTokens = estimateTokenCount(text);
+  const originalTokens = estimator.estimate(text);
   if (originalTokens <= maxTokens) {
     return { text, truncated: false, originalTokens, preservedSections: [] };
   }
@@ -700,17 +725,31 @@ export function truncateSystemPromptSafely(text, maxTokens) {
   // Extract critical sections that must be preserved
   const { sections: criticalSections } = extractCriticalSections(text);
   if (criticalSections.length === 0) {
-    const result = truncateToTokenBudget(text, maxTokens);
+    const result = truncateToTokenBudget(text, maxTokens, { estimator });
     return { text: result.text, truncated: result.truncated, originalTokens, preservedSections: [] };
   }
 
   const criticalText = criticalSections.map((section) => section.content).join('\n\n');
-  const criticalTokens = estimateTokenCount(criticalText); // Rough estimate
+  const criticalTokens = estimator.estimate(criticalText); // Rough estimate
+
+  // Provider-bound builds must retain the complete safety contract. Compatibility
+  // callers may still request the historical minimal-section behavior.
+  if (options.requireCompleteCriticalSections && criticalTokens > maxTokens) {
+    throw new PromptBudgetError();
+  }
 
   const criticalFraction = maxTokens > 0 ? (criticalTokens / maxTokens) : 1;
   if (criticalTokens >= maxTokens || criticalFraction >= 0.8) {
-    const minimal = buildMinimalCriticalPrompt(criticalSections, maxTokens);
-    const minimalTokens = estimateTokenCount(minimal.text);
+    if (options.requireCompleteCriticalSections) {
+      return {
+        text: criticalText,
+        truncated: true,
+        originalTokens,
+        preservedSections: criticalSections.map(section => section.marker)
+      };
+    }
+    const minimal = buildMinimalCriticalPrompt(criticalSections, maxTokens, estimator);
+    const minimalTokens = estimator.estimate(minimal.text);
     console.warn(
       `[prompts] Critical sections exceed budget; using minimal safety prompt (~${minimalTokens} tokens).`
     );
@@ -729,7 +768,7 @@ export function truncateSystemPromptSafely(text, maxTokens) {
   // Keep only the intro/context before the first critical marker; drop optional middle sections.
   const firstCriticalIdx = Math.min(...criticalSections.map(s => s.startIdx));
   const intro = text.slice(0, firstCriticalIdx).trim();
-  const introResult = truncateToTokenBudget(intro, availableForOther);
+  const introResult = truncateToTokenBudget(intro, availableForOther, { estimator });
 
   const preservedSections = criticalSections.map((section) => section.marker);
   const parts = [];
@@ -741,11 +780,11 @@ export function truncateSystemPromptSafely(text, maxTokens) {
   let result = parts.join('\n\n').trim();
 
   // Guardrail: if budgeting drift still pushes us over, drop the intro entirely.
-  if (estimateTokenCount(result) > maxTokens) {
+  if (estimator.estimate(result) > maxTokens) {
     result = criticalText.trim();
   }
 
-  console.log(`[prompts] Section-aware truncation: ${originalTokens} -> ~${estimateTokenCount(result)} tokens, preserved: [${preservedSections.join(', ')}]`);
+  console.log(`[prompts] Section-aware truncation: ${originalTokens} -> ~${estimator.estimate(result)} tokens, preserved: [${preservedSections.join(', ')}]`);
 
   return { text: result, truncated: true, originalTokens, preservedSections };
 }

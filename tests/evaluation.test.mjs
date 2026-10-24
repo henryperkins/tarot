@@ -9,7 +9,8 @@ import {
   runSyncEvaluationGate,
   generateSafeFallbackReading,
   getEvaluationGateTimeoutMs,
-  getEvaluationTimeoutMs
+  getEvaluationTimeoutMs,
+  sanitizeMetricsPayload
 } from '../functions/lib/evaluation.js';
 import { buildPromptTelemetry } from '../functions/lib/telemetrySchema.js';
 import { buildReadingRedactionOptions } from '../functions/lib/promptEngineering.js';
@@ -17,6 +18,37 @@ import { buildReadingRedactionOptions } from '../functions/lib/promptEngineering
 const mockAI = {
   run: async () => ({ response: '' })
 };
+
+describe('undrawn presence deterministic contract', () => {
+  test('redacted legacy metrics retain counts without private mention observations', () => {
+    const result = sanitizeMetricsPayload({ narrativeOriginal: {
+      cardCoverage: 1, undrawnCardAssertions: ['The Moon'],
+      cardMentions: [{ start: 8, end: 30, evidence: 'private surrounding prose' }],
+      mentionOffsets: [8, 30]
+    } });
+    assert.deepEqual(result.narrativeOriginal.cardAssertions, { undrawnCount: 1, reason: 'undrawn_card_assertion' });
+    assert.doesNotMatch(JSON.stringify(result), /private surrounding prose|mentionOffsets|cardMentions|The Moon/);
+    assert.equal(Object.hasOwn(sanitizeMetricsPayload({ narrativeOriginal: { cardCoverage: 1 } }).narrativeOriginal, 'cardAssertions'), false);
+  });
+  test('zero tolerance overrides the residual mention allowance', () => {
+    const result = buildHeuristicScores({ cardCoverage: 1, cardCount: 10, hallucinatedCards: [], undrawnCardAssertions: ['The Moon'] }, 'celtic');
+    assert.equal(result.scores.safety_flag, true);
+    assert.ok(result.heuristic_triggers.includes('undrawn_card_assertion'));
+    assert.equal(checkEvalGate(result).reason, 'undrawn_card_assertion');
+    assert.equal(result.promptVersion, '2.6.0');
+  });
+
+  for (const enabled of ['false', 'true']) {
+    test(`inspects delivered assertions when EVAL_GATE_ENABLED=${enabled}`, async () => {
+      const result = await runSyncEvaluationGate({ EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: enabled }, {
+        reading: 'Temperance offers a steady pause. The Moon appears in your spread.',
+        cardsInfo: [{ card: 'Temperance' }], spreadKey: 'single', deckStyle: 'rws-1909'
+      }, { cardCoverage: 1, cardCount: 1 });
+      assert.equal(result.passed, false);
+      assert.equal(result.reason, 'undrawn_card_assertion');
+    });
+  }
+});
 
 // Mock KV store for legacy METRICS_DB testing (unused but kept for reference)
 class _MockKV {
@@ -159,7 +191,7 @@ describe('evaluation', () => {
       assert.equal(result.scores.overall, 4);
       assert.equal(result.scores.safety_flag, false);
       assert.equal(result.model, '@cf/zai-org/glm-5.3');
-      assert.equal(result.promptVersion, '2.5.0');
+      assert.equal(result.promptVersion, '2.6.0');
     });
 
     test('keeps a bounded evidence block from the evaluator response', async () => {

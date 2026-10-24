@@ -83,7 +83,7 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
     }
 
     let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
-      ? payload.passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || themes?.deckStyle || 'rws-1909')).filter(Boolean)
+      ? payload.passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || themes?.deckStyle || 'rws-1909', { cardsInfo: options.cardsInfo })).filter(Boolean)
       : null;
     let formattedPassages = null;
 
