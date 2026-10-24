@@ -75,6 +75,28 @@ function assertGraphSectionAtomic(text, expectedPassages = []) {
   }
 }
 
+test('inline graph heading mentions are data across parsing, enforcement and prefix fallback', () => {
+  const full = buildRealFullBlock();
+  const summary = buildRealSummaryBlock();
+  for (const header of [integrityModule.GRAPHRAG_FULL_HEADER, integrityModule.GRAPHRAG_SUMMARY_HEADER]) {
+    const context = `### CONTEXT\n- Discussing ${header} as a concept.`;
+    assert.equal(integrityModule.parseGraphRAGReferenceBlock(context).status, 'absent');
+    assert.equal(integrityModule.parseGraphRAGSummaryBlock(context).present, false);
+    assert.deepEqual(integrityModule.enforceGraphRAGPromptIntegrity(context), {
+      text: context, changed: false, removedBlockCount: 0, removalReasons: []
+    });
+    assert.equal(integrityModule.stripGraphRAGSegmentsForPrefixFallback(context), context);
+    for (const { block, passages = [] } of [full, summary]) {
+      const text = `${context}\n\n${block}`;
+      const enforced = integrityModule.enforceGraphRAGPromptIntegrity(text, { expectedPassages: passages });
+      assert.equal(enforced.text, text);
+      assert.equal(enforced.changed, false);
+      assert.equal(enforced.removedBlockCount, 0);
+      assert.equal(integrityModule.stripGraphRAGSegmentsForPrefixFallback(text), context);
+    }
+  }
+});
+
 test('GraphRAG-only helper reproduction: full and summary blocks are atomic at zero, tiny, one-below-fit, and exact-fit budgets', () => {
   assert.equal(typeof integrityModule.parseGraphRAGReferenceBlock, 'function', 'graphRAGPromptIntegrity module must be exported');
   const estimator = createTokenEstimator();
