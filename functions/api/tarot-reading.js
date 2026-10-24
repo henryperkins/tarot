@@ -101,7 +101,8 @@ import {
   annotateVisionInsights,
   buildVisionMetrics,
   resolveVisionPromptThresholds,
-  persistReadingMetrics
+  persistReadingMetrics,
+  summarizeRejectedNarrative
 } from '../lib/readingQuality.js';
 import { buildMetricsPayload } from '../lib/telemetrySchema.js';
 import {
@@ -192,6 +193,15 @@ export function resolvePromptDebugAccess({ env, user, requested } = {}) {
  * prompts together must leave ample headroom.
  */
 export const PROMPT_DEBUG_MAX_PROMPT_CHARS = 15000;
+
+/**
+ * Modal's thinking model occasionally returns a degenerate answer that fails
+ * the quality gate (one reading about undrawn cards in 18 generations), while a
+ * fresh attempt with the same prompt passes. It gets one retry when enough of
+ * the task budget remains for a full attempt plus the later fallbacks.
+ */
+const QUALITY_RETRY_BACKENDS = new Set(['modal-qwen']);
+const QUALITY_RETRY_MIN_REMAINING_MS = 120000;
 
 function truncateForPromptDebug(text) {
   if (typeof text !== 'string' || !text) return { text: text || null, truncated: false };
@@ -1536,6 +1546,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
           if (qualityIssues.length > 0) {
             console.warn(`[${requestId}] Streaming backend ${streamProvider} failed quality gate: ${qualityIssues.join('; ')}`);
+            console.warn(`[${requestId}] Streaming backend ${streamProvider} rejected output: ${JSON.stringify(summarizeRejectedNarrative(finalText, cardsInfo, qualityMetrics, streamUsage))}`);
             const qualityError = new Error('Narrative failed quality checks.');
             qualityError.qualityIssues = qualityIssues;
             streamState = 'rejected';
@@ -1736,6 +1747,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let capturedPrompts = null;
     let capturedUsage = null;
     let capturedReasoningSummary = null;
+    const qualityRetried = new Set();
 
     for (const backend of backendsToTry) {
       taskSignal.throwIfAborted();
@@ -1817,6 +1829,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         if (qualityIssues.length > 0) {
           console.warn(`[${requestId}] Backend ${backendProvider} failed quality gate: ${qualityIssues.join('; ')}`);
+          console.warn(`[${requestId}] Backend ${backendProvider} rejected output: ${JSON.stringify(summarizeRejectedNarrative(result, cardsInfo, qualityMetrics, attemptUsage))}`);
           const qualityError = new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
           qualityError.qualityIssues = qualityIssues;
           throw qualityError;
@@ -1848,6 +1861,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.error(`[${requestId}] Backend ${backendProvider} failed:`, err.message);
         backendErrors.push(buildPublicBackendError(backendProvider, err));
         taskSignal.throwIfAborted();
+        if (err.qualityIssues && QUALITY_RETRY_BACKENDS.has(backendProvider) && !qualityRetried.has(backendProvider)
+          && taskDeadline.remainingMs() >= QUALITY_RETRY_MIN_REMAINING_MS) {
+          qualityRetried.add(backendProvider);
+          backendsToTry.splice(backendsToTry.indexOf(backend) + 1, 0, backend);
+          console.warn(`[${requestId}] Retrying ${backendProvider} once after its output failed the quality gate`);
+        }
       } finally {
         attemptDeadline.dispose();
         narrativePayload.signal = taskSignal;
