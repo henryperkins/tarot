@@ -13,6 +13,9 @@ import { createFakeReadingJobs } from './helpers/fakeReadingJobs.mjs';
 import { connectMcpClient } from './helpers/mcpClient.mjs';
 import { parseMemoryBlocks } from '../functions/lib/userMemory.js';
 import { sanitizeContextSelection } from '../shared/readingSourceUsage.js';
+import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
+import { parseGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
 
 const corpus = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-cases.json', import.meta.url)));
 const env = { GRAPHRAG_ENABLED: 'true', OPENAI_API_KEY: 'synthetic', MODAL_PROXY_TOKEN: 'synthetic', MODAL_ENDPOINT_URL: 'https://modal.invalid', MODAL_STREAM: 'false' };
@@ -42,6 +45,9 @@ function verifyFinal(payload, result, user, system) {
   assert.equal(result.promptMeta.context.normalized, payload.context);
   assert.equal(JSON.stringify(result.promptMeta).includes('private-memory-id'), false);
   const graph = result.promptMeta.sourceUsage.graphRAG;
+  assert.equal(graph.referenceGuardrailsComplete, parseGraphRAGReferenceBlock(user).guardrailsComplete);
+  assert.equal(graph.integrityRemovedBlocks, 0);
+  assert.deepEqual(graph.integrityRemovalReasons, []);
   assert.equal(graph.passagesUsedInPrompt, graph.passageIndices.length);
   for (const index of graph.passageIndices) {
     const passage = payload.analysis.graphRAGPayload.passages[index];
@@ -116,6 +122,68 @@ test('local fallback discards the failed attempt provenance and reports unrender
   assert.equal(result.promptMeta.sourceUsage.memories.memoriesUsedInPrompt, 0);
   assert.deepEqual(payload.memoryRetention.retainedSlots, []);
   assert.ok(result.promptMeta.queryCoverage.some(source => source.id === 'question'));
+});
+
+test('accepted capped provider reports only its own references and memory receipts after a rejected full-reference attempt', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const { createD1 } = await import('./helpers/d1Sqlite.mjs');
+  const db = await createD1();
+  await db.prepare("INSERT INTO users (id,email,username,password_hash,password_salt,created_at,updated_at,is_active,subscription_tier,subscription_status) VALUES ('pipeline-owner','pipeline@example.test','pipeline','synthetic','synthetic',1,1,1,'pro','active')").run();
+  await db.prepare("INSERT INTO user_memories (id,user_id,text,category,scope,created_at) VALUES ('private-pipeline-note','pipeline-owner','Navigating career uncertainty','general','global',1)").run();
+  for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+  const catalog = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+  const acceptedReading = catalog.map(card => `**${card.name}** invites career reflection.`).join(' ') + ' Your choices shape outcomes.';
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, request) => {
+    const body = JSON.parse(request.body);
+    if (String(url).startsWith('https://modal.test/')) {
+      requests.push({ provider: 'modal', user: body.messages.at(-1).content });
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
+    }
+    assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
+    requests.push({ provider: 'openai', user: body.input });
+    return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
+  });
+  const pending = [];
+  const receipts = [];
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      spreadInfo: { name: 'Custom Spread', key: 'custom' },
+      cardsInfo: catalog.map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), position: `Focus ${index}`, orientation: 'Upright', meaning: card.upright, userReflection: 'Career exploration and workplace choices. '.repeat(47) })),
+      userQuestion: 'How can I approach a career change?', reflectionsText: ''
+    }) }),
+    env: {
+      DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_MODEL: 'test', MODAL_STREAM: 'false',
+      OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', OPENAI_STREAMING_ENABLED: 'false',
+      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', READING_TASK_TIMEOUT_MS: '60000'
+    },
+    principal: { userId: 'pipeline-owner' }, waitUntil: promise => pending.push(promise), onReadingMemoryUsage: receipt => receipts.push(receipt)
+  });
+  const body = await response.json();
+  await Promise.all(pending);
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.equal(body.provider, 'openai-native');
+  assert.deepEqual(requests.map(request => request.provider), ['modal', 'openai']);
+  assert.equal(parseGraphRAGReferenceBlock(requests[0].user).status, 'complete');
+  assert.deepEqual([...parseMemoryBlocks(requests[0].user).keys()], ['memory-0']);
+  assert.equal(parseGraphRAGReferenceBlock(requests[1].user).status, 'absent');
+  assert.deepEqual([...parseMemoryBlocks(requests[1].user).keys()], []);
+  const graph = body.sourceUsage.graphRAG;
+  assert.equal(graph.used, false);
+  assert.equal(graph.mode, 'none');
+  assert.equal(graph.passagesUsedInPrompt, 0);
+  assert.equal(graph.retainedPassageCount, 0);
+  assert.deepEqual(graph.passageIndices, []);
+  assert.equal(graph.referenceGuardrailsComplete, false);
+  assert.equal(graph.integrityRemovedBlocks, 0, 'Budget omission is not an integrity rejection');
+  assert.equal(graph.skippedReason, 'removed_for_budget');
+  assert.deepEqual(getTraditionalPassages(body.themes, { sourceUsage: body.sourceUsage }), []);
+  assert.equal(body.sourceUsage.memories.memoriesSelected, 1);
+  assert.equal(body.sourceUsage.memories.memoriesUsedInPrompt, 0);
+  assert.equal(body.sourceUsage.memories.used, false);
+  assert.deepEqual(receipts, []);
+  assert.equal((await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first()).last_accessed_at, null);
+  assert.doesNotMatch(JSON.stringify(body.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
 });
 
 test('the client never treats the unconditioned preview as retained server references', () => {

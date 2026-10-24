@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import { formatUsageSummary } from '../src/components/reading/complete/sourceUsageSummary.js';
+import { sanitizeSourceUsage, sanitizeGraphRAGDiagnostics } from '../shared/readingSourceUsage.js';
+import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
 
 test('absent, empty and invalid metadata never invent sources', () => {
   for (const value of [null, {}, [], { vision: { used: 'true' } }]) {
@@ -137,4 +139,42 @@ test('saved memory attribution distinguishes selection from final inclusion with
   const included = formatUsageSummary({ memories: { ...selected, used: true, memoriesUsedInPrompt: 1, skippedReason: null } });
   assert.match(included.rows[0].detail, /1 saved memory included as reading context/);
   assert.doesNotMatch(included.rows[0].detail, /influenced|followed|proved/);
+});
+
+test('integrity omission has reader copy without exposing internal diagnostics or suggesting references were used', () => {
+  const result = formatUsageSummary({ graphRAG: {
+    requested: true, used: false, mode: 'none', skippedReason: 'reference_integrity_failed',
+    integrityRemovedBlocks: 1, integrityRemovalReasons: ['missing_card_guardrail'], referenceGuardrailsComplete: false
+  } });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].label, 'Traditional wisdom');
+  assert.equal(result.rows[0].state, 'omitted');
+  assert.equal(result.rows[0].detail, 'Reference passages could not be included.');
+  assert.equal(result.summary.used, 0);
+  assert.equal(result.summary.attention, 1);
+  assert.doesNotMatch(JSON.stringify(result), /missing_card_guardrail|reference_integrity_failed|integrityRemovedBlocks/);
+});
+
+test('integrity diagnostics stay bounded and preserve measured false without inventing historical measurements', () => {
+  const input = {
+    used: false, skippedReason: 'reference_integrity_failed', integrityRemovedBlocks: 2.9,
+    integrityRemovalReasons: ['missing_card_guardrail', 'private text', 'invalid_envelope', 'missing_card_guardrail', null],
+    referenceGuardrailsComplete: false, rawPrompt: 'private text'
+  };
+  for (const clean of [sanitizeSourceUsage({ graphRAG: input }).graphRAG, buildGraphRAGTelemetry(input)]) {
+    assert.equal(clean.skippedReason, 'reference_integrity_failed');
+    assert.equal(clean.integrityRemovedBlocks, 2);
+    assert.deepEqual(clean.integrityRemovalReasons, ['missing_card_guardrail', 'invalid_envelope']);
+    assert.equal(clean.referenceGuardrailsComplete, false);
+    assert.doesNotMatch(JSON.stringify(clean), /private text|rawPrompt/);
+  }
+  assert.equal(sanitizeGraphRAGDiagnostics({ integrityRemovedBlocks: Number.MAX_SAFE_INTEGER }).integrityRemovedBlocks, 100000000);
+  for (const invalid of [-1, NaN, Infinity, '2']) {
+    assert.equal(sanitizeGraphRAGDiagnostics({ integrityRemovedBlocks: invalid }).integrityRemovedBlocks, undefined);
+  }
+  for (const clean of [sanitizeGraphRAGDiagnostics({}), buildGraphRAGTelemetry({}), sanitizeGraphRAGDiagnostics({ referenceGuardrailsComplete: 'true', integrityRemovalReasons: 'private text' })]) {
+    assert.equal(Object.hasOwn(clean, 'referenceGuardrailsComplete'), false);
+    assert.equal(Object.hasOwn(clean, 'integrityRemovedBlocks'), false);
+    assert.equal(Object.hasOwn(clean, 'integrityRemovalReasons'), false);
+  }
 });

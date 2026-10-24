@@ -890,6 +890,13 @@ export function buildEnhancedClaudePrompt({
   finalSystem = built.systemPrompt;
   finalUser = built.userPrompt;
 
+  // Match the renderer's final admission cap. Candidates outside this attempt's
+  // rendered set cannot require conditional partial/weak-reference guardrails.
+  const finalPassageLimit = controls.graphRAGPayload?.maxPassages ?? getPassageCountForSpread(spreadKey || 'general', subscriptionTier);
+  const expectedPassages = Number.isInteger(finalPassageLimit) && finalPassageLimit > 0
+    ? (controls.graphRAGPayload?.passages || []).slice(0, finalPassageLimit)
+    : [];
+
   if (hasHardCap && built.totalTokens > hardCap) {
     // Calculate how many tokens we need to shed
     const excessTokens = built.totalTokens - hardCap;
@@ -907,7 +914,7 @@ export function buildEnhancedClaudePrompt({
         spreadKey,
         estimator,
         cardInventory: buildCompleteCardInventory(cardsInfo, spreadKey),
-        expectedPassages: controls.graphRAGPayload?.passages || []
+        expectedPassages
       }
     );
     finalUser = userResult.text;
@@ -942,6 +949,11 @@ export function buildEnhancedClaudePrompt({
 
     slimmingSteps.push('hard-cap-truncation');
   }
+
+  // Every consumer below, including provider handoff and private memory
+  // receipts, must describe this same cleaned final prompt.
+  const graphRAGIntegrity = enforceGraphRAGPromptIntegrity(finalUser, { expectedPassages });
+  finalUser = graphRAGIntegrity.text;
 
   const finalSystemTokens = estimator.estimate(finalSystem);
   const finalUserTokens = estimator.estimate(finalUser);
@@ -1013,6 +1025,13 @@ export function buildEnhancedClaudePrompt({
   };
 
   const graphRAGBudgetTrimmed = isGraphRAGBudgetTrimmed(slimmingSteps);
+  const graphRAGParse = parseGraphRAGReferenceBlock(finalUser, { expectedPassages });
+  const graphRAGSummaryParse = parseGraphRAGSummaryBlock(finalUser);
+  const integrityDiagnostics = sanitizeGraphRAGDiagnostics({
+    integrityRemovedBlocks: graphRAGIntegrity.removedBlockCount,
+    integrityRemovalReasons: graphRAGIntegrity.removalReasons,
+    referenceGuardrailsComplete: graphRAGParse.guardrailsComplete
+  });
 
   if (hasMeaningfulGraphRAGPayload(controls.graphRAGPayload)) {
     const payload = controls.graphRAGPayload;
@@ -1030,8 +1049,6 @@ export function buildEnhancedClaudePrompt({
           : (Number.isFinite(retrievalSummary.passagesRetrieved)
               ? retrievalSummary.passagesRetrieved
               : (passagesAfterSlimming > 0 ? passagesAfterSlimming : formattedBlockPassageCount)));
-    const graphRAGParse = parseGraphRAGReferenceBlock(finalUser);
-    const graphRAGSummaryParse = parseGraphRAGSummaryBlock(finalUser);
     const graphRAGBlockPresent = graphRAGParse.status !== 'absent';
     const passagesInPrompt = graphRAGParse.status === 'complete'
       ? graphRAGParse.passageCount
@@ -1087,6 +1104,7 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.sourceDecks = [...new Set((payload.passages || []).map(passage => passage.sourceDeck).filter(Boolean))];
     retrievalSummary.parseStatus = graphRAGParse.status;
     retrievalSummary.referenceBlockClosed = graphRAGParse.referenceBlockClosed;
+    Object.assign(retrievalSummary, integrityDiagnostics);
     retrievalSummary.summaryBlockPresent = graphRAGSummaryParse.present;
     retrievalSummary.summaryBlockComplete = graphRAGSummaryParse.complete;
     retrievalSummary.injectionMode = graphRAGInjectionMode;
@@ -1107,6 +1125,7 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.contextSelection = promptMeta.contextSelection;
     retrievalSummary.disabledByEnv = !graphragEnabled;
     if (!graphragEnabled) retrievalSummary.skippedReason = 'disabled_by_env';
+    else if (graphRAGIntegrity.removedBlockCount > 0) retrievalSummary.skippedReason = 'reference_integrity_failed';
     retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
     if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
       if (!graphragEnabled) {
@@ -1126,12 +1145,19 @@ export function buildEnhancedClaudePrompt({
     const envForGraph = controls.env ?? (typeof process !== 'undefined' ? process.env : {});
     const graphragEnabled = isGraphRAGEnabled(envForGraph) || (!controls.env && hasMeaningfulGraphRAGPayload(controls.graphRAGPayload));
     promptMeta.graphRAG = {
+      ...integrityDiagnostics,
+      parseStatus: graphRAGParse.status,
+      referenceBlockClosed: graphRAGParse.referenceBlockClosed,
+      summaryBlockPresent: graphRAGSummaryParse.present,
+      summaryBlockComplete: graphRAGSummaryParse.complete,
       includedInPrompt: false,
       injectionMode: 'none',
       disabledByEnv: !graphragEnabled,
       passagesProvided: 0,
       passagesUsedInPrompt: 0,
-      skippedReason: graphragEnabled ? 'retrieval_failed_or_empty' : 'disabled_by_env'
+      retainedPassageCount: 0,
+      skippedReason: !graphragEnabled ? 'disabled_by_env'
+        : graphRAGIntegrity.removedBlockCount > 0 ? 'reference_integrity_failed' : 'retrieval_failed_or_empty'
     };
   }
 
@@ -1227,7 +1253,7 @@ export function buildEnhancedClaudePrompt({
   // receive display indices; a partial mapping makes the UI omit the used-source
   // disclosure rather than attributing different prose to the final prompt.
   const retainedPassages = graphRAGMode === 'full' && promptMeta.graphRAG?.parseStatus === 'complete'
-    ? (controls.graphRAGPayload?.passages || []).slice(0, promptMeta.graphRAG.passagesUsedInPrompt || 0)
+    ? expectedPassages.slice(0, promptMeta.graphRAG.passagesUsedInPrompt || 0)
     : [];
   const passageIndices = retainedPassages
     .map(passage => passage.selectedPayloadIndex ?? -1)
@@ -1262,6 +1288,7 @@ export function buildEnhancedClaudePrompt({
     },
     graphRAG: {
       ...sanitizeGraphRAGDiagnostics(promptMeta.graphRAG),
+      ...integrityDiagnostics,
       retainedPassageCount: promptMeta.graphRAG?.passagesUsedInPrompt ?? 0,
       requested: hasGraphRAGSource,
       used: graphRAGMode !== 'none',

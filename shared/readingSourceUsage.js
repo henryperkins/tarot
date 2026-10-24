@@ -1,4 +1,5 @@
 import { MAXIMUM_CARD_COUNT } from './contracts/readingRequestLimits.js';
+import { GRAPHRAG_INTEGRITY_REMOVAL_REASONS } from './graphRAGIntegrity.js';
 
 // A bounded, text-free snapshot for the reading UI and personal journal.
 // Do not copy prompts, user text, image URLs or arbitrary telemetry into it.
@@ -8,6 +9,7 @@ export const USER_INPUT_KEYS = Object.freeze([
 ]);
 
 export const USAGE_REASON_COPY = Object.freeze({
+  reference_integrity_failed: 'Reference passages could not be included.',
   unverified_reference_provenance: 'Reference provenance could not be verified.',
   projection_rejected: 'References could not be verified for the selected deck.',
   explicit_topic_exclusion: 'This topic was explicitly excluded from reference matching.',
@@ -50,7 +52,7 @@ const fieldCounts = ['originalLength', 'sanitizedLength', 'eligibleLength', 'inc
 const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'sanitizationTruncated', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
 
 export const GRAPH_RAG_FALLBACK_REASONS = Object.freeze(['embeddings-failed', 'embeddings-not-configured', 'embeddings-partial-failure', 'embeddings-timeout', 'embeddings-invalid-response', 'embeddings-cancelled', 'embeddings-registry-overflow', 'no-passages', 'no-query', 'quality-filtering-disabled', 'not-prefetched', 'graphrag-disabled', 'no-graph-patterns', 'retrieval-skipped', 'projection-rejected']);
-const GRAPH_RAG_COUNT_KEYS = ['registryPassageCount', 'candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'retainedPassageCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'embeddingCacheSizeBefore', 'embeddingCacheSizeAfter', 'embeddingCacheMaxSize', 'embeddingPeakConcurrency', 'retrievalElapsedMs', 'budgetTrimmedTo', 'intermediateBudgetPassageCount'];
+const GRAPH_RAG_COUNT_KEYS = ['registryPassageCount', 'candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'retainedPassageCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'embeddingCacheSizeBefore', 'embeddingCacheSizeAfter', 'embeddingCacheMaxSize', 'embeddingPeakConcurrency', 'retrievalElapsedMs', 'budgetTrimmedTo', 'intermediateBudgetPassageCount', 'integrityRemovedBlocks'];
 const DECK_STYLES = ['rws-1909', 'thoth-a1', 'marseille-classic'];
 
 /** Fixed diagnostics only; missing historical measurements remain absent. */
@@ -59,6 +61,10 @@ export function sanitizeGraphRAGDiagnostics(input) {
   const clean = {};
   for (const key of GRAPH_RAG_COUNT_KEYS) {
     if (Number.isFinite(input[key]) && input[key] >= 0) clean[key] = Math.min(100000000, Math.floor(input[key]));
+  }
+  if (typeof input.referenceGuardrailsComplete === 'boolean') clean.referenceGuardrailsComplete = input.referenceGuardrailsComplete;
+  if (Array.isArray(input.integrityRemovalReasons)) {
+    clean.integrityRemovalReasons = [...new Set(input.integrityRemovalReasons.filter(reason => GRAPHRAG_INTEGRITY_REMOVAL_REASONS.includes(reason)))];
   }
   if (['disabled', 'bypassed', 'semantic', 'keyword', 'priority'].includes(input.retrievalMode)) clean.retrievalMode = input.retrievalMode;
   if (['keyword', 'semantic', 'priority', 'bypassed', 'mixed'].includes(input.scoringMethod)) clean.scoringMethod = input.scoringMethod;
