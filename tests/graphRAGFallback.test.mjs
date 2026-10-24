@@ -92,9 +92,15 @@ describe('GraphRAG embedding failures', () => {
     available = true;
     for (let attempt = 0; attempt < 2; attempt++) {
       const score = await scorePassageRelevance(passage, userQuery, options);
-      assert.ok(Math.abs(score - 0.85) < 0.00001);
+      assert.ok(Math.abs(score - 1.0) < 0.00001);
       assert.deepEqual(semanticStatus, { attempted: true, succeeded: true });
     }
+    const customWeighted = await scorePassageRelevance(passage, userQuery, {
+      ...options,
+      keywordWeight: 0.3,
+      semanticWeight: 0.7
+    });
+    assert.ok(Math.abs(customWeighted - 0.85) < 0.00001);
     assert.equal(run.mock.callCount(), 2, 'Fallbacks must not prevent recovery; genuine vectors are cached');
   });
 
