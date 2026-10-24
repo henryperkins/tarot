@@ -1,5 +1,13 @@
 # Reading context remediation execution ledger
 
+October 24 plan: [correctness remediation](../superpowers/plans/2026-10-24-reading-pipeline-correctness-remediation.md).
+
+Current status: the E1–E5 canon corrections and grouped review remain complete: **191 accepted groups / 1,167 mechanically valid variants / zero owner decisions**. The subsequently authorized [47-output subscription review](READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) is also complete. Eleven standard outputs pass; four initial candidate comparison outputs had blocking findings across three families. Rank-based artwork assertions, non-present age conversion and fitted card loss are corrected in prompt **1.5.2**, evaluator **2.6.0**, and confirmed by eight focused subscription generations with zero blocking findings. The current full root suite passes **5,736**, zero failures and two intentional skips; Worker suites pass **64**, assembly passes **874 cases / 2,541 builds**, and lint/build pass. Exact source, checks and preserved failures are recorded in `subscription-qualification/qualification-manifest.json` and the [execution record](READING_PIPELINE_CORRECTNESS_2026-10-24.md).
+
+The original 47-generation ceiling is used. Exactly eight corrected prompts differ, with 39 unchanged. The eight separately authorized focused confirmations ran once each and were all accepted; the standard and candidate comparison gates pass on the source-matched datasets. Evidence is in `subscription-qualification/focused-confirmations/qualification-manifest.json`. Embedding calls remain zero. Other provider/runtime/device qualification remains pending. The candidate is committed and pushed as branch `claude/reading-pipeline-correctness-20261024`; merge and release remain pending. This work made no writes to the primary checkout.
+
+The following ledger is the historical October 23 execution record.
+
 Plan: [October 23 implementation specification](../superpowers/plans/2026-10-23-reading-context-complete-remediation.md).
 
 ## Execution scope and identities

@@ -87,7 +87,15 @@ export function buildPromptTelemetry(promptMeta) {
     memories,
     ephemeris: promptMeta.ephemeris || null,
     forecast: promptMeta.forecast || null,
-    inference: promptMeta.inference ? { provider: promptMeta.inference.provider || null, model: promptMeta.inference.model || null } : null
+    inference: promptMeta.inference ? {
+      provider: promptMeta.inference.provider || null,
+      model: promptMeta.inference.model || null,
+      ...(promptMeta.inference.responseShape ? { responseShape: {
+        assistantMessageCount: boundedCount(promptMeta.inference.responseShape.assistantMessageCount, 1000),
+        outputTextPieceCount: boundedCount(promptMeta.inference.responseShape.outputTextPieceCount, 10000),
+        aggregateFallbackUsed: promptMeta.inference.responseShape.aggregateFallbackUsed === true
+      } } : {})
+    } : null
   };
 }
 
@@ -176,6 +184,10 @@ export function buildNarrativeTelemetry(narrativeMetrics) {
   }
 
   return {
+    ...(Array.isArray(narrativeMetrics.undrawnCardAssertions) ? { cardAssertions: {
+      undrawnCount: Math.min(narrativeMetrics.undrawnCardAssertions.length, 78),
+      reason: narrativeMetrics.undrawnCardAssertions.length > 0 ? 'undrawn_card_assertion' : null
+    } } : {}),
     spine: narrativeMetrics.spine ? {
       isValid: narrativeMetrics.spine.isValid,
       totalSections: narrativeMetrics.spine.totalSections || 0,

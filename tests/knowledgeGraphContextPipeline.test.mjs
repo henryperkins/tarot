@@ -281,3 +281,66 @@ for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
     assert.match(themes.knowledgeGraph.narrativeHighlights[0].text, /UNTRUSTED-HIGHLIGHT/, 'Do not mutate shared prefetched inputs');
   });
 }
+
+test('final prompts filter focus without losing relevant interests or style settings', () => {
+  for (const budgetTarget of ['claude', 'openai', 'modal']) {
+    const built = buildEnhancedClaudePrompt({
+      spreadInfo: { name: 'One-Card Insight' },
+      cardsInfo: [{ card: 'The Sun', orientation: 'Upright', position: 'Theme', meaning: 'Warmth' }],
+      userQuestion: 'I am not asking about quitting my job. How can I handle my boss at work?',
+      personalization: { focusAreas: ['Love & relationships', 'Career & purpose'], readingTone: 'gentle', preferredSpreadDepth: 'short' },
+      budgetTarget, promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+    });
+    assert.equal(built.promptMeta.context.normalized, 'career');
+    assert.match(built.userPrompt, /Career & purpose/);
+    assert.doesNotMatch(built.userPrompt, /Love & relationships/);
+    assert.equal(built.promptMeta.sourceUsage.userContext.focusAreasUsed, true);
+  }
+});
+
+for (const delivery of ['direct', 'job']) test(`scoped workplace ${delivery} keeps one context at embedding and actual provider boundaries`, async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+  const { clearEmbeddingCache } = await import('../functions/lib/embeddings.js');
+  clearEmbeddingCache();
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'warn', () => {});
+  const embeddings = [];
+  const messages = [];
+  const routeEnv = { GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'true',
+    EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', MODAL_ENDPOINT_URL: 'https://modal.invalid', MODAL_PROXY_TOKEN: 'synthetic', MODAL_STREAM: 'false',
+    AI: { run: async (_model, { text }) => { embeddings.push(...text); return { data: text.map(() => [1, 0]) }; } } };
+  t.mock.method(globalThis, 'fetch', async (_url, request) => {
+    messages.push(JSON.parse(request.body).messages);
+    return Response.json({ choices: [{ message: { content: 'The Sun invites you to consider a practical workplace boundary. Choose one small action that fits your circumstances. Your choices shape outcomes.' }, finish_reason: 'stop' }] });
+  });
+  const payload = { spreadInfo: { name: 'One-Card Insight' },
+    cardsInfo: [{ card: 'The Sun', position: 'Theme', orientation: 'Upright', meaning: 'Warmth' }],
+    userQuestion: 'I am not asking about quitting my job. How can I handle my boss at work?',
+    personalization: { focusAreas: ['Love & relationships', 'Career & purpose'] } };
+  let result;
+  if (delivery === 'direct') {
+    const response = await onRequestPost({ env: routeEnv, waitUntil: promise => promise.catch(() => {}), request: new Request('https://tableau.test/api/tarot-reading', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }) });
+    assert.equal(response.status, 200);
+    result = await response.json();
+  } else {
+    const jobs = createFakeReadingJobs({ env: routeEnv, runReading: onRequestPost });
+    const started = await startReadingJob({ env: { ...routeEnv, READING_JOBS: jobs.namespace }, payload });
+    assert.equal(started.ok, true);
+    await jobs.settle();
+    const job = jobs.instances.get(started.jobId).object.job;
+    assert.equal(job.status, 'complete');
+    result = job.meta;
+    t.after(() => { for (const instance of jobs.instances.values()) instance.object.closeSubscribers(); });
+  }
+  assert.equal(messages.length, 1);
+  const user = messages[0].at(-1).content;
+  assert.ok(user.includes(payload.userQuestion));
+  assert.match(user, /Career & purpose/);
+  assert.doesNotMatch(user, /Love & relationships/);
+  assert.match(messages[0][0].content, /career|work|professional/i);
+  assert.ok(embeddings.some(text => text.includes('handle my boss at work')));
+  assert.ok(embeddings.every(text => !/Love & relationships|Career & purpose/.test(text)));
+  assert.equal(result.sourceUsage.userContext.focusAreasUsed, true);
+});

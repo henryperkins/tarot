@@ -95,9 +95,10 @@ describe('final narrative preference contract', () => {
   });
 
   it('keeps saved interests subordinate to the current question and reflections', () => {
-    const { systemPrompt, userPrompt } = buildPrompt({ focusAreas: ['Love & relationships'] });
+    const { systemPrompt, userPrompt } = buildPrompt({ focusAreas: ['Career & purpose', 'Love & relationships'] });
     const focusSection = userPrompt.match(/\*\*Focus Areas\*\*:\n([\s\S]*?)\n\n/)?.[1] || '';
-    assert.match(focusSection, /Love & relationships/);
+    assert.match(focusSection, /Career & purpose/);
+    assert.doesNotMatch(userPrompt, /Love & relationships/);
     assert.match(focusSection, /current question and (?:current )?reflections.*(?:priority|override|precedence)/i);
     assert.match(focusSection, /only when.*relevant/i);
     assert.doesNotMatch(userPrompt, /Keep the reading anchored in:|Return to these themes|question and focus areas as the throughline/);

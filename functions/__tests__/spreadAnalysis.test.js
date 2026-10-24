@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   REVERSAL_FRAMEWORKS,
@@ -183,4 +183,15 @@ describe('case-insensitive suit detection', () => {
     assert.strictEqual(getCardElement('Seven of Swords', 7), 'Air');
     assert.strictEqual(getCardElement('Ten of Pentacles', 10), 'Earth');
   });
+});
+
+test('preliminary references are projected for the selected deck and authoritative context', async () => {
+  const { analyzeSpreadThemes } = await import('../lib/spreadAnalysis.js');
+  for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
+    const themes = await analyzeSpreadThemes([{ card: 'Strength', name: 'Strength', canonicalName: 'Strength', number: 8, orientation: 'Upright' }], {
+      deckStyle, contextSelection: { graphRAGContext: 'career' }, env: { GRAPHRAG_ENABLED: 'true' }
+    });
+    assert.ok(themes.knowledgeGraph.retrievedPassages.length > 0);
+    assert.ok(themes.knowledgeGraph.retrievedPassages.every(p => p.projectedDeck === deckStyle));
+  }
 });

@@ -2,9 +2,11 @@ import { getPassageSource, PASSAGE_SOURCE_DECKS } from '../../shared/passageSour
 import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { getDeckAlias, getDeckSuitAlias } from '../../shared/vision/deckAssets.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { ARCHETYPAL_TRIADS } from '../../src/data/knowledgeGraphData.js';
 import { getPassagesForPattern } from './knowledgeBase.js';
 import { PARTIAL_PATTERN_PROJECTIONS, PARTIAL_PROJECTION_VERSION } from './knowledgeBasePartialProjections.js';
+import { bindMinorPassageToCards, projectMinorPatternReference, minorMemberNames } from './minorPatternReferences.js';
 
 /** Identity alone never authorizes prose. Rebuild all editorial fields from the registry. */
 function resolveRegistryPassage(passage) {
@@ -29,6 +31,7 @@ export function projectPassageForPattern(passage, { isComplete = !passage?.isPar
     source: original.source, sourceId: original.sourceId, sourceUrl: original.sourceUrl || null, sourceUrls: original.sourceUrls || [], provenance: original.provenance || null,
     archetypalText: original.archetypalText || '', visualAnchors: original.visualAnchors || [], tags: original.tags || [], isEnriched: original.isEnriched === true,
     authoredDisplayText: original.text, authoredContext: original.context || 'general', projectionVersion: original.projectionVersion || 'meaning-v1', projectionReviewStatus: original.projectionReviewStatus || 'pending' };
+  if (['suit-progression', 'court-lineage'].includes(passage.type)) return projectMinorPatternReference(base);
   if (isComplete) return { ...base, isPartialPattern: false };
   if (passage.type !== 'triad' || (original.context || 'general') !== 'general') return null;
   const triad = ARCHETYPAL_TRIADS.find(row => row.id === String(passage.patternId));
@@ -59,20 +62,25 @@ function adaptNames(text, deckStyle) {
   for (const card of MAJOR_ARCANA) {
     const alias = selectedName(card.number, deckStyle);
     aliases.set(card.name, alias);
+    aliases.set(`The ${card.name.replace(/^The /, '')}`, alias);
+    aliases.set(`the ${card.name.replace(/^The /, '')}`, alias.replace(/^The /, 'the '));
     for (const shortName of AUTHORED_SHORT_MAJOR_NAMES[card.number] || []) {
       aliases.set(shortName, alias.replace(/^The /, ''));
+      aliases.set(`The ${shortName}`, alias);
       aliases.set(`the ${shortName}`, alias.replace(/^The /, 'the '));
     }
   }
   for (const suit of ['Wands', 'Cups', 'Swords', 'Pentacles']) aliases.set(suit, getDeckSuitAlias(suit, deckStyle));
+  for (const card of MINOR_ARCANA) aliases.set(card.name, getDeckAlias(card, deckStyle));
   // One substitution pass prevents a selected alias from being reinterpreted.
   const escaped = [...aliases.keys()].sort((a,b) => b.length - a.length).map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   return text.replace(new RegExp(`\\b(?:${escaped.join('|')})\\b`, 'g'), name => aliases.get(name));
 }
 
 /** Keep authored history separate from verified generation evidence. */
-export function projectPassageForDeck(passage, deckStyle = 'rws-1909') {
+export function projectPassageForDeck(passage, deckStyle = 'rws-1909', { cardsInfo } = {}) {
   if (!Object.hasOwn(DECK_CATALOG, deckStyle)) return null;
+  if (cardsInfo !== undefined) passage = bindMinorPassageToCards(passage, cardsInfo, deckStyle);
   const projected = projectPassageForPattern(passage);
   if (!projected) return null;
   const source = getPassageSource(projected);
@@ -80,9 +88,9 @@ export function projectPassageForDeck(passage, deckStyle = 'rws-1909') {
   const crossDeckReference = source.deckStyle !== deckStyle;
   const meaning = typeof projected.archetypalText === 'string' ? projected.archetypalText.trim() : '';
   if (crossDeckReference && (!meaning || (projected.isEnriched && projected.projectionReviewStatus !== 'approved'))) return null;
-  const subset = projected.isPartialPattern ? projected.matchedCards : null;
+  const subset = projected.matchedCardKeys || (projected.isPartialPattern ? projected.matchedCards : null);
   const entry = getPassagesForPattern(projected.type, projected.patternId);
-  const cardNumbers = subset || (projected.type === 'major-arcana' ? [Number(projected.patternId)] : projected.type === 'triad' ? ARCHETYPAL_TRIADS.find(row => row.id === projected.patternId)?.cards : entry?.cards) || [];
+  const cardNumbers = projected.matchedCardKeys ? [] : subset || (projected.type === 'major-arcana' ? [Number(projected.patternId)] : projected.type === 'triad' ? ARCHETYPAL_TRIADS.find(row => row.id === projected.patternId)?.cards : entry?.cards) || [];
   const sourceUrls = [...new Set([
     ...(Array.isArray(projected.sourceUrls) ? projected.sourceUrls : []),
     projected.sourceUrl
@@ -90,7 +98,9 @@ export function projectPassageForDeck(passage, deckStyle = 'rws-1909') {
   const candidateId = JSON.stringify([projected.type, projected.patternId, projected.context || 'general', subset, projected.sourceId]);
   return { ...projected,
     title: adaptNames(projected.title, deckStyle), theme: adaptNames(projected.theme, deckStyle),
-    cardNumbers: [...cardNumbers], cardNames: cardNumbers.map(number => selectedName(number, deckStyle)).filter(Boolean),
+    cardNumbers: [...cardNumbers], cardNames: projected.matchedCardKeys
+      ? minorMemberNames(projected.matchedCardKeys).map(card => getDeckAlias(card, deckStyle))
+      : cardNumbers.map(number => selectedName(number, deckStyle)).filter(Boolean),
     sourceUrls, sourceDeck: source.deckStyle,
     candidateId, patternKey: JSON.stringify([projected.type, projected.patternId, subset, deckStyle]),
     projectionId: JSON.stringify([candidateId, projected.projectionVersion, deckStyle]),

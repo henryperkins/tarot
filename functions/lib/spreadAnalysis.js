@@ -481,7 +481,9 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
           // Retrieve passages for frontend display
           const passages = retrievePassages(graphContext.graphKeys, {
             maxPassages: 5,
-            includeMetadata: true
+            includeMetadata: true,
+            deckStyle,
+            questionContext: options.contextSelection?.graphRAGContext || 'general'
           });
           themes.knowledgeGraph.retrievedPassages = passages;
         }

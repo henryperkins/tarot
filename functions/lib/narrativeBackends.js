@@ -934,7 +934,7 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
   });
 
   console.log(`[${requestId}] Generated reading length: ${result.text.length} characters`);
-  promptMeta.inference = { provider: 'openai-native', model: result.model };
+  promptMeta.inference = { provider: 'openai-native', model: result.model, responseShape: result.responseShape };
   if (result.usage) {
     console.log(`[${requestId}] Token usage:`, {
       input_tokens: result.usage.input_tokens,

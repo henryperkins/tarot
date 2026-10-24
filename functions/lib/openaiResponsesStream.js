@@ -15,7 +15,7 @@
  * - response.error
  */
 
-import { ensureOpenAIConfig, resolveResponsesUser } from './openaiResponses.js';
+import { ensureOpenAIConfig, resolveResponsesUser, extractOpenAIResponseContent } from './openaiResponses.js';
 import { createDeadline, streamWithDeadline } from './requestDeadline.js';
 import { validateResponsesStream } from './responsesCompletion.js';
 import { recordInferenceAttempt, inferAttemptReason } from './inferenceAttempts.js';
@@ -161,6 +161,18 @@ export function transformOpenAIStream(openaiStream) {
   let buffer = '';
   let fullText = '';
   let reasoningSummary = '';
+  let responseShape = null;
+  const answerMessages = new Map();
+  const updateAnswerPiece = (event, text, append) => {
+    const outputKey = Number.isInteger(event.output_index) ? event.output_index : (event.item_id || 0);
+    const contentKey = Number.isInteger(event.content_index) ? event.content_index : 0;
+    if (!answerMessages.has(outputKey)) answerMessages.set(outputKey, new Map());
+    const pieces = answerMessages.get(outputKey);
+    pieces.set(contentKey, append ? (pieces.get(contentKey) || '') + text : text);
+    fullText = Array.from(answerMessages.entries()).sort(([a], [b]) => typeof a === 'number' && typeof b === 'number' ? a - b : 0)
+      .map(([, parts]) => Array.from(parts.entries()).sort(([a], [b]) => a - b).map(([, value]) => value).join(''))
+      .join('\n\n');
+  };
   let model = null;
   let usage = null;
   let reader = null;
@@ -190,13 +202,13 @@ export function transformOpenAIStream(openaiStream) {
       if (dataType === 'response.output_text.delta') {
         const delta = typeof parsed.delta === 'string' ? parsed.delta : (parsed.text || '');
         if (delta) {
-          fullText += delta;
+          updateAnswerPiece(parsed, delta, true);
           const deltaEvent = formatSSE('delta', { text: delta });
           controller.enqueue(encoder.encode(deltaEvent));
         }
       } else if (dataType === 'response.output_text.done') {
-        if (typeof parsed.text === 'string' && parsed.text.length > 0) {
-          fullText = parsed.text;
+        if (typeof parsed.text === 'string') {
+          updateAnswerPiece(parsed, parsed.text, false);
         }
       } else if (dataType === 'response.reasoning_summary_text.delta') {
         const delta = typeof parsed.delta === 'string' ? parsed.delta : '';
@@ -240,6 +252,12 @@ export function transformOpenAIStream(openaiStream) {
       } else if (dataType === 'response.completed') {
         model = parsed.response?.model || null;
         usage = parsed.response?.usage || null;
+        if (Array.isArray(parsed.response?.output) || typeof parsed.response?.output_text === 'string') {
+          const extracted = extractOpenAIResponseContent(parsed.response);
+          fullText = extracted.text || '';
+          reasoningSummary = extracted.reasoningSummary || reasoningSummary;
+          responseShape = extracted.responseShape;
+        }
         console.log('[openaiResponsesStream] Response completed event received');
       } else if (dataType === 'response.error' || dataType === 'error') {
         const errorMsg = parsed.error?.message || parsed.message || 'Unknown error';
@@ -276,7 +294,8 @@ export function transformOpenAIStream(openaiStream) {
             // Stream ended - send done event with full text and reasoning
             // Include isEmpty flag so consumers know if this was a tool-only response
             const isEmpty = !fullText || !fullText.trim();
-            const doneEvent = formatSSE('done', { fullText, reasoningSummary: reasoningSummary || null, isEmpty, model, usage });
+            const doneEvent = formatSSE('done', { fullText, reasoningSummary: reasoningSummary || null, isEmpty, model, usage,
+              ...(responseShape ? { responseShape } : {}) });
             controller.enqueue(encoder.encode(doneEvent));
             controller.close();
             break;

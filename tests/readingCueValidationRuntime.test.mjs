@@ -266,7 +266,7 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   assert.deepEqual([...owned.buildIdentity.dirtyPaths].sort(), allowlist.filter((file, index) => headBlobs.get(file) !== rawBlobs[index]).sort());
   const envModule = await (await fetch(`${owned.origins.frontend}/src/lib/readingGestureSettings.js`)).text();
   assert.ok(!envModule.includes('VITE_HOST_CANARY')); assert.ok(!envModule.includes('VITE_DOTENV_CANARY'));
-  assert.equal(owned.buildIdentity.sourceAllowlistVersion, 'reading-local-acceptance-v5');
+  assert.equal(owned.buildIdentity.sourceAllowlistVersion, 'reading-local-acceptance-v7');
   assert.match(envModule, /"DEV":\s*true/);
   for (const origin of Object.values(owned.origins)) {
     for (const url of ['/api/auth/me', '/api/tarot-reading/jobs', '/api/reading-visual/stream']) {

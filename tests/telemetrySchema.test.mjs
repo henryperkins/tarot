@@ -19,6 +19,13 @@ import {
 } from '../functions/lib/telemetrySchema.js';
 
 describe('telemetrySchema', () => {
+  it('adds assertion counts and stable reasons without evidence spans and leaves historical absence unknown', () => {
+    const result = buildNarrativeTelemetry({ undrawnCardAssertions: ['The Moon'], mentionOffsets: [0, 8], evidence: 'private prose' });
+    assert.deepStrictEqual(result.cardAssertions, { undrawnCount: 1, reason: 'undrawn_card_assertion' });
+    assert.strictEqual(Object.hasOwn(buildNarrativeTelemetry({}), 'cardAssertions'), false);
+    assert.ok(!JSON.stringify(result).includes('The Moon'));
+    assert.ok(!JSON.stringify(result).includes('private prose'));
+  });
   describe('SCHEMA_VERSION', () => {
     it('should be version 2', () => {
       assert.strictEqual(SCHEMA_VERSION, 2);
@@ -26,6 +33,16 @@ describe('telemetrySchema', () => {
   });
 
   describe('buildPromptTelemetry', () => {
+    it('keeps only bounded text-free optional response shape diagnostics', () => {
+      const result = buildPromptTelemetry({ inference: { provider: 'openai-native', model: 'fixture', responseShape: {
+        assistantMessageCount: 2, outputTextPieceCount: 3, aggregateFallbackUsed: false,
+        text: 'private answer', offsets: [1, 2]
+      } } });
+      assert.deepStrictEqual(result.inference.responseShape, {
+        assistantMessageCount: 2, outputTextPieceCount: 3, aggregateFallbackUsed: false
+      });
+      assert.strictEqual(Object.hasOwn(buildPromptTelemetry({ inference: { provider: 'old' } }).inference, 'responseShape'), false);
+    });
     it('should return null for null input', () => {
       assert.strictEqual(buildPromptTelemetry(null), null);
     });

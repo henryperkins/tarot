@@ -11,15 +11,16 @@
 // It can be extended in the future to attach richer retrieval metadata
 // (e.g., external passages keyed by pattern id) without changing callers.
 
+import { groupGraphCardIdentities } from './graphCardMembership.js';
 import { detectAllPatterns, getPriorityPatternNarratives } from './knowledgeGraph.js';
 
-function buildGraphKeys(patterns, cardsInfo) {
+function buildGraphKeys(patterns, cardsInfo, deckStyle) {
     if (!patterns || typeof patterns !== 'object') {
         return null;
     }
 
     const keys = {
-        totalMajors: cardsInfo.filter((card) => Number.isInteger(card?.number)
+        totalMajors: groupGraphCardIdentities(cardsInfo, { deckStyle }).members.map(member => member.card).filter((card) => Number.isInteger(card?.number)
             && card.number >= 0 && card.number <= 21).length
     };
 
@@ -82,7 +83,9 @@ function buildGraphKeys(patterns, cardsInfo) {
         keys.suitProgressions = patterns.suitProgressions.map((prog) => ({
             suit: prog.suit,
             stage: prog.stage,
-            significance: prog.significance
+            significance: prog.significance,
+            matchedCardKeys: groupGraphCardIdentities(prog.stageCards, { deckStyle }).members.map(member => member.canonicalKey),
+            matchedCardIndices: [...prog.matchedCardIndices]
         }));
     } else {
         keys.suitProgressions = [];
@@ -92,7 +95,9 @@ function buildGraphKeys(patterns, cardsInfo) {
     if (Array.isArray(patterns.courtLineages) && patterns.courtLineages.length > 0) {
         keys.courtLineages = patterns.courtLineages.map((lineage) => ({
             suit: lineage.suit,
-            significance: lineage.significance
+            significance: lineage.significance,
+            matchedCardKeys: groupGraphCardIdentities(lineage.cards, { deckStyle }).members.map(member => member.canonicalKey),
+            matchedCardIndices: [...lineage.matchedCardIndices]
         }));
     } else {
         keys.courtLineages = [];
@@ -135,7 +140,7 @@ export function buildGraphContext(cardsInfo, options = {}) {
     const patterns = detectAllPatterns(cardsInfo, { deckStyle }) || {};
 
     const narrativeHighlights = getPriorityPatternNarratives(patterns, deckStyle) || [];
-    const graphKeys = buildGraphKeys(patterns, cardsInfo);
+    const graphKeys = buildGraphKeys(patterns, cardsInfo, deckStyle);
 
     return {
         patterns,

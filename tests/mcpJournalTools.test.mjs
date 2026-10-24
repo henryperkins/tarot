@@ -312,7 +312,7 @@ it('saves decision labels, general notes, card reflections and caller interpreta
   const started = await ctx.call('start_tarot_reading', {
     spreadInfo: { name: 'Decision', key: 'decision' }, decisionPaths: { a: '', b: 'Path B: Move home' },
     reflectionsText: 'My whole-reading note', useSavedMemories: false,
-    cardsInfo: ['Heart', 'Path A: original job', 'Path B: original home'].map(position => ({ position, card: 'The Sun', orientation: 'Upright', meaning: 'My sense of renewal', userReflection: 'My card note' }))
+    cardsInfo: ['Heart', 'Path A: original job', 'Path B: original home'].map((position, index) => ({ position, card: ['The Sun', 'The Star', 'Temperance'][index], orientation: 'Upright', meaning: 'My sense of renewal', userReflection: 'My card note' }))
   });
   assert.equal(started.isError, undefined, JSON.stringify(started));
   await ctx.jobs.settle();

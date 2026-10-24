@@ -12,8 +12,7 @@ import {
   escapeRegex,
   hasExplicitCardContext,
   normalizeCardName,
-  AMBIGUOUS_CARD_NAMES,
-  TAROT_TERMINOLOGY_EXCLUSIONS
+  AMBIGUOUS_CARD_NAMES
 } from './cardContextDetection.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import {
@@ -36,6 +35,7 @@ import { resolveVisionCardIdentity } from './visionProof.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 import { detectSuitCountMismatches } from './readingSuitCounts.js';
+import { classifyCardMentions } from './readingCardAssertions.js';
 import {
   RELATIONSHIP_SPREAD_MIN_CARDS,
   RELATIONSHIP_SPREAD_MAX_CARDS
@@ -503,6 +503,20 @@ function findBestFuzzyAliasMatch(candidate, aliasEntries) {
   return best ? best.entry : null;
 }
 
+/** Preserve typo tolerance while exposing occurrence-local matches to assertion checks. */
+export function findFuzzyCardMentions(text, deckStyle = 'rws-1909') {
+  const entries = buildFuzzyAliasEntries(deckStyle);
+  return extractCardCandidates(text).flatMap(candidate => {
+    const entry = findBestFuzzyAliasMatch(candidate, entries);
+    if (!entry) return [];
+    const pattern = new RegExp(escapeRegex(candidate.text).replace(/\s+/g, '\\s+'), 'gi');
+    return Array.from(text.matchAll(pattern)).map(match => ({
+      name: entry.alias, canonical: entry.canonical, normalized: entry.normalizedAlias,
+      isEpithet: entry.isEpithet, start: match.index, end: match.index + match[0].length, observed: match[0]
+    }));
+  });
+}
+
 function hasFuzzyAliasMatch(candidates, aliasEntries) {
   if (!candidates.length || !aliasEntries.length) return false;
   return candidates.some(candidate => Boolean(findBestFuzzyAliasMatch(candidate, aliasEntries)));
@@ -801,111 +815,9 @@ function looksLikeCardNameCase(matchText) {
  * @returns {string[]} Array of hallucinated card names (canonical RWS names)
  */
 export function detectHallucinatedCards(readingText, cardsInfo = [], deckStyle = 'rws-1909') {
-  if (!readingText) return [];
-
-  let text = typeof readingText === 'string' ? readingText : '';
-  const safeCards = Array.isArray(cardsInfo) ? cardsInfo : [];
-
-  // Remove tarot terminology phrases that reference card names but aren't card references
-  // e.g., "Fool's Journey" refers to the archetypal journey, not The Fool card
-  TAROT_TERMINOLOGY_EXCLUSIONS.forEach(pattern => {
-    text = text.replace(pattern, '[TERMINOLOGY]');
-  });
-
-  // Track canonical keys for drawn cards (always RWS canonical names, lowercased)
-  const drawnKeys = new Set(
-    safeCards
-      .filter((card) => card && (typeof card.canonicalName === 'string' || typeof card.card === 'string'))
-      .map((card) => {
-        if (card.canonicalKey) return card.canonicalKey.toLowerCase();
-        if (card.canonicalName) return card.canonicalName.toLowerCase();
-        return canonicalCardKey(card.card, deckStyle) || normalizeCardName(card.card);
-      })
-      .filter(Boolean)
-  );
-
-  const hallucinated = [];
-  const seenCanonicals = new Set();
-
-  // Use deck-aware patterns that include both RWS and deck-specific aliases
-  const patterns = buildDeckAwarePatterns(deckStyle);
-  // A Thoth Knight title also names a different RWS court card. A valid name
-  // for a drawn card must not generate a second, undrawn identity report.
-  const drawnAliases = new Set(patterns
-    .filter(({ canonical }) => drawnKeys.has(canonical.toLowerCase()))
-    .map(({ normalized }) => normalized));
-
-  patterns.forEach(({ name, canonical, normalized, pattern, isEpithet }) => {
-    const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
-    const matches = Array.from(text.matchAll(new RegExp(pattern.source, flags)));
-    if (!matches.length) {
-      return;
-    }
-
-    const hasContext = hasExplicitCardContext(text, name);
-    const requiresCardCase = CARD_NAMES_REQUIRING_CARD_CASE.has(normalized);
-    const hasCardCase = requiresCardCase
-      ? matches.some((match) => looksLikeCardNameCase(match[0]))
-      : true;
-
-    // For RWS names that are common vocabulary (Justice, Strength, etc.),
-    // only treat them as card mentions when there is explicit card-like context.
-    if (AMBIGUOUS_CARD_NAMES.has(normalized) && !hasContext) {
-      return;
-    }
-
-    // For Thoth epithets (Love, Dominion, Victory, etc.), also require context
-    // since these are common English words
-    if (isEpithet && !hasContext) {
-      return;
-    }
-
-    if (requiresCardCase && !hasContext && !hasCardCase) {
-      return;
-    }
-
-    // Use the canonical RWS name for comparison
-    const canonicalKey = canonical.toLowerCase();
-
-    // Skip if this card is in the drawn spread
-    if (drawnKeys.has(canonicalKey) || drawnAliases.has(normalized)) {
-      return;
-    }
-
-    // Avoid duplicate reports for the same canonical card
-    if (seenCanonicals.has(canonicalKey)) {
-      return;
-    }
-
-    seenCanonicals.add(canonicalKey);
-    hallucinated.push(canonical);
-  });
-
-  const candidates = extractCardCandidates(text);
-  if (candidates.length > 0) {
-    const aliasEntries = buildFuzzyAliasEntries(deckStyle);
-    candidates.forEach((candidate) => {
-      const match = findBestFuzzyAliasMatch(candidate, aliasEntries);
-      if (!match) return;
-
-      // The canonical alias may be absent when the actual reference has a typo.
-      if (
-        AMBIGUOUS_CARD_NAMES.has(match.normalizedAlias) &&
-        !hasExplicitCardContext(text, candidate.text)
-      ) {
-        return;
-      }
-
-      const canonicalKey = match.canonical.toLowerCase();
-      if (drawnKeys.has(canonicalKey) || drawnAliases.has(match.normalizedAlias)) return;
-      if (seenCanonicals.has(canonicalKey)) return;
-
-      seenCanonicals.add(canonicalKey);
-      hallucinated.push(match.canonical);
-    });
-  }
-
-  return hallucinated;
+  return Array.from(new Set(classifyCardMentions(readingText, { cardsInfo, deckStyle })
+    .filter(mention => !mention.drawn && ['unclassified', 'present'].includes(mention.classification))
+    .map(mention => mention.canonical)));
 }
 
 // ============================================================================
@@ -956,7 +868,9 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
     cardNames: buildDrawnCardNames(safeCards, deckStyle)
   });
   const coverage = analyzeCardCoverage(metricsText, safeCards, deckStyle);
-  const hallucinatedCards = detectHallucinatedCards(metricsText, safeCards, deckStyle);
+  const mentions = classifyCardMentions(metricsText, { cardsInfo: safeCards, deckStyle });
+  const undrawnCardAssertions = Array.from(new Set(mentions.filter(mention => !mention.drawn && mention.classification === 'present').map(mention => mention.canonical)));
+  const hallucinatedCards = Array.from(new Set(mentions.filter(mention => !mention.drawn && mention.classification === 'unclassified').map(mention => mention.canonical)));
 
   return {
     spine: {
@@ -974,6 +888,7 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
     cardCoverage: coverage.coverage,
     missingCards: coverage.missingCards,
     hallucinatedCards,
+    undrawnCardAssertions,
     suitCountMismatches: detectSuitCountMismatches(metricsText, safeCards, deckStyle)
   };
 }

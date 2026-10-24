@@ -10,6 +10,104 @@ const choose = (text, memory, options = {}) => selection.selectMemoriesForReadin
   sources: [{ id: 'question', kind: 'question', text }], ...options
 }).memories.map(row => row.id);
 
+// Semantic migration: these exact pairs previously admitted a present-age
+// memory. Keeping the pairs records the intentional loss of that authorization;
+// explicit present ownership and dated non-present positives are covered below.
+for (const [current, stored] of [
+  ['I turn 42 this year', 'I am 42 years old'],
+  ['My kid turns 8', 'My child is 8 years old'],
+  ['Alice turns 42', 'Alice is 42 years old'],
+  ["I'm turning 42", 'I am aged 42'],
+  ['I turn 42 and my child turns 8', 'I am 42 years old; my child is 8 years old']
+]) {
+  test(`temporal semantic migration from previously admitted to omitted: ${current} / ${stored}`, () => {
+    assert.deepEqual(choose(current, stored), []);
+  });
+}
+
+for (const { current, stored = 'My child is 8', allowed = false, options } of [
+  { current: 'My child is 8', allowed: true },
+  { current: 'My kid is 8 years old now', allowed: true },
+  { current: 'My child will be 8' },
+  { current: 'My child will be 8 years old' },
+  { current: 'My child will be 8 next year' },
+  { current: 'My child will be 8 in 2027' },
+  { current: 'My child was 8' },
+  { current: 'My child was 8 years old in 2024' },
+  { current: 'My child is turning 8' },
+  { current: 'My child turns 8 this year' },
+  { current: 'My child is about to turn 8' },
+  { current: 'My child is almost 8' },
+  { current: 'If my child is 8' },
+  { current: 'Is my child 8?' },
+  { current: 'My child is 8?' },
+  { current: 'She said "My child is 8"' },
+  { current: '“My child is 8”' },
+  { current: 'My child is not 8' },
+  { current: 'My child is 8. My child is not 8' },
+  { current: 'My child is 8. My child is 9' },
+  { current: 'My child is 7. My child will be 8 in 2027', stored: 'My child is 7', allowed: true },
+  { current: 'My child is 7. My child was 6 in 2024', stored: 'My child is 7', allowed: true },
+  { current: 'My child is 7. My child turns 8 in 2027', stored: 'My child is 7', allowed: true },
+  { current: 'My child is 8', stored: 'My child will be 8 in 2027' },
+  { current: 'My child was 8 in 2024', stored: 'My child was 8 in 2024', allowed: true },
+  { current: 'My child will be 8 in 2027', stored: 'My child will be 8 in 2027', allowed: true },
+  { current: 'My child will be 8 in 2028', stored: 'My child will be 8 in 2027' },
+  { current: 'My child was 8 in 2023', stored: 'My child was 8 in 2024' },
+  { current: 'My child turns 8 on 2027-03-04', stored: 'My child turns 8 on 2027-03-04', allowed: true },
+  { current: 'My child is turning 8 on 2027-03-04', stored: 'My child turns 8 on 2027-03-04', allowed: true },
+  { current: 'My child turns 8 on 2027-03-05', stored: 'My child turns 8 on 2027-03-04' },
+  { current: 'I will be 42 at my graduation', stored: 'I will be 42 at my graduation', allowed: true },
+  { current: 'I will be 42 at my graduation', stored: 'I will be 42 at my wedding' },
+  { current: 'My child will be 8 next year', stored: 'My child will be 8 next year' },
+  { current: 'My child was 8 last year', stored: 'My child was 8 last year' },
+  { current: 'My child turns 8', stored: 'My child turns 8' },
+  { current: 'My child is almost 8', stored: 'My child is almost 8' },
+  { current: 'My child will be 8 in 2027', stored: 'My child was 8 in 2027' },
+  { current: 'My child will be 8 in 2027', stored: 'My daughter will be 8 in 2027' },
+  { current: 'My child will be 8 in 2027', stored: 'My child will be 8.5 in 2027' },
+  { current: 'My child will be 8 in 2027', stored: 'My child will be 8 and a half in 2027' },
+  { current: 'Élodie will be 42 in 2027', stored: 'Élodie will be 42 in 2027', allowed: true },
+  { current: 'I am 42', stored: 'Élodie is 42', allowed: true, options: { displayName: 'Élodie' } },
+  { current: 'My birthday is approaching', stored: 'My birthday is approaching', allowed: true }
+]) {
+  test(`age admission preserves temporal status: ${current} / ${stored}`, () => {
+    assert.deepEqual(choose(current, stored, options), allowed ? ['target'] : []);
+  });
+}
+
+test('age claims preserve temporal qualifiers and polarity before owner normalization', () => {
+  assert.deepEqual(selection.extractPersonalDetailClaims('My child will be 8 in 2027; I was 42 in 2024; Alice is not 30; My kid turns 9 on 2028-03-04'), {
+    hasPersonalDetails: true, ambiguous: false, claims: [
+      { kind: 'age', value: 8, subjectKey: 'relation:child', temporalStatus: 'future', polarity: 'affirmative', temporalReference: 'year:2027' },
+      { kind: 'age', value: 42, subjectKey: 'self', temporalStatus: 'past', polarity: 'affirmative', temporalReference: 'year:2024' },
+      { kind: 'age', value: 30, subjectKey: 'name:alice', temporalStatus: 'present', polarity: 'negative', temporalReference: null },
+      { kind: 'age', value: 9, subjectKey: 'relation:child', temporalStatus: 'approaching', polarity: 'affirmative', temporalReference: 'date:2028-03-04' }
+    ]
+  });
+});
+
+test('temporal changes invalidate frozen admission without changing a previous request result', () => {
+  const sources = [{ id: 'question', text: 'My child is 8' }];
+  const first = selection.selectMemoriesForReading([note('age', 'My child is 8')], { sources, referenceTime: 1000 });
+  const second = selection.selectMemoriesForReading(first.memories, { sources: [{ id: 'question', text: 'My child will be 8 in 2027' }], referenceTime: 1000 });
+  assert.deepEqual(first.selectedIds, ['age']);
+  assert.deepEqual(second.selectedIds, []);
+  const changingDate = selection.selectMemoriesForReading([note('future', 'My child will be 8 in 2027')], { sources: [{ id: 'question', text: 'My child will be 8 in 2027' }], referenceTime: 1000 });
+  assert.deepEqual(changingDate.selectedIds, ['future']);
+  assert.deepEqual(selection.selectMemoriesForReading(changingDate.memories, { sources: [{ id: 'question', text: 'My child will be 8 in 2028' }], referenceTime: 1000 }).selectedIds, []);
+});
+
+test('refreshed memory timestamps cannot establish an original anchor for relative ages', () => {
+  for (const createdAt of [1, Date.UTC(2026, 9, 24), Date.UTC(2027, 9, 24)]) {
+    const result = selection.selectMemoriesForReading([note('relative', 'My child will be 8 next year', { createdAt })], {
+      sources: [{ id: 'question', text: 'My child will be 8 next year' }], referenceTime: Date.UTC(2026, 9, 24)
+    });
+    assert.deepEqual(result.selectedIds, []);
+    assert.deepEqual(result.exclusionReasons, { unmatched_detail: 1 });
+  }
+});
+
 const contrastRetractions = [
   ['employment', 'I work at Acme', 'I no longer work at Acme'],
   ['wedding', 'I am planning a wedding', 'I canceled my wedding'],
@@ -143,7 +241,7 @@ test('negated wedding cancellation is neither an ownership veto nor positive pla
 });
 
 const cases = [
-  ['I turn 42 this year', 'I am 42 years old', true],
+  ['I turn 42 this year', 'I am 42 years old', false],
   ['I turn 42 this year', 'I am 8 years old', false],
   ['I turn 42 this year', 'I am aged 100', false],
   ['My child turns 8', 'I am 8 years old', false],
@@ -153,16 +251,16 @@ const cases = [
   ['My birthday is approaching', 'My birthday is approaching', true],
   ['My birthday is approaching', 'My birthday is approaching; I am 42 years old', false],
   ["My child's birthday is approaching", "My child's birthday is approaching", true],
-  ['My kid turns 8', 'My child is 8 years old', true],
+  ['My kid turns 8', 'My child is 8 years old', false],
   ['Alice turns 42', 'Bob is 42 years old', false],
   ['My child Alice turns 8', 'My child Bob is 8 years old', false],
-  ['I turn 42', 'Alex is 42 years old', true, { displayName: 'Alex' }],
+  ['I turn 42', 'Alex is 42 years old', false, { displayName: 'Alex' }],
   ['I turn 42', 'Alex is 42 years old', false],
   ['My children turn 8', 'My child is 8 years old', false],
   ["Alice's birthday is approaching", "ALICE's birthday is approaching", true],
   ['I turn 42; my child turns 8', 'I am 8 years old; my child is 42 years old', false],
-  ['I turn 42; my child turns 8', 'I am 42 years old; my child is 8 years old', true],
-  ['I turn 42; my child visits', 'I am 42 years old', true],
+  ['I turn 42; my child turns 8', 'I am 42 years old; my child is 8 years old', false],
+  ['I turn 42; my child visits', 'I am 42 years old', false],
   ['Career choices', 'I am 42 years old', false],
   ['My birthday is approaching', 'Their birthday is approaching', false],
   ['Turning 42', 'Turning 42', false],
@@ -186,7 +284,7 @@ for (const modifier of [
 ]) {
   test(`possessive age modifier never authorizes self details: ${modifier}`, () => {
     assert.deepEqual(choose(modifier, 'I am 42 years old'), []);
-    assert.deepEqual(choose('I turn 42', modifier), []);
+    assert.deepEqual(choose('I am 42', modifier), []);
     assert.deepEqual(choose(modifier, modifier), [], 'an unresolved modifier cannot authorize another unresolved note');
     assert.deepEqual(selection.extractPersonalDetailClaims(modifier), {
       hasPersonalDetails: true, ambiguous: true, claims: []
@@ -200,7 +298,7 @@ test('a possessive age modifier cannot borrow self ownership from another curren
     note('right-self', 'I am 42 years old'),
     note('right-partner', 'My partner is 42 years old')
   ], { sources: [
-    { id: 'question', text: 'I turn 42' },
+    { id: 'question', text: 'I am 42' },
     { id: 'card-0', text: 'My 42-year-old partner wants a career change' }
   ] });
   assert.deepEqual(result.selectedIds, ['right-self']);
@@ -231,7 +329,7 @@ test('explicit age predicates and contractions retain their own subjects', () =>
     assert.deepEqual(choose(current, 'Alice is 42 years old'), ['target'], current);
     assert.deepEqual(choose('Alice is 42 years old', current), ['target'], current);
   }
-  assert.deepEqual(choose("My partner's 42 years old", 'My partner turns 42'), ['target']);
+  assert.deepEqual(choose("My partner's 42 years old", 'My partner is 42'), ['target']);
 });
 
 test('older relevant memory outranks eight newer unrelated notes', () => {
@@ -241,19 +339,19 @@ test('older relevant memory outranks eight newer unrelated notes', () => {
 });
 
 test('fields keep their own owners; saved focus authorizes neither topic nor detail', () => {
-  const candidates = [note('child', 'My child turns 42'), note('self', 'I am 42 years old'), note('focus', 'Gardening brings joy')];
+  const candidates = [note('child', 'My child is 42'), note('self', 'I am 42 years old'), note('focus', 'Gardening brings joy')];
   const result = selection.selectMemoriesForReading(candidates, { sources: [
-    { id: 'question', text: 'I turn 42' }, { id: 'pathA', text: 'My child could move' },
+    { id: 'question', text: 'I am 42' }, { id: 'pathA', text: 'My child could move' },
     { id: 'focus-0', kind: 'savedFocus', text: 'Gardening; my child turns 42' }
   ] });
   assert.deepEqual(result.memories.map(row => row.id), ['self']);
-  assert.deepEqual(selection.selectMemoriesForReading([note('path', 'My child turns 8')], { sources: [{ id: 'pathA', text: 'My child turns 8' }] }).memories.map(row => row.id), ['path']);
-  assert.deepEqual(selection.selectMemoriesForReading([note('card', 'I am aged 42')], { sources: [{ id: 'card-77', text: 'Turning 42' }] }).memories.map(row => row.id), ['card']);
+  assert.deepEqual(selection.selectMemoriesForReading([note('path', 'My child is 8')], { sources: [{ id: 'pathA', text: 'My child is 8' }] }).memories.map(row => row.id), ['path']);
+  assert.deepEqual(selection.selectMemoriesForReading([note('card', 'I am aged 42')], { sources: [{ id: 'card-77', text: 'I am 42' }] }).memories.map(row => row.id), ['card']);
 });
 
 test('detail tier, deterministic cap, deduplication and one silent communication note', () => {
-  const candidates = [note('general', 'Birthday approaching choices'), ...['d', 'c', 'b', 'a'].map((id, index) => note(id, ['I am 42', 'I am aged 42', 'I am 42 years old', 'I turn 42'][index])), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })];
-  const result = selection.selectMemoriesForReading(candidates, { sources: [{ id: 'question', text: 'I turn 42; birthday approaching choices' }] });
+  const candidates = [note('general', 'Birthday approaching choices'), ...['d', 'c', 'b', 'a'].map((id, index) => note(id, ['I am 42', 'I am aged 42', 'I am 42 years old', 'I am 42 now'][index])), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })];
+  const result = selection.selectMemoriesForReading(candidates, { sources: [{ id: 'question', text: 'I am 42; birthday approaching choices' }] });
   assert.deepEqual(result.memories.map(row => row.id), ['a', 'b', 'c']);
   assert.deepEqual(selection.selectMemoriesForReading([note('same', 'Career choices'), note('same', 'Career transition'), note('other', ' CAREER choices '), note('style-a', 'Prefers brief language', { category: 'communication' }), note('style-b', 'Prefers gentle words', { category: 'communication' })], { sources: [{ id: 'question', text: 'Career choices' }] }).memories.map(row => row.id), ['same', 'style-a']);
 });
@@ -270,7 +368,7 @@ test('Unicode text and string keywords rank consistently without establishing de
 });
 
 test('extractor keeps unsupported details ambiguous and claims local to clauses', () => {
-  assert.deepEqual(selection.extractPersonalDetailClaims('I turn 42; my child turns 8'), { hasPersonalDetails: true, ambiguous: false, claims: [{ kind: 'age', value: 42, subjectKey: 'self' }, { kind: 'age', value: 8, subjectKey: 'relation:child' }] });
+  assert.deepEqual(selection.extractPersonalDetailClaims('I turn 42; my child turns 8'), { hasPersonalDetails: true, ambiguous: false, claims: [{ kind: 'age', value: 42, subjectKey: 'self', temporalStatus: 'approaching', polarity: 'affirmative', temporalReference: null }, { kind: 'age', value: 8, subjectKey: 'relation:child', temporalStatus: 'approaching', polarity: 'affirmative', temporalReference: null }] });
   assert.equal(selection.extractPersonalDetailClaims('Turning 42').ambiguous, true);
   assert.equal(selection.extractPersonalDetailClaims('Their birthday').ambiguous, true);
   assert.equal(selection.extractPersonalDetailClaims('Turns 3 cards').hasPersonalDetails, false);
@@ -310,7 +408,7 @@ test('direct prompt callers select once safely and expose IDs only in private re
 });
 
 test('competing owners and a relative sharing the display name cannot authorize self details', () => {
-  assert.deepEqual(choose('I turn 42', 'My child Alex turns 42', { displayName: 'Alex' }), []);
+  assert.deepEqual(choose('I am 42', 'My child Alex turns 42', { displayName: 'Alex' }), []);
   assert.deepEqual(choose('Alice or Bob turns 42', 'Bob is 42 years old'), []);
   assert.deepEqual(choose('My son turns 8', 'My daughter is 8 years old'), []);
   assert.deepEqual(choose('My mother turns 42', 'My parent is 42 years old'), []);
@@ -333,9 +431,9 @@ test('coordinated subjects, multi-person roles and unsupported age references re
     const target = text.includes('42') ? 'Bob is 42 years old' : 'My partner is 8 years old';
     assert.deepEqual(choose(text, target), []);
   }
-  assert.deepEqual(choose("I'm turning 42", 'I am aged 42'), ['target']);
-  assert.deepEqual(choose('I turn 42 and my child turns 8', 'I am 42 years old; my child is 8 years old'), ['target']);
-  assert.deepEqual(choose('My CHILD turns 8', 'My kid is 8 years old'), ['target']);
+  assert.deepEqual(choose("I'm turning 42", 'I am aged 42'), []);
+  assert.deepEqual(choose('I turn 42 and my child turns 8', 'I am 42 years old; my child is 8 years old'), []);
+  assert.deepEqual(choose('My CHILD is 8', 'My kid is 8 years old'), ['target']);
   assert.deepEqual(choose('My child Alice turns 8; my child Bob turns 9; my child turns 8', 'My child is 8 years old'), []);
 });
 
@@ -359,7 +457,13 @@ test('final hard-cap loss drops complete selected notes and records retained cou
   t.mock.method(console, 'log', () => {}); t.mock.method(console, 'warn', () => {});
   const { buildEnhancedClaudePrompt } = await import('../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js');
   const { parseMemoryBlocks } = await import('../functions/lib/userMemory.js');
-  const cardsInfo = Array.from({ length: 78 }, (_, index) => ({ card: 'The Sun', number: 19, position: `Focus ${index}`, orientation: 'Upright', meaning: 'Career exploration in the current workplace '.repeat(20), userReflection: 'Career exploration and workplace choices. '.repeat(47) }));
+  const { MAJOR_ARCANA } = await import('../src/data/majorArcana.js');
+  const { MINOR_ARCANA } = await import('../src/data/minorArcana.js');
+  const cardsInfo = [...MAJOR_ARCANA, ...MINOR_ARCANA].map((card, index) => ({
+    ...card, card: card.name, position: `Focus ${index}`, orientation: 'Upright',
+    meaning: card.upright, userReflection: 'Career exploration and workplace choices. '.repeat(47)
+  }));
+  assert.equal(new Set(cardsInfo.map(card => card.card)).size, 78);
   const args = { spreadInfo: { name: 'Custom Spread', key: 'custom' }, cardsInfo, userQuestion: 'Career choices', context: 'career', budgetTarget: 'openai', promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }, memories: [note('budget-private', 'Career exploration and workplace choices')] };
   const result = buildEnhancedClaudePrompt(args);
   assert.equal(result.promptMeta.memories.selectedCount, 1);
@@ -374,7 +478,7 @@ test('communication status does not override recency within the matching-detail 
   const result = selection.selectMemoriesForReading([
     note('newer-detail', 'I am aged 42', { createdAt: 200 }),
     note('older-communication-detail', 'I am 42 years old', { category: 'communication', createdAt: 1 })
-  ], { sources: [{ id: 'question', text: 'I turn 42' }], limit: 1 });
+  ], { sources: [{ id: 'question', text: 'I am 42' }], limit: 1 });
   assert.deepEqual(result.selectedIds, ['newer-detail']);
 });
 
@@ -384,7 +488,7 @@ test('one eligible detail beats six general/style candidates and communication n
     ...Array.from({ length: 3 }, (_, index) => note(`style-${index}`, `Prefers concise style ${index}`, { category: 'communication' })),
     note('detail', 'I am aged 42')
   ];
-  const result = selection.selectMemoriesForReading(candidates, { sources: [{ id: 'question', text: 'I turn 42; career workplace transition decisions' }] });
+  const result = selection.selectMemoriesForReading(candidates, { sources: [{ id: 'question', text: 'I am 42; career workplace transition decisions' }] });
   assert.equal(result.selectedIds[0], 'detail');
   const privateStyle = note('private-style', 'I am 42 years old and prefer concise career advice', { category: 'communication', keywords: ['career'] });
   assert.deepEqual(selection.selectMemoriesForReading([privateStyle], { sources: [{ id: 'question', text: 'Career advice' }] }).selectedIds, []);
@@ -400,22 +504,22 @@ test('a career path label can select context despite a vague question and unrela
 test('unnamed roles are disqualified by explicit other people anywhere in the current reading', () => {
   const candidates = [note('role', 'My child is 8 years old'), note('self', 'I am 42 years old')];
   for (const sources of [
-    [{ id: 'question', text: 'My child turns 8; my other child turns 9; I turn 42' }],
-    [{ id: 'question', text: 'My child turns 8; I turn 42' }, { id: 'reflections', text: 'My child Alice visits; my child Bob visits' }],
-    [{ id: 'question', text: 'My child turns 8; I turn 42' }, { id: 'pathA', text: 'My kid Alice visits' }, { id: 'card-77', text: 'My child Bob visits' }]
+    [{ id: 'question', text: 'My child is 8; my other child is 9; I am 42' }],
+    [{ id: 'question', text: 'My child is 8; I am 42' }, { id: 'reflections', text: 'My child Alice visits; my child Bob visits' }],
+    [{ id: 'question', text: 'My child is 8; I am 42' }, { id: 'pathA', text: 'My kid Alice visits' }, { id: 'card-77', text: 'My child Bob visits' }]
   ]) {
     assert.deepEqual(selection.selectMemoriesForReading(candidates, { sources }).selectedIds, ['self']);
   }
-  assert.deepEqual(choose('My child turns 8', 'My child is 8 years old; my other child visits'), []);
+  assert.deepEqual(choose('My child is 8', 'My child is 8 years old; my other child visits'), []);
 });
 
 test('named detail ownership stays specific when multiple people share a role', () => {
   const result = selection.selectMemoriesForReading([note('alice', 'Alice is 8 years old'), note('role', 'My child is 8 years old')], { sources: [
-    { id: 'question', text: 'My child Alice turns 8' }, { id: 'reflections', text: 'My child Bob visits' }
+    { id: 'question', text: 'My child Alice is 8' }, { id: 'reflections', text: 'My child Bob visits' }
   ] });
   assert.deepEqual(result.selectedIds, ['alice']);
   assert.deepEqual(selection.selectMemoriesForReading([note('role', 'My child is 8 years old')], { sources: [
-    { id: 'question', text: 'My child turns 8' }, { id: 'focus-0', kind: 'savedFocus', text: 'My child Alice visits; my child Bob visits' }
+    { id: 'question', text: 'My child is 8' }, { id: 'focus-0', kind: 'savedFocus', text: 'My child Alice visits; my child Bob visits' }
   ] }).selectedIds, ['role'], 'saved focus cannot redefine current ownership');
 });
 
@@ -434,13 +538,13 @@ for (const coordinated of ['Alice & Bob turn 42', 'Alice, Bob turn 42', 'Alice, 
 }
 
 test('commas still separate explicitly attributed detail clauses', () => {
-  assert.deepEqual(choose('Alice turns 42, Bob turns 43', 'Alice is 42 years old; Bob is 43 years old'), ['target']);
+  assert.deepEqual(choose('Alice is 42, Bob is 43', 'Alice is 42 years old; Bob is 43 years old'), ['target']);
 });
 
 test('a named group in another current field vetoes only its unnamed role', () => {
   for (const text of ['My child Alice & Bob visit', 'My child Alice, Bob and Carol visit', 'My other kid visits', 'My two children visit']) {
     const result = selection.selectMemoriesForReading([note('role', 'My child is 8 years old'), note('self', 'I am aged 42')], { sources: [
-      { id: 'question', text: 'My child turns 8; I turn 42' }, { id: 'reflections', text }
+      { id: 'question', text: 'My child is 8; I am 42' }, { id: 'reflections', text }
     ] });
     assert.deepEqual(result.selectedIds, ['self']);
   }
@@ -450,7 +554,7 @@ test('possessive names in explicit relations match the same named birthday owner
   assert.deepEqual(choose("Alice's birthday is approaching", "My child Alice's birthday is approaching"), ['target']);
   assert.deepEqual(choose("My child Alice's birthday is approaching", "Alice's birthday is approaching"), ['target']);
   const result = selection.selectMemoriesForReading([note('role', 'My child is 8 years old')], { sources: [
-    { id: 'question', text: 'My child turns 8' }, { id: 'reflections', text: "My child Alice's birthday is approaching; my child Alice visits" }
+    { id: 'question', text: 'My child is 8' }, { id: 'reflections', text: "My child Alice's birthday is approaching; my child Alice visits" }
   ] });
   assert.deepEqual(result.selectedIds, ['role'], 'the same named person is not counted twice because of a possessive suffix');
 });
@@ -479,14 +583,14 @@ const bareAgeCases = [
   ['I am 42', 'I am 8 years old', false],
   ['My child is 8', 'I am 8 years old', false],
   ['I am 42', 'My child is 42 years old', false],
-  ['My child is 8', 'My kid turns 8', true],
-  ['Alice is 42', 'Alice turns 42', true],
+  ['My child is 8', 'My kid is 8', true],
+  ['Alice is 42', 'Alice is 42', true],
   ["Alice's 42", 'Alice is 42 years old', true],
   ['Alice is 42', 'Bob is 42 years old', false],
   ['She is 42', 'Alice is 42 years old', false],
   ["She's 42", 'I am 42 years old', false],
-  ['I am 42 and my child is 8', 'I am 42 years old; my child turns 8', true],
-  ['Alice is 42, Bob is 43', 'Alice is 42 years old; Bob turns 43', true],
+  ['I am 42 and my child is 8', 'I am 42 years old; my child is 8', true],
+  ['Alice is 42, Bob is 43', 'Alice is 42 years old; Bob is 43', true],
   ['I am 42 and Alice is 8', 'I am 8 years old; Alice turns 42', false],
   ['Alice and Bob are 42', 'Bob is 42 years old', false]
 ];
@@ -499,7 +603,7 @@ for (const [current, memory, allowed] of bareAgeCases) {
 }
 
 test('bare ages stay clause-local and pronoun ages stay ambiguous', () => {
-  assert.deepEqual(selection.extractPersonalDetailClaims("I'm 42 and my child is 8"), { hasPersonalDetails: true, ambiguous: false, claims: [{ kind: 'age', value: 42, subjectKey: 'self' }, { kind: 'age', value: 8, subjectKey: 'relation:child' }] });
+  assert.deepEqual(selection.extractPersonalDetailClaims("I'm 42 and my child is 8"), { hasPersonalDetails: true, ambiguous: false, claims: [{ kind: 'age', value: 42, subjectKey: 'self', temporalStatus: 'present', polarity: 'affirmative', temporalReference: null }, { kind: 'age', value: 8, subjectKey: 'relation:child', temporalStatus: 'present', polarity: 'affirmative', temporalReference: null }] });
   for (const text of ['She is 42', "She's 42", 'They are 42', 'The person is 42']) {
     const result = selection.extractPersonalDetailClaims(text);
     assert.equal(result.hasPersonalDetails, true, text);
@@ -551,10 +655,10 @@ for (const text of [
 test('measurement units preserve subject ownership and independent age clauses', () => {
   assert.deepEqual(choose('My child is 8 kilometers away', 'My child is 8 years old'), []);
   assert.deepEqual(choose("Alice's 42 kg", 'Alice is 42 years old'), []);
-  assert.deepEqual(choose('I am 42 miles from home; my child is 8', 'My child turns 8'), ['target']);
-  assert.deepEqual(choose('I am 42 miles from home and my child is 8', 'My child turns 8'), ['target']);
-  assert.deepEqual(choose('I am 42 nautical miles from home and my child is 8', 'My child turns 8'), ['target']);
-  assert.deepEqual(choose('My child is 8 and I am 42 miles from home', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42 miles from home; my child is 8', 'My child is 8'), ['target']);
+  assert.deepEqual(choose('I am 42 miles from home and my child is 8', 'My child is 8'), ['target']);
+  assert.deepEqual(choose('I am 42 nautical miles from home and my child is 8', 'My child is 8'), ['target']);
+  assert.deepEqual(choose('My child is 8 and I am 42 miles from home', 'My child is 8'), ['target']);
   assert.deepEqual(choose('I am 42; my child is 8 kilometers away', 'I am 42 years old'), ['target']);
 });
 
@@ -574,7 +678,7 @@ test('age-specific continuations preserve supported shorthand without borrowing 
     assert.deepEqual(choose(text, 'I am 42 years old'), ['target'], text);
     assert.deepEqual(choose('I am 42 years old', text), ['target'], text);
   }
-  assert.deepEqual(choose('I am 42 furlongs from home and my child is 8', 'My child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42 furlongs from home and my child is 8', 'My child is 8'), ['target']);
 });
 
 for (const text of [
@@ -617,7 +721,7 @@ for (const text of [
     assert.deepEqual(choose(text, 'My child is 8 years old'), []);
     assert.deepEqual(choose(text, 'My child is 81 years old'), []);
     assert.deepEqual(choose('My child is 8 years old', text), []);
-    assert.deepEqual(choose(`${text}; I turn 42`, 'I am 42 years old'), ['target']);
+    assert.deepEqual(choose(`${text}; I am 42`, 'I am 42 years old'), ['target']);
   });
 }
 
@@ -636,12 +740,12 @@ for (const fraction of [' & 1/2', '&1/2', ' & ½', ' & a half', ' & two thirds',
     assert.equal(claims.ambiguous, true);
     assert.deepEqual(choose(measurement, 'I am 42 years old'), []);
     assert.deepEqual(choose('Career change', `${measurement}; career change`), []);
-    assert.deepEqual(choose(`${measurement} & my child is 8`, 'My child turns 8'), ['target']);
+    assert.deepEqual(choose(`${measurement} & my child is 8`, 'My child is 8'), ['target']);
   });
 }
 
 test('ampersands still separate supported age predicates without joining subjects', () => {
-  assert.deepEqual(choose('I am 42 & my child is 8', 'I am 42 years old; my child turns 8'), ['target']);
+  assert.deepEqual(choose('I am 42 & my child is 8', 'I am 42 years old; my child is 8'), ['target']);
   assert.deepEqual(choose('Alice & Bob turn 42', 'Bob is 42 years old'), []);
 });
 
@@ -680,7 +784,7 @@ test('one relevant clause cannot admit extra unsupported facts or unknown factua
       assert.deepEqual(result.selectedIds, [], extra);
     }
   }
-  assert.deepEqual(choose('I turn 42; Career choices', 'I am 42 years old; I live in Paris'), []);
+  assert.deepEqual(choose('I am 42; Career choices', 'I am 42 years old; I live in Paris'), []);
 });
 
 test('explicit allergy and ambiguous medical restrictions are omitted but ordinary food preferences survive relevant input', () => {
@@ -755,7 +859,7 @@ test('exact expiry and malformed keyword metadata cannot create admission', () =
 
 
 test('compatibility exposes conservative statuses without leaking claim details', () => {
-  const current = [{ id: 'question', text: 'I am planning a wedding with my partner; I work at Acme; I turn 42' }];
+  const current = [{ id: 'question', text: 'I am planning a wedding with my partner; I work at Acme; I am 42' }];
   for (const [text, want] of [
     ['I am 42 years old', 'supported'],
     ['I am planning a wedding with my partner', 'supported'],
@@ -820,7 +924,7 @@ test('coordinated current subjects cannot establish a single-person event', () =
 });
 
 test('positive age evidence cannot outlive an explicit same-subject correction', () => {
-  for (const current of ['I am 42. I am not 42 years old.', 'I turn 42. I am not turning 42.', 'I am 42. I am no longer 42 years old.']) {
+  for (const current of ['I am 42. I am not 42 years old.', 'I am 42. I am no longer 42 years old.']) {
     const sources = [{ id: 'question', kind: 'question', text: current }];
     assert.equal(selection.checkMemoryCompatibility(note('age', 'I am 42 years old'), sources).status, 'conflicting', current);
     assert.deepEqual(selection.selectMemoriesForReading([note('age', 'I am 42 years old')], { sources }).selectedIds, [], current);

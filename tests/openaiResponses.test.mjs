@@ -4,12 +4,76 @@
 
 import { test, describe, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import * as openaiResponses from '../functions/lib/openaiResponses.js';
 import {
   ensureOpenAIConfig,
   getReasoningEffort,
   getTextVerbosity,
   resolveResponsesUser
 } from '../functions/lib/openaiResponses.js';
+
+describe('complete buffered Responses content', () => {
+  const response = {
+    output: [
+      { type: 'reasoning', summary: [{ type: 'summary_text', text: 'Separate summary.' }] },
+      { type: 'message', role: 'assistant', content: [
+        { type: 'output_text', text: '  Opening. ' },
+        { type: 'output_text', text: 'Boundary.' }
+      ] },
+      { type: 'function_call', content: [{ type: 'output_text', text: 'Tool content.' }] },
+      { type: 'message', role: 'assistant', content: [
+        { type: 'refusal', refusal: 'Not answer prose.' },
+        { type: 'output_text', text: 'Your choices matter.  ' }
+      ] }
+    ],
+    output_text: 'Opening. Boundary.\n\nYour choices matter.'
+  };
+
+  test('the wrapper evaluates and returns every answer piece without duplicating aggregate text', async (t) => {
+    t.mock.method(globalThis, 'fetch', async () => Response.json(response));
+    const result = await openaiResponses.callOpenAIResponses({ OPENAI_API_KEY: 'fixture-key' }, {
+      instructions: 'Fixture', input: 'Fixture', returnFullResponse: true
+    });
+    assert.equal(result.text, 'Opening. Boundary.\n\nYour choices matter.');
+    assert.equal(result.reasoningSummary, 'Separate summary.');
+    assert.deepEqual(result.responseShape, {
+      assistantMessageCount: 2, outputTextPieceCount: 3, aggregateFallbackUsed: false
+    });
+  });
+
+  test('the pure extractor keeps whitespace between pieces, legacy messages and all reasoning summaries', () => {
+    assert.equal(typeof openaiResponses.extractOpenAIResponseContent, 'function');
+    const result = openaiResponses.extractOpenAIResponseContent({ output: [
+      { type: 'reasoning', summary: [{ type: 'summary_text', text: 'Before.' }] },
+      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: ' One' }, { type: 'output_text', text: ' ' }, { type: 'output_text', text: 'two. ' }] },
+      { type: 'reasoning', summary: [{ type: 'summary_text', text: 'Between.' }] },
+      { type: 'message', content: [{ type: 'output_text', text: 'Legacy. ' }] },
+      { type: 'message', role: 'user', content: [{ type: 'output_text', text: 'Untrusted user block.' }] },
+      { type: 'message', role: 'tool', content: [{ type: 'output_text', text: 'Tool.' }] },
+      { type: 'message', role: 'assistant', content: [] },
+      { type: 'reasoning', summary: [{ type: 'summary_text', text: 'After.' }] }
+    ] });
+    assert.equal(result.text, 'One two. \n\nLegacy.');
+    assert.equal(result.reasoningSummary, 'Before.\nBetween.\nAfter.');
+    assert.deepEqual(result.responseShape, {
+      assistantMessageCount: 3, outputTextPieceCount: 4, aggregateFallbackUsed: false
+    });
+  });
+
+  for (const [name, payload, expected, fallback] of [
+    ['one piece', { output: [{ type: 'message', content: [{ type: 'output_text', text: ' One. ' }] }] }, 'One.', false],
+    ['aggregate only', { output_text: ' Aggregate. ' }, 'Aggregate.', true],
+    ['empty nested blocks', { output: [null, { type: 'message', content: [{ type: 'output_text', text: '' }] }], output_text: ' Fallback. ' }, 'Fallback.', true],
+    ['no usable content', { output: [{ type: 'reasoning', summary: [] }] }, null, false]
+  ]) {
+    test(`the pure extractor supports ${name}`, () => {
+      assert.equal(typeof openaiResponses.extractOpenAIResponseContent, 'function');
+      const result = openaiResponses.extractOpenAIResponseContent(payload);
+      assert.equal(result.text, expected);
+      assert.equal(result.responseShape.aggregateFallbackUsed, fallback);
+    });
+  }
+});
 
 describe('ensureOpenAIConfig', () => {
   test('defaults to native OpenAI with bearer authentication', () => {

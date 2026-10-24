@@ -30,7 +30,7 @@ test('graph-derived summary counts distinct validated patterns and excludes inva
     triadIds: ['death-temperance-star', 'magician-chariot-world', 'devil-tower-sun'],
     partialTriads: [{ id: 'magician-chariot-world', matchedCards: [1,7], missingCards: [21] }, { id: 'devil-tower-sun', matchedCards: [15,15], missingCards: [19] }],
     dyadPairs: [{ cards: [13,17], significance: 'high' }, { cards: [17,13], significance: 'high' }, { cards: [1,99], significance: 'high' }],
-    courtLineages: [{ suit: 'Cups', significance: 'alliance' }, { suit: 'forged', significance: 'alliance' }]
+    courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }, { suit: 'forged', significance: 'alliance' }]
   } } }, { graphRAGSummaryOnly: true, graphRAGPayload: { retrievalSummary: maliciousSummary } });
   assert.match(block, /1 complete triad\(s\)/);
   assert.match(block, /1 partial triad\(s\)/);

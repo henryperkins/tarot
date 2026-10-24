@@ -1,6 +1,22 @@
 # Knowledge graph and context qualification status
 
-## Current October 23 remediation candidate
+## Current October 24 correctness candidate
+
+**The bounded Claude narrative qualification is complete: zero blocking candidate findings.** All 47 originally authorized subscription narratives are generated and agent-reviewed. The 11 standard samples pass the existing metrics gate and agent review. Four initial candidate comparison readings failed across three defect families: unsupported Marseille artwork, conversion of non-present ages to current facts, and fitted prompts losing accepted drawn cards. These are corrected in reading prompt **1.5.2**, evaluator **2.6.0**. Eight separately authorized focused confirmations of the changed prompts are all accepted, and the recomputed standard (11) and candidate comparison (18) gates pass with zero flags. The [narrative review](READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) records every outcome, correction and two minor residual observations without converting initial failures into passes.
+
+The current root suite passes **5,736 tests**, zero failures and two intentional opt-in skips (5,738 total); Worker graph/spread-analysis suites pass **64**. Assembly qualification passes **874 fixtures / 2,541 provider-target builds / 525 projections / 21 caps / 12 boundaries / 13 grounding probes**. Lint and the production build pass. Current documentation, whitespace and source-preservation checks are bound in the new subscription qualification manifest. These overlapping lanes are not summed.
+
+**All 191 canon editorial groups remain accepted: zero pending groups or owner editorial decisions.** Their 1,167 variants pass mechanics; version-only metadata changes were revalidated without changing the reviewed text or identities. The [canon review](READING_PIPELINE_AGENT_REVIEW.md) preserves the prior E1–E5 corrections and independent-review findings. Direct/retrieved Minor matrices and the 32 Chromium/WebKit preview passes are historical 1.5.1 evidence, not newly executed browser/device qualification for 1.5.2.
+
+The candidate is committed and pushed as branch `claude/reading-pipeline-correctness-20261024`, based on `a2b7d7f6…`; it is not merged to master or deployed. Evidence is in `subscription-qualification/qualification-manifest.json` and, for the confirmations, `subscription-qualification/focused-confirmations/qualification-manifest.json` under the plan's private evidence directory. The [execution record](READING_PIPELINE_CORRECTNESS_2026-10-24.md) distinguishes the 1.5.2 checks, original generation source and earlier manifests, all of which remain preserved.
+
+Exactly **55 subscription generations** (47 plus the eight confirmations) and **zero embedding calls** were made. Rebuilding identical inputs changes eight prompts and leaves 39 identical: 21 accepted candidate prompts plus all 18 baseline prompts. Each changed prompt was generated once with the same model and settings, one turn, zero application retries and no paid API fallback. On the current source the 47 requests have 43 accepted outputs, four baseline observations and no candidate blocking failure.
+
+Workers AI, Modal capacity, OpenAI live compatibility, production inspection, physical devices and assistive technology remain pending. Browser rendering is emulation. No historical waiver was reused. Apart from that branch commit and push, no merge or deployment occurred. This work made no writes to the primary checkout.
+
+The following October 23 and earlier records are historical evidence; their counts, failures, human-review policy and release authorization do not qualify or authorize this candidate.
+
+## Historical October 23 remediation candidate
 
 **The follow-up memory-veto correction is implemented; its verification is recorded below. This candidate is not qualified for release.** Human editorial approval and live qualification remain pending; the pre-push subscription check failed at its first sample.
 

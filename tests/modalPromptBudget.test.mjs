@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { safeParseReadingRequest } from '../shared/contracts/readingSchema.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import {
   estimateTokenCount,
@@ -136,7 +137,7 @@ for (const scenario of ['ten-card-japanese', '78-card-custom']) {
         const count = scenario === 'ten-card-japanese' ? 10 : 78;
         const input = safeParseReadingRequest({
           spreadInfo: { key: count === 10 ? 'celtic' : 'custom', name: count === 10 ? 'Celtic Cross (Classic 10-Card)' : 'Custom Spread' },
-          cardsInfo: Array.from({ length: count }, (_, index) => ({ card: MAJOR_ARCANA[index % 22].name, number: MAJOR_ARCANA[index % 22].number, meaning: index % 3 ? MAJOR_ARCANA[index % 22].upright : MAJOR_ARCANA[index % 22].reversed, position: `Focus ${index + 1}`, orientation: index % 3 ? 'Upright' : 'Reversed', userReflection: 'このカードを見ると、長い通勤と子どもたちとの夜を思い出します。'.repeat(100).slice(0, count === 10 ? 1000 : 2000) })),
+          cardsInfo: [...MAJOR_ARCANA, ...MINOR_ARCANA].slice(0, count).map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), meaning: index % 3 ? card.upright : card.reversed, position: `Focus ${index + 1}`, orientation: index % 3 ? 'Upright' : 'Reversed', userReflection: 'このカードを見ると、長い通勤と子どもたちとの夜を思い出します。'.repeat(100).slice(0, count === 10 ? 1000 : 2000) })),
           userQuestion: 'What supports a career transition?',
           reflectionsText: count === 78 ? 'I am considering a career transition with care. '.repeat(110).slice(0, 5000) : ''
         });

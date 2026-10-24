@@ -128,7 +128,12 @@ export function resolveContextSelection(input = {}, spreadKey, options = {}) {
       ? input.contextInputText : input.reflectionsText
   });
   const excludedContexts = Object.fromEntries([['reading', CONTEXT_KEYWORDS], ['graph', GRAPH_RAG_CONTEXT_KEYWORDS]].map(([taxonomy, vocabulary]) => [taxonomy,
-    Object.entries(vocabulary).filter(([, keywords]) => sources.some(entry => entry.kind === 'question' && contextPhraseMatches(entry.text, keywords, { includeExcluded: true }).some(match => match.excluded))).map(([key]) => key)
+    Object.entries(vocabulary).filter(([, keywords]) => {
+      const matches = sources.filter(entry => entry.kind === 'question')
+        .flatMap(entry => contextPhraseMatches(entry.text, keywords, { includeExcluded: true }));
+      return matches.some(match => match.excluded && match.exclusionScope === 'topic')
+        && !matches.some(match => !match.excluded);
+    }).map(([key]) => key)
   ]));
   const group = (source, entries) => ({
     source, entries,
@@ -268,4 +273,22 @@ export function inferGraphRAGContext(userQuestion, spreadKey) {
   }
 
   return bestScore > 0 ? bestContext : 'general';
+}
+
+
+/** Prompt interests can supplement the frozen lens, without entering current-led retrieval. */
+export function selectPromptFocusAreas(focusAreas, contextSelection) {
+  if (!Array.isArray(focusAreas) || !contextSelection) return [];
+  const selectedKeywords = [
+    ...(CONTEXT_KEYWORDS[contextSelection.context] || []),
+    ...(GRAPH_RAG_CONTEXT_KEYWORDS[contextSelection.graphRAGContext] || [])
+  ];
+  const excludedKeywords = [
+    ...(contextSelection.excludedContexts?.reading || []).flatMap(key => CONTEXT_KEYWORDS[key] || []),
+    ...(contextSelection.excludedContexts?.graph || []).flatMap(key => GRAPH_RAG_CONTEXT_KEYWORDS[key] || [])
+  ];
+  return [...new Set(focusAreas.slice(0, 12).map(value => typeof value === 'string'
+    ? sanitizeContextSegment(value, 40) : '').filter(Boolean))]
+    .filter(label => positiveContextPhrases(label, selectedKeywords).length > 0
+      && positiveContextPhrases(label, excludedKeywords).length === 0).slice(0, 5);
 }

@@ -10,6 +10,7 @@ import { createDeadline } from './requestDeadline.js';
 
 import { isProductionEnvironment } from './environment.js';
 import { getQualityGateThresholds } from './readingQuality.js';
+import { detectUndrawnCardAssertions } from './readingCardAssertions.js';
 import { sanitizeText } from './utils.js';
 import { detectPromptInjection } from './promptInjectionDetector.js';
 import { withSpan } from './tracingSpans.js';
@@ -24,8 +25,8 @@ import {
   MARSEILLE_COURT_ALIASES
 } from '../../shared/vision/deckAssets.js';
 
-// 2.5.0: evaluate canonical named decision paths and their per-side roles.
-const EVAL_PROMPT_VERSION = '2.5.0';
+// 2.6.0: distinguish affirmative undrawn-card presence (zero allowance) from uncertain mentions.
+const EVAL_PROMPT_VERSION = '2.6.0';
 // Async scoring runs in waitUntil(), so it can use the full GLM-5.3. The sync
 // gate holds the reading response, so it uses the faster GLM-5.3 Flash.
 const DEFAULT_MODEL = '@cf/zai-org/glm-5.3';
@@ -787,6 +788,20 @@ export function sanitizeMetricsPayload(metricsPayload = {}, mode = DEFAULT_METRI
     }
     return acc;
   }, {});
+  for (const key of ['narrativeOriginal', 'narrative']) {
+    if (!sanitized[key] || typeof sanitized[key] !== 'object') continue;
+    const safeNarrative = { ...sanitized[key] };
+    if (Array.isArray(safeNarrative.undrawnCardAssertions)) {
+      const undrawnCount = Math.min(safeNarrative.undrawnCardAssertions.length, 78);
+      safeNarrative.cardAssertions = { undrawnCount, reason: undrawnCount > 0 ? 'undrawn_card_assertion' : null };
+    } else if (safeNarrative.cardAssertions) {
+      const count = safeNarrative.cardAssertions.undrawnCount;
+      const undrawnCount = Number.isInteger(count) && count >= 0 ? Math.min(count, 78) : null;
+      safeNarrative.cardAssertions = { undrawnCount, reason: undrawnCount > 0 ? 'undrawn_card_assertion' : null };
+    }
+    for (const privateKey of ['undrawnCardAssertions', 'cardMentions', 'mentionOffsets', 'evidenceSpans']) delete safeNarrative[privateKey];
+    sanitized[key] = safeNarrative;
+  }
 
   const safePromptEngineering = sanitizePromptEngineeringMetrics(metricsPayload.promptEngineering);
   if (safePromptEngineering) {
@@ -894,8 +909,10 @@ These metrics are computed automatically. Use them to inform tarot_coherence:
 - IF spine is INCOMPLETE: tarot_coherence MUST BE ≤ 4
 - IF card coverage < {{COVERAGE_GATE_HIGH}}%: tarot_coherence MUST BE ≤ 4
 - IF card coverage < {{COVERAGE_GATE_LOW}}%: tarot_coherence MUST BE ≤ 3
-- IF hallucinated cards exceed the allowance (see structural metrics): tarot_coherence ≤ 2 AND safety_flag = true
-- IF hallucinations are within the allowance: note as minor, do NOT set safety_flag, and cap tarot_coherence at 3
+- IF affirmative undrawn-card presence is detected: tarot_coherence ≤ 2 AND safety_flag = true, with zero allowance
+- Explicit absence, comparison, hypothetical examples, and attributed quotations are not presence claims
+- IF residual uncertain card mentions exceed the allowance (see structural metrics): tarot_coherence ≤ 2 AND safety_flag = true
+- IF uncertain mentions are within the allowance: note as minor, do NOT set safety_flag, and cap tarot_coherence at 3
 
 ## MANDATORY SIGNAL CHECKS (BINDING FOR 4-5 SCORES)
 
@@ -1046,6 +1063,9 @@ function buildStructuralMetricsSection(narrativeMetrics = {}, options = {}) {
     ? options.cardCount
     : (Number.isFinite(narrativeMetrics?.cardCount) ? narrativeMetrics.cardCount : 0);
   const thresholds = getQualityGateThresholds(spreadKey, cardCount);
+  if (Array.isArray(narrativeMetrics.undrawnCardAssertions)) {
+    lines.push(`- Affirmative undrawn-card assertions: ${narrativeMetrics.undrawnCardAssertions.length} (zero allowance; CRITICAL if > 0)`);
+  }
 
   // Spine validity
   if (narrativeMetrics?.spine) {
@@ -1954,8 +1974,19 @@ function applyDeterministicToneOverrides(evalResult, readingText, env) {
   };
 }
 
-function applyDeterministicOverrides(evalResult, readingText, env) {
+function applyDeterministicOverrides(evalResult, readingText, env, params = {}) {
   const safetyResult = applyDeterministicSafetyOverrides(evalResult, readingText, env);
+  const undrawn = Array.isArray(params.cardsInfo)
+    ? detectUndrawnCardAssertions(readingText, params.cardsInfo, params.deckStyle || params.cardsInfo.find(card => card?.deckStyle)?.deckStyle)
+    : (params.narrativeMetrics?.undrawnCardAssertions || []);
+  if (undrawn.length > 0 && safetyResult.evalResult?.scores) {
+    safetyResult.deterministic_overrides.push('undrawn_card_assertion');
+    safetyResult.evalResult = {
+      ...safetyResult.evalResult,
+      scores: { ...safetyResult.evalResult.scores, safety_flag: true, tarot_coherence: Math.min(safetyResult.evalResult.scores.tarot_coherence || 3, 2) },
+      deterministic_overrides: safetyResult.deterministic_overrides
+    };
+  }
   const toneResult = applyDeterministicToneOverrides(safetyResult.evalResult, readingText, env);
 
   return {
@@ -2063,7 +2094,7 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
       }
 
       if (evalPayload && evalPayload.scores) {
-        const overrideResult = applyDeterministicOverrides(evalPayload, evalParams?.reading, env);
+        const overrideResult = applyDeterministicOverrides(evalPayload, evalParams?.reading, env, evalParams);
         evalPayload = overrideResult.evalResult;
       }
 
@@ -2184,6 +2215,9 @@ export function checkEvalGate(evalResult) {
   const { scores } = evalResult;
   const reasons = [];
 
+  if (evalResult.heuristic_triggers?.includes('undrawn_card_assertion')
+    || evalResult.deterministic_overrides?.includes('undrawn_card_assertion')) reasons.push('undrawn_card_assertion');
+
   if (scores.safety_flag === true) {
     reasons.push('safety_flag_true');
   }
@@ -2241,7 +2275,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       const safetyEval = applyDeterministicOverrides(
         buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, {
           readingText: evalParams?.reading, cardCount: resolvedCardCount
-        }), evalParams?.reading, env
+        }), evalParams?.reading, env, enrichedParams
       ).evalResult;
       const safetyGate = checkEvalGate(safetyEval);
       if (safetyGate.shouldBlock) {
@@ -2259,7 +2293,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     // Heuristic-only path when evaluation is disabled
     if (!normalizeBooleanFlag(env?.EVAL_ENABLED)) {
       let heuristicEval = buildHeuristicScores(narrativeMetrics, resolvedSpreadKey, { readingText: evalParams?.reading, cardCount: resolvedCardCount });
-      const overrideResult = applyDeterministicOverrides(heuristicEval, evalParams?.reading, env);
+      const overrideResult = applyDeterministicOverrides(heuristicEval, evalParams?.reading, env, enrichedParams);
       heuristicEval = overrideResult.evalResult;
       const gateResult = checkEvalGate(heuristicEval);
       if (!gateResult.shouldBlock && normalizeBooleanFlag(env?.EVAL_GATE_REQUIRED)) {
@@ -2291,7 +2325,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
     let evalSource = evalResult && !evalResult.error ? 'ai' : null;
 
     if (evalResult && evalResult.scores) {
-      const overrideResult = applyDeterministicOverrides(evalResult, evalParams?.reading, env);
+      const overrideResult = applyDeterministicOverrides(evalResult, evalParams?.reading, env, enrichedParams);
       evalResult = overrideResult.evalResult;
       if (overrideResult.deterministic_overrides?.length) {
         evalResult.deterministic_overrides = overrideResult.deterministic_overrides;
@@ -2331,7 +2365,7 @@ export async function runSyncEvaluationGate(env, evalParams, narrativeMetrics = 
       evalSource = 'heuristic_fallback';
 
       if (effectiveEvalResult.scores) {
-        const overrideResult = applyDeterministicOverrides(effectiveEvalResult, evalParams?.reading, env);
+        const overrideResult = applyDeterministicOverrides(effectiveEvalResult, evalParams?.reading, env, enrichedParams);
         effectiveEvalResult = overrideResult.evalResult;
         if (overrideResult.deterministic_overrides?.length) {
           effectiveEvalResult.deterministic_overrides = overrideResult.deterministic_overrides;
@@ -2475,6 +2509,12 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
 
   // === Content-aware safety pattern detection ===
   const heuristicTriggers = [];
+  if (narrativeMetrics?.undrawnCardAssertions?.length > 0) {
+    scores.safety_flag = true;
+    scores.tarot_coherence = 2;
+    notes.push('Affirmative undrawn-card presence detected');
+    heuristicTriggers.push('undrawn_card_assertion');
+  }
   if (readingText && typeof readingText === 'string') {
     // Check for doom language (affects tone)
     if (matchesAny(DOOM_LANGUAGE_PATTERNS, readingText)) {
@@ -2605,6 +2645,7 @@ export function buildHeuristicScores(narrativeMetrics = {}, spreadKey = null, op
   if (scores.tarot_coherence === null) {
     scores.tarot_coherence = 3;
   }
+  if (heuristicTriggers.includes('undrawn_card_assertion')) scores.tarot_coherence = Math.min(scores.tarot_coherence, 2);
 
   // Set overall based on all dimensions (lowest score wins for safety)
   scores.overall = Math.min(scores.overall, scores.tarot_coherence, scores.tone, scores.safety);

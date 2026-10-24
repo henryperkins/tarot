@@ -31,9 +31,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'A clean ending makes room for repair. Let what is finished be finished (Death), then blend the lesson into your life with patience and care (Temperance). From that integration, hope returns as a new, steadier orientation (The Star), without denying pain.',
+                    'Death, Temperance and The Star offer a symbolic relationship between endings, integration and hope. If an ending is part of your situation, consider what needs acknowledgment and what a patient pace could look like. Small acts of care may support a steadier orientation without promising recovery or asking you to deny pain.',
                 text:
-                    'A clean ending makes room for repair. Let what is finished be finished (Death), then blend the lesson into your life with patience and care (Temperance). From that integration, hope returns—not as a denial of pain, but as a new, steadier orientation (The Star). Look to the skeleton on the white horse and banner, Temperance\'s angel pouring between cups with one foot in water and one on land, and the Star\'s large star over the pitchers by the pool.',
+                    'Death, Temperance and The Star offer a symbolic relationship between endings, integration and hope. If an ending is part of your situation, consider what needs acknowledgment and what a patient pace could look like. Small acts of care may support a steadier orientation without promising recovery or asking you to deny pain. Look to the skeleton on the white horse and banner, Temperance\'s angel pouring between cups with one foot in water and one on land, and the Star\'s large star over the pitchers by the pool.',
                 tags: ['transformation', 'integration', 'healing', 'hope'],
                 visualAnchors: [
                     'skeleton',
@@ -52,18 +52,18 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'grief',
                 archetypalText:
-                    'This is literal healing from loss: Death marks what cannot return, Temperance asks you to metabolize grief in steady doses, and The Star brings relief and a gentler horizon. Healing is not forgetting—it is learning to live with love and memory without being consumed by the wound.',
+                    'If grief is part of what you have described, Death can symbolize an ending, Temperance a manageable pace, and The Star the possibility of hope. You might make room for memory and care in ways that suit you, without a timetable for relief or an expectation that loss must become a lesson.',
                 text:
-                    'This is literal healing from loss: Death marks what cannot return, Temperance asks you to metabolize grief in steady doses, and The Star brings relief and a gentler horizon. Healing is not forgetting—it is learning to live with love and memory without being consumed by the wound.',
+                    'If grief is part of what you have described, Death can symbolize an ending, Temperance a manageable pace, and The Star the possibility of hope. You might make room for memory and care in ways that suit you, without a timetable for relief or an expectation that loss must become a lesson.',
                 tags: ['grief', 'loss', 'mourning', 'healing', 'hope']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'transition',
                 archetypalText:
-                    'A life chapter is closing. Death ends what is done, Temperance integrates what you learned, and The Star points to a new orientation. Don’t rush the middle—give yourself time to acclimate so hope grows from real integration instead of wishful denial.',
+                    'If a chapter is changing, Death, Temperance and The Star can frame reflection on what is ending, what needs integration and what offers hope. Consider giving yourself time to acclimate and choosing one manageable practice. The cards do not establish that a transition is underway or predict how it will unfold.',
                 text:
-                    'A life chapter is closing. Death ends what is done, Temperance integrates what you learned, and The Star points to a new orientation. Don’t rush the middle—give yourself time to acclimate so hope grows from real integration instead of wishful denial.',
+                    'If a chapter is changing, Death, Temperance and The Star can frame reflection on what is ending, what needs integration and what offers hope. Consider giving yourself time to acclimate and choosing one manageable practice. The cards do not establish that a transition is underway or predict how it will unfold.',
                 tags: ['transition', 'change', 'integration', 'timing', 'renewal']
             },
             {
@@ -86,9 +86,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Notice the attachment or limiting pattern (The Devil), recognize what can no longer be sustained (The Tower), and make room for clarity and vitality (The Sun). This arc connects honesty about constraints with disruption and the possibility of renewed freedom.',
+                    'The Devil, The Tower and The Sun can connect attachment, disruption and clarity as symbolic themes. If a limiting pattern is relevant, consider what feels restrictive, which assumptions deserve examination and what supports honest expression. Disruption is neither required nor a promise of renewed freedom.',
                 text:
-                    'Notice what has you hooked (The Devil). Then tell the truth: the structure can’t hold (The Tower). The breakthrough isn’t just escape—it’s clarity and vitality returning (The Sun). If it feels like chaos, ask what honesty is being restored. The horned figure and chained figures, the lightning-split tower with falling figures, and the radiant sun over the joyful child and sunflowers mirror the release.',
+                    'The Devil, The Tower and The Sun can connect attachment, disruption and clarity as symbolic themes. If a limiting pattern is relevant, consider what feels restrictive, which assumptions deserve examination and what supports honest expression. Disruption is neither required nor a promise of renewed freedom. The horned figure and chained figures, the lightning-split tower with falling figures, and the radiant sun over the joyful child and sunflowers mirror the release.',
                 tags: ['liberation', 'truth', 'breakthrough', 'clarity'],
                 visualAnchors: [
                     'horned figure',
@@ -105,27 +105,27 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'addiction',
                 archetypalText:
-                    'This is a recovery arc. The Devil shows the hook—substance, habit, or compulsion. The Tower is the rupture that ends the fantasy of control. The Sun is support, routine, and honest pride returning. Choose one concrete step that restores daylight: tell the truth, ask for help, and rebuild simply.',
+                    'If a habit or compulsion is something you have raised, The Devil can offer a lens on attachment, The Tower on questioning a pattern, and The Sun on openness and supportive connection. You might consider what help would feel useful and one manageable step you choose. The cards cannot establish an addiction, prescribe a rupture or promise recovery.',
                 text:
-                    'This is a recovery arc. The Devil shows the hook—substance, habit, or compulsion. The Tower is the rupture that ends the fantasy of control. The Sun is support, routine, and honest pride returning. Choose one concrete step that restores daylight: tell the truth, ask for help, and rebuild simply.',
+                    'If a habit or compulsion is something you have raised, The Devil can offer a lens on attachment, The Tower on questioning a pattern, and The Sun on openness and supportive connection. You might consider what help would feel useful and one manageable step you choose. The cards cannot establish an addiction, prescribe a rupture or promise recovery.',
                 tags: ['addiction', 'recovery', 'support', 'truth', 'liberation']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'relationship',
                 archetypalText:
-                    'Leaving toxic dynamics often requires a clean break. The Devil names the bond that is more compulsion than love, the Tower is the boundary or rupture that ends the pattern, and the Sun is self-respect and joy returning. Choose the clean ending over the slow drain.',
+                    'The Devil, The Tower and The Sun can frame questions about attachment, assumptions and clarity in a relationship. If something feels restrictive, consider which boundaries, conversations or sources of support fit your situation. Whether to stay, change the relationship or leave remains your choice; these cards do not establish a toxic bond or require an ending.',
                 text:
-                    'Leaving toxic dynamics often requires a clean break. The Devil names the bond that is more compulsion than love, the Tower is the boundary or rupture that ends the pattern, and the Sun is self-respect and joy returning. Choose the clean ending over the slow drain.',
+                    'The Devil, The Tower and The Sun can frame questions about attachment, assumptions and clarity in a relationship. If something feels restrictive, consider which boundaries, conversations or sources of support fit your situation. Whether to stay, change the relationship or leave remains your choice; these cards do not establish a toxic bond or require an ending.',
                 tags: ['relationship', 'boundaries', 'truth', 'liberation', 'clarity']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'career',
                 archetypalText:
-                    'A role or identity can become a cage. The Devil is the golden handcuff, the Tower is the unavoidable wake-up or exit, and the Sun is work that makes you feel alive again. Let the collapse redirect you toward what is real—and sustainable.',
+                    'If a work role feels restrictive, The Devil can prompt reflection on obligations, The Tower on assumptions that may need reassessment, and The Sun on clarity about what sustains your interest. Consider one practical way to examine your options. A collapse, departure or successful new role is not implied.',
                 text:
-                    'A role or identity can become a cage. The Devil is the golden handcuff, the Tower is the unavoidable wake-up or exit, and the Sun is work that makes you feel alive again. Let the collapse redirect you toward what is real—and sustainable.',
+                    'If a work role feels restrictive, The Devil can prompt reflection on obligations, The Tower on assumptions that may need reassessment, and The Sun on clarity about what sustains your interest. Consider one practical way to examine your options. A collapse, departure or successful new role is not implied.',
                 tags: ['career', 'change', 'truth', 'renewal', 'liberation']
             },
             {
@@ -176,9 +176,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'therapy',
                 archetypalText:
-                    'This is deep psychological processing. The Hermit is honest self-inquiry, the Hanged Man is a perspective shift you cannot force, and the Moon is the emotional material that surfaces when you feel safe. Let the work be spacious—insights arrive between sessions.',
+                    'The Hermit, The Hanged Man and The Moon can suggest self-inquiry, a different perspective and room for uncertainty. If reflective or therapeutic work is relevant to your question, consider a pace and support that feel suitable. You might note a question to revisit without assuming that hidden emotional material or a breakthrough must emerge.',
                 text:
-                    'This is deep psychological processing. The Hermit is honest self-inquiry, the Hanged Man is a perspective shift you cannot force, and the Moon is the emotional material that surfaces when you feel safe. Let the work be spacious—insights arrive between sessions.',
+                    'The Hermit, The Hanged Man and The Moon can suggest self-inquiry, a different perspective and room for uncertainty. If reflective or therapeutic work is relevant to your question, consider a pace and support that feel suitable. You might note a question to revisit without assuming that hidden emotional material or a breakthrough must emerge.',
                 tags: ['therapy', 'processing', 'perspective', 'subconscious', 'patience']
             },
             {
@@ -210,9 +210,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Work with your skills and agency (The Magician), align competing impulses into one direction (The Chariot), and complete the cycle through integration (The World). Disciplined action matters alongside recognizing the lessons and changed perspective that completion can bring.',
+                    'The Magician, The Chariot and The World connect available skills, chosen direction and integration. Consider which tools you can use, how competing priorities might align and what completion would mean for this task. Reviewing effort and lessons can be useful whether or not the result matches your hopes.',
                 text:
-                    'You have tools and agency (The Magician). Align competing impulses into one direction (The Chariot). Then complete the cycle: integrate the win, the lesson, and the new identity it created (The World). The infinity symbol above the wand, cup, sword, and pentacle, the sphinxes beneath the starry canopy, and the World dancer inside the wreath show disciplined motion toward wholeness.',
+                    'The Magician, The Chariot and The World connect available skills, chosen direction and integration. Consider which tools you can use, how competing priorities might align and what completion would mean for this task. Reviewing effort and lessons can be useful whether or not the result matches your hopes. The infinity symbol above the wand, cup, sword, and pentacle, the sphinxes beneath the starry canopy, and the World dancer inside the wreath show disciplined motion toward wholeness.',
                 tags: ['manifestation', 'discipline', 'integration', 'completion'],
                 visualAnchors: [
                     'infinity symbol',
@@ -230,9 +230,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'career',
                 archetypalText:
-                    'Skill plus direction equals results. The Magician is competence and communication, the Chariot is focus and execution, and the World is the deliverable, promotion, or completed cycle. Pick one goal, align your energy, and ship.',
+                    'The Magician can frame competence and communication, The Chariot focus and execution, and The World the question of completion. Consider a realistic goal, the resources it needs and how you would assess the result. Skill and direction can support your work without guaranteeing a deliverable, promotion or other outcome.',
                 text:
-                    'Skill plus direction equals results. The Magician is competence and communication, the Chariot is focus and execution, and the World is the deliverable, promotion, or completed cycle. Pick one goal, align your energy, and ship.',
+                    'The Magician can frame competence and communication, The Chariot focus and execution, and The World the question of completion. Consider a realistic goal, the resources it needs and how you would assess the result. Skill and direction can support your work without guaranteeing a deliverable, promotion or other outcome.',
                 tags: ['career', 'skill', 'focus', 'achievement', 'completion']
             },
             {
@@ -248,9 +248,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'personal',
                 archetypalText:
-                    'You are ready for a milestone. The Magician says you can do this, the Chariot says choose a direction, and the World says integrate the win into your identity. Make the change real through action, not just intention.',
+                    'The Magician, The Chariot and The World invite reflection on agency, direction and integration. What milestone, if any, feels feasible to you, and what small action would help you explore it? Consider what you could learn from that action without assuming readiness or a future win.',
                 text:
-                    'You are ready for a milestone. The Magician says you can do this, the Chariot says choose a direction, and the World says integrate the win into your identity. Make the change real through action, not just intention.',
+                    'The Magician, The Chariot and The World invite reflection on agency, direction and integration. What milestone, if any, feels feasible to you, and what small action would help you explore it? Consider what you could learn from that action without assuming readiness or a future win.',
                 tags: ['personal', 'growth', 'agency', 'milestone', 'integration']
             },
             {
@@ -291,9 +291,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'romantic',
                 archetypalText:
-                    'Attraction becomes commitment. The Empress is affection and nurture, the Lovers is a choice made in alignment, and the Hierophant is the container—vows, shared values, community, or ritual. Ask what kind of relationship you are building and what promises are real.',
+                    'The Empress, The Lovers and The Hierophant can bring nurture, choice and shared values into a relationship question. If commitment is something you are considering, ask which promises feel meaningful and freely chosen. Affection does not require a particular relationship structure or predict that commitment will follow.',
                 text:
-                    'Attraction becomes commitment. The Empress is affection and nurture, the Lovers is a choice made in alignment, and the Hierophant is the container—vows, shared values, community, or ritual. Ask what kind of relationship you are building and what promises are real.',
+                    'The Empress, The Lovers and The Hierophant can bring nurture, choice and shared values into a relationship question. If commitment is something you are considering, ask which promises feel meaningful and freely chosen. Affection does not require a particular relationship structure or predict that commitment will follow.',
                 tags: ['romantic', 'commitment', 'values', 'partnership', 'stability']
             },
             {
@@ -373,9 +373,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'personal',
                 archetypalText:
-                    'A whole developmental loop is underway. The Fool begins naive, the Magician learns agency, and the World integrates the lesson. Notice who you are becoming—and let that become your new baseline.',
+                    'The Fool, The Magician and The World offer a lens on beginnings, agency and integration. Consider whether any of these themes fits your situation, what you might try and which lessons are useful to carry forward. A developmental cycle or new identity need not already be underway.',
                 text:
-                    'A whole developmental loop is underway. The Fool begins naive, the Magician learns agency, and the World integrates the lesson. Notice who you are becoming—and let that become your new baseline.',
+                    'The Fool, The Magician and The World offer a lens on beginnings, agency and integration. Consider whether any of these themes fits your situation, what you might try and which lessons are useful to carry forward. A developmental cycle or new identity need not already be underway.',
                 tags: ['personal', 'growth', 'identity', 'integration', 'cycle']
             },
             {
@@ -476,9 +476,9 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'legal',
                 archetypalText:
-                    'Outcomes turn. The Wheel shows forces beyond your control, Justice demands clarity and fair process, and the Hanged Man asks you to accept what the system decides. Do what is right, then release what you cannot influence.',
+                    'The Wheel can symbolize changing conditions, Justice fair process and careful assessment, and The Hanged Man a pause to consider another perspective. If this relates to a legal matter, distinguish known facts from uncertainty and consider what information or qualified support would help you understand your options. Reflection does not require accepting a ruling or giving up available choices.',
                 text:
-                    'Outcomes turn. The Wheel shows forces beyond your control, Justice demands clarity and fair process, and the Hanged Man asks you to accept what the system decides. Do what is right, then release what you cannot influence.',
+                    'The Wheel can symbolize changing conditions, Justice fair process and careful assessment, and The Hanged Man a pause to consider another perspective. If this relates to a legal matter, distinguish known facts from uncertainty and consider what information or qualified support would help you understand your options. Reflection does not require accepting a ruling or giving up available choices.',
                 tags: ['legal', 'justice', 'outcome', 'acceptance', 'truth']
             },
             {
@@ -503,25 +503,25 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'healing',
                 archetypalText:
-                    'Acceptance frees energy. The Wheel is what you did not choose, Justice is the honest assessment, and the Hanged Man is surrender that stops the fight. Healing becomes possible when you stop arguing with reality.',
+                    'The Wheel, Justice and The Hanged Man can invite reflection on changing conditions, an honest assessment and a different perspective. If healing is part of your question, consider what support and pace fit your needs. Acceptance can coexist with action; difficulty or slow progress does not mean that you have failed to surrender.',
                 text:
-                    'Acceptance frees energy. The Wheel is what you did not choose, Justice is the honest assessment, and the Hanged Man is surrender that stops the fight. Healing becomes possible when you stop arguing with reality.',
+                    'The Wheel, Justice and The Hanged Man can invite reflection on changing conditions, an honest assessment and a different perspective. If healing is part of your question, consider what support and pace fit your needs. Acceptance can coexist with action; difficulty or slow progress does not mean that you have failed to surrender.',
                 tags: ['healing', 'acceptance', 'truth', 'surrender', 'balance']
             }
         ]
     },
 
     'tower-star-moon': {
-        title: 'The Post-Crisis Navigation Arc',
+        title: 'Disruption, Hope and Uncertainty',
         theme: 'Upheaval → Hope Restored → Navigating Uncertainty',
         passages: [
             {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'After disruption (The Tower), renewed hope can offer orientation (The Star) while the next steps remain uncertain (The Moon). Recovery may be uneven. This arc invites patient exploration and attention to intuition without treating uncertainty as proof or demanding immediate answers.',
+                    'The Tower, The Star and The Moon can frame disruption, hope and uncertainty. If change is part of your situation, consider what is known, what remains unclear and what offers a small point of orientation. Intuition can be explored alongside evidence without promising recovery or treating uncertainty as proof.',
                 text:
-                    'After structures collapse (The Tower), hope returns as a quiet compass (The Star), but the path forward remains unclear (The Moon). Trust intuition over certainty. Healing is not linear, and the next steps may only reveal themselves one at a time. The lightning-struck tower and falling figures, the Star\'s large star and pitchers by the pool, and the Moon\'s face between the two towers with the dog and wolf keep the path grounded.',
+                    'The Tower, The Star and The Moon can frame disruption, hope and uncertainty. If change is part of your situation, consider what is known, what remains unclear and what offers a small point of orientation. Intuition can be explored alongside evidence without promising recovery or treating uncertainty as proof. The lightning-struck tower and falling figures, the Star\'s large star and pitchers by the pool, and the Moon\'s face between the two towers with the dog and wolf keep the path grounded.',
                 tags: ['crisis', 'hope', 'intuition', 'healing'],
                 visualAnchors: [
                     'lightning',
@@ -539,36 +539,36 @@ export const TRIAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'trauma',
                 archetypalText:
-                    'After crisis, go slowly. The Tower is the rupture, the Star is the first calm breath and support, and the Moon is the uncertain road of recovery. Trust small steps and gentle intuition—safety first, certainty later.',
+                    'If you have described a crisis, consider what pace and support feel appropriate. The Tower can frame disruption, The Star the possibility of hope, and The Moon uncertainty. Small steps and attention to what feels safe can be options without assuming a recovery timetable.',
                 text:
-                    'After crisis, go slowly. The Tower is the rupture, the Star is the first calm breath and support, and the Moon is the uncertain road of recovery. Trust small steps and gentle intuition—safety first, certainty later.',
+                    'If you have described a crisis, consider what pace and support feel appropriate. The Tower can frame disruption, The Star the possibility of hope, and The Moon uncertainty. Small steps and attention to what feels safe can be options without assuming a recovery timetable.',
                 tags: ['trauma', 'recovery', 'support', 'intuition', 'patience']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'career',
                 archetypalText:
-                    'A professional collapse becomes a new vision. The Tower is job loss or upheaval, the Star is renewed hope and a clearer calling, and the Moon is ambiguity while you explore. Don’t panic in the unknown—keep moving with curiosity.',
+                    'If your work situation feels unsettled, The Tower, The Star and The Moon can offer themes of disruption, hope and uncertainty. Separate what is known from what is still unclear, and consider one manageable next step. These themes do not establish a job loss or promise a new calling.',
                 text:
-                    'A professional collapse becomes a new vision. The Tower is job loss or upheaval, the Star is renewed hope and a clearer calling, and the Moon is ambiguity while you explore. Don’t panic in the unknown—keep moving with curiosity.',
+                    'If your work situation feels unsettled, The Tower, The Star and The Moon can offer themes of disruption, hope and uncertainty. Separate what is known from what is still unclear, and consider one manageable next step. These themes do not establish a job loss or promise a new calling.',
                 tags: ['career', 'change', 'hope', 'uncertainty', 'next-steps']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'relationships',
                 archetypalText:
-                    'A breakup cracks illusions. The Tower ends the story, the Star restores self-worth, and the Moon asks you to navigate new desire with discernment. Heal before you chase certainty; intuition becomes clearer with time.',
+                    'The Tower, The Star and The Moon can offer a relationship lens on unsettled assumptions, hope and uncertainty. If those themes fit, consider what you know, what you need to ask and which boundaries support your choices. A breakup, restored self-worth or clearer intuition is not an outcome these cards can establish.',
                 text:
-                    'A breakup cracks illusions. The Tower ends the story, the Star restores self-worth, and the Moon asks you to navigate new desire with discernment. Heal before you chase certainty; intuition becomes clearer with time.',
+                    'The Tower, The Star and The Moon can offer a relationship lens on unsettled assumptions, hope and uncertainty. If those themes fit, consider what you know, what you need to ask and which boundaries support your choices. A breakup, restored self-worth or clearer intuition is not an outcome these cards can establish.',
                 tags: ['relationships', 'breakup', 'healing', 'discernment', 'intuition']
             },
             {
                 source: 'Tableu Tarot Canon',
                 context: 'spiritual',
                 archetypalText:
-                    'Dark night theology. The Tower breaks false structures, the Star is a glimpse of grace, and the Moon is living without clear answers while a new faith forms. Let mystery be part of the path.',
+                    'As a spiritual metaphor, The Tower can represent questioned assumptions, The Star a glimpse of hope or grace, and The Moon room for mystery. If this frame fits your beliefs, consider what remains meaningful without requiring immediate answers or assuming that a new faith is forming.',
                 text:
-                    'Dark night theology. The Tower breaks false structures, the Star is a glimpse of grace, and the Moon is living without clear answers while a new faith forms. Let mystery be part of the path.',
+                    'As a spiritual metaphor, The Tower can represent questioned assumptions, The Star a glimpse of hope or grace, and The Moon room for mystery. If this frame fits your beliefs, consider what remains meaningful without requiring immediate answers or assuming that a new faith is forming.',
                 tags: ['spiritual', 'dark-night', 'faith', 'mystery', 'hope']
             }
         ]
@@ -956,9 +956,9 @@ export const MAJOR_ARCANA_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Hope returns after difficulty. Heal gently, restore faith in yourself, and let small acts of care guide you forward.',
+                    'The Star offers hope and gentle care as possibilities. Consider a small practice that supports you or a source of encouragement you might seek, without assuming a prior hardship or promising its resolution.',
                 text:
-                    'Hope returns after difficulty. Heal gently, restore faith in yourself, and let small acts of care guide you forward.',
+                    'The Star offers hope and gentle care as possibilities. Consider a small practice that supports you or a source of encouragement you might seek, without assuming a prior hardship or promising its resolution.',
                 tags: ['hope', 'renewal', 'healing', 'faith']
             }
         ]
@@ -986,9 +986,9 @@ export const MAJOR_ARCANA_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Light and warmth return. Celebrate what is working, share your joy, and let confidence grow from simple truth.',
+                    'The Sun invites attention to clarity, warmth and enjoyment. You might acknowledge what is working, if anything, and explore what supports honest confidence without requiring yourself to feel joyful.',
                 text:
-                    'Light and warmth return. Celebrate what is working, share your joy, and let confidence grow from simple truth.',
+                    'The Sun invites attention to clarity, warmth and enjoyment. You might acknowledge what is working, if anything, and explore what supports honest confidence without requiring yourself to feel joyful.',
                 tags: ['joy', 'success', 'vitality', 'clarity']
             }
         ]
@@ -1016,9 +1016,9 @@ export const MAJOR_ARCANA_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'A cycle completes and integration is possible. Honor what you have achieved and step forward with a fuller sense of wholeness.',
+                    'The World invites reflection on completion and integration. Consider what, if anything, feels complete, what remains unfinished and which lessons you want to carry forward. An achievement or transition need not be assumed.',
                 text:
-                    'A cycle completes and integration is possible. Honor what you have achieved and step forward with a fuller sense of wholeness.',
+                    'The World invites reflection on completion and integration. Consider what, if anything, feels complete, what remains unfinished and which lessons you want to carry forward. An achievement or transition need not be assumed.',
                 tags: ['completion', 'integration', 'wholeness', 'achievement']
             }
         ]
@@ -1098,9 +1098,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'transition',
                 archetypalText:
-                    'Necessary destruction brings authentic joy. When illusions shatter, the gift is daylight: clean facts, clear commitments, and honest repair. Let what cannot stand fall quickly, then rebuild with transparency and simple routines that support the life you actually want.',
+                    'The Tower and The Sun can place disruption alongside clarity. If something is changing, consider which facts you can verify, what deserves repair and what routines might support your next step. Change need not be destructive, and difficulty does not guarantee a beneficial result.',
                 text:
-                    'Necessary destruction brings authentic joy. When illusions shatter, the gift is daylight: clean facts, clear commitments, and honest repair. Let what cannot stand fall quickly, then rebuild with transparency and simple routines that support the life you actually want.',
+                    'The Tower and The Sun can place disruption alongside clarity. If something is changing, consider which facts you can verify, what deserves repair and what routines might support your next step. Change need not be destructive, and difficulty does not guarantee a beneficial result.',
                 tags: ['transition', 'truth', 'breakthrough', 'clarity', 'rebuild']
             }
         ]
@@ -1219,9 +1219,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'shadow',
                 archetypalText:
-                    'Liberation through crisis: the Tower breaks the spell. If you have been bargaining with a habit or a situation, the negotiation ends here. Cooperate with the break—tell the truth, change the environment, remove access, and ask for help so the freedom can stick.',
+                    'The Devil and The Tower can invite examination of an attachment and the assumptions around it. If a habit or situation concerns you, consider what you want to understand and which options or sources of support feel appropriate. You can reassess a pattern without being directed to force a crisis or end a relationship.',
                 text:
-                    'Liberation through crisis: the Tower breaks the spell. If you have been bargaining with a habit or a situation, the negotiation ends here. Cooperate with the break—tell the truth, change the environment, remove access, and ask for help so the freedom can stick.',
+                    'The Devil and The Tower can invite examination of an attachment and the assumptions around it. If a habit or situation concerns you, consider what you want to understand and which options or sources of support feel appropriate. You can reassess a pattern without being directed to force a crisis or end a relationship.',
                 tags: ['shadow', 'liberation', 'truth', 'breakthrough', 'support']
             }
         ]
@@ -1253,9 +1253,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'spiritual',
                 archetypalText:
-                    'A major cycle is completing, and the lesson wants integration. The Wheel turns whether you consent or not; Judgement asks you to wake up and choose consciously. Review what repeats, take responsibility for your part, and make a new decision that ends the pattern.',
+                    'The Wheel and Judgement can connect changing conditions with reflection and conscious choice. If you notice a recurring pattern, consider your part in it, what lies outside your control and whether a different response would fit. A major cycle need not be ending, and no decision guarantees that a pattern will stop.',
                 text:
-                    'A major cycle is completing, and the lesson wants integration. The Wheel turns whether you consent or not; Judgement asks you to wake up and choose consciously. Review what repeats, take responsibility for your part, and make a new decision that ends the pattern.',
+                    'The Wheel and Judgement can connect changing conditions with reflection and conscious choice. If you notice a recurring pattern, consider your part in it, what lies outside your control and whether a different response would fit. A major cycle need not be ending, and no decision guarantees that a pattern will stop.',
                 tags: ['spiritual', 'karma', 'cycles', 'reckoning', 'choice']
             }
         ]
@@ -1320,9 +1320,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'career',
                 archetypalText:
-                    'Victory is approaching culmination. Stay disciplined through the last mile, then close the loop: document lessons, celebrate the win, and rest before the next push. The World rewards finished work, not just effort.',
+                    'The Chariot and The World can help you consider focus and completion in your work. If a task is nearing its end, you might check what remains, document lessons and allow time to rest. Those practices can be worthwhile without forecasting victory or treating effort as a guarantee of success.',
                 text:
-                    'Victory is approaching culmination. Stay disciplined through the last mile, then close the loop: document lessons, celebrate the win, and rest before the next push. The World rewards finished work, not just effort.',
+                    'The Chariot and The World can help you consider focus and completion in your work. If a task is nearing its end, you might check what remains, document lessons and allow time to rest. Those practices can be worthwhile without forecasting victory or treating effort as a guarantee of success.',
                 tags: ['career', 'discipline', 'achievement', 'completion', 'mastery']
             }
         ]
@@ -1535,9 +1535,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'The Moon and the Sun connect uncertainty with the possibility of greater clarity. Give confusion space without assuming it conceals a particular fact. Honest reflection and attention to evidence can support a simpler understanding as the situation develops.',
+                    'The Moon and The Sun connect uncertainty with the possibility of greater clarity. Give confusion space without assuming it conceals a particular fact. Honest reflection and attention to evidence can support a simpler understanding as the situation develops.',
                 text:
-                    'What is hidden will come to light. The Moon walks through shadow and uncertainty; the Sun reveals the simple truth that was there all along. Trust the process—clarity follows honest confusion. The full moon with face, two towers, dog and wolf, and winding path yield to the radiant sun, joyful child, and sunflowers.',
+                    'The Moon and The Sun connect uncertainty with the possibility of greater clarity. Give confusion space without assuming it conceals a particular fact. Honest reflection and attention to evidence can support a simpler understanding as the situation develops. The full moon with face, two towers, dog and wolf, and winding path yield to the radiant sun, joyful child, and sunflowers.',
                 tags: ['mystery', 'clarity', 'truth', 'cycles'],
                 visualAnchors: [
                     'full moon with face',
@@ -1553,9 +1553,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'clarity',
                 archetypalText:
-                    'Confusion is clarifying into truth. Let the Moon do its work: sleep, journal, slow down, check facts, and avoid premature conclusions. The Sun arrives as clean insight and simple next steps when you stop forcing certainty.',
+                    'The Moon and The Sun can invite reflection on uncertainty and clarity. If you feel unsure, consider checking facts, writing down open questions or allowing time before drawing a conclusion. Insight is a possibility, not something that must arrive once you stop seeking certainty.',
                 text:
-                    'Confusion is clarifying into truth. Let the Moon do its work: sleep, journal, slow down, check facts, and avoid premature conclusions. The Sun arrives as clean insight and simple next steps when you stop forcing certainty.',
+                    'The Moon and The Sun can invite reflection on uncertainty and clarity. If you feel unsure, consider checking facts, writing down open questions or allowing time before drawing a conclusion. Insight is a possibility, not something that must arrive once you stop seeking certainty.',
                 tags: ['clarity', 'truth', 'discernment', 'intuition', 'patience']
             }
         ]
@@ -1587,9 +1587,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'life-cycle',
                 archetypalText:
-                    'You are at both the start and the finish of a great cycle. Honor completion fully—celebrate, grieve, integrate—then step forward with beginner’s mind. The journey continues, but you are not the same person who began it.',
+                    'The Fool and The World place beginnings alongside completion. Ask whether either theme fits your situation: what might you explore, and what might you acknowledge or integrate? You can bring curiosity to that question without being assigned a new life stage.',
                 text:
-                    'You are at both the start and the finish of a great cycle. Honor completion fully—celebrate, grieve, integrate—then step forward with beginner’s mind. The journey continues, but you are not the same person who began it.',
+                    'The Fool and The World place beginnings alongside completion. Ask whether either theme fits your situation: what might you explore, and what might you acknowledge or integrate? You can bring curiosity to that question without being assigned a new life stage.',
                 tags: ['cycles', 'completion', 'beginnings', 'integration', 'identity']
             }
         ]
@@ -1730,9 +1730,9 @@ export const SUIT_PROGRESSION_PASSAGES = {
                 {
                     source: 'Tableu Tarot Canon',
                     archetypalText:
-                    'Mid Cups asks for discernment: mixed feelings, grief, nostalgia, and tempting fantasies. Name the emotion, then choose what’s true rather than what’s merely soothing.',
+                    'Mid Cups invites discernment about feelings and emotional choices. Use only the roles of the drawn cards to explore what deserves attention, which possibilities fit and what a caring response could be. The stage alone does not establish grief or a personal history.',
                     text:
-                        'Mid Cups asks for discernment: mixed feelings, grief, nostalgia, and tempting fantasies. Name the emotion, then choose what’s true rather than what’s merely soothing.',
+                        'Mid Cups invites discernment about feelings and emotional choices. Use only the roles of the drawn cards to explore what deserves attention, which possibilities fit and what a caring response could be. The stage alone does not establish grief or a personal history.',
                     tags: ['discernment', 'grief', 'clarity']
                 }
             ]
@@ -1785,9 +1785,9 @@ export const SUIT_PROGRESSION_PASSAGES = {
                 {
                     source: 'Tableu Tarot Canon',
                     archetypalText:
-                    'Late Swords can feel like rock bottom—then release. When the mind is loud, simplify: breathe, ground, ask for help, and let the next right action be small.',
+                    'Late Swords offers reflection on mental pressure and responses to it. Let the actual drawn cards determine which roles are relevant; the stage alone cannot establish a crisis, an ending or relief. Consider what information, boundaries or support would help with the question you raised.',
                     text:
-                        'Late Swords can feel like rock bottom—then release. When the mind is loud, simplify: breathe, ground, ask for help, and let the next right action be small.',
+                        'Late Swords offers reflection on mental pressure and responses to it. Let the actual drawn cards determine which roles are relevant; the stage alone cannot establish a crisis, an ending or relief. Consider what information, boundaries or support would help with the question you raised.',
                     tags: ['anxiety', 'release', 'support']
                 }
             ]
@@ -1814,9 +1814,9 @@ export const SUIT_PROGRESSION_PASSAGES = {
                 {
                     source: 'Tableu Tarot Canon',
                     archetypalText:
-                    'Mid Pentacles asks you to steward what you have—time, money, health, attention. Tightness loosens when you plan, share wisely, and think long-term.',
+                    'Mid Pentacles offers a lens on stewardship of time, money, attention and other resources. Consider what you have, which demands matter and whether planning or appropriate support could help. Sharing or thinking long-term does not guarantee relief from pressure.',
                     text:
-                        'Mid Pentacles asks you to steward what you have—time, money, health, attention. Tightness loosens when you plan, share wisely, and think long-term.',
+                        'Mid Pentacles offers a lens on stewardship of time, money, attention and other resources. Consider what you have, which demands matter and whether planning or appropriate support could help. Sharing or thinking long-term does not guarantee relief from pressure.',
                     tags: ['stewardship', 'planning', 'patience']
                 }
             ]
@@ -1851,9 +1851,9 @@ export const COURT_LINEAGE_PASSAGES = {
                     source: 'Tableu Tarot Canon',
                     context: 'general',
                     archetypalText:
-                    'Multiple Wands courts suggest your will is recruiting allies: the spark, the charge, the steady warmth, and the directing vision. With an alliance (two courts), focus on collaboration and clear roles—who initiates, who carries momentum, who protects the flame.',
+                    'Two Wands court figures can invite a dialogue about creative approaches. Consider how the actual drawn roles might cooperate or differ, and what that suggests for a choice you face. These figures do not establish the presence of allies or a complete creative team.',
                     text:
-                        'Multiple Wands courts suggest your will is recruiting allies: the spark, the charge, the steady warmth, and the directing vision. With an alliance (two courts), focus on collaboration and clear roles—who initiates, who carries momentum, who protects the flame.',
+                        'Two Wands court figures can invite a dialogue about creative approaches. Consider how the actual drawn roles might cooperate or differ, and what that suggests for a choice you face. These figures do not establish the presence of allies or a complete creative team.',
                     tags: ['wands', 'courts', 'collaboration', 'roles', 'fire']
                 }
             ]
@@ -1866,9 +1866,9 @@ export const COURT_LINEAGE_PASSAGES = {
                     source: 'Tableu Tarot Canon',
                     context: 'general',
                     archetypalText:
-                    'A council of Wands courts indicates a whole creative ecosystem is active: initiation, action, stewardship, and leadership. This is a moment to build a team, set standards, and aim your fire at one clear mission so ambition becomes durable impact.',
+                    'A group of Wands court figures can invite reflection on creative direction and responsibility. Explore the contributions of the drawn roles without filling in a missing rank or assuming that a team is active in your life. Shared standards or a clearer aim may be useful options if they fit your question.',
                     text:
-                        'A council of Wands courts indicates a whole creative ecosystem is active: initiation, action, stewardship, and leadership. This is a moment to build a team, set standards, and aim your fire at one clear mission so ambition becomes durable impact.',
+                        'A group of Wands court figures can invite reflection on creative direction and responsibility. Explore the contributions of the drawn roles without filling in a missing rank or assuming that a team is active in your life. Shared standards or a clearer aim may be useful options if they fit your question.',
                     tags: ['wands', 'courts', 'leadership', 'mission', 'fire']
                 }
             ]
@@ -1898,9 +1898,9 @@ export const COURT_LINEAGE_PASSAGES = {
                     source: 'Tableu Tarot Canon',
                     context: 'general',
                     archetypalText:
-                    'A council of Cups courts brings the full spectrum of emotional leadership: innocence, pursuit, deep feeling, and mature care. Let the heart lead—but keep it wise. This is excellent for reconciliation, family decisions, or building community through tenderness and truth.',
+                    'A group of Cups court figures can offer different approaches to emotional understanding and care. Explore only the drawn roles and how they might relate to your question. Their presence does not establish a complete emotional spectrum, a family situation or a need for reconciliation.',
                     text:
-                        'A council of Cups courts brings the full spectrum of emotional leadership: innocence, pursuit, deep feeling, and mature care. Let the heart lead—but keep it wise. This is excellent for reconciliation, family decisions, or building community through tenderness and truth.',
+                        'A group of Cups court figures can offer different approaches to emotional understanding and care. Explore only the drawn roles and how they might relate to your question. Their presence does not establish a complete emotional spectrum, a family situation or a need for reconciliation.',
                     tags: ['cups', 'courts', 'community', 'healing', 'truth']
                 }
             ]
@@ -1947,9 +1947,9 @@ export const COURT_LINEAGE_PASSAGES = {
                     source: 'Tableu Tarot Canon',
                     context: 'general',
                     archetypalText:
-                    'Multiple Pentacles courts suggest practical support is available. With an alliance (two courts), focus on stewardship: budgets, skills, routines, and reliable commitments. This is slow magic—small consistent actions that compound into security.',
+                    'Two Pentacles court figures can invite reflection on practical approaches to resources, skills and reliable commitments. Consider what each drawn figure contributes and what support, if any, you might seek. Neither available help nor future security is established by the cards.',
                     text:
-                        'Multiple Pentacles courts suggest practical support is available. With an alliance (two courts), focus on stewardship: budgets, skills, routines, and reliable commitments. This is slow magic—small consistent actions that compound into security.',
+                        'Two Pentacles court figures can invite reflection on practical approaches to resources, skills and reliable commitments. Consider what each drawn figure contributes and what support, if any, you might seek. Neither available help nor future security is established by the cards.',
                     tags: ['pentacles', 'courts', 'resources', 'stewardship', 'stability']
                 }
             ]
@@ -2112,9 +2112,9 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Five is tension that prompts recalibration. When Fives cluster, expect friction and re-evaluation. Use the disruption as information: what is misaligned, what needs courage, and what wants a new strategy?',
+                    'Five can symbolize tension and recalibration. When Fives cluster, consider whether friction is present in the situation you have described and whether an adjustment would be useful. The pattern invites a question about alignment rather than predicting disruption.',
                 text:
-                    'Five is tension that prompts recalibration. When Fives cluster, expect friction and re-evaluation. Use the disruption as information: what is misaligned, what needs courage, and what wants a new strategy?',
+                    'Five can symbolize tension and recalibration. When Fives cluster, consider whether friction is present in the situation you have described and whether an adjustment would be useful. The pattern invites a question about alignment rather than predicting disruption.',
                 tags: ['marseille', 'numerology', 'five', 'change', 'courage']
             }
         ]
@@ -2142,9 +2142,9 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Seven introduces asymmetry: a challenge that asks for faith beyond comfort. When Sevens cluster, slow down and get discerning. Not everything is stable yet; test what is real, and commit only after your intuition and evidence agree.',
+                    'Seven offers a symbolic lens on asymmetry, challenge and discernment. When Sevens cluster, consider which assumptions you want to test and how intuition and evidence relate. Instability is not established by the number; you can assess what fits before choosing a response.',
                 text:
-                    'Seven introduces asymmetry: a challenge that asks for faith beyond comfort. When Sevens cluster, slow down and get discerning. Not everything is stable yet; test what is real, and commit only after your intuition and evidence agree.',
+                    'Seven offers a symbolic lens on asymmetry, challenge and discernment. When Sevens cluster, consider which assumptions you want to test and how intuition and evidence relate. Instability is not established by the number; you can assess what fits before choosing a response.',
                 tags: ['marseille', 'numerology', 'seven', 'discernment', 'faith']
             }
         ]
@@ -2172,9 +2172,9 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'general',
                 archetypalText:
-                    'Nine is fullness and stewardship. When Nines cluster, something is ripe—ready to harvest, refine, and protect. Enjoy the abundance, but do not waste it; completion asks for care.',
+                    'Nine can symbolize fullness and stewardship. When Nines cluster, consider what, if anything, is ready to harvest, refine or protect, and what still needs attention. This is an invitation to assess readiness rather than an assertion of abundance.',
                 text:
-                    'Nine is fullness and stewardship. When Nines cluster, something is ripe—ready to harvest, refine, and protect. Enjoy the abundance, but do not waste it; completion asks for care.',
+                    'Nine can symbolize fullness and stewardship. When Nines cluster, consider what, if anything, is ready to harvest, refine or protect, and what still needs attention. This is an invitation to assess readiness rather than an assertion of abundance.',
                 tags: ['marseille', 'numerology', 'nine', 'harvest', 'stewardship']
             }
         ]
@@ -2204,29 +2204,32 @@ export const MARSEILLE_NUMEROLOGY_PASSAGES = {
  * matching context breaks score ties rather than guaranteeing canon priority.
  */
 export function mergeEnrichedPassages(base, enriched) {
-    for (const [cardNumber, entry] of Object.entries(enriched || {})) {
-        const target = base[cardNumber];
-        if (!target || !Array.isArray(entry?.passages)) {
-            continue;
-        }
-        for (const passage of entry.passages) {
-            if (!passage?.text || passage.context === 'general') {
-                continue;
-            }
-            target.passages.push({
-                ...passage,
-                source: passage.source || 'Tableu Tarot Canon (research-informed interpretation)',
-                sourceId: passage.sourceId || `enriched:${cardNumber}:${passage.context}:${target.passages.length}`,
-                sourceDeck: passage.sourceDeck || 'rws-1909',
-                context: passage.context,
-                text: passage.text,
-                tags: passage.tags || [],
-                isEnriched: true,
-                projectionReviewStatus: passage.projectionReviewStatus || 'pending'
-            });
-        }
+  if (!enriched || typeof enriched !== 'object' || Array.isArray(enriched)) return base;
+  for (const [cardNumber, entry] of Object.entries(enriched)) {
+    if (!/^(0|[1-9][0-9]*)$/.test(cardNumber) || Number(cardNumber) > 21 || !Object.hasOwn(base, cardNumber)) continue;
+    const target = base[cardNumber];
+    if (!Array.isArray(target?.passages) || !entry || Array.isArray(entry) || !Array.isArray(entry.passages)) continue;
+    for (const passage of entry.passages) {
+      if (!passage || typeof passage !== 'object' || Array.isArray(passage)
+        || typeof passage.text !== 'string' || !passage.text.trim()
+        || typeof passage.context !== 'string' || !passage.context.trim() || passage.context === 'general'
+        || (passage.tags !== undefined && (!Array.isArray(passage.tags) || passage.tags.some(tag => typeof tag !== 'string')))
+        || (passage.sourceId !== undefined && (typeof passage.sourceId !== 'string' || !passage.sourceId.trim()))
+        || (passage.projectionReviewStatus !== undefined && !['approved', 'pending'].includes(passage.projectionReviewStatus))) continue;
+      target.passages.push({
+        ...passage,
+        source: passage.source || 'Tableu Tarot Canon (research-informed interpretation)',
+        sourceId: passage.sourceId || `enriched:${cardNumber}:${passage.context}:${target.passages.length}`,
+        sourceDeck: passage.sourceDeck || 'rws-1909',
+        context: passage.context,
+        text: passage.text,
+        tags: passage.tags || [],
+        isEnriched: true,
+        projectionReviewStatus: passage.projectionReviewStatus || 'pending'
+      });
     }
-    return base;
+  }
+  return base;
 }
 
 mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, ENRICHED_MAJOR_ARCANA_PASSAGES);

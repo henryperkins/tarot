@@ -1724,14 +1724,14 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread, isSpreadDealt]);
 
-    const cancelPersonalReading = useCallback(() => {
+    const cancelPersonalReading = useCallback((options = {}) => {
         cancelInFlightReading();
         setPersonalReading(null);
         setIsGenerating(false);
         setIsReadingStreamActive(false);
         setNarrativePhase('idle');
         updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
-        setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
+        if (options.announce !== false) setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
     }, [cancelInFlightReading, updateGestureSource]);
 
     const value = useMemo(() => ({

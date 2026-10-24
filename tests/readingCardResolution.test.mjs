@@ -135,7 +135,7 @@ describe('reading API canonical card resolution', () => {
       const prompt = requests[0].messages.map((message) => message.content).join('\n');
       assert.match(prompt, /GRANITE TIDE/);
       assert.doesNotMatch(prompt.replace(/<reading_context>.*?<\/reading_context>/g, ''), /GRANITE TIDE/);
-      assert.match(prompt, deckStyle === 'thoth-a1' ? /Thoth Titles & Decans/ : /Marseille Pip Geometry/);
+      assert.match(prompt, deckStyle === 'thoth-a1' ? /Thoth Titles & Decans/ : /Marseille Pip Themes/);
     });
   }
 
@@ -255,5 +255,30 @@ describe('resolved card contract', () => {
     assert.throws(() => resolveReadingCards([{
       ...baseCard, card: 'Knight', suit: 'Cups', canonicalName: 'Knight of Cups'
     }], 'thoth-a1'), { code: 'invalid_card_identity' });
+  });
+});
+
+
+describe('new readings use canonical identities without replacement', () => {
+  for (const [deck, first, second] of [
+    ['rws-1909', 'The Sun', 'The Sun'],
+    ['thoth-a1', 'Adjustment', 'Justice'],
+    ['marseille-classic', 'La Force', 'Strength']
+  ]) {
+    it(`rejects ${first}/${second} duplicates in ${deck} across orientations`, () => {
+      assert.throws(() => resolveReadingCards([
+        { ...baseCard, card: first },
+        { ...baseCard, card: second, orientation: 'Reversed' }
+      ], deck), { code: 'duplicate_card_identity' });
+    });
+  }
+  it('rejects duplicates at the direct route before any provider work', async (t) => {
+    const { response, body, requests } = await requestReading(t, baseCard, 'rws-1909', {
+      spreadInfo: { name: 'Three-Card Story' },
+      cardsInfo: [baseCard, { ...baseCard, orientation: 'Reversed' }, { ...baseCard, card: 'The Moon' }]
+    });
+    assert.equal(response.status, 400);
+    assert.equal(body.code, 'duplicate_card_identity');
+    assert.equal(requests.length, 0);
   });
 });

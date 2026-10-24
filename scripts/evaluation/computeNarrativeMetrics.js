@@ -183,6 +183,7 @@ function buildIssueNotes(result) {
   if (!result.hasAgencyLanguage) {
     notes.push('Agency/choice language missing');
   }
+  if (result.undrawnCardAssertions.length) notes.push(`Undrawn card assertions: ${result.undrawnCardAssertions.join(', ')}`);
   if (result.hallucinatedCards.length) {
     notes.push(`Hallucinated cards referenced: ${result.hallucinatedCards.join(', ')}`);
   }
@@ -218,6 +219,7 @@ function buildIssueFlags(result) {
   if (!result.hasAgencyLanguage) {
     flags.push('missing-agency-language');
   }
+  if (result.undrawnCardAssertions.length) flags.push(`undrawn-card-assertion(${result.undrawnCardAssertions.length})`);
   if (result.hallucinatedCards.length) {
     flags.push(`hallucinated-cards(${result.hallucinatedCards.length})`);
   }
@@ -258,6 +260,7 @@ function summarizeSample(sample) {
   const deterministicLanguage = deterministicLanguageMatches.length > 0;
   const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS) || hasAffirmativeDecisionAgency(plainReading);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
+  const undrawnCardAssertions = runtimeMetrics.undrawnCardAssertions || [];
   const suitCountMismatches = runtimeMetrics.suitCountMismatches || [];
   const tone = analyzeToneSignals(plainReading);
   // A reading can cover every card and still ignore the querent: check that it
@@ -270,6 +273,7 @@ function summarizeSample(sample) {
     deterministicLanguage,
     hasAgencyLanguage,
     hallucinatedCards,
+    undrawnCardAssertions,
     suitCountMismatches,
     hasHarshTone: tone.harsh,
     hasSupportiveTone: tone.supportive,
@@ -304,6 +308,7 @@ function summarizeSample(sample) {
     deterministicLanguageMatches,
     hasAgencyLanguage,
     hallucinatedCards,
+    undrawnCardAssertions,
     suitCountMismatches,
     hasSupportiveTone: tone.supportive,
     hasHarshTone: tone.harsh,
@@ -403,6 +408,7 @@ async function main() {
   const spinePass = analyses.filter((result) => result.spine.isValid).length;
   const deterministicCount = analyses.filter((result) => result.deterministicLanguage).length;
   const missingAgencyCount = analyses.filter((result) => !result.hasAgencyLanguage).length;
+  const undrawnCardAssertionCount = analyses.filter(result => result.undrawnCardAssertions.length > 0).length;
   const hallucinationCount = analyses.filter((result) => result.hallucinatedCards.length > 0).length;
   const suitCountMismatchCount = analyses.filter((result) => result.suitCountMismatches.length > 0).length;
   const harshToneCount = analyses.filter((result) => result.hasHarshTone).length;
@@ -445,6 +451,7 @@ async function main() {
     deterministicLanguageCount: deterministicCount,
     missingAgencyCount,
     hallucinationCount,
+    undrawnCardAssertionCount,
     suitCountMismatchCount,
     harshToneCount,
     missingSupportiveToneCount,

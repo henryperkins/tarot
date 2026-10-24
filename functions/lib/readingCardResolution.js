@@ -23,7 +23,7 @@ export class ReadingCardResolutionError extends Error {
  * Returned names/keys use the canonical namespace and must not be alias-mapped
  * a second time (notably Thoth Prince -> canonical Knight -> Thoth King).
  */
-export function resolveReadingCards(cardsInfo, deckStyle = 'rws-1909') {
+export function canonicalizeReadingCards(cardsInfo, deckStyle = 'rws-1909') {
   if (!Object.hasOwn(DECK_CATALOG, deckStyle)) {
     throw new ReadingCardResolutionError('Unsupported reading deck.', 'invalid_deck_style');
   }
@@ -69,4 +69,24 @@ export function resolveReadingCards(cardsInfo, deckStyle = 'rws-1909') {
       meaning: canonicalMeaning
     };
   });
+}
+
+
+/** New-request admission: a single deck is drawn without replacement. */
+export function resolveReadingCards(cardsInfo, deckStyle = 'rws-1909') {
+  const resolved = canonicalizeReadingCards(cardsInfo, deckStyle);
+  const firstIndices = new Map();
+  resolved.forEach((card, index) => {
+    if (firstIndices.has(card.canonicalKey)) {
+      const first = firstIndices.get(card.canonicalKey);
+      const error = new ReadingCardResolutionError(
+        `cardsInfo[${index}] repeats the canonical identity at cardsInfo[${first}].`,
+        'duplicate_card_identity'
+      );
+      error.indices = [first, index];
+      throw error;
+    }
+    firstIndices.set(card.canonicalKey, index);
+  });
+  return resolved;
 }

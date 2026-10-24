@@ -993,11 +993,11 @@ function buildPositionCardText(cardInfo, position, options = {}) {
       }
     }
 
-    // Add Marseille pip geometry for numbered cards when using Marseille deck
+    // Add symbolic Marseille rank meaning; a rank alone does not verify a layout.
     if (options.deckStyle === 'marseille-classic' && cardInfo.rankValue && cardInfo.rankValue <= 10) {
       const marseilleInfo = MARSEILLE_NUMERICAL_THEMES[cardInfo.rankValue];
       if (marseilleInfo && marseilleInfo.keyword) {
-        minorContextText += ` *Marseille Pip ${cardInfo.rankValue}: ${marseilleInfo.keyword}—${marseilleInfo.geometry}*`;
+        minorContextText += ` *Marseille Pip ${cardInfo.rankValue}: ${marseilleInfo.keyword}—${marseilleInfo.description}*`;
       }
     }
   }

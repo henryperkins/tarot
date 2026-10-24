@@ -229,14 +229,14 @@ test('the review queue only applies rows a reviewer approved', () => {
     `c4,3,The Empress,,https://example.com/d,Title D,"${valid}",nurture abundance,2026-10-21T00:00:00.000Z,claude-opus-5-5,,`
   ].join('\n');
 
-  const { approved, rejected } = selectApprovedRows(csv);
+  const { approved, rejected, validationErrors } = selectApprovedRows(csv);
   assert.equal(approved.length, 1);
   assert.equal(approved[0].candidateId, 'c1');
   assert.equal(approved[0].context, 'transition');
   assert.deepEqual(approved[0].tags, ['beginnings', 'trust', 'curiosity']);
-  assert.equal(rejected.length, 2);
+  assert.equal(rejected.length, 1);
   assert.ok(rejected.some((entry) => entry.candidateId === 'c2' && entry.verdict === 'reject'));
-  assert.ok(rejected.some((entry) => entry.candidateId === 'c3' && /validation failed/.test(entry.verdict)));
+  assert.ok(validationErrors.some((entry) => entry.candidateId === 'c3' && /validation failed/.test(entry.verdict)));
   assert.ok(!rejected.some((entry) => entry.candidateId === 'c4'));
 });
 
@@ -270,10 +270,10 @@ test('only one approved passage can occupy a card and context slot', () => {
     `c3,0,The Fool,career,https://example.com/c,Title C,"${valid}",skill focus agency,2026-10-21T00:00:00.000Z,claude-opus-5-5,approve,`
   ].join('\n');
 
-  const { approved, rejected } = selectApprovedRows(csv);
+  const { approved, validationErrors } = selectApprovedRows(csv);
   assert.equal(approved.length, 2);
   assert.deepEqual(approved.map((entry) => entry.candidateId), ['c1', 'c3']);
-  assert.ok(rejected.some((entry) => entry.candidateId === 'c2' && /duplicate slot/.test(entry.verdict)));
+  assert.ok(validationErrors.some((entry) => entry.candidateId === 'c2' && /duplicate slot/.test(entry.verdict)));
 });
 
 test('the knowledge base keeps one general canon passage per major card', () => {

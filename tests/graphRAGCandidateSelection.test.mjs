@@ -123,7 +123,7 @@ test('uncached complete candidate work fits two 100-text batches and cache hits 
 test('wrong-sized cached vectors do not prevent semantic recovery', async (t) => {
   clearEmbeddingCache(); t.after(clearEmbeddingCache);
   let broken = true;
-  const env = { AI: { run: async (_model, { text }) => ({ data: text.map(input => broken && input.startsWith('This is literal healing') ? [1, 0, 0] : [1, 0]) }) } };
+  const env = { AI: { run: async (_model, { text }) => ({ data: text.map(input => broken && input.startsWith('If grief is part') ? [1, 0, 0] : [1, 0]) }) } };
   const options = { env, userQuery: 'healing hope', maxPassages: 5 };
   const first = await retrievePassagesWithQuality(keys, options);
   assert.ok(first.every(p => !p._semanticScoringSucceeded));

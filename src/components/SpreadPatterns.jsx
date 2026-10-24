@@ -106,10 +106,10 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
         ) : null}
         {references.length > 0 ? (
           <InsightSection title={isPreview ? 'Traditional wisdom preview' : 'Traditional wisdom'}>
-            {isPreview ? <p className="text-base leading-relaxed text-muted">Background references for these cards. These are a preview; inclusion in the generated reading is unverified.</p> : null}
+            {isPreview ? <p className="text-base leading-relaxed text-muted">{references.some(passage => passage.previewOrigin === 'reconstructed') ? 'Reconstructed preview from the saved cards and deck. ' : 'Background references for these cards. '}These are a preview; inclusion in the generated reading is unverified.</p> : null}
             {otherSources.length > 0 ? (
               <p className="max-w-prose wrap-break-word text-base leading-relaxed text-muted">
-                {!isPreview && references.every(passage => passage.projectedDeck && passage.promptText)
+                {references.every(passage => passage.projectedDeck && passage.promptText)
                   ? `These references come from ${otherSources.join(' and ')}; their wording is adapted to ${selectedDeck.label}.`
                   : `These references use ${otherSources.join(' and ')} names and imagery. Your reading uses ${selectedDeck.label}.`}
               </p>
@@ -117,7 +117,7 @@ export const SpreadPatterns = memo(function SpreadPatterns({ themes, spreadHighl
             <ul className="space-y-5 text-main" role="list" aria-label={isPreview ? 'Traditional wisdom preview passages' : 'Traditional wisdom passages'}>
               {references.map((passage, index) => {
                 const source = getPassageSource(passage);
-                const textDeck = !isPreview && passage.projectedDeck ? passage.projectedDeck : source?.deckStyle;
+                const textDeck = passage.projectedDeck ? passage.projectedDeck : source?.deckStyle;
                 return (
                   <li key={`${passage.id || passage.patternId || 'passage'}-${index}`}>
                     <article className="max-w-prose wrap-break-word space-y-2 text-base leading-relaxed">

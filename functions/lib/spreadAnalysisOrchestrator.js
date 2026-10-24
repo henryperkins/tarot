@@ -295,6 +295,24 @@ async function performSpreadAnalysisInner(
     options.enableSemanticScoring = undefined;
   }
 
+  const contextSpreadKey = getSpreadKey(spreadInfo?.name, spreadInfo?.key || 'custom');
+    const contextInputText =
+      typeof options.contextInputText === 'string' && options.contextInputText.trim()
+        ? options.contextInputText
+        : (options.userQuestion || '');
+    const hasLegacyDecisionPaths = !options.contextSelection && contextSpreadKey === 'decision'
+      && resolveDecisionPathContext({ spreadKey: contextSpreadKey, cardsInfo, decisionPaths: options.decisionPaths }).sources.length > 0;
+    const selection = options.contextSelection || resolveContextSelection({
+      ...(hasLegacyDecisionPaths ? { cardsInfo } : {}),
+      ...(options.contextSources || {
+        userQuestion: options.userQuestion,
+        ...(hasLegacyDecisionPaths || options.reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
+        reflectionsText: options.reflectionsText,
+        decisionPaths: options.decisionPaths,
+        focusAreas: options.focusAreas,
+        contextInputText
+      })
+    }, contextSpreadKey);
   // =========================================================================
   // Step 1: Theme Analysis (suits, elements, majors, reversals)
   // =========================================================================
@@ -305,6 +323,7 @@ async function performSpreadAnalysisInner(
       reversalFrameworkOverride: options.reversalFrameworkOverride,
       deckStyle: options.deckStyle,
       userQuestion: options.userQuestion,
+      contextSelection: selection,
       env: options.env
     });
     console.log(`[${requestId}] Theme analysis complete:`, {
@@ -373,23 +392,6 @@ async function performSpreadAnalysisInner(
   // Step 3: GraphRAG Passage Retrieval
   // =========================================================================
   try {
-    const contextInputText =
-      typeof options.contextInputText === 'string' && options.contextInputText.trim()
-        ? options.contextInputText
-        : (options.userQuestion || '');
-    const hasLegacyDecisionPaths = !options.contextSelection && spreadKey === 'decision'
-      && resolveDecisionPathContext({ spreadKey, cardsInfo, decisionPaths: options.decisionPaths }).sources.length > 0;
-    const selection = options.contextSelection || resolveContextSelection({
-      ...(hasLegacyDecisionPaths ? { cardsInfo } : {}),
-      ...(options.contextSources || {
-        userQuestion: options.userQuestion,
-        ...(hasLegacyDecisionPaths || options.reflectionsText !== undefined || cardsInfo.some((card) => card?.userReflection) ? { cardsInfo } : {}),
-        reflectionsText: options.reflectionsText,
-        decisionPaths: options.decisionPaths,
-        focusAreas: options.focusAreas,
-        contextInputText
-      })
-    }, spreadKey);
     const graphKeys = themes?.knowledgeGraph?.graphKeys;
     if (graphKeys) {
       const questionContext = selection.graphRAGContext;

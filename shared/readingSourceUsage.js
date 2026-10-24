@@ -20,6 +20,7 @@ export const USAGE_REASON_COPY = Object.freeze({
   input_limit: 'Shortened to fit the input limit.',
   sanitized_empty: 'Could not be included after preparing the text.',
   unsupported_value: 'This preference could not be applied.',
+  current_context_precedence: 'Saved interests unrelated to your current question were left out.',
   current_context_priority: 'Your current question took priority over saved focus areas.',
   deduped_against_card_reflection: 'Included with your card notes.',
   deduplicated: 'Included once with matching notes.',

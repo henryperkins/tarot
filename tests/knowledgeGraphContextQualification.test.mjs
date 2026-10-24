@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as samples from '../scripts/evaluation/runNarrativeSamples.js';
+import { readFileSync } from 'node:fs';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 
 const sample = {
@@ -10,6 +11,31 @@ const sample = {
   decisionPaths: { a: 'take the library job', b: 'continue the studio contract' },
   memories: [{ id: 'synthetic-career', scope: 'global', category: 'life_context', text: 'Career guidance' }, { id: 'synthetic-off-topic', scope: 'global', category: 'general', text: 'I collect shells along the coast.' }]
 };
+
+test('v3 manifest preserves previous bytes and executes bounded probes plus current-input regressions', async () => {
+  const { loadQualificationManifest, runDeterministicQualification } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  const v3 = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-v3-cases.json', import.meta.url), 'utf8'));
+  const manifest = loadQualificationManifest();
+  assert.equal(manifest.v3?.schemaVersion, 3);
+  assert.equal(manifest.v3.v2RawHash, manifest.v2.rawHash);
+  assert.equal(manifest.v3.candidateSourceIdentity, null);
+  const ids = [...v3.cases, ...v3.groundingProbes].map(row => row.id);
+  const result = await runDeterministicQualification({ developmentFixtureIds: ids });
+  assert.deepEqual(result.executedCaseIds, ids);
+  assert.equal(result.groundingProbesChecked, v3.groundingProbes.length);
+  assert.equal(result.admissionCasesChecked, 1);
+  assert.equal(result.providerBuildsChecked, v3.cases.filter(row => row.executor === 'prompt').length * 3);
+  assert.ok(Object.values(result.v3Observations).every(row => row.requiresHumanReview));
+});
+
+test('v3 reference adversaries cannot replace authored registry prose or forge retained provenance', async () => {
+  const qualification = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  assert.equal(typeof qualification.verifyReferenceAdversaries, 'function');
+  const result = qualification.verifyReferenceAdversaries();
+  assert.deepEqual(result.observations.map(row => row.retained), [1, 0, 0, 0]);
+  assert.equal(result.providerBuildsChecked, 4);
+  assert.equal(result.requiresHumanReview, true);
+});
 
 test('narrative sample plumbing exercises actual current card/path/memory inputs and final retention', async () => {
   assert.equal(typeof samples.prepareNarrativeSamplePayload, 'function');
@@ -51,7 +77,11 @@ test('deterministic assembly gate exercises the frozen corpus and actual provide
   assert.equal(result.deckProjectionsChecked, (result.canonPassagesChecked + result.partialProjectionRowsChecked) * 3);
   assert.equal(result.partialProjectionRowsChecked, 30);
   assert.equal(result.passageCapsChecked, 21);
-  assert.equal(result.providerBuildsChecked, (73 + 750 + manifest.v2.cases.filter(row => row.executor === 'prompt').length) * 3);
+  const migrated = id => manifest.v3.expectationMigrations[id]?.newExecutor === 'admission-error';
+  const frozenBuildCases = manifest.frozen.caseIds.filter(id => !migrated(id)).length;
+  const v2BuildCases = manifest.v2.cases.filter(row => row.executor === 'prompt' && !migrated(row.id)).length;
+  assert.equal(result.providerBuildsChecked, (frozenBuildCases + 750 + v2BuildCases + manifest.v3.cases.filter(row => row.executor === 'prompt').length) * 3);
+  assert.equal(result.referenceAdversaryBuildsChecked, 4);
   assert.deepEqual(result.executedCaseIds, manifest.caseOrder);
   assert.equal(result.developmentFiltered, false);
   assert.equal(result.manifest.sourceIdentity, null);
@@ -142,10 +172,12 @@ test('fixed output probes expose detected allowances and deterministic editorial
   const probes = await probeOutputQuality();
   assert.equal(probes.length, 7);
   const byId = Object.fromEntries(probes.map(row => [row.id, row]));
-  assert.deepEqual(byId['undrawn-within-allowance'].hallucinations, ['The Moon']);
-  assert.equal(byId['undrawn-within-allowance'].shouldBlock, false);
+  assert.deepEqual(byId['undrawn-within-allowance'].hallucinations, []);
+  assert.deepEqual(byId['undrawn-within-allowance'].undrawnCardAssertions, ['The Moon']);
+  assert.equal(byId['undrawn-within-allowance'].shouldBlock, true);
+  assert.equal(byId['ambiguous-name-spread-assertion'].shouldBlock, true);
   assert.equal(byId['undrawn-above-allowance'].shouldBlock, true);
-  for (const id of ['ambiguous-name-spread-assertion', 'foreign-scene-without-card-name', 'unrelated-memory', 'irrelevant-valid-prose']) {
+  for (const id of ['foreign-scene-without-card-name', 'unrelated-memory', 'irrelevant-valid-prose']) {
     assert.equal(byId[id].shouldBlock, false);
     assert.equal(byId[id].editorialReviewRequired, true);
   }

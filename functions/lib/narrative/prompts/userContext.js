@@ -2,11 +2,12 @@ import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { sanitizeReadingContext, getReadingContextInputStats } from '../../readingCardContext.js';
 import { CARD_MEANING_MAX_LENGTH, CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH, DECISION_PATH_MAX_LENGTH, MAXIMUM_CARD_COUNT } from '../../../../shared/contracts/readingSchema.js';
-import { estimateTokenCount } from './budgeting.js';
+import { createTokenEstimator } from './budgeting.js';
 
 function cleanText(value, cardReflection = false) {
   if (cardReflection) return sanitizeReadingContext(value);
-  const safe = sanitizeText(value, { stripMarkdown: true, stripControlChars: true, filterInstructions: true });
+  const prepared = typeof value === 'string' ? value.replace(/\p{Cc}/gu, char => /[\r\n]/.test(char) ? char : ' ') : value;
+  const safe = typeof prepared === 'string' ? prepared.split(/\r\n|\r|\n/).map(line => sanitizeText(line, { stripMarkdown: true, collapseWhitespace: false, filterInstructions: true })).join('\n') : '';
   const check = detectPromptInjection(safe, { confidenceThreshold: 0.6, sanitize: true });
   return check.isInjection ? check.sanitizedText || '' : safe;
 }
@@ -96,9 +97,10 @@ function sliceUnicode(text, start, end) {
 
 // Preserve both the setup and closing constraints. An explicit data marker
 // tells the model when the middle is unavailable; never splice a broken JSON tag.
-export function fitUserContext(source, value, maxTokens) {
+export function fitUserContext(source, value, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   const full = renderUserContext(source, value);
-  if (estimateTokenCount(full) <= maxTokens) return full;
+  if (estimator.estimate(full) <= maxTokens) return full;
   const text = typeof value === 'string' ? value : `${value.head}${value.tail}`;
   let lo = 0;
   let hi = text.length;
@@ -107,7 +109,7 @@ export function fitUserContext(source, value, maxTokens) {
     const length = Math.floor((lo + hi) / 2);
     const headLength = Math.ceil(length / 2);
     const candidate = renderUserContext(source, { head: sliceUnicode(text, 0, headLength), omittedForBudget: true, tail: sliceUnicode(text, text.length - Math.floor(length / 2), text.length) });
-    if (estimateTokenCount(candidate) <= maxTokens) {
+    if (estimator.estimate(candidate) <= maxTokens) {
       fitted = length ? candidate : '';
       lo = length + 1;
     } else hi = length - 1;

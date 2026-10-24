@@ -1510,7 +1510,7 @@ describe('Prompt budget telemetry', () => {
       context: 'general',
       personalization: {
         displayName: 'Sam',
-        focusAreas: ['career', 'purpose'],
+        focusAreas: ['Career & purpose'],
         tarotExperience: 'experienced',
         readingTone: 'gentle',
         spiritualFrame: 'mixed',
@@ -1520,7 +1520,7 @@ describe('Prompt budget telemetry', () => {
 
     assert.ok(userPrompt.includes('**Querent Name**: Sam'));
     assert.ok(userPrompt.includes('**Focus Areas**:'));
-    assert.ok(userPrompt.includes('career, purpose'));
+    assert.ok(userPrompt.includes('Career & purpose'));
     assert.ok(userPrompt.includes('**Tarot Experience**:'));
     assert.ok(systemPrompt.includes('## Reading Tone'));
     assert.ok(systemPrompt.includes('## Interpretive Frame'));

@@ -1,0 +1,419 @@
+# Reading Pipeline Correctness Remediation Implementation Plan
+
+> **For agentic workers:** Use `superpowers:executing-plans` to implement this plan task by task. If the user explicitly selects delegated execution, use `superpowers:subagent-driven-development`. Steps use checkbox syntax for tracking. Writing this plan does not authorize implementation, provider calls, publication, or deployment.
+
+**Goal:** Close all nine confirmed correctness findings, their independently reproduced extensions, and enrichment revocation inconsistency while preserving canonical identity, current-input authority, useful personalization, temporally compatible memories, grounded narrative detail, preview availability, coherent retrieval fallback, and accepted-attempt retention accounting.
+
+**Architecture:** Repair the existing shared reading pipeline at its admission, selection, rendering, parsing, and acceptance boundaries. Keep direct graph highlights separate from ranked references, freeze the context decision before provider attempts, and derive usage from final retained text. Extend the existing deterministic qualification with explicit semantic assertions, then qualify generated content and editorial meaning against the resulting source revision.
+
+**Tech Stack:** JavaScript ESM, React/Vite, Cloudflare Workers and Durable Objects, D1, Node test runner, Playwright, existing Claude subscription qualification, and existing provider adapters. No new runtime dependency or database migration is required by the proposed design.
+
+**Spec:** The [design and acceptance contract](#design-and-acceptance-contract) and [finding-to-task map](#finding-to-task-map) below are the self-contained specification for this plan. They incorporate the user's investigation and the independent review in this conversation. Read the [input contract](../../reading-context-inputs.md), [existing qualification record](../../knowledge-graph/QUALIFICATION_STATUS.md), [existing ledger](../../knowledge-graph/REMEDIATION_LEDGER.md), and [previous remediation plan](2026-10-23-reading-context-complete-remediation.md) for compatibility obligations.
+
+**Reviewed source:** `a0ff83d32d67df46cf5146e5856156c5a23dd797`, verified locally on 2026-10-24. Offline implementation is now recorded in the [October 24 execution record](../../knowledge-graph/READING_PIPELINE_CORRECTNESS_2026-10-24.md); the grouped canon review and all five editorial corrections are complete. All 47 subsequently authorized subscription narratives have been generated and agent-reviewed; three observed defect families are corrected in prompt 1.5.2 and confirmed by eight separately authorized focused generations, leaving zero blocking candidate findings. Other provider and release stages remain pending. Production configuration and behavior were not inspected for this review. Earlier deployment authorizations and gate waivers in historical documents do not authorize a new release.
+
+**Preservation revision:** Updated on 2026-10-24 after reviewing feature tradeoffs. This revision replaces fallback-only prompt focus, blanket exclusion of non-present age memories, omission-only handling of recoverable historical previews, and unrestricted full-registry replacement. The requirements below govern both defect correction and preservation; a fix is incomplete if its positive controls regress.
+
+## Global constraints
+
+- Preserve separate accepted sources: question, overall reflection, card reflections, effective decision labels, preferences, and memories. Preserve literal timing, Unicode, subject ownership, negation, and practical constraints.
+- Preserve supported useful behavior with paired defect and capability controls. Record intended compatibility changes separately; do not treat a larger rejection count, fewer memories, shorter prompts, or fewer previews as proof of improvement. Do not rewrite historical readings or saved preferences to enforce a new admission rule.
+- Preserve current limits: question 2,000 characters; overall reflection 5,000; each card reflection 2,000; each effective decision label 80; personalization focus at most 12 normalized labels of 40 characters. Render at most five eligible focus labels.
+- Preserve topic precedence: specific current question, reflections, named decision paths, saved focus, then spread defaults. Classify complete accepted sources before query cuts. The retrieval query remains bounded to 8,000 characters, with the existing 750-character supplemental-note allowance for question-led queries.
+- Preserve paid passage caps: single 1; three-card 2; five-card 3; decision 3; relationship 2; Celtic Cross 5; general 3. Free uses half rounded down, minimum one; Plus and Pro remain equal.
+- Preserve all-candidate scoring before caps, selected-deck projection before scoring, one variant per pattern, text deduplication, and coherent whole-set embedding fallback. Preserve the three-second embedding deadline, bounded batches, 8,000-character embedding input limit, and registry-overflow fallback.
+- Preserve the explicitly labeled one-passage weak-match floor at the existing 0.3 threshold. It is background, never evidence of a personal fact; relevance scores are not probabilities.
+- Preserve model availability order: Claude API, Modal Qwen, OpenAI Responses, local composer. Personal subscription modes keep their configured subscription provider and local fallback. Every rejected attempt starts fresh accounting.
+- Preserve default budgets: Claude 16,000 soft / 25,000 hard; OpenAI 12,000 soft / 20,000 hard; Modal has no application token cap. Soft slimming remains opt-in. Modal capacity remains a separate serving qualification obligation.
+- Preserve memory loading without access stamping, at most 100 global candidates and three selected memories, and access stamping only for retained IDs after accepted completion. Canceled, rejected, failed, replaced, or unretained attempts must not authorize access updates.
+- Keep keys, raw prompts, personal details, subject names, memory IDs, and evidence spans out of ordinary telemetry. Existing redacted prompt diagnostics are not exact provider-message archives.
+- Use local verification. GitHub Actions billing is permanently unavailable and its success is not a release prerequisite. Narrative generation gates use the owner's Claude subscription; missing access must fail without a paid API fallback.
+- Preserve unrelated checkout files and historical evidence. The review began and ended with two untracked plugin ZIPs and `tmp/plugin-review-2026-10-01/`; do not stage, remove, or rewrite them.
+- ESM, two-space indentation, single quotes, terminal semicolons. Add tests for changed behavior and new modules; avoid unrelated refactoring.
+
+## Review focus
+
+Each risk below has explicit test ownership in the tasks; these are additional boundary checks, not substitutes for the finding reproductions.
+
+1. An excluded career action followed by an affirmed workplace request, including Unicode apostrophes, sentence boundaries, and `but`: Task 3 must keep the workplace evidence and literal constraint.
+2. A future, past, hypothetical, quoted, fractional, or differently owned age sharing the same digits as a memory: Task 4 must abstain from current-age authorization while retaining present agreement and genuinely compatible dated future/historical claims.
+3. Cross-deck aliases and opposite orientations naming one card, versus genuinely distinct cards sharing a rank: Task 1 must deduplicate identity without collapsing Marseille rank clusters or losing slot indices.
+4. Negated, comparative, hypothetical, and quoted card mentions, including an assertion split across stream chunks: Task 6 must reject affirmative undrawn-card claims without rejecting explicit absence statements.
+5. The last approval being revoked, a partial queue mistaken for a complete queue, an approved malformed row, or interrupted enrichment publication: Task 8 must remove revoked content without deleting out-of-scope approvals and preserve recoverability.
+
+## Finding-to-task map
+
+| ID | Confirmed finding or required disposition | Owner | Completion evidence |
+| --- | --- | --- | --- |
+| F1 / P2 | Minor-stage highlights include absent members and unsupported personal/outcome assertions | Task 2 | Matched-only text across stage subsets, decks, orientations, ordering, and final provider prompts; editorial approval |
+| F2 / P2 | A scoped excluded action vetoes the entire topic and promotes unrelated focus | Task 3 | Resolver, query/embedding handoff, and final system lens agree on current workplace context |
+| F3 / P2 | Future and past ages authorize present-age memories; `turning` is also currently accepted | Task 4 | Incompatible direct/job memory absence and no access stamp; present and temporally compatible non-present positive controls |
+| F4 / P2 | Duplicate identities inflate suit, court, Thoth, and Marseille patterns | Task 1 | Canonical duplicate rejection before provider/usage work; distinct defensive membership and retained slot indices |
+| F5 / P2 | Buffered OpenAI parsing drops later answer pieces/messages | Task 5 | Exact ordered answer aggregation; reasoning remains separate; no duplicate aggregate fallback |
+| F6 / P2 | Explicit undrawn-card claims are allowed or missed; absence statements can be falsely blocked | Task 6 | Zero allowance for affirmative presence claims; negative/comparison controls; route and streaming acceptance parity |
+| F7 / P3 | Preliminary non-RWS previews are projected as RWS | Task 7 | Selected-deck/context projection; recoverable historical previews rebuilt; unverifiable material omitted; retained-generation separation |
+| F8 / P3 | Enrichment accepts malformed/range-invalid IDs and name mismatches; `-1` generates invalid JavaScript | Task 8 | Strict approval validation, compile/import checks, and no writes on invalid approved input |
+| F9 / P3 | Worker token-estimator configuration is ignored | Task 9 | One request-local estimator governs all budgeting and final accounting, independently of process environment |
+| F10 | Revoking the last approved enrichment row leaves compiled content behind | Task 8 | Complete replacement or explicit scoped revocation removes the final approval; out-of-scope approved entries and provenance survive |
+| D1 | Unrelated saved focus still reaches final prompts | Task 3 | Relevant supplementary and legitimate fallback focus survive; unrelated/excluded focus is omitted; style preferences remain available |
+| D2 | Weak floor, context tie-breakers, pattern gating, and absent position/reversal ranking features | Design contract, Tasks 10–11 | Explicitly retained behavior, negative controls, and generated-reading qualification; no silent retrieval redesign |
+| D3 | Generic prose, foreign imagery, and unsupported personal details exceed name-detector coverage | Tasks 10–11 | Separate grounding rubric, synthetic qualification failures, and explicit agent assessment of actual outputs; owner judgment only for unresolved substantive choices |
+| D4 | Delimiters and provenance are mitigations, not proof of instruction immunity | Tasks 10–11 | Adversarial reference/input fixtures and preservation of trust boundaries; no immunity claim |
+| D5 | Source editorial findings and deployed provider/embedding behavior remain unqualified | Tasks 11–12 | Source-bound editorial and live records; deployment identity and verified live behavior recorded separately |
+
+## Design and acceptance contract
+
+### Decisions made by this plan
+
+These are implementation proposals, not claims that the user previously selected these semantics.
+
+1. **Ordinary new readings use one deck without replacement.** Reject repeated canonical identities even if labels or orientations differ. This intentionally changes previously accepted direct/API input and must be documented. Do not add a multi-deck or with-replacement mode as part of this correction. Keep historical display/export readable without applying new-request rejection to saved records; internal graph detectors use distinct membership and preserve every original slot. If implementation inventory finds an explicitly supported repeated-card mode, preserve it behind its existing explicit contract and resolve its counting semantics before rollout; do not silently retire it or invent a caller bypass.
+2. **Minor highlights preserve detail about actual members.** Use reviewed per-member themes, relationships among matched members, and a neutral summary for partial stages. Preserve richer reviewed interpretations for complete stages, with explicit completeness and conceptual rather than chronological language. A stage label never establishes a life event, emotional diagnosis, or guaranteed result. Do not reuse a full-stage narrative for partial membership.
+3. **Question exclusions are scoped evidence.** Positive topic evidence outside an excluded span remains eligible. A whole-topic veto can suppress lower-priority sources only when the current question explicitly excludes that topic and contains no separately affirmed evidence for it. Excluding a particular action never creates a whole-topic veto.
+4. **Saved focus can supplement an authoritative current topic.** Keep at most five relevant, non-excluded labels as interests, without treating them as personal facts or changing the selected lens. If focus is the selected fallback source, retain the eligible labels supporting that selection. Preserve the existing retrieval rule: supplementary saved focus does not enter a current-led embedding query merely because it appears in the final prompt. Explicitly account for this difference between query eligibility and prompt eligibility. Stored preferences and style/depth/tone settings remain available.
+5. **Age agreement includes temporal meaning.** A present-age memory requires explicit present agreement for the same person and value. Preserve matching dated past/future/approaching claims when their temporal relation and event/time reference agree; do not reject them merely for being non-present. Conditional, quoted, interrogative, ambiguous, or mismatched statements cannot authorize a fact. Do not derive an age through arithmetic or erase timing from a retained memory. Relative dates require a trustworthy original temporal anchor; a timestamp refreshed by deduplication/promotion is not sufficient evidence.
+6. **Every assistant answer piece is retained in order.** Concatenate raw pieces within a message without inserting or deleting internal whitespace; separate distinct answer messages with two newlines; trim only the completed answer. Use top-level `output_text` only when no answer was collected. Reasoning and tool content cannot become answer prose.
+7. **Affirmative undrawn-card presence has zero allowance.** Keep a separate classification for uncertain name mentions. Explicit absence, comparison, reported quotations, and hypothetical examples do not count as drawn-card assertions. Existing coverage/spine/suit-count/safety checks still apply independently.
+8. **Previews preserve recoverable historical utility.** Pass selected deck/context to preliminary retrieval. For an otherwise preview-eligible record with unverifiable old preview prose, rebuild from its canonical cards and explicit saved deck using the current registry, without model/embedding calls. Label it as a reconstructed preview, never as an original generation reference. If required identity is missing, omit the preview alone; preserve the narrative, card display, reflections, and journal actions. Accepted generation references still require retained indices and matching deck/projection identity.
+9. **Enrichment deletion requires an explicit scope.** Default apply updates approved slots and revokes explicitly rejected previously applied candidate IDs; missing/pending rows do not remove compiled content. Full replacement requires `--mode replace` plus a matching queue-completeness manifest. Only that verified complete desired state may clear the entire registry because it contains zero approvals. A missing/malformed queue, invalid approved row, incomplete replacement, or stale output identity fails before replacement. Dry runs report additions, updates, preserved entries, revocations, and clearing separately.
+10. **Budget estimates have one immutable configuration per build.** Explicit Worker environment wins over process environment. Default process fallback remains only when no explicit environment was supplied. Preserve default caps, trimming order, and retention when calibration is unchanged. An explicitly more conservative calibration can remove more optional content; quantify that change and qualify it against observed usage before proposing a deployment setting. A heuristic estimate is never represented as actual provider token usage.
+
+### Capability preservation requirements
+
+Each row is a release acceptance requirement with task-owned positive controls. Record any intended restriction as a compatibility change; an unexpected reduction blocks the affected completion level.
+
+| ID / capability | Required preservation and example | Evidence / owner |
+| --- | --- | --- |
+| C1 / valid requests and saved readings | Distinct canonical cards, legitimate same-rank cards across suits, aliases, orientations, and original slot indices survive. New-request duplicate rejection does not prevent viewing/exporting old duplicate-bearing readings. | Task 1 admission controls and restored-history tests; Task 12 compatibility note |
+| C2 / interpretive depth | Complete stages retain reviewed symbolic relationships; partial stages retain specific drawn-member roles. Neither is reduced to generic lists when suitable reviewed prose exists. Positions and reversals remain available. | Task 2 complete/partial prompt controls; Task 11 agent comparison of usefulness and detail |
+| C3 / relevant personalization | A workplace question plus `Career & purpose` retains that interest; `Love & relationships` is omitted. A general question can still use saved focus as fallback. Style/depth/tone settings survive both paths. | Task 3 resolver, query, final prompt, and retention controls |
+| C4 / compatible memory | `is 8` matches present `is 8`; dated future agrees with the same future fact; `was 8 in 2024` can agree with the same historical claim. Future/past wording never authorizes present `is 8`. | Task 4 positive/negative direct/job cases, exact retained wording, accepted access stamping |
+| C5 / answer availability | Full supported answer text reaches checks. Absence, comparisons, legitimate aliases, and hypothetical card mentions do not cause new rejection/fallback. | Tasks 5–6 exact parsing and zero false-rejection fixture controls; Task 11 matched rejection/attempt counts |
+| C6 / preview availability | Valid historical previews remain; legacy previews rebuild when canonical cards and saved deck suffice. No extra model/embedding calls, usage increment, saved-reading mutation, or delay to narrative display. | Task 7 unit/browser recovery, failure, race, and network-spy controls |
+| C7 / approved content | A partial queue cannot erase an absent approval. Explicit revocation removes its target, including the last approval. Complete replacement cannot execute with a missing or mismatched manifest. | Task 8 scoped/complete apply sequences, dry-run reports, identity checks, recovery tests |
+| C8 / budgets and performance | Unchanged estimator configuration has unchanged arithmetic/trimming for the same prompt input. More conservative overrides disclose retained-content reductions. Keep configured caps, provider order, and no new online semantic evaluator. | Task 9 boundary/retention comparisons; Tasks 10–11 attempt, latency, and content records |
+
+Correctness improvements do not imply zero tradeoffs: ordinary repeated-card requests become invalid; temporally ambiguous memories remain omitted; irrecoverable previews stay absent; false presence assertions trigger fallback; conservative calibration can trim content. These restrictions must remain limited to their stated conditions and must not be widened to satisfy tests.
+
+### Existing behavior deliberately retained
+
+- Keep pattern-gated retrieval, the current single-Major path, context-match tie-breaking, and the weak background floor. Adding every individual Major or new reversal/position scoring would change retrieval policy and needs evidence beyond these correctness defects.
+- Continue supplying positions, reversals, complete accepted current fields, and selected-deck guidance to final prompt assembly. Test their preservation; do not claim that ranking independently understands them.
+- Keep canon attribution as internally authored Tableu Tarot Canon. Research URLs remain provenance. Registry identity, meaning-only cross-deck projection, and separate enrichment projection approval remain mandatory.
+- Keep lexical topic recognition conservative and bounded. This work does not claim general natural-language understanding or multilingual temporal recognition. Unsupported personal-detail syntax fails closed; original current text still reaches the prompt.
+- Keep final full-reference, summary-only, removed-reference, and preview states distinct. Inclusion establishes presence in constructed text, not attention or model use.
+- No new live semantic evaluator is placed on the production critical path by this plan. Broader grounding quality is evaluated through the existing qualification workflow plus the explicit rubric in Task 11.
+
+### Completion levels
+
+| Level | Required evidence | Allowed claim |
+| --- | --- | --- |
+| Implemented | Tasks 1–9 code and focused regressions pass | The enumerated defects are repaired locally |
+| Offline-qualified | Task 10 passes on frozen source; all changed fixture expectations are versioned | Deterministic input, prompt, parser, and acceptance contracts pass |
+| Content-qualified | Task 11 editorial and bounded live work passes for the same source | Reviewed canon and tested generated readings meet the stated rubric |
+| Released and verified | Task 12 is authorized and completed | Identified deployment serves the qualified code and tested live behavior |
+
+Never mark the complete solution finished by collapsing these levels. An unavailable provider, unresolved editorial correction or owner decision, or missing device/browser evidence stays explicitly pending. Missing human metadata alone is not a blocker under the revised review policy.
+
+## Execution preflight and dependency order
+
+- [ ] Record starting HEAD, branch, index state, worktrees, and changed/untracked paths. Hash unrelated dirty/untracked files before implementation and verify them afterward. Use an isolated worktree for implementation if the primary checkout contains unrelated work; do not perform Git reconciliation or cleanup as an incidental step.
+- [ ] Append a new October 24 section to the existing remediation ledger and qualification status when execution begins. Preserve earlier attempts, source identities, release records, and waivers as historical evidence.
+- [ ] Freeze the reviewed baseline and the new regression inputs before fixes. Keep outputs under a fresh task-owned ignored evidence directory, record commands/exits/source hashes, and avoid rewriting previous evaluation artifacts.
+- [ ] Run failing regressions for each task before its fix, then its focused passing checks. Treat each task as a reviewable change. Commit only within a subsequently authorized implementation workflow; do not push or deploy as part of a task's local verification.
+
+Order: Task 1 → Task 2; Task 3 → Task 4; Tasks 5, 6, 7, 8, and 9 are separate review units; Tasks 1–9 → Task 10 → Task 11 → Task 12. Task 7 consumes Task 3's authoritative context. Task 6 consumes Task 1's canonical identities and Task 5's complete buffered output. Shared prompt, route, telemetry, and qualification files should have one active editor at a time if execution is delegated.
+
+## File responsibilities
+
+Paths marked new are proposed deliverables and do not exist merely because this plan names them.
+
+| Area | Production files | Principal tests / evidence |
+| --- | --- | --- |
+| Canonical duplicates / graph membership | `functions/lib/readingCardResolution.js`; **new** `functions/lib/graphCardMembership.js`; `functions/lib/knowledgeGraph.js`; `functions/lib/graphContext.js`; `functions/lib/readingJobs.js`; `functions/api/tarot-reading.js` | Existing resolution/schema/graph/job suites; **new** `tests/graphCardMembership.test.mjs` |
+| Matched Minor prose | `src/data/knowledgeGraphData.js`; **new** `functions/lib/minorPatternHighlights.js`; `functions/lib/knowledgeGraph.js` | **New** `tests/minorPatternHighlights.test.mjs`; existing pipeline and Worker graph tests |
+| Scoped context / focus | `functions/lib/readingContextVocabulary.js`; `functions/lib/contextDetection.js`; `functions/lib/readingRetrievalQuery.js`; `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`; `functions/lib/narrative/prompts/userPrompt.js`; `shared/readingSourceUsage.js` | Context, retention, pipeline, and telemetry suites |
+| Temporal memory | `functions/lib/readingMemorySelection.js`; existing backend/route/job integration only where needed | `tests/readingMemorySelection.test.mjs`; `tests/readingMemoryAccess.test.mjs` |
+| Buffered response | `functions/lib/openaiResponses.js`; `functions/lib/narrativeBackends.js` for shape accounting | `tests/openaiResponses.test.mjs`; existing backend and stream suites |
+| Presence assertions | **New** `functions/lib/readingCardAssertions.js`; `functions/lib/cardContextDetection.js`; `functions/lib/readingQuality.js`; `functions/lib/evaluation.js`; `functions/api/tarot-reading.js`; `functions/lib/telemetrySchema.js` | **New** `tests/readingCardAssertions.test.mjs`; quality/evaluation/stream/job suites |
+| Preview identity | `functions/lib/spreadAnalysis.js`; `functions/lib/spreadAnalysisOrchestrator.js`; `src/hooks/narrativeReadingModelUtils.js`; `src/hooks/useNarrativeReadingController.js`; `src/components/SpreadPatterns.jsx` if an empty state needs adjustment | Worker spread-analysis and frontend model suites; **new** `e2e/reading-reference-preview.spec.js` |
+| Enrichment replacement | `scripts/enrichment/applyPassageCandidates.js`; `functions/lib/knowledgeBase.js` defensive merge; generated module only through validated apply | `tests/passageCandidates.test.mjs`; **new** `tests/enrichmentApply.test.mjs`; projection suite |
+| Budget calibration | `functions/lib/narrative/prompts/budgeting.js`; `functions/lib/narrative/prompts/truncation.js`; `functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js`; telemetry adapter | `tests/tokenBudgeting.test.mjs`; prompt retention/builders suites |
+| Qualification | `scripts/evaluation/verifyNarrativePromptAssembly.js`; **new** `tests/fixtures/knowledge-graph-context-v3-cases.json`; **new** `scripts/evaluation/lib/readingGroundingQualification.js`; **new** `tests/readingGroundingQualification.test.mjs` | Existing frozen fixtures plus versioned expectation migrations and new semantic fixtures |
+| Documentation / versions | `docs/reading-context-inputs.md`; knowledge-graph status/ledger/review documents; `functions/lib/promptVersioning.js`; `functions/lib/evaluation.js` version constant | Local links, source hashes, review manifests, generated-output qualification |
+
+## Task 1: Reject duplicate canonical cards and use distinct graph membership
+
+**Interfaces:** Keep `resolveReadingCards(cardsInfo, deckStyle = 'rws-1909')` and its existing canonical output. Add `ReadingCardResolutionError.code = 'duplicate_card_identity'`, identifying offending indices without echoing user prose. Add `groupGraphCardIdentities(cardsInfo, { deckStyle }) -> { members, invalidIndices }`, where each member is `{ canonicalKey, card, indices }`; `indices` contains every original slot for that identity.
+
+- [x] Add `rejects canonical duplicates before reading work` tests for identical labels, upright/reversed duplicates, RWS/Thoth aliases, and an otherwise valid three-card request. Assert a stable 400 error on direct requests and a stable rejection at public job/MCP admission, with no provider calls, memory stamps, or reading-usage increment.
+- [x] Add `distinct membership controls pattern strength` tests: Ace–Two is emerging; Ace–Two–Two has the same distinct strength; Queen–King–King has two-member alliance strength; repeated Thoth titles and Marseille cards cannot create new currents/clusters. Assert all original matching indices survive.
+- [x] Add positive controls for distinct cards with equal rank across suits and all three deck traditions. Opposite orientations do not make one identity distinct. Resolved Thoth court names must not be canonicalized a second time.
+- [x] Run the new tests against the reviewed source and preserve the failures. Command: `node --test tests/readingCardResolution.test.mjs tests/graphCardMembership.test.mjs tests/readingSchema.test.mjs`.
+- [x] Canonicalize the complete request, check identity uniqueness before downstream effects, and share that check with job/MCP admission. Preserve existing wire field limits and spread-count validation. Do not add a client-controlled bypass.
+- [x] Implement membership grouping from the existing catalog/deck mapping. Never use rank alone as identity. Apply it to suit/court/Thoth/Marseille strength and to Major membership counts/keys, retaining original indices separately. Unknown internal identities contribute no strength.
+- [x] Run the focused tests plus `node --test functions/__tests__/knowledgeGraph.test.js tests/readingJob.test.mjs tests/readingJobPrincipal.test.mjs tests/knowledgeGraphContextPipeline.test.mjs`. Deliver a reviewable change with the error contract documented in `docs/reading-context-inputs.md`.
+
+**Acceptance:** Valid distinct readings are unchanged; duplicates cannot manufacture a stronger pattern through any caller. Public job creation rejects the invalid reading payload before starting a model job.
+
+## Task 2: Render matched-only, conditional Minor Arcana highlights
+
+**Interfaces:** Add `renderSuitProgressionHighlight(progression, { deckStyle }) -> { text, matchedCardKeys, matchedCardIndices, suit, stage } | null` in `minorPatternHighlights.js`. Strong and emerging renderers consume the same function. Keep the existing priority, highlight type, and maximum-five-highlight contract.
+
+- [x] Add the reported Cups missing-Five and reversed Eight/Nine of Swords fixtures. Assert absent-member roles are absent from highlight prose and all three final model prompts. Explicitly assert no `You're in the mental crisis phase`, `The dawn is coming`, or equivalent guarantee appears.
+- [x] Generate all eligible subsets of beginning/challenge/mastery stages. Current stage sizes yield 76 memberships across four suits; exercise three decks, forward/reverse order, and upright/reversed/alternating orientations: 1,368 pure-render cases. Add empty/single-member controls. Have the generator calculate and assert its inventory.
+- [x] For each of the 228 membership/deck combinations, build all three final provider targets using a fixed orientation schedule: 684 prompt builds. Assert exact allowed member labels/roles, selected-deck naming, stable position indices, and complete highlight retention accounting. Keep these counts separate from existing matrix counts.
+- [x] Run the new tests before modifying authoring: `node --test tests/minorPatternHighlights.test.mjs`.
+- [x] Add a neutral `summary` to each stage and review the existing per-rank `cards[].role` text as the source of matched-member themes. Render only roles whose canonical members are present. Keep unsafe original full-stage prose as unused historical authoring; render safe complete-stage relationships through the new `completeTheme` while partial stages use only matched roles.
+- [x] Use possible themes rather than statements of the reader's actual condition. Name reversed cards accurately and defer their interpretation to the selected reversal framework. Do not infer sequence from rank order, promise recovery, or imply absent beginning/end stages. If reviewed prose is unavailable, render a neutral list of the actual matched cards.
+- [x] Inspect the other direct highlight families for the same categorical-personal/outcome wording. Convert any confirmed examples to conditional card themes and add named regressions. Preserve already-correct Major partial projections.
+- [x] Run `node --test tests/minorPatternHighlights.test.mjs tests/knowledgeGraphPartialTriads.test.mjs tests/graphRAGPatternCoverage.test.mjs functions/__tests__/knowledgeGraph.test.js tests/knowledgeGraphContextPipeline.test.mjs`. Update `docs/knowledge-graph/SUIT_PROGRESSIONS.md` and add the changed authoring to Task 11's grouped editorial inventory.
+
+**Acceptance:** No direct highlight introduces an unmatched rank's theme or declares the querent's condition/outcome from pattern membership. A correct GraphRAG passage is not used as a substitute for validating this independent prompt channel.
+
+## Task 3: Scope exclusions and align final saved-focus eligibility
+
+**Interfaces:** Preserve the version-1 `resolveContextSelection(input, spreadKey, options)` result and its public sanitized projection. Extend private exclusion evidence to distinguish action ranges from whole-topic exclusions. Add `selectPromptFocusAreas(focusAreas, contextSelection) -> string[]` in `contextDetection.js`; return at most five relevant, non-excluded labels supporting the frozen topic, for both saved-focus fallback and relevant supplementary interests. Supplementary prompt eligibility does not change current-led retrieval eligibility.
+
+- [x] Add `scoped action exclusion preserves affirmed workplace evidence` for both reported questions, semicolon/newline boundaries, `but`, and Unicode apostrophes. Assert `context = career`, `graphRAGContext = career`, source question, complete question preservation, and no saved relationship label in query or final prompts.
+- [x] Retain whole-topic controls: `I am not asking about career, work, or my job. I need help with my relationship.` cannot be overridden by career reflections/focus. Keep `I do not want to quit my job` positive for career. Add the contradictory wording `not about my job ... handle my boss` and define the separate affirmed request as current positive evidence.
+- [x] Add tie and priority controls for reflections/decision labels, late card reflections, repeated keywords, all 12 focus labels, generic questions, explicit decision clears, and neutral constraints. Assert fallback focus can still select the topic when current sources provide none.
+- [x] Run `node --test tests/contextDetection.test.mjs tests/knowledgeGraphContextPipeline.test.mjs tests/promptContextRetention.test.mjs` before the correction.
+- [x] Score positive question matches outside excluded spans independently. Apply a lower-source topic veto only to explicit whole-topic exclusions without affirmed question evidence. Update `projectReadingContextSpans()` so classification, memory eligibility, and query projection use the same decision; retain complete negative qualifiers in excerpts.
+- [x] Keep one server decision before spread analysis/provider attempts. Pass `selectPromptFocusAreas()` output into user-prompt construction through an explicit `focusAreasForPrompt` option, including rebuilds for budgets. Every direct user-prompt call site must supply the decision or resolve it from accepted fields; raw saved labels must not be a fallback rendering path.
+- [x] Keep focus provided/used accounting truthful: add a bounded `current_context_precedence` skip reason to the shared allowlist/copy, without exposing label text. Stored preferences and style/depth/tone settings remain untouched.
+- [x] Through the actual direct route and job flow, intercept synthetic embedding input and provider system/user messages. Assert career selection and absence of unrelated focus, then rerun the focused suites plus `tests/tarotReading.telemetry.test.mjs` and `tests/readingMemorySelection.test.mjs`.
+
+**Acceptance:** A single excluded action cannot erase independently affirmed current evidence. Retrieval and final prompt focus eligibility agree, and lower-priority preferences cannot redirect the reading.
+
+## Task 4: Require temporal compatibility for personal-detail memories
+
+**Interfaces:** Extend extracted age claims to `{ kind: 'age', value, subjectKey, temporalStatus, polarity }`, with `temporalStatus` one of `present`, `past`, `future`, `approaching`, `unknown`, and polarity affirmative/negative. These fields remain private. The public `checkMemoryCompatibility()` status/reason shape remains compatible; unsupported temporal agreement uses `ambiguous / unmatched_detail`.
+
+- [x] Add a table-driven `age admission preserves temporal status` regression with present, future-with/without-year, next year, past, `turning`, `about to turn`, `almost`, conditional, question, reported quotation, and mixed positive/negative clauses. The present-age memory is admitted only by unambiguous present agreement for the same person and number.
+- [x] Change the existing tests that intentionally equate `turning`/`turns` with a current age. Preserve their original expectations in a documented semantic migration; do not silently delete those cases. Ordinary birthday-without-age memory behavior remains separately covered.
+- [x] Retain wrong-person, multiple-role, possessive-modifier, Unicode, units, measurement, decimal, fraction, range, infant-age, negation, employment, wedding, and off-topic-retraction controls. Saved focus and caller meaning never authorize a personal fact.
+- [x] Run `node --test tests/readingMemorySelection.test.mjs tests/readingMemoryAccess.test.mjs` and preserve the new failures.
+- [x] Extract temporal qualifiers before owner normalization discards auxiliaries. Require affirmative present status on both sides for present-age admission. Preserve matching past/future/approaching claims only when subject, age, temporal relation and explicit date/year/event reference agree. Unknown or unanchored relative timing abstains; storage and manual memory management remain intact.
+- [x] Keep conflict checking over all accepted current sources. Future age 8 is not a contradiction of explicit present age 7; it simply cannot authorize present age 8. Conflicting present ages remain a veto. If ownership or temporal scope cannot be resolved, omit the memory without rewriting it.
+- [x] Include temporal evidence in claim keys and any selection-cache signature. A change from `is` to `will be` must invalidate prior admission. Do not put personal claim structure into telemetry.
+- [x] Exercise direct and public job paths for future, past, present, next-year, conflicting-present, and canceled/failed completions. Assert exact provider memory blocks, selected/retained counts, accepted receipts, and `last_accessed_at`; rejected notes stay unstamped. Run the focused suites and pipeline/retention tests.
+
+**Acceptance:** Future or historical wording cannot authorize a present personal fact. Compatible current wording is retained without degrading accepted-result stamping or unrelated communication preferences.
+
+## Task 5: Preserve complete buffered OpenAI answer text
+
+**Interfaces:** Add exported `extractOpenAIResponseContent(data) -> { text, reasoningSummary, responseShape }` in `openaiResponses.js`. `responseShape` contains only `assistantMessageCount`, `outputTextPieceCount`, and `aggregateFallbackUsed`. Preserve existing wrapper string/full-response return behavior; full responses may add this optional text-free shape.
+
+- [x] Add fixtures with one piece; three pieces; multiple assistant messages; reasoning before/between/after answer messages; empty blocks; whitespace split across pieces; tool output; missing-role legacy messages; top-level-only text; and both nested and aggregate text.
+- [x] Assert the exact concatenated answer, including guidance appearing only in the final piece. Within-message pieces use direct concatenation; messages use two newlines; only the final answer is trimmed. Aggregate text is never appended a second time.
+- [x] Run `node --test tests/openaiResponses.test.mjs` and record failures for the multi-piece/multi-message cases.
+- [x] Traverse the full output array without answer/reasoning early exits. Accept assistant message content (and the existing missing-role legacy shape), collect all `output_text` pieces, keep reasoning summaries separately, and exclude tool/refusal/non-text content from answer prose. Preserve existing empty-response and request failure behavior.
+- [x] Capture shape counts through existing bounded attempt accounting when available. Do not log text or infer live prevalence from synthetic fixtures. Shape diagnostics from failed attempts must not become accepted-result metadata.
+- [x] Run `node --test tests/openaiResponses.test.mjs tests/openaiResponsesStream.test.mjs tests/narrativeBackends.test.mjs tests/knowledgeGraphContextPipeline.test.mjs`. Verify that later safety/agency guidance reaches output evaluation and that text is not duplicated in streaming completion handling.
+
+**Acceptance:** The application evaluates and returns the entire supported buffered answer. No safety or grounding check operates on an accidentally truncated opening.
+
+## Task 6: Reject affirmative undrawn-card assertions without false absence failures
+
+**Interfaces:** Add `classifyCardMentions(text, { cardsInfo, deckStyle }) -> Mention[]` and `detectUndrawnCardAssertions(text, cardsInfo, deckStyle) -> string[]` in `readingCardAssertions.js`. A private mention carries canonical identity, offsets, and one of `present`, `absent`, `hypothetical`, `comparison`, `reported-quotation`, `unclassified`. Add `undrawnCardAssertions` to narrative metrics; retain `hallucinatedCards` for remaining detected undrawn mentions after clearly non-assertive mentions are excluded.
+
+- [x] Add assertions for `The Moon [card] appears in your spread`, `you drew`, `is among your cards`, position claims, coordinated names, reversed/upright formatting, deck aliases, and predicates split across stream chunks. Any affirmative undrawn identity must fail regardless of spread size and regardless of `EVAL_ENABLED`/`EVAL_GATE_ENABLED`.
+- [x] Add controls for `The Moon card is not drawn`, two explicitly absent cards, `Unlike The Moon card`, hypothetical draws, and clearly attributed user quotations. Test `not only ... but also` and double-negation presence so a negation token cannot automatically suppress an assertion. Quotation marks around a card title alone do not make a claim exempt.
+- [x] Preserve common-vocabulary and alias controls: ordinary justice/strength/love, drawn Thoth Knight aliases, RWS equivalents, typo handling, and card names in the actual spread. Do not use rank or title case alone to infer presence.
+- [x] Run `node --test tests/readingCardAssertions.test.mjs tests/readingQuality.test.mjs tests/streamingGate.test.mjs` and capture failures.
+- [x] Implement clause-local classification using existing deck-aware identity/pattern helpers. Scope negation and assertion predicates to the individual mention; one explicit occurrence must not grant context to unrelated occurrences elsewhere. Unsupported syntax remains unclassified rather than being confidently labeled safe.
+- [x] Apply `undrawnCardAssertions.length > 0` as a shared hard rejection in route quality checks and deterministic evaluation/heuristic overrides. Use a stable `undrawn_card_assertion` reason. Keep the existing one/two allowance only for residual uncertain mentions; confirmed absence/comparison/quotation examples must no longer consume that allowance.
+- [x] Validate complete assembled output before accepted `done`/job completion. Preserve existing stream replacement behavior: rejected provisional attempts cannot remain the final visible/persisted reading or supply final provenance. Test a claim split across deltas and completed-response reconciliation. Do not claim terminal checks prevent every provisional token from being seen.
+- [x] Add text-free counts/reasons to telemetry sanitization and ensure old stored metrics lacking the new field remain readable. No mention offsets or surrounding prose enter ordinary logs.
+- [x] Run `node --test tests/readingCardAssertions.test.mjs tests/readingQuality.test.mjs tests/evaluation.test.mjs tests/evaluationEntrypoints.test.mjs tests/streamingGate.test.mjs tests/streamingWrapper.test.mjs tests/readingJobStream.test.mjs tests/knowledgeGraphContextPipeline.test.mjs`. Assert rejected-provider fallback, fresh provenance, and no rejected memory-access receipt.
+
+**Acceptance:** Explicit false presence claims have zero tolerance; explicit absence/comparison controls pass other applicable checks. Generic relevance, personal grounding, and unnamed scene fidelity remain separately assessed by Tasks 10–11.
+
+## Task 7: Carry deck and context through preliminary previews
+
+**Interfaces:** `analyzeSpreadThemes(cardsInfo, options)` receives the selected `deckStyle` and authoritative `contextSelection`. Preliminary `retrievePassages()` receives `deckStyle` and `questionContext`. Extend `getTraditionalPassagePreview(themes, readingMeta, selectedDeck)` to validate each preview's projected deck; preserve existing retained-reference APIs.
+
+- [x] Add Lust/Strength, Art/Temperance, La Force/Strength, and Marseille pip/court preview fixtures. Assert `projectedDeck`, title, meaning-only text, and permitted imagery align with the selected deck.
+- [x] Add legacy preview controls: missing or mismatched projection identity triggers deterministic reconstruction only when canonical saved cards and explicit saved deck suffice; otherwise omit the preview alone. Valid historical material remains explicitly a preview, and reconstruction is labeled separately. Presence of any generation GraphRAG usage metadata or safe fallback suppresses preliminary previews as today.
+- [x] Run `node --test functions/__tests__/spreadAnalysis.test.js tests/narrativeReadingModelUtils.test.mjs` before the fix.
+- [x] Resolve context once before orchestrated theme analysis, pass it through, and supply selected deck/context to preliminary retrieval. Direct low-level callers without context use general context, never another deck. Keep the final quality-ranked retrieval and its caps authoritative for generation.
+- [x] Pass the selected deck from the reading controller to the preview helper. Validate provenance before display rather than guessing the deck from a title. Retained references still require complete retained indices and selected-deck agreement.
+- [x] Run the focused suites and add `e2e/reading-reference-preview.spec.js` using synthetic responses for loading, completed, local/safe fallback, and restored-history states. Verify the visible preview label and absence of foreign-deck titles. Check relevant guest and signed-in Pro flows; use the private reviewer credentials as documented and log out afterward.
+
+**Acceptance:** Preview data and rendered previews agree with selected deck/context. A preview is never presented as evidence that a reference reached generation.
+
+## Task 8: Validate enrichment strictly and make revocation replacement-safe
+
+**Interfaces:** Extend `selectApprovedRows(csvContent)` to return `{ approved, rejected, validationErrors }`. `validationErrors` distinguishes malformed approved rows from intentional reviewer rejection. `applyCandidates(options)` validates the entire desired state before writing, and returns `{ applied, rejected, removed, cleared, dryRun, outputHash }` on success. Errors are nonzero CLI outcomes with no partial approval application.
+
+- [x] Add cases for `0`, `21`, `17.9`, `17junk`, `22`, `-1`, `+17`, `017`, `1e1`, `0x11`, blank/NaN/Infinity, mismatched names, invalid context/text/tags, duplicate approved slots, and dangerous newline/comment characters in metadata. Trim surrounding CSV whitespace; require canonical decimal integer syntax `^(0|[1-9][0-9]*)$`, then range 0–21.
+- [x] Require normalized canonical Major name/number agreement against `MAJOR_ARCANA`. The authoring queue uses canonical names; an ambiguous cross-deck alias does not authorize reassignment. Keep full-prose approval and projection approval independent.
+- [x] Add the reported malformed-ID tests plus compilation/import checks on every rendered module, including the previously invalid negative-key case. Assert no generated code is published from an invalid approved entry.
+- [x] Add an in-memory replacement sequence: two approved rows → one rejected → both rejected. Assert compiled membership 2 → 1 → 0, removed counts, and empty provenance. A valid all-pending queue has no new approvals and preserves applied content in default merge mode. It can clear the registry only in explicitly requested replacement mode with a verified completeness manifest. A missing or malformed queue leaves outputs untouched.
+- [x] Run `node --test tests/passageCandidates.test.mjs tests/enrichmentApply.test.mjs` before fixing the script.
+- [x] Validate approved rows before deduplication/application; invalid approved rows or conflicting approved slots abort the transaction. Render keys and untrusted metadata through safe serialization. Do not interpolate arbitrary candidate IDs into executable source or uncontrolled comments.
+- [x] Remove the zero-approved early return without treating every partial queue as full replacement. Merge approved slots, revoke exact explicitly rejected applied candidates, and preserve absent/pending rows. Render an empty registry with matching empty provenance only when explicit revocations remove all entries or a manifest-verified `--mode replace` complete state has no approvals. Dry runs validate and separately report additions, updates, preserved entries, revocations and clearing without writes.
+- [x] Stage module and provenance beside their destinations, parse/import-check staged JavaScript, and compute source hashes before replacement. Publish the module with an atomic same-directory rename. Publish provenance with the same module hash and an explicit recovery path: restore the prior pair on handled failure; detect a crash-created hash mismatch on the next apply/check and stop or regenerate from the validated queue. Do not claim two separate renames are a filesystem transaction.
+- [x] Keep the module as the runtime authority, with provenance embedded per entry and an output digest in the report. Add defensive merge checks for invalid numeric keys/shape without weakening provenance verification; malformed external generated modules must fail validation before deployment.
+- [x] Test write/rename failure, stale provenance, successful rerun, dry-run, missing queue, empty valid queue, and projection-approval preservation. Keep previous output bytes recoverable until both replacements succeed. Update the enrichment command documentation with replacement/revocation semantics.
+- [x] Run `node --test tests/passageCandidates.test.mjs tests/enrichmentApply.test.mjs tests/graphRAGEnrichmentProjection.test.mjs` and a generated-module import smoke test. Use fully mocked filesystem methods or isolated temporary fixtures; never apply to the real review queue merely to test.
+
+**Acceptance:** Invalid approved input cannot poison or silently partially update the compiled registry. Revoking the last approval removes the passage. Human verdicts and projection approvals are never manufactured by the script.
+
+## Task 9: Use one estimator for construction, truncation, and accounting
+
+**Interfaces:** Add `createTokenEstimator({ env = null } = {}) -> { divisor, estimate(text, { detailed = false } = {}) }` in `budgeting.js`, returning an immutable configuration. Keep `estimateTokenCount(text, options)` compatible. Add `options.estimator` to every exported truncator, including `truncateSystemPromptSafely(text, maxTokens, options = {})`; propagate it through all internal helpers and recursion.
+
+- [x] Add Worker-binding-only tests with divisor `1.1`, process-only controls, explicit Worker/process disagreement, invalid overrides, and two simultaneous builds with different divisors. Explicit `{}` uses the default rather than leaking a process override; absent environment preserves existing process fallback.
+- [x] Assert construction, every slimming iteration, prefix/suffix fitting, protected-section fitting, recursive user-context excerpts, final estimates, and calibration comparisons use the same divisor. Preserve current estimator validation range: finite divisor strictly greater than 1.0 and less than 10.0.
+- [x] Run `node --test tests/tokenBudgeting.test.mjs tests/promptContextRetention.test.mjs tests/promptBuilders.test.mjs` and record the Worker-only failure.
+- [x] Capture the estimator at builder entry and pass it through rebuild/truncation paths; do not mutate process/global state. Share the arithmetic implementation so compatibility helpers cannot drift. Update `compareEstimateWithActual()` to report/use the selected divisor when supplied.
+- [x] Test just-below, equal-to, and above-hard-cap inputs under both default and override configurations, with soft slimming on and off. Include Unicode-heavy text, long negative/timing fields, memory/reference delimiters, summary-only/removed references, and provider-specific budgets.
+- [x] After final construction assert the configured estimate fits applicable hard caps. If essential protected boundaries cannot fit, fail with a stable prompt-build failure and follow the existing provider fallback path; do not silently send an over-cap estimate or emit broken user-context/memory blocks.
+- [x] Preserve null estimates when the existing metadata policy does not emit estimates. When estimates are emitted, include the bounded divisor used. Recompute full/summary/none, retained passage indices, direct highlights, and memory receipts from final text after calibrated truncation.
+- [x] Run focused budgeting/retention tests and `tests/graphRAGRetention.test.mjs`, `tests/graphRAGSummaryProvenance.test.mjs`, `tests/readingMemoryAccess.test.mjs`. Assert Modal still has null application caps and complete accepted context.
+
+**Acceptance:** Worker configuration affects the same arithmetic that decides truncation and reports final estimates. No request's calibration leaks into another request.
+
+## Representative executable acceptance assertions
+
+These are assertion fragments for the named task fixtures, not replacement implementations. The task steps define the complete inputs and controls; use the existing test helpers for the captures rather than creating a second pipeline.
+
+| Task / test name | Required core assertion |
+| --- | --- |
+| 1 / canonical duplicate rejection | `assert.throws(() => resolveReadingCards(duplicateCards, 'rws-1909'), { code: 'duplicate_card_identity' });` |
+| 2 / missing-Five Cups prompt | `assert.doesNotMatch(finalPrompt.userPrompt, /Five: Loss & grief/);` |
+| 3 / scoped workplace exclusion | `assert.equal(selection.context, 'career'); assert.equal(selection.graphRAGContext, 'career'); assert.deepEqual(selectPromptFocusAreas(['Love & relationships'], selection), []);` |
+| 4 / future and past age admission | `assert.deepEqual(selectedIds, []); assert.equal(finalPrompt.includes('<reading_memory slot='), false); assert.equal(lastAccessedAt, null);` |
+| 5 / complete buffered response | `assert.equal(extracted.text, 'Opening. Boundary.\n\nYour choices matter.'); assert.equal(extracted.reasoningSummary, 'Separate summary.');` |
+| 6 / false presence versus absence | `assert.deepEqual(detectUndrawnCardAssertions('The Moon appears in your spread.', drawnTemperance, 'rws-1909'), ['The Moon']); assert.deepEqual(detectUndrawnCardAssertions('The Moon card is not drawn here.', drawnTemperance, 'rws-1909'), []);` |
+| 7 / Thoth preview identity | `assert.ok(previews.length > 0); assert.ok(previews.every(row => row.projectedDeck === 'thoth-a1')); assert.deepEqual(getTraditionalPassagePreview(themes, acceptedMeta, 'thoth-a1'), []);` |
+| 8 / final approval revoked | `assert.equal(result.applied, 0); assert.equal(result.cleared, true); assert.deepEqual(importedModule.ENRICHED_MAJOR_ARCANA_PASSAGES, {});` |
+| 9 / Worker-only calibration | `assert.equal(estimator.divisor, 1.1); assert.equal(built.promptMeta.estimatedTokens.total, estimator.estimate(built.systemPrompt) + estimator.estimate(built.userPrompt));` |
+
+For Task 5 the first message has pieces `Opening. ` and `Boundary.`, the second has `Your choices matter.`, and an intervening reasoning block contains `Separate summary.`. For Task 9 enable slimming to make estimates observable, use a short fixture that does not require truncation, and remove the process override in the test's scoped environment.
+
+## Task 10: Extend deterministic semantic qualification and freeze evidence
+
+**Interfaces:** Add a versioned v3 fixture corpus carrying fixture ID, source revision, deck/spread/tier, accepted inputs, positive/negative semantic expectations, and executor type. Add `evaluateReadingGroundingFixture({ fixture, reading, promptCapture, sourceUsage }) -> { passed, violations, requiresHumanReview }` in `readingGroundingQualification.js` for bounded known expectations; it must not claim arbitrary semantic understanding.
+
+- [x] Before freezing candidate evidence, update `READING_PROMPT_VERSION` in `functions/lib/promptVersioning.js` from 1.4.0 to 1.5.0 and `EVAL_PROMPT_VERSION` in `functions/lib/evaluation.js` from 2.5.0 to 2.6.0, recording the behavior changes. If the execution base has advanced, reconcile its versions first rather than overwriting newer history.
+- [x] Preserve the historical fixture files and hashes. Add explicit expectation migrations for changed contracts: duplicate rejection, turning/future/past age agreement, affirmative presence checks, non-assertive mention controls, and focus omission. Record old expected behavior, new expectation, reason, and owning task. The baseline runner must still be reproducible against baseline source.
+- [x] Extend the assembly verifier's `absentCards` contract to inspect actual final highlight/reference prose and provider requests where applicable. Checking only the input card array is insufficient. For rank-only sequences use fixture-owned allowed/forbidden roles, not a generic card-name regex that cannot see `Five: Loss & grief`.
+- [x] Incorporate Task 2's generated membership matrix, all new route/job counterexamples, and existing all-candidate ranking/embedding/fallback/budget boundaries. Inventory fixtures by stable IDs and actual executed counts; do not merge overlapping test totals.
+- [x] Build a grounding probe corpus that must flag the known undrawn assertion, unsupported present-age memory, unrelated shell-collection claim, foreign-deck scene assertion, and wholly irrelevant prose. Include valid same-card/deck, explicitly hypothetical scene, relevant concise-advice preference, and faithful current-question controls. The historical synthetic probe field `requiresHumanReview` records that keyword checks cannot decide broader meaning. Under the revised policy, explicit agent review supplies those judgments; the field does not create a blanket human task queue.
+- [x] Add adversarial context/reference fixtures: fake closing delimiters, role/system instructions, caller-supplied meanings, altered registry text, forged provenance, and unapproved cross-deck enrichment. Assert no authority promotion, no forged reference inclusion, valid escaped blocks, and accurate retained source accounting.
+- [x] Add actual direct JSON, SSE, public job, and MCP tests with in-memory SQLite and mocked provider/embedding services. Assert the complete provider messages, accepted result, persisted job result, telemetry, and access stamps agree. Test cancellation, provider rejection/fallback, and embedding outage/partial invalid vectors.
+- [x] Run focused new suites, then one complete offline verification: `npm test`; `node --test functions/__tests__/knowledgeGraph.test.js functions/__tests__/spreadAnalysis.test.js`; `node scripts/evaluation/verifyNarrativePromptAssembly.js --json`; `npm run lint`; `npm run build`; `npm run docs:check`; `git diff --check`. Use a credential-free child environment and block external network for deterministic work. Do not run the live narrative gate as part of this lane.
+- [x] Validate new plan/evidence links separately because `docs:check` excludes `docs/superpowers/`. Run the focused preview Playwright suite with mocked narrative transports. Browser emulation is render evidence, not physical-device or screen-reader qualification.
+- [x] Record source HEAD/tree or dirty diff hash, tool versions, fixture hashes/order, complete commands, exit statuses, skips, counts, and artifact digests. Rehash source/dirty-file inventory after verification. Preserve failures rather than relabeling an incomplete run.
+- [x] Update the ledger/status with each finding's code/test mapping and current completion level. Do not copy old root-suite counts into the new record. The reviewed baseline's rerun was 849 fixtures / 2,523 provider builds / 525 projections / 21 caps / 12 boundaries; new totals must come from execution.
+
+**Acceptance:** All nine fixes and F10 have failing-before/passing-after evidence; existing guarantees remain covered; semantic limitations are explicit rather than hidden behind a large passing matrix.
+
+## Task 11: Complete editorial review and bounded live qualification
+
+This is required for content qualification, not work performed by writing this plan. Prepare the manifest and exact inputs offline first. Only execute provider-backed or production-data work within a subsequent authorization and budget. A prior failed or waived gate does not satisfy this candidate.
+
+### Grouped agent editorial review and owner exceptions
+
+**User-directed revision:** The user authorized the agent to perform the editorial review, group duplicate variants, automate mechanical checks, and ask only about actual issues requiring owner judgment. The original 807 generated rows are coverage records, not 807 required human approvals. The completed correction pass adds 360 retrieval variants within the same 191 groups; all 1,167 rows pass mechanics and all 191 groups are accepted. This replaces the blanket human-verdict requirement below and in prior status summaries. The user later separately authorized the 47 subscription generations recorded here, and then the eight focused confirmations; publication, other provider calls and deployment remain unauthorized.
+
+**Files and interfaces:** Extend `scripts/evaluation/buildCanonProjectionReview.js` with grouped review from `scripts/evaluation/lib/groupedEditorialReview.js`; retain the raw row identities in `READING_PIPELINE_EDITORIAL_REVIEW.json`. Store explicit agent verdicts in `READING_PIPELINE_AGENT_VERDICTS.json`, keyed by group ID and a digest of every member's identity and review material. Cover the workflow in `tests/groupedEditorialReview.test.mjs`. Human verdict fields remain truthful historical metadata, not a pending task list.
+
+- [x] Generate the reference review inventory from the merged candidate registry: currently 435 full canon/deck projections plus 90 partial-pair/deck projections, totaling 525 before any corpus additions. Include all 30 direct Major partial themes, the new Minor summaries/member roles and 228 membership/deck renderings, and any other changed direct highlights.
+- [x] Extend the review-generation workflow to preserve human verdicts keyed by source/projection identity and text hash. A changed text invalidates its prior approval; rerunning a review generator must not silently erase unchanged human decisions or label new content approved.
+- [x] Group all variants with an exhaustive row-to-group mapping: one group per canon source; combine each matched-pair passage with its direct Major theme; review Minor text by suit/stage template with every membership checked mechanically; review court text by suit with both grouping sizes retained. Keep every substantive text difference visible. Exact duplicate variants need one reading, while deck-specific labels and anchors receive separate automated checks.
+- [x] Add and run regressions proving complete, non-overlapping coverage, accurate duplicate grouping, mechanical rejection of absent members/foreign anchors, stale-verdict invalidation after any member change, and separation of agent and human identity. Run `node --test tests/groupedEditorialReview.test.mjs tests/canonProjectionReview.test.mjs` before and after the implementation; expected final result is zero failures.
+- [x] The agent reads every distinct meaning and template, including native prose and meaning-only projections. Record explicit agent verdicts and notes on meaning fidelity, absent-member implications, unsupported current facts, deck-specific imagery, non-predictive wording, and useful optional guidance. Automated structural success never supplies an editorial verdict.
+- [x] Classify concrete defects separately from owner decisions. Resolve routine review interpretation using the existing contract; document actionable corrections with exact affected groups. Escalate only a genuine content/product choice that the contract cannot settle, with the problematic wording, impact, recommendation, and bounded alternatives. No request for bulk human approval is permitted.
+- [x] Regenerate the grouped report, verify all row identities and verdict hashes, and update the execution record and current qualification summaries. Retain prior evidence and human metadata without labeling agent work as human approval. Re-run affected mechanical suites and record any runtime/source changes separately from tooling/documentation changes.
+- [x] Reconcile `CANON_PROJECTION_REVIEW.md`, `QUALIFICATION_STATUS.md`, and the execution ledger with actual review IDs/hashes. If the corpus remains 145 base passages, preserve that identity; if it changes, regenerate and report actual counts instead of retaining 525 by convention.
+
+### Findings from the completed agent review
+
+See [the agent review](../../knowledge-graph/READING_PIPELINE_AGENT_REVIEW.md) and [source-bound verdicts](../../knowledge-graph/READING_PIPELINE_AGENT_VERDICTS.json). Every group has a current accepted verdict; no owner question remains. The initial review found 42 affected groups across five overlapping finding families. The user subsequently authorized all corrections; their revised prose, runtime behavior, regenerated verdicts and offline qualification are complete. The initial findings and failed attempts remain preserved.
+
+- [x] E1/E2: Revise the identified native and meaning-only canon prose to avoid unsupported current facts, guaranteed outcomes and consequential directives. Preserve useful card meanings, current-question authority, optional guidance and reader agency; re-review changed groups against their new hashes.
+- [x] E3: Preserve actual Minor/court member identities from graph context through retrieval and final reference projection. Add final-prompt regressions for Four/Six/Seven of Cups, Eight/Nine of Swords and Page/Queen/King of Cups, with complete-group positive controls. Direct-highlight tests alone do not close this reference-channel finding.
+- [x] E4: Apply the two exact replacement Major themes in the review and test both the direct highlight and final provider prompt, retaining pair identities and positional/reversal handling.
+- [x] E5: Repair article-aware Thoth Fortune substitution, with controls for ordinary lowercase fortune and other decks.
+- [x] For those subsequent runtime/content changes, rerun affected tests and prompt qualification, regenerate affected comparison captures and group verdicts, and record a new source identity. The new source-bound correction manifest records this completion independently of the earlier review-only evidence. Two additional independent-review findings in headings and stale source disclosure are also corrected and covered by regressions.
+
+### Frozen generated-reading comparison
+
+Use the reviewed `a0ff83d32d67df46cf5146e5856156c5a23dd797` source as baseline and the final candidate source as comparison. Existing historical captures can inform test selection but cannot stand in for either source's outputs.
+
+| Case IDs | Inputs and purpose |
+| --- | --- |
+| P01–P03 | Four/Six/Seven of Cups, one case per deck; absent Five content |
+| P04–P06 | Reversed Eight/Nine of Swords, one case per deck; unsupported crisis/outcome claims |
+| P07–P08 | Workplace exclusion in sentence-separated and `but` forms with saved relationship focus |
+| P09 | Whole-career exclusion and current relationship question control |
+| P10–P13 | Future-this-year, past, present, and future-next-year daughter-age cases with the same stored present-age memory |
+| P14 | The Thoth library-job/studio-contract decision from the investigation, with named options and unrelated saved focus |
+| P15 | Generic current request with a useful late focus label among 12; legitimate fallback selection |
+| P16 | Off-topic correction vetoing an otherwise relevant personal memory; preserve negation and subject |
+| P17 | Accepted long question/notes and calibrated prompt budget; preserve marked excerpts and retained memory/reference accounting |
+| P18 | Weak-relevance background floor with unrelated personal-memory decoys; assess relevance without inventing facts |
+
+- [x] Freeze identical input order, reference time, provider/model/effort, source hashes, final prompt hashes, and failure recording before generation. Completed one baseline and one candidate output for each case: 36 comparison generations. Duplicate invalid requests, parser synthetic shapes, and malformed enrichment stay in deterministic tests rather than consuming live generations.
+- [x] Complete the standard 11-sample subscription gate using the source-bound one-turn harness and the existing metrics/gate commands, with paid API fallback disabled. The exact sampler definitions and frozen reference time were retained; all 11 outputs and the unchanged final gate pass. Together with 36 comparisons, exactly 47 invocations completed. Preflight retry/transport limits, the interrupted orchestration and the saved-output metrics-path repair are recorded explicitly; neither caused repeated generation or omitted outputs.
+- [x] Review every candidate output against the complete accepted input and retained-source manifest. The root agent also reviewed all 18 baseline outputs; all 47 have source-bound verdicts and zero owner decisions. Blocking failures: an affirmative undrawn card; an absent-member progression presented as drawn; an unsupported personal fact/current age; a relationship lens replacing the workplace request; loss of a named decision option/negation; a guaranteed outcome; asserted foreign-deck artwork. Also assess relevance, useful optional direction, readability, and faithful use of memory rather than provenance alone.
+- [x] Require zero blocking failures and no unexplained loss of useful question-specific guidance in candidate controls. Preserve baseline failures as baseline observations. Any candidate code/prompt/authoring fix changes source identity and reruns affected tests and comparison cases; do not reuse stale approvals for changed text.
+
+The [completed subscription review](../../knowledge-graph/READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) preserves four initial blocking candidate outputs (P03, P10, P11, P17) and four baseline observations. After the eight focused confirmations, the current source has zero candidate blocking findings, so the zero-blocking acceptance item is closed. The standard gate passed; the original candidate comparison gate failed on missing-card coverage and remains failed evidence, while the recomputed source-matched candidate gate passes.
+
+- [x] N1: Replace Marseille rank geometry assertions with symbolic numerical themes in every active prompt channel, retaining useful rank meanings. Remove the unsupported physical-reins Chariot cue and inspect the affected checked-in artwork.
+- [x] N2: Add protected conditional age/time guidance preserving original temporal qualifiers, with no inferred current ages and explicit present-age positive controls.
+- [x] N3: Preserve every accepted card's canonical identity, position, orientation and meaning during hard-cap fitting; honor effective decision-path labels and reject impossible protected fits. Preserve literal constraints, estimator parity and truthful memory/reference omission.
+- [x] Run failure-first regressions, current full Node/Worker/assembly/lint/build checks, exact editorial regeneration and source-preservation checks. Record obsolete fixture migrations in v3 while preserving original/v2 bytes. Fresh code review has zero Critical/Important findings; its one Minor stress-fixture finding is resolved.
+- [x] Rebuild the same 47 final prompts offline: exactly eight change and 39 are identical (21 accepted candidate prompts plus 18 baseline prompts). Revalidate version-only canon verdict metadata without fabricating human approval.
+- [x] Obtain separate approval and run only the eight changed candidate prompts through the same subscription settings, with a ceiling of eight one-turn invocations, no application retries or paid fallback, and access/usage failure stopping the run. The original 47-generation authorization is exhausted. Approved and run once each: eight successful one-turn invocations, zero failures, retries, tool calls or paid fallback, with a separate ledger and the original 47-row ledger unchanged.
+- [x] Review all eight confirmations against complete accepted inputs and actual retained sources. Recompute the applicable standard and candidate comparison metrics/gates over the explicitly source-matched dataset. Close zero-blocking acceptance only when the corrected candidate outputs pass, without overwriting original failures. All eight are accepted, with two minor non-blocking residual observations (R1, R2). The standard (11) and candidate comparison (18) gates pass with zero flags, and the original failures and failed gate remain preserved.
+
+### Providers, embeddings, and actual runtime configuration
+
+- [ ] Inspect deployed bindings/settings and active source/version read-only when authorized. Report requested, available, attempted, and accepted providers separately. Do not infer traffic share from backend order.
+- [ ] Prepare 12 fixed Workers AI query cases: four workplace, four personal/family, and four weak/unrelated queries, each with relevant/irrelevant candidate controls and a cache-repeat pass. Initial authorization proposal: at most 24 `AI.run` calls including corpus batches, query vectors, and failures; stop at that ceiling and report incomplete work if necessary. Keep timeout/outage injection synthetic. Record actual vector validity, rankings, cache calls avoided, and latency; use a separately authorized seven-day telemetry window with denominators for production fallback rates or p95, not this small compatibility sample.
+- [ ] Inspect Modal serving context window, tokenizer, output reserve, and overflow/truncation behavior before any stress request. Initial authorization proposal: at most four generations covering ordinary three-card, Celtic Cross, Unicode-heavy, and longest accepted field inputs that fit the inspected serving envelope. If an accepted input cannot fit, require explicit provider-attempt rejection/fallback rather than silent truncation; keep qualification pending until that behavior is proven. Application-null budgets do not establish unlimited server capacity.
+- [ ] For OpenAI, the initial authorization proposal is at most three generations (single, three-card, and decision); qualify the adapter only if that separate provider budget is authorized and available. Record answer-message/piece counts and aggregate fallback without storing raw sensitive text. Synthetic multi-piece fixtures prove parser correctness, while a small live sample establishes compatibility only. Use a defined observation window and actual denominator for any frequency claim; report insufficient data when the fallback provider has little traffic.
+- [ ] Record live model delivery, generated-source faithfulness, browser rendering, and physical-device/assistive-technology coverage separately. Do not convert one into another or claim comprehensive semantic/injection immunity.
+
+**Acceptance:** Editorial review is complete when every current group has an explicit, source-bound agent verdict and mechanical coverage, with concrete findings recorded and only genuine owner choices escalated. Report editorial findings and generated-reading/live qualification separately. Human sign-off on every variant is not required. Content qualification still requires the separately authorized generated-reading evidence; no live lane is implicitly authorized by this plan.
+
+## Task 12: Document contracts, release deliberately, and verify rollback
+
+- [x] Update `docs/reading-context-inputs.md` with canonical duplicate rejection, scoped exclusions, relevant supplementary and fallback focus, temporal age admission, assertion classification, preview identity, and estimator behavior. Update enrichment documentation with strict validation, replacement, zero-approval clearing, and recovery.
+- [x] Verify the prompt/evaluator versions match the candidate frozen in Task 10. Optional metric fields remain backward compatible; do not fabricate old assertion or shape observations when reading older records. Any executable, prompt, or authoring change after qualification reopens the affected Task 10–11 checks; documentation-only records must identify unchanged qualified executable bytes.
+- [x] Complete a whole-change review of shared interfaces, admission order, final retention, cancellation, and accepted-attempt accounting. Confirm all task IDs have code, regression, qualification, and limitation entries. Resolve confirmed review findings before declaring the corresponding completion level.
+- [x] Prepare a scoped commit/PR only within authorized Git scope, with tests and pending qualification accurately separated. Preserve unrelated files and verify the staged set. Repository policy requires `npm test` and the narrative gate before pushing; a failed gate must be reported with source identity, without falling back to paid credentials or assuming a historical waiver. Committed and pushed as branch `claude/reading-pipeline-correctness-20261024`; no PR is open yet. The staged tree was verified against the qualified inventory, and the root suite and narrative gates had already passed on those exact non-Markdown bytes.
+- [ ] For an authorized release, use local verification and `npm run deploy` on the subscription-authenticated host. Check migration status even though this design requires no new migration; do not skip unrelated pending migrations by assumption. Record the previous active Worker version and recoverable source/artifact identity before deployment.
+- [ ] Verify the active Worker version, deployed asset/source identity, settings, job/direct route parity, and a bounded live smoke set covering workplace context, future-age omission/no stamp, valid present-age retention, selected-deck references, and normal reading completion. Keep synthetic fixtures/accounts distinct from member data.
+- [ ] Roll back to the recorded prior version if ordinary valid readings fail, canonical distinct cards are rejected, current context is systematically misclassified, compatible memories disappear broadly, stream/job finalization fails, or new provider/budget failures exceed the predeclared baseline. Preserve failed evidence and drain/retain in-flight memory receipts using the existing rollback contract.
+- [ ] Finish with a release record separating local checks, Git publication, deployment, live behavior, editorial status, and remaining limitations. No checkbox is complete merely because another lane passed.
+
+
+## Final acceptance checklist
+
+- [x] F1–F9 and F10 each have a linked implementation and a regression that fails on the reviewed baseline.
+- [x] Wrong-topic, absent-member, temporal-age, duplicate-strength, truncated-answer, and false card-presence examples have corrected final behavior.
+- [x] Positive controls preserve current facts, canonical aliases, relevant fallback focus, valid same-rank clusters, non-assertive card mentions, and full provider text.
+- [x] Direct, job, SSE, MCP, local/safe fallback, cancellation, and accepted-memory accounting remain coherent.
+- [x] Invalid enrichment cannot be compiled/applied; the last revoked approval is removed with consistent provenance and recovery.
+- [x] Worker-only calibration controls every budget decision and final estimate; critical context blocks and retention remain truthful.
+- [x] Historical matrices remain reproducible; new expectations and totals are explicit and source-bound.
+- [x] All required editorial rows and live qualification cases are completed, or remain visibly pending without a full-completion claim.
+- [ ] Release stages are performed only when authorized and independently verified.
+
+
+## Historical planning validation record
+
+This document was produced from current source at the reviewed revision and the independent offline reproductions. No implementation, test fixture, provider configuration, generated enrichment, or production state is changed by the planning task. Planning checks: all six local links/anchors resolve; all named existing file paths resolve, with eleven proposed new paths explicitly identified; F1–F10 and D1–D5 have owners across twelve tasks. `npm run docs:check` passed for 215 maintained Markdown files. Because that command excludes this plan directory, the plan received a separate local-link/path/coverage check. Final whitespace and checkout-preservation checks are recorded in the handoff.
+
+## Execution completion boundary
+
+The checked steps are qualified by the current execution record and source-bound manifests. Relevant supplementary focus, compatible explicitly dated non-present memories, recoverable historical previews and scoped enrichment merge/revocation remain supported. The grouped canon review and all five editorial correction families are complete: 191 accepted units cover 1,167 mechanically valid variants, with zero pending groups or owner decisions.
+
+All 47 authorized subscription narratives have been generated and agent-reviewed. Eleven standard outputs pass; four initial candidate comparison outputs fail across three defect families. Those families are corrected in prompt 1.5.2 with fresh local qualification. Exactly eight prompts change, with 39 unchanged. The eight separately authorized confirmations were generated once each and all are accepted. The corrected candidate passes the bounded Claude narrative qualification with zero blocking findings, and the recomputed standard and candidate comparison gates pass. Two minor residual observations are recorded without correction. No further editorial judgment is delegated to the owner. Embeddings and other provider/runtime/device checks remain pending. The qualified candidate is committed and pushed as branch `claude/reading-pipeline-correctness-20261024`; PR, merge and release remain pending. Original/v2 fixture bytes and all earlier failed/source qualification evidence remain preserved; v3 records explicit stress-fixture migrations.
