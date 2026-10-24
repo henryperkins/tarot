@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { MAJOR_ARCANA_PASSAGES, mergeEnrichedPassages } from '../functions/lib/knowledgeBase.js';
-import { collectPassageCandidates, selectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { collectPassageCandidates, passageContextMatch, selectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
 import { applyCandidates } from '../scripts/enrichment/applyPassageCandidates.js';
 import { stringifyRow } from '../scripts/evaluation/lib/csv.js';
 
@@ -32,7 +32,8 @@ for (const reviewed of [false, true]) {
     assert.ok(enriched, 'same-context base variant must not hide enrichment');
     assert.deepEqual(enriched.sourceUrls, [row.source_url]);
     assert.match(enriched.source, /research-informed/);
-    const selected = selectPassageCandidates(rws.map(p => ({ ...p, relevanceScore: p.sourceId === row.source_id ? 1 : 0.8 })), { maxPassages: 5 });
+    // Scored for a question in the enrichment's context; graphRAGContextVariants.test.mjs covers the unmatched case.
+    const selected = selectPassageCandidates(rws.map(p => ({ ...p, relevanceScore: p.sourceId === row.source_id ? 1 : 0.8, _contextMatch: passageContextMatch(p, row.context) })), { maxPassages: 5 });
     assert.equal(selected.length, 1, 'canonical and enriched sources compete for the same graph pattern slot');
     assert.equal(selected[0].sourceId, row.source_id);
     const thoth = collectPassageCandidates(keys, { deckStyle: 'thoth-a1' });

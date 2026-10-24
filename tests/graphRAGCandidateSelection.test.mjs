@@ -20,11 +20,12 @@ test('a best candidate beyond twice the final allowance can win', async (t) => {
   assert.equal(result[0].patternId, '13-17');
 });
 
-test('semantic relevance can select a non-default variant and only one variant survives', async (t) => {
+// A specific variant needs a matching question context; graphRAGContextVariants.test.mjs covers the unmatched case.
+test('semantic relevance can select a matching non-default variant and only one variant survives', async (t) => {
   clearEmbeddingCache(); t.after(clearEmbeddingCache);
   const grief = TRIAD_PASSAGES['death-temperance-star'].passages.find(p => p.context === 'grief');
   const env = { AI: { run: async (_model, { text }) => ({ data: text.map(input => input === 'Question sans keywords' || input === grief.text ? [1, 0] : [0, 1]) }) } };
-  const result = await retrievePassagesWithQuality({ completeTriadIds: ['death-temperance-star'] }, { userQuery: 'Question sans keywords', maxPassages: 5, env });
+  const result = await retrievePassagesWithQuality({ completeTriadIds: ['death-temperance-star'] }, { userQuery: 'Question sans keywords', questionContext: 'grief', maxPassages: 5, env });
   assert.equal(result.length, 1);
   assert.equal(result[0].context, 'grief');
 });
