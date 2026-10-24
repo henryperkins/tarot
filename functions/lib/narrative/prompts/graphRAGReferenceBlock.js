@@ -1,5 +1,6 @@
 import { projectPassageForDeck } from '../../graphRAGProjection.js';
 import { collectPassageCandidates } from '../../graphRAGCandidates.js';
+import { summarizeProjectedPatterns } from '../../graphRAGPatternSummary.js';
 import {
   formatPassagesForPrompt,
   getPassageCountForSpread,
@@ -10,23 +11,7 @@ import {
 // retrieval summaries and nominal scores carry no authority to supply prose.
 function summarizeDetectedPatterns(graphKeys, deckStyle) {
   const candidates = collectPassageCandidates(graphKeys, { deckStyle });
-  const patterns = [...new Map(candidates.map(candidate => [candidate.patternKey, candidate])).values()];
-  const segments = [];
-  const count = (predicate, label) => {
-    const value = patterns.filter(predicate).length;
-    if (value) segments.push(`${value} ${label}`);
-  };
-  count(pattern => pattern.type === 'triad' && !pattern.isPartialPattern, 'complete triad(s)');
-  count(pattern => pattern.type === 'triad' && pattern.isPartialPattern, 'partial triad(s)');
-  count(pattern => pattern.type === 'dyad' && pattern.priority === 3, 'high-significance dyad(s)');
-  count(pattern => pattern.type === 'dyad' && pattern.priority === 4, 'medium-high-significance dyad(s)');
-  count(pattern => pattern.type === 'dyad' && pattern.priority === 5, 'medium-significance dyad(s)');
-  count(pattern => pattern.type === 'court-lineage', 'court lineage(s)');
-  count(pattern => pattern.type === 'suit-progression' && pattern.priority === 4, 'strong suit progression(s)');
-  const journeyLabels = { initiation: 'Initiation (0–7)', integration: 'Integration (8–14)', culmination: 'Culmination (15–21)' };
-  const journey = patterns.find(pattern => pattern.type === 'fools-journey' && Object.hasOwn(journeyLabels, pattern.patternId));
-  if (journey) segments.push(`Fool's Journey Stage: ${journeyLabels[journey.patternId]}`);
-  return segments;
+  return summarizeProjectedPatterns(candidates).segments;
 }
 
 function buildGraphRAGSummaryBlock(graphKeys, deckStyle) {

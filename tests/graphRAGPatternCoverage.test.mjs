@@ -219,6 +219,57 @@ describe('GraphRAG pattern coverage telemetry', () => {
     assert.match(block, /2 medium-significance dyad\(s\)/);
     assert.match(block, /1 court lineage\(s\)/);
   });
+
+  test('buildRetrievalSummary and telemetry expose validated majorArcana, thothSuitPatterns, and marseilleNumerologyPatterns while deduplicating variants', () => {
+    const graphKeys = {
+      totalMajors: 2,
+      majorNumbers: [0, 17, 17, 99],
+      suitProgressions: [
+        { suit: 'Cups', stage: 'beginning', significance: 'emerging-progression', matchedCardKeys: ['ace of cups', 'two of cups'] }
+      ],
+      thothSuits: ['Wands', 'Cups', 'Wands', 'ForgedSuit'],
+      marseilleRanks: [3, 7, 3, 99]
+    };
+    const summary = buildRetrievalSummary(graphKeys, []);
+    assert.strictEqual(summary.patternsDetected.totalMajors, 2);
+    assert.strictEqual(summary.patternsDetected.majorArcana, 2);
+    assert.strictEqual(summary.patternsDetected.emergingSuitProgressions, 1);
+    assert.strictEqual(summary.patternsDetected.thothSuitPatterns, 2);
+    assert.strictEqual(summary.patternsDetected.marseilleNumerologyPatterns, 2);
+
+    const telemetry = buildGraphRAGTelemetry(summary);
+    assert.strictEqual(telemetry.patterns.majorArcana, 2);
+    assert.strictEqual(telemetry.patterns.emergingSuitProgressions, 1);
+    assert.strictEqual(telemetry.patterns.thothSuitPatterns, 2);
+    assert.strictEqual(telemetry.patterns.marseilleNumerologyPatterns, 2);
+
+    // Budget-driven full-to-summary reduction on Minor-only Thoth/Marseille spreads retains supported summaries without quoting passages.
+    const thothSummaryPrompt = buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'threeCard', name: 'Three-Card Story' },
+      cardsInfo: [
+        { card: 'Ace of Wands', suit: 'Wands', rank: 'Ace', rankValue: 1, position: 'Past', orientation: 'Upright' },
+        { card: 'Two of Wands', suit: 'Wands', rank: 'Two', rankValue: 2, position: 'Present', orientation: 'Upright' },
+        { card: 'Three of Wands', suit: 'Wands', rank: 'Three', rankValue: 3, position: 'Future', orientation: 'Upright' }
+      ],
+      deckStyle: 'thoth-a1',
+      themes: {
+        deckStyle: 'thoth-a1',
+        knowledgeGraph: {
+          graphKeys: { thothSuits: ['Wands'] },
+          graphRAGPayload: {
+            formattedBlock: 'Unverified external quote that must fall back to summary',
+            retrievalSummary: { patternsDetected: { completeTriads: 99 } }
+          }
+        }
+      },
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+    });
+    assert.match(thothSummaryPrompt.userPrompt, /1 Thoth suit pattern\(s\)/);
+    assert.doesNotMatch(thothSummaryPrompt.userPrompt, /Unverified external quote|99 complete triad/);
+    assert.strictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.mode, 'summary');
+    assert.strictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.retainedPassageCount, 0);
+    assert.deepStrictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.passageIndices, []);
+  });
 });
 
 describe('GraphRAG quality filtering floor', () => {

@@ -2,6 +2,7 @@ import { collectPassageCandidates, selectPassageCandidates, passageContextMatch,
 export { resolveRetrievalMode } from './graphRAGCandidates.js';
 import { composeRelevanceScore } from './graphRAGScoring.js';
 export { composeRelevanceScore } from './graphRAGScoring.js';
+import { summarizeProjectedPatterns } from './graphRAGPatternSummary.js';
 import { projectPassageForDeck } from './graphRAGProjection.js';
 // functions/lib/graphRAG.js
 // GraphRAG (Graph-Enhanced Retrieval-Augmented Generation) for tarot readings
@@ -240,6 +241,10 @@ export function formatPassagesForPrompt(passages, options = {}) {
  * @returns {Object} Summary of retrieval results
  */
 export function buildRetrievalSummary(graphKeys, passages) {
+  const projectedCandidates = graphKeys && typeof graphKeys === 'object'
+    ? collectPassageCandidates(graphKeys, { deckStyle: passages?.[0]?.projectedDeck || 'rws-1909' })
+    : [];
+  const validatedCounts = summarizeProjectedPatterns(projectedCandidates).counts;
   const summary = {
     ...(passages?.retrievalStats || {}),
     graphKeysProvided: !!graphKeys,
@@ -249,6 +254,7 @@ export function buildRetrievalSummary(graphKeys, passages) {
       foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
       totalMajors: typeof graphKeys?.totalMajors === 'number' ? graphKeys.totalMajors : 0,
       singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
+      majorArcana: validatedCounts.majorArcana,
       highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
       mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
       mediumDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium').length || 0,
@@ -258,7 +264,9 @@ export function buildRetrievalSummary(graphKeys, passages) {
           .length || 0,
       emergingSuitProgressions:
         graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression')
-          .length || 0
+          .length || 0,
+      thothSuitPatterns: validatedCounts.thothSuitPatterns,
+      marseilleNumerologyPatterns: validatedCounts.marseilleNumerologyPatterns
     },
     passagesRetrieved: passages?.length || 0,
     passagesByType: passages?.reduce((acc, p) => {
