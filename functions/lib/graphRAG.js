@@ -99,15 +99,19 @@ export function retrievePassages(graphKeys, options = {}) {
   const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
   const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
   const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, keywordQuery });
-  const scored = candidates.map(passage => ({
-    ...passage,
-    ...(mode === 'keyword' ? { relevance: scoreKeywordRelevance(passage.promptText, keywordQuery), relevanceScore: scoreKeywordRelevance(passage.promptText, keywordQuery) } : {}),
-    _qualityFilteringDisabled: disabled,
-    _semanticScoringAttempted: false,
-    _semanticScoringSucceeded: false,
-    _contextMatch: passageContextMatch(passage, options.questionContext),
-    _priorityOnly: mode !== 'keyword'
-  }));
+  const queryTerms = mode === 'keyword' ? retrievalQueryTerms(keywordQuery) : [];
+  const scored = candidates.map(passage => {
+    const keywordScore = mode === 'keyword' ? scoreKeywordRelevance(passage.promptText, keywordQuery, queryTerms) : null;
+    return {
+      ...passage,
+      ...(keywordScore !== null ? { relevance: keywordScore, relevanceScore: keywordScore } : {}),
+      _qualityFilteringDisabled: disabled,
+      _semanticScoringAttempted: false,
+      _semanticScoringSucceeded: false,
+      _contextMatch: passageContextMatch(passage, options.questionContext),
+      _priorityOnly: mode !== 'keyword'
+    };
+  });
   Object.defineProperty(scored, 'retrievalStats', { value: {
     ...candidates.retrievalStats, candidatesScored: mode === 'keyword' ? scored.length : 0,
     retrievalMode: mode, scoringMethod: mode,
@@ -606,7 +610,8 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
   const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
   const hasQuery = Boolean(userQuery.trim());
-  const hasKeywordQuery = retrievalQueryTerms(keywordQuery).length > 0;
+  const queryTerms = retrievalQueryTerms(keywordQuery);
+  const hasKeywordQuery = queryTerms.length > 0;
   const semanticRequested = options.enableSemanticScoring ?? isSemanticScoringAvailable(env);
   const disabled = env?.DISABLE_QUALITY_FILTERING === 'true' || env?.DISABLE_QUALITY_FILTERING === true;
   const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, semanticRequested, keywordQuery });
@@ -627,7 +632,7 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
           : anyValid ? 'embeddings-partial-failure' : embeddingStats.failureReason === 'embeddings-invalid-vector' ? 'embeddings-partial-failure' : embeddingStats.failureReason || 'embeddings-failed';
   const scoringMethod = disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority';
   const scored = candidates.map((passage, index) => {
-    const keywordScore = disabled || scoringMethod === 'priority' ? null : scoreKeywordRelevance(passage.promptText, keywordQuery);
+    const keywordScore = disabled || scoringMethod === 'priority' ? null : scoreKeywordRelevance(passage.promptText, keywordQuery, queryTerms);
     return {
       ...passage,
       ...(keywordScore === null ? {} : { relevance: keywordScore, relevanceScore: valid ? 0.3 * keywordScore + 0.7 * cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : keywordScore }),
