@@ -118,3 +118,38 @@ for (const reviewed of [false, true]) {
   });
 }
 
+test('either hand-written canon or approved enrichment can win its pattern slot on relevance while canon registry entries remain intact', t => {
+  const entry = MAJOR_ARCANA_PASSAGES[17];
+  const originalSnapshot = structuredClone(entry.passages);
+  t.after(() => { entry.passages = structuredClone(originalSnapshot); });
+  mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, {
+    17: {
+      passages: [{
+        sourceId: 'synthetic-competition-17',
+        context: 'career',
+        text: 'Dedicated career renewal through steady skill-building.',
+        archetypalText: 'Dedicated career renewal through steady skill-building.',
+        sourceUrl: 'https://synthetic.invalid/star-career',
+        projectionReviewStatus: 'approved'
+      }]
+    }
+  });
+  assert.deepEqual(entry.passages.slice(0, originalSnapshot.length), originalSnapshot, 'hand-written canon entries remain unchanged after merge');
+  const candidates = collectPassageCandidates({ totalMajors: 1, majorNumbers: [17], singleMajorNumber: 17 });
+  const enrichedWins = selectPassageCandidates(
+    candidates.map(p => ({ ...p, relevanceScore: p.sourceId === 'synthetic-competition-17' ? 0.92 : 0.65, _contextMatch: passageContextMatch(p, 'career') })),
+    { maxPassages: 5 }
+  );
+  assert.equal(enrichedWins.length, 1);
+  assert.equal(enrichedWins[0].sourceId, 'synthetic-competition-17');
+
+  const canonWins = selectPassageCandidates(
+    candidates.map(p => ({ ...p, relevanceScore: p.sourceId === 'synthetic-competition-17' ? 0.55 : 0.88, _contextMatch: passageContextMatch(p, 'career') })),
+    { maxPassages: 5 }
+  );
+  assert.equal(canonWins.length, 1);
+  assert.notEqual(canonWins[0].sourceId, 'synthetic-competition-17');
+  assert.equal(canonWins[0].isEnriched, false);
+});
+
+

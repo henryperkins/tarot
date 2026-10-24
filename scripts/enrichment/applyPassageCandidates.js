@@ -187,6 +187,7 @@ export function renderModule(entries) {
     registry[entry.cardNumber].passages.push(passageFor(entry));
   }
   return '// GENERATED FILE — reviewed enrichment; regenerate with npm run enrich:apply.\n'
+    + '// Approved context-specific passages supplement the eligible registry without replacing hand-written canon. Retrieval selects one variant per pattern according to relevance, context, and the passage budget.\n'
     + `export const ENRICHED_MAJOR_ARCANA_PASSAGES = ${JSON.stringify(registry, null, 2)};\n`;
 }
 
