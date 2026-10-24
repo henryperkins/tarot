@@ -188,9 +188,13 @@ describe('case-insensitive suit detection', () => {
 test('preliminary references are projected for the selected deck and authoritative context', async () => {
   const { analyzeSpreadThemes } = await import('../lib/spreadAnalysis.js');
   for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
-    const themes = await analyzeSpreadThemes([{ card: 'Strength', name: 'Strength', canonicalName: 'Strength', number: 8, orientation: 'Upright' }], {
-      deckStyle, contextSelection: { graphRAGContext: 'career' }, env: { GRAPHRAG_ENABLED: 'true' }
+    const themes = await analyzeSpreadThemes([
+      { card: 'The Fool', name: 'The Fool', canonicalName: 'The Fool', number: 0, orientation: 'Upright' },
+      { card: 'Strength', name: 'Strength', canonicalName: 'Strength', number: 8, orientation: 'Upright' }
+    ], {
+      deckStyle, questionContext: 'career', env: { GRAPHRAG_ENABLED: 'true' }
     });
+    assert.deepEqual(themes.knowledgeGraph.graphKeys.majorNumbers, [0, 8]);
     assert.ok(themes.knowledgeGraph.retrievedPassages.length > 0);
     assert.ok(themes.knowledgeGraph.retrievedPassages.every(p => p.projectedDeck === deckStyle));
   }

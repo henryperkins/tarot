@@ -19,15 +19,24 @@ describe('graphContext.buildGraphContext', () => {
     });
 
     it('counts distinct valid Majors independently of patterns and ignores invalid numeric metadata', () => {
-        for (const [cards, expected] of [
-            [[{ card: 'Eight of Cups', suit: 'Cups', rankValue: 8 }], 0],
-            [[{ number: 0, card: 'The Fool' }], 1],
-            [[{ number: 0 }, { number: 8 }, { number: 15 }, { number: 21 }], 4],
-            [[{ number: 14 }, { number: 14 }, { number: 17 }], 2],
-            [[{ number: -1 }, { number: 22 }, { number: 1.5 }, { number: NaN }, { number: '14' }], 0]
+        for (const [cards, expected, expectedMajorNumbers] of [
+            [[{ card: 'Eight of Cups', suit: 'Cups', rankValue: 8 }], 0, []],
+            [[{ number: 0, card: 'The Fool' }], 1, [0]],
+            [[{ number: 0 }, { number: 8 }], 2, [0, 8]],
+            [[{ number: 17, card: 'The Star' }, { number: 13, card: 'Death' }, { number: 14, card: 'Temperance' }], 3, [13, 14, 17]],
+            [[{ card: 'Three of Cups', suit: 'Cups', number: 3 }, { number: 19, card: 'The Sun' }, { number: 3, card: 'The Empress' }], 2, [3, 19]],
+            [[{ number: 0 }, { number: 8 }, { number: 15 }, { number: 21 }], 4, [0, 8, 15, 21]],
+            [[{ number: 14 }, { number: 14 }, { number: 17 }], 2, [14, 17]],
+            [[{ number: -1 }, { number: 22 }, { number: 1.5 }, { number: NaN }, { number: '14' }], 0, []]
         ]) {
-            assert.equal(buildGraphContext(cards)?.graphKeys.totalMajors, expected);
+            const keys = buildGraphContext(cards)?.graphKeys;
+            assert.equal(keys?.totalMajors, expected);
+            assert.deepEqual(keys?.majorNumbers, expectedMajorNumbers);
         }
+        const single = buildGraphContext([{ number: 17, card: 'The Star' }], { deckStyle: 'rws-1909' })?.graphKeys;
+        assert.equal(single?.singleMajorNumber, 17);
+        assert.equal(single?.singleMajorName, 'The Star');
+        assert.deepEqual(single?.majorNumbers, [17]);
     });
 
     it('duplicate slots do not manufacture a dominant journey stage or complete pattern', () => {

@@ -83,3 +83,38 @@ test('invalid singular source URL cannot enter projected attribution', t => {
   const candidate = withEnrichment(t, { sourceUrl: 'javascript:alert(1)', sourceUrls: ['http://synthetic.invalid/safe'] });
   assert.deepEqual(candidate.sourceUrls, ['http://synthetic.invalid/safe']);
 });
+
+for (const reviewed of [false, true]) {
+  test(`multi-Major spread admits approved enrichment on one drawn Major while preserving canon fallback when cross-deck projection approved=${reviewed}`, t => {
+    const entry = MAJOR_ARCANA_PASSAGES[8];
+    const originalLength = entry.passages.length;
+    t.after(() => entry.passages.splice(originalLength));
+    mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, {
+      8: {
+        passages: [{
+          sourceId: `synthetic-multi-major-8-${reviewed}`,
+          context: 'career',
+          text: 'Steady patient courage in workplace leadership.',
+          archetypalText: 'Steady patient courage in workplace leadership.',
+          sourceUrl: 'https://synthetic.invalid/strength-career',
+          projectionReviewStatus: reviewed ? 'approved' : 'pending'
+        }]
+      }
+    });
+    const multiKeys = { totalMajors: 2, majorNumbers: [0, 8] };
+    const rws = collectPassageCandidates(multiKeys, { deckStyle: 'rws-1909' });
+    assert.ok(rws.some(p => p.sourceId === `synthetic-multi-major-8-${reviewed}`), 'same-deck multi-Major spread includes approved enrichment');
+    assert.ok(rws.some(p => p.type === 'major-arcana' && p.patternId === '0'), 'other drawn Major remains eligible');
+
+    const thoth = collectPassageCandidates(multiKeys, { deckStyle: 'thoth-a1' });
+    assert.equal(thoth.some(p => p.sourceId === `synthetic-multi-major-8-${reviewed}`), reviewed);
+    const thothStrengthCanon = thoth.filter(p => p.type === 'major-arcana' && p.patternId === '8' && !p.isEnriched);
+    assert.ok(thothStrengthCanon.length > 0, 'compatible canon remains usable when enriched cross-deck projection is rejected');
+    const selected = selectPassageCandidates(
+      thoth.map(p => ({ ...p, relevanceScore: p.patternId === '8' ? 0.9 : 0.5, _contextMatch: passageContextMatch(p, 'career') })),
+      { maxPassages: 2 }
+    );
+    assert.equal(selected.filter(p => p.patternId === '8').length, 1, 'at most one variant per pattern slot');
+  });
+}
+

@@ -19,9 +19,13 @@ function buildGraphKeys(patterns, cardsInfo, deckStyle) {
         return null;
     }
 
+    const majorCards = groupGraphCardIdentities(cardsInfo, { deckStyle }).members.map(member => member.card).filter((card) => Number.isInteger(card?.number)
+        && card.number >= 0 && card.number <= 21);
+    const majorNumbers = [...new Set(majorCards.map((card) => card.number))].sort((a, b) => a - b);
+
     const keys = {
-        totalMajors: groupGraphCardIdentities(cardsInfo, { deckStyle }).members.map(member => member.card).filter((card) => Number.isInteger(card?.number)
-            && card.number >= 0 && card.number <= 21).length
+        totalMajors: majorNumbers.length,
+        majorNumbers
     };
 
     // Fool's Journey: expose both the human-friendly stage label and the
