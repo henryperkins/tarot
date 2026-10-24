@@ -1,5 +1,16 @@
 # Knowledge graph and context qualification status
 
+## October 24 GraphRAG complete remediation candidate (in progress)
+
+### Task 4: Semantic-primary scoring and fallback qualification status
+
+- **Default relevance composition:** `composeRelevanceScore({ keywordScore, semanticScore = null })` in `functions/lib/graphRAGScoring.js`, implementing `score = s + 0.3 * k * (1 - s)` (`RELEVANCE_SCORING_POLICY_ID = 'semantic-primary-corroborated-v1'`) for valid semantic vectors (`s` clamped to `[-1, 1]`, `k` in `[0, 1]`), returning `k` when `semanticScore` is null or non-finite.
+- **Explicit custom-weight compatibility:** `scorePassageRelevance()` retains `keywordScore * keywordWeight + semanticScore * semanticWeight` when `keywordWeight` or `semanticWeight` is explicitly supplied by a caller.
+- **Threshold and lexical version:** `DEFAULT_RELEVANCE_THRESHOLD = 0.3`; `LEXICAL_NORMALIZATION_VERSION = 'graphrag-lexical-v1'`; `PROJECTION_VERSION = 'meaning-v1/partial-meaning-v1'`.
+- **Frozen relevance corpus:** `tests/fixtures/graph-rag-relevance-cases.json` (`REL01`–`REL10`, covering `relevant_paraphrase`, `multilingual_retrieval`, `short_word_plural`, `exact_context_unrelated`, `negated_excluded_topic`, `mixed_topic`, `partial_triad`, `cross_deck_projection`, `common_word_collision`, and `unrelated_weak_floor`).
+- **Offline evaluator:** `scripts/evaluation/verifyGraphRAGRelevance.js` fails closed without `--embeddings <frozen-evidence-path>` or on case-order/hash mismatches, and has no implicit live-provider mode.
+- **Real embedding qualification status:** **Pending authorized live Workers AI embedding capture** for `tests/fixtures/graph-rag-relevance-cases.json`. Earlier October 24 `@cf/baai/bge-m3` captures (`AI01`–`AI12`) predate the `REL01`–`REL10` corpus and observed anisotropic cosine floors (`0.38–0.49`) on unrelated queries (`AI06`, `AI10`), so real relevance qualification remains explicitly incomplete until authorized provider evaluation and precision review are completed.
+
 ## Current October 24 correctness candidate
 
 **The bounded Claude narrative qualification is complete: zero blocking candidate findings.** All 47 originally authorized subscription narratives are generated and agent-reviewed. The 11 standard samples pass the existing metrics gate and agent review. Four initial candidate comparison readings failed across three defect families: unsupported Marseille artwork, conversion of non-present ages to current facts, and fitted prompts losing accepted drawn cards. These are corrected in reading prompt **1.5.2**, evaluator **2.6.0**. Eight separately authorized focused confirmations of the changed prompts are all accepted, and the recomputed standard (11) and candidate comparison (18) gates pass with zero flags. The [narrative review](READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) records every outcome, correction and two minor residual observations without converting initial failures into passes.

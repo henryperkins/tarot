@@ -399,5 +399,15 @@ test('multi-Major spreads enumerate every distinct valid Major at priority 7 whi
   });
   assert.equal(semanticWin[0].type, 'major-arcana');
   assert.equal(semanticWin[0].patternId, '17');
+
+  clearEmbeddingCache();
+  const cosinePointFour = await retrievePassagesWithQuality({ completeTriadIds: ['death-temperance-star'] }, {
+    maxPassages: 1,
+    userQuery: 'quorbit',
+    env: { AI: { run: async (_model, { text }) => ({ data: text.map(input => input === 'quorbit' ? [1, 0] : [0.4, Math.sqrt(1 - 0.16)]) }) } }
+  });
+  assert.equal(cosinePointFour.length, 1);
+  assert.ok(Math.abs(cosinePointFour[0].relevanceScore - 0.4) < 1e-6);
+  assert.notEqual(cosinePointFour[0].belowRelevanceThreshold, true);
 });
 

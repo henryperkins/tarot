@@ -1,5 +1,7 @@
 import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms, resolveRetrievalMode } from './graphRAGCandidates.js';
 export { resolveRetrievalMode } from './graphRAGCandidates.js';
+import { composeRelevanceScore } from './graphRAGScoring.js';
+export { composeRelevanceScore } from './graphRAGScoring.js';
 import { projectPassageForDeck } from './graphRAGProjection.js';
 // functions/lib/graphRAG.js
 // GraphRAG (Graph-Enhanced Retrieval-Augmented Generation) for tarot readings
@@ -407,7 +409,15 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
     }
   }
 
-  return options.enableSemanticScoring ? keywordScore * keywordWeight + semanticScore * semanticWeight : keywordScore;
+  const hasCustomWeights =
+    (Object.hasOwn(options, 'keywordWeight') && options.keywordWeight !== undefined) ||
+    (Object.hasOwn(options, 'semanticWeight') && options.semanticWeight !== undefined);
+  if (!options.enableSemanticScoring) {
+    return keywordScore;
+  }
+  return hasCustomWeights
+    ? keywordScore * keywordWeight + semanticScore * semanticWeight
+    : composeRelevanceScore({ keywordScore, semanticScore });
 }
 
 /**
@@ -633,9 +643,10 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
   const scoringMethod = disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority';
   const scored = candidates.map((passage, index) => {
     const keywordScore = disabled || scoringMethod === 'priority' ? null : scoreKeywordRelevance(passage.promptText, keywordQuery, queryTerms);
+    const semanticScore = valid ? cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : null;
     return {
       ...passage,
-      ...(keywordScore === null ? {} : { relevance: keywordScore, relevanceScore: valid ? 0.3 * keywordScore + 0.7 * cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : keywordScore }),
+      ...(keywordScore === null ? {} : { relevance: keywordScore, relevanceScore: composeRelevanceScore({ keywordScore, semanticScore }) }),
       _qualityFilteringDisabled: disabled,
       _semanticScoringEnabled: Boolean(semanticRequested),
       _semanticScoringAttempted: attempted,
