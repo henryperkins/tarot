@@ -57,8 +57,22 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
   };
   const complete = new Set(Array.isArray(graphKeys.completeTriadIds) ? graphKeys.completeTriadIds : []);
   for (const id of complete) add('triad', id, 1, {}, { triadId: id, isComplete: true });
-  const single = Number.isInteger(graphKeys.singleMajorNumber) && graphKeys.totalMajors === 1;
-  if (single) add('major-arcana', graphKeys.singleMajorNumber, 2, { cardNumber: graphKeys.singleMajorNumber, cardName: graphKeys.singleMajorName || getPassagesForPattern('major-arcana', graphKeys.singleMajorNumber)?.title }, { cardNumber: graphKeys.singleMajorNumber });
+  const isValidMajorNumber = (value) => Number.isInteger(value) && value >= 0 && value <= 21;
+  const resolvedMajorNumbers = Object.hasOwn(graphKeys, 'majorNumbers')
+    ? (Array.isArray(graphKeys.majorNumbers)
+      ? [...new Set(graphKeys.majorNumbers.filter(isValidMajorNumber))].sort((a, b) => a - b)
+      : [])
+    : (graphKeys.totalMajors === 1 && isValidMajorNumber(graphKeys.singleMajorNumber)
+      ? [graphKeys.singleMajorNumber]
+      : []);
+  const single = graphKeys.totalMajors === 1 && resolvedMajorNumbers.length === 1;
+  if (single) {
+    const majorNumber = resolvedMajorNumbers[0];
+    add('major-arcana', majorNumber, 2, {
+      cardNumber: majorNumber,
+      cardName: (majorNumber === graphKeys.singleMajorNumber ? graphKeys.singleMajorName : null) || getPassagesForPattern('major-arcana', majorNumber)?.title
+    }, { cardNumber: majorNumber });
+  }
   if (graphKeys.foolsJourneyStageKey) {
     const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
     add('fools-journey', graphKeys.foolsJourneyStageKey, single ? 3 : 2, { stage: entry?.stage }, { stageKey: graphKeys.foolsJourneyStageKey }, entry);
@@ -95,6 +109,14 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
       isPartialPattern: true,
       ...(Array.isArray(partial?.matchedCards) && Array.isArray(partial?.missingCards) ? { matchedCards: [...partial.matchedCards], missingCards: [...partial.missingCards] } : {})
     }, { triadId: id, isComplete: false });
+  }
+  if (!single) {
+    for (const majorNumber of resolvedMajorNumbers) {
+      add('major-arcana', majorNumber, 7, {
+        cardNumber: majorNumber,
+        cardName: getPassagesForPattern('major-arcana', majorNumber)?.title
+      }, { cardNumber: majorNumber });
+    }
   }
   stats.candidatesProjected = candidates.length;
   return withStats(candidates, stats);

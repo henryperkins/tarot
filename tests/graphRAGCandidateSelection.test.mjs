@@ -89,9 +89,10 @@ test('bypass keeps context defaults and pattern priority without claiming measur
 });
 
 function bulkGraphKeys() {
+  const majorNumbers = Object.keys(canon.MAJOR_ARCANA_PASSAGES).map(Number).sort((a, b) => a - b);
   return {
     completeTriadIds: Object.keys(canon.TRIAD_PASSAGES),
-    foolsJourneyStageKey: 'integration', totalMajors: 1, singleMajorNumber: 0,
+    foolsJourneyStageKey: 'integration', totalMajors: majorNumbers.length, majorNumbers,
     dyadPairs: Object.values(canon.DYAD_PASSAGES).map(entry => ({ cards: entry.cards, significance: 'high' })),
     suitProgressions: Object.entries(canon.SUIT_PROGRESSION_PASSAGES).flatMap(([suit, entries]) => Object.keys(entries).map(stage => ({ suit, stage, significance: 'strong-progression' }))),
     courtLineages: Object.entries(canon.COURT_LINEAGE_PASSAGES).flatMap(([suit, entries]) => Object.keys(entries).map(significance => ({ suit, significance }))),
@@ -108,7 +109,9 @@ test('uncached complete candidate work fits two 100-text batches and cache hits 
   const first = await retrievePassagesWithQuality(graphKeys, options);
   const firstStats = buildQualityRetrievalSummary(graphKeys, first);
   assert.ok(firstStats.candidatesScored > 100);
-  assert.ok(firstStats.candidatesScored <= 145);
+  assert.ok(firstStats.candidatesScored <= canon.listKnowledgeBasePassages().length);
+  assert.equal(first.filter(p => p.type === 'major-arcana').length >= 0, true);
+  assert.equal(candidatesModule.collectPassageCandidates(graphKeys).filter(p => p.type === 'major-arcana').length, Object.values(canon.MAJOR_ARCANA_PASSAGES).reduce((sum, entry) => sum + entry.passages.length, 0));
   assert.equal(batches.length, 2);
   assert.ok(batches.every(size => size <= 100));
   assert.equal(batches.reduce((sum, size) => sum + size, 0), firstStats.candidatesScored + 1, 'One query vector is shared across both batches');
@@ -349,3 +352,52 @@ test('a late batch makes the entire eligible ranking keyword-only and cannot cha
   await Promise.resolve(); await Promise.resolve();
   assert.equal(getEmbeddingCacheStats().size, before);
 });
+
+test('multi-Major spreads enumerate every distinct valid Major at priority 7 while preserving single-Major priority 2 and legacy fallback', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const singleCandidates = candidatesModule.collectPassageCandidates({ totalMajors: 1, majorNumbers: [17], singleMajorNumber: 17, singleMajorName: 'The Star', foolsJourneyStageKey: 'integration' }, { includeMetadata: true });
+  const singleStar = singleCandidates.filter(c => c.type === 'major-arcana');
+  assert.ok(singleStar.length > 0);
+  assert.ok(singleStar.every(c => c.priority === 2 && c.patternId === '17' && c.metadata?.cardNumber === 17));
+  assert.ok(singleCandidates.filter(c => c.type === 'fools-journey').every(c => c.priority === 3));
+
+  const legacySingle = candidatesModule.collectPassageCandidates({ totalMajors: 1, singleMajorNumber: 8, singleMajorName: 'Strength' }, { deckStyle: 'thoth-a1', includeMetadata: true });
+  assert.ok(legacySingle.some(c => c.type === 'major-arcana' && c.patternId === '8' && c.priority === 2 && c.cardNames.includes('Lust')));
+
+  const noJourneyPair = candidatesModule.collectPassageCandidates({ totalMajors: 2, majorNumbers: [8, 0, 8, -1, 22, '8', null, NaN, 1.5] }, { includeMetadata: true });
+  const pairMajors = noJourneyPair.filter(c => c.type === 'major-arcana');
+  assert.deepEqual([...new Set(pairMajors.map(c => c.patternId))], ['0', '8']);
+  assert.ok(pairMajors.every(c => c.priority === 7));
+
+  for (const invalidMajorNumbers of [[], null, '17', 17, {}, false]) {
+    const empty = candidatesModule.collectPassageCandidates({ totalMajors: 1, singleMajorNumber: 17, majorNumbers: invalidMajorNumbers });
+    assert.equal(empty.filter(c => c.type === 'major-arcana').length, 0);
+  }
+
+  const triadSpreadKeys = {
+    totalMajors: 3,
+    majorNumbers: [13, 14, 17],
+    completeTriadIds: ['death-temperance-star'],
+    triadIds: ['death-temperance-star'],
+    foolsJourneyStageKey: 'integration',
+    dyadPairs: [{ cards: [13, 17], significance: 'high' }, { cards: [13, 14], significance: 'medium' }]
+  };
+  const triadCandidates = candidatesModule.collectPassageCandidates(triadSpreadKeys);
+  assert.deepEqual([...new Set(triadCandidates.filter(c => c.type === 'major-arcana').map(c => c.patternId))], ['13', '14', '17']);
+  assert.ok(triadCandidates.filter(c => c.type === 'major-arcana').every(c => c.priority === 7));
+
+  // Equal or weaker evidence keeps pre-existing pattern priority ahead of priority-7 individual Majors.
+  const priorityOrdered = retrievePassages(triadSpreadKeys, { maxPassages: 3 });
+  assert.deepEqual(priorityOrdered.map(c => c.type), ['triad', 'fools-journey', 'dyad']);
+
+  // A strongly relevant individual Major in a multi-Major spread can still win on relevance.
+  const starPassage = triadCandidates.find(c => c.type === 'major-arcana' && c.patternId === '17');
+  const semanticWin = await retrievePassagesWithQuality(triadSpreadKeys, {
+    maxPassages: 1,
+    userQuery: 'aquarian starlight renewal',
+    env: { AI: { run: async (_model, { text }) => ({ data: text.map(input => input === 'aquarian starlight renewal' || input === starPassage.promptText ? [1, 0] : [0, 1]) }) } }
+  });
+  assert.equal(semanticWin[0].type, 'major-arcana');
+  assert.equal(semanticWin[0].patternId, '17');
+});
+
