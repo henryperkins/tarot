@@ -1,0 +1,3860 @@
+{
+  "generatedAt": "2026-10-24T00:47:48.922Z",
+  "referenceTime": "2026-09-23T14:04:00Z",
+  "referenceTimes": [
+    "2026-09-23T14:04:00Z"
+  ],
+  "model": "codex-subscription",
+  "backendLabel": "Codex subscription QA substitution authorized by user",
+  "config": {
+    "envProfile": "production",
+    "backend": "codex-subscription",
+    "provider": "codex-subscription",
+    "model": "gpt-6.1-sol",
+    "modelSource": "configured",
+    "reasoningEffort": "xhigh",
+    "authentication": "chatgpt-subscription",
+    "transport": "local-cli",
+    "promptParityWith": "claude-api",
+    "maxTokens": null,
+    "outputByteLimit": 2097152,
+    "subscriptionTiers": [
+      "pro"
+    ],
+    "personalizedSampleCount": 0,
+    "visionSampleCount": 0,
+    "servingPath": "direct-backend",
+    "graphRAGEnabled": true
+  },
+  "sampleCount": 11,
+  "samples": [
+    {
+      "id": "single-new-role",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "single",
+      "spreadName": "One-Card Insight",
+      "userQuestion": "What guiding energy should I bring into this new leadership role?",
+      "reflectionsText": "I want to stay curious yet grounded even when the stakes feel high.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "card": "The Fool",
+          "name": "The Fool",
+          "canonicalName": "The Fool",
+          "canonicalKey": "the fool",
+          "aliases": [
+            "The Fool"
+          ],
+          "number": 0,
+          "cardNumber": 0,
+          "card_number": 0,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Theme / Guidance of the Moment",
+          "meaning": "New beginnings, innocence, spontaneity, free spirit",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nA new leadership role can feel exciting and exposing at once: there’s room to explore, but each decision may seem to carry extra weight. You may recognize that tension in your wish to stay “curious yet grounded” when the stakes feel high.\n\nAs your Theme / Guidance of the Moment, **The Fool** upright invites open-minded initiative. For your question about leadership, this suggests beginning with a willingness to learn rather than making complete certainty the price of taking action.\n\n### Lead with curiosity, keep your footing\n\nIn the Rider–Waite–Smith image, the figure stands at a cliff’s edge with a small dog at their heels. Symbolically, the edge can represent the limits of what’s known; the dog offers an image for the feedback that draws attention back to practical realities. In your role, that might look like hearing an appealing proposal and asking, “What would we need to check before trying this?”\n\nThe Fool’s openness doesn’t have to mean abandoning discernment. Its useful challenge here is to approach the role without assuming that leadership requires having the first—or loudest—answer. You might make your learning visible: “Here’s what I understand so far, here’s what I’m checking, and here’s the next step I’m proposing.”\n\nThat balance speaks directly to “curious yet grounded”: openness in how you gather information, clarity in how you act on it. When a choice feels weighty, The Fool can be a prompt to distinguish a manageable experiment from a commitment that needs more preparation.\n\n### Small ways to practise\n\nTo bring The Fool’s beginner-minded energy into your leadership, consider:\n\n- Asking one genuine question before offering a solution: “What am I missing about how this works?”\n- Trying one small, reversible improvement, with a clear learning goal and a date to review it.\n- Inviting a colleague to name one practical concern about your idea, then explaining how that input informs your decision.\n\n### Closing\n\nFor this new leadership role, The Fool suggests letting curiosity start the conversation and grounded follow-through guide the next step. Your choices and decisions shape the outcomes of this leadership chapter.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 3204,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1470,
+          "reasoning_output_tokens": 1034
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 65,
+              "sanitizedLength": 65,
+              "eligibleLength": 65,
+              "includedLength": 65,
+              "representedLength": 65,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 67,
+              "sanitizedLength": 67,
+              "eligibleLength": 67,
+              "includedLength": 67,
+              "representedLength": 67,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 2,
+          "candidatesProjected": 2,
+          "projectionRejected": 0,
+          "candidatesScored": 2,
+          "patternsRepresented": 2,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 2,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 1,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 1,
+          "patternsUsedInPrompt": 1,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "none",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "three-card-transition",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "How can I navigate the transition after leaving my hometown?",
+      "reflectionsText": "Part of me is nostalgic while another part is ready for reinvention.",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "card": "Six of Cups",
+          "name": "Six of Cups",
+          "canonicalName": "Six of Cups",
+          "canonicalKey": "six of cups",
+          "aliases": [
+            "Six of Cups"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Six",
+          "rankValue": 6,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Past — influences that led here",
+          "meaning": "Living in the past, rose-colored views, difficulty moving on",
+          "userReflection": ""
+        },
+        {
+          "card": "The Tower",
+          "name": "The Tower",
+          "canonicalName": "The Tower",
+          "canonicalKey": "the tower",
+          "aliases": [
+            "The Tower"
+          ],
+          "number": 16,
+          "cardNumber": 16,
+          "card_number": 16,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Present — where you stand now",
+          "meaning": "Sudden change, upheaval, chaos, revelation, awakening",
+          "userReflection": ""
+        },
+        {
+          "card": "The Star",
+          "name": "The Star",
+          "canonicalName": "The Star",
+          "canonicalKey": "the star",
+          "aliases": [
+            "The Star"
+          ],
+          "number": 17,
+          "cardNumber": 17,
+          "card_number": 17,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Future — trajectory if nothing shifts",
+          "meaning": "Hope, faith, purpose, renewal, spirituality",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nLeaving your hometown can make familiar things feel especially precious, even while new possibilities pull you forward. Your reflection—part nostalgic, part ready for reinvention—holds both sides of that experience without requiring either to disappear. For your question about navigating this transition, this Past → Present → Future spread offers a way to consider what to carry with you, what to reconsider, and what to cultivate next.\n\n### Past — What home means now\n\n**Six of Cups Reversed** in the past position may point to the challenge of separating affection for your hometown from the expectation that life elsewhere needs to resemble it. The flower-filled cup offered in the Rider–Waite–Smith image evokes familiar care and generosity; reversed here, that sweetness may become a powerful comparison point.\n\nI’d read this reversal as an invitation to loosen nostalgia’s grip, not reject your roots. You might notice yourself comparing an unfamiliar place with your hometown’s best memories—a comparison the unfamiliar place hasn’t had time to compete with.\n\nThe useful question is: *What did home give me that I want to carry forward?* A shared meal might represent welcome; a familiar walking route might represent ease. Naming the underlying quality gives you more freedom to find it in a different form.\n\n### Present — Letting your old reference points change\n\n**The Tower Upright** can describe the disorientation of leaving a place where so much was already understood. Its lightning-struck structure symbolizes disrupted assumptions. In this context, that might look like introducing yourself without the familiar shortcuts of shared history, or discovering that an old routine doesn’t fit your new surroundings.\n\nThe emotional Water of the Six of Cups meets the Tower’s Fire: attachment and the urge for change may pull in different directions. That tension doesn’t require you to choose between loving your hometown and growing beyond it.\n\nTry approaching reinvention as an experiment rather than a complete demolition. The Tower’s useful question here is: *Which familiar definitions still fit me, and which am I keeping simply because they’re familiar?* You can question one at a time; leaving home doesn’t require becoming unrecognizable to yourself.\n\n### Future — Giving belonging time to develop\n\nIn the future position—your trajectory if nothing significant shifts—**The Star Upright** suggests the possibility of renewed orientation after the Tower’s disruption. Its quieter imagery matters: water pours into both the pool and the land, suggesting replenishment alongside participation in everyday life.\n\nFor your transition, this can look less like an instant revelation of your “new self” and more like small signs of connection: recognizing a familiar face, finding somewhere you enjoy returning, or becoming curious about an interest you hadn’t previously explored. These are possibilities to cultivate, not promised events.\n\nThe shift from the Tower’s Fire to the Star’s Air moves the emphasis from disruption toward perspective and possibility. You might leave some questions about identity unanswered while exploring what interests you now. Belonging can be something you practice before it becomes something you feel.\n\n### Bringing it together\n\nTo navigate life after leaving your hometown, this spread suggests carrying forward the care represented by the Six of Cups, questioning old assumptions with the Tower, and allowing the Star’s hope to take practical form. Nostalgia can inform your next chapter without becoming its measuring stick.\n\nA few low-pressure experiments:\n\n- **Six of Cups Reversed:** Choose one hometown ritual to keep, and let its form adapt to your current surroundings.\n- **The Tower Upright:** Try one small departure from your usual routine, treating it as information rather than a permanent identity change.\n- **The Star Upright:** Return to one welcoming place or activity a few times, giving familiarity a chance to develop.\n\nThe Star offers a hopeful direction, not a deadline for feeling settled. Your choices shape how this transition unfolds.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 4067,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2323,
+          "reasoning_output_tokens": 1552
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 60,
+              "sanitizedLength": 60,
+              "eligibleLength": 60,
+              "includedLength": 60,
+              "representedLength": 60,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 68,
+              "sanitizedLength": 68,
+              "eligibleLength": 68,
+              "includedLength": 68,
+              "representedLength": 68,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 6,
+          "candidatesProjected": 2,
+          "projectionRejected": 4,
+          "candidatesScored": 2,
+          "patternsRepresented": 2,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 2,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 1,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {
+            "unverified_matched_subset": 4
+          },
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 2,
+          "patternsUsedInPrompt": 2,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "five-card-creative-project",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "userQuestion": "What should I know about launching my creative project this quarter?",
+      "reflectionsText": "I feel momentum but keep second-guessing the tone and timing.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "card": "Ace of Wands",
+          "name": "Ace of Wands",
+          "canonicalName": "Ace of Wands",
+          "canonicalKey": "ace of wands",
+          "aliases": [
+            "Ace of Wands"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Ace",
+          "rankValue": 1,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Core of the matter",
+          "meaning": "Inspiration, new energy, creative spark, potential for bold action",
+          "userReflection": ""
+        },
+        {
+          "card": "Seven of Swords",
+          "name": "Seven of Swords",
+          "canonicalName": "Seven of Swords",
+          "canonicalKey": "seven of swords",
+          "aliases": [
+            "Seven of Swords"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Seven",
+          "rankValue": 7,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Challenge or tension",
+          "meaning": "Exposure, consequences, call for transparency and integrity",
+          "userReflection": ""
+        },
+        {
+          "card": "Queen of Cups",
+          "name": "Queen of Cups",
+          "canonicalName": "Queen of Cups",
+          "canonicalKey": "queen of cups",
+          "aliases": [
+            "Queen of Cups"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Hidden / subconscious influence",
+          "meaning": "Compassion, empathy, emotional intelligence, intuition in flow",
+          "userReflection": ""
+        },
+        {
+          "card": "Three of Pentacles",
+          "name": "Three of Pentacles",
+          "canonicalName": "Three of Pentacles",
+          "canonicalKey": "three of pentacles",
+          "aliases": [
+            "Three of Pentacles"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Pentacles",
+          "rank": "Three",
+          "rankValue": 3,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Support / helpful energy",
+          "meaning": "Collaboration, skill development, building something of quality",
+          "userReflection": ""
+        },
+        {
+          "card": "Wheel of Fortune",
+          "name": "Wheel of Fortune",
+          "canonicalName": "Wheel of Fortune",
+          "canonicalKey": "wheel of fortune",
+          "aliases": [
+            "Wheel of Fortune"
+          ],
+          "number": 10,
+          "cardNumber": 10,
+          "card_number": 10,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Likely direction on current path",
+          "meaning": "Bad luck, resistance to change, breaking cycles",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nYou may recognize the push-pull here: feeling ready to make something happen, then reopening the questions of tone and timing. Launching your creative project this quarter may feel like honoring that momentum without pushing the work into a shape that doesn’t fit.\n\nThe spread separates creative readiness from launch readiness—a useful distinction when those two start arguing. Both reversed cards point toward conditions that may need attention, rather than supplying a definitive launch date.\n\n### Core of the matter\n\n**Ace of Wands** upright puts the creative impulse—not the perfect rollout—at the center. Its sprouting wand offers an image of something alive enough to develop, without needing to be fully grown. For your launch, this favors finding a concrete expression for the idea rather than requiring it to arrive with every possible feature attached.\n\nYou might distinguish what you’re genuinely excited to share from the extras added to make the release look more established. What is the smallest version that still carries the project’s character? A sample, short preview, or single finished piece could give your momentum somewhere useful to go without committing you to an elaborate debut.\n\n### Challenge or tension\n\nWith **Seven of Swords** reversed, the timing of your launch strategy may need more attention than the idea itself. The figure carrying five swords while leaving two behind makes a useful illustration of a plan with unfinished pieces. Through this reading’s delayed-timing lens, the question is whether the message and practical conditions are ready to support the release.\n\nYour second-guessing might point to one unanswered question rather than a need for another complete rewrite. Could a newcomer tell whom the project is for, what it offers, and what is available now? Clarifying those points may help the tone settle. Otherwise, polishing language can become a very convincing way to postpone making a decision.\n\n### Hidden influence\n\n**Queen of Cups** upright invites a gentler look at what “getting the tone right” means to you. Her attentive relationship with the ornate, covered cup suggests private meaning worth respecting. Could some of the hesitation concern how personal the work feels to share, rather than whether the presentation is clear?\n\nTry separating what the project means to you from what a newcomer needs to understand. Both deserve care, but they don’t necessarily belong in the same paragraph. This card supports an emotionally honest voice without requiring complete self-disclosure. Reading your introduction aloud might help you notice where your own voice comes through—and where polished launch language starts speaking over it.\n\n### Support and helpful energy\n\nThe **Three of Pentacles** upright brings this firmly into practical territory: skilled work improves through focused collaboration. The craftspeople discussing the building offer a different model from either creating entirely alone or asking everyone’s opinion. Useful feedback has a job to do.\n\nFor this project, that could mean inviting one thoughtful peer or potential audience member to respond to a preview. Instead of “Do you like it?”, consider asking what they understand the project to be and which sentence feels least clear. If you’re working solo, one targeted exchange can still provide this card’s collaborative support. You retain the creative decisions; another perspective simply gives you more information to work with.\n\n### Likely direction on the current path\n\n**Wheel of Fortune** reversed suggests that traction or a workable opening may take longer to develop than the initial creative surge. Its turning wheel emphasizes changing conditions; reversed here, those conditions may not yet support the pace you would prefer. That makes flexibility more useful than trying to extract certainty from a date.\n\nThis might look like coordinating availability, discovering that a preview needs adjustment, or reconsidering the release window after feedback. None of those possibilities establishes what will happen. A useful response is to separate “the work needs revision” from “the timing needs revision,” so a scheduling change doesn’t automatically trigger another rewrite. Preparation may improve readiness, but it cannot promise a particular reception.\n\n### Bringing it together\n\nFor launching this quarter, the Ace of Wands and Three of Pentacles favor a small, tangible debut supported by specific feedback. The reversed Seven of Swords and Wheel of Fortune suggest leaving room to clarify the plan and adjust its timing. The waxing Moon approaching fullness offers symbolic context for refinement, not a compulsory launch deadline.\n\n### Gentle next steps\n\n- **Define the first release:** Following the Ace of Wands, write one sentence naming what you’ll share—and one naming what can wait.\n- **Test the tone:** With the Queen of Cups and Three of Pentacles in mind, read the introduction aloud, then ask one person to describe what they understood.\n- **Choose a review point:** For the two reversed cards, set a check-in to assess message clarity and practical readiness before confirming a public date.\n\nYour choices about scope, feedback, and timing shape how this creative launch unfolds.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 4472,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3036,
+          "reasoning_output_tokens": 2070
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 68,
+              "sanitizedLength": 68,
+              "eligibleLength": 68,
+              "includedLength": 68,
+              "representedLength": 68,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 61,
+              "sanitizedLength": 61,
+              "eligibleLength": 61,
+              "includedLength": 61,
+              "representedLength": 61,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-3": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-4": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 2,
+          "candidatesProjected": 2,
+          "projectionRejected": 0,
+          "candidatesScored": 2,
+          "patternsRepresented": 2,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 2,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 1,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 1,
+          "patternsUsedInPrompt": 1,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "relationship-checkin",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "userQuestion": "What should I understand about the energetic exchange between me and Alex?",
+      "reflectionsText": "Communication feels uneven lately and I want to ground before reacting.",
+      "context": "love",
+      "cardsInfo": [
+        {
+          "card": "Queen of Cups",
+          "name": "Queen of Cups",
+          "canonicalName": "Queen of Cups",
+          "canonicalKey": "queen of cups",
+          "aliases": [
+            "Queen of Cups"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Queen",
+          "rankValue": 13,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "You / your energy",
+          "meaning": "Emotional overwhelm, martyrdom, blurred boundaries",
+          "userReflection": ""
+        },
+        {
+          "card": "Knight of Swords",
+          "name": "Knight of Swords",
+          "canonicalName": "Knight of Swords",
+          "canonicalKey": "knight of swords",
+          "aliases": [
+            "Knight of Swords"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Knight",
+          "rankValue": 12,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Them / their energy",
+          "meaning": "Decisive action, sharp focus, pursuing truth swiftly",
+          "userReflection": ""
+        },
+        {
+          "card": "Two of Cups",
+          "name": "Two of Cups",
+          "canonicalName": "Two of Cups",
+          "canonicalKey": "two of cups",
+          "aliases": [
+            "Two of Cups"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Two",
+          "rankValue": 2,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "The connection / shared lesson",
+          "meaning": "Connection, partnership, mutual respect, heartfelt unity",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nUneven communication can leave you wondering whether to reach closer or take a breath. You may recognize that awkward space where a message feels loaded, even as you want to respond from steadier ground. For your question about the energetic exchange between you and Alex, the two Cups cards and one Swords card highlight emotional give-and-take alongside communication style: how feelings are expressed, heard, and answered.\n\n### You: **Queen of Cups Reversed**\n\nIn your position, this card may describe care becoming harder to contain: paying close attention to the connection while losing track of your own capacity. The queen’s concentrated attention on her ornate cup gives this reversal a useful question: is reflection helping you understand your feelings, or keeping you circling them?\n\nHere, I’d read the reversal as an invitation to redirect some care toward yourself, rather than a judgment about your sensitivity. If uneven communication has you composing several versions of a reply or searching for the perfect tone, that could be this card’s texture.\n\nBefore offering more emotional attention, you might name what you need—clarity, acknowledgment, or time. Your sensitivity can inform the exchange without making you responsible for managing both sides of it.\n\n### Them: **Knight of Swords Upright**\n\nIn the “Them” position, this knight can describe your experience of Alex’s side of the exchange as quick, direct, or focused on getting to the point. The charging rider and raised sword emphasize momentum; this might look like a conversation moving toward answers before there has been room to explain why something matters to you.\n\nThat’s a possible description of the dynamic, not knowledge of Alex’s intentions. Beside your reversed queen, the knight raises the possibility of different conversational tempos rather than establishing that either person cares more.\n\nWater and Air aren’t inherently opposed here: emotional nuance and direct language can coexist. The practical bridge could be a clear request: “Could we slow this down? I want to understand what you mean before I respond.” You can ask for a different pace without needing to explain Alex’s behavior first.\n\n### The Connection: **Two of Cups Upright**\n\nThe shared lesson centers on reciprocity—not constant agreement, but an exchange where both people have room to contribute. The two figures each holding a cup offer a concrete contrast to one person carrying the whole conversation: each brings something, and each can receive.\n\nI’d take this card as an invitation to practice mutual respect, rather than confirmation of Alex’s feelings or a promised relationship outcome. For your question, the useful evidence comes from actual conversations: when you express a need, is there room to discuss it? Can you hear an answer without having to supply it yourself?\n\nThe Two of Cups also gives your Queen of Cups Reversed a helpful distinction: being emotionally available needn’t mean being endlessly available. You can offer openness and still leave Alex’s contribution to Alex.\n\n### Grounding the Exchange\n\nTaken together, the queen and knight suggest looking at **pace**, while the Two of Cups directs attention toward **reciprocity**. Understanding the energetic exchange between you and Alex may come less from interpreting each message intensely and more from noticing how communication unfolds across several conversations.\n\n- **Before replying:** Write two separate lines: “What the message actually says” and “What I’m interpreting.” This gives the reversed queen’s reflection a useful boundary.\n- **Make one clear request:** Following the knight’s directness, try: “I’d appreciate a little more clarity about ___.” Keep it to one point.\n- **Notice the response:** With the Two of Cups in mind, observe whether your request receives acknowledgment and whether both perspectives get space—without deciding everything from one exchange.\n\nAs you ground before responding, your choices, alongside Alex’s, help shape how this connection develops.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 3576,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2320,
+          "reasoning_output_tokens": 1552
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 74,
+              "sanitizedLength": 74,
+              "eligibleLength": 74,
+              "includedLength": 74,
+              "representedLength": 74,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 71,
+              "sanitizedLength": 71,
+              "eligibleLength": 71,
+              "includedLength": 71,
+              "representedLength": 71,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 0,
+          "candidatesProjected": 0,
+          "projectionRejected": 0,
+          "candidatesScored": 0,
+          "patternsRepresented": 0,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 0,
+          "finalSelectedCount": 0,
+          "retainedPassageCount": 0,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 0,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "no-passages",
+          "parseStatus": "absent",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": false,
+          "mode": "none",
+          "passagesProvided": 0,
+          "passagesUsedInPrompt": 0,
+          "passageIndices": [],
+          "skippedReason": "retrieval_failed_or_empty"
+        },
+        "patterns": {
+          "requested": false,
+          "used": false,
+          "patternsProvided": 0,
+          "patternsUsedInPrompt": 0,
+          "skippedReason": "not_requested"
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": false,
+          "skippedReason": "not_relevant"
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": "2 Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.",
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "celtic-deep-shift",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "userQuestion": "How can I stay centered while everything at home and work restructures at once?",
+      "reflectionsText": "It feels like multiple towers at the same time; I want to stay compassionate without losing momentum.",
+      "context": "career",
+      "cardsInfo": [
+        {
+          "card": "The Hermit",
+          "name": "The Hermit",
+          "canonicalName": "The Hermit",
+          "canonicalKey": "the hermit",
+          "aliases": [
+            "The Hermit"
+          ],
+          "number": 9,
+          "cardNumber": 9,
+          "card_number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Present — core situation",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "userReflection": ""
+        },
+        {
+          "card": "Five of Wands",
+          "name": "Five of Wands",
+          "canonicalName": "Five of Wands",
+          "canonicalKey": "five of wands",
+          "aliases": [
+            "Five of Wands"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Five",
+          "rankValue": 5,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Challenge — crossing / tension",
+          "meaning": "Avoidance of conflict, resentment, unproductive tension",
+          "userReflection": ""
+        },
+        {
+          "card": "Death",
+          "name": "Death",
+          "canonicalName": "Death",
+          "canonicalKey": "death",
+          "aliases": [
+            "Death"
+          ],
+          "number": 13,
+          "cardNumber": 13,
+          "card_number": 13,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Past — what lies behind",
+          "meaning": "Endings, change, transformation, transition",
+          "userReflection": ""
+        },
+        {
+          "card": "Temperance",
+          "name": "Temperance",
+          "canonicalName": "Temperance",
+          "canonicalKey": "temperance",
+          "aliases": [
+            "Temperance"
+          ],
+          "number": 14,
+          "cardNumber": 14,
+          "card_number": 14,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Near Future — what lies before",
+          "meaning": "Balance, moderation, patience, purpose",
+          "userReflection": ""
+        },
+        {
+          "card": "The Emperor",
+          "name": "The Emperor",
+          "canonicalName": "The Emperor",
+          "canonicalKey": "the emperor",
+          "aliases": [
+            "The Emperor"
+          ],
+          "number": 4,
+          "cardNumber": 4,
+          "card_number": 4,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Conscious — goals & focus",
+          "meaning": "Authority, establishment, structure, father figure",
+          "userReflection": ""
+        },
+        {
+          "card": "The Moon",
+          "name": "The Moon",
+          "canonicalName": "The Moon",
+          "canonicalKey": "the moon",
+          "aliases": [
+            "The Moon"
+          ],
+          "number": 18,
+          "cardNumber": 18,
+          "card_number": 18,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Subconscious — roots / hidden forces",
+          "meaning": "Release of fear, repressed emotion, inner confusion",
+          "userReflection": ""
+        },
+        {
+          "card": "Strength",
+          "name": "Strength",
+          "canonicalName": "Strength",
+          "canonicalKey": "strength",
+          "aliases": [
+            "Strength"
+          ],
+          "number": 8,
+          "cardNumber": 8,
+          "card_number": 8,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Self / Advice — how to meet this",
+          "meaning": "Strength, courage, persuasion, influence, compassion",
+          "userReflection": ""
+        },
+        {
+          "card": "Eight of Pentacles",
+          "name": "Eight of Pentacles",
+          "canonicalName": "Eight of Pentacles",
+          "canonicalKey": "eight of pentacles",
+          "aliases": [
+            "Eight of Pentacles"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Pentacles",
+          "rank": "Eight",
+          "rankValue": 8,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "External Influences — people & environment",
+          "meaning": "Mastery through practice, craftsmanship, dedicated work",
+          "userReflection": ""
+        },
+        {
+          "card": "Nine of Swords",
+          "name": "Nine of Swords",
+          "canonicalName": "Nine of Swords",
+          "canonicalKey": "nine of swords",
+          "aliases": [
+            "Nine of Swords"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Nine",
+          "rankValue": 9,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Hopes & Fears — deepest wishes & worries",
+          "meaning": "Recovery from anxiety, gaining perspective, support arriving",
+          "userReflection": ""
+        },
+        {
+          "card": "The Sun",
+          "name": "The Sun",
+          "canonicalName": "The Sun",
+          "canonicalKey": "the sun",
+          "aliases": [
+            "The Sun"
+          ],
+          "number": 19,
+          "cardNumber": 19,
+          "card_number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Outcome — likely path if unchanged",
+          "meaning": "Positivity, fun, warmth, success, vitality",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nYou may recognize the feeling of trying to find your footing while the floor plan keeps changing—at home and at work. Your wish to stay compassionate without losing momentum names the tension clearly: how to remain available without becoming responsible for holding everything together.\n\nSeven Major Arcana give this spread the weight of a meaningful transition, rather than a problem that a better checklist alone could solve. Its central invitation is to distinguish steady movement from constant responsiveness.\n\n### The center: make room to hear yourself\n\nAt the heart of the matter, **The Hermit** upright suggests that centering may begin with a little protected distance from competing demands. His lantern illuminates a limited stretch, not the whole mountain: you don’t need a complete map of the restructuring to identify your next considered step. In career terms, this favors discernment over immediate reaction. At home, it might mean preserving some private thinking time rather than making every decision in the middle of someone else’s urgency. The invitation is a bounded pause—not disappearing, but returning with a clearer sense of your priorities.\n\nCrossing him, **Five of Wands** reversed suggests that coordination may not yet have the conditions it needs. Through the delayed-timing lens, agreement could be premature while responsibilities and priorities are still shifting; waiting alone won’t necessarily resolve that. The competing wands offer an image for several legitimate initiatives getting in each other’s way. This might look like two work requests labeled urgent, or household tasks without clear ownership. Rather than forcing harmony, consider what needs clarification before cooperation becomes workable. Compassion can include naming a collision without turning it into a contest.\n\n### From what has changed to what can work\n\n**Death** upright in the past position raises a practical question: has an old arrangement ended in reality while its expectations are still hanging around? That could concern a role, a routine, or a standard that no longer fits—not necessarily a dramatic event beyond what you’ve described. The armored rider gives this position a sense of consequential change. If this resonates, the useful distinction is between honoring what mattered and continuing to organize your days around something that is no longer available. The Hermit’s reflection can help you notice that difference before rebuilding.\n\nAhead, **Temperance** upright offers integration as a possible next chapter. The water moving between two vessels makes balance look active: adjust, observe, adjust again. For simultaneous home-and-work restructuring, this is less about achieving a perfect division and more about finding a rhythm that accommodates both without making everything interchangeable. A demanding workday might call for simpler expectations at home; a household disruption might require clearer work priorities. This position favors small experiments over an overhaul. You can help create conditions for greater steadiness without expecting one adjustment to settle the whole chapter.\n\n### Structure for the known; patience for the unknown\n\nIn the underlying position, **The Moon** reversed suggests that clarity may not yet be ready to settle. Its winding path is a reminder of limited visibility—not evidence that something bad is hidden. You might recognize this as difficulty separating a concrete concern from all the possibilities attached to it. With delayed timing, the invitation isn’t to force an insight or assume that uncertainty is already lifting. It is to notice what information, experience, or conversation would make a question more answerable. Some things may remain genuinely undecided for now.\n\nThe Hermit provides a useful bridge here: you can reflect without requiring yourself to solve what is still unknown. Above him, **The Emperor** upright represents the conscious pull toward structure, authority, and dependable arrangements. His stone throne makes an understandable contrast with The Moon’s uncertain path. A helpful expression of this goal could be firm but revisable agreements: who owns a task, what takes precedence, and when a decision gets reviewed. Structure can hold uncertainty without pretending to eliminate it. Your influence may be strongest in setting clear terms for your participation, rather than trying to stabilize everyone’s circumstances.\n\n### How to meet the next chapter\n\nAs advice, **Strength** upright speaks directly to your wish for compassion without lost momentum. The gentle handling of the lion suggests influence that does not depend on overpowering anything—or anyone. This can look like acknowledging someone’s difficulty while keeping your own limits intact. Beside The Emperor, Strength adds an important qualification: a clear boundary needn’t be delivered harshly to be real. You might explore what changes when kindness shapes the delivery, but does not automatically change the answer. Gentleness and follow-through can belong to the same response.\n\nIn the environment position, **Eight of Pentacles** upright brings attention back to tangible work. The craftsperson at the bench suggests processes, skills, and repeated effort as useful points of contact when larger structures are unsettled. This doesn’t reveal what colleagues or family members privately expect; it invites you to examine observable demands. Which tasks actually need doing? Which require learning, practice, or clearer instructions? At work, a modest, completed piece of craftsmanship may provide more reliable feedback than trying to resolve the entire reorganization. Progress can remain local while the bigger picture develops.\n\n**Nine of Swords** reversed, in hopes and fears, may describe wanting some mental breathing room while not yet knowing when it will arrive. The figure sitting upright in bed gives this card its intensity, but it doesn’t establish anything about your sleep or health. Through delayed timing, relief may lag behind practical improvements; an unfinished transition doesn’t necessarily feel easier immediately. If this resonates, you might avoid making instant calm another performance requirement. If the strain becomes difficult to carry, a trusted support person or qualified professional could offer support alongside practical planning.\n\nAs the outcome trajectory, **The Sun** upright points toward the possibility of greater clarity, participation, and enjoyment. Its open, daylight setting contrasts with The Moon’s limited visibility: there may be more room to understand where you stand and what contribution feels worthwhile. That is not a promise that every restructuring will suit you. It is an encouraging direction in which your current choices could develop—especially when Strength’s humane limits and Temperance’s adjustments support your efforts. Success here could mean remaining engaged without having to demonstrate your usefulness through constant availability.\n\n### Bringing the threads together\n\nThe Emperor and The Sun make a useful cross-check: does the structure you’re building make life more workable, or merely more controlled? Strength and Temperance offer ways to direct this fire-heavy spread without answering every disruption with greater intensity. Their shared emphasis is purposeful action with enough flexibility to remain sustainable.\n\nThe Moon reversed and Nine of Swords reversed also deserve patience: understanding and relief may arrive on different schedules, and preparation cannot guarantee either. For your question about staying centered through simultaneous home-and-work restructuring, the spread suggests something more usable than permanent calm: returning to your priorities, making the next bounded choice, and allowing unfinished matters to remain unfinished when necessary.\n\n### A few small experiments\n\n- **The Hermit:** You could protect ten minutes before checking requests to identify one work priority and one home priority.\n- **Five of Wands + The Emperor:** Where demands collide, try asking, “If both cannot happen today, which takes precedence?”\n- **Temperance + Eight of Pentacles:** Consider testing one small routine for a week, then keeping only what actually reduces friction.\n- **Strength:** You might rehearse a compassionate limit: “I understand why this matters. I can offer X; I don’t have room for Y today.”\n\nThe Hermit and The Sun leave room for both privacy and participation; centering needn’t require withdrawing from everything or being available to everything. Your choices and decisions shape how this chapter unfolds.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 6583,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3880,
+          "reasoning_output_tokens": 2340
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 79,
+              "sanitizedLength": 79,
+              "eligibleLength": 79,
+              "includedLength": 79,
+              "representedLength": 79,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 101,
+              "sanitizedLength": 101,
+              "eligibleLength": 101,
+              "includedLength": 101,
+              "representedLength": 101,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-3": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-4": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-5": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-6": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-7": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-8": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-9": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 19,
+          "candidatesProjected": 8,
+          "projectionRejected": 11,
+          "candidatesScored": 8,
+          "patternsRepresented": 6,
+          "variantsRemoved": 2,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 6,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 1,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {
+            "unverified_matched_subset": 11
+          },
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 4,
+          "patternsUsedInPrompt": 4,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "decision-crossroads-long-reflections",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "decision",
+      "spreadName": "Decision / Two-Path",
+      "userQuestion": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
+      "reflectionsText": "I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths. I keep weighing stability against growth, and my mind loops between the two paths.",
+      "context": "decision",
+      "cardsInfo": [
+        {
+          "card": "The Lovers",
+          "name": "The Lovers",
+          "canonicalName": "The Lovers",
+          "canonicalKey": "the lovers",
+          "aliases": [
+            "The Lovers"
+          ],
+          "number": 6,
+          "cardNumber": 6,
+          "card_number": 6,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Heart of the decision",
+          "meaning": "Love, harmony, relationships, values alignment, choices",
+          "userReflection": ""
+        },
+        {
+          "card": "Two of Wands",
+          "name": "Two of Wands",
+          "canonicalName": "Two of Wands",
+          "canonicalKey": "two of wands",
+          "aliases": [
+            "Two of Wands"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Two",
+          "rankValue": 2,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Path A — energy & likely outcome",
+          "meaning": "Planning, looking ahead, making empowered choices, considering options",
+          "userReflection": ""
+        },
+        {
+          "card": "Six of Swords",
+          "name": "Six of Swords",
+          "canonicalName": "Six of Swords",
+          "canonicalKey": "six of swords",
+          "aliases": [
+            "Six of Swords"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Six",
+          "rankValue": 6,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Path B — energy & likely outcome",
+          "meaning": "Difficulty leaving, emotional baggage, stalled transition",
+          "userReflection": ""
+        },
+        {
+          "card": "Justice",
+          "name": "Justice",
+          "canonicalName": "Justice",
+          "canonicalKey": "justice",
+          "aliases": [
+            "Justice"
+          ],
+          "number": 11,
+          "cardNumber": 11,
+          "card_number": 11,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "What clarifies the best path",
+          "meaning": "Justice, fairness, truth, cause and effect, law",
+          "userReflection": ""
+        },
+        {
+          "card": "The Fool",
+          "name": "The Fool",
+          "canonicalName": "The Fool",
+          "canonicalKey": "the fool",
+          "aliases": [
+            "The Fool"
+          ],
+          "number": 0,
+          "cardNumber": 0,
+          "card_number": 0,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "What to remember about your free will",
+          "meaning": "Recklessness, taken advantage of, inconsideration",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Opening\n\nYou may recognize the tension here: wanting a dependable base while wondering whether it leaves enough room to grow. The cards echo the looping you described, where each option seems to offer something the other might cost. Your question—whether relocating or staying supports your growth—may become clearer when stability and growth stop being treated as opposites.\n\nOne important detail: Path A and Path B weren’t assigned to “relocate” and “stay,” so I won’t make that assignment for you. Their contrast can still help you recognize which trajectory each option currently offers.\n\n### Heart of the decision — **The Lovers Upright**\n\nAt the center, The Lovers brings this back to values rather than geography. The two figures beneath the angel offer a symbolic picture of alignment: a choice that brings different parts of your life into a more honest relationship.\n\nFor your stability-versus-growth dilemma, this asks what each word actually means to you. Stability might mean dependable routines or belonging; growth might mean learning, independence, or creative opportunity. Those are examples, not assumptions about your priorities.\n\nTry completing: “I want enough stability to ___, and enough change to ___.” The answers may reveal whether the apparent conflict is between two places—or between needs that either place would require you to address.\n\n### Path A — **Two of Wands Upright**\n\nPath A carries the stronger signal of deliberate expansion. The figure holding a globe suggests possibilities considered from a relatively secure vantage point: you don’t have to dismiss what supports you in order to explore beyond it.\n\nThis trajectory may bring a wider horizon and a stronger sense of direction, especially when curiosity becomes a concrete plan. Its challenge is remaining at the lookout, repeatedly considering possibilities without testing any of them.\n\nApplied to relocation, this could look like exploring whether a destination supports a particular interest or way of living. Applied to staying, it could mean deliberately expanding your activities and connections where you are. The growth comes through purposeful exploration; a new address alone isn’t the whole plan.\n\n### Path B — **Six of Swords Reversed**\n\nPath B suggests a transition whose timing or conditions may not yet be ready. In the traditional image, passengers travel with swords standing in the boat—a useful reminder that changing surroundings doesn’t automatically settle every question carried along.\n\nThrough the delayed-timing lens, this isn’t a verdict against moving or staying. It invites you to identify what would make the transition more workable: clearer information, practical arrangements, or a better-defined reason for choosing it.\n\nIf this resembles relocating, preparation may need more attention before departure. If it resembles staying, a purposeful interval could differ greatly from indefinite postponement. Ask, “What would I be preparing for, and how would I recognize readiness?” Preparation may improve the conditions without promising a particular outcome.\n\n### What clarifies the best path — **Justice Upright**\n\nJustice’s scales and upright sword suggest a fair comparison with clear distinctions. Since you’ve described your mind circling the same trade-off, the helpful move may be changing the comparison—not adding another round of thought.\n\nAre you comparing everyday life where you are with an idealized version of elsewhere? Or giving staying credit for familiarity while treating every unknown about moving as a disadvantage? Either imbalance could obscure the choice.\n\nJustice invites the same questions for both options: What supports learning? What supports connection? What would an ordinary week involve? Separate what you know from what you hope or fear. That makes room for a decision grounded in evidence without pretending uncertainty can disappear.\n\n### Your free will — **The Fool Reversed**\n\nIn this position, The Fool Reversed suggests that beginning may need preparation before momentum. The cliff-edge imagery makes the distinction concrete: openness to possibility and readiness to act are related, but they aren’t identical.\n\nYou’re allowed to want change without launching it immediately. Equally, you can choose stability without treating that choice as permanent. A useful pause has something happening inside it—a question being investigated, a possibility being tested, or a condition being clarified.\n\nThis card doesn’t promise that waiting produces the desired opening. It invites you to decide what preparation serves your choice, rather than letting either urgency or hesitation make the decision by default.\n\n### Synthesis and small next steps\n\nThe Two of Wands offers the clearest growth-oriented trajectory: intentional expansion supported by planning. That could describe relocation or a genuinely renewed life where you are. The Lovers and Justice suggest choosing the option that best joins your values with observable opportunities—not simply the one that feels most adventurous or most familiar.\n\nThe waxing moon offers a symbolic cue for gradual refinement, not a deadline. To make the comparison less circular:\n\n- **The Lovers:** Name three priorities, defining what each would look like in daily life.\n- **Two of Wands:** Sketch one ordinary weekday for relocating and one for staying.\n- **Justice:** Identify one important unknown about each option and a low-stakes way to investigate it.\n- **Six of Swords Reversed / The Fool Reversed:** Choose a review date and one readiness condition, so preparation has a purpose rather than becoming an endless holding pattern.\n\nYou can build from what you learn; your choices shape how either path unfolds.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 4821,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2601,
+          "reasoning_output_tokens": 1552
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 90,
+              "sanitizedLength": 90,
+              "eligibleLength": 90,
+              "includedLength": 90,
+              "representedLength": 90,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 663,
+              "sanitizedLength": 663,
+              "eligibleLength": 663,
+              "includedLength": 663,
+              "representedLength": 663,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-3": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-4": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 1,
+          "candidatesProjected": 1,
+          "projectionRejected": 0,
+          "candidatesScored": 1,
+          "patternsRepresented": 1,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 1,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 0,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 1,
+          "patternsUsedInPrompt": 1,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "What spiritual practice should I commit to this season to deepen my intuition?",
+      "reflectionsText": "I want a ritual that feels grounded, not performative.",
+      "context": "spiritual",
+      "cardsInfo": [
+        {
+          "card": "The Hierophant",
+          "name": "The Hierophant",
+          "canonicalName": "The Hierophant",
+          "canonicalKey": "the hierophant",
+          "aliases": [
+            "The Hierophant"
+          ],
+          "number": 5,
+          "cardNumber": 5,
+          "card_number": 5,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Past — influences that led here",
+          "meaning": "Spiritual wisdom, tradition, conformity, institutions",
+          "userReflection": ""
+        },
+        {
+          "card": "The High Priestess",
+          "name": "The High Priestess",
+          "canonicalName": "The High Priestess",
+          "canonicalKey": "the high priestess",
+          "aliases": [
+            "The High Priestess",
+            "The Priestess"
+          ],
+          "number": 2,
+          "cardNumber": 2,
+          "card_number": 2,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "thoth-a1",
+          "orientation": "Reversed",
+          "position": "Present — where you stand now",
+          "meaning": "Secrets, disconnected from intuition, withdrawal",
+          "userReflection": ""
+        },
+        {
+          "card": "The Star",
+          "name": "The Star",
+          "canonicalName": "The Star",
+          "canonicalKey": "the star",
+          "aliases": [
+            "The Star"
+          ],
+          "number": 17,
+          "cardNumber": 17,
+          "card_number": 17,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Future — trajectory if nothing shifts",
+          "meaning": "Hope, faith, purpose, renewal, spirituality",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "thoth-a1",
+      "reading": "### Opening\n\nYou may recognize a wish for spiritual practice that feels meaningful in private, without needing to look impressive. There might also be a tension between wanting guidance and wanting to hear yourself more clearly.\n\nFor your question, this spread points toward **a brief, repeatable listening-and-journaling ritual**. Your wish for something “grounded, not performative” is a useful compass here: less ceremony to get right, more space to notice what actually happens.\n\n### Past — **The Hierophant**, upright\n\nThe Hierophant in your past position suggests that teachings, traditions, or established methods may provide part of your spiritual foundation. That could mean learning from a teacher or book, or simply valuing a practice enough to return to it regularly. If this fits, the useful question is: *Which structures help me pay attention, and which make me feel evaluated?*\n\nFor this season, you might borrow the Hierophant’s consistency without adopting every rule attached to a tradition. The same chair, approximate time, and opening question can make a ritual grounded without making it elaborate. Its earthy steadiness supports the receptive quality of the next card: a dependable container can help you listen, provided the instructions don’t become louder than your own experience.\n\n### Present — **The Priestess (RWS: The High Priestess)**, reversed\n\nHere, I’d read the reversal as a possible difficulty accessing or recognizing quiet impressions—not as evidence that intuition is absent. Beside the Hierophant, this can look like checking an experience against what a spiritual practice is *supposed* to feel like. You might notice yourself wondering whether an ordinary impression counts unless it arrives with unusual intensity.\n\nThe invitation is to lower the pressure to receive something significant. During your ritual, a sensation, passing thought, or moment of uncertainty can simply be recorded without becoming a message you need to obey. That distinction matters: deepening intuition can include becoming more discerning about your interpretations, rather than more certain of them. The Priestess reversed favors giving yourself room to say, “I noticed this; I don’t know what it means yet.”\n\n### Future — **The Star**, upright\n\nIn the future position—your trajectory if nothing shifts—the Star suggests the possibility of a more spacious, hopeful relationship with spiritual practice. This might look less like a dramatic revelation and more like finding that a quiet activity feels worth returning to. The present uncertainty doesn’t have to be solved before meaningful moments become available.\n\nThe Star’s airy openness also offers a counterweight to the Hierophant’s structure: keep the rhythm, but leave the experience unscripted. One caution for your specific question is that inspiration can remain something lovely to contemplate rather than something practiced. A modest ritual could give that openness a place in everyday life, without turning each session into a test of whether your intuition is improving.\n\n### A grounded ritual for the season\n\nTry this for two weeks before deciding how it fits the rest of the season:\n\n- **Make a small container — The Hierophant:** Choose one ordinary place and an eight-minute window on most days. No special objects or purchases are needed.\n- **Listen without decoding — The Priestess reversed:** Spend five minutes quietly noticing your surroundings and inner experience. Then write three lines: “I noticed…,” “My interpretation is…,” and “What remains unclear is…”\n- **Review without grading — The Star:** Once a week, reread your notes. Notice recurring themes, interpretations that changed, and whether the practice feels grounding. Adjust one detail if it feels like a performance.\n\n### Synthesis\n\nThe spread’s answer is **consistent attention, held lightly**: structure from the Hierophant, patient listening from the Priestess reversed, and openness from the Star. If lunar symbolism appeals, the waxing Moon can serve as a cue to build gradually.\n\nYour choices shape how this practice develops and what outcomes become possible.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 4048,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2735,
+          "reasoning_output_tokens": 1939
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 78,
+              "sanitizedLength": 78,
+              "eligibleLength": 78,
+              "includedLength": 78,
+              "representedLength": 78,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 54,
+              "sanitizedLength": 54,
+              "eligibleLength": 54,
+              "includedLength": 54,
+              "representedLength": 54,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 3,
+          "candidatesProjected": 3,
+          "projectionRejected": 0,
+          "candidatesScored": 3,
+          "patternsRepresented": 2,
+          "variantsRemoved": 1,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 2,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 1,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "thoth-a1",
+          "sourceDecks": [
+            "rws-1909"
+          ],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 1,
+          "patternsUsedInPrompt": 1,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "fiveCard",
+      "spreadName": "Five-Card Clarity",
+      "userQuestion": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
+      "reflectionsText": "My body feels tired even when my mind is racing.",
+      "context": "wellbeing",
+      "cardsInfo": [
+        {
+          "card": "Four of Swords",
+          "name": "Four of Swords",
+          "canonicalName": "Four of Swords",
+          "canonicalKey": "four of swords",
+          "aliases": [
+            "Four of Swords",
+            "Four of Epees (RWS: Four of Swords)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Four",
+          "rankValue": 4,
+          "deckStyle": "marseille-classic",
+          "orientation": "Upright",
+          "position": "Core of the matter",
+          "meaning": "Rest, retreat, mental recovery, intentional pause",
+          "userReflection": ""
+        },
+        {
+          "card": "Ten of Wands",
+          "name": "Ten of Wands",
+          "canonicalName": "Ten of Wands",
+          "canonicalKey": "ten of wands",
+          "aliases": [
+            "Ten of Wands",
+            "Ten of Batons (RWS: Ten of Wands)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Ten",
+          "rankValue": 10,
+          "deckStyle": "marseille-classic",
+          "orientation": "Reversed",
+          "position": "Challenge or tension",
+          "meaning": "Overload, unsustainable pressure, needing to delegate or release",
+          "userReflection": ""
+        },
+        {
+          "card": "Temperance",
+          "name": "Temperance",
+          "canonicalName": "Temperance",
+          "canonicalKey": "temperance",
+          "aliases": [
+            "Temperance"
+          ],
+          "number": 14,
+          "cardNumber": 14,
+          "card_number": 14,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "marseille-classic",
+          "orientation": "Upright",
+          "position": "Hidden / subconscious influence",
+          "meaning": "Balance, moderation, patience, purpose",
+          "userReflection": ""
+        },
+        {
+          "card": "Six of Pentacles",
+          "name": "Six of Pentacles",
+          "canonicalName": "Six of Pentacles",
+          "canonicalKey": "six of pentacles",
+          "aliases": [
+            "Six of Pentacles",
+            "Six of Coins (RWS: Six of Pentacles)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Pentacles",
+          "rank": "Six",
+          "rankValue": 6,
+          "deckStyle": "marseille-classic",
+          "orientation": "Upright",
+          "position": "Support / helpful energy",
+          "meaning": "Generosity, reciprocity, fair exchange, support in balance",
+          "userReflection": ""
+        },
+        {
+          "card": "The Sun",
+          "name": "The Sun",
+          "canonicalName": "The Sun",
+          "canonicalKey": "the sun",
+          "aliases": [
+            "The Sun",
+            "Le Soleil (RWS: The Sun)"
+          ],
+          "number": 19,
+          "cardNumber": 19,
+          "card_number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "marseille-classic",
+          "orientation": "Reversed",
+          "position": "Likely direction on current path",
+          "meaning": "Inner child, feeling down, overly optimistic",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "marseille-classic",
+      "reading": "### Opening\n\nA tired body and a racing mind can make stopping feel very different from actually resting. You may recognize the frustration of wanting relief without having energy for another elaborate routine. For your question about restoring wellbeing, this spread emphasizes protected space, lighter demands, and practical support—not a timetable for feeling better.\n\n### Core of the Matter\n\n**Four of Epees (RWS: Four of Swords)** upright places intentional pause at the center. The fourfold structure of this Marseille Swords card brings together mental activity and boundaries: the question is not simply whether you stop doing things, but whether demands still have access to your attention when you do.\n\nAlongside your reflection—“My body feels tired even when my mind is racing”—this can symbolize the difference between being physically still and feeling off duty. You might explore which unfinished task could remain unfinished without needing your attention tonight. The invitation is to protect a modest pause without requiring it to produce perfect calm; otherwise, rest can become one more performance to evaluate.\n\n### Challenge or Tension\n\n**Ten of Batons (RWS: Ten of Wands)** reversed suggests that relief from responsibility may not yet have the conditions it needs. Through the delayed-timing lens, this is not an automatic release of burdens: a handover, a changed expectation, or a clearer stopping point may still need arranging.\n\nThe ten marks a threshold—the culmination of the Batons’ drive and effort—but reaching capacity does not necessarily make obligations disappear. If that fits your circumstances, the useful question is less “Why can’t I switch off?” and more “What is still asking something of me?” One clearly defined responsibility could be a better place to explore change than trying to reorganize everything while already tired.\n\n### Hidden / Subconscious Influence\n\n**Temperance** upright offers a quieter possibility beneath the more obvious tension: restoration may need to become less of an all-or-nothing project. In this hidden position, it invites you to consider whether an ideal version of balance could itself be adding pressure.\n\nIts archetype of moderation matters when your body and mind seem to be moving at different speeds. You do not have to interpret that mismatch as a failure to rest correctly. If you recognize a tendency to turn wellbeing into another demanding assignment, Temperance favors revising the assignment: fewer standards to meet, more room to adjust. That is an invitation to explore, not a claim about what is happening beneath your awareness.\n\n### Support / Helpful Energy\n\n**Six of Coins (RWS: Six of Pentacles)** upright brings support into practical territory. The six’s balanced weaving of stems echoes reciprocity: wellbeing is not necessarily something you have to make room for entirely through your own effort.\n\nIn this position, help might look like someone taking a routine task, accepting a simpler arrangement, or clarifying what genuinely needs doing. The card does not establish that such support is available, but it makes that possibility worth checking. If there is someone reliable you feel comfortable asking, a small, bounded request may be easier to negotiate than “I need everything to change.” Receiving help need not require explaining every detail of how you feel.\n\n### Likely Direction on the Current Path\n\n**Le Soleil (RWS: The Sun)** reversed suggests that the fuller sense of warmth, clarity, or enjoyment you want may not yet be readily accessible. With delayed timing as the lens, this is neither a verdict against restoration nor a promise that waiting will deliver it.\n\nIn the direction position, it asks you to notice the conditions surrounding your hoped-for improvement. If expectations remain unchanged, feeling “back to yourself” could remain a difficult benchmark to reach. You might let smaller moments of ease matter without treating them as proof that everything is resolved—or dismissing them because they are incomplete. Preparation can create more room for enjoyment, but the card cannot establish an outcome or date.\n\n### Bringing It Together\n\nFor restoring wellbeing, Four of Epees and Ten of Batons reversed make a useful distinction: pausing and making a pause possible are related, but different tasks. Temperance and Six of Coins suggest approaching both through adjustment and shared effort rather than greater determination. The waxing Moon offers a symbolic backdrop of gradual refinement, not a deadline for feeling better.\n\nA few low-stakes possibilities:\n\n- **Four of Epees:** Name one nonessential task you could leave untouched for a chosen pocket of time.\n- **Ten of Batons + Six of Coins:** Consider one specific request: “Could you take care of this part?” or “Could we simplify this arrangement?”\n- **Temperance:** Pick one optional standard you would be willing to make less demanding this week.\n- **Your tiredness and restless sleep:** If these persist or concern you, consider discussing your description with a qualified healthcare professional; the cards cannot determine their cause.\n\nLe Soleil reversed leaves room for an unfinished process rather than a forced bright ending. Your choices shape what happens next, alongside circumstances you cannot fully control.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 3887,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3593,
+          "reasoning_output_tokens": 2588
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 76,
+              "sanitizedLength": 76,
+              "eligibleLength": 76,
+              "includedLength": 76,
+              "representedLength": 76,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 48,
+              "sanitizedLength": 48,
+              "eligibleLength": 48,
+              "includedLength": 48,
+              "representedLength": 48,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-3": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-4": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 0,
+          "candidatesProjected": 0,
+          "projectionRejected": 0,
+          "candidatesScored": 0,
+          "patternsRepresented": 0,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 0,
+          "finalSelectedCount": 0,
+          "retainedPassageCount": 0,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 0,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "no-passages",
+          "parseStatus": "absent",
+          "selectedDeck": "marseille-classic",
+          "sourceDecks": [],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": false,
+          "mode": "none",
+          "passagesProvided": 0,
+          "passagesUsedInPrompt": 0,
+          "passageIndices": [],
+          "skippedReason": "retrieval_failed_or_empty"
+        },
+        "patterns": {
+          "requested": false,
+          "used": false,
+          "patternsProvided": 0,
+          "patternsUsedInPrompt": 0,
+          "skippedReason": "not_requested"
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": null,
+        "archetypeDescription": "Moderate Major Arcana suggests important archetypal lessons woven through everyday matters."
+      }
+    },
+    {
+      "id": "relationship-hypothetical-collaborators",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "relationship",
+      "spreadName": "Relationship Snapshot",
+      "userQuestion": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
+      "reflectionsText": "This is a hypothetical scenario. Please do not guess at either person's hidden feelings or private behavior.",
+      "context": "career",
+      "cardsInfo": [
+        {
+          "card": "Page of Swords",
+          "name": "Page of Swords",
+          "canonicalName": "Page of Swords",
+          "canonicalKey": "page of swords",
+          "aliases": [
+            "Page of Swords",
+            "Valet of Epees (RWS: Page of Swords)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Page",
+          "rankValue": 11,
+          "deckStyle": "marseille-classic",
+          "orientation": "Upright",
+          "position": "You / your energy",
+          "meaning": "Curiosity, new ideas, vigilance, honest questions",
+          "userReflection": ""
+        },
+        {
+          "card": "Five of Cups",
+          "name": "Five of Cups",
+          "canonicalName": "Five of Cups",
+          "canonicalKey": "five of cups",
+          "aliases": [
+            "Five of Cups",
+            "Five of Coupes (RWS: Five of Cups)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Five",
+          "rankValue": 5,
+          "deckStyle": "marseille-classic",
+          "orientation": "Reversed",
+          "position": "Them / their energy",
+          "meaning": "Acceptance, perspective returning, learning from sorrow",
+          "userReflection": ""
+        },
+        {
+          "card": "Two of Pentacles",
+          "name": "Two of Pentacles",
+          "canonicalName": "Two of Pentacles",
+          "canonicalKey": "two of pentacles",
+          "aliases": [
+            "Two of Pentacles",
+            "Two of Coins (RWS: Two of Pentacles)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Pentacles",
+          "rank": "Two",
+          "rankValue": 2,
+          "deckStyle": "marseille-classic",
+          "orientation": "Upright",
+          "position": "The connection / shared lesson",
+          "meaning": "Balance, juggling priorities, adaptable resource management",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "marseille-classic",
+      "reading": "### Opening\n\nFor these hypothetical collaborators, communicating well might mean being able to question an idea without making the conversation feel like a test. They might also benefit from room to change direction without treating a revised plan as a failed partnership. I’ll read “You” and “Them” as two collaborator roles, keeping your request not to infer hidden feelings or private behavior central.\n\n### First collaborator — **Valet of Epees**, upright\n\nIn the first position, this card brings curiosity, careful wording, and a willingness to ask how something will actually work. Swords’ Air emphasis makes clear questions especially useful for a project: “What does finished mean here?” or “Which decision are we trying to make today?” That turns an interesting idea into something both collaborators can discuss precisely.\n\nThe useful distinction is between investigation and interrogation. This energy could help most when questions come with context: “I’m asking about the deadline so we can judge the scope, not because I’m dismissing the idea.” The upright Valet of Epees supports a learner’s stance—checking understanding rather than needing to deliver the definitive answer. Leaving space for a response matters as much as asking a sharp question.\n\n### Second collaborator — **Five of Coupes**, reversed\n\nIn the “Them” position, this card offers a lens on the interaction, not a report on the second collaborator’s private feelings. Its supplied Marseille five-pattern has a disrupted center, suggesting a point where an established arrangement needs adjustment. Read reversed in this particular context, it can represent reopening a discussion and recovering what remains useful, rather than assuming that disruption has ruined the whole plan.\n\nThere’s no need to invent a history of disappointment to use that symbolism. If a proposal proves impractical, either collaborator could ask, “What part of this is still worth keeping?” Cups’ Water emphasis adds attention to how that revision is discussed: acknowledge the contribution before replacing it. Alongside the first card’s precise questions, this offers a separate, useful channel—clarifying the work while allowing ideas to be reconsidered without unnecessary embarrassment.\n\n### Shared lesson — **Two of Coins**, upright\n\nThe connection’s card makes communication a matter of coordination, not just conversational chemistry. The Marseille two-pattern’s paired forms suggest dialogue between distinct contributions: two people can work toward one project without having identical methods or availability. Balance here might mean an arrangement both explicitly agree to, rather than an automatic fifty-fifty division.\n\nCoins’ Earth emphasis brings the other cards into everyday practice. The Valet of Epees can keep generating questions, but the project also needs a point at which a decision is clear enough to test. Meanwhile, the reversed Five of Coupes’ possibility of constructive revision becomes more useful when there is an agreed way to change the plan. A brief written recap—what was decided, who owns the next task, and when they will revisit it—could hold those needs together without turning collaboration into paperwork for its own sake.\n\n### Practical ways to try this\n\nFor the question of what could help them communicate well, these three cards suggest a small, repeatable process:\n\n- **Use the Valet of Epees’ curiosity:** begin a planning conversation with one shared question, such as “What needs deciding before we can start?”\n- **Make revision ordinary with the reversed Five of Coupes:** when an idea changes, name one useful part to retain before discussing its replacement.\n- **Ground the Two of Coins:** end with a three-line recap covering the next task, its owner, and an agreed check-in time.\n\n### Closing\n\nTogether, the Valet of Epees, reversed Five of Coupes, and Two of Coins suggest asking clearly, revising respectfully, and making agreements visible. Your choices about which practices to explore—and the collaborators’ decisions about using them—shape the outcomes.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 3644,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2325,
+          "reasoning_output_tokens": 1552
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 102,
+              "sanitizedLength": 102,
+              "eligibleLength": 102,
+              "includedLength": 102,
+              "representedLength": 102,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 108,
+              "sanitizedLength": 108,
+              "eligibleLength": 108,
+              "includedLength": 108,
+              "representedLength": 108,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 0,
+          "candidatesProjected": 0,
+          "projectionRejected": 0,
+          "candidatesScored": 0,
+          "patternsRepresented": 0,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 0,
+          "finalSelectedCount": 0,
+          "retainedPassageCount": 0,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 0,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "no-passages",
+          "parseStatus": "absent",
+          "selectedDeck": "marseille-classic",
+          "sourceDecks": [],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": false,
+          "mode": "none",
+          "passagesProvided": 0,
+          "passagesUsedInPrompt": 0,
+          "passageIndices": [],
+          "skippedReason": "retrieval_failed_or_empty"
+        },
+        "patterns": {
+          "requested": false,
+          "used": false,
+          "patternsProvided": 0,
+          "patternsUsedInPrompt": 0,
+          "skippedReason": "not_requested"
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": false,
+          "skippedReason": "not_relevant"
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "celtic-general-focused-week",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "celtic",
+      "spreadName": "Celtic Cross (Classic 10-Card)",
+      "userQuestion": "What can help me have a focused week?",
+      "reflectionsText": "",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "card": "Eight of Pentacles",
+          "name": "Eight of Pentacles",
+          "canonicalName": "Eight of Pentacles",
+          "canonicalKey": "eight of pentacles",
+          "aliases": [
+            "Eight of Pentacles",
+            "Prudence (Eight of Disks)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Pentacles",
+          "rank": "Eight",
+          "rankValue": 8,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Present — core situation",
+          "meaning": "Mastery through practice, craftsmanship, dedicated work",
+          "userReflection": ""
+        },
+        {
+          "card": "Five of Cups",
+          "name": "Five of Cups",
+          "canonicalName": "Five of Cups",
+          "canonicalKey": "five of cups",
+          "aliases": [
+            "Five of Cups",
+            "Disappointment (Five of Cups)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Five",
+          "rankValue": 5,
+          "deckStyle": "thoth-a1",
+          "orientation": "Reversed",
+          "position": "Challenge — crossing / tension",
+          "meaning": "Acceptance, perspective returning, learning from sorrow",
+          "userReflection": ""
+        },
+        {
+          "card": "The Moon",
+          "name": "The Moon",
+          "canonicalName": "The Moon",
+          "canonicalKey": "the moon",
+          "aliases": [
+            "The Moon"
+          ],
+          "number": 18,
+          "cardNumber": 18,
+          "card_number": 18,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Past — what lies behind",
+          "meaning": "Illusion, fear, anxiety, subconscious, intuition",
+          "userReflection": ""
+        },
+        {
+          "card": "Six of Cups",
+          "name": "Six of Cups",
+          "canonicalName": "Six of Cups",
+          "canonicalKey": "six of cups",
+          "aliases": [
+            "Six of Cups",
+            "Pleasure (Six of Cups)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Six",
+          "rankValue": 6,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Near Future — what lies before",
+          "meaning": "Nostalgia, innocence, kind memories, simple affection",
+          "userReflection": ""
+        },
+        {
+          "card": "Ace of Swords",
+          "name": "Ace of Swords",
+          "canonicalName": "Ace of Swords",
+          "canonicalKey": "ace of swords",
+          "aliases": [
+            "Ace of Swords",
+            "Root of Air (Ace of Swords)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Ace",
+          "rankValue": 1,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Conscious — goals & focus",
+          "meaning": "Clarity, breakthrough, new idea, honest communication",
+          "userReflection": ""
+        },
+        {
+          "card": "Eight of Cups",
+          "name": "Eight of Cups",
+          "canonicalName": "Eight of Cups",
+          "canonicalKey": "eight of cups",
+          "aliases": [
+            "Eight of Cups",
+            "Indolence (Eight of Cups)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Eight",
+          "rankValue": 8,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Subconscious — roots / hidden forces",
+          "meaning": "Walking away, deeper search, leaving what no longer nourishes",
+          "userReflection": ""
+        },
+        {
+          "card": "The Hermit",
+          "name": "The Hermit",
+          "canonicalName": "The Hermit",
+          "canonicalKey": "the hermit",
+          "aliases": [
+            "The Hermit"
+          ],
+          "number": 9,
+          "cardNumber": 9,
+          "card_number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Self / Advice — how to meet this",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "userReflection": ""
+        },
+        {
+          "card": "Three of Wands",
+          "name": "Three of Wands",
+          "canonicalName": "Three of Wands",
+          "canonicalKey": "three of wands",
+          "aliases": [
+            "Three of Wands",
+            "Virtue (Three of Wands)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Three",
+          "rankValue": 3,
+          "deckStyle": "thoth-a1",
+          "orientation": "Reversed",
+          "position": "External Influences — people & environment",
+          "meaning": "Delays, limited foresight, frustration waiting for returns",
+          "userReflection": ""
+        },
+        {
+          "card": "Nine of Swords",
+          "name": "Nine of Swords",
+          "canonicalName": "Nine of Swords",
+          "canonicalKey": "nine of swords",
+          "aliases": [
+            "Nine of Swords",
+            "Cruelty (Nine of Swords)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Swords",
+          "rank": "Nine",
+          "rankValue": 9,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Hopes & Fears — deepest wishes & worries",
+          "meaning": "Anxiety, worry, sleepless thoughts, mental overwhelm",
+          "userReflection": ""
+        },
+        {
+          "card": "Four of Wands",
+          "name": "Four of Wands",
+          "canonicalName": "Four of Wands",
+          "canonicalKey": "four of wands",
+          "aliases": [
+            "Four of Wands",
+            "Completion (Four of Wands)"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Wands",
+          "rank": "Four",
+          "rankValue": 4,
+          "deckStyle": "thoth-a1",
+          "orientation": "Upright",
+          "position": "Outcome — likely path if unchanged",
+          "meaning": "Celebration, stability, milestone reached, supportive community",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "thoth-a1",
+      "reading": "### Opening\n\nYou might recognize the gap between wanting to get on with useful work and not quite feeling ready to give it your full attention. **Prudence (Eight of Disks)** alongside **Disappointment (Five of Cups)** reversed suggests that steady effort and emotional readiness may move at different speeds.\n\nFor your question—“What can help me have a focused week?”—this spread favors manageable commitments over a productivity overhaul. With three Cups cards, what refreshes or drains your attention matters alongside how you organize your tasks.\n\n### The Nucleus: Make Focus Repeatable\n\nYour present card, also labeled **Eight of Pentacles** in the notes, favors practice, craftsmanship, and incremental progress. Its Earth quality makes focus tangible: a defined task, the materials you need, and enough uninterrupted time to make one useful improvement. Rather than measuring the week by how consistently motivated you feel, you might measure how often you return to what matters.\n\nPrudence is particularly helpful when “work on the project” becomes something smaller, such as “draft the opening paragraph.” That gives your attention somewhere specific to land—and gives you a recognizable stopping point.\n\nCrossing this is the Five of Cups reversed. Through the delayed-timing lens, acceptance or a changed perspective may not be available on demand. If an unmet expectation is occupying your thoughts, this card invites you to allow for that without making emotional resolution a prerequisite for beginning. A smaller workload may be more useful than insisting you ought to feel differently first.\n\n### The Timeline: From Uncertainty Toward Enjoyment\n\n**The Moon** upright occupies the past position. It can describe a lead-in marked by uncertainty: perhaps unclear priorities, incomplete information, or difficulty distinguishing a useful concern from a distracting possibility. If that fits, the present Eight of Disks offers a grounded response: work with the next thing you can establish rather than trying to resolve every unknown.\n\nThis is a shift from “What does everything mean?” toward “What is the next workable step?” For this week’s focus, that distinction could save considerable effort.\n\nIn the near future, **Pleasure (Six of Cups)** upright suggests that enjoyment may support your concentration rather than compete with it. Familiar music, an absorbing hobby, or an uncomplicated conversation could illustrate its restorative quality. Notice which breaks leave you more available afterward; the card invites pleasure that refreshes you, rather than a break that quietly becomes the rest of the afternoon.\n\n### Consciousness: Clarity Needs Something Worth Doing\n\nIn the underlying position, **Indolence (Eight of Cups)** upright raises a useful question: is every demand on your attention still worth the effort it receives? The Thoth title is not a judgment about your character. Here, its Water quality can symbolize attention becoming stagnant around something that offers little nourishment or meaningful movement.\n\nBefore treating resistance as a discipline problem, consider whether a task is unclear, unnecessarily large, or no longer relevant. The Eight of Disks can support patient effort, but patience and continuing an outdated task are not necessarily the same thing.\n\nAbove this, your conscious goal is the **Ace of Swords**, the **Root of the Powers of Air**. It favors a clear distinction and a plainly stated intention. You might finish the sentence, “By the end of this week, I want ___ completed.” A specific answer gives Prudence something to build; an ambition such as “be more productive” leaves too much room for renegotiation.\n\n### The Staff: Protect Attention Without Forcing Momentum\n\n**The Hermit** upright, in your advice position, recommends deliberate quiet. For a focused week, this could mean a bounded period without messages, commentary, or fresh input—not withdrawing from everyone indefinitely. The point is to hear your own priorities before other demands fill the available space.\n\nThe Hermit also favors discernment over collecting more advice. If you already have a workable method, experimenting with another elaborate system might simply give you a new task. A modest routine you can actually use fits this position better than an impressive one you continually adjust.\n\nIn external influences, **Virtue (Three of Wands)** reversed suggests that outward development may need more time or better conditions. This might look like waiting for a response, access, or a shared decision; it does not reveal anyone else’s intentions. Keep work that depends on others distinct from work you can advance independently. Preparation can make waiting more useful, but it cannot guarantee the hoped-for opening.\n\nThe hopes-and-fears position holds **Cruelty (Nine of Swords)** upright. Its sharp title can point toward the possibility of turning a focus problem into a harsh personal verdict. If that feels familiar, distinguish observation from accusation: “I switched tasks several times” offers something to examine; “I’m hopeless at this” does not. The Ace of Swords seeks precision, and precision need not be unkind.\n\nFinally, **Completion (Four of Wands)** upright describes a possible trajectory toward a contained achievement and the satisfaction of acknowledging it. It is not a promise that the whole list gets finished. More usefully, it invites a finish line that can genuinely be reached—and permission not to move that line immediately afterward. A focused week could culminate in one finished piece of work rather than five projects kept perpetually open.\n\n### Cross-Checks: Let the Cards Correct Each Other\n\nThe Ace of Swords and Four of Wands work well together: defining “done” gives your effort a destination. The Hermit’s quiet can serve that destination without becoming an end in itself; protected attention is useful when it helps you return with something completed.\n\nThe Six of Cups and Four of Wands introduce a productive tension between enjoyment and achievement. Neither needs to swallow the other. Meanwhile, the Eight of Cups beside the Nine of Swords suggests a question worth keeping nearby: “Does this task need a different approach, or am I blaming myself for finding it unrewarding?” That keeps your review practical rather than punitive.\n\n### Gentle Next Steps\n\nFor a focused week, the clearest combination is Prudence’s repeatable effort, the Ace’s defined priority, and the Four of Wands’ bounded finish. You could try these four small experiments:\n\n- **Choose one weekly finish line.** Following the Ace of Swords and Four of Wands, write an observable result: “Send the draft,” rather than “make progress.”\n- **Protect one short working block.** Give the Eight of Disks and The Hermit twenty-five minutes with one task and unnecessary notifications paused.\n- **Separate “waiting” from “available.”** For the Three of Wands reversed, note blocked items separately and keep one independent next action beside them.\n- **Test a genuinely refreshing break.** Following the Six of Cups, try ten minutes of something enjoyable, then notice whether returning feels easier.\n\nThe approaching Full Moon in about three days could serve as a symbolic review point for your Ace of Swords intention—not a deadline imposed by the sky.\n\n### Closing\n\nPrudence offers the simplest answer to your question: make the work small enough to return to, while leaving room for the Cups’ reminder that attention needs nourishment too. Your choices shape how this week unfolds; the cards offer possibilities, not a fixed outcome.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 6845,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4383,
+          "reasoning_output_tokens": 2913
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": false,
+          "reflectionsUsed": false,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question"
+          ],
+          "usedInputs": [
+            "question"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 37,
+              "sanitizedLength": 37,
+              "eligibleLength": 37,
+              "includedLength": 37,
+              "representedLength": 37,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-3": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-4": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-5": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-6": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-7": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-8": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-9": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 9,
+          "candidatesProjected": 5,
+          "projectionRejected": 4,
+          "candidatesScored": 5,
+          "patternsRepresented": 5,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 5,
+          "finalSelectedCount": 1,
+          "retainedPassageCount": 1,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 4,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "embeddings-not-configured",
+          "parseStatus": "complete",
+          "selectedDeck": "thoth-a1",
+          "sourceDecks": [
+            "thoth-a1"
+          ],
+          "projectionRejectedReasons": {
+            "unverified_matched_subset": 4
+          },
+          "requested": true,
+          "used": true,
+          "mode": "full",
+          "passagesProvided": 1,
+          "passagesUsedInPrompt": 1,
+          "passageIndices": [
+            0
+          ],
+          "skippedReason": null
+        },
+        "patterns": {
+          "requested": true,
+          "used": true,
+          "patternsProvided": 4,
+          "patternsUsedInPrompt": 4,
+          "skippedReason": null
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "delayed",
+        "suitFocus": "3 Cups cards indicate emotional matters, relationships, intuition, and heart-centered concerns are central to this reading.",
+        "archetypeDescription": "Primarily Minor Arcana, focusing on practical, day-to-day dynamics and immediate concerns."
+      }
+    },
+    {
+      "id": "non-english-spanish",
+      "referenceTime": "2026-09-23T14:04:00Z",
+      "spreadKey": "threeCard",
+      "spreadName": "Three-Card Story (Past · Present · Future)",
+      "userQuestion": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
+      "reflectionsText": "Quiero sentirme presente sin perder mi rumbo.",
+      "context": "general",
+      "cardsInfo": [
+        {
+          "card": "The Hermit",
+          "name": "The Hermit",
+          "canonicalName": "The Hermit",
+          "canonicalKey": "the hermit",
+          "aliases": [
+            "The Hermit"
+          ],
+          "number": 9,
+          "cardNumber": 9,
+          "card_number": 9,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Past — influences that led here",
+          "meaning": "Soul-searching, introspection, inner guidance, solitude",
+          "userReflection": ""
+        },
+        {
+          "card": "Eight of Cups",
+          "name": "Eight of Cups",
+          "canonicalName": "Eight of Cups",
+          "canonicalKey": "eight of cups",
+          "aliases": [
+            "Eight of Cups"
+          ],
+          "number": null,
+          "cardNumber": null,
+          "card_number": null,
+          "suit": "Cups",
+          "rank": "Eight",
+          "rankValue": 8,
+          "deckStyle": "rws-1909",
+          "orientation": "Upright",
+          "position": "Present — where you stand now",
+          "meaning": "Walking away, deeper search, leaving what no longer nourishes",
+          "userReflection": ""
+        },
+        {
+          "card": "The Sun",
+          "name": "The Sun",
+          "canonicalName": "The Sun",
+          "canonicalKey": "the sun",
+          "aliases": [
+            "The Sun"
+          ],
+          "number": 19,
+          "cardNumber": 19,
+          "card_number": 19,
+          "suit": null,
+          "rank": null,
+          "rankValue": null,
+          "deckStyle": "rws-1909",
+          "orientation": "Reversed",
+          "position": "Future — trajectory if nothing shifts",
+          "meaning": "Inner child, feeling down, overly optimistic",
+          "userReflection": ""
+        }
+      ],
+      "deckStyle": "rws-1909",
+      "reading": "### Apertura\n\nQuizá reconozcas la sensación de querer estar disponible para tu familia y tu trabajo, mientras buscas espacio para escucharte. También puede aparecer esa inquietud que nombras: estar presente sin perder tu rumbo. La linterna de **The Hermit** abre esta lectura de pasado, presente y futuro condicional con una pregunta: ¿qué te permite acompañar sin quedarte al margen de tu propia vida?\n\n### Pasado: The Hermit al derecho\n\nThe Hermit puede señalar una etapa en la que mirar hacia dentro, observar y resolver por tu cuenta haya sido importante. Su figura solitaria, sostenida por un bastón y alumbrada por una linterna, representa un discernimiento que se construye con pausa, no respondiendo a cada demanda en cuanto aparece.\n\nSi reconoces esa forma de funcionar, quizá te haya dado claridad, aunque también podría haberse convertido en la costumbre de buscar todas las respuestas a solas. Para sostener tu energía, esta carta invita a conservar el espacio de reflexión sin convertirlo en otra responsabilidad individual.\n\nLa linterna ilumina un tramo, no todo el camino: podrías preguntarte qué necesita realmente tu atención hoy y qué puede esperar. Tener rumbo no exige tener resuelta la semana entera.\n\n### Presente: **Eight of Cups** al derecho\n\nAquí aparece una invitación a tomar distancia de aquello que ya no compensa el esfuerzo que recibe. La figura que se aleja de las copas permite una distinción importante para tu pregunta: apartarte de una manera de cuidar no equivale a dejar de cuidar a tu familia ni a desentenderte del trabajo.\n\nEsto podría verse, por ejemplo, como dejar de ofrecerte automáticamente para una tarea antes de comprobar si tienes espacio para ella. Las copas siguen teniendo valor; lo que se reconsidera es cuánto seguir entregando del mismo modo.\n\nLa tierra simbólica de The Hermit ayuda a encauzar el agua de Eight of Cups: primero distinguir, después redirigir el cuidado. Estar presente puede significar ofrecer una atención concreta y limitada, en vez de una disponibilidad indefinida. ¿Qué compromiso podrías simplificar sin abandonar lo que de verdad te importa?\n\n### Futuro si nada cambia: **The Sun** invertida\n\nSi continuara una dinámica en la que lo propio queda siempre para después, The Sun invertida podría representar una alegría aplazada: sacar adelante las cosas, pero encontrar poco espacio para disfrutarlas. En esta posición, leería la inversión como vitalidad que cuesta aprovechar plenamente, no como una pérdida inevitable.\n\nLa escena luminosa, con el niño y los girasoles, conserva una cualidad sencilla y juguetona. Su contraste con la inversión invita a mirar si el disfrute está quedando condicionado a terminarlo todo; con familia y trabajo, esa condición puede alargarse bastante.\n\nEntre el agua de Eight of Cups y el fuego de The Sun hay una tensión útil: atender lo emocional sin relegar aquello que te entusiasma. Podrías reservar algo agradable que no tenga que ser útil, productivo ni compartido para merecer un lugar.\n\n### Síntesis y pasos pequeños\n\nPara sostener tu energía mientras apoyas a tu familia y tu trabajo, la secuencia propone distinguir, soltar una parte y recuperar disfrute. Tu deseo de estar presente sin perder el rumbo encuentra aquí una orientación: elegir dónde participar y con qué medida.\n\nSi te sirve, podrías probar esta semana:\n\n- **Con The Hermit:** reservar cinco minutos antes de empezar el día y escribir una prioridad propia junto a tus compromisos.\n- **Con Eight of Cups:** elegir una tarea pequeña que puedas simplificar o compartir, y hacer una petición concreta: «¿Puedes encargarte de esto esta vez?».\n- **Con The Sun invertida:** dejar diez minutos para algo agradable, sin convertirlo en premio por haber terminado todo.\n\nLa linterna de The Hermit propone atender el siguiente tramo; tus decisiones dan forma a los resultados y pueden modificar esta trayectoria.",
+      "inference": {
+        "provider": "codex-subscription",
+        "model": "gpt-6.1-sol",
+        "modelSource": "configured",
+        "reasoningEffort": "xhigh",
+        "usage": {
+          "input_tokens": 3621,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2376,
+          "reasoning_output_tokens": 1552
+        }
+      },
+      "semanticScoring": null,
+      "sourceUsage": {
+        "spreadCards": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "vision": {
+          "requested": false,
+          "used": false,
+          "eligibleUploads": 0,
+          "telemetryOnlyUploads": 0,
+          "suppressionReasons": null,
+          "diagnosticsIncluded": false,
+          "cardCuesUsed": false,
+          "imageDetailsUsed": false,
+          "evidencePacketsUsed": 0,
+          "evidenceMode": "none",
+          "skippedReason": "not_provided"
+        },
+        "userContext": {
+          "requested": true,
+          "questionProvided": true,
+          "questionUsed": true,
+          "reflectionsProvided": true,
+          "reflectionsUsed": true,
+          "cardReflectionsProvided": false,
+          "cardReflectionsUsed": false,
+          "callerInterpretationsProvided": false,
+          "callerInterpretationsUsed": false,
+          "pathAProvided": false,
+          "pathAUsed": false,
+          "pathBProvided": false,
+          "pathBUsed": false,
+          "focusAreasProvided": false,
+          "focusAreasUsed": false,
+          "displayNameProvided": false,
+          "displayNameUsed": false,
+          "experienceProvided": false,
+          "experienceUsed": false,
+          "toneProvided": false,
+          "toneUsed": false,
+          "frameProvided": false,
+          "frameUsed": false,
+          "depthProvided": false,
+          "depthUsed": false,
+          "used": true,
+          "skippedReason": null,
+          "providedInputs": [
+            "question",
+            "reflections"
+          ],
+          "usedInputs": [
+            "question",
+            "reflections"
+          ],
+          "fields": {
+            "question": {
+              "originalLength": 72,
+              "sanitizedLength": 72,
+              "eligibleLength": 72,
+              "includedLength": 72,
+              "representedLength": 72,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "reflections": {
+              "originalLength": 45,
+              "sanitizedLength": 45,
+              "eligibleLength": 45,
+              "includedLength": 45,
+              "representedLength": 45,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-0": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-1": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            },
+            "card-2": {
+              "originalLength": 0,
+              "sanitizedLength": 0,
+              "eligibleLength": 0,
+              "includedLength": 0,
+              "representedLength": 0,
+              "representationTruncated": false,
+              "sanitizationChanged": false,
+              "sanitizationTruncated": false,
+              "limitApplied": false,
+              "budgetTruncated": false,
+              "omitted": false,
+              "reason": null
+            }
+          }
+        },
+        "graphRAG": {
+          "registryPassageCount": 145,
+          "candidatesDiscovered": 0,
+          "candidatesProjected": 0,
+          "projectionRejected": 0,
+          "candidatesScored": 0,
+          "patternsRepresented": 0,
+          "variantsRemoved": 0,
+          "deduplicatedCandidates": 0,
+          "thresholdRejected": 0,
+          "finalSelectedCount": 0,
+          "retainedPassageCount": 0,
+          "embeddingBatchCount": 0,
+          "embeddingCacheHits": 0,
+          "embeddingInputCount": 0,
+          "embeddingInputCharacters": 0,
+          "embeddingCacheSizeBefore": 0,
+          "embeddingCacheSizeAfter": 0,
+          "embeddingCacheMaxSize": 100,
+          "embeddingPeakConcurrency": 0,
+          "retrievalElapsedMs": 0,
+          "retrievalMode": "semantic",
+          "scoringMethod": "keyword",
+          "semanticScoringFallbackReason": "no-passages",
+          "parseStatus": "absent",
+          "selectedDeck": "rws-1909",
+          "sourceDecks": [],
+          "projectionRejectedReasons": {},
+          "requested": true,
+          "used": false,
+          "mode": "none",
+          "passagesProvided": 0,
+          "passagesUsedInPrompt": 0,
+          "passageIndices": [],
+          "skippedReason": "retrieval_failed_or_empty"
+        },
+        "patterns": {
+          "requested": false,
+          "used": false,
+          "patternsProvided": 0,
+          "patternsUsedInPrompt": 0,
+          "skippedReason": "not_requested"
+        },
+        "ephemeris": {
+          "requested": true,
+          "used": true,
+          "skippedReason": null
+        },
+        "forecast": {
+          "requested": false,
+          "used": false,
+          "skippedReason": "not_requested"
+        },
+        "memories": {
+          "requested": false,
+          "used": false,
+          "candidatesProvided": 0,
+          "memoriesSelected": 0,
+          "memoriesUsedInPrompt": 0,
+          "skippedReason": "not_provided"
+        }
+      },
+      "memoryCounts": {
+        "candidateCount": 0,
+        "selectedCount": 0,
+        "retainedCount": 0,
+        "exclusionReasons": {}
+      },
+      "themesSummary": {
+        "reversalFramework": "contextual",
+        "suitFocus": null,
+        "archetypeDescription": "High Major Arcana presence indicates profound, soul-level themes, karmic patterns, and significant life transitions."
+      }
+    }
+  ]
+}

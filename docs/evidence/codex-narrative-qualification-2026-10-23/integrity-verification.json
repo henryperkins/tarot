@@ -1,0 +1,34 @@
+{
+  "verifiedAt": "2026-10-24T00:48:19.862Z",
+  "sourceCommit": "98106dd895d7c57874614b356f17287681c2e1b5",
+  "sourceIntegrity": {
+    "commit": "98106dd895d7c57874614b356f17287681c2e1b5",
+    "checkedAt": "2026-10-24T00:25:36.467Z",
+    "sourceFileCount": 281,
+    "uncommittedProductionOrScoringFiles": [],
+    "runnerRepairSha256": "b0bd22316aab04ea8cdfdac26a6ec8385aa95376efd5f61f2736a691c701513c",
+    "runnerRepairFile": "services/codex-subscription/runner.mjs"
+  },
+  "runnerRepairSha256": "b0bd22316aab04ea8cdfdac26a6ec8385aa95376efd5f61f2736a691c701513c",
+  "allCompletedSamplesAndPromptHashesVerified": true,
+  "originalDefaultThresholds": true,
+  "completedSamples": 11,
+  "interruptedAttempts": [
+    {
+      "id": "wellbeing-marseille-reset",
+      "reason": "Generator terminated during task interruption; no completed output retained.",
+      "recordedAt": "2026-10-24T00:41:40.290Z"
+    }
+  ],
+  "generationResult": {
+    "code": 0,
+    "finishedAt": "2026-10-24T00:47:48.932Z"
+  },
+  "scoringPassed": true,
+  "qualitativeReviewComplete": true,
+  "trackedChanges": [
+    "services/codex-subscription/runner.mjs"
+  ],
+  "indexUnchanged": true,
+  "untrackedRepoFiles": 0
+}

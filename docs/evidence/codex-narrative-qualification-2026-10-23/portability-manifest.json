@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "qualificationCommit": "98106dd895d7c57874614b356f17287681c2e1b5",
+  "contentPreserved": [
+    "Generated reading text",
+    "System and user prompts",
+    "Per-sample metrics",
+    "Default scoring thresholds",
+    "Historical validation outcomes"
+  ],
+  "artifacts": {
+    "narrative-samples.json": {
+      "sourceArtifact": "narrative-samples.json",
+      "sourceSha256": "b63c6019ff39bf60c64c6293d8e529a4dabb7d373b75dca8faf14788ad843439",
+      "publishedSha256": "b63c6019ff39bf60c64c6293d8e529a4dabb7d373b75dca8faf14788ad843439",
+      "portabilityChanges": []
+    },
+    "qa-provenance.json": {
+      "sourceArtifact": "qa-provenance.json",
+      "sourceSha256": "05461431833006b06a957499227b60722f2ad48443c25f282fdf236b89b9d20e",
+      "publishedSha256": "8393f8cc63c07f4886dcb3d67ab0e8643fc20764cdeb52cbd38b00224b38770c",
+      "portabilityChanges": [
+        "Replaced machine-specific source root with repository root."
+      ]
+    },
+    "narrative-metrics.json": {
+      "sourceArtifact": "narrative-metrics.json",
+      "sourceSha256": "eaf4eb58762ea87143909013e94960c6bc36b2e5964e2c8afc1f357d33ae764e",
+      "publishedSha256": "1064627b9cdfe306013a6cdad01f11d08e5243d62d1afc55650d48fd31c911ef",
+      "portabilityChanges": [
+        "Replaced local artifact paths with bundle-relative paths."
+      ]
+    },
+    "narrative-prompts.json": {
+      "publishedSha256": "eab11a2d889898cd88872a3ea5328665a40ba4ea79aac2599ad97734ac24f843",
+      "portabilityChanges": [
+        "Aggregated the 11 unchanged synthetic prompt records."
+      ]
+    },
+    "qualitative-review.json": {
+      "sourceArtifact": "qualitative-review.json",
+      "sourceSha256": "8f73aa30e2e8667c1dedc97c49764917f5f6e62c2c6ed3f471447f42aee4e7b9",
+      "publishedSha256": "8f73aa30e2e8667c1dedc97c49764917f5f6e62c2c6ed3f471447f42aee4e7b9",
+      "portabilityChanges": []
+    },
+    "integrity-verification.json": {
+      "sourceArtifact": "integrity-verification.json",
+      "sourceSha256": "73ed13f2a01e9fdfb5dfe9704533b72f18d7c5aac88d13ff31d4e1bd11b4c223",
+      "publishedSha256": "73ed13f2a01e9fdfb5dfe9704533b72f18d7c5aac88d13ff31d4e1bd11b4c223",
+      "portabilityChanges": []
+    },
+    "source-integrity.json": {
+      "sourceArtifact": "source-integrity.json",
+      "sourceSha256": "0a04985a26b00534a8f456f790ddb5163a8791f065feb7e251ea244840b676ae",
+      "publishedSha256": "0a04985a26b00534a8f456f790ddb5163a8791f065feb7e251ea244840b676ae",
+      "portabilityChanges": []
+    },
+    "scoring-result.json": {
+      "sourceArtifact": "scoring-result.json",
+      "sourceSha256": "29cbb2151f75f81c13997dff99668ad16ca9e57cc8682e6268300ea27d2363d8",
+      "publishedSha256": "29cbb2151f75f81c13997dff99668ad16ca9e57cc8682e6268300ea27d2363d8",
+      "portabilityChanges": []
+    },
+    "test-summary.json": {
+      "sourceArtifact": "test-summary.json",
+      "sourceSha256": "628a38c893b13dfaec9ebe3ec6d61d88c0677657ea8a159958dea1da85195279",
+      "publishedSha256": "b6b244a24c814654e078d85ef67c0b48e306760c9d74cfa04b5127056fcfb075",
+      "portabilityChanges": [
+        "Redirected historical log references to the sanitized validation extract."
+      ]
+    },
+    "qualification-receipt.json": {
+      "sourceArtifact": "qualification-receipt.json",
+      "sourceSha256": "5eb145805c4cb92b73ec34d0e624c7fbbe1d13fe996b3be9451e9e99be862e39",
+      "publishedSha256": "9957215c1d3cbba94857ad7b379a9870f00cb3abd050837cac511a4536511834",
+      "portabilityChanges": [
+        "Redirected historical log references to the sanitized validation extract; before-publication state remains a historical snapshot."
+      ]
+    },
+    "cli-diagnosis.json": {
+      "sourceArtifact": "cli-diagnosis.json",
+      "sourceSha256": "0402a50836df103d976416ee59e39420b6040c17a225a7de974a7a5e3ebd3092",
+      "publishedSha256": "0402a50836df103d976416ee59e39420b6040c17a225a7de974a7a5e3ebd3092",
+      "portabilityChanges": []
+    },
+    "gate.txt": {
+      "sourceArtifact": "gate.log",
+      "sourceSha256": "faf3f4891cb55ccbf9c42ec65a628566c9fd86eae54723bcb5da909c3b37c9d2",
+      "publishedSha256": "faf3f4891cb55ccbf9c42ec65a628566c9fd86eae54723bcb5da909c3b37c9d2",
+      "portabilityChanges": []
+    },
+    "runner-repair.patch": {
+      "sourceArtifact": "runner-repair.patch",
+      "sourceSha256": "5ef30812cee03f9aff882bebec2d88bdcc39956952afac6492634def01141601",
+      "publishedSha256": "5ef30812cee03f9aff882bebec2d88bdcc39956952afac6492634def01141601",
+      "portabilityChanges": []
+    },
+    "validation.txt": {
+      "publishedSha256": "68f248602144ac0c647012d03892abecdb279a0b1d64bb841b79e49211f27005",
+      "portabilityChanges": [
+        "Extracted full-suite counters and failure without unrelated test output or machine paths; retained complete focused validation output."
+      ]
+    },
+    "README.md": {
+      "sourceArtifact": "qualification.md",
+      "sourceSha256": "cfe834ec651c2668b3d9116cdfaecba7260e15e3700f78a3de460a69bca1b6e9",
+      "publishedSha256": "4691a67f1a4610acd35671b0169b3e4f11331abefbff0b95c22a4d664624e8b8",
+      "portabilityChanges": [
+        "Added evidence status, publication context and relative links; clarified the deployment snapshot as historical."
+      ]
+    },
+    "publication-validation.json": {
+      "publishedSha256": "9d2c2af531dc739f57f4c01913ddc206adbf0b2b40d347370ca50971dd541479",
+      "portabilityChanges": [
+        "New local validation of the publication allowlist; separate from the original qualification run."
+      ]
+    }
+  }
+}

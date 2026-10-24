@@ -1,0 +1,40 @@
+{
+  "fullSuite": {
+    "total": 5429,
+    "passed": 5426,
+    "failed": 1,
+    "skipped": 2,
+    "failedTests": [
+      "cold startup serves callable development JSX after the production build, with optimized DEV false"
+    ],
+    "log": "validation.txt"
+  },
+  "failedTestRecheck": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:31:04.715Z",
+    "passed": 1,
+    "failed": 0,
+    "log": "validation.txt"
+  },
+  "installedCliIsolation": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:22:22.680Z",
+    "passed": 2,
+    "failed": 0,
+    "log": "validation.txt"
+  },
+  "promptAssembly": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:29:57.096Z",
+    "fixtures": 849,
+    "providerBuilds": 2523,
+    "canonDeckProjections": 525,
+    "boundaries": 12
+  },
+  "lint": {
+    "code": 0
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "qualifiedAt": "2026-10-24T00:50:18.769Z",
+  "commit": "98106dd895d7c57874614b356f17287681c2e1b5",
+  "qualification": "passed",
+  "generationProvider": "codex-subscription",
+  "configuredModel": "gpt-6.1-sol",
+  "modelEvidence": "configured",
+  "reasoningEffort": "xhigh",
+  "cliVersion": "0.162.0",
+  "authentication": "ChatGPT subscription",
+  "freshCompletedSamples": 11,
+  "interruptedAttempts": [
+    {
+      "id": "wellbeing-marseille-reset",
+      "reason": "Generator terminated during task interruption; no completed output retained.",
+      "recordedAt": "2026-10-24T00:41:40.290Z"
+    }
+  ],
+  "completeOutputsRetainedAndHashed": true,
+  "unchangedProductionPrompts": true,
+  "unchangedDefaultScoringAndThresholds": true,
+  "spinePassRate": 1,
+  "averageCardCoverage": 1,
+  "issueCounts": {
+    "deterministicLanguageCount": 0,
+    "missingAgencyCount": 0,
+    "hallucinationCount": 0,
+    "suitCountMismatchCount": 0,
+    "harshToneCount": 0,
+    "missingSupportiveToneCount": 0,
+    "questionNotAddressedCount": 0,
+    "templatedRepetitionCount": 0,
+    "flaggedSampleCount": 0
+  },
+  "automatedRubricScores": {
+    "accuracy": 1,
+    "coherence": 1,
+    "agency": 1,
+    "compassion": 1
+  },
+  "qualitativeReview": "No blocking findings across all 11 outputs",
+  "deterministicPromptAssembly": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:29:57.096Z",
+    "fixtures": 849,
+    "providerBuilds": 2523,
+    "canonDeckProjections": 525,
+    "boundaries": 12
+  },
+  "cliIsolation": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:22:22.680Z",
+    "passed": 2,
+    "failed": 0,
+    "log": "validation.txt"
+  },
+  "fullSuite": {
+    "total": 5429,
+    "passed": 5426,
+    "failed": 1,
+    "skipped": 2,
+    "failedTests": [
+      "cold startup serves callable development JSX after the production build, with optimized DEV false"
+    ],
+    "log": "validation.txt"
+  },
+  "failedTestRecheck": {
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T00:31:04.715Z",
+    "passed": 1,
+    "failed": 0,
+    "log": "validation.txt"
+  },
+  "runnerLint": {
+    "code": 0
+  },
+  "deployment": {
+    "worker": "tableau",
+    "id": "eb83c092-eb5b-4f14-8152-3b088dfbd699",
+    "version": "af8edd91-5a28-4f15-a3db-3d68838fe651",
+    "percentage": 100,
+    "verifiedAt": "2026-10-24T00:48:26.401Z"
+  },
+  "scope": {
+    "defaultCorpus": true,
+    "decks": [
+      "rws-1909",
+      "thoth-a1",
+      "marseille-classic"
+    ],
+    "personalizedSampleCount": 0,
+    "visionSampleCount": 0,
+    "servingPath": "direct-backend",
+    "productionProviderInferenceExercised": false,
+    "paidApiFallbackUsed": false
+  },
+  "localChanges": {
+    "path": "services/codex-subscription/runner.mjs",
+    "committed": false,
+    "pushed": false,
+    "redeployed": false
+  },
+  "cleanup": "Automatic approval review blocked removal of local diagnostic database copies; copies remain outside Git."
+}

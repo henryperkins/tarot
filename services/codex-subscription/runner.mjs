@@ -126,8 +126,10 @@ export function buildCodexExecArgs({ model, effort, catalogPath, systemPath, res
     'analytics.enabled': false, suppress_unstable_features_warning: true,
     include_environment_context: false,
     include_permissions_instructions: false, include_apps_instructions: false,
-    include_collaboration_mode_instructions: false, log_dir: path.join(directory, 'logs'),
-    sqlite_home: path.join(directory, 'sqlite')
+    // A fresh sqlite_home backfills the host's existing rollouts before startup,
+    // even for ephemeral runs. Keep the initialized host store; ephemeral mode
+    // and history.persistence=none prevent persisting the inference session.
+    include_collaboration_mode_instructions: false, log_dir: path.join(directory, 'logs')
   };
   const args = ['exec', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--sandbox', 'read-only',
     '--skip-git-repo-check', '--json', '--model', model];

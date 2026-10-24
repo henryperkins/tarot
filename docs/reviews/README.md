@@ -8,6 +8,7 @@ Point-in-time audits, reviews, and reconciliation records. These preserve the st
 
 | Document | Scope |
 | --- | --- |
+| [Codex narrative qualification](../evidence/codex-narrative-qualification-2026-10-23/README.md) | Fresh 11-case qualification for deployed commit 98106dd8 and the Codex runner startup repair. |
 | [Frontend UI review](2026-frontend-ui-review.md) | Historical frontend architecture, UX, accessibility, and performance review. |
 | [Design contract audit](design-contract-responsive-a11y-audit.md) | Responsive and accessibility snapshot against the design contract. |
 | [Test coverage analysis](2026-test-coverage-analysis.md) | Historical coverage audit. |
