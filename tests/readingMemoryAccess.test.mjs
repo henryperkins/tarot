@@ -451,9 +451,10 @@ test('provider fallback recomputes retention for the accepted final capped promp
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
   assert.equal(body.provider, 'openai-native');
-  assert.equal(requests.length, 2);
+  // A rejected Modal answer gets one fresh attempt before the next provider.
+  assert.deepEqual(requests.map(request => (request.url.includes('modal.test') ? 'modal' : 'openai')), ['modal', 'modal', 'openai']);
   const firstBlocks = memory.parseMemoryBlocks(requests[0].payload.messages.at(-1).content);
-  const finalBlocks = memory.parseMemoryBlocks(requests[1].payload.input);
+  const finalBlocks = memory.parseMemoryBlocks(requests.at(-1).payload.input);
   assert.deepEqual([...firstBlocks.keys()], ['memory-0']);
   assert.deepEqual([...finalBlocks.keys()], []);
   const firstNotes = [...firstBlocks.values()].map(block => block.text);

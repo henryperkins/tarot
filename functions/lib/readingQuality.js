@@ -893,6 +893,46 @@ export function buildNarrativeMetrics(readingText, cardsInfo, deckStyle = 'rws-1
   };
 }
 
+const LETTER_SCRIPTS = [
+  ['latin', /\p{Script=Latin}/u],
+  ['han', /\p{Script=Han}/u],
+  ['kana', /[\p{Script=Hiragana}\p{Script=Katakana}]/u],
+  ['hangul', /\p{Script=Hangul}/u],
+  ['cyrillic', /\p{Script=Cyrillic}/u]
+];
+
+/**
+ * Privacy-safe description of a narrative the quality gate rejected: its size,
+ * answer tokens, writing scripts, headings and card names, never the text.
+ * Ordinary English prose runs at about 4-5 characters per answer token.
+ */
+export function summarizeRejectedNarrative(readingText, cardsInfo = [], qualityMetrics = {}, usage = null) {
+  const text = typeof readingText === 'string' ? readingText : '';
+  const letters = text.match(/\p{L}/gu) || [];
+  const scriptCounts = {};
+  for (const letter of letters) {
+    const script = LETTER_SCRIPTS.find(([, pattern]) => pattern.test(letter))?.[0] || 'other';
+    scriptCounts[script] = (scriptCounts[script] || 0) + 1;
+  }
+  const outputTokens = Number(usage?.output_tokens);
+  const reasoningTokens = Number(usage?.output_tokens_details?.reasoning_tokens);
+  const answerTokens = Number.isFinite(outputTokens) && Number.isFinite(reasoningTokens) && outputTokens > reasoningTokens
+    ? outputTokens - reasoningTokens
+    : null;
+  const missing = new Set(qualityMetrics.missingCards || []);
+  return {
+    characters: text.length,
+    answerTokens,
+    charactersPerAnswerToken: answerTokens ? Number((text.length / answerTokens).toFixed(2)) : null,
+    scripts: Object.fromEntries(Object.entries(scriptCounts).map(([script, count]) => [script, Number((count / letters.length).toFixed(2))])),
+    headings: (text.match(/^#{1,6}\s/gm) || []).length,
+    drawnCardsMentioned: (Array.isArray(cardsInfo) ? cardsInfo : [])
+      .map((card) => card?.canonicalName || card?.card)
+      .filter((name) => name && !missing.has(name)),
+    undrawnCardsMentioned: [...new Set([...(qualityMetrics.hallucinatedCards || []), ...(qualityMetrics.undrawnCardAssertions || [])])]
+  };
+}
+
 // ============================================================================
 // Vision Metrics
 // ============================================================================

@@ -55,7 +55,7 @@ The default `TEXT_PROVIDER=legacy` selects the public provider policies below. C
 
 | Capability | Provider order | Local behavior / source |
 | --- | --- | --- |
-| Full reading | `claude-api` → `modal-qwen` → `openai-native` → `local-composer` | Deterministic English narrative fallback; recognized non-English questions require an AI backend. [Registry](../functions/lib/narrativeBackends.js), [reading route](../functions/api/tarot-reading.js) |
+| Full reading | `claude-api` → `modal-qwen` → `openai-native` → `local-composer` | Deterministic English narrative fallback; recognized non-English questions require an AI backend. A `modal-qwen` answer rejected by the structural quality gate gets one fresh attempt when at least 120 seconds of the reading budget remain. Rejected answers are logged as a text-free summary (length, characters per answer token, scripts, headings, card names). [Registry](../functions/lib/narrativeBackends.js), [reading route](../functions/api/tarot-reading.js) |
 | Reading follow-up | `claude-api` → Responses → `modal-qwen` | Provider failures ultimately return a retry error. Repairs use the provider that produced the answer. [reading-followup.js](../functions/api/reading-followup.js) |
 | Journal summary | `claude-api` → Responses → local heuristic | No Modal summary backend. [journal-summary.js](../functions/api/journal-summary.js) |
 | Suggested intention question | Workers AI → local template | Free access uses `local-template` directly; eligible AI failures use `local-fallback`. Independent of `TEXT_PROVIDER`. [generate-question.js](../functions/api/generate-question.js) |
