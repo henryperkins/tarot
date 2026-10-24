@@ -152,12 +152,15 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
       partialTriads: graphRAGStats.patternsDetected.partialTriads || 0,
       foolsJourneyStage: graphRAGStats.patternsDetected.foolsJourneyStage || null,
       totalMajors: graphRAGStats.patternsDetected.totalMajors || 0,
+      majorArcana: graphRAGStats.patternsDetected.majorArcana || 0,
       highDyads: graphRAGStats.patternsDetected.highDyads || 0,
       mediumHighDyads: graphRAGStats.patternsDetected.mediumHighDyads || 0,
       mediumDyads: graphRAGStats.patternsDetected.mediumDyads || 0,
       courtLineages: graphRAGStats.patternsDetected.courtLineages || 0,
       strongSuitProgressions: graphRAGStats.patternsDetected.strongSuitProgressions || 0,
-      emergingSuitProgressions: graphRAGStats.patternsDetected.emergingSuitProgressions || 0
+      emergingSuitProgressions: graphRAGStats.patternsDetected.emergingSuitProgressions || 0,
+      thothSuitPatterns: graphRAGStats.patternsDetected.thothSuitPatterns || 0,
+      marseilleNumerologyPatterns: graphRAGStats.patternsDetected.marseilleNumerologyPatterns || 0
     } : null,
     budgetTrimming: graphRAGStats.truncatedForBudget ? {
       trimmed: true,
