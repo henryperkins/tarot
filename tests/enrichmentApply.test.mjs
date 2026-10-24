@@ -386,3 +386,26 @@ test('successful publication cleanup cannot leave a marker referencing deleted b
   await assert.rejects(fs.readFile(`${w.out}.apply.lock`), { code: 'ENOENT' });
   assert.equal((await w.apply()).applied, 2);
 });
+
+test('generated header and compiled module express registry supplementation and one-variant-per-pattern selection without misleading displacement claims', async t => {
+  const expectedContract = 'Approved context-specific passages supplement the eligible registry without replacing hand-written canon. Retrieval selects one variant per pattern according to relevance, context, and the passage budget.';
+  const renderedEmpty = renderModule([]);
+  assert.ok(renderedEmpty.includes(expectedContract), 'generator template must include the exact contract comment');
+  assert.doesNotMatch(renderedEmpty, /without displacing the hand-written canon/);
+
+  const compiledBytes = await fs.readFile('functions/lib/knowledgeBaseEnrichment.js', 'utf8');
+  assert.ok(compiledBytes.includes(expectedContract), 'compiled knowledgeBaseEnrichment.js must include the exact contract comment');
+  assert.doesNotMatch(compiledBytes, /without displacing the hand-written canon/);
+
+  const w = await workspace(t);
+  await w.write([row()]);
+  await w.apply();
+  const firstGen = await fs.readFile(w.out, 'utf8');
+  assert.ok(firstGen.includes(expectedContract));
+  assert.doesNotMatch(firstGen, /without displacing/);
+  await w.apply();
+  const secondGen = await fs.readFile(w.out, 'utf8');
+  assert.ok(secondGen.includes(expectedContract));
+  assert.doesNotMatch(secondGen, /without displacing/);
+});
+

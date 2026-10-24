@@ -5,9 +5,7 @@
 // (data/enrichment/passage-review-queue.csv). Regenerate with:
 //   npm run enrich:apply
 //
-// Each passage carries a "context" that is more specific than "general", so
-// these deepen a matching reading without displacing the hand-written canon
-// passage for the same card.
+// Approved context-specific passages supplement the eligible registry without replacing hand-written canon. Retrieval selects one variant per pattern according to relevance, context, and the passage budget.
 
 export const ENRICHED_MAJOR_ARCANA_PASSAGES = {
 };
