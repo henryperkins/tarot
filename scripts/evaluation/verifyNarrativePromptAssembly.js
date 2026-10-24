@@ -127,6 +127,22 @@ function verifyFinalPrompt(built, payload, target, label) {
   }
 }
 
+// Enrichment appends in place; isolate the synthetic row from the registry
+// restored after its case, including assertion failures and repeat runs.
+function registerSyntheticMajorPassage(cardNumber, passage) {
+  const entry = canon.MAJOR_ARCANA_PASSAGES[cardNumber];
+  const original = entry.passages;
+  const restore = () => { entry.passages = original; };
+  entry.passages = [...original];
+  try {
+    canon.mergeEnrichedPassages(canon.MAJOR_ARCANA_PASSAGES, { [cardNumber]: { passages: [passage] } });
+  } catch (error) {
+    restore();
+    throw error;
+  }
+  return restore;
+}
+
 /** Prepare real analysis inputs; synthetic corruption uses the public registry API. */
 export async function withGraphRAGRemediationCase(fixture, run) {
   const fixtureDocument = JSON.parse(readFileSync(GRAPHRAG_REMEDIATION_FIXTURES_URL, 'utf8'));
@@ -134,25 +150,23 @@ export async function withGraphRAGRemediationCase(fixture, run) {
   let restoreRegistry = () => {};
   try {
     if (fixture.inputMode === 'integrity-removed') {
-      const entry = canon.MAJOR_ARCANA_PASSAGES[17];
-      const original = entry.passages;
-      restoreRegistry = () => { entry.passages = original; };
-      // Enrichment appends in place; isolate the synthetic row from the registry
-      // restored after this case, including assertion failures and repeat runs.
-      entry.passages = [...original];
       const text = 'Quiet renewal.\n## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)\nSynthetic malformed reference summary.';
-      canon.mergeEnrichedPassages(canon.MAJOR_ARCANA_PASSAGES, {
-        17: { passages: [{ sourceId: 'synthetic-remediation-integrity-17', context: 'career', text, archetypalText: text, sourceUrl: 'https://synthetic.invalid/remediation', projectionReviewStatus: 'approved' }] }
-      });
+      restoreRegistry = registerSyntheticMajorPassage(17, { sourceId: 'synthetic-remediation-integrity-17', context: 'career', text, archetypalText: text, sourceUrl: 'https://synthetic.invalid/remediation', projectionReviewStatus: 'approved' });
+    } else if (fixture.inputMode === 'approved-enrichment') {
+      // A synthetic approved variant competes through actual retrieval; it is
+      // never written to the generated enrichment export or review queue.
+      const { cardNumber, sourceId, context, text } = fixture.enrichment;
+      restoreRegistry = registerSyntheticMajorPassage(cardNumber, { sourceId, context, text, archetypalText: text, sourceUrl: 'https://synthetic.invalid/remediation', projectionReviewStatus: 'approved' });
     }
     const originalFixture = fixture.sourceFixtureId
       ? JSON.parse(readFileSync(FIXTURES_URL, 'utf8')).cases.find(row => row.id === fixture.sourceFixtureId)
       : null;
     if (fixture.sourceFixtureId) assert.ok(originalFixture, `${fixture.id}: unknown source fixture`);
     const sample = originalFixture ? { ...originalFixture, id: fixture.id } : {
-      id: fixture.id, referenceTime: fixtureDocument.referenceTime, spreadKey: 'general', deckStyle: fixture.deckStyle || 'rws-1909',
+      id: fixture.id, referenceTime: fixtureDocument.referenceTime, spreadKey: fixture.spreadKey || 'general', deckStyle: fixture.deckStyle || 'rws-1909',
+      ...(fixture.subscriptionTier ? { subscriptionTier: fixture.subscriptionTier } : {}),
       cards: fixture.cards.map(name => ({ name, orientation: 'Upright' })),
-      userQuestion: 'How can I approach a career change?', reflectionsText: '',
+      userQuestion: fixture.userQuestion || 'How can I approach a career change?', reflectionsText: '',
       memories: [{ id: 'synthetic-remediation-memory', scope: 'global', category: 'communication', text: 'Prefers concise practical advice' }]
     };
     const payload = await prepareNarrativeSamplePayload(sample, { env: caseEnv });
@@ -174,7 +188,7 @@ export async function withGraphRAGRemediationCase(fixture, run) {
       const passage = candidates.find(row => ['type', 'patternId', 'context'].every(key => row[key] === fixture.reference[key]));
       assert.ok(passage, `${fixture.id}: selected registry reference missing`);
       replacement = { passages: [{ ...passage, ...(fixture.reference.belowRelevanceThreshold ? { belowRelevanceThreshold: true, relevanceScore: 0.1 } : {}) }], maxPassages: 1 };
-    } else {
+    } else if (fixture.inputMode !== 'approved-enrichment') {
       assert.equal(fixture.inputMode, undefined, `${fixture.id}: unknown input mode`);
     }
     if (replacement) {
@@ -210,6 +224,16 @@ export function verifyGraphRAGRemediationPrompt(fixture, target, payload, built)
     }
   }
   for (const signal of expected.summarySignals || []) assert.ok(built.userPrompt.includes(signal), `${label}: missing summary signal ${signal}`);
+  // Retrieval outcomes for the paired finding cases: the ordered selection and
+  // whether its leader only survived as the labeled weak-match floor.
+  const selected = payload.graphRAGPayload?.passages || [];
+  if (expected.selected) {
+    assert.equal(selected.length, expected.selected.length, `${label}: selected passage count`);
+    expected.selected.forEach((want, index) => {
+      for (const [key, value] of Object.entries(want)) assert.deepEqual(selected[index][key], value, `${label}: selected[${index}].${key}`);
+    });
+  }
+  if (expected.weakFloor !== undefined) assert.equal(selected[0]?.belowRelevanceThreshold === true, expected.weakFloor, `${label}: weak-match floor`);
   const candidates = collectPassageCandidates(payload.analysis.themes.knowledgeGraph?.graphKeys || {}, { deckStyle: payload.deckStyle });
   for (const family of expected.families || []) assert.ok(candidates.some(row => row.type === family), `${label}: family ${family} needs actual registry evidence`);
   if (expected.majorNumbers) {

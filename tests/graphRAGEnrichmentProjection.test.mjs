@@ -151,5 +151,3 @@ test('either hand-written canon or approved enrichment can win its pattern slot 
   assert.notEqual(canonWins[0].sourceId, 'synthetic-competition-17');
   assert.equal(canonWins[0].isEnriched, false);
 });
-
-

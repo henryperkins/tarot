@@ -408,4 +408,3 @@ test('generated header and compiled module express registry supplementation and 
   assert.ok(secondGen.includes(expectedContract));
   assert.doesNotMatch(secondGen, /without displacing/);
 });
-

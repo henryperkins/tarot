@@ -171,66 +171,138 @@ test('local fallback discards the failed attempt provenance and reports unrender
   assert.ok(result.promptMeta.queryCoverage.some(source => source.id === 'question'));
 });
 
-test('accepted capped provider reports only its own references and memory receipts after a rejected full-reference attempt', async t => {
-  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+async function pipelineOwnerDatabase() {
   const { createD1 } = await import('./helpers/d1Sqlite.mjs');
   const db = await createD1();
   await db.prepare("INSERT INTO users (id,email,username,password_hash,password_salt,created_at,updated_at,is_active,subscription_tier,subscription_status) VALUES ('pipeline-owner','pipeline@example.test','pipeline','synthetic','synthetic',1,1,1,'pro','active')").run();
   await db.prepare("INSERT INTO user_memories (id,user_id,text,category,scope,created_at) VALUES ('private-pipeline-note','pipeline-owner','Navigating career uncertainty','general','global',1)").run();
-  for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
-  const catalog = [...MAJOR_ARCANA, ...MINOR_ARCANA];
-  const acceptedReading = catalog.map(card => `**${card.name}** invites career reflection.`).join(' ') + ' Your choices shape outcomes.';
-  const requests = [];
-  t.mock.method(globalThis, 'fetch', async (url, request) => {
-    const body = JSON.parse(request.body);
-    if (String(url).startsWith('https://modal.test/')) {
-      requests.push({ provider: 'modal', user: body.messages.at(-1).content });
-      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
-    }
-    assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
-    requests.push({ provider: 'openai', user: body.input });
-    return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
-  });
-  const pending = [];
-  const receipts = [];
-  const response = await onRequestPost({
-    request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-      spreadInfo: { name: 'Custom Spread', key: 'custom' },
-      cardsInfo: catalog.map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), position: `Focus ${index}`, orientation: 'Upright', meaning: card.upright, userReflection: 'Career exploration and workplace choices. '.repeat(47) })),
-      userQuestion: 'How can I approach a career change?', reflectionsText: ''
-    }) }),
-    env: {
-      DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_MODEL: 'test', MODAL_STREAM: 'false',
-      OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', OPENAI_STREAMING_ENABLED: 'false',
-      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', READING_TASK_TIMEOUT_MS: '60000'
-    },
-    principal: { userId: 'pipeline-owner' }, waitUntil: promise => pending.push(promise), onReadingMemoryUsage: receipt => receipts.push(receipt)
-  });
-  const body = await response.json();
-  await Promise.all(pending);
-  assert.equal(response.status, 200, JSON.stringify(body));
-  assert.equal(body.provider, 'openai-native');
-  assert.deepEqual(requests.map(request => request.provider), ['modal', 'openai']);
-  assert.equal(parseGraphRAGReferenceBlock(requests[0].user).status, 'complete');
-  assert.deepEqual([...parseMemoryBlocks(requests[0].user).keys()], ['memory-0']);
-  assert.equal(parseGraphRAGReferenceBlock(requests[1].user).status, 'absent');
-  assert.deepEqual([...parseMemoryBlocks(requests[1].user).keys()], []);
-  const graph = body.sourceUsage.graphRAG;
+  return db;
+}
+
+function streamMeta(stream) {
+  assert.match(stream, /event: done/);
+  return JSON.parse(stream.split('\n\n').find(event => event.startsWith('event: meta')).split('\ndata: ')[1]);
+}
+
+async function assertNoAcceptedReferencesOrReceipts(db, metadata, receipts) {
+  const graph = metadata.sourceUsage.graphRAG;
   assert.equal(graph.used, false);
   assert.equal(graph.mode, 'none');
   assert.equal(graph.passagesUsedInPrompt, 0);
   assert.equal(graph.retainedPassageCount, 0);
   assert.deepEqual(graph.passageIndices, []);
-  assert.equal(graph.referenceGuardrailsComplete, false);
-  assert.equal(graph.integrityRemovedBlocks, 0, 'Budget omission is not an integrity rejection');
-  assert.equal(graph.skippedReason, 'removed_for_budget');
-  assert.deepEqual(getTraditionalPassages(body.themes, { sourceUsage: body.sourceUsage }), []);
-  assert.equal(body.sourceUsage.memories.memoriesSelected, 1);
-  assert.equal(body.sourceUsage.memories.memoriesUsedInPrompt, 0);
-  assert.equal(body.sourceUsage.memories.used, false);
+  assert.deepEqual(getTraditionalPassages(metadata.themes, { provider: metadata.provider, sourceUsage: metadata.sourceUsage }), []);
+  assert.equal(metadata.sourceUsage.memories.memoriesUsedInPrompt, 0);
+  assert.equal(metadata.sourceUsage.memories.used, false);
   assert.deepEqual(receipts, []);
   assert.equal((await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first()).last_accessed_at, null);
-  assert.doesNotMatch(JSON.stringify(body.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
+  assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
+}
+
+// The rejected attempt and the accepted capped attempt share the same route
+// loop in every delivery mode; a job adds durable completion and receipts.
+for (const delivery of ['json', 'stream', 'job']) {
+  test(`accepted capped provider reports only its own references and memory receipts after a rejected full-reference attempt (${delivery})`, async t => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+    const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+    const db = await pipelineOwnerDatabase();
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const catalog = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+    const acceptedReading = catalog.map(card => `**${card.name}** invites career reflection.`).join(' ') + ' Your choices shape outcomes.';
+    const requests = [];
+    t.mock.method(globalThis, 'fetch', async (url, request) => {
+      const body = JSON.parse(request.body);
+      if (String(url).startsWith('https://modal.test/')) {
+        requests.push({ provider: 'modal', user: body.messages.at(-1).content });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
+      }
+      assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
+      requests.push({ provider: 'openai', user: body.input });
+      return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
+    });
+    const input = {
+      spreadInfo: { name: 'Custom Spread', key: 'custom' },
+      cardsInfo: catalog.map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), position: `Focus ${index}`, orientation: 'Upright', meaning: card.upright, userReflection: 'Career exploration and workplace choices. '.repeat(47) })),
+      userQuestion: 'How can I approach a career change?', reflectionsText: ''
+    };
+    const routeEnv = {
+      DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_MODEL: 'test', MODAL_STREAM: 'false',
+      OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', OPENAI_STREAMING_ENABLED: 'false',
+      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', READING_TASK_TIMEOUT_MS: '60000'
+    };
+    const pending = [];
+    const receipts = [];
+    let metadata;
+    if (delivery === 'job') {
+      const jobs = createFakeReadingJobs({ env: routeEnv, runReading: context => onRequestPost({ ...context, onReadingMemoryUsage: usage => { receipts.push(usage); context.onReadingMemoryUsage(usage); } }) });
+      t.after(() => { for (const entry of jobs.instances.values()) entry.object.closeSubscribers(); });
+      const started = await startReadingJob({ env: { ...routeEnv, READING_JOBS: jobs.namespace }, payload: input, principal: { userId: 'pipeline-owner' } });
+      assert.equal(started.ok, true, JSON.stringify(started));
+      await jobs.settle();
+      const job = jobs.instances.get(started.jobId).object.job;
+      assert.equal(job.status, 'complete', job.error);
+      metadata = job.meta;
+    } else {
+      const response = await onRequestPost({
+        request: new Request(`https://tableau.test/api/tarot-reading${delivery === 'stream' ? '?stream=true' : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }),
+        env: routeEnv, principal: { userId: 'pipeline-owner' }, waitUntil: promise => pending.push(promise), onReadingMemoryUsage: receipt => receipts.push(receipt)
+      });
+      assert.equal(response.status, 200);
+      metadata = delivery === 'stream' ? streamMeta(await response.text()) : await response.json();
+    }
+    await Promise.all(pending);
+    assert.equal(metadata.provider, 'openai-native');
+    assert.deepEqual(requests.map(request => request.provider), ['modal', 'openai']);
+    assert.equal(parseGraphRAGReferenceBlock(requests[0].user).status, 'complete');
+    assert.deepEqual([...parseMemoryBlocks(requests[0].user).keys()], ['memory-0']);
+    assert.equal(parseGraphRAGReferenceBlock(requests[1].user).status, 'absent');
+    assert.deepEqual([...parseMemoryBlocks(requests[1].user).keys()], []);
+    const graph = metadata.sourceUsage.graphRAG;
+    assert.equal(graph.referenceGuardrailsComplete, false);
+    assert.equal(graph.integrityRemovedBlocks, 0, 'Budget omission is not an integrity rejection');
+    assert.equal(graph.skippedReason, 'removed_for_budget');
+    assert.equal(metadata.sourceUsage.memories.memoriesSelected, 1);
+    await assertNoAcceptedReferencesOrReceipts(db, metadata, receipts);
+  });
+}
+
+test('a rejected OpenAI token stream with references reports only the accepted local fallback provenance', async t => {
+  const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+  const db = await pipelineOwnerDatabase();
+  for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, request) => {
+    assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
+    const body = JSON.parse(request.body);
+    requests.push(body);
+    assert.equal(body.stream, true, 'The rejected attempt must be the live token stream');
+    const text = 'No card coverage.';
+    return new Response(`event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: text })}\n\nevent: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: { status: 'completed', model: 'test-openai', output: [{ type: 'message', content: [{ type: 'output_text', text }] }] } })}\n\n`, { headers: { 'content-type': 'text/event-stream' } });
+  });
+  const pending = [];
+  const receipts = [];
+  const response = await onRequestPost({
+    request: new Request('https://tableau.test/api/tarot-reading?stream=true', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+      userQuestion: 'How can I approach a career change?', reflectionsText: ''
+    }) }),
+    env: {
+      DB: db, OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai',
+      OPENAI_STREAMING_ENABLED: 'true', ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false'
+    },
+    principal: { userId: 'pipeline-owner' }, waitUntil: promise => pending.push(promise), onReadingMemoryUsage: receipt => receipts.push(receipt)
+  });
+  assert.equal(response.status, 200);
+  const metadata = streamMeta(await response.text());
+  await Promise.all(pending);
+  assert.equal(metadata.provider, 'local-composer');
+  assert.equal(requests.length, 1);
+  const user = typeof requests[0].input === 'string' ? requests[0].input : requests[0].input.map(part => part.text || '').join('');
+  assert.equal(parseGraphRAGReferenceBlock(user).status, 'complete');
+  assert.deepEqual([...parseMemoryBlocks(user).keys()], ['memory-0']);
+  await assertNoAcceptedReferencesOrReceipts(db, metadata, receipts);
 });
 
 test('the client never treats the unconditioned preview as retained server references', () => {

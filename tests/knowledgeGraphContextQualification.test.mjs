@@ -18,8 +18,8 @@ test('remediation v1 qualification checks every final mode and all eight registr
   const fixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url), 'utf8'));
   const report = await gate.verifyGraphRAGRemediationFixtures({ fixtures });
   assert.equal(report.readingPromptVersion, '1.6.0');
-  assert.equal(report.casesChecked, 16);
-  assert.equal(report.providerBuildsChecked, 48);
+  assert.equal(report.casesChecked, 23);
+  assert.equal(report.providerBuildsChecked, 69);
   assert.deepEqual(report.executedCaseIds, fixtures.cases.map(row => row.id));
   assert.deepEqual(report.familiesChecked, fixtures.requiredFamilies);
   assert.deepEqual(report.observations['remediation-budget-summary'].modes, { claude: 'summary', openai: 'summary', modal: 'full' });
@@ -35,7 +35,13 @@ test('remediation qualification rejects contradictory expected mode, guardrails 
   for (const [id, expected] of [
     ['remediation-full-multi-major', { mode: 'none' }],
     ['remediation-integrity-removed', { integrityRemovedBlocks: 0 }],
-    ['remediation-summary-court-lineage', { families: ['marseille-numerology'] }]
+    ['remediation-summary-court-lineage', { families: ['marseille-numerology'] }],
+    // Paired finding cases: a new Major must not outrank an existing pattern on
+    // equal evidence, short-word matches must clear the threshold, and an
+    // unmatched context variant must not win.
+    ['remediation-f1-equal-evidence-pattern-first', { selected: [{ type: 'major-arcana', patternId: '9' }, { type: 'triad', patternId: 'strength-hermit-wheel' }] }],
+    ['remediation-f3a-short-words-match', { weakFloor: true }],
+    ['remediation-f2-canon-wins-unmatched-context', { selected: [{ type: 'major-arcana', patternId: '17', isEnriched: true }] }]
   ]) {
     const corrupted = structuredClone(fixtures);
     const row = corrupted.cases.find(item => item.id === id);
@@ -134,8 +140,8 @@ test('deterministic assembly gate exercises the frozen corpus and actual provide
   assert.ok(result.boundaries.slimming.steps > 0);
   assert.equal(result.boundaries['removed-highlights'].used, 0);
   assert.equal(result.boundaries['beyond-old-shortlist'].patternId, '13-17');
-  assert.equal(result.graphRAGRemediation.casesChecked, 16);
-  assert.equal(result.graphRAGRemediation.providerBuildsChecked, 48);
+  assert.equal(result.graphRAGRemediation.casesChecked, 23);
+  assert.equal(result.graphRAGRemediation.providerBuildsChecked, 69);
   assert.equal(result.graphRAGRemediation.readingPromptVersion, '1.6.0');
   assert.equal(result.graphRAGRemediation.fixtureHash, manifest.graphRAGRemediation.rawHash);
 });

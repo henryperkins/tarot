@@ -99,6 +99,69 @@
       "cards": ["The Star"],
       "inputMode": "integrity-removed",
       "expected": { "mode": "none", "omittedReason": "reference_integrity_failed", "retainedPassages": 0, "integrityRemovedBlocks": 2, "integrityRemovalReasons": ["invalid_envelope", "missing_envelope_end", "missing_security_note", "incomplete_summary", "missing_card_guardrail"] }
+    },
+    {
+      "id": "remediation-f1-relevant-major-wins",
+      "finding": "F1",
+      "pair": "failed-before",
+      "sourceFixtureId": "complete-hermit-hangedman-moon",
+      "expected": { "mode": "full", "majorNumbers": [9, 12, 18], "families": ["triad", "fools-journey", "major-arcana"], "selected": [{ "type": "major-arcana", "patternId": "9", "context": "general" }], "weakFloor": false, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f1-equal-evidence-pattern-first",
+      "finding": "F1",
+      "pair": "preserved",
+      "sourceFixtureId": "complete-strength-hermit-wheel",
+      "expected": { "mode": "full", "majorNumbers": [8, 9, 10], "families": ["triad", "major-arcana"], "selected": [{ "type": "triad", "patternId": "strength-hermit-wheel", "context": "general" }, { "type": "major-arcana", "patternId": "9", "context": "general" }], "weakFloor": false, "retainedPassages": 2, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f1-existing-pattern-outranks-new-majors",
+      "finding": "F1",
+      "pair": "preserved",
+      "sourceFixtureId": "paired-marseille-classic-named-decision",
+      "expected": { "mode": "full", "majorNumbers": [7, 20], "families": ["marseille-numerology", "major-arcana"], "selected": [{ "type": "marseille-numerology", "patternId": "2", "context": "general" }], "weakFloor": true, "weakGuardrail": true, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f2-approved-enrichment-wins-matching-context",
+      "finding": "F2",
+      "pair": "contract",
+      "cards": ["The Star"],
+      "spreadKey": "single",
+      "userQuestion": "How can I approach a career change?",
+      "inputMode": "approved-enrichment",
+      "enrichment": { "cardNumber": 17, "sourceId": "synthetic-remediation-enrichment-17", "context": "career", "text": "For a career change, the Star suggests an approach rooted in patient hope: keep one steady practice and let renewal guide each next step." },
+      "expected": { "mode": "full", "selected": [{ "type": "major-arcana", "patternId": "17", "context": "career", "isEnriched": true, "sourceId": "synthetic-remediation-enrichment-17" }], "weakFloor": false, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f2-canon-wins-unmatched-context",
+      "finding": "F2",
+      "pair": "contract",
+      "cards": ["The Star"],
+      "spreadKey": "single",
+      "userQuestion": "What can help me feel hopeful again?",
+      "inputMode": "approved-enrichment",
+      "enrichment": { "cardNumber": 17, "sourceId": "synthetic-remediation-enrichment-17", "context": "career", "text": "For a career change, the Star suggests an approach rooted in patient hope: keep one steady practice and let renewal guide each next step." },
+      "expected": { "mode": "full", "selected": [{ "type": "major-arcana", "patternId": "17", "context": "general", "isEnriched": false }], "weakFloor": true, "weakGuardrail": true, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f3a-short-words-match",
+      "finding": "F3a",
+      "pair": "failed-before",
+      "cards": ["The Tower", "The Star", "The Moon"],
+      "spreadKey": "threeCard",
+      "subscriptionTier": "free",
+      "userQuestion": "How can I find a new job?",
+      "expected": { "mode": "full", "families": ["triad"], "selected": [{ "type": "triad", "patternId": "tower-star-moon", "context": "career" }], "weakFloor": false, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-f3a-unrelated-short-words-stay-weak",
+      "finding": "F3a",
+      "pair": "preserved",
+      "cards": ["The Tower", "The Star", "The Moon"],
+      "spreadKey": "threeCard",
+      "subscriptionTier": "free",
+      "userQuestion": "Is my old car worth the cost?",
+      "expected": { "mode": "full", "families": ["triad"], "selected": [{ "type": "triad", "patternId": "tower-star-moon", "context": "general" }], "weakFloor": true, "weakGuardrail": true, "retainedPassages": 1, "integrityRemovedBlocks": 0 }
     }
   ]
 }

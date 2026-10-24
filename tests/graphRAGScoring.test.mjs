@@ -197,4 +197,3 @@ test('verifyGraphRAGRelevance fails when evidence is missing or mismatched and r
   assert.equal(failedAcceptance.status, 'failed_acceptance_criteria');
   assert.ok(failedAcceptance.acceptanceChecks.newFalsePositives.length > 0);
 });
-
