@@ -1,5 +1,7 @@
 import { getPassagesForPattern, listKnowledgeBasePassages } from './knowledgeBase.js';
 import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
+import { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance } from './graphRAGLexical.js';
+export { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance };
 
 const CONTEXT_ALIASES = {
   grief: ['grief', 'loss', 'mourning', 'bereavement'],
@@ -123,20 +125,6 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
 }
 
 export const normalizePassageText = (text) => text.normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
-// Query values are supplied separately from semantic scaffolding. Strip only
-// explicit labels here as defense for legacy callers; ordinary prose survives.
-const QUERY_STOP_WORDS = new Set('what when where which this that have from with about card cards reading does into your would could should their there them these those will been being were then than'.split(' '));
-const tokenize = text => typeof text === 'string' ? text.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [] : [];
-export function retrievalQueryTerms(query) {
-  const content = typeof query === 'string' ? query.replace(/\b(?:question|reflections):/giu, '') : '';
-  return [...new Set(tokenize(content).filter(word => word.length > 3 && !QUERY_STOP_WORDS.has(word)))];
-}
-export function scoreKeywordRelevance(text, query) {
-  const terms = retrievalQueryTerms(query);
-  if (!terms.length) return 0;
-  const words = new Set(tokenize(text));
-  return terms.filter(term => words.has(term)).length / terms.length;
-}
 
 /** Resolve precedence before choosing any retrieval/scoring helper. */
 export function resolveRetrievalMode({ graphEnabled = true, qualityFilteringDisabled = false, semanticRequested = false, keywordQuery = '' } = {}) {
