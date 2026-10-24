@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "policy": "agent-review-with-owner-exceptions",
   "reviewer": "Codex agent /root",
-  "reviewedAtUtc": "2026-10-24T06:01:55.147Z",
+  "reviewedAtUtc": "2026-10-24T17:09:33.284Z",
   "humanReviewPerformed": false,
-  "scope": "All191 canon/pattern groups remain accepted across1167 variants. Version-only metadata changes revalidated against identical editorial material; the47-output narrative review and three subsequent prompt repairs have separate evidence and live-confirmation boundaries.",
+  "scope": "All 191 editorial groups across 1,167 variants retain their existing agent judgments. The 282 direct-highlight rows change only projectionVersion from reading-1.5.2 to reading-1.6.0; exact text, anchors, source/deck identities and membership were revalidated. Generated-output qualification and external enrichment approval remain separate.",
   "findings": [
     {
       "id": "E1",
@@ -1285,331 +1285,331 @@
     },
     {
       "groupId": "pair:death-temperance-star:14-17",
-      "inputHash": "2a7525f85d486842da9590b17a4eb4a1bf770a5539bc12a86b1f774ef646cdce",
+      "inputHash": "4af85b4a99d9b931a5c35351c73a09945f6c6eae013488e47e0b4d9a02027fb1",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The optional direct theme and pair passage both connect integration with hope; the supplied pair does not assume an absent ending or guaranteed recovery. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The optional direct theme and pair passage both connect integration with hope; the supplied pair does not assume an absent ending or guaranteed recovery. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:death-temperance-star:13-17",
-      "inputHash": "9b1642a9200dafe5cb201431916a6f4c91b88b775e379798cea60f04723f9bfe",
+      "inputHash": "f20d8ea6a7a589770c70825f80e4387c5fd04ff9e72e41c0da8a80368d02f8e8",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Both channels use possibility and avoid the former skipped-integration claim; the absent Temperance stage stays absent. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Both channels use possibility and avoid the former skipped-integration claim; the absent Temperance stage stays absent. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:death-temperance-star:13-14",
-      "inputHash": "773f332c85ae3263cddd9ac0709a12b7385f1c92ae45ea5e6903a7c36a2623f4",
+      "inputHash": "051f31fcd5f58ba5ba619834bb6db3ca5c39c37f813e352025b2dd024a8e57b4",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Change and measured adjustment are supported by Death/Temperance; no missing Star outcome is introduced. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Change and measured adjustment are supported by Death/Temperance; no missing Star outcome is introduced. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:devil-tower-sun:16-19",
-      "inputHash": "5a1047665b91b1ef06491e37c2a895a246708bd11947dc4ec6eae7c3b879a90f",
+      "inputHash": "fc94d4be0b6e89e53c3fa48941e3d36d8316a18a86cd01fd8727295a22a9a406",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair explicitly distinguishes possible upheaval from established events; the direct theme is framed as a possible relation between Tower and Sun. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair explicitly distinguishes possible upheaval from established events; the direct theme is framed as a possible relation between Tower and Sun. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:devil-tower-sun:15-19",
-      "inputHash": "c2dd2a0a83d30091695bf1b4b378e95d9d641b029d68df9d2ffa62aa8bf34490",
+      "inputHash": "15c2825764008a862a6ceeeda3f37fa6f3431f1af28b59f97c5e996a8c03c7a2",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Attachment, clarity and vitality align the direct theme with the pair passage. Neither supplies the missing Tower's sudden rupture. Position and reversal qualifications remain intact. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review.",
+      "notes": "Attachment, clarity and vitality align the direct theme with the pair passage. Neither supplies the missing Tower's sudden rupture. Position and reversal qualifications remain intact. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory.",
       "resolvedFindingIds": [
         "E4"
       ]
     },
     {
       "groupId": "pair:devil-tower-sun:15-16",
-      "inputHash": "904d23a3e83ac68b06a6cf7cb7eda86712fcc961ad55ce642fb6adf120e71dd7",
+      "inputHash": "98e71307f9f80fe275cbb1ccfce05478af39c22ee925d6e22d6d2b83a3970739",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Attachment and disruption correspond to the two drawn cards, while the full pair explicitly avoids asserting a crisis; no absent Sun recovery is added. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Attachment and disruption correspond to the two drawn cards, while the full pair explicitly avoids asserting a crisis; no absent Sun recovery is added. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:hermit-hangedman-moon:12-18",
-      "inputHash": "0976f8ac12acddaac11c33a4e3710341d12d27a5959781ae286dc19c57f8f495",
+      "inputHash": "aa90b28e1632e25c000a7ca93405c806305da57b4f0ef353cbbfcc397f415388",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Suspension and uncertainty are retained; checking impressions against evidence prevents shadow-language from becoming a factual claim. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Suspension and uncertainty are retained; checking impressions against evidence prevents shadow-language from becoming a factual claim. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:hermit-hangedman-moon:9-18",
-      "inputHash": "464c74d656b8212f3857fccb60a643b54239b1979c647dc81dfc9f31b8db64b5",
+      "inputHash": "ad2a95d9b1dce61a48a37d826c50d7c2b78128625afbf015b35d478375e7e8e3",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reflection and uncertainty remain symbolic inner-work themes; the pair explicitly separates impressions from observations. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reflection and uncertainty remain symbolic inner-work themes; the pair explicitly separates impressions from observations. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:hermit-hangedman-moon:9-12",
-      "inputHash": "9a6becc8ad70ec9b01e8f718e781f11e8abaf393f49d5285a1046fab47f48eeb",
+      "inputHash": "1c8d710a6f5e095dcba2c7c3a626594fefe135cdc19b76080bdd934bc740569b",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair permits a useful pause without isolation or indefinite waiting; the direct theme adds no absent Moon imagery or outcome. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair permits a useful pause without isolation or indefinite waiting; the direct theme adds no absent Moon imagery or outcome. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:magician-chariot-world:7-21",
-      "inputHash": "165affa6f5541e655df3d7d79ee74a61ccda496cff093b7d3b4c9a2ab0203e9d",
+      "inputHash": "3e9696fcc4a9eff4667f18e38bcebe21b090373877cdf80e9c1a6918b18994ba",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Direction and completion are explicitly symbolic, and the pair says completion does not establish an achieved outcome; the missing Magician adds no role. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Direction and completion are explicitly symbolic, and the pair says completion does not establish an achieved outcome; the missing Magician adds no role. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:magician-chariot-world:1-21",
-      "inputHash": "477c381f07c1d407500b7cfc5fa55bff01388f0c4b0c3318807e0962b03624c1",
+      "inputHash": "3ed4f0a619f416640c0ca2c95c57bfddf8e4193be4adae2e3bac175d4656adc4",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Skill and integration remain tied to the drawn Magician/World; the pair explicitly avoids assuming work is complete. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Skill and integration remain tied to the drawn Magician/World; the pair explicitly avoids assuming work is complete. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:magician-chariot-world:1-7",
-      "inputHash": "744328e157034157842e737c375b08056726fdf4dc910ee88339a91d91744d15",
+      "inputHash": "9632adda7a5bf462532e6eb6969a0bc0d3a28980990c2b8a7e9d3f52f7314455",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Resources and focused action offer a concrete experiment without promising a World outcome or adding an absent card. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Resources and focused action offer a concrete experiment without promising a World outcome or adding an absent card. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-lovers-hierophant:5-6",
-      "inputHash": "a8cbffe2588dfa8d29a609f22f65e6b07bb74447271b46473e2861f06bd4a62b",
+      "inputHash": "0719bf32d02ee6e7c7c402a613b7bd5105ba1dd84f85e24e73a71b2af991f7fd",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Both channels explore personal values and tradition while preserving freely chosen commitment and agency. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Both channels explore personal values and tradition while preserving freely chosen commitment and agency. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-lovers-hierophant:3-5",
-      "inputHash": "28711704eff468848d9236e3d7211334cdf16d4fd3ec6f5ad09a8c9015bab82b",
+      "inputHash": "613f29f7609f26055d17e582aa467e570af1fbce79984925a618ed2d46e2a26b",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Care and shared practice are supported by the two cards; the pair permits questioning rules rather than assuming an absent choice stage. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Care and shared practice are supported by the two cards; the pair permits questioning rules rather than assuming an absent choice stage. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-lovers-hierophant:3-6",
-      "inputHash": "774b64854f0289cdd6a06ac672d56929470fde98b6b915e4d2eb404852097817",
+      "inputHash": "703d94e5731bc5c0adc0a773dd3d902a8f9065a6b36b1faa94c4ff419990ab15",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Nurture and choice are held together, with capacity and values available for reader interpretation rather than obligation. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Nurture and choice are held together, with capacity and values available for reader interpretation rather than obligation. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:fool-magician-world:1-21",
-      "inputHash": "580cee8e9b234612b20b7a9fc4eaf94ecb4ea536c5a83c3fba5e910b602835a4",
+      "inputHash": "8dbe7693eadc23e6ee7247839233dbc57dd074e131ac167e5437a4c4cf792d0d",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The direct theme is presented as a possible symbolic relation; the pair explicitly keeps completion open and does not import Chariot momentum. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The direct theme is presented as a possible symbolic relation; the pair explicitly keeps completion open and does not import Chariot momentum. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:fool-magician-world:0-21",
-      "inputHash": "ea4251942a8c1f8818dc11944b953b3c9b8ada4c2aeab1c1e3baac997e78fb4d",
+      "inputHash": "8bbe2644942b3cc4f646c18c34eeb03921e44f8f7cfe715eeae1c51cb218e19d",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The leap image is supported by the Fool and the World supplies integration; the pair explicitly rejects assuming a completed cycle, so quantum leap is treated as metaphor rather than physics or prediction. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The leap image is supported by the Fool and the World supplies integration; the pair explicitly rejects assuming a completed cycle, so quantum leap is treated as metaphor rather than physics or prediction. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:fool-magician-world:0-1",
-      "inputHash": "0eebc643cb763b3a1dbdb7ed09a898a2352b7eee52b56fb172eb2bb98cb2f60f",
+      "inputHash": "d891cfb8368a45d8d6b2e34fbce04fe3c72616efbec52ef74b953ee962669f77",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Curiosity and skill remain a small experiment; no missing World completion is promised. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Curiosity and skill remain a small experiment; no missing World completion is promised. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-emperor-hierophant:4-5",
-      "inputHash": "5c5a2932845383ba25aa30e51d63451b06610f5f80653023cf88bf3a308c642c",
+      "inputHash": "035b0152320affd2a1e2fcd9e941a02d33440ea3164e101a7f258d76e27a76d0",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Authority is questioned through purpose, service and accountability; tradition is not automatically validated. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Authority is questioned through purpose, service and accountability; tradition is not automatically validated. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-emperor-hierophant:3-5",
-      "inputHash": "5ac93a4334972442a329530ecddea4b0a6b78a3d2d34b9f9756d24fdfa25e16f",
+      "inputHash": "39aaa81076024a637a0eeacce2a89e837c09c8e11becf0527e07b3d4dfbc5b25",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Nurture and practice stay connected to real needs, with tradition explicitly prevented from becoming automatic authority. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Nurture and practice stay connected to real needs, with tradition explicitly prevented from becoming automatic authority. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:empress-emperor-hierophant:3-4",
-      "inputHash": "7c41c79f888e80d3f4dcf5ec35614042edf93ffb806633de6bfe7af469881274",
+      "inputHash": "61e532aab79970cb0d393a915ba07447c6b0c1712f17081b684772f2539971d1",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Care and flexible boundaries are paired without importing a missing Hierophant institution or family event. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Care and flexible boundaries are paired without importing a missing Hierophant institution or family event. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:wheel-justice-hangedman:11-12",
-      "inputHash": "8f69dbb61fea6151e2e178ee133ce2a26b36ec4596996169618e43739052cebd",
+      "inputHash": "c075c301a3bf81ada9c13ecdf2ddcbdac470a60714f5d42e8dbd7f140c1ba670",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Evidence and another perspective are preserved; delay does not prove any outcome and no absent Wheel event is supplied. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Evidence and another perspective are preserved; delay does not prove any outcome and no absent Wheel event is supplied. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:wheel-justice-hangedman:10-12",
-      "inputHash": "bf7bd84bc892654156dca382e33a9812d1bd2cc6383daff7e2e2681beca5c82a",
+      "inputHash": "6f65cb94d1430efd963205906ee0f78a8d05ee0c27f0198969deafd79aeab6fe",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Changing conditions and another perspective align both channels. The direct theme no longer demands surrender, and the pair preserves agency without the missing Justice stage. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review.",
+      "notes": "Changing conditions and another perspective align both channels. The direct theme no longer demands surrender, and the pair preserves agency without the missing Justice stage. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory.",
       "resolvedFindingIds": [
         "E4"
       ]
     },
     {
       "groupId": "pair:wheel-justice-hangedman:10-11",
-      "inputHash": "96c32e84abf91ee39a96333ee1bfac4a40af83dc06950a5f5df5f6f477b161ea",
+      "inputHash": "b949a197a378699b71fd9d6f0d83c8d04af3f5b1ce1d9e1ec519a369ab0b7461",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair explicitly rejects deserved reward or punishment, keeping changing circumstances separate from personal responsibility. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair explicitly rejects deserved reward or punishment, keeping changing circumstances separate from personal responsibility. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:tower-star-moon:17-18",
-      "inputHash": "387a92bb04a18dc74e9b5acac743a79c779c3aa6aa6f8f09ea162ecf87b125b9",
+      "inputHash": "0ad3717dcac15d8457b08b21759b14e9d560520076dc38c3cd12fa0f4b6efbf5",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Hope and uncertainty coexist; the pair requires observation and does not infer the missing Tower crisis. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Hope and uncertainty coexist; the pair requires observation and does not infer the missing Tower crisis. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:tower-star-moon:16-18",
-      "inputHash": "161930846edae8ef18c77b77e666ee232ee67cc5bf8cf73a45f43d1064f4798f",
+      "inputHash": "d7fbf2a1b7e5fc293edba6a623f9481952a64c20ad76ab489f9d0be3551a6f47",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair asks what is known and unknown without promising the absent Star's recovery; mystery remains symbolic uncertainty. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair asks what is known and unknown without promising the absent Star's recovery; mystery remains symbolic uncertainty. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:tower-star-moon:16-17",
-      "inputHash": "d68b28fa451ba127a48b4d9eb934c12fb61e5fc4f8365e138e7e64888970eb91",
+      "inputHash": "7c687023544ca6b8c1db9bf837b7bf348b795a540b23949586a28d660cf3b3b7",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair explicitly rejects a past crisis or completed recovery claim; the direct theme remains a possible Tower/Star relationship rather than history. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair explicitly rejects a past crisis or completed recovery claim; the direct theme remains a possible Tower/Star relationship rather than history. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:strength-hermit-wheel:9-10",
-      "inputHash": "e65ff7c737eee8e13c67a8537f2a19105286956ea0d66e4dc89f03e9129bb4b7",
+      "inputHash": "f30d934f7ffeec7b707e629f837142836c531574d0183f9563b183e34fb8da4a",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "The pair rejects fixed fate and grounds response in observed conditions; the short accepting-fate theme is read within that qualified symbolic frame. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "The pair rejects fixed fate and grounds response in observed conditions; the short accepting-fate theme is read within that qualified symbolic frame. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:strength-hermit-wheel:8-10",
-      "inputHash": "9b7bb97e4fbefef98a5a4994f69ae0d7f594ada3cee930def3a74edbe00e0f43",
+      "inputHash": "d03d50fd64a8993db994dda437bc6885a846382500017ef9f7a87d19a322b78d",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Resilience and flexibility preserve agency and explicitly avoid self-blame for uncontrollable conditions. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Resilience and flexibility preserve agency and explicitly avoid self-blame for uncontrollable conditions. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "pair:strength-hermit-wheel:8-9",
-      "inputHash": "7a9217807977fdf795a2dadfbe44d22a2a965e37215d756c1444067f17b1d8ec",
+      "inputHash": "86e5fa70d81f881a8cd525b8f9af8c67aab5caccae662a94a5a35ad7e0ea59dd",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Gentleness and reflection remain resources, with explicit protection against isolation from support. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Gentleness and reflection remain resources, with explicit protection against isolation from support. Re-reviewed after the source/version refresh: supplied pair meaning and direct theme are unchanged, and remain separate from revised full-arc prose. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Wands:beginning",
-      "inputHash": "560cb1f991acd093c7fedee4222f3c5d2ecc1202cd8272b692f37c196f61693a",
+      "inputHash": "6f7433062082b140d748947f691df1290ffe991628a95b3030f93cd6f869845b",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed source roles for inspiration, planning and expansion in both channels. Partial references use only their actual members; the full relationship remains conceptual and optional. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed source roles for inspiration, planning and expansion in both channels. Partial references use only their actual members; the full relationship remains conceptual and optional. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Wands:challenge",
-      "inputHash": "d23be77a5777d58625b9be4d42fe87e01b4ce04ab82e424f913077bfa0711e23",
+      "inputHash": "7270b5598d2cffea966800565435b326011bcba9b6820b142dbefd067b0c81b9",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed milestone, competition, recognition and perseverance as card roles. Neither channel treats missing roles as drawn or imposes a personal history or sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed milestone, competition, recognition and perseverance as card roles. Neither channel treats missing roles as drawn or imposes a personal history or sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Wands:mastery",
-      "inputHash": "6e80e11e2eecec6f9efdb05adb65528a1c827f4701cc5bc2df9839168809bc5e",
+      "inputHash": "30dbe2a6a56b3d8db4320368bd0e0e96ac9b4c3f50673b83e471868b266c3318",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed pace, resilience and responsibility. Both channels retain actual ranks, and the complete relationship describes sustainable-effort tensions without forecasting progress or burnout. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed pace, resilience and responsibility. Both channels retain actual ranks, and the complete relationship describes sustainable-effort tensions without forecasting progress or burnout. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Cups:beginning",
-      "inputHash": "dfda8343713043fab45e6e9108ecec42f5de627667179af0075bc31b77975020",
+      "inputHash": "6302955babb1b5773d3229539c146b4341052a45b76dbdb425986535b92eca70",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed openness, reciprocity and community as complementary symbolic themes. Actual member selection controls both direct and retrieved prose. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed openness, reciprocity and community as complementary symbolic themes. Actual member selection controls both direct and retrieved prose. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Cups:challenge",
-      "inputHash": "9916145e835da64aed5e98603696aa559a264b6e530bfa91f7ed33395025291e",
+      "inputHash": "281f488fac29c8cac35c2877e7eadf3545252c72ce1d3cd3a3f1a4a3344c7921",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed withdrawal, mourning, memory and imagined possibilities. Missing Five excludes mourning in retrieved references as well as direct highlights; complete controls retain it as a symbolic role. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed withdrawal, mourning, memory and imagined possibilities. Missing Five excludes mourning in retrieved references as well as direct highlights; complete controls retain it as a symbolic role. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Cups:mastery",
-      "inputHash": "c36bf8d6e0495c92dc621b87a506d7ee3ba6d2f85e0388b2a76b8e92e95545c2",
+      "inputHash": "09ad09263e260a6b2340feba11f23b3a574fa5265176579ce912f5be60be1006",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed release, contentment and shared fulfillment as card meanings. Both channels qualify them as values and themes rather than predicted emotional outcomes. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed release, contentment and shared fulfillment as card meanings. Both channels qualify them as values and themes rather than predicted emotional outcomes. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Swords:beginning",
-      "inputHash": "0fdd0850afbf10cbd9212e32f62e601e5df12ad23c540c6a46bcb2ddd1675ba8",
+      "inputHash": "ff1a5b63ed171b4afb997bcfac16544e47595c1f8d759d74f0c0eaccfcdd701d",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed clarity, indecision and grief as card roles. Only drawn roles appear, and even the complete relationship explicitly avoids a required sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed clarity, indecision and grief as card roles. Only drawn roles appear, and even the complete relationship explicitly avoids a required sequence. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Swords:challenge",
-      "inputHash": "a4bcd8e182b8a51bf39198f9983a3e96749ee5bfd901e0b1982196f28f11b2ba",
+      "inputHash": "77288659ac16c43de1e073756764670028d4e99e2412eea6999b883b9dd0d424",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed rest, conflict, transition and strategy. Actual membership controls roles, and the template compares approaches without inventing personal events. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed rest, conflict, transition and strategy. Actual membership controls roles, and the template compares approaches without inventing personal events. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Swords:mastery",
-      "inputHash": "d3990e1018e0e0f606277384c8057fdf53d5c2353bc6c082e6d7d6d4953708b9",
+      "inputHash": "8cc820bf7e6021ae9f0ac2e808ae31b6eb7c9c597a68bb5718d2c84dba07e4df",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed constraint, anguish and painful ending as optional symbolic themes. Eight/Nine cannot inherit the Ten's ending or recovery; full controls preserve all actual roles. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed constraint, anguish and painful ending as optional symbolic themes. Eight/Nine cannot inherit the Ten's ending or recovery; full controls preserve all actual roles. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Pentacles:beginning",
-      "inputHash": "a95b8fa571bbaf0ed1cb356beb7de360877e7205cbae9c42ae04e4fe1cda3b28",
+      "inputHash": "2ac9c6dd3ee23cc72a9f1d5492b95f1f7d24cd44eeda3fcaf23e29e4c89223ba",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed opportunity, adaptation and expertise/collaboration. Membership limits roles in both channels; these are reflective possibilities rather than evidence of prosperity. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed opportunity, adaptation and expertise/collaboration. Membership limits roles in both channels; these are reflective possibilities rather than evidence of prosperity. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Pentacles:challenge",
-      "inputHash": "601aeed7168e67d4afb8e906111d5ef2cacbb629ba7523eb2e219ab58a7bf3b3",
+      "inputHash": "f540789ee3c06fc6090f664e7d76920968cde7b1ebb23e78c473e93a653920bf",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed holding, hardship, giving and assessment as symbolic roles. Missing ranks add no meaning, and no actual poverty or relief is inferred from the stage alone. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed holding, hardship, giving and assessment as symbolic roles. Missing ranks add no meaning, and no actual poverty or relief is inferred from the stage alone. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "minor:Pentacles:mastery",
-      "inputHash": "251a73b4dc7f22a4b1436a2117ba22ec906ea2673964274be95cb73607908e98",
+      "inputHash": "926ea37d64222f613df56f61db0d148cd6b7854934bfbc4ed00be67dc8631be8",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed practice, independence and legacy. Complete relationships remain symbolic; neither channel guarantees wealth or assumes a family history. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed practice, independence and legacy. Complete relationships remain symbolic; neither channel guarantees wealth or assumes a family history. Rechecked the neutral suit/stage heading: it contributes no absent-member crisis or release. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "court:Wands",
-      "inputHash": "b9d4b44dfa88c7008a51e8f975ec56aecee2202083ca618259cfbdc0e2d6bc56",
+      "inputHash": "6a9e15694b94709a24c5cbe447aa371755600f387e26ff2d167603d730de4bdf",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed all four new roles: curiosity/inspiration, bold initiative, warmth/confidence, vision/leadership. Every two-, three- and four-rank subset keeps only its actual approaches and selected-deck names. No allies or team are invented. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed all four new roles: curiosity/inspiration, bold initiative, warmth/confidence, vision/leadership. Every two-, three- and four-rank subset keeps only its actual approaches and selected-deck names. No allies or team are invented. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "court:Cups",
-      "inputHash": "06780870140fb0490548e79c21e5b9a1d6c07b6a4556090452c7c134980066d6",
+      "inputHash": "209866b60febc1c089e14b7f6af6766562ade05035d93eae1e7b9bb49a476fe2",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed openness/imagination, idealism/romantic expression, receptivity/empathy and emotional steadiness/compassionate leadership. Missing Knight contributes no pursuit role. Figures remain symbolic, without family or relationship claims. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed openness/imagination, idealism/romantic expression, receptivity/empathy and emotional steadiness/compassionate leadership. Missing Knight contributes no pursuit role. Figures remain symbolic, without family or relationship claims. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "court:Swords",
-      "inputHash": "3a15f01dafff0e45446e0587e70f938166bf2b41e3d93358cd423915f24019bd",
+      "inputHash": "c83abb6f3bb660a4b5353da5b5713128449276eee206c31734c64f679380d4e0",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed inquiry/alertness, assertive ideas, discernment/boundaries and reasoned judgment/ethical authority. Subsets remain distinct and optional, without inventing people, legal outcomes or conflict. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed inquiry/alertness, assertive ideas, discernment/boundaries and reasoned judgment/ethical authority. Subsets remain distinct and optional, without inventing people, legal outcomes or conflict. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     },
     {
       "groupId": "court:Pentacles",
-      "inputHash": "227f7eae4f1787d2e35fd290820d5544efded56c5413632aa865d1511f7cae9a",
+      "inputHash": "bed6053acf942f5bac681e88c39aca5bed44b2158d5c514aa8eb450772c879ec",
       "reviewerType": "agent",
       "status": "accepted",
-      "notes": "Reviewed study, dependable effort, practical care and resource management. Subsets preserve selected-deck court identities and imply neither available support nor wealth. Complete means all four actual ranks. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review."
+      "notes": "Reviewed study, dependable effort, practical care and resource management. Subsets preserve selected-deck court identities and imply neither available support nor wealth. Complete means all four actual ranks. Revalidated unchanged editorial meaning and source/deck identities after the 1.5.2 prompt-version metadata update; the separate generated-output findings remain recorded in the narrative review. Revalidated at reading prompt 1.6.0: only projectionVersion metadata changed; all text, anchors, source/deck identities and group membership match the accepted 1.5.2 inventory."
     }
   ]
 }
