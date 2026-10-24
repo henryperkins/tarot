@@ -26,7 +26,7 @@ export const VERSION_HISTORY = [
     date: '2026-10-24',
     notes: 'Complete offline GraphRAG preservation and final-prompt provenance remediation.',
     changes: [
-      'Enumerate every drawn Major, scope context variants to matching questions, and use conservative lexical normalization with semantic-primary relevance composition.',
+      'Enumerate every drawn Major, scope context variants to matching questions, and use conservative lexical normalization. Restore legacy weighted relevance after the proposed semantic-primary policy failed qualification; F3b remains unresolved.',
       'Cover all eight registry-backed pattern families in summaries and preserve graph envelopes and conditional guardrails atomically through truncation.',
       'Enforce final reference integrity before token accounting, source usage, memory retention and provider handoff; expose bounded omission diagnostics without reference text.',
       'Qualify final full, summary, omitted and rejected references across provider request serialization; live embeddings and generated-reading qualification remain separate.'

@@ -17,7 +17,8 @@ import {
   composeRelevanceScore,
   composeLegacyWeightedRelevanceScore,
   DEFAULT_RELEVANCE_THRESHOLD,
-  RELEVANCE_SCORING_POLICY_ID
+  RELEVANCE_SCORING_POLICY_ID,
+  RELEVANCE_SCORING_FORMULA
 } from '../../functions/lib/graphRAGScoring.js';
 import { cosineSimilarity } from '../../functions/lib/embeddings.js';
 import { PARTIAL_PROJECTION_VERSION } from '../../functions/lib/knowledgeBasePartialProjections.js';
@@ -315,7 +316,7 @@ export function evaluateGraphRAGRelevance({ fixturesDoc, evidenceDoc, fixturesRa
     status: acceptancePassed ? 'passed' : 'failed_acceptance_criteria',
     policy: {
       id: RELEVANCE_SCORING_POLICY_ID,
-      formula: 's + 0.3 * k * (1 - s)',
+      formula: RELEVANCE_SCORING_FORMULA,
       baselineFormula: '0.3 * k + 0.7 * s',
       threshold: DEFAULT_RELEVANCE_THRESHOLD,
       lexicalVersion: LEXICAL_NORMALIZATION_VERSION,
