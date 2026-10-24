@@ -14,6 +14,7 @@ import {
 } from './constants.js';
 import { getDeckStyleNotes } from './deckStyle.js';
 import { buildGraphRAGReferenceBlock } from './graphRAGReferenceBlock.js';
+import { READING_INSTRUCTIONS_START_MARKER } from './graphRAGPromptIntegrity.js';
 import {
   buildUploadedVisibleEvidenceSection,
   buildVisionValidationSection
@@ -293,7 +294,8 @@ export function buildUserPrompt(
   }
 
   // Instructions (minimal - detailed rules are in system prompt)
-  prompt += `\n${USER_PROMPT_INSTRUCTION_HEADER}
+  const instructionPrefix = graphRAGSection ? `\n${READING_INSTRUCTIONS_START_MARKER}\n` : '\n';
+  prompt += `${instructionPrefix}${USER_PROMPT_INSTRUCTION_HEADER}
 - Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
 - Reference each card by name at least once
 - CARD NAME CONTRACT: Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate only the surrounding prose, headers, positions, and guidance.

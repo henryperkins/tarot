@@ -1,6 +1,18 @@
 import { createTokenEstimator, PromptBudgetError } from './budgeting.js';
 import { USER_PROMPT_INSTRUCTION_HEADER } from './constants.js';
 import { parseUserContext, fitUserContext } from './userContext.js';
+import {
+  GRAPHRAG_FULL_START_MARKER,
+  GRAPHRAG_FULL_END_MARKER,
+  GRAPHRAG_SUMMARY_START_MARKER,
+  GRAPHRAG_SUMMARY_END_MARKER,
+  GRAPHRAG_FULL_HEADER,
+  GRAPHRAG_SUMMARY_HEADER,
+  READING_INSTRUCTIONS_START_MARKER,
+  findLineMarkerMatches,
+  enforceGraphRAGPromptIntegrity,
+  stripGraphRAGSegmentsForPrefixFallback
+} from './graphRAGPromptIntegrity.js';
 
 function dropIncompleteReadingContextLines(text) {
   // Reading context is serialized on one line. Keep each data boundary intact
@@ -13,14 +25,16 @@ function dropIncompleteReadingContextLines(text) {
 
 function truncatePrefixToTokenBudget(text, maxTokens, estimator) {
   if (maxTokens <= 0) return '';
+  const safeText = stripGraphRAGSegmentsForPrefixFallback(text);
+  if (!safeText) return '';
 
   // Find a prefix length that reliably fits under the budget according to our
   // estimator. This avoids drift when repeated truncation is applied.
   let lo = 0;
-  let hi = text.length;
+  let hi = safeText.length;
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    const candidate = text.slice(0, mid);
+    const candidate = safeText.slice(0, mid);
     if (estimator.estimate(candidate) <= maxTokens) {
       lo = mid;
     } else {
@@ -29,7 +43,7 @@ function truncatePrefixToTokenBudget(text, maxTokens, estimator) {
   }
 
   // Try to truncate at a paragraph boundary
-  let truncated = text.slice(0, lo);
+  let truncated = safeText.slice(0, lo);
   const lastParagraph = truncated.lastIndexOf('\n\n');
 
   if (lastParagraph > truncated.length * 0.7) {
@@ -54,13 +68,15 @@ function truncatePrefixToTokenBudget(text, maxTokens, estimator) {
 
 function truncateSuffixToTokenBudget(text, maxTokens, estimator) {
   if (maxTokens <= 0) return '';
+  const safeText = stripGraphRAGSegmentsForPrefixFallback(text);
+  if (!safeText) return '';
 
   // Find a suffix length that reliably fits under the budget.
   let lo = 0;
-  let hi = text.length;
+  let hi = safeText.length;
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2);
-    const candidate = text.slice(text.length - mid);
+    const candidate = safeText.slice(safeText.length - mid);
     if (estimator.estimate(candidate) <= maxTokens) {
       lo = mid;
     } else {
@@ -68,7 +84,7 @@ function truncateSuffixToTokenBudget(text, maxTokens, estimator) {
     }
   }
 
-  let truncated = text.slice(text.length - lo);
+  let truncated = safeText.slice(safeText.length - lo);
   const firstParagraph = truncated.indexOf('\n\n');
 
   if (firstParagraph !== -1 && firstParagraph < truncated.length * 0.3) {
@@ -154,6 +170,8 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
     combined = [headText, tailText].filter(Boolean).join(separator).trim();
   }
 
+  combined = enforceGraphRAGPromptIntegrity(combined).text;
+
   return {
     text: combined,
     truncated: true,
@@ -162,8 +180,8 @@ export function truncateToTokenBudget(text, maxTokens, options = {}) {
 }
 
 const USER_PROMPT_INSTRUCTION_MARKER = USER_PROMPT_INSTRUCTION_HEADER;
-const USER_PROMPT_GRAPHRAG_MARKER = '## TRADITIONAL WISDOM (GraphRAG)';
-const USER_PROMPT_GRAPHRAG_SUMMARY_MARKER = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
+const USER_PROMPT_GRAPHRAG_MARKER = GRAPHRAG_FULL_HEADER;
+const USER_PROMPT_GRAPHRAG_SUMMARY_MARKER = GRAPHRAG_SUMMARY_HEADER;
 const USER_PROMPT_CARD_BOUNDARY_MARKERS = [
   '**Thoth Titles & Decans**',
   '**Marseille Pip Themes**',
@@ -171,11 +189,15 @@ const USER_PROMPT_CARD_BOUNDARY_MARKERS = [
   '**VISION VALIDATION**',
   '**Vision Validation**',
   '**Returning Querent Context**:',
+  GRAPHRAG_FULL_START_MARKER,
+  GRAPHRAG_SUMMARY_START_MARKER,
   USER_PROMPT_GRAPHRAG_MARKER,
   USER_PROMPT_GRAPHRAG_SUMMARY_MARKER
 ];
 
 const USER_PROMPT_GRAPHRAG_MARKERS = [
+  GRAPHRAG_FULL_START_MARKER,
+  GRAPHRAG_SUMMARY_START_MARKER,
   USER_PROMPT_GRAPHRAG_MARKER,
   USER_PROMPT_GRAPHRAG_SUMMARY_MARKER
 ];
@@ -265,8 +287,12 @@ function fitInstructionBlockToBudget(instructions, maxTokens, estimator) {
     return '';
   }
 
-  const header = lines[0];
-  const bullets = lines.slice(1);
+  const hasReservedPrefix = lines[0] === READING_INSTRUCTIONS_START_MARKER;
+  if (hasReservedPrefix && lines.length < 2) {
+    return '';
+  }
+  const header = hasReservedPrefix ? `${lines[0]}\n${lines[1]}` : lines[0];
+  const bullets = hasReservedPrefix ? lines.slice(2) : lines.slice(1);
   const selected = [];
   const seen = new Set();
 
@@ -287,7 +313,7 @@ function fitInstructionBlockToBudget(instructions, maxTokens, estimator) {
 
   const parts = [];
   if (!appendInstructionLine(parts, header, maxTokens, estimator)) {
-    return truncatePrefixToTokenBudget(header, maxTokens, estimator);
+    return hasReservedPrefix ? '' : truncatePrefixToTokenBudget(header, maxTokens, estimator);
   }
 
   for (const line of selected) {
@@ -375,9 +401,44 @@ function appendWithinBudget(parts, segmentText, maxTokens, options = {}) {
   return { added: true, truncated: true };
 }
 
+function findSafeInstructionStartIndex(safeText) {
+  const reservedMatches = findLineMarkerMatches(safeText, READING_INSTRUCTIONS_START_MARKER);
+  if (reservedMatches.length > 0) {
+    return reservedMatches[0].start;
+  }
+
+  const graphMarkerIdx = findFirstMarkerIndex(safeText, USER_PROMPT_GRAPHRAG_MARKERS);
+  if (graphMarkerIdx === -1) {
+    return safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+  }
+
+  const fullEndMatches = findLineMarkerMatches(safeText, GRAPHRAG_FULL_END_MARKER);
+  const summaryEndMatches = findLineMarkerMatches(safeText, GRAPHRAG_SUMMARY_END_MARKER);
+  const endEnvelope = [...fullEndMatches, ...summaryEndMatches].sort((a, b) => b.end - a.end)[0];
+  if (endEnvelope && endEnvelope.end > graphMarkerIdx) {
+    return safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER, endEnvelope.end);
+  }
+
+  const hasEnvelopeStart =
+    findLineMarkerMatches(safeText, GRAPHRAG_FULL_START_MARKER).length > 0 ||
+    findLineMarkerMatches(safeText, GRAPHRAG_SUMMARY_START_MARKER).length > 0;
+  if (hasEnvelopeStart) {
+    return -1;
+  }
+
+  const refStart = safeText.indexOf('<reference>', graphMarkerIdx);
+  if (refStart !== -1) {
+    const refEnd = safeText.indexOf('</reference>', refStart);
+    if (refEnd === -1) return -1;
+    return safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER, refEnd + '</reference>'.length);
+  }
+
+  return safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER, graphMarkerIdx);
+}
+
 function splitUserPromptSections(text, spreadKey) {
   const safeText = typeof text === 'string' ? text : '';
-  const instructionIdx = safeText.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+  const instructionIdx = findSafeInstructionStartIndex(safeText);
   const instructionsStart = instructionIdx >= 0 ? instructionIdx : safeText.length;
 
   const normalizedSpreadKey = normalizeSpreadKey(spreadKey);
@@ -462,9 +523,21 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   }
 
   const originalTokens = estimator.estimate(text);
-  if (originalTokens <= maxTokens) {
+  if (maxTokens <= 0) {
+    return { text: '', truncated: true, originalTokens, preservedSections: [] };
+  }
+
+  const initialIntegrity = enforceGraphRAGPromptIntegrity(text, {
+    expectedPassages: options.expectedPassages
+  });
+  if (!initialIntegrity.changed && originalTokens <= maxTokens) {
     return { text, truncated: false, originalTokens, preservedSections: [] };
   }
+  if (initialIntegrity.changed && originalTokens <= maxTokens) {
+    return { text: initialIntegrity.text, truncated: true, originalTokens, preservedSections: [] };
+  }
+
+  const workingText = text;
 
   if (typeof options.cardInventory === 'string' && options.cardInventory.trim() && !options.inventoryAllocated) {
     // Reserve the complete canonical spread before fitting verbose prose. A
@@ -472,7 +545,7 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     const inventory = options.cardInventory.trim();
     const available = maxTokens - estimator.estimate(inventory) - estimator.estimate('\n\n') - 12;
     if (available <= 0) throw new PromptBudgetError();
-    const body = truncateUserPromptSafely(text, available, {
+    const body = truncateUserPromptSafely(workingText, available, {
       ...options, estimator, cardInventory: undefined, inventoryAllocated: true
     });
     const result = [inventory, body.text].filter(Boolean).join('\n\n');
@@ -485,43 +558,72 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     };
   }
 
-  const userContext = parseUserContext(text);
+  const userContext = parseUserContext(workingText);
   if (userContext.size && !options.contextAllocated) {
     // Allocate explicit current context separately from verbose derived card
     // prose. Keep the question first, share the remainder across reflections,
     // and retain both ends of each field instead of silently losing its tail.
-    const stripped = text.replace(/^.*<user_context source="[^"]+">[^\n]*?<\/user_context>[^\n]*\n?/gm, '');
-    const instructionIdx = stripped.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
+    const stripped = workingText.replace(/^.*<user_context source="[^"]+">[^\n]*?<\/user_context>[^\n]*\n?/gm, '');
+    const instructionIdx = findSafeInstructionStartIndex(stripped);
     const instructions = instructionIdx < 0 ? '' : stripped.slice(instructionIdx).trim();
     const instructionTokens = estimator.estimate(instructions);
-    const baseReserve = Math.min(
-      estimator.estimate(stripped),
-      instructionTokens + Math.ceil(Math.max(0, maxTokens - instructionTokens) * 0.5)
-    );
-    const contextBudget = Math.max(0, maxTokens - baseReserve - 10);
-    const parts = [];
-    const question = userContext.get('question');
-    if (question !== undefined) {
-      const fitted = fitUserContext('question', question, contextBudget, { estimator });
-      if (fitted) parts.push(`**Question**: ${fitted}`);
+
+    let effectiveBudget = maxTokens;
+    let packedResult = '';
+    let packedPreserved = [];
+
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const baseReserve = Math.min(
+        estimator.estimate(stripped),
+        instructionTokens + Math.ceil(Math.max(0, effectiveBudget - instructionTokens) * 0.5)
+      );
+      const contextBudget = Math.max(0, effectiveBudget - baseReserve - 10);
+      const parts = [];
+      const question = userContext.get('question');
+      if (question !== undefined) {
+        const fitted = fitUserContext('question', question, contextBudget, { estimator });
+        if (fitted) parts.push(`**Question**: ${fitted}`);
+      }
+      const remaining = [...userContext.entries()].filter(([source]) => source !== 'question');
+      // Small sources go first so unused shares flow to larger fields.
+      remaining.sort((a, b) => JSON.stringify(a[1]).length - JSON.stringify(b[1]).length);
+      remaining.forEach(([source, value], index) => {
+        const available = Math.max(0, contextBudget - estimator.estimate(parts.join('\n\n')));
+        const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
+        const fitted = fitUserContext(source, value, share, { estimator });
+        if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : source.startsWith('interpretation-') ? `Untrusted caller interpretation for card ${Number(source.slice(15)) + 1}:` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
+      });
+      const contextText = parts.join('\n\n');
+      const baseBudget = Math.max(0, effectiveBudget - estimator.estimate(contextText) - 10);
+      const base = truncateUserPromptSafely(stripped, baseBudget, { ...options, estimator, contextAllocated: true });
+      const baseInstructionIdx = findSafeInstructionStartIndex(base.text);
+      const body = baseInstructionIdx < 0 ? base.text : base.text.slice(0, baseInstructionIdx).trim();
+      const tail = baseInstructionIdx < 0 ? '' : base.text.slice(baseInstructionIdx);
+      const assembled = enforceGraphRAGPromptIntegrity(
+        [contextText, body, tail].filter(Boolean).join('\n\n'),
+        { expectedPassages: options.expectedPassages }
+      ).text;
+      packedResult = assembled;
+      packedPreserved = ['user-context', ...base.preservedSections];
+      const estimated = estimator.estimate(assembled);
+      if (estimated <= maxTokens) {
+        return { text: assembled, truncated: true, originalTokens, preservedSections: packedPreserved };
+      }
+      const overshoot = Math.max(4, estimated - maxTokens + 4);
+      effectiveBudget = Math.max(0, effectiveBudget - overshoot);
     }
-    const remaining = [...userContext.entries()].filter(([source]) => source !== 'question');
-    // Small sources go first so unused shares flow to larger fields.
-    remaining.sort((a, b) => JSON.stringify(a[1]).length - JSON.stringify(b[1]).length);
-    remaining.forEach(([source, value], index) => {
-      const available = Math.max(0, contextBudget - estimator.estimate(parts.join('\n\n')));
-      const share = Math.max(0, Math.floor(available / (remaining.length - index)) - 20);
-      const fitted = fitUserContext(source, value, share, { estimator });
-      if (fitted) parts.push(`${source === 'reflections' ? "**Querent's Reflections**:" : source === 'pathA' || source === 'pathB' ? `Path ${source.slice(-1)} (card ${source === 'pathA' ? 2 : 3}):` : source.startsWith('interpretation-') ? `Untrusted caller interpretation for card ${Number(source.slice(15)) + 1}:` : `Reflection for card ${Number(source.slice(5)) + 1}:`} ${fitted}`);
+
+    const fallbackRepack = truncateUserPromptSafely(packedResult || workingText, maxTokens, {
+      ...options,
+      estimator,
+      contextAllocated: true
     });
-    const contextText = parts.join('\n\n');
-    const baseBudget = Math.max(0, maxTokens - estimator.estimate(contextText) - 10);
-    const base = truncateUserPromptSafely(stripped, baseBudget, { ...options, estimator, contextAllocated: true });
-    const baseInstructionIdx = base.text.indexOf(USER_PROMPT_INSTRUCTION_MARKER);
-    const body = baseInstructionIdx < 0 ? base.text : base.text.slice(0, baseInstructionIdx).trim();
-    const tail = baseInstructionIdx < 0 ? '' : base.text.slice(baseInstructionIdx);
-    const result = [contextText, body, tail].filter(Boolean).join('\n\n');
-    return { text: result, truncated: true, originalTokens, preservedSections: ['user-context', ...base.preservedSections] };
+    return {
+      text: fallbackRepack.text,
+      truncated: true,
+      originalTokens,
+      preservedSections: fallbackRepack.preservedSections
+    };
   }
 
   const {
@@ -531,18 +633,19 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     optionalContext,
     graphRAGText,
     instructions
-  } = splitUserPromptSections(text, options.spreadKey);
+  } = splitUserPromptSections(workingText, options.spreadKey);
 
   const separatorTokens = estimator.estimate('\n\n');
   // The full footer outranks optional intro/enrichment when it fits alongside
   // the question and drawn cards. A percentage-only reserve lets those optional
   // sections crowd out action, card-name and ethics instructions unnecessarily.
   const coreWithInstructions = [questionBlock, cardsText, instructions].filter(Boolean).join('\n\n');
+  const instructionTokens = instructions ? estimator.estimate(instructions) : 0;
   const instructionReserve = instructions
     ? Math.min(
-      estimator.estimate(instructions),
-      estimator.estimate(coreWithInstructions) <= maxTokens
-        ? estimator.estimate(instructions)
+      instructionTokens,
+      instructionTokens <= 320 && estimator.estimate(coreWithInstructions) <= maxTokens
+        ? instructionTokens
         : Math.max(80, Math.floor(maxTokens * 0.18))
     )
     : 0;
@@ -563,6 +666,10 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     if (segment.key === 'graphrag') {
       const raw = typeof segment.value === 'string' ? segment.value.trim() : '';
       if (!raw) continue;
+      const integrityCheck = enforceGraphRAGPromptIntegrity(raw, {
+        expectedPassages: options.expectedPassages
+      });
+      if (integrityCheck.changed || integrityCheck.text !== raw) continue;
       const currentText = bodyParts.filter(Boolean).join('\n\n').trim();
       const candidate = [currentText, raw].filter(Boolean).join('\n\n').trim();
       if (estimator.estimate(candidate) <= bodyBudget) {
@@ -596,12 +703,23 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     }
   }
 
-  let resultText = finalParts.join('\n\n').trim();
+  let resultText = enforceGraphRAGPromptIntegrity(finalParts.join('\n\n').trim(), {
+    expectedPassages: options.expectedPassages
+  }).text;
   if (!resultText) {
-    resultText = truncatePrefixToTokenBudget(text, maxTokens, estimator);
+    resultText = truncatePrefixToTokenBudget(workingText, maxTokens, estimator);
   }
   if (estimator.estimate(resultText) > maxTokens) {
-    resultText = truncatePrefixToTokenBudget(resultText, maxTokens, estimator);
+    const withoutGraph = stripGraphRAGSegmentsForPrefixFallback(resultText);
+    const preservedIdx = preservedSections.indexOf('graphrag');
+    if (preservedIdx !== -1 && withoutGraph !== resultText) {
+      preservedSections.splice(preservedIdx, 1);
+    }
+    if (estimator.estimate(withoutGraph) <= maxTokens) {
+      resultText = withoutGraph;
+    } else {
+      resultText = truncatePrefixToTokenBudget(withoutGraph, maxTokens, estimator);
+    }
   }
 
   return {
