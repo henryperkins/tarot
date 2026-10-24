@@ -21,6 +21,44 @@ const REFUSAL_FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 export class ClaudeApiError extends Error {}
 
+const SAFE_QUOTED_VALUE = /^[A-Za-z0-9_.:/-]{1,64}$/;
+const MAX_LOGGED_MESSAGE_LENGTH = 200;
+
+/**
+ * Anthropic's error message explains a rejection ("Unexpected value(s) `x` for
+ * the `anthropic-beta` header."). Quoted values that are not plain identifiers,
+ * email addresses and long opaque tokens are masked, and the text is capped, so
+ * request content and credentials stay out of logs.
+ */
+export function sanitizeAnthropicErrorMessage(message) {
+  if (typeof message !== 'string') return null;
+  const keepIdentifier = (match, open, value, close) => (SAFE_QUOTED_VALUE.test(value) ? match : `${open}[redacted]${close}`);
+  const text = message
+    .replace(/\p{Cc}+/gu, ' ')
+    .replace(/(`)([^`]{0,500})(`)/g, keepIdentifier)
+    .replace(/(["“])([^"“”]{0,500})(["”])/g, keepIdentifier)
+    // A single quote opens a value only outside a word, so "doesn't" survives.
+    .replace(/(?<!\w)(['‘])([^'‘’]{1,500})(['’])(?!\w)/g, keepIdentifier)
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[redacted]')
+    .replace(/[A-Za-z0-9]{24,}/g, '[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return null;
+  return text.length > MAX_LOGGED_MESSAGE_LENGTH ? `${text.slice(0, MAX_LOGGED_MESSAGE_LENGTH - 1)}…` : text;
+}
+
+/** Status, error type, request ID and sanitized message of an Anthropic SDK error. */
+function describeAnthropicError(error) {
+  const apiError = error instanceof Anthropic.APIError ? error : null;
+  const requestId = [apiError?.requestID, apiError?.error?.request_id].find((value) => /^req_[A-Za-z0-9_]{1,128}$/.test(value || '')) || null;
+  return {
+    status: Number.isInteger(error?.status) ? error.status : null,
+    type: /^[a-z_]{1,64}$/.test(apiError?.type || '') ? apiError.type : null,
+    requestId,
+    message: sanitizeAnthropicErrorMessage(apiError?.error?.error?.message)
+  };
+}
+
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -153,11 +191,15 @@ async function callClaudeMessagesInternal(env, {
     if (signal?.aborted) throw new ClaudeApiError('Claude request was cancelled.');
     if (controller.signal.aborted) throw new ClaudeApiError('Claude request timed out.');
     if (error instanceof ClaudeApiError) throw error;
-    // SDK errors can carry upstream response bodies. Keep only the status and
-    // Anthropic's error type (invalid_request_error, billing_error, ...); the
-    // upstream message can describe the request, so it is never kept.
-    const type = error instanceof Anthropic.APIError && /^[a-z_]{1,64}$/.test(error.type || '') ? error.type : null;
-    const detail = [Number.isInteger(error?.status) ? `HTTP ${error.status}` : null, type].filter(Boolean).join(', ');
+    // The thrown message can reach clients, so it names only the status and
+    // Anthropic's error type (invalid_request_error, billing_error, ...). The
+    // request ID and sanitized upstream message go to the Worker log alone.
+    const upstream = describeAnthropicError(error);
+    const detail = [upstream.status ? `HTTP ${upstream.status}` : null, upstream.type].filter(Boolean).join(', ');
+    if (detail || upstream.requestId || upstream.message) {
+      const logged = [detail, upstream.requestId ? `request ${upstream.requestId}` : null].filter(Boolean).join(', ');
+      console.warn(`[${requestId}] [claude-api] Request failed${logged ? ` (${logged})` : ''}${upstream.message ? `: ${upstream.message}` : ''}`);
+    }
     throw new ClaudeApiError(`Claude API request failed${detail ? ` (${detail})` : ''}.`);
   } finally {
     clearTimeout(timer);
