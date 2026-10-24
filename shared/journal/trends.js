@@ -94,7 +94,7 @@ export function computeCardTrendSeries(entries, cardNames, { endDate = new Date(
 
   for (const entry of Array.isArray(entries) ? entries : []) {
     const timestamp = getTimestamp(entry);
-    if (timestamp === null) continue;
+    if (timestamp === null || timestamp > endDate.getTime()) continue;
     const index = keyIndex.get(monthKey(new Date(timestamp)));
     if (index === undefined) continue;
     firstActiveIndex = Math.min(firstActiveIndex, index);

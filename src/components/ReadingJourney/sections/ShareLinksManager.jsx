@@ -10,8 +10,8 @@ import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowSquareOut, CircleNotch, ClipboardText, PencilSimple } from '@phosphor-icons/react';
 import { JournalTrashIcon } from '../../JournalIcons';
 import { copyTextToClipboard } from '../../../lib/journalInsights';
+import { SHARE_TITLE_MAX_LENGTH } from '../../../../shared/journal/shareTitles.js';
 
-const TITLE_MAX_LENGTH = 80;
 const ACTION_BUTTON_CLASS = 'inline-flex min-h-touch items-center gap-1.5 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-1.5 text-xs font-semibold text-(--text-main) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation';
 const DANGER_BUTTON_CLASS = 'inline-flex min-h-touch items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] px-3 py-1.5 text-xs font-semibold text-(--status-error) hover:border-[color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation';
 
@@ -97,7 +97,7 @@ function ShareLinkRow({ link, now, busy, onCopy, onRename, onDelete }) {
             type="text"
             value={draft}
             readOnly={busy}
-            maxLength={TITLE_MAX_LENGTH}
+            maxLength={SHARE_TITLE_MAX_LENGTH}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {

@@ -252,6 +252,18 @@ describe('computeCardTrendSeries', () => {
     assert.strictEqual(computeCardTrendSeries([], []).size, 0);
     assert.strictEqual(computeCardTrendSeries([reading(at(2026, 10), 'The Star')], ['The Star'], { endDate: new Date('nope') }).size, 0);
   });
+
+  it('excludes readings after the exact scope end within the final month', () => {
+    const endDate = new Date(2026, 9, 15, 12);
+    const trend = computeCardTrendSeries([
+      reading(at(2026, 9), 'The Star'),
+      reading(endDate.getTime(), 'The Star'),
+      reading(at(2026, 10, 20), 'The Star')
+    ], ['The Star'], { endDate }).get('The Star');
+    assert.deepStrictEqual(trend.trendData, [
+      { year_month: '2026-09', count: 1 }, { year_month: '2026-10', count: 1 }
+    ]);
+  });
 });
 
 describe('classifyCardTrend', () => {

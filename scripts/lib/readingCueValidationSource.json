@@ -537,6 +537,7 @@
     "shared/journal/exportFormats.js",
     "shared/journal/readingIdentity.js",
     "shared/journal/reflectionLabels.js",
+    "shared/journal/shareTitles.js",
     "shared/journal/stats.js",
     "shared/journal/summary.js",
     "shared/journal/themes.js",

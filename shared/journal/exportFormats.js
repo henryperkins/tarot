@@ -2,7 +2,7 @@
  * Plain-text and JSON journal export formats.
  *
  * Shared by the Worker's /api/journal-export and the journal's own export
- * panel, so a download reads the same wherever it was made. Both formats list
+ * panel. Text dates use UTC so they agree across runtimes. Both formats list
  * explicit reading fields only; private visual state never reaches them.
  */
 
@@ -30,7 +30,9 @@ export function formatEntryAsText(entry) {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short'
   });
 
   lines.push(`# ${entry.spread || 'Tarot Reading'}`);
@@ -115,9 +117,53 @@ export function buildJournalText(entries, { generatedAt = new Date() } = {}) {
   return content;
 }
 
-/**
- * One reading in the JSON export: the saved reading, never local or private state.
- */
+function publicScalars(value, fields) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(fields.filter(field => Object.hasOwn(value, field)
+    && (value[field] === null || ['string', 'number', 'boolean'].includes(typeof value[field])))
+    .map(field => [field, value[field]]));
+}
+
+function publicPattern(pattern) {
+  return {
+    ...publicScalars(pattern, ['type', 'description']),
+    ...(Array.isArray(pattern?.contexts) ? { contexts: pattern.contexts.filter(value => typeof value === 'string') } : {}),
+    ...(Array.isArray(pattern?.entries) ? {
+      entries: pattern.entries.map(entry => publicScalars(entry, ['date', 'question', 'narrative', 'similarity']))
+    } : {})
+  };
+}
+
+function publicJournalContext(context) {
+  const result = publicScalars(context, ['entriesSearched']);
+  // Saved turns include both the public response's patternsFound and older
+  // server context's patterns. Preserve their reader-facing evidence only.
+  for (const key of ['patternsFound', 'patterns']) {
+    if (Array.isArray(context?.[key])) result[key] = context[key].map(publicPattern);
+  }
+  return result;
+}
+
+function publicCard(card) {
+  return {
+    ...publicScalars(card, ['position', 'slot', 'name', 'card', 'canonicalName', 'canonicalKey', 'displayName', 'number', 'suit', 'rank', 'rankValue',
+      'orientation', 'isReversed', 'upright', 'reversed', 'meaning', 'userReflection', 'callerMeaning']),
+    ...(card?.decisionPath && typeof card.decisionPath === 'object' ? {
+      decisionPath: publicScalars(card.decisionPath, ['key', 'label', 'rawLabel'])
+    } : {})
+  };
+}
+
+function publicFollowUp(turn) {
+  return {
+    ...publicScalars(turn, ['turnNumber', 'question', 'answer', 'canonicalAnswer', 'createdAt', 'isInterrupted']),
+    ...(turn?.journalContext && typeof turn.journalContext === 'object' ? {
+      journalContext: publicJournalContext(turn.journalContext)
+    } : {})
+  };
+}
+
+/** One saved reading's public content, including legacy card identities. */
 export function toJournalExportRecord(entry) {
   return {
     id: entry.id ?? null,
@@ -125,7 +171,7 @@ export function toJournalExportRecord(entry) {
     spread: entry.spread || entry.spreadName || null,
     spreadKey: entry.spreadKey || null,
     question: entry.question || null,
-    cards: Array.isArray(entry.cards) ? entry.cards : [],
+    cards: Array.isArray(entry.cards) ? entry.cards.map(publicCard) : [],
     personalReading: entry.personalReading || null,
     themes: entry.themes || null,
     reflections: entry.reflections && typeof entry.reflections === 'object' && !Array.isArray(entry.reflections)
@@ -134,7 +180,7 @@ export function toJournalExportRecord(entry) {
     context: entry.context || null,
     provider: entry.provider || null,
     deckId: entry.deckId || null,
-    followUps: Array.isArray(entry.followUps) ? entry.followUps : []
+    followUps: Array.isArray(entry.followUps) ? entry.followUps.map(publicFollowUp) : []
   };
 }
 

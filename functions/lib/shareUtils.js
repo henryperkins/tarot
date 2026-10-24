@@ -1,8 +1,9 @@
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { safeJsonParse } from './utils.js';
+import { SHARE_TITLE_MAX_LENGTH } from '../../shared/journal/shareTitles.js';
 
-export const SHARE_TITLE_MAX_LENGTH = 80;
+export { SHARE_TITLE_MAX_LENGTH };
 
 export function defaultShareTitle(scope) {
   return scope === 'entry' ? 'Shared reading' : 'Journal snapshot';

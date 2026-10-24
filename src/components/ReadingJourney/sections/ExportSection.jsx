@@ -20,6 +20,7 @@ import {
 import { JournalShareIcon } from '../../JournalIcons';
 import { PANEL_OUTLINE_BUTTON_CLASS } from '../../../styles/buttonClasses';
 import ShareLinksManager from './ShareLinksManager';
+import { SHARE_TITLE_MAX_LENGTH } from '../../../../shared/journal/shareTitles.js';
 
 // Lazy load PDF export (pulls in jspdf + html2canvas)
 const loadPdfExport = () => import('../../../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
@@ -30,8 +31,6 @@ const SHARE_EXPIRY_OPTIONS = [
   { value: '168', label: '7 days' },
   { value: '720', label: '30 days' },
 ];
-
-const SHARE_TITLE_MAX_LENGTH = 80;
 
 const formatExpiryLabel = (value) => {
   const parsed = Number(value);
