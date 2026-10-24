@@ -7,6 +7,7 @@ import {
   JournalPlusCircleIcon,
   JournalSlidersIcon
 } from '../JournalIcons';
+import { BADGE_LABEL_CLASS, META_LABEL_CLASS } from '../../styles/labelClasses';
 
 export function JournalFloatingControls({
   hasEntries,
@@ -34,14 +35,14 @@ export function JournalFloatingControls({
     >
       {showActiveFilters && (
         <div className="pointer-events-auto max-w-sm rounded-2xl border border-(--border-warm-subtle) bg-(--surface-92) px-3 py-2 text-2xs text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
-          <p className="mb-1 text-2xs uppercase tracking-[0.16em] text-muted">Filters</p>
+          <p className={`${META_LABEL_CLASS} mb-1 text-muted`}>Filters</p>
           <div className="flex flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
               <button
                 key={`floating-${chip.key}`}
                 type="button"
                 onClick={() => onRemoveFilter?.(chip.key)}
-                className="inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted"
+                className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted`}
                 aria-label={`Remove ${chip.label} filter`}
               >
                 {chip.label}
@@ -51,7 +52,7 @@ export function JournalFloatingControls({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+              className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
             >
               Reset
             </button>

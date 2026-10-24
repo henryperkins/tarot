@@ -30,6 +30,7 @@ import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
 import { JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
@@ -384,7 +385,7 @@ export default function JourneySidebar({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className="ml-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className={`${BADGE_LABEL_CLASS} ml-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}

@@ -3,6 +3,7 @@ import { Check, CaretRight } from '@phosphor-icons/react';
 import { CarouselDots } from './CarouselDots';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { DECK_OPTIONS } from './deckOptions';
+import { LABEL_CLASS } from '../styles/labelClasses';
 
 function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   const fallbackSrc = preview?.src;
@@ -166,7 +167,7 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
       <div className="relative z-10 space-y-5">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Choose Your Deck</p>
+            <p className={`${LABEL_CLASS} text-accent`}>Choose Your Deck</p>
             <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
               Select the deck art for today&apos;s reading. Match it to your physical deck if you&apos;re contributing photos to the vision study.
             </p>

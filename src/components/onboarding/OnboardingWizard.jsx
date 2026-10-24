@@ -1,6 +1,5 @@
 import { useState, useRef, useId, useMemo, useEffect, useCallback } from 'react';
 import FocusTrap from 'focus-trap-react';
-import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
@@ -17,11 +16,13 @@ import { JourneyBegin } from './JourneyBegin';
 // Trimmed variant components (4 steps)
 import { WelcomeStep, SpreadStep, IntentionStep, BeginStep } from './trimmed';
 import { OnboardingProgress } from './OnboardingProgress';
+import { CloseButton } from '../CloseButton';
 import { ConfirmModal } from '../ConfirmModal';
 // A/B test utilities
 import { getOnboardingVariant, getStepLabels, getTotalSteps } from '../../lib/onboardingVariant';
 import { startOnboardingTimer } from '../../lib/onboardingMetrics';
 import { safeStorage } from '../../lib/safeStorage';
+import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 
 /**
  * OnboardingWizard - Multi-step onboarding flow for new users
@@ -452,15 +453,12 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
                 <h1 id={titleId} className="sr-only">
                   Welcome to Tableu
                 </h1>
-                <button
+                <CloseButton
                   ref={closeButtonRef}
-                  type="button"
+                  label="Skip onboarding"
                   onClick={handleSkipRequest}
-                  className="order-2 self-center ml-auto shrink-0 flex items-center justify-center min-w-touch min-h-touch rounded-full text-muted hover:text-main hover:bg-surface/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-                  aria-label="Skip onboarding"
-                >
-                  <X className="w-5 h-5" weight="bold" />
-                </button>
+                  className="order-2 self-center ml-auto"
+                />
                 <div className="order-1 flex-1 min-w-0">
                   <OnboardingProgress
                     currentStep={currentStep}
@@ -474,7 +472,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               {isSmallScreen && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 px-2 xxs:px-3 sm:px-6 pb-2 pl-safe pr-safe">
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.16em] text-main">
+                    <span className={`${BADGE_LABEL_CLASS} rounded-full border border-secondary/40 bg-main/60 px-2.5 py-1 text-main`}>
                       Step {currentStep} of {totalSteps}
                     </span>
                     <span className="text-2xs text-muted">Progress auto-saves</span>

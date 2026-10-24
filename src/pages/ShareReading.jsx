@@ -12,7 +12,7 @@ import { FOCUS_RING_DEFAULT } from '../styles/focusClasses.js';
 function StatCard({ label, value, helper }) {
   return (
     <div className="rounded-2xl border border-secondary/30 bg-surface p-4 text-center">
-      <p className="text-xs uppercase tracking-[0.24em] text-primary">{label}</p>
+      <p className="text-xs uppercase tracking-label text-primary">{label}</p>
       <p className="mt-2 text-2xl font-semibold text-main">{value}</p>
       {helper && <p className="mt-1 text-xs-plus text-muted">{helper}</p>}
     </div>
@@ -319,7 +319,7 @@ export default function ShareReading() {
         <div className="min-w-0 rounded-3xl border border-secondary/40 bg-surface p-[min(1.5rem,6vw)] shadow-2xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-[0.24em] text-primary">Shared reading</p>
+              <p className="text-xs uppercase tracking-label text-primary">Shared reading</p>
               <h1 className="mt-1 text-3xl font-serif text-accent">
                 {shareData?.title || (shareData?.scope === 'journal' ? 'Journal snapshot' : 'Reading transmission')}
               </h1>
@@ -383,7 +383,7 @@ export default function ShareReading() {
                   key={entry.id}
                   type="button"
                   onClick={() => handleSelectEntry(index)}
-                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-touch text-xs uppercase tracking-[0.15em] touch-manipulation transition ${index === selectedEntryIndex
+                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 min-h-touch text-xs uppercase tracking-label touch-manipulation transition ${index === selectedEntryIndex
                     ? 'border-primary bg-primary/10 text-main'
                     : 'border-secondary text-muted hover:border-primary/50 active:bg-primary/5'
                     }`}
@@ -463,7 +463,7 @@ export default function ShareReading() {
             {mobileView === 'spread' && (
               <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
                 <div className="flex flex-col gap-1">
-                  <p className="text-xs uppercase tracking-[0.24em] text-primary">Spread overview</p>
+                  <p className="text-xs uppercase tracking-label text-primary">Spread overview</p>
                   <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
                   {activeEntry?.question && (
                     <p className="text-sm text-muted">Intention: {activeEntry.question}</p>
@@ -511,7 +511,7 @@ export default function ShareReading() {
           <div className="space-y-6">
             <div className="rounded-3xl border border-secondary/30 bg-surface-muted p-5">
               <div className="flex flex-col gap-1">
-                <p className="text-xs uppercase tracking-[0.24em] text-primary">Spread overview</p>
+                <p className="text-xs uppercase tracking-label text-primary">Spread overview</p>
                 <h2 className="text-2xl font-serif text-accent">{activeEntry?.spread}</h2>
                 {activeEntry?.question && (
                   <p className="text-sm text-muted">Intention: {activeEntry.question}</p>

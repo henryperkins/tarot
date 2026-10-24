@@ -6,6 +6,7 @@ import {
     FOCUS_RING_PRIMARY_50,
     FOCUS_RING_SECONDARY_50
 } from '../styles/focusClasses';
+import { META_LABEL_CLASS } from '../styles/labelClasses';
 
 const ACCENT_50_RING_WITH_OFFSET = `${FOCUS_RING_ACCENT_50} ${FOCUS_RING_OFFSET_2}`;
 const PRIMARY_50_RING_WITH_OFFSET = `${FOCUS_RING_PRIMARY_50} ${FOCUS_RING_OFFSET_2}`;
@@ -208,13 +209,13 @@ export function CoachSuggestion({
             ? {
                 container: 'rounded-lg bg-(--bg-surface) p-3 border border-primary/20',
                 headline: 'text-sm text-accent mb-2',
-                scope: 'mb-2 text-2xs uppercase tracking-[0.18em] text-muted',
+                scope: `${META_LABEL_CLASS} mb-2 text-muted`,
                 badge: 'mb-2 flex items-center gap-1 text-xs text-accent',
-                source: 'mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.18em] text-muted',
+                source: `${META_LABEL_CLASS} mb-2 flex items-center gap-2 text-muted`,
                 sourceTrigger: 'text-accent hover:text-main',
                 theme: 'mb-2 space-y-1 text-2xs text-muted',
                 related: 'mb-2 text-2xs text-muted-high',
-                relatedTitle: 'text-2xs uppercase tracking-[0.18em] text-muted',
+                relatedTitle: `${META_LABEL_CLASS} text-muted`,
                 remaining: 'mt-1 text-xs text-muted',
                 statusMessage: 'mb-2 text-2xs text-muted',
                 actions: 'flex flex-wrap items-center gap-2',
@@ -227,13 +228,13 @@ export function CoachSuggestion({
             : {
                 container: 'rounded-lg bg-(--border-warm-subtle) p-3 border border-(--border-warm-light)',
                 headline: 'text-xs text-muted-high',
-                scope: 'mt-2 text-2xs uppercase tracking-[0.2em] text-muted',
+                scope: `${META_LABEL_CLASS} mt-2 text-muted`,
                 badge: 'mt-2 flex items-center gap-1 text-2xs text-(--text-accent)',
-                source: 'mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.2em] text-muted',
+                source: `${META_LABEL_CLASS} mt-2 flex items-center gap-2 text-muted`,
                 sourceTrigger: 'text-muted hover:text-main',
                 theme: 'mt-2 space-y-1 text-2xs text-muted',
                 related: 'mt-2 text-2xs text-muted-high',
-                relatedTitle: 'text-2xs uppercase tracking-[0.2em] text-muted',
+                relatedTitle: `${META_LABEL_CLASS} text-muted`,
                 remaining: 'mt-1 text-2xs text-muted',
                 statusMessage: 'mt-2 text-2xs text-muted',
                 actions: 'mt-2 flex flex-wrap items-center gap-2',
@@ -357,7 +358,7 @@ export function CoachSuggestion({
 
     const titleClasses = isJournalVariant
         ? "mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-        : "flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-primary";
+        : "flex items-center gap-2 text-xs uppercase tracking-label-wide text-primary";
 
     const questionClasses = isJournalVariant
         ? "font-serif text-lg text-main"
@@ -402,7 +403,7 @@ export function CoachSuggestion({
             )}
 
             {filtersActive && scopeLabel && (
-                <p className="mt-3 text-2xs uppercase tracking-[0.2em] text-muted">
+                <p className={`${META_LABEL_CLASS} mt-3 text-muted`}>
                     Scoped to: {scopeLabel}
                 </p>
             )}
@@ -412,7 +413,7 @@ export function CoachSuggestion({
                 </p>
             )}
             {recommendation.sourceLabel && (
-                <div className="mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.3em] text-muted">
+                <div className="mt-2 flex items-center gap-2 text-2xs uppercase tracking-label-wide text-muted">
                     <span>Source: {recommendation.sourceLabel}</span>
                     {recommendation.sourceDetail && (
                         <Tooltip
@@ -428,7 +429,7 @@ export function CoachSuggestion({
             )}
             {relatedSteps.length > 0 && (
                 <div className="mt-2 text-xs text-muted">
-                    <p className="text-2xs uppercase tracking-[0.2em] text-muted">{clusterTitle}</p>
+                    <p className={`${META_LABEL_CLASS} text-muted`}>{clusterTitle}</p>
                     <ul className="mt-1 list-disc list-inside space-y-1">
                         {relatedSteps.map((step, index) => (
                             <li key={`${step}-${index}`}>{step}</li>

@@ -28,8 +28,10 @@ import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionCon
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 import { AppHeader } from '../components/AppHeader';
 import { AppBottomRegion } from '../components/AppBottomRegion';
+import { CloseButton } from '../components/CloseButton';
 import { InstallFooter } from '../components/InstallFooter';
 import AuthModal from '../components/AuthModal';
 import { MobileInfoSection } from '../components/MobileInfoSection';
@@ -116,7 +118,7 @@ function TierCard({ tierKey, config, isCurrent, actionLabel, onSelect, isLoading
             <TierIcon className={`h-5 w-5 ${isPaid ? 'text-accent' : 'text-secondary'}`} weight="fill" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{config.name}</p>
+            <p className={`${LABEL_CLASS} text-muted`}>{config.name}</p>
             <p className="text-lg font-semibold text-main">{config.label}</p>
           </div>
         </div>
@@ -425,14 +427,7 @@ function ComparisonModal({ isOpen, onClose }) {
           <h2 ref={headingRef} tabIndex={-1} id="comparison-modal-title" className="min-w-0 text-lg font-semibold text-main">
             Compare all features
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`inline-flex min-h-touch min-w-touch shrink-0 items-center justify-center rounded-full p-2 text-muted transition hover:bg-secondary/20 hover:text-main ${FOCUS_RING_DEFAULT}`}
-            aria-label="Close comparison"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <CloseButton label="Close comparison" onClick={onClose} />
         </div>
 
         {/* Table */}
@@ -452,14 +447,14 @@ function ComparisonModal({ isOpen, onClose }) {
               <caption className="sr-only">Features included in each plan</caption>
               <thead>
                 <tr className="border-b border-secondary/30">
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+                  <th scope="col" className={`${LABEL_CLASS} px-4 py-3 text-left text-muted`}>
                     Feature
                   </th>
                   {tiers.map((tier) => (
                     <th
                       key={tier}
                       scope="col"
-                      className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.15em] text-muted"
+                      className={`${LABEL_CLASS} px-4 py-3 text-center text-muted`}
                     >
                       {SUBSCRIPTION_TIERS[tier].label}
                     </th>
@@ -737,7 +732,7 @@ export default function PricingPage() {
         {/* Hero */}
         <section className="mb-10 grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.9fr)] lg:items-center">
           <div className="min-w-0 space-y-6 wrap-anywhere">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">
+            <p className={`${LABEL_CLASS} text-accent`}>
               Plans for deeper practice
             </p>
             <div className="space-y-3">
@@ -856,7 +851,7 @@ export default function PricingPage() {
           <div className="hidden rounded-3xl border border-secondary/30 bg-surface/80 p-6 lg:block">
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+                <p className={`${LABEL_CLASS} text-muted`}>
                   Plans at a glance
                 </p>
                 <p className="mt-1 text-sm text-secondary">
@@ -893,7 +888,7 @@ export default function PricingPage() {
                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
                   >
                     <div className="min-w-0 flex-[1_1_10rem] space-y-0.5 wrap-anywhere">
-                      <p className="text-2xs font-semibold uppercase tracking-[0.16em] text-muted">
+                      <p className={`${BADGE_LABEL_CLASS} text-muted`}>
                         {config.name}
                       </p>
                       <p className="text-sm text-main">
@@ -939,7 +934,7 @@ export default function PricingPage() {
         {/* Plans */}
         <section id="plans" className="mb-10">
           <div className="mb-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+            <h2 className={`${LABEL_CLASS} text-muted`}>
               Choose your path
             </h2>
 
@@ -1000,7 +995,7 @@ export default function PricingPage() {
 
         {/* Mobile differences accordion */}
         <section className="mb-10 lg:hidden">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+          <h2 className={`${LABEL_CLASS} mb-4 text-muted`}>
             Top differences
           </h2>
           <div className="space-y-2">
@@ -1062,7 +1057,7 @@ export default function PricingPage() {
 
         {/* FAQ */}
         <section className="mb-12">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+          <h2 className={`${LABEL_CLASS} mb-4 text-muted`}>
             Common questions
           </h2>
           <div className="space-y-3">
@@ -1076,7 +1071,7 @@ export default function PricingPage() {
         <section className="border-t border-secondary/20 pt-8">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+              <p className={`${LABEL_CLASS} text-muted`}>
                 Ready to deepen your practice?
               </p>
               <p className="mt-1 text-sm text-secondary">

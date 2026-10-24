@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import FocusTrap from 'focus-trap-react';
-import { X, Eye, EyeSlash } from '@phosphor-icons/react';
+import { Eye, EyeSlash } from '@phosphor-icons/react';
+import { CloseButton } from './CloseButton';
 import { useAuth } from '../contexts/AuthContext';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
 import { useSmallScreen } from '../hooks/useSmallScreen';
@@ -316,23 +317,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
           aria-describedby={errorId}
           className={modalClasses}
         >
-          {/* Close button - 44px touch target */}
-          <button
-            onClick={onClose}
-            className={`
-              absolute top-3 right-3 z-10
-              flex items-center justify-center
-              w-11 h-11 min-w-touch min-h-touch
-              rounded-full
-              text-accent hover:text-main hover:bg-accent/10
-              active:bg-accent/20 active:scale-95
-              transition touch-manipulation
-              ${FOCUS_RING_ACCENT_SOFT}
-            `}
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" aria-hidden="true" />
-          </button>
+          <CloseButton label="Close dialog" onClick={onClose} className="absolute top-3 right-3 z-10" />
 
           {/* Header */}
           <div className="px-6 sm:px-8 pt-8 pb-5 border-b border-primary/20">

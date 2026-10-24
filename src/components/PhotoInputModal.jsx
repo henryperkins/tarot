@@ -1,6 +1,7 @@
 import { useRef, useMemo } from 'react';
-import { Camera, Images, X } from '@phosphor-icons/react';
+import { Camera, Images } from '@phosphor-icons/react';
 import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { CloseButton } from './CloseButton';
 
 export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) {
   const modalRef = useRef(null);
@@ -35,14 +36,7 @@ export function PhotoInputModal({ onTakePhoto, onChooseFromLibrary, onCancel }) 
           <h3 id={titleId} className="text-base xs:text-lg font-semibold text-main">
             Add a Photo
           </h3>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="p-2 -mr-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted rounded-full transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <CloseButton label="Close" onClick={onCancel} className="-mr-2" />
         </div>
 
         <div className="space-y-3">

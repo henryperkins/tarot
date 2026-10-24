@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Warning, X } from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { CloseButton } from './CloseButton';
 
 /**
  * Confirmation Modal
@@ -78,13 +79,7 @@ export function ConfirmModal({
           sm:h-auto sm:max-w-md sm:rounded-2xl
         `}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 xs:top-4 xs:right-4 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/50 rounded-full transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <CloseButton label="Close" onClick={onClose} className="absolute top-3 right-3 xs:top-4 xs:right-4" />
 
         <div className="p-5 xs:p-6">
           <div className="flex items-start gap-3 xs:gap-4 mb-4 pr-8">

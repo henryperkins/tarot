@@ -4,6 +4,8 @@
  * Based on theme-swatch.html design system.
  */
 
+import { META_LABEL_CLASS } from '../../../styles/labelClasses';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXT & SUIT MAPPINGS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,14 +69,14 @@ export const styles = {
     'transition cursor-pointer backdrop-blur',
 
   sectionLabel:
-    'text-2xs font-semibold tracking-[0.28em] uppercase text-(--text-muted)',
+    'text-2xs font-semibold tracking-label-wide uppercase text-(--text-muted)',
 
   sectionBody: 'relative z-10 px-4 py-4',
 
   // Pills and chips
   pill:
     'inline-flex items-center gap-2 rounded-full border border-(--border-warm-light) ' +
-    'bg-(--border-warm-subtle) px-2.5 py-1 text-2xs tracking-[0.22em] uppercase ' +
+    `${META_LABEL_CLASS} bg-(--border-warm-subtle) px-2.5 py-1 ` +
     'text-(--text-muted) shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
 
   cardChip:

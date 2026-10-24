@@ -104,7 +104,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               ) : (
                 <>
                   {/* Meta row */}
-                  <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-[0.3em] text-(--text-muted)">
+                  <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-label-wide text-(--text-muted)">
                     {timestampLabel && (
                       <span
                         className="inline-flex items-center rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 normal-case tracking-normal"

@@ -27,7 +27,7 @@ export function ReadingChrome({
         <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
           <div className="flex items-center justify-between gap-3">
             {(!isTableScene || displayName) && (
-              <p className={isTableScene ? 'text-sm text-muted' : 'text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent'}>
+              <p className={isTableScene ? 'text-sm text-muted' : 'text-xs-plus sm:text-sm uppercase tracking-widest text-accent'}>
                 {displayName ? `Reading for ${displayName}` : 'Reading'}
               </p>
             )}

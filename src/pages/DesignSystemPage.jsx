@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { CheckCircle, MoonStars, Sun, WarningCircle, XCircle } from '@phosphor-icons/react';
 import { AppHeader } from '../components/AppHeader';
 import { AppBottomRegion } from '../components/AppBottomRegion';
+import { CloseButton } from '../components/CloseButton';
 import { InstallFooter } from '../components/InstallFooter';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { usePreferences } from '../contexts/PreferencesContext';
@@ -14,6 +15,7 @@ import {
   FOCUS_RING_ERROR_40,
   FOCUS_RING_PRIMARY_40
 } from '../styles/focusClasses';
+import { BADGE_LABEL_CLASS, LABEL_CLASS, META_LABEL_CLASS } from '../styles/labelClasses';
 
 function ColorSwatch({
   name,
@@ -25,7 +27,7 @@ function ColorSwatch({
     <div className="rounded-2xl border border-secondary/20 bg-surface/70 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">{name}</p>
+          <p className={`${LABEL_CLASS} text-muted`}>{name}</p>
           {sampleClassName && (
             <p className={`${sampleTextClassName} ${sampleClassName}`}>
               Aa
@@ -59,6 +61,18 @@ export default function DesignSystemPage() {
     { label: 'base', className: 'text-base text-main' },
     { label: 'lg', className: 'text-lg text-main' },
     { label: 'xl', className: 'text-xl text-main' },
+  ]), []);
+
+  const labelSamples = useMemo(() => ([
+    { label: 'LABEL_CLASS', use: 'Section, field and column labels', className: `${LABEL_CLASS} text-muted`, text: 'Spread selection' },
+    { label: 'META_LABEL_CLASS', use: 'Metadata captions', className: `${META_LABEL_CLASS} text-muted`, text: 'Card position' },
+    {
+      label: 'BADGE_LABEL_CLASS',
+      use: 'Text inside pills and chips',
+      className: `${BADGE_LABEL_CLASS} rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2.5 py-1 text-muted-high`,
+      text: '12 entries'
+    },
+    { label: 'tracking-label-wide', use: 'Coach, journal and ritual voice', className: 'text-xs uppercase tracking-label-wide text-secondary', text: 'Saved templates' },
   ]), []);
 
   return (
@@ -133,6 +147,26 @@ export default function DesignSystemPage() {
           </div>
         </section>
 
+        <section aria-label="Label roles" className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-main">Label roles</h2>
+            <p className="text-2xs text-muted">Labels name things. They never kicker section headings (page heroes excepted).</p>
+          </div>
+          <div className="rounded-2xl border border-secondary/20 bg-surface/70 p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {labelSamples.map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 text-2xs text-muted">
+                    <span className="block text-main">{item.label}</span>
+                    {item.use}
+                  </span>
+                  <span className={`shrink-0 text-right ${item.className}`}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section aria-label="Component examples" className="space-y-3">
           <h2 className="text-sm font-semibold text-main">Component examples</h2>
           <div className="rounded-2xl border border-secondary/20 bg-surface/70 p-5 space-y-5">
@@ -157,6 +191,14 @@ export default function DesignSystemPage() {
                 <XCircle className="h-4 w-4 text-error" weight="duotone" aria-hidden="true" />
                 Destructive
               </button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted">Close buttons</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <CloseButton label="Close example dialog" />
+                <CloseButton label="Dismiss example notice" size="sm" />
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -226,7 +268,7 @@ export default function DesignSystemPage() {
                   <span>Only part of your history is loaded. Shared button variants should still keep 44px touch targets.</span>
                   <button
                     type="button"
-                    className={`${PANEL_OUTLINE_BUTTON_CLASS} rounded-full text-xs uppercase tracking-[0.18em]`}
+                    className={`${PANEL_OUTLINE_BUTTON_CLASS} rounded-full text-xs uppercase tracking-label`}
                   >
                     Load full history
                   </button>

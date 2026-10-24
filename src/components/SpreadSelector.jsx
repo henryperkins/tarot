@@ -13,6 +13,7 @@ import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { getSpreadArt } from '../utils/spreadArt';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
+import { LABEL_CLASS } from '../styles/labelClasses';
 
 const STAR_TOTAL = 3;
 // Handset cards have a 14rem minimum, then occupy 70% of the padded carousel.
@@ -309,7 +310,7 @@ export function SpreadSelector({
       <div className="relative z-10 space-y-5">
         <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Spread Selection</p>
+            <p className={`${LABEL_CLASS} text-accent`}>Spread Selection</p>
             {!isLandscape && (
               <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
                 Choose how your reading unfolds.

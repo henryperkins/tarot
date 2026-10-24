@@ -4,6 +4,7 @@ import { Tooltip } from './Tooltip';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useToast } from '../contexts/ToastContext.jsx';
 import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { META_LABEL_CLASS } from '../styles/labelClasses';
 
 export function RitualControls({
   hasKnocked,
@@ -108,7 +109,7 @@ export function RitualControls({
       {/* Desktop Header - Hidden on Mobile */}
       <div className="hidden sm:flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.35em] text-secondary/80">Ritual</p>
+          <p className="text-xs uppercase tracking-label-wide text-secondary/80">Ritual</p>
           {!isExperienced && (
             <p className="text-sm text-muted">A grounding moment before the draw.</p>
           )}
@@ -168,7 +169,7 @@ export function RitualControls({
           >
             <span>{knockComplete ? 'Deck cleared · 3 of 3' : `Knock ${nextKnockNumber} of 3`}</span>
             {!knockComplete && (
-              <span className="text-2xs uppercase tracking-[0.2em] text-accent/80">Tap</span>
+              <span className={`${META_LABEL_CLASS} text-accent/80`}>Tap</span>
             )}
           </button>
           {!isExperienced && (
@@ -318,7 +319,7 @@ export function RitualControls({
           <button
             type="button"
             onClick={() => setShowSkipConfirm(show => !show)}
-            className="text-2xs uppercase tracking-[0.35em] text-accent/80 underline decoration-accent/60 underline-offset-4 transition hover:text-main"
+            className="text-2xs uppercase tracking-label-wide text-accent/80 underline decoration-accent/60 underline-offset-4 transition hover:text-main"
             aria-haspopup="dialog"
             aria-expanded={showSkipConfirm}
           >

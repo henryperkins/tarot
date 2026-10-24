@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useId, useCallback, useRef } from 'react';
+import { META_LABEL_CLASS } from '../../styles/labelClasses';
 
 const ALIAS_STORAGE_KEY = 'mystic-share-alias';
 const DRAFT_STORAGE_KEY = 'mystic-share-draft';
@@ -387,7 +388,7 @@ function CollaborativeNotesContent({
                 <span className="min-w-0 max-w-full wrap-break-word font-semibold">{note.authorName || 'Anonymous'}</span>
                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                   {isReported ? (
-                    <span className="text-2xs uppercase tracking-[0.14em] text-muted">Reported</span>
+                    <span className={`${META_LABEL_CLASS} text-muted`}>Reported</span>
                   ) : onReport ? (
                     <button
                       type="button"
@@ -407,7 +408,7 @@ function CollaborativeNotesContent({
                 </div>
               </div>
               {note.cardPosition && (
-                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent">
+                <p className="mt-1 text-xs uppercase tracking-widest text-accent">
                   {note.cardPosition}
                 </p>
               )}

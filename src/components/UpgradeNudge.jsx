@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Crown, Sparkle, X, ArrowRight } from '@phosphor-icons/react';
+import { Crown, Sparkle, ArrowRight } from '@phosphor-icons/react';
+import { CloseButton } from './CloseButton';
 import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -104,14 +105,7 @@ export function UpgradeNudge({
               Upgrade
             </button>
             {dismissible && (
-              <button
-                type="button"
-                onClick={handleDismiss}
-                className="rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <CloseButton label="Dismiss" size="sm" onClick={handleDismiss} />
             )}
           </div>
         </div>
@@ -125,14 +119,7 @@ export function UpgradeNudge({
       <div className={`fixed inset-0 z-auth flex items-center justify-center bg-main/80 backdrop-blur-sm px-safe pt-safe pb-safe ${prefersReducedMotion ? '' : 'animate-fade-in'} ${className}`}>
         <div className={`relative w-full max-w-md mx-4 rounded-3xl border border-accent/30 bg-surface p-6 shadow-2xl ${prefersReducedMotion ? '' : 'animate-pop-in'}`}>
           {dismissible && (
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="absolute right-4 top-4 rounded-full p-1.5 min-h-touch min-w-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <CloseButton label="Close" onClick={handleDismiss} className="absolute right-4 top-4" />
           )}
           
           <div className="text-center">

@@ -1,7 +1,8 @@
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, X, Flame, Drop, Wind, Leaf } from '@phosphor-icons/react';
+import { Info, Flame, Drop, Wind, Leaf } from '@phosphor-icons/react';
+import { CloseButton } from './CloseButton';
 import { buildCardInsights } from '../lib/cardInsights';
 import { titleCase } from '../lib/textUtils';
 import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
@@ -83,14 +84,7 @@ function SymbolContent({ insights, onClose, showCloseButton = false, inline = fa
               {orientationLabel}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-touch min-w-touch -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70"
-            aria-label="Close symbol insights"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <CloseButton label="Close symbol insights" onClick={onClose} className="-mr-2" />
         </div>
       )}
       {!showCloseButton && !inline && (
@@ -428,15 +422,7 @@ export function CardSymbolInsights({
             : 'opacity-0 -translate-y-2 invisible pointer-events-none'
           }`}
       >
-        <button
-          type="button"
-          onClick={handleCloseImmediate}
-          className="absolute top-2 right-2 text-secondary hover:text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 rounded-full"
-          aria-label="Close symbol insights"
-        >
-          ×
-        </button>
-        <SymbolContent insights={insights} />
+        <SymbolContent insights={insights} onClose={handleCloseImmediate} showCloseButton />
       </div>
     </div>
   );

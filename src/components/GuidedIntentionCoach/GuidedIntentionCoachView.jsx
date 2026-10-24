@@ -15,6 +15,7 @@ import { MOBILE_COACH_DIALOG_ID } from '../mobileActionBarConstants';
 import { CUSTOM_FOCUS_MAX_LENGTH, STEPS } from '../../lib/coachConstants';
 import { useGuidedIntentionCoach } from '../../contexts/GuidedIntentionCoachContext';
 import { USER_QUESTION_MAX_LENGTH } from '../../../shared/contracts/readingRequestLimits.js';
+import { CloseButton } from '../CloseButton';
 import { CoachSuggestionsPanel } from './CoachSuggestionsPanel';
 import { CoachTemplatePanel } from './CoachTemplatePanel';
 import '../../styles/coach.css';
@@ -337,7 +338,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
                   <h2 id={titleId} className="font-serif text-xl sm:text-2xl text-main">Shape a question with clarity</h2>
                   {!isLandscape && <p className="text-sm text-secondary">Keep what matters. Shape the wording before you use it.</p>}
                 </div>
-                <button ref={closeButtonRef} type="button" onClick={onClose} className={`${quietButton} shrink-0`} aria-label="Close intention coach"><X className="h-5 w-5" aria-hidden="true" /></button>
+                <CloseButton ref={closeButtonRef} label="Close intention coach" onClick={onClose} />
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
                 <button type="button" className={`${quietButton} underline underline-offset-4`} onClick={startFresh}>Start fresh</button>

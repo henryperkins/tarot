@@ -38,6 +38,14 @@ export const COMPACT_SYNC_ACTION_BUTTON_CLASS = [
   'disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation',
 ].join(' ');
 
+// Icon-only control with a 44px target. CloseButton builds on it; the caller
+// supplies the accessible name and adds placement.
+export const ICON_BUTTON_CLASS = [
+  'inline-flex shrink-0 items-center justify-center min-h-touch min-w-touch rounded-full',
+  'text-muted hover:text-main hover:bg-secondary/10 transition-colors touch-manipulation',
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
+].join(' ');
+
 export const JOURNEY_TEXT_BUTTON_CLASS = [
   'inline-flex items-center justify-center gap-1 min-h-touch min-w-touch px-2 py-2 rounded-lg',
   'text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation',

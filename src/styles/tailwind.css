@@ -228,7 +228,7 @@ body {
 .journal-eyebrow {
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.3em;
+  letter-spacing: var(--tracking-label-wide);
   text-transform: uppercase;
   color: var(--text-muted-high);
 }
