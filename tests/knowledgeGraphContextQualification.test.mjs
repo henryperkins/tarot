@@ -12,6 +12,38 @@ const sample = {
   memories: [{ id: 'synthetic-career', scope: 'global', category: 'life_context', text: 'Career guidance' }, { id: 'synthetic-off-topic', scope: 'global', category: 'general', text: 'I collect shells along the coast.' }]
 };
 
+test('remediation v1 qualification checks every final mode and all eight registry-backed families', async () => {
+  const gate = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  assert.equal(typeof gate.verifyGraphRAGRemediationFixtures, 'function');
+  const fixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url), 'utf8'));
+  const report = await gate.verifyGraphRAGRemediationFixtures({ fixtures });
+  assert.equal(report.readingPromptVersion, '1.6.0');
+  assert.equal(report.casesChecked, 16);
+  assert.equal(report.providerBuildsChecked, 48);
+  assert.deepEqual(report.executedCaseIds, fixtures.cases.map(row => row.id));
+  assert.deepEqual(report.familiesChecked, fixtures.requiredFamilies);
+  assert.deepEqual(report.observations['remediation-budget-summary'].modes, { claude: 'summary', openai: 'summary', modal: 'full' });
+  assert.deepEqual(report.observations['remediation-budget-omitted'].modes, { claude: 'none', openai: 'none', modal: 'full' });
+  assert.equal(report.observations['remediation-integrity-removed'].integrityRemovedBlocks.claude, 2);
+  assert.equal(report.liveProviderCalls, 0);
+});
+
+test('remediation qualification rejects contradictory expected mode, guardrails and family evidence', async () => {
+  const gate = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  assert.equal(typeof gate.verifyGraphRAGRemediationFixtures, 'function');
+  const fixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url), 'utf8'));
+  for (const [id, expected] of [
+    ['remediation-full-multi-major', { mode: 'none' }],
+    ['remediation-integrity-removed', { integrityRemovedBlocks: 0 }],
+    ['remediation-summary-court-lineage', { families: ['marseille-numerology'] }]
+  ]) {
+    const corrupted = structuredClone(fixtures);
+    const row = corrupted.cases.find(item => item.id === id);
+    Object.assign(row.expected, expected);
+    await assert.rejects(gate.verifyGraphRAGRemediationFixtures({ fixtures: corrupted }), error => error.message.includes(id));
+  }
+});
+
 test('v3 manifest preserves previous bytes and executes bounded probes plus current-input regressions', async () => {
   const { loadQualificationManifest, runDeterministicQualification } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
   const v3 = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-v3-cases.json', import.meta.url), 'utf8'));
@@ -102,6 +134,10 @@ test('deterministic assembly gate exercises the frozen corpus and actual provide
   assert.ok(result.boundaries.slimming.steps > 0);
   assert.equal(result.boundaries['removed-highlights'].used, 0);
   assert.equal(result.boundaries['beyond-old-shortlist'].patternId, '13-17');
+  assert.equal(result.graphRAGRemediation.casesChecked, 16);
+  assert.equal(result.graphRAGRemediation.providerBuildsChecked, 48);
+  assert.equal(result.graphRAGRemediation.readingPromptVersion, '1.6.0');
+  assert.equal(result.graphRAGRemediation.fixtureHash, manifest.graphRAGRemediation.rawHash);
 });
 
 test('qualification rejects an incorrect authored expectation instead of accepting corpus labels', async () => {

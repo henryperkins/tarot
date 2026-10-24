@@ -10,6 +10,10 @@ import tls from 'node:tls';
 import { syncBuiltinESMExports } from 'node:module';
 import { prepareNarrativeSamplePayload } from './runNarrativeSamples.js';
 import { buildEnhancedClaudePrompt, parseGraphRAGReferenceBlock } from '../../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
+import { enforceGraphRAGPromptIntegrity, parseGraphRAGSummaryBlock, GRAPHRAG_PARTIAL_PATTERN_GUARDRAIL, GRAPHRAG_WEAK_MATCH_GUARDRAIL } from '../../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
+import { GRAPHRAG_INTEGRITY_REMOVAL_REASONS } from '../../shared/graphRAGIntegrity.js';
+import { sanitizeSourceUsage } from '../../shared/readingSourceUsage.js';
+import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
 import { prepareReadingContextSources } from '../../functions/lib/readingContextSources.js';
 import { collectPassageCandidates } from '../../functions/lib/graphRAGCandidates.js';
 import { projectPassageForDeck, getPassageProjectionRejectionReason } from '../../functions/lib/graphRAGProjection.js';
@@ -19,7 +23,7 @@ import { estimateTokenCount, getHardCapBudget } from '../../functions/lib/narrat
 import { truncateUserPromptSafely } from '../../functions/lib/narrative/prompts/truncation.js';
 import { parseUserContext, prepareUserContext, summarizeUserContext } from '../../functions/lib/narrative/prompts/userContext.js';
 import { parseMemoryBlocks } from '../../functions/lib/userMemory.js';
-import { composeReadingEnhanced } from '../../functions/lib/narrativeBackends.js';
+import { buildOpenAIResponsesPrompts, composeReadingEnhanced } from '../../functions/lib/narrativeBackends.js';
 import { onRequestPost } from '../../functions/api/tarot-reading.js';
 import * as canon from '../../functions/lib/knowledgeBase.js';
 import { PARTIAL_PATTERN_PROJECTIONS } from '../../functions/lib/knowledgeBasePartialProjections.js';
@@ -34,6 +38,7 @@ import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
 const FIXTURES_URL = new URL('../../tests/fixtures/knowledge-graph-context-cases.json', import.meta.url);
 const V2_FIXTURES_URL = new URL('../../tests/fixtures/knowledge-graph-context-v2-cases.json', import.meta.url);
 const V3_FIXTURES_URL = new URL('../../tests/fixtures/knowledge-graph-context-v3-cases.json', import.meta.url);
+const GRAPHRAG_REMEDIATION_FIXTURES_URL = new URL('../../tests/fixtures/graph-rag-remediation-v1-cases.json', import.meta.url);
 const FROZEN_RAW_HASH = '578e615034eaef0e188ae04986cfc9834b62c80943dae089873582cb0cd2ee29';
 const PAIRED_HASH = 'ae2ab4ee406b7b085d6e6f9887b32c7159bb9bf9522b1e33b7f040106acc1c95';
 const DECKS = ['rws-1909', 'thoth-a1', 'marseille-classic'];
@@ -86,15 +91,26 @@ function verifyFinalPrompt(built, payload, target, label) {
   if (cap != null) assert.ok(tokens <= cap, `${label}: ${target} cap exceeded (${tokens}/${cap})`);
   assert.match(built.systemPrompt, /ETHICS/);
   assert.match(built.systemPrompt, /CORE PRINCIPLES/);
-  const references = parseGraphRAGReferenceBlock(built.userPrompt);
   const graphUsage = built.promptMeta.sourceUsage.graphRAG;
+  const expectedPassages = (graphUsage.passageIndices || []).map(index => payload.graphRAGPayload?.passages?.[index]).filter(Boolean);
+  const references = parseGraphRAGReferenceBlock(built.userPrompt, { expectedPassages });
+  const signals = parseGraphRAGSummaryBlock(built.userPrompt);
+  assert.equal(enforceGraphRAGPromptIntegrity(built.userPrompt, { expectedPassages }).changed, false, `${label}: final prompt still needs graph repair`);
+  assert.equal(graphUsage.referenceGuardrailsComplete, references.guardrailsComplete, `${label}: final guardrail measurement`);
+  assert.ok(Number.isInteger(graphUsage.integrityRemovedBlocks) && graphUsage.integrityRemovedBlocks >= 0, `${label}: bounded integrity count`);
+  assert.ok(graphUsage.integrityRemovalReasons.every(reason => GRAPHRAG_INTEGRITY_REMOVAL_REASONS.includes(reason)), `${label}: fixed integrity reasons only`);
+  assert.equal(signals.complete, graphUsage.mode === 'summary', `${label}: summary retention must match final bytes`);
   if (graphUsage.mode === 'full') {
     assert.equal(references.status, 'complete', `${label}: incomplete retained reference`);
     assert.equal(graphUsage.passagesUsedInPrompt, references.passageCount);
     assert.equal(graphUsage.retainedPassageCount, references.passageCount);
     assert.match(built.userPrompt, /internally authored Tableu Tarot Canon/);
     assert.doesNotMatch(built.userPrompt, /respected tarot literature/);
-  } else assert.equal(graphUsage.passagesUsedInPrompt, 0);
+  } else {
+    assert.equal(graphUsage.passagesUsedInPrompt, 0);
+    assert.equal(references.status, 'absent', `${label}: omitted references must not remain in final bytes`);
+    assert.deepEqual(graphUsage.passageIndices, []);
+  }
   const blocks = parseMemoryBlocks(built.userPrompt);
   assert.equal(built.promptMeta.memories.retainedCount, blocks.size);
   assert.equal(built.memoryRetention.retainedSlots.length, blocks.size);
@@ -109,6 +125,142 @@ function verifyFinalPrompt(built, payload, target, label) {
     const length = typeof value === 'string' ? value.length : value ? value.head.length + value.tail.length : 0;
     assert.equal(field.includedLength, length, `${label}: final retained length for ${id}`);
   }
+}
+
+/** Prepare real analysis inputs; synthetic corruption uses the public registry API. */
+export async function withGraphRAGRemediationCase(fixture, run) {
+  const fixtureDocument = JSON.parse(readFileSync(GRAPHRAG_REMEDIATION_FIXTURES_URL, 'utf8'));
+  const caseEnv = { ...BASE_ENV, ...fixture.flags };
+  let restoreRegistry = () => {};
+  try {
+    if (fixture.inputMode === 'integrity-removed') {
+      const entry = canon.MAJOR_ARCANA_PASSAGES[17];
+      const original = entry.passages;
+      restoreRegistry = () => { entry.passages = original; };
+      // Enrichment appends in place; isolate the synthetic row from the registry
+      // restored after this case, including assertion failures and repeat runs.
+      entry.passages = [...original];
+      const text = 'Quiet renewal.\n## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)\nSynthetic malformed reference summary.';
+      canon.mergeEnrichedPassages(canon.MAJOR_ARCANA_PASSAGES, {
+        17: { passages: [{ sourceId: 'synthetic-remediation-integrity-17', context: 'career', text, archetypalText: text, sourceUrl: 'https://synthetic.invalid/remediation', projectionReviewStatus: 'approved' }] }
+      });
+    }
+    const originalFixture = fixture.sourceFixtureId
+      ? JSON.parse(readFileSync(FIXTURES_URL, 'utf8')).cases.find(row => row.id === fixture.sourceFixtureId)
+      : null;
+    if (fixture.sourceFixtureId) assert.ok(originalFixture, `${fixture.id}: unknown source fixture`);
+    const sample = originalFixture ? { ...originalFixture, id: fixture.id } : {
+      id: fixture.id, referenceTime: fixtureDocument.referenceTime, spreadKey: 'general', deckStyle: fixture.deckStyle || 'rws-1909',
+      cards: fixture.cards.map(name => ({ name, orientation: 'Upright' })),
+      userQuestion: 'How can I approach a career change?', reflectionsText: '',
+      memories: [{ id: 'synthetic-remediation-memory', scope: 'global', category: 'communication', text: 'Prefers concise practical advice' }]
+    };
+    const payload = await prepareNarrativeSamplePayload(sample, { env: caseEnv });
+    const candidates = collectPassageCandidates(payload.analysis.themes.knowledgeGraph?.graphKeys || {}, { deckStyle: payload.deckStyle });
+    let replacement;
+    if (fixture.inputMode === 'summary') {
+      // A historical opaque quote cannot authorize full reference text. Actual
+      // detected, registry-backed card patterns still authorize a safe summary.
+      replacement = { passages: [], formattedBlock: 'Synthetic unavailable historical quote.' };
+    } else if (fixture.inputMode === 'projection-rejected') {
+      const unverified = { type: 'major-arcana', patternId: '17', sourceId: 'synthetic-unapproved-source', text: 'Synthetic unverified reference.' };
+      assert.equal(projectPassageForDeck(unverified, payload.deckStyle), null, `${fixture.id}: projection control must actually be rejected`);
+      replacement = { passages: [unverified] };
+    } else if (fixture.inputMode === 'integrity-removed') {
+      const passage = candidates.find(row => row.sourceId === 'synthetic-remediation-integrity-17');
+      assert.ok(passage, `${fixture.id}: synthetic registered projection missing`);
+      replacement = { passages: [passage], maxPassages: 1 };
+    } else if (fixture.reference) {
+      const passage = candidates.find(row => ['type', 'patternId', 'context'].every(key => row[key] === fixture.reference[key]));
+      assert.ok(passage, `${fixture.id}: selected registry reference missing`);
+      replacement = { passages: [{ ...passage, ...(fixture.reference.belowRelevanceThreshold ? { belowRelevanceThreshold: true, relevanceScore: 0.1 } : {}) }], maxPassages: 1 };
+    } else {
+      assert.equal(fixture.inputMode, undefined, `${fixture.id}: unknown input mode`);
+    }
+    if (replacement) {
+      payload.graphRAGPayload = replacement;
+      payload.analysis.graphRAGPayload = replacement;
+      payload.analysis.themes.knowledgeGraph.graphRAGPayload = replacement;
+    }
+    return await run(payload, caseEnv);
+  } finally { restoreRegistry(); }
+}
+
+/** Assertions shared by offline builds and captured provider transport tests. */
+export function verifyGraphRAGRemediationPrompt(fixture, target, payload, built) {
+  const label = `${fixture.id}:${target}`;
+  const expected = fixture.expected;
+  const mode = expected.modes?.[target] || expected.mode;
+  const graph = built.promptMeta.sourceUsage.graphRAG;
+  assert.equal(graph.mode, mode, `${label}: final mode`);
+  verifyFinalPrompt(built, payload, target, label);
+  assert.equal(graph.integrityRemovedBlocks, expected.integrityRemovedBlocks, `${label}: integrity removal count`);
+  assert.deepEqual(graph.integrityRemovalReasons, expected.integrityRemovalReasons || [], `${label}: fixed integrity reasons`);
+  if (expected.retainedPassages !== undefined) assert.equal(graph.passagesUsedInPrompt, expected.retainedPassages, `${label}: retained passages`);
+  if (expected.projectionRejected !== undefined) assert.equal(graph.projectionRejected, expected.projectionRejected, `${label}: rejected projections`);
+  if (mode === 'none' && expected.omittedReason) assert.equal(graph.skippedReason, expected.omittedReason, `${label}: omission reason`);
+  if (mode === 'full') {
+    assert.ok(graph.passagesUsedInPrompt > 0, `${label}: full references cannot have zero retained passages`);
+    if (expected.partialGuardrail) assert.ok(built.userPrompt.includes(GRAPHRAG_PARTIAL_PATTERN_GUARDRAIL), `${label}: partial guardrail`);
+    if (expected.weakGuardrail) assert.ok(built.userPrompt.includes(GRAPHRAG_WEAK_MATCH_GUARDRAIL), `${label}: weak-match guardrail`);
+    for (const index of graph.passageIndices) {
+      const passage = payload.graphRAGPayload.passages[index];
+      assert.equal(passage.projectedDeck, payload.deckStyle, `${label}: selected deck projection`);
+      assert.ok(built.userPrompt.includes(passage.promptText), `${label}: indexed passage must occur in serialized prompt`);
+    }
+  }
+  for (const signal of expected.summarySignals || []) assert.ok(built.userPrompt.includes(signal), `${label}: missing summary signal ${signal}`);
+  const candidates = collectPassageCandidates(payload.analysis.themes.knowledgeGraph?.graphKeys || {}, { deckStyle: payload.deckStyle });
+  for (const family of expected.families || []) assert.ok(candidates.some(row => row.type === family), `${label}: family ${family} needs actual registry evidence`);
+  if (expected.majorNumbers) {
+    const majors = candidates.filter(row => row.type === 'major-arcana');
+    assert.deepEqual([...new Set(majors.map(row => Number(row.patternId)))].sort((a, b) => a - b), expected.majorNumbers, `${label}: every drawn Major`);
+    if (expected.majorNumbers.length > 1) assert.ok(majors.every(row => row.priority === 7), `${label}: multi-Major eligibility priority`);
+  }
+  const publicGraph = sanitizeSourceUsage(built.promptMeta.sourceUsage).graphRAG;
+  assert.deepEqual(publicGraph, graph, `${label}: journal/client normalization lost final measurements`);
+  if (built.promptMeta.graphRAG) {
+    const telemetry = buildGraphRAGTelemetry(built.promptMeta.graphRAG);
+    assert.equal(telemetry.referenceGuardrailsComplete, graph.referenceGuardrailsComplete, `${label}: telemetry guardrails`);
+    assert.equal(telemetry.integrityRemovedBlocks, graph.integrityRemovedBlocks, `${label}: telemetry removals`);
+    assert.deepEqual(telemetry.integrityRemovalReasons, graph.integrityRemovalReasons, `${label}: telemetry reasons`);
+  }
+}
+
+export async function verifyGraphRAGRemediationFixtures({ fixtures = null } = {}) {
+  const raw = fixtures ? JSON.stringify(fixtures) : readFileSync(GRAPHRAG_REMEDIATION_FIXTURES_URL, 'utf8');
+  fixtures ||= JSON.parse(raw);
+  assert.equal(fixtures.schemaVersion, 1);
+  assert.equal(new Set(fixtures.cases.map(row => row.id)).size, fixtures.cases.length, 'Duplicate remediation case ID');
+  const restoreNetwork = installOfflineNetworkGuard();
+  const families = new Set();
+  const result = { fixtureHash: hash(raw), readingPromptVersion: getReadingPromptVersion(), casesChecked: 0, providerBuildsChecked: 0, executedCaseIds: [], familiesChecked: [], liveProviderCalls: 0, observations: {} };
+  try {
+    for (const fixture of fixtures.cases) {
+      await withGraphRAGRemediationCase(fixture, async (payload, caseEnv) => {
+        const observation = { modes: {}, retainedPassages: {}, integrityRemovedBlocks: {}, promptHashes: {} };
+        for (const target of TARGETS) {
+          const attempt = structuredClone(payload);
+          const built = buildOpenAIResponsesPrompts(caseEnv, attempt, fixture.id, { budgetTarget: target });
+          built.memoryRetention = attempt.memoryRetention;
+          verifyGraphRAGRemediationPrompt(fixture, target, attempt, built);
+          const graph = built.promptMeta.sourceUsage.graphRAG;
+          observation.modes[target] = graph.mode;
+          observation.retainedPassages[target] = graph.passagesUsedInPrompt;
+          observation.integrityRemovedBlocks[target] = graph.integrityRemovedBlocks;
+          observation.promptHashes[target] = hash(JSON.stringify([built.systemPrompt, built.userPrompt]));
+          result.providerBuildsChecked++;
+        }
+        for (const family of fixture.expected.families || []) families.add(family);
+        result.observations[fixture.id] = observation;
+      });
+      result.casesChecked++;
+      result.executedCaseIds.push(fixture.id);
+    }
+    assert.deepEqual([...families].sort(), [...fixtures.requiredFamilies].sort(), 'All declared pattern families must have exercised registry evidence');
+    result.familiesChecked = fixtures.requiredFamilies;
+    return result;
+  } finally { restoreNetwork(); }
 }
 
 /** Expand only the checked-in matrix; no source commit is frozen by infrastructure. */
@@ -143,7 +295,9 @@ export function loadQualificationManifest({ v2 = JSON.parse(readFileSync(V2_FIXT
   assert.equal(complete.length, 30);
   assert.equal(caps.length, 21);
   const evaluatorSource = readFileSync(new URL('../../functions/lib/evaluation.js', import.meta.url), 'utf8');
-  return { referenceTime: v2.referenceTime, versions: { readingPrompt: getReadingPromptVersion(), evaluator: evaluatorSource.match(/const EVAL_PROMPT_VERSION = '([^']+)'/)?.[1], evaluatorSourceHash: hash(evaluatorSource) }, generation: { provider: null, model: null, settings: null, embeddingMode: 'fixed mocked vectors or keyword; no live embeddings' }, sourceIdentity: null, qualification: 'infrastructure-development', frozen: { rawHash: hash(frozenBytes), byteLength: frozenBytes.length, caseIds: frozen.cases.map(row => row.id) }, v2: { ...v2, rawHash: hash(readFileSync(V2_FIXTURES_URL)) }, v3: { ...v3, rawHash: hash(readFileSync(V3_FIXTURES_URL)) }, matrix: { partial, complete }, caps, caseOrder, caseOrderHash: hash(JSON.stringify(caseOrder)) };
+  const remediationBytes = readFileSync(GRAPHRAG_REMEDIATION_FIXTURES_URL);
+  const remediation = JSON.parse(remediationBytes);
+  return { referenceTime: v2.referenceTime, versions: { readingPrompt: getReadingPromptVersion(), evaluator: evaluatorSource.match(/const EVAL_PROMPT_VERSION = '([^']+)'/)?.[1], evaluatorSourceHash: hash(evaluatorSource) }, generation: { provider: null, model: null, settings: null, embeddingMode: 'fixed mocked vectors or keyword; no live embeddings' }, sourceIdentity: null, qualification: 'infrastructure-development', frozen: { rawHash: hash(frozenBytes), byteLength: frozenBytes.length, caseIds: frozen.cases.map(row => row.id) }, v2: { ...v2, rawHash: hash(readFileSync(V2_FIXTURES_URL)) }, v3: { ...v3, rawHash: hash(readFileSync(V3_FIXTURES_URL)) }, graphRAGRemediation: { schemaVersion: remediation.schemaVersion, rawHash: hash(remediationBytes), caseIds: remediation.cases.map(row => row.id) }, matrix: { partial, complete }, caps, caseOrder, caseOrderHash: hash(JSON.stringify(caseOrder)) };
 }
 
 function verifyCanonProjections(manifest) {
@@ -248,6 +402,7 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
   if (!boundary) return;
   const config = fixture.qualification || {};
   const payload = config.repeatCardMeaning ? stressMeanings(originalPayload, config.repeatCardMeaning) : originalPayload;
+  let verificationPayload = payload;
   let built;
   if (boundary === 'slimming' || boundary === 'removed-graph') {
     built = buildEnhancedClaudePrompt(promptArguments(payload, config.budgetTarget, { promptBudgetEnv: { ...BASE_ENV, ...config.env } }));
@@ -271,13 +426,15 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
     assert.ok(payload.graphRAGPayload.passages.length);
     // Historical fixture repeated unverified payload prose. Preserve its bytes,
     // but create real pressure with verified references and a test soft budget.
-    const softBudget = 5960;
+    // Calibrated for complete envelopes and guardrails; retain the frozen input
+    // and its required summary behavior without changing production budgets.
+    const softBudget = 6200;
     built = buildEnhancedClaudePrompt(promptArguments(payload, config.budgetTarget, { promptBudgetEnv: { ...BASE_ENV, ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_CLAUDE: String(softBudget), PROMPT_BUDGET_OPENAI: String(softBudget) } }));
     assert.equal(built.promptMeta.sourceUsage.graphRAG.mode, 'summary');
     assert.ok(built, 'valid registry selections must reach summary mode under a test soft budget');
     assert.equal(built.promptMeta.sourceUsage.graphRAG.passagesUsedInPrompt, 0);
     assert.match(built.userPrompt, /CARD GUARDRAIL/);
-    summary.boundaries[boundary] = { mode: 'summary', passages: 0, softBudget, adapter: 'verified-registry-soft-budget-v2' };
+    summary.boundaries[boundary] = { mode: 'summary', passages: 0, softBudget, adapter: 'verified-registry-soft-budget-v3' };
   } else if (boundary === 'partial-path') {
     built = buildEnhancedClaudePrompt(promptArguments(payload));
     const fields = prepareUserContext(payload.userQuestion, payload.reflectionsText, payload.cardsInfo, payload.userContextInputStats, payload.decisionPaths);
@@ -344,7 +501,8 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
       assert.equal(stats.scoringMethod, 'semantic');
       assert.equal(stats.candidatesScored, candidates.length);
     }
-    built = buildEnhancedClaudePrompt(promptArguments(payload, 'claude', { graphRAGPayload: { ...payload.graphRAGPayload, passages: selected, maxPassages: 1, retrievalSummary: stats } }));
+    verificationPayload = { ...payload, graphRAGPayload: { ...payload.graphRAGPayload, passages: selected, maxPassages: 1, retrievalSummary: stats } };
+    built = buildEnhancedClaudePrompt(promptArguments(verificationPayload));
     summary.boundaries[boundary] = { scoringMethod: stats.scoringMethod, candidatesScored: stats.candidatesScored, patternId: selected[0]?.patternId, fallback: Boolean(stats.semanticScoringFallbackReason) };
     clearEmbeddingCache();
   } else if (boundary === 'local-composer') {
@@ -373,7 +531,7 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
       summary.boundaries[boundary] = { provider: body.provider, sourceUsage: null };
     } finally { globalThis.fetch = originalFetch; }
   } else throw new Error(`Unexercised qualification boundary: ${boundary}`);
-  if (built) verifyFinalPrompt(built, payload, config.budgetTarget || 'claude', fixture.id);
+  if (built) verifyFinalPrompt(built, verificationPayload, config.budgetTarget || 'claude', fixture.id);
 }
 
 
@@ -779,6 +937,7 @@ export async function runDeterministicQualification({ corpus = JSON.parse(readFi
       assert.equal(summary.matrixPartialCasesChecked, manifest.matrix.partial.length);
       assert.equal(summary.matrixCompleteCasesChecked, manifest.matrix.complete.length);
       assert.deepEqual(summary.executedCaseIds, manifest.caseOrder);
+      summary.graphRAGRemediation = await verifyGraphRAGRemediationFixtures();
     }
     return summary;
   } finally { console.log = originalLog; console.warn = originalWarn; restoreNetwork(); clearEmbeddingCache(); }

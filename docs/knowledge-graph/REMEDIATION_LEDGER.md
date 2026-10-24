@@ -1,5 +1,33 @@
 # Reading context remediation execution ledger
 
+## October 24 GraphRAG continuation — Tasks 7–8
+
+This section records the isolated continuation from `a3c115c0c3abf414c78e085528664aa3c88d99c6` on `claude/graphrag-complete-remediation-20261024`. The user authorized using the pasted handoff in a new checkout because the original Ubuntu worktree, cache logs and complete-remediation plan were unavailable. Original Task 1–6 test logs and preservation snapshots are not independently verified here. The published seven-commit ancestry was verified.
+
+### Task 7 checkpoint
+
+Commit **`88e01b18ce4f7aec02b6cbede722112f4ee3bafa`** applies final GraphRAG integrity before final token accounting, source usage, memory parsing and provider handoff. Shared sanitization carries bounded removal counts, fixed reasons and measured guardrail completeness. The shared enum is re-exported from the existing server helper; reader handling adds the requested integrity omission copy without exposing arbitrary diagnostic text. Conditional guardrails use the final capped passage set, so an unseen weak candidate cannot invalidate an otherwise complete retained block.
+
+The required five-file suite first ran red with **95 passed / 28 failed** across 123 tests, before production changes. The completed checkpoint passed **123/123**, zero skipped, including the real API provider-attempt control: a rejected Modal request has reference and memory blocks, an accepted capped OpenAI request has neither, and only the accepted attempt supplies public provenance and access receipts.
+
+### Task 8 implementation and qualification
+
+Prompt version **1.6.0** and [remediation v1 fixtures](../../tests/fixtures/graph-rag-remediation-v1-cases.json) integrate all eight registry-backed families and every final retention mode with the existing qualification corpus. The new fixture's 16 cases are built for all three providers and also sent through real request serializers with mocked transport. Negative expectation controls reject wrong modes, removal counts and claimed family evidence. Synthetic registry mutation is restored on success and failure.
+
+The current verification results are in [qualification status](QUALIFICATION_STATUS.md#current-offline-verification). The standalone credential-free evaluator passes 874 existing cases / 2,541 builds plus the separate remediation 16 / 48 lane, with 525 deck projections, 21 passage caps and 13 grounding probes. The Worker suites pass 64/64. Lint and production build pass. The final full root rerun passes **5,839 tests**, zero failed/cancelled, with two intentional installed-CLI opt-in skips (5,841 total). Documentation checks pass for 223 maintained Markdown files; whitespace checks pass.
+
+Observed integration failures and decisions:
+
+- The offline preview's explicit source allowlist omitted the shared integrity enum and the earlier lexical, scoring and summary modules, including the lexical vocabulary dependency. Five actual preview-startup regressions exposed the missing imports. Add these five concrete dependencies to `scripts/lib/readingCueValidationSource.json`; retain the explicit allowlist and blocked-provider environment.
+- A pre-existing telemetry assertion omitted the three additive Task 5 pattern fields. Update its expected shape to include zero counts for Major Arcana, Thoth suit and Marseille numerology when absent; preserve all existing assertions.
+- The initial root run could not launch two Chromium tests and skipped a third browser control because the locked browser executable was missing. The normal Playwright CDN returned a 195-byte unavailable HTML page. Provision the exact locked Playwright 1.62.1 / Chromium 151.0.7922.34 artifacts from official Google version metadata, validating upstream MD5, ZIP CRC, safe paths and executable versions. The final root rerun executes all three browser cases; only the two installed-CLI opt-in skips remain. No tests or package versions were changed for this dependency.
+- The frozen summary-only fixture's old 5,960 test budget no longer retained its complete guardrails. Use 6,200, inside the measured 6,003–6,533 summary interval, preserving frozen fixture bytes and production budgets.
+- Final guardrail verification at the synthetic quality-bypass boundary now uses that attempt's selected passages instead of the earlier retrieval payload. It validates the actual request under test.
+
+**Task 9 remains deferred for user review.** This continuation makes zero live embedding captures, subscription generations, deployments or merges. Historical release authorizations and narrative approvals below do not transfer to this changed source.
+
+## Historical October 24 correctness remediation
+
 October 24 plan: [correctness remediation](../superpowers/plans/2026-10-24-reading-pipeline-correctness-remediation.md).
 
 Current status: the E1–E5 canon corrections and grouped review remain complete: **191 accepted groups / 1,167 mechanically valid variants / zero owner decisions**. The subsequently authorized [47-output subscription review](READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) is also complete. Eleven standard outputs pass; four initial candidate comparison outputs had blocking findings across three families. Rank-based artwork assertions, non-present age conversion and fitted card loss are corrected in prompt **1.5.2**, evaluator **2.6.0**, and confirmed by eight focused subscription generations with zero blocking findings. The current full root suite passes **5,736**, zero failures and two intentional skips; Worker suites pass **64**, assembly passes **874 cases / 2,541 builds**, and lint/build pass. Exact source, checks and preserved failures are recorded in `subscription-qualification/qualification-manifest.json` and the [execution record](READING_PIPELINE_CORRECTNESS_2026-10-24.md).

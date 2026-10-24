@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "referenceTime": "2026-10-22T16:00:00.000Z",
+  "purpose": "Offline GraphRAG remediation preservation through final prompt assembly and actual mocked provider serialization. Synthetic failures are not live relevance or generated-reading evidence.",
+  "requiredFamilies": ["triad", "dyad", "court-lineage", "suit-progression", "fools-journey", "major-arcana", "thoth-suit", "marseille-numerology"],
+  "cases": [
+    {
+      "id": "remediation-full-multi-major",
+      "cards": ["The Fool", "Strength", "The Star", "The Sun"],
+      "expected": { "mode": "full", "majorNumbers": [0, 8, 17, 19], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-partial-weak-reference",
+      "cards": ["Death", "The Star"],
+      "reference": { "type": "triad", "patternId": "death-temperance-star", "context": "general", "belowRelevanceThreshold": true },
+      "expected": { "mode": "full", "partialGuardrail": true, "weakGuardrail": true, "retainedPassages": 1, "visiblePassages": 0, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-full-thoth-projection",
+      "deckStyle": "thoth-a1",
+      "cards": ["Death", "Temperance", "The Star"],
+      "expected": { "mode": "full", "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-triad",
+      "cards": ["Death", "Temperance", "The Star"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["triad"], "summarySignals": ["1 complete triad(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-dyad",
+      "cards": ["Death", "The Star"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["dyad"], "summarySignals": ["1 high-significance dyad(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-court-lineage",
+      "cards": ["Page of Cups", "Queen of Cups"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["court-lineage"], "summarySignals": ["1 court lineage(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-suit-progression",
+      "cards": ["Ace of Wands", "Two of Wands", "Three of Wands"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["suit-progression"], "summarySignals": ["1 strong suit progression(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-majors-and-journey",
+      "cards": ["The Star", "The Sun"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["major-arcana", "fools-journey"], "majorNumbers": [17, 19], "summarySignals": ["2 Major Arcana archetype(s)", "Fool's Journey Stage: Culmination (15–21)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-thoth-suit",
+      "deckStyle": "thoth-a1",
+      "cards": ["Two of Wands", "Three of Wands", "Four of Wands"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["thoth-suit"], "summarySignals": ["1 Thoth suit pattern(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-summary-marseille-numerology",
+      "deckStyle": "marseille-classic",
+      "cards": ["Three of Wands", "Three of Cups", "Three of Swords"],
+      "inputMode": "summary",
+      "expected": { "mode": "summary", "families": ["marseille-numerology"], "summarySignals": ["1 Marseille numerology pattern(s)"], "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-budget-summary",
+      "sourceFixtureId": "boundary-summary-only",
+      "flags": { "ENABLE_PROMPT_SLIMMING": "true", "PROMPT_BUDGET_CLAUDE": "6200", "PROMPT_BUDGET_OPENAI": "6200" },
+      "expected": { "modes": { "claude": "summary", "openai": "summary", "modal": "full" }, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-budget-omitted",
+      "sourceFixtureId": "boundary-summary-only",
+      "flags": { "ENABLE_PROMPT_SLIMMING": "true", "PROMPT_BUDGET_CLAUDE": "5000", "PROMPT_BUDGET_OPENAI": "5000" },
+      "expected": { "modes": { "claude": "none", "openai": "none", "modal": "full" }, "omittedReason": "removed_for_budget", "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-disabled",
+      "cards": ["The Sun"],
+      "flags": { "GRAPHRAG_ENABLED": "false" },
+      "expected": { "mode": "none", "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-empty",
+      "cards": ["Two of Pentacles"],
+      "expected": { "mode": "none", "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-projection-rejected",
+      "cards": ["The Star"],
+      "inputMode": "projection-rejected",
+      "expected": { "mode": "summary", "projectionRejected": 1, "retainedPassages": 0, "integrityRemovedBlocks": 0 }
+    },
+    {
+      "id": "remediation-integrity-removed",
+      "cards": ["The Star"],
+      "inputMode": "integrity-removed",
+      "expected": { "mode": "none", "omittedReason": "reference_integrity_failed", "retainedPassages": 0, "integrityRemovedBlocks": 2, "integrityRemovalReasons": ["invalid_envelope", "missing_envelope_end", "missing_security_note", "incomplete_summary", "missing_card_guardrail"] }
+    }
+  ]
+}

@@ -18,6 +18,7 @@ import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { parseGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
 
 const corpus = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-cases.json', import.meta.url)));
+const remediationFixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url)));
 const env = { GRAPHRAG_ENABLED: 'true', OPENAI_API_KEY: 'synthetic', MODAL_PROXY_TOKEN: 'synthetic', MODAL_ENDPOINT_URL: 'https://modal.invalid', MODAL_STREAM: 'false' };
 const regressionCases = [0, 42, 43, 46, 45, 44, 30];
 async function fixture(index = 0) {
@@ -61,6 +62,52 @@ function verifyFinal(payload, result, user, system) {
     assert.doesNotMatch(user, /respected tarot literature/);
   }
 }
+
+test('remediation fixture preservation reaches each serialized provider request', async t => {
+  const gate = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
+  assert.equal(typeof gate.withGraphRAGRemediationCase, 'function');
+  assert.equal(typeof gate.verifyGraphRAGRemediationPrompt, 'function');
+  for (const row of remediationFixtures.cases) {
+    for (const target of ['claude', 'openai', 'modal']) {
+      await t.test(`${row.id} ${target}`, async subtest => {
+        for (const method of ['log', 'warn']) subtest.mock.method(console, method, () => {});
+        await gate.withGraphRAGRemediationCase(row, async (payload, caseEnv) => {
+          const providerEnv = { ...env, ...caseEnv };
+          let user;
+          let system;
+          let result;
+          if (target === 'claude') {
+            result = await generateWithClaudeApi(providerEnv, payload, row.id, { send: async (_env, request) => {
+              user = request.messages[0].content;
+              system = request.system;
+              return { text: 'A synthetic reading.', model: 'synthetic' };
+            } });
+          } else {
+            subtest.mock.method(globalThis, 'fetch', async (_url, request) => {
+              const body = JSON.parse(request.body);
+              user = target === 'modal' ? body.messages.at(-1).content : body.input;
+              system = target === 'modal' ? body.messages.find(message => message.role === 'system').content : body.instructions;
+              return Response.json(target === 'modal'
+                ? { choices: [{ message: { content: 'A synthetic reading.' }, finish_reason: 'stop' }], model: 'synthetic' }
+                : { output_text: 'A synthetic reading.', model: 'synthetic' });
+            });
+            result = await (target === 'modal' ? generateWithModalQwen : generateWithOpenAIResponses)(providerEnv, payload, row.id);
+          }
+          assert.equal(result.promptMeta.readingPromptVersion, '1.6.0');
+          gate.verifyGraphRAGRemediationPrompt(row, target, payload, {
+            systemPrompt: system, userPrompt: user, promptMeta: result.promptMeta, memoryRetention: payload.memoryRetention
+          });
+          const graph = result.promptMeta.sourceUsage.graphRAG;
+          // The reader still suppresses legacy partial arcs even when their
+          // guarded reference was retained for generation.
+          assert.equal(getTraditionalPassages(payload.analysis.themes, result.promptMeta).length,
+            row.expected.visiblePassages ?? graph.passagesUsedInPrompt);
+          assert.deepEqual(sanitizeSourceUsage(result.promptMeta.sourceUsage).graphRAG, graph);
+        });
+      });
+    }
+  }
+});
 
 // F1-F7 exercise the complete backend assembly, including request serialization.
 for (let index = 0; index < 7; index++) {

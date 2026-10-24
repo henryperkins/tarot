@@ -1,6 +1,38 @@
 # Knowledge graph and context qualification status
 
-## October 24 GraphRAG complete remediation candidate (in progress)
+## October 24 GraphRAG complete remediation candidate — offline Tasks 7–8
+
+Reading prompt **1.6.0** adds final-prompt integrity and source accounting on branch `claude/graphrag-complete-remediation-20261024`, continuing the published Task 6 checkpoint `a3c115c0c3abf414c78e085528664aa3c88d99c6`. Task 7 is checkpointed at `88e01b18ce4f7aec02b6cbede722112f4ee3bafa`. This is an offline candidate; **Task 9 live embeddings, subscription generations and deployment remain pending explicit user review**. Earlier release and narrative records below do not qualify this changed prompt version.
+
+The original Ubuntu worktree, cache evidence and complete-remediation plan were unavailable in this environment; the plan is also absent from the supplied Git revision. The user authorized an isolated checkout and their pasted Tasks 7–8 handoff as the execution contract. The published commit ancestry was verified. Original checkout hashes, prompt snapshots and Task 1–6 red/green logs remain unverified historical evidence.
+
+### Final-prompt and pipeline coverage
+
+- Final assembly calls `enforceGraphRAGPromptIntegrity()` after all trimming and before token totals, graph parsing, source usage, memory retention and provider handoff. Conditional guardrails use the projected, ranked, capped passages for that attempt.
+- Public diagnostics retain only a bounded `integrityRemovedBlocks` count, fixed-enum `integrityRemovalReasons`, and `referenceGuardrailsComplete` when measured. Historical records without these measurements stay unknown. Integrity omission uses `reference_integrity_failed`, with reader copy **“Reference passages could not be included.”**
+- The [remediation v1 fixture](../../tests/fixtures/graph-rag-remediation-v1-cases.json) exercises **16 cases / 48 provider-target builds**, including full references, partial/weak guardrails, selected-deck projection, summary, budget omission, disabled/empty input, rejected projection and integrity removal. All eight registry-backed pattern families have actual candidate evidence and matching summary signals. Fixture SHA-256: `df12321cc03497d3fcfbe75825dceabc2afd26283f07b83d2618dfa0cc872e76`.
+- Actual Claude, OpenAI and Modal request serializers are exercised with mocked transports. Source indices, journal/client normalization, telemetry and memory receipts are checked against final prompt bytes. A rejected Modal attempt containing references and memory followed by an accepted capped OpenAI attempt reports only the accepted attempt's sources and memory receipts.
+- Existing reader suppression of legacy partial arcs is preserved. A reference retained for generation does not guarantee a visible reader excerpt or prove that a model used it.
+
+### Current offline verification
+
+All commands run in the isolated checkout on Node **24.19.0**, npm **11.9.0**, with the six provider credentials named in the handoff unset. The standalone assembly evaluator also blocks unstubbed external network access.
+
+| Check | Observed result |
+| --- | --- |
+| Task 7 required five-file suite | **123 passed**, zero failed/skipped at `88e01b1`. |
+| Root `npm test` | **5,839 passed**, zero failed/cancelled; **two intentional installed-CLI opt-in skips** (5,841 total). The first failed integration run remains preserved. |
+| Worker graph and spread analysis | **64 passed**, zero failed/skipped. |
+| Credential-free assembly evaluator | **874 existing cases / 2,541 provider-target builds**, plus **16 remediation cases / 48 builds**; **525 deck projections / 21 caps / 13 grounding probes**. All passed; existing and additional lanes are reported separately. |
+| `npm run lint` | Passed, zero errors; one existing unused-import warning for `countGraphRAGPassagesInPrompt`. |
+| `npm run build` | Passed. |
+| `npm run docs:check` and `git diff --check` | Passed; **223 maintained Markdown files** have valid local links. |
+
+The full-suite integration run exposed missing GraphRAG dependencies in the offline preview's explicit source allowlist, an older telemetry assertion missing Task 5's three additive counts, and unavailable Playwright browser binaries. The allowlist and assertion are repaired, and the complete root rerun passes with the exact locked Playwright 1.62.1 / Chromium 151.0.7922.34 binaries. The normal CDN returned an unavailable-page response; the same version was installed from its official Google distribution with matching upstream MD5, ZIP integrity and executable-version checks. No package or test was changed to bypass the missing dependency. The earlier default-sandbox run was interrupted after local subprocess/listener errors and is not passing baseline evidence.
+
+The existing frozen summary-only fixture remains byte-for-byte unchanged. Its test adapter's soft budget moves from **5,960 to 6,200** so complete summary guardrails survive; measured summary retention for that input was 6,003–6,533. Production budgets stay unchanged. Synthetic malformed registry rows are isolated and restored even on a failed expectation, so repeated qualification does not change the canon.
+
+These checks do not supply real embedding relevance evidence, generated-reading quality approval, original-host preservation evidence or deployment verification. The live `REL01`–`REL10` relevance qualification below remains open.
 
 ### Task 4: Semantic-primary scoring and fallback qualification status
 
@@ -11,7 +43,7 @@
 - **Offline evaluator:** `scripts/evaluation/verifyGraphRAGRelevance.js` fails closed without `--embeddings <frozen-evidence-path>` or on case-order/hash mismatches, and has no implicit live-provider mode.
 - **Real embedding qualification status:** **Pending authorized live Workers AI embedding capture** for `tests/fixtures/graph-rag-relevance-cases.json`. Earlier October 24 `@cf/baai/bge-m3` captures (`AI01`–`AI12`) predate the `REL01`–`REL10` corpus and observed anisotropic cosine floors (`0.38–0.49`) on unrelated queries (`AI06`, `AI10`), so real relevance qualification remains explicitly incomplete until authorized provider evaluation and precision review are completed.
 
-## Current October 24 correctness candidate
+## Historical October 24 correctness candidate and release
 
 **The bounded Claude narrative qualification is complete: zero blocking candidate findings.** All 47 originally authorized subscription narratives are generated and agent-reviewed. The 11 standard samples pass the existing metrics gate and agent review. Four initial candidate comparison readings failed across three defect families: unsupported Marseille artwork, conversion of non-present ages to current facts, and fitted prompts losing accepted drawn cards. These are corrected in reading prompt **1.5.2**, evaluator **2.6.0**. Eight separately authorized focused confirmations of the changed prompts are all accepted, and the recomputed standard (11) and candidate comparison (18) gates pass with zero flags. The [narrative review](READING_PIPELINE_NARRATIVE_REVIEW_2026-10-24.md) records every outcome, correction and two minor residual observations without converting initial failures into passes.
 

@@ -222,12 +222,15 @@ describe('telemetrySchema', () => {
         partialTriads: 2,
         foolsJourneyStage: 'integration',
         totalMajors: 3,
+        majorArcana: 0,
         highDyads: 2,
         mediumHighDyads: 1,
         mediumDyads: 4,
         courtLineages: 2,
         strongSuitProgressions: 1,
-        emergingSuitProgressions: 0
+        emergingSuitProgressions: 0,
+        thothSuitPatterns: 0,
+        marseilleNumerologyPatterns: 0
       });
     });
   });
