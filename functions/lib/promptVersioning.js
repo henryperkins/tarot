@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.0';
+export const READING_PROMPT_VERSION = '1.6.1';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.1',
+    date: '2026-10-24',
+    notes: 'Keep personal history conditional and card pacing symbolic throughout generated readings.',
+    changes: [
+      'Distinguish Past positions and archetypal patterns from supplied personal facts through synthesis, recap and closing.',
+      'Remove predictive timing cues and forbid deriving recovery durations or prognoses from symbolic card pacing; preserve the querent\'s literal timing and optional action schedules.',
+      'Retain the supplemental-Major lexical-support correction and evaluator false-positive fixes; F3b remains unresolved.'
+    ]
+  },
   {
     version: '1.6.0',
     date: '2026-10-24',
