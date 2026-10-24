@@ -10,6 +10,10 @@ import { buildReflectionEntries } from './reflectionLabels.js';
 import { getTimestamp } from './utils.js';
 
 const SEPARATOR = '='.repeat(50);
+const PRIVATE_CAPABILITY_FIELDS = new Set([
+  'visualJobToken', 'visualToken', 'visualJobId', 'attemptId', 'resumeHandle',
+  'visualResume', 'visionProof', 'visualState', 'visualSnapshot'
+]);
 
 function newestFirst(entries) {
   return (Array.isArray(entries) ? entries.filter(Boolean) : [])
@@ -124,6 +128,22 @@ function publicScalars(value, fields) {
     .map(field => [field, value[field]]));
 }
 
+function publicThemeValue(value) {
+  if (Array.isArray(value)) return value.map(publicThemeValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !PRIVATE_CAPABILITY_FIELDS.has(key))
+    .map(([key, child]) => [key, publicThemeValue(child)]));
+}
+
+function publicReflections(reflections) {
+  if (!reflections || typeof reflections !== 'object' || Array.isArray(reflections)) return {};
+  // Every nonblank string is a reader note, including arbitrary legacy labels.
+  // Never classify a note as metadata merely because its label names a field.
+  return Object.fromEntries(Object.entries(reflections)
+    .filter(([, note]) => typeof note === 'string' && note.trim()));
+}
+
 function publicPattern(pattern) {
   return {
     ...publicScalars(pattern, ['type', 'description']),
@@ -165,21 +185,20 @@ function publicFollowUp(turn) {
 
 /** One saved reading's public content, including legacy card identities. */
 export function toJournalExportRecord(entry) {
+  const fields = publicScalars(entry, ['id', 'spread', 'spreadName', 'spreadKey', 'question', 'personalReading', 'context', 'provider', 'deckId']);
   return {
-    id: entry.id ?? null,
+    id: fields.id ?? null,
     ts: getTimestamp(entry),
-    spread: entry.spread || entry.spreadName || null,
-    spreadKey: entry.spreadKey || null,
-    question: entry.question || null,
+    spread: fields.spread || fields.spreadName || null,
+    spreadKey: fields.spreadKey || null,
+    question: fields.question || null,
     cards: Array.isArray(entry.cards) ? entry.cards.map(publicCard) : [],
-    personalReading: entry.personalReading || null,
-    themes: entry.themes || null,
-    reflections: entry.reflections && typeof entry.reflections === 'object' && !Array.isArray(entry.reflections)
-      ? entry.reflections
-      : {},
-    context: entry.context || null,
-    provider: entry.provider || null,
-    deckId: entry.deckId || null,
+    personalReading: fields.personalReading || null,
+    themes: publicThemeValue(entry.themes) || null,
+    reflections: publicReflections(entry.reflections),
+    context: fields.context || null,
+    provider: fields.provider || null,
+    deckId: fields.deckId || null,
     followUps: Array.isArray(entry.followUps) ? entry.followUps.map(publicFollowUp) : []
   };
 }

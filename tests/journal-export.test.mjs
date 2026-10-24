@@ -295,3 +295,21 @@ test('journal JSON projects public card and conversation fields without private 
     assert.strictEqual(JSON.stringify(result).includes(secret), false);
   }
 });
+
+test('journal JSON preserves theme structure and literal note labels while excluding malformed metadata', async () => {
+  const { buildJournalJson } = await import('../shared/journal/exportFormats.js');
+  const prose = '  I wrote visualJobToken and attemptId.\r\nKeep these words.  ';
+  const reflections = { 0: prose, Overall: prose, Past: prose, visualJobToken: 'A literal legacy note label.' };
+  const entry = buildJournalJson([{
+    id: 'nested-fields', ts: Date.UTC(2026, 9, 24), cards: [],
+    question: { visualJobToken: 'PRIVATE_INVALID_QUESTION' }, spread: { resumeHandle: 'PRIVATE_INVALID_SPREAD' }, spreadName: 'One card',
+    themes: { counts: { cups: 2 }, enabled: true, note: prose, list: [null, { label: prose, visualJobToken: 'PRIVATE_THEME_TOKEN' }],
+      nested: { attemptId: 'PRIVATE_THEME_ATTEMPT', count: 1 } },
+    reflections: { ...reflections, metadata: { resumeHandle: 'PRIVATE_REFLECTION_OBJECT' } }
+  }]).entries[0];
+  assert.equal(entry.question, null);
+  assert.equal(entry.spread, 'One card');
+  assert.deepStrictEqual(entry.reflections, reflections);
+  assert.deepStrictEqual(entry.themes, { counts: { cups: 2 }, enabled: true, note: prose, list: [null, { label: prose }], nested: { count: 1 } });
+  assert.equal(JSON.stringify(entry).includes('PRIVATE_'), false);
+});

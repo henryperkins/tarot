@@ -179,3 +179,8 @@ test('share titles are one line of at most 80 characters, never splitting a char
   assert.equal(Array.from(normalizeShareTitle(emoji)).length, 80);
   assert.ok(!normalizeShareTitle(`${'a'.repeat(79)}🌙`).endsWith('\uD83C'));
 });
+
+test('share titles replace XML-invalid characters without losing valid Unicode', () => {
+  assert.equal(normalizeShareTitle('A\u0001B\uFFFE C\uD800 🌙 漢字'), 'A B C 🌙 漢字');
+  assert.equal(normalizeShareTitle('\u0000\u0008\uFFFF\uDC00'), null);
+});

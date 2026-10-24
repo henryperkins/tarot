@@ -1,7 +1,7 @@
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { safeJsonParse } from './utils.js';
-import { SHARE_TITLE_MAX_LENGTH } from '../../shared/journal/shareTitles.js';
+import { SHARE_TITLE_MAX_LENGTH, replaceInvalidXmlCharacters } from '../../shared/journal/shareTitles.js';
 
 export { SHARE_TITLE_MAX_LENGTH };
 
@@ -16,7 +16,7 @@ export function defaultShareTitle(scope) {
  */
 export function normalizeShareTitle(value) {
   if (typeof value !== 'string') return null;
-  const collapsed = value.replace(/\s+/g, ' ').trim();
+  const collapsed = replaceInvalidXmlCharacters(value).replace(/\s+/g, ' ').trim();
   if (!collapsed) return null;
   return Array.from(collapsed).slice(0, SHARE_TITLE_MAX_LENGTH).join('').trim();
 }
