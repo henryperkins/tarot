@@ -21,6 +21,19 @@ import { shouldIncludeAstroInsights } from './astro.js';
 import { DEFAULT_REVERSAL_DESCRIPTION } from './constants.js';
 import { createTokenEstimator, getHardCapBudget, getPromptBudgetForTarget, PromptBudgetError } from './budgeting.js';
 import { truncateSystemPromptSafely, truncateToTokenBudget, truncateUserPromptSafely } from './truncation.js';
+import {
+  countGraphRAGPassagesInPrompt,
+  countNumberedGraphRAGPassages,
+  parseGraphRAGReferenceBlock,
+  parseGraphRAGSummaryBlock,
+  enforceGraphRAGPromptIntegrity
+} from './graphRAGPromptIntegrity.js';
+export {
+  countGraphRAGPassagesInPrompt,
+  parseGraphRAGReferenceBlock,
+  parseGraphRAGSummaryBlock,
+  enforceGraphRAGPromptIntegrity
+} from './graphRAGPromptIntegrity.js';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { buildUserPrompt } from './userPrompt.js';
 import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../../../shared/readingSourceUsage.js';
@@ -127,105 +140,6 @@ function validateCardsInfoForPrompt(cardsInfo) {
       'Ensure each entry includes at least { card, position, orientation, meaning }.'
     );
   }
-}
-
-export function countGraphRAGPassagesInPrompt(promptText) {
-  const parsed = parseGraphRAGReferenceBlock(promptText);
-  if (parsed.status !== 'complete') {
-    return 0;
-  }
-  return parsed.passageCount;
-}
-
-function countNumberedGraphRAGPassages(text) {
-  if (!text || typeof text !== 'string') {
-    return 0;
-  }
-
-  return text
-    .split('\n')
-    .filter((line) => /^\s*\d+\.\s+/.test(line.trim()))
-    .length;
-}
-
-export function parseGraphRAGReferenceBlock(promptText) {
-  if (!promptText || typeof promptText !== 'string') {
-    return {
-      status: 'absent',
-      headerPresent: false,
-      referenceTagPresent: false,
-      referenceBlockClosed: false,
-      passageCount: 0
-    };
-  }
-
-  const header = '## TRADITIONAL WISDOM (GraphRAG)';
-  const headerIdx = promptText.indexOf(header);
-  if (headerIdx === -1) {
-    return {
-      status: 'absent',
-      headerPresent: false,
-      referenceTagPresent: false,
-      referenceBlockClosed: false,
-      passageCount: 0
-    };
-  }
-
-  const referenceStart = promptText.indexOf('<reference>', headerIdx);
-  if (referenceStart === -1) {
-    return {
-      status: 'partial',
-      headerPresent: true,
-      referenceTagPresent: false,
-      referenceBlockClosed: false,
-      passageCount: 0
-    };
-  }
-
-  const contentStart = referenceStart + '<reference>'.length;
-  const referenceEnd = promptText.indexOf('</reference>', contentStart);
-  const referenceBlockClosed = referenceEnd !== -1;
-  const referenceBody = referenceEnd === -1
-    ? promptText.slice(contentStart)
-    : promptText.slice(contentStart, referenceEnd);
-
-  if (!referenceBody) {
-    return {
-      status: referenceBlockClosed ? 'complete' : 'partial',
-      headerPresent: true,
-      referenceTagPresent: true,
-      referenceBlockClosed,
-      passageCount: 0
-    };
-  }
-
-  const passageCount = countNumberedGraphRAGPassages(referenceBody);
-
-  return {
-    status: referenceBlockClosed ? 'complete' : 'partial',
-    headerPresent: true,
-    referenceTagPresent: true,
-    referenceBlockClosed,
-    passageCount
-  };
-}
-
-export function parseGraphRAGSummaryBlock(promptText) {
-  if (!promptText || typeof promptText !== 'string') {
-    return { present: false, complete: false };
-  }
-
-  const marker = '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)';
-  const markerIdx = promptText.indexOf(marker);
-  if (markerIdx === -1) {
-    return { present: false, complete: false };
-  }
-
-  const summaryText = promptText.slice(markerIdx);
-  return {
-    present: true,
-    complete: summaryText.includes('Signals:') && summaryText.includes('CARD GUARDRAIL:')
-  };
 }
 
 function hasMeaningfulGraphData(value) {
@@ -989,7 +903,12 @@ export function buildEnhancedClaudePrompt({
     const userResult = truncateUserPromptSafely(
       built.userPrompt,
       userTargetTokens,
-      { spreadKey, estimator, cardInventory: buildCompleteCardInventory(cardsInfo, spreadKey) }
+      {
+        spreadKey,
+        estimator,
+        cardInventory: buildCompleteCardInventory(cardsInfo, spreadKey),
+        expectedPassages: controls.graphRAGPayload?.passages || []
+      }
     );
     finalUser = userResult.text;
     userTruncated = userResult.truncated;

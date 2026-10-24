@@ -148,6 +148,34 @@ it('returns unused card-prose budget to personal context instead of stranding th
   assert.ok(built.promptMeta.sourceUsage.userContext.fields['card-9'].includedLength > 1000);
 });
 
+it('enforces final token budget and atomic GraphRAG when truncating through the user-context allocation path', () => {
+  const { userPrompt } = buildEnhancedClaudePrompt(fixture({
+    cardsInfo: [
+      { card: 'Death', number: 13, position: 'Past', orientation: 'Upright', meaning: 'Ending.', userReflection: reflection },
+      { card: 'Temperance', number: 14, position: 'Present', orientation: 'Upright', meaning: 'Balance.', userReflection: reflection },
+      { card: 'The Star', number: 17, position: 'Future', orientation: 'Upright', meaning: 'Hope.', userReflection: reflection }
+    ],
+    spreadInfo: { name: 'Three-Card Story', key: 'threeCard' },
+    themes: {
+      knowledgeGraph: {
+        graphKeys: { completeTriadIds: ['death-temperance-star'], totalMajors: 3, majorNumbers: [13, 14, 17] }
+      }
+    },
+    promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+  }));
+
+  for (const budget of [220, 380, 600, 950]) {
+    const truncated = truncateUserPromptSafely(userPrompt, budget, { spreadKey: 'threeCard' });
+    assert.ok(estimateTokenCount(truncated.text) <= budget, `Expected <= ${budget} tokens, got ${estimateTokenCount(truncated.text)}`);
+    if (truncated.text.includes('TRADITIONAL WISDOM')) {
+      assert.ok(truncated.text.includes('<!-- graphrag:full:start -->') || truncated.text.includes('<!-- graphrag:summary:start -->'));
+      assert.ok(truncated.text.includes('<!-- graphrag:full:end -->') || truncated.text.includes('<!-- graphrag:summary:end -->'));
+    } else {
+      assert.doesNotMatch(truncated.text, /<\/?reference>|<!--\s*graphrag:/);
+    }
+  }
+});
+
 it('reports partial effective retention when a deduplicated global reflection shares a budget-trimmed card', () => {
   const long = '家族の時間について考えています。'.repeat(80);
   const built = buildEnhancedClaudePrompt(fixture({ reflectionsText: long, cardsInfo: Array.from({ length: 30 }, (_, index) => ({ ...card, position: `Focus ${index}`, userReflection: long })), spreadInfo: { name: 'Custom spread' } }));
