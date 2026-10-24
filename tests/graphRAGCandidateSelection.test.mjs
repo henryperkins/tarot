@@ -353,6 +353,45 @@ test('a late batch makes the entire eligible ranking keyword-only and cannot cha
   assert.equal(getEmbeddingCacheStats().size, before);
 });
 
+test('supplemental Majors need shared question terms to count as relevant, unlike pre-existing candidates', () => {
+  const record = (id, type, priority, relevance, relevanceScore) => ({ candidateId: `${id}:general`, patternKey: id, patternId: id, type, priority, promptText: `${id} text`, relevance, relevanceScore });
+  // REL04 shape: a semantically closer Lovers passage without shared terms must not join the initiation stage.
+  const rel04 = candidatesModule.selectPassageCandidates([
+    record('major-arcana:6', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, 0, 0.3276),
+    record('fools-journey:initiation', 'fools-journey', 2, 0, 0.3048),
+    record('major-arcana:7', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, 0, 0.2805)
+  ], { maxPassages: 2 });
+  assert.deepEqual(rel04.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['fools-journey:initiation', false]]);
+  assert.equal(rel04.retrievalStats.thresholdRejected, 2);
+
+  // Shared terms let the supplemental Major win on its composed score.
+  const supported = candidatesModule.selectPassageCandidates([
+    record('major-arcana:4', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, 0.125, 0.452),
+    record('triad:empress-emperor-hierophant', 'triad', 1, 0.25, 0.3913)
+  ], { maxPassages: 1 });
+  assert.equal(supported[0].patternId, 'major-arcana:4');
+
+  // The single-Major path keeps its existing semantic-only behavior.
+  const single = candidatesModule.selectPassageCandidates([record('major-arcana:17', 'major-arcana', 2, 0, 0.35)], { maxPassages: 1 });
+  assert.notEqual(single[0].belowRelevanceThreshold, true);
+
+  // When nothing passes, the weak floor prefers a pre-existing candidate; a lone supplemental Major still serves.
+  const floor = candidatesModule.selectPassageCandidates([
+    record('major-arcana:13', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, 0, 0.29),
+    record('court-lineage:Cups', 'court-lineage', 5, 0, 0.2)
+  ], { maxPassages: 2 });
+  assert.deepEqual(floor.map(row => [row.patternId, row.belowRelevanceThreshold]), [['court-lineage:Cups', true]]);
+  const lone = candidatesModule.selectPassageCandidates([record('major-arcana:13', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, 0, 0.5)], { maxPassages: 1 });
+  assert.deepEqual(lone.map(row => [row.patternId, row.belowRelevanceThreshold]), [['major-arcana:13', true]]);
+
+  // Priority-only and bypassed retrieval keep structural order with supplemental Majors last.
+  const priorityOnly = candidatesModule.selectPassageCandidates([
+    { ...record('major-arcana:6', 'major-arcana', candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY), _priorityOnly: true },
+    { ...record('fools-journey:initiation', 'fools-journey', 2), _priorityOnly: true }
+  ], { maxPassages: 2 });
+  assert.deepEqual(priorityOnly.map(row => row.patternId), ['fools-journey:initiation', 'major-arcana:6']);
+});
+
 test('multi-Major spreads enumerate every distinct valid Major at priority 7 while preserving single-Major priority 2 and legacy fallback', async (t) => {
   clearEmbeddingCache(); t.after(clearEmbeddingCache);
   const singleCandidates = candidatesModule.collectPassageCandidates({ totalMajors: 1, majorNumbers: [17], singleMajorNumber: 17, singleMajorName: 'The Star', foolsJourneyStageKey: 'integration' }, { includeMetadata: true });
@@ -390,15 +429,27 @@ test('multi-Major spreads enumerate every distinct valid Major at priority 7 whi
   const priorityOrdered = retrievePassages(triadSpreadKeys, { maxPassages: 3 });
   assert.deepEqual(priorityOrdered.map(c => c.type), ['triad', 'fools-journey', 'dyad']);
 
-  // A strongly relevant individual Major in a multi-Major spread can still win on relevance.
+  // A strongly relevant individual Major in a multi-Major spread can still win when the question shares its terms.
   const starPassage = triadCandidates.find(c => c.type === 'major-arcana' && c.patternId === '17');
   const semanticWin = await retrievePassagesWithQuality(triadSpreadKeys, {
+    maxPassages: 1,
+    userQuery: 'aquarian starlight hope',
+    env: { AI: { run: async (_model, { text }) => ({ data: text.map(input => input === 'aquarian starlight hope' || input === starPassage.promptText ? [1, 0] : [0, 1]) }) } }
+  });
+  assert.equal(semanticWin[0].type, 'major-arcana');
+  assert.equal(semanticWin[0].patternId, '17');
+  assert.notEqual(semanticWin[0].belowRelevanceThreshold, true);
+
+  // Embedding similarity alone leaves the supplemental Major on the weak floor behind existing patterns.
+  clearEmbeddingCache();
+  const semanticOnly = await retrievePassagesWithQuality(triadSpreadKeys, {
     maxPassages: 1,
     userQuery: 'aquarian starlight renewal',
     env: { AI: { run: async (_model, { text }) => ({ data: text.map(input => input === 'aquarian starlight renewal' || input === starPassage.promptText ? [1, 0] : [0, 1]) }) } }
   });
-  assert.equal(semanticWin[0].type, 'major-arcana');
-  assert.equal(semanticWin[0].patternId, '17');
+  assert.equal(semanticOnly.length, 1);
+  assert.notEqual(semanticOnly[0].type, 'major-arcana');
+  assert.equal(semanticOnly[0].belowRelevanceThreshold, true);
 
   clearEmbeddingCache();
   const cosinePointFour = await retrievePassagesWithQuality({ completeTriadIds: ['death-temperance-star'] }, {
