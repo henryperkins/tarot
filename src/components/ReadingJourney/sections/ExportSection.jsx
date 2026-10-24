@@ -8,15 +8,18 @@
  */
 
 import { memo, useEffect, useMemo, useState } from 'react';
-import { FilePdf, FileText, FileCsv, Link as LinkIcon, Warning } from '@phosphor-icons/react';
+import { FilePdf, FileText, FileCsv, FileTxt, FileCode, Link as LinkIcon, Warning } from '@phosphor-icons/react';
 import {
   exportJournalEntriesToCsv,
   exportJournalEntriesToMarkdown,
+  exportJournalEntriesToText,
+  exportJournalEntriesToJson,
   computeJournalStats,
   copyJournalShareSummary,
 } from '../../../lib/journalInsights';
 import { JournalShareIcon } from '../../JournalIcons';
 import { PANEL_OUTLINE_BUTTON_CLASS } from '../../../styles/buttonClasses';
+import ShareLinksManager from './ShareLinksManager';
 
 // Lazy load PDF export (pulls in jspdf + html2canvas)
 const loadPdfExport = () => import('../../../lib/pdfExport').then(m => m.exportJournalInsightsToPdf);
@@ -27,6 +30,8 @@ const SHARE_EXPIRY_OPTIONS = [
   { value: '168', label: '7 days' },
   { value: '720', label: '30 days' },
 ];
+
+const SHARE_TITLE_MAX_LENGTH = 80;
 
 const formatExpiryLabel = (value) => {
   const parsed = Number(value);
@@ -47,6 +52,7 @@ const formatExpiryLabel = (value) => {
  * @param {Object|null} props.preferenceDrift - Preference drift analysis (optional)
  * @param {string} props.scopeLabel - Human-friendly label for current scope
  * @param {boolean} props.filtersApplied - Whether journal filters are currently active
+ * @param {Object} [props.shareManagement] - The reader's links and their actions (signed in only)
  */
 const LARGE_EXPORT_THRESHOLD = 50; // Warn user before exporting more than this many entries
 
@@ -59,7 +65,8 @@ function ExportSection({
   stats,
   preferenceDrift,
   scopeLabel = 'Current view',
-  filtersApplied = false
+  filtersApplied = false,
+  shareManagement = null
 }) {
   const defaultScope = useMemo(() => {
     if (filtersApplied) return 'filters';
@@ -78,6 +85,7 @@ function ExportSection({
   const [shareScopeTouched, setShareScopeTouched] = useState(false);
   const [shareLimit, setShareLimit] = useState(5);
   const [expiresInHours, setExpiresInHours] = useState('');
+  const [shareTitle, setShareTitle] = useState('');
   // Confirmation for large exports
   const [pendingLargeExport, setPendingLargeExport] = useState(null);
 
@@ -219,6 +227,24 @@ function ExportSection({
     });
   };
 
+  const handleExportText = () => {
+    if (!hasEntries) return;
+    const result = exportJournalEntriesToText(exportEntries);
+    setExportStatus({
+      type: result ? 'success' : 'error',
+      message: result ? 'Text download started' : 'Export failed',
+    });
+  };
+
+  const handleExportJson = () => {
+    if (!hasEntries) return;
+    const result = exportJournalEntriesToJson(exportEntries, undefined, { scope: exportScopeLabel });
+    setExportStatus({
+      type: result ? 'success' : 'error',
+      message: result ? 'JSON download started' : 'Export failed',
+    });
+  };
+
   const handleCopySnapshot = async (options = {}) => {
     const snapshotStats = options.statsOverride || stats;
     const snapshotLabel = options.scopeLabelOverride || scopeLabel;
@@ -259,6 +285,7 @@ function ExportSection({
         entryIds: shareUsesServerFallback ? undefined : shareEntryIds,
         limit: shareScope === 'all' ? effectiveShareLimit : undefined,
         expiresInHours: effectiveExpiry,
+        title: shareTitle.trim() || undefined,
       });
       if (result?.url) {
         const makeAbsoluteUrl = (value) => {
@@ -314,6 +341,7 @@ function ExportSection({
           entryCount: resolvedEntryCount,
           expiryLabel,
         });
+        setShareTitle('');
         const copied = await copyToClipboard(fullUrl || result.url);
         setLinkCopyStatus(
           copied
@@ -469,6 +497,24 @@ function ExportSection({
             <FileCsv className="h-4 w-4" />
             CSV
           </button>
+          <button
+            onClick={handleExportText}
+            disabled={!hasEntries}
+            className={PANEL_OUTLINE_BUTTON_CLASS}
+            title={hasEntries ? 'Export as plain text' : 'No entries to export'}
+          >
+            <FileTxt className="h-4 w-4" aria-hidden="true" />
+            Text
+          </button>
+          <button
+            onClick={handleExportJson}
+            disabled={!hasEntries}
+            className={PANEL_OUTLINE_BUTTON_CLASS}
+            title={hasEntries ? 'Export journal entries as JSON' : 'No entries to export'}
+          >
+            <FileCode className="h-4 w-4" aria-hidden="true" />
+            JSON
+          </button>
         </div>
 
         {/* Large export confirmation */}
@@ -617,6 +663,22 @@ function ExportSection({
               />
             </div>
 
+            {/* Title control */}
+            <div className="space-y-1 pt-1 border-t border-(--border-warm-subtle)">
+              <label htmlFor="share-title" className="block text-xs sm:text-2xs text-muted-high">
+                Link title <span className="text-muted">(optional, shown when the link is shared)</span>
+              </label>
+              <input
+                id="share-title"
+                type="text"
+                value={shareTitle}
+                maxLength={SHARE_TITLE_MAX_LENGTH}
+                onChange={(event) => setShareTitle(event.target.value)}
+                placeholder="Journal snapshot"
+                className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
+              />
+            </div>
+
             {/* Expiry control */}
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-(--border-warm-subtle)">
               <label htmlFor="share-expiry" className="text-xs sm:text-2xs text-muted-high">Link expiry</label>
@@ -690,6 +752,18 @@ function ExportSection({
             Share selected readings with a secure link
           </p>
         </div>
+      )}
+
+      {/* Existing links stay manageable even when new links are unavailable */}
+      {isAuthenticated && shareManagement && (
+        <ShareLinksManager
+          links={shareManagement.links}
+          loading={shareManagement.loading}
+          error={shareManagement.error}
+          onDelete={shareManagement.onDelete}
+          onRename={shareManagement.onRename}
+          onRefresh={shareManagement.onRefresh}
+        />
       )}
 
       {/* Snapshot sharing (available to everyone) */}

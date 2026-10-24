@@ -1,7 +1,7 @@
 import { computeJournalStats } from '../../../shared/journal/stats.js';
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { loadShareRecord, loadShareEntries, loadShareNotes } from '../../lib/shareData.js';
-import { buildShareMeta } from '../../lib/shareUtils.js';
+import { buildShareMeta, normalizeShareTitle, defaultShareTitle } from '../../lib/shareUtils.js';
 
 export async function onRequestGet(context) {
   const { env, params } = context;
@@ -45,7 +45,7 @@ export async function onRequestGet(context) {
     return new Response(
       JSON.stringify({
         scope: share.scope,
-        title: share.title || (share.scope === 'entry' ? 'Shared reading' : 'Journal snapshot'),
+        title: share.title || defaultShareTitle(share.scope),
         createdAt: share.createdAt * 1000,
         expiresAt: share.expiresAt ? share.expiresAt * 1000 : null,
         viewCount: nextViewCount,
@@ -114,5 +114,48 @@ export async function onRequestDelete(context) {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
+  }
+}
+
+/**
+ * PATCH /api/share/:token - Rename a link the user owns. A blank title restores
+ * the default. Only the title changes; the shared readings and expiry stay fixed.
+ */
+export async function onRequestPatch(context) {
+  const { request, env, params } = context;
+  const shareToken = params.token;
+  const json = (body, status) => new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  try {
+    const sessionToken = getSessionFromCookie(request.headers.get('Cookie'));
+    const user = await validateSession(env.DB, sessionToken);
+    if (!user) return json({ error: 'Not authenticated' }, 401);
+
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)
+      || !Object.hasOwn(body, 'title') || (body.title !== null && typeof body.title !== 'string')) {
+      return json({ error: 'title must be a string or null' }, 400);
+    }
+
+    const share = await loadShareRecord(env, shareToken);
+    if (!share) return json({ error: 'Share link not found' }, 404);
+    if (share.userId !== user.id) return json({ error: 'Not authorized to rename this share' }, 403);
+
+    const title = normalizeShareTitle(body.title);
+    await env.DB.prepare('UPDATE share_tokens SET title = ? WHERE token = ? AND user_id = ?')
+      .bind(title, shareToken, user.id)
+      .run();
+
+    return json({
+      token: shareToken,
+      title: title || defaultShareTitle(share.scope),
+      hasCustomTitle: Boolean(title)
+    }, 200);
+  } catch (error) {
+    console.error('PATCH /api/share/:token error:', error);
+    return json({ error: 'Internal server error' }, 500);
   }
 }

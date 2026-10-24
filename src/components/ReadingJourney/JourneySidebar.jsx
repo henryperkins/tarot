@@ -124,6 +124,7 @@ export default function JourneySidebar({
   journalSummary,
   userId,
   onCreateShareLink,
+  shareManagement,
   onStartReading,
   showStartReadingCta = true,
   locale = 'default',
@@ -246,6 +247,7 @@ export default function JourneySidebar({
       <ExportSection
         isAuthenticated={isAuthenticated}
         onCreateShareLink={onCreateShareLink}
+        shareManagement={shareManagement}
         scopeEntries={scopeEntries}
         filteredEntries={filteredEntries}
         allEntries={allEntries}

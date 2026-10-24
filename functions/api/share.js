@@ -1,21 +1,40 @@
 import { validateSession, getSessionFromCookie } from '../lib/auth.js';
-import { loadEntriesForUser, loadRecentEntries, buildShareMeta } from '../lib/shareUtils.js';
+import { loadEntriesForUser, loadRecentEntries, buildShareMeta, normalizeShareTitle, defaultShareTitle } from '../lib/shareUtils.js';
 import { safeJsonParse } from '../lib/utils.js';
 
-function buildShareResponseRow(row) {
+export function buildShareResponseRow(row, entryIds = []) {
   const meta = row.meta_json ? safeJsonParse(row.meta_json, {}, { silent: true }) : {};
   return {
     token: row.token,
     scope: row.scope,
-    title: row.title || (row.scope === 'entry' ? 'Shared reading' : 'Journal snapshot'),
+    title: row.title || defaultShareTitle(row.scope),
+    hasCustomTitle: Boolean(row.title),
     createdAt: row.created_at * 1000,
     expiresAt: row.expires_at ? row.expires_at * 1000 : null,
     viewCount: row.view_count || 0,
     entryCount: meta.entryCount ?? row.entry_count ?? 0,
+    // The journal matches links to its entries by these ids.
+    entryIds,
     spreadKeys: Array.isArray(meta.spreadKeys) ? meta.spreadKeys : [],
     contexts: Array.isArray(meta.contexts) ? meta.contexts : [],
     lastEntryTs: typeof meta.lastEntryTs === 'number' ? meta.lastEntryTs : null
   };
+}
+
+async function loadShareEntryIds(db, tokens) {
+  const byToken = new Map(tokens.map((token) => [token, []]));
+  if (!tokens.length) return byToken;
+  const placeholders = tokens.map(() => '?').join(', ');
+  const result = await db.prepare(`
+    SELECT token, entry_id
+    FROM share_token_entries
+    WHERE token IN (${placeholders})
+    ORDER BY token, sort_index ASC
+  `).bind(...tokens).all();
+  for (const row of result.results || []) {
+    byToken.get(row.token)?.push(row.entry_id);
+  }
+  return byToken;
 }
 
 export async function onRequestGet(context) {
@@ -42,7 +61,9 @@ export async function onRequestGet(context) {
       LIMIT 50
     `).bind(user.id).all();
 
-    const shares = result.results.map(buildShareResponseRow);
+    const rows = result.results || [];
+    const entryIdsByToken = await loadShareEntryIds(env.DB, rows.map((row) => row.token));
+    const shares = rows.map((row) => buildShareResponseRow(row, entryIdsByToken.get(row.token) || []));
 
     return new Response(JSON.stringify({ shares }), {
       status: 200,
@@ -110,7 +131,7 @@ export async function onRequestPost(context) {
     const shareToken = crypto.randomUUID().replace(/-/g, '');
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = expiresInHours ? now + expiresInHours * 3600 : null;
-    const title = (body.title && typeof body.title === 'string') ? body.title.trim().slice(0, 80) : null;
+    const title = normalizeShareTitle(body.title);
     const meta = buildShareMeta(entries);
 
     await env.DB.prepare(`

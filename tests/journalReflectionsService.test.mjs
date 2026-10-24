@@ -314,3 +314,40 @@ describe('addJournalReflection: compare-and-swap', () => {
     assert.equal(stored(d1), null);
   });
 });
+
+describe('reflections: HTTP removal for the journal editor', () => {
+  it('removes one target, keeps the others, and needs no text', async () => {
+    const { d1, env } = await setup({ entry: { reflections: { 0: 'first', Overall: 'whole', 2: 'kept' } } });
+    const { response, payload } = await postHttp(env, { scope: 'card', cardIndex: 0, mode: 'remove' });
+    assert.equal(response.status, 200);
+    assert.equal(payload.removed, true);
+    assert.deepEqual(payload.entry, { id: 'entry-1' });
+    assert.deepEqual(payload.reflections, { Overall: 'whole', 2: 'kept' });
+    assert.deepEqual(stored(d1), { Overall: 'whole', 2: 'kept' });
+  });
+
+  it('treats removing a note that is already gone as done, without writing', async () => {
+    const { d1, env } = await setup({ entry: { reflections: { Overall: 'whole' } } });
+    assert.equal((await postHttp(env, { scope: 'reading', mode: 'remove' })).payload.removed, true);
+    assert.deepEqual(stored(d1), {});
+    const repeat = await postHttp(env, { scope: 'reading', mode: 'remove' });
+    assert.equal(repeat.response.status, 200);
+    assert.equal(repeat.payload.removed, false);
+    assert.deepEqual(stored(d1), {});
+  });
+
+  it('still requires text to append or replace, and rejects unknown modes', async () => {
+    const { d1, env } = await setup({ entry: { reflections: { Overall: 'whole' } } });
+    assert.equal((await postHttp(env, { scope: 'reading', mode: 'replace' })).response.status, 400);
+    assert.equal((await postHttp(env, { scope: 'reading', text: 'x', mode: 'erase' })).response.status, 400);
+    assert.deepEqual(stored(d1), { Overall: 'whole' });
+  });
+
+  it('keeps removal away from MCP callers, whose reflections stay append-only', async () => {
+    const { d1, env } = await setup({ entry: { reflections: { Overall: 'whole' } } });
+    const { response, payload } = await post(env, { scope: 'reading', mode: 'remove' });
+    assert.equal(response.status, 400);
+    assert.match(payload.error, /append-only/);
+    assert.deepEqual(stored(d1), { Overall: 'whole' });
+  });
+});

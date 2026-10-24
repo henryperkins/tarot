@@ -48,7 +48,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   compact = false,
   cardClass,
   gestureStudyEnabled = readingGesturesEnabled(),
-  onRetryVisuals = null
+  onRetryVisuals = null,
+  onSaveReflection = null
 }) {
   // Initialize expanded state - never expand if compact mode is on
   const [isExpanded, setIsExpanded] = useState(() => Boolean(openRequestKey) || (defaultExpanded && !compact));
@@ -68,7 +69,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const {
     cards,
     insights,
-    reflections,
     narrativeText,
     followUps,
     followUpPreview,
@@ -105,6 +105,10 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const wasExpandedRef = useRef(isExpanded);
   // Explicit saved-visual retry for this entry only (the journal hook's action).
   const retryVisuals = useCallback(() => onRetryVisuals(entry.id), [onRetryVisuals, entry.id]);
+  const saveReflection = useCallback(
+    (edit) => onSaveReflection(entry.id, edit),
+    [onSaveReflection, entry.id]
+  );
 
   // Close the menu when a user collapses an expanded card.
   useEffect(() => {
@@ -218,7 +222,13 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             />
           )}
 
-          {hasReflections && <ReflectionsSection reflections={reflections} cards={cards} />}
+          {(hasReflections || onSaveReflection) && (
+            <ReflectionsSection
+              reflections={entry.reflections}
+              cards={cards}
+              onSave={onSaveReflection ? saveReflection : null}
+            />
+          )}
 
           {insights.length > 0 && <KeyThemesSection insights={insights} />}
 

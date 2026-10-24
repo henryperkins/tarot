@@ -65,6 +65,12 @@ export function useJournalFilters(sourceEntries, options = {}) {
     setServerSearchNonce((prev) => prev + 1);
   }, []);
 
+  // Search by meaning runs only on request, for the exact query it was asked
+  // for; editing the query returns to literal matches.
+  const [semanticRequest, setSemanticRequest] = useState(() => ({ namespace, query: null }));
+  const semanticQuery = semanticRequest.namespace === namespace ? semanticRequest.query : null;
+  if (semanticQuery && filters.query.trim() !== semanticQuery) setSemanticRequest({ namespace, query: null });
+
   // This clock owns both the filtered readings and the window used by analytics.
   const [filterTimestamp, setFilterTimestamp] = useState(Date.now);
   const setFilters = useCallback((update) => {
@@ -102,9 +108,10 @@ export function useJournalFilters(sourceEntries, options = {}) {
         timeframe: filters.timeframe,
         onlyReversals: filters.onlyReversals,
         journeyFilter: filters.journeyFilter,
-        serverSearchEnabled: isAuthenticated && canUseCloudJournal && !completeHistory && entries?.length >= SERVER_SEARCH_THRESHOLD
+        serverSearchEnabled: isAuthenticated && canUseCloudJournal && !completeHistory && entries?.length >= SERVER_SEARCH_THRESHOLD,
+        semanticQuery
       }),
-    [filters, namespace, isAuthenticated, canUseCloudJournal, completeHistory, entries]
+    [filters, namespace, isAuthenticated, canUseCloudJournal, completeHistory, entries, semanticQuery]
   );
 
   const serverFilterSignature = useMemo(
@@ -122,23 +129,34 @@ export function useJournalFilters(sourceEntries, options = {}) {
   );
 
   const trimmedDeferredQuery = deferredQuery.trim();
-  const shouldUseServerSearch = isAuthenticated
+  const canSearchServer = isAuthenticated
     && Boolean(userId) && !isDeletedAccount(userId)
     && canUseCloudJournal
+    && !filters.journeyFilter;
+  const semanticAvailable = canSearchServer && filters.query.trim().length >= SERVER_SEARCH_MIN_QUERY;
+  const semanticActive = canSearchServer && Boolean(semanticQuery) && trimmedDeferredQuery === semanticQuery;
+  const shouldUseServerSearch = semanticActive || (canSearchServer
     // Complete history can be filtered locally without truncating matches to
     // the server search page size. Paginated callers retain server search.
     && !completeHistory
-    && !filters.journeyFilter
     && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
-    && entries?.length >= SERVER_SEARCH_THRESHOLD;
+    && entries?.length >= SERVER_SEARCH_THRESHOLD);
+  const requestedSearchMode = semanticActive ? 'semantic' : 'exact';
 
   const searchKey = shouldUseServerSearch
-    ? JSON.stringify([namespace, trimmedDeferredQuery, serverFilterSignature, serverSearchNonce]) : null;
+    ? JSON.stringify([namespace, trimmedDeferredQuery, requestedSearchMode, serverFilterSignature, serverSearchNonce]) : null;
   const serverSearch = !shouldUseServerSearch
     ? IDLE_SERVER_SEARCH
     : serverSearchResult.searchKey === searchKey
       ? { ...serverSearchResult, results: filterDeletedJournalEntries(namespace, serverSearchResult.results) }
-      : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: 'exact' };
+      : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: requestedSearchMode };
+
+  const requestSemanticSearch = useCallback(() => {
+    const query = filters.query.trim();
+    if (query.length < SERVER_SEARCH_MIN_QUERY) return;
+    setSemanticRequest({ namespace, query });
+  }, [filters.query, namespace]);
+  const clearSemanticSearch = useCallback(() => setSemanticRequest({ namespace, query: null }), [namespace]);
 
   // Returning to a previous query starts fresh, including after a cleared search.
   // Render resets must settle before the new owner's layout effect can run.
@@ -196,6 +214,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     const urlParams = new URLSearchParams();
     urlParams.append('q', query);
     urlParams.append('limit', String(SERVER_SEARCH_LIMIT));
+    if (requestedSearchMode === 'semantic') urlParams.append('mode', 'semantic');
 
     // Add active filters to the search request
     if (filters.contexts.length > 0) {
@@ -237,7 +256,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
           results: normalizedResults,
           error: null,
           query,
-          mode: data?.mode || 'exact'
+          mode: data?.mode || requestedSearchMode
         });
       })
       .catch((error) => {
@@ -248,7 +267,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
           results: [],
           error: error?.message || 'Unable to search your full history.',
           query,
-          mode: 'exact'
+          mode: requestedSearchMode
         });
       });
 
@@ -258,7 +277,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
         controller.abort();
       }
     };
-  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, namespace, userId, setServerSearch]);
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, requestedSearchMode, namespace, userId, setServerSearch]);
 
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {
@@ -400,9 +419,14 @@ export function useJournalFilters(sourceEntries, options = {}) {
       error: serverSearch.error,
       mode: serverSearch.mode,
       resultsCount: serverSearch.results.length,
-      query: serverSearch.query
+      query: serverSearch.query,
+      // An explicit search by meaning: offered for any cloud journal query.
+      semanticAvailable: semanticAvailable && !semanticActive,
+      semanticActive
     },
-    refreshServerSearch
+    refreshServerSearch,
+    requestSemanticSearch,
+    clearSemanticSearch
   };
 }
 

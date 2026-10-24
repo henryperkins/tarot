@@ -2,6 +2,9 @@ import { appJournalResultId } from '../../../shared/journal/readingIdentity.js';
 /**
  * Journal Search Endpoint
  * GET /api/journal/search?q=... - Search journal entries for authenticated user
+ *
+ * Exact substring matches come first; with none, the search falls back to
+ * semantic matches. `mode=semantic` asks for semantic matches directly.
  */
 
 import {
@@ -109,6 +112,7 @@ export async function onRequestGet(context) {
       }
     })();
     const onlyReversals = url.searchParams.get('onlyReversals') === 'true';
+    const semanticOnly = (url.searchParams.get('mode') || '').toLowerCase() === 'semantic';
 
     if (query.length < 3) {
       return new Response(
@@ -119,11 +123,37 @@ export async function onRequestGet(context) {
 
     const pattern = `%${query.toLowerCase()}%`;
 
-    // Build WHERE clauses for filters
+    // Filter conditions apply to exact and semantic matches alike.
+    const filterClauses = [];
+    const filterParams = [];
+    if (contexts.length > 0) {
+      const contextPlaceholders = contexts.map(() => '?').join(',');
+      filterClauses.push(`context IN (${contextPlaceholders})`);
+      filterParams.push(...contexts);
+    }
+    if (spreads.length > 0) {
+      const spreadPlaceholders = spreads.map(() => '?').join(',');
+      filterClauses.push(`spread_key IN (${spreadPlaceholders})`);
+      filterParams.push(...spreads);
+    }
+    if (decks.length > 0) {
+      const deckPlaceholders = decks.map(() => '?').join(',');
+      filterClauses.push(`deck_id IN (${deckPlaceholders})`);
+      filterParams.push(...decks);
+    }
+    if (timeframeCutoffMs) {
+      filterClauses.push('created_at >= ?');
+      filterParams.push(Math.floor(timeframeCutoffMs / 1000));
+    }
+    if (onlyReversals) {
+      filterClauses.push('cards_json LIKE ?');
+      filterParams.push('%reversed%');
+    }
+
+    // Build WHERE clauses: owner, search pattern, then filters
     const whereClauses = ['user_id = ?'];
     const params = [user.id];
 
-    // Add search pattern conditions
     whereClauses.push('(' +
       'LOWER(COALESCE(question, \'\')) LIKE ? OR ' +
       'LOWER(COALESCE(narrative, \'\')) LIKE ? OR ' +
@@ -133,34 +163,12 @@ export async function onRequestGet(context) {
       'LOWER(COALESCE(context, \'\')) LIKE ?' +
     ')');
     params.push(pattern, pattern, pattern, pattern, pattern, pattern);
-
-    // Add filter conditions
-    if (contexts.length > 0) {
-      const contextPlaceholders = contexts.map(() => '?').join(',');
-      whereClauses.push(`context IN (${contextPlaceholders})`);
-      params.push(...contexts);
-    }
-    if (spreads.length > 0) {
-      const spreadPlaceholders = spreads.map(() => '?').join(',');
-      whereClauses.push(`spread_key IN (${spreadPlaceholders})`);
-      params.push(...spreads);
-    }
-    if (decks.length > 0) {
-      const deckPlaceholders = decks.map(() => '?').join(',');
-      whereClauses.push(`deck_id IN (${deckPlaceholders})`);
-      params.push(...decks);
-    }
-    if (timeframeCutoffMs) {
-      whereClauses.push('created_at >= ?');
-      params.push(Math.floor(timeframeCutoffMs / 1000));
-    }
-    if (onlyReversals) {
-      whereClauses.push('cards_json LIKE ?');
-      params.push('%reversed%');
-    }
+    whereClauses.push(...filterClauses);
+    params.push(...filterParams);
 
     const whereClause = whereClauses.join(' AND ');
     const paramsWithLimit = [...params, limit];
+    const filterSql = filterClauses.length > 0 ? ` AND ${filterClauses.join(' AND ')}` : '';
 
     const baseSelect = `
       SELECT
@@ -216,16 +224,18 @@ export async function onRequestGet(context) {
     `;
     const legacyParams = [...paramsWithLimit];
 
-    let rows;
+    let rows = { results: [] };
     let hasCoachColumns = true;
-    try {
-      rows = await env.DB.prepare(baseSelect).bind(...paramsWithLimit).all();
-    } catch (err) {
-      if (!isMissingColumnError(err)) {
-        throw err;
+    if (!semanticOnly) {
+      try {
+        rows = await env.DB.prepare(baseSelect).bind(...paramsWithLimit).all();
+      } catch (err) {
+        if (!isMissingColumnError(err)) {
+          throw err;
+        }
+        hasCoachColumns = false;
+        rows = await env.DB.prepare(legacySelect).bind(...legacyParams).all();
       }
-      hasCoachColumns = false;
-      rows = await env.DB.prepare(legacySelect).bind(...legacyParams).all();
     }
 
     const results = rows?.results || [];
@@ -276,7 +286,7 @@ export async function onRequestGet(context) {
           location_timezone,
           location_consent
         FROM journal_entries
-        WHERE user_id = ? AND id IN (${placeholders})
+        WHERE user_id = ? AND id IN (${placeholders})${filterSql}
       `;
 
       const legacyByIdSelect = `
@@ -298,18 +308,19 @@ export async function onRequestGet(context) {
           deck_id,
           request_id
         FROM journal_entries
-        WHERE user_id = ? AND id IN (${placeholders})
+        WHERE user_id = ? AND id IN (${placeholders})${filterSql}
       `;
 
+      const byIdParams = [user.id, ...ids, ...filterParams];
       let rowsById;
       try {
-        rowsById = await env.DB.prepare(baseByIdSelect).bind(user.id, ...ids).all();
+        rowsById = await env.DB.prepare(baseByIdSelect).bind(...byIdParams).all();
       } catch (err) {
         if (!isMissingColumnError(err)) {
           throw err;
         }
         hasCoachColumns = false;
-        rowsById = await env.DB.prepare(legacyByIdSelect).bind(user.id, ...ids).all();
+        rowsById = await env.DB.prepare(legacyByIdSelect).bind(...byIdParams).all();
       }
 
       const rowMap = new Map();

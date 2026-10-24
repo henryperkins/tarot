@@ -2,6 +2,24 @@ import { computeJournalStats } from '../../shared/journal/stats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { safeJsonParse } from './utils.js';
 
+export const SHARE_TITLE_MAX_LENGTH = 80;
+
+export function defaultShareTitle(scope) {
+  return scope === 'entry' ? 'Shared reading' : 'Journal snapshot';
+}
+
+/**
+ * A share title is one line of at most 80 characters; blank means the default.
+ * Titles appear in link previews, so whitespace runs (including newlines)
+ * collapse to single spaces and the limit never splits a character.
+ */
+export function normalizeShareTitle(value) {
+  if (typeof value !== 'string') return null;
+  const collapsed = value.replace(/\s+/g, ' ').trim();
+  if (!collapsed) return null;
+  return Array.from(collapsed).slice(0, SHARE_TITLE_MAX_LENGTH).join('').trim();
+}
+
 export function hydrateJournalEntry(row) {
   if (!row) return null;
   return {

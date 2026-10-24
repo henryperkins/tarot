@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { computeMonthlyTotals } from '../shared/journal/trends.js';
+import { classifyCardTrend, computeCardTrendSeries, computeMonthlyTotals } from '../shared/journal/trends.js';
 import { normalizeAnalyticsShape } from '../src/lib/archetypeJourney.js';
 
 /**
@@ -204,5 +204,63 @@ describe('normalizeAnalyticsShape current streak propagation', () => {
     });
 
     assert.strictEqual(normalized.stats.currentStreak, 0);
+  });
+});
+
+describe('computeCardTrendSeries', () => {
+  const at = (year, month, day = 10) => new Date(year, month - 1, day).getTime();
+  const reading = (ts, ...names) => ({ ts, cards: names.map((name) => ({ name })) });
+
+  it('counts monthly appearances up to the scope end and marks a rise', () => {
+    const entries = [
+      reading(at(2026, 8), 'The Star'),
+      reading(at(2026, 9), 'The Star'), reading(at(2026, 9, 12), 'The Star'), reading(at(2026, 9, 14), 'The Star', 'The Moon'),
+      ...Array.from({ length: 6 }, (_, index) => reading(at(2026, 10, index + 1), 'The Star')),
+      reading(at(2026, 11), 'The Star') // after the scope: not counted
+    ];
+    const trends = computeCardTrendSeries(entries, ['The Star', 'The Moon'], { endDate: new Date(2026, 9, 31) });
+    assert.deepStrictEqual(trends.get('The Star').trendData, [
+      { year_month: '2026-08', count: 1 },
+      { year_month: '2026-09', count: 3 },
+      { year_month: '2026-10', count: 6 }
+    ]);
+    assert.strictEqual(trends.get('The Star').trend, 'up');
+    assert.deepStrictEqual(trends.get('The Moon').trendData.map((point) => point.count), [0, 1, 0]);
+    assert.strictEqual(trends.get('The Moon').trend, 'stable');
+  });
+
+  it('starts at the first month with any reading, so a new journal is not a rise', () => {
+    const entries = [reading(at(2026, 10), 'The Fool'), reading(at(2026, 10, 11), 'The Fool'), reading(at(2026, 10, 12), 'The Fool')];
+    const trend = computeCardTrendSeries(entries, ['The Fool'], { endDate: new Date(2026, 9, 31) }).get('The Fool');
+    assert.deepStrictEqual(trend.trendData, [{ year_month: '2026-10', count: 3 }]);
+    assert.strictEqual(trend.trend, 'stable');
+  });
+
+  it('keeps quiet months inside the window and reads parsed card JSON', () => {
+    const entries = [
+      { ts: at(2026, 5), cards_json: JSON.stringify([{ name: 'Death' }, { name: 'Death' }]) },
+      { ts: at(2026, 6), cards_json: JSON.stringify([{ name: 'Death' }, { name: 'Death' }]) },
+      { ts: at(2026, 10), cards: [{ name: 'The Sun' }] }
+    ];
+    const trend = computeCardTrendSeries(entries, ['Death'], { endDate: new Date(2026, 9, 15) }).get('Death');
+    assert.deepStrictEqual(trend.trendData.map((point) => point.year_month), ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']);
+    assert.deepStrictEqual(trend.trendData.map((point) => point.count), [2, 2, 0, 0, 0, 0]);
+    assert.strictEqual(trend.trend, 'down');
+  });
+
+  it('returns nothing for missing names or an invalid end date', () => {
+    assert.strictEqual(computeCardTrendSeries([], []).size, 0);
+    assert.strictEqual(computeCardTrendSeries([reading(at(2026, 10), 'The Star')], ['The Star'], { endDate: new Date('nope') }).size, 0);
+  });
+});
+
+describe('classifyCardTrend', () => {
+  it('needs a clear change between the earlier and recent months', () => {
+    assert.strictEqual(classifyCardTrend([0, 0, 0, 1, 3, 6]), 'up');
+    assert.strictEqual(classifyCardTrend([3, 3, 3, 0, 0, 1]), 'down');
+    assert.strictEqual(classifyCardTrend([2, 2, 2, 2, 2, 2]), 'stable');
+    assert.strictEqual(classifyCardTrend([0, 0, 0, 0, 0, 1]), 'stable');
+    assert.strictEqual(classifyCardTrend([5]), 'stable');
+    assert.strictEqual(classifyCardTrend([2, 5]), 'up');
   });
 });

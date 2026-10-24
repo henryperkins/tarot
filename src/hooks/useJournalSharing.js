@@ -118,13 +118,37 @@ export function useJournalSharing(isAuthenticated, userId = null) {
     [isAuthenticated, fetchShareLinks]
   );
 
+  // A blank title restores the link's default name.
+  const renameShareLink = useCallback(
+    async (shareToken, title) => {
+      if (!isAuthenticated || !shareToken) return null;
+      const response = await fetch(`/api/share/${encodeURIComponent(shareToken)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: typeof title === 'string' ? title : null })
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Unable to rename share link');
+      }
+      const data = await response.json();
+      setShareLinks((previous) => previous.map((link) => (
+        link.token === shareToken ? { ...link, title: data.title, hasCustomTitle: Boolean(data.hasCustomTitle) } : link
+      )));
+      return data;
+    },
+    [isAuthenticated]
+  );
+
   return {
     shareLinks,
     shareLoading,
     shareError,
     fetchShareLinks,
     createShareLink,
-    deleteShareLink
+    deleteShareLink,
+    renameShareLink
   };
 }
 

@@ -212,3 +212,37 @@ test('client CSV, Markdown and summary builders never serialize visual retry or 
   assert.strictEqual(projected.personalReading, PROSE);
   assert.ok(buildEntryMarkdown(projected).includes('A reflection on "visualJobToken", attemptId and resumeHandle is kept verbatim.'));
 });
+
+test('client text and JSON exports match the cloud formats and keep private fields out', async () => {
+  const { buildJournalText, buildJournalJson, formatEntryAsText: sharedFormat } = await import('../shared/journal/exportFormats.js');
+  assert.strictEqual(sharedFormat, formatEntryAsText, 'the Worker uses the shared formatter');
+  const older = {
+    id: 'entry-old', ts: Date.UTC(2026, 8, 1), spread: 'One card', spreadKey: 'single', question: 'What steadies me?',
+    cards: [{ position: 'Present', name: 'The Tower', orientation: 'Reversed' }], personalReading: 'Old prose.'
+  };
+  const newer = {
+    id: 'entry-new', ts: Date.UTC(2026, 9, 10), spread: 'One card', spreadKey: 'single', question: 'What renews me?',
+    cards: [{ position: 'Present', name: 'The Star', orientation: 'Upright' }], personalReading: PROSE,
+    reflections: { Overall: 'mentions attemptId too' }, deckId: 'thoth-a1', context: 'self', provider: 'claude-api',
+    followUps: [{ turnNumber: 1, question: 'More?', answer: 'Yes.' }],
+    visualJobToken: PRIVATE_VALUES[0], visualJobId: PRIVATE_VALUES[1], attemptId: PRIVATE_VALUES[2],
+    resumeHandle: { visualJobToken: PRIVATE_VALUES[4] }, visualSnapshot: { visualJobToken: PRIVATE_VALUES[0] }
+  };
+  const generatedAt = new Date(Date.UTC(2026, 9, 24));
+  const text = buildJournalText([older, newer], { generatedAt });
+  assert.ok(text.startsWith('TAROT JOURNAL EXPORT\nGenerated: 2026-10-24T00:00:00.000Z\nEntries: 2\n'));
+  assert.ok(text.indexOf('What renews me?') < text.indexOf('What steadies me?'), 'newest entry first');
+  assert.ok(text.includes('Whole reading: mentions attemptId too'));
+
+  const json = buildJournalJson([older, newer], { generatedAt, scope: 'Current filters' });
+  assert.strictEqual(json.exportedAt, '2026-10-24T00:00:00.000Z');
+  assert.strictEqual(json.entryCount, 2);
+  assert.strictEqual(json.scope, 'Current filters');
+  assert.deepStrictEqual(json.entries.map((entry) => entry.id), ['entry-new', 'entry-old']);
+  assert.deepStrictEqual(Object.keys(json.entries[0]).sort(), ['cards', 'context', 'deckId', 'followUps', 'id', 'personalReading',
+    'provider', 'question', 'reflections', 'spread', 'spreadKey', 'themes', 'ts'].sort());
+  assert.strictEqual(json.entries[0].personalReading, PROSE);
+  for (const output of [text, JSON.stringify(json)]) {
+    for (const value of PRIVATE_VALUES) assert.strictEqual(output.includes(value), false);
+  }
+});

@@ -9,6 +9,10 @@
 
 export const READING_REFLECTION_KEY = 'Overall';
 export const READING_REFLECTION_LABEL = 'Whole reading';
+// One saved note (or one edit) is at most this long; appended notes on the
+// same target are joined by a blank line.
+export const MAX_REFLECTION_LENGTH = 2000;
+export const REFLECTION_NOTE_SEPARATOR = '\n\n';
 
 function cleanText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -21,14 +25,21 @@ function labelForCard(card, index) {
   return position || name || `Card ${index + 1}`;
 }
 
+function isReflectionMap(reflections) {
+  return Boolean(reflections) && typeof reflections === 'object' && !Array.isArray(reflections);
+}
+
 /**
+ * The notes on an entry, with the key each one is stored under.
+ *
  * @param {Record<string, string>|null|undefined} reflections
  * @param {Array<object>} [cards] - The entry's cards, in spread order
- * @returns {Array<[string, string]>} [label, note] pairs: whole reading first,
- *   then cards in spread order, then any other keys
+ * @returns {Array<{ key: string, label: string, note: string, cardIndex: number|null, editable: boolean }>}
+ *   Whole reading first, then cards in spread order, then any other keys.
+ *   Keys that predate the index scheme are not `editable`.
  */
-export function buildReflectionEntries(reflections, cards = []) {
-  if (!reflections || typeof reflections !== 'object' || Array.isArray(reflections)) return [];
+export function buildReflectionItems(reflections, cards = []) {
+  if (!isReflectionMap(reflections)) return [];
   const safeCards = Array.isArray(cards) ? cards : [];
 
   const readingNotes = [];
@@ -37,14 +48,56 @@ export function buildReflectionEntries(reflections, cards = []) {
   for (const [key, note] of Object.entries(reflections)) {
     if (typeof note !== 'string' || !note.trim()) continue;
     if (key === READING_REFLECTION_KEY) {
-      readingNotes.push([READING_REFLECTION_LABEL, note]);
+      readingNotes.push({ key, label: READING_REFLECTION_LABEL, note, cardIndex: null, editable: true });
     } else if (/^\d+$/.test(key)) {
       const index = Number(key);
-      cardNotes.push({ index, entry: [labelForCard(safeCards[index], index), note] });
+      cardNotes.push({ key, label: labelForCard(safeCards[index], index), note, cardIndex: index, editable: index < safeCards.length });
     } else {
-      otherNotes.push([key, note]);
+      otherNotes.push({ key, label: key, note, cardIndex: null, editable: false });
     }
   }
-  cardNotes.sort((a, b) => a.index - b.index);
-  return [...readingNotes, ...cardNotes.map(({ entry }) => entry), ...otherNotes];
+  cardNotes.sort((a, b) => a.cardIndex - b.cardIndex);
+  return [...readingNotes, ...cardNotes, ...otherNotes];
+}
+
+/**
+ * @param {Record<string, string>|null|undefined} reflections
+ * @param {Array<object>} [cards] - The entry's cards, in spread order
+ * @returns {Array<[string, string]>} [label, note] pairs: whole reading first,
+ *   then cards in spread order, then any other keys
+ */
+export function buildReflectionEntries(reflections, cards = []) {
+  return buildReflectionItems(reflections, cards).map(({ label, note }) => [label, note]);
+}
+
+/**
+ * Where a new note can go: the whole reading, then each card.
+ * @returns {Array<{ key: string, label: string, cardIndex: number|null }>}
+ */
+export function buildReflectionTargets(cards = []) {
+  const safeCards = Array.isArray(cards) ? cards : [];
+  return [
+    { key: READING_REFLECTION_KEY, label: READING_REFLECTION_LABEL, cardIndex: null },
+    ...safeCards.map((card, index) => ({ key: String(index), label: labelForCard(card, index), cardIndex: index }))
+  ];
+}
+
+/**
+ * Apply one edit to a reflections map without mutating it, as the journal
+ * reflections endpoint does: append joins with a blank line, replace
+ * overwrites, remove deletes the key.
+ *
+ * @param {Record<string, string>|null|undefined} reflections
+ * @param {{ key: string, text?: string, mode: 'append'|'replace'|'remove' }} edit
+ * @returns {Record<string, string>}
+ */
+export function applyReflectionEdit(reflections, { key, text = '', mode }) {
+  const next = isReflectionMap(reflections) ? { ...reflections } : {};
+  if (mode === 'remove') {
+    delete next[key];
+    return next;
+  }
+  const existing = typeof next[key] === 'string' ? next[key] : '';
+  next[key] = mode === 'append' && existing ? `${existing}${REFLECTION_NOTE_SEPARATOR}${text}` : text;
+  return next;
 }

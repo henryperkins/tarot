@@ -1,4 +1,5 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
+import { buildJournalJson, buildJournalText } from '../../shared/journal/exportFormats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
@@ -1275,6 +1276,75 @@ export function exportJournalEntriesToMarkdown(entries, filename = 'tarot-journa
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
   return true;
+}
+
+function downloadTextFile(content, filename, type) {
+  if (typeof document === 'undefined' || !content) return false;
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+/**
+ * Export journal entries as the plain-text journal (the same format as the
+ * cloud export), newest first.
+ * @returns {boolean} True if the download started
+ */
+export function exportJournalEntriesToText(entries, filename = 'tarot-journal.txt') {
+  if (!Array.isArray(entries) || entries.length === 0) return false;
+  return downloadTextFile(buildJournalText(entries), filename, 'text/plain;charset=utf-8;');
+}
+
+/**
+ * Export journal entries as a journal-only JSON document, newest first.
+ * @param {Array} entries
+ * @param {string} [filename='tarot-journal.json']
+ * @param {{ scope?: string }} [options] - Human-readable label for the exported selection
+ * @returns {boolean} True if the download started
+ */
+export function exportJournalEntriesToJson(entries, filename = 'tarot-journal.json', { scope } = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return false;
+  const json = JSON.stringify(buildJournalJson(entries, { scope }), null, 2);
+  return downloadTextFile(json, filename, 'application/json;charset=utf-8;');
+}
+
+/**
+ * Copy text to the clipboard, falling back to a hidden textarea.
+ * @returns {Promise<boolean>} True when the text was copied
+ */
+export async function copyTextToClipboard(text) {
+  if (!text) return false;
+  try {
+    if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    console.warn('Clipboard write failed:', error);
+  }
+  if (typeof document === 'undefined') return false;
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch (error) {
+    console.warn('Clipboard fallback copy failed:', error);
+    return false;
+  }
 }
 
 export async function copyJournalEntriesToClipboard(entries) {

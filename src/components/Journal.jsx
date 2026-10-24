@@ -65,6 +65,7 @@ export default function Journal() {
     loading,
     loadingMore,
     deleteEntry,
+    saveReflection,
     retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
@@ -105,7 +106,9 @@ export default function Journal() {
     handleResetFilters,
     handleRemoveFilter,
     serverSearchState,
-    refreshServerSearch
+    refreshServerSearch,
+    requestSemanticSearch,
+    clearSemanticSearch
   } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id, completeHistory: syncSource === 'api' });
 
   const {
@@ -133,9 +136,21 @@ export default function Journal() {
     shareLinks,
     shareLoading,
     shareError,
+    fetchShareLinks,
     createShareLink,
-    deleteShareLink
+    deleteShareLink,
+    renameShareLink
   } = useJournalSharing(isAuthenticated, user?.id);
+  // Owners can always see, rename and revoke links, even on a plan that can
+  // no longer create them.
+  const shareManagement = useMemo(() => (isAuthenticated ? {
+    links: shareLinks,
+    loading: shareLoading,
+    error: shareError,
+    onDelete: deleteShareLink,
+    onRename: renameShareLink,
+    onRefresh: fetchShareLinks
+  } : null), [isAuthenticated, shareLinks, shareLoading, shareError, deleteShareLink, renameShareLink, fetchShareLinks]);
 
   // Local UI state
   const [migrating, setMigrating] = useState(false);
@@ -206,8 +221,16 @@ export default function Journal() {
   const serverSearchMode = serverSearchState?.mode;
   const serverSearchLoading = serverSearchEnabled && serverSearchStatus === 'loading';
   const serverSearchErrored = serverSearchEnabled && serverSearchStatus === 'error';
+  const semanticSearchActive = Boolean(serverSearchState?.semanticActive);
+  const semanticSearchAvailable = Boolean(serverSearchState?.semanticAvailable);
 
-  const searchCoverageLabel = serverSearchEnabled
+  const searchCoverageLabel = semanticSearchActive
+    ? (serverSearchLoading
+        ? 'Finding readings with a similar meaning'
+        : serverSearchErrored
+          ? 'Search by meaning unavailable'
+          : 'Searching your recent analyzed readings by meaning')
+    : serverSearchEnabled
     ? (serverSearchLoading
         ? 'Searching your full journal history'
         : serverSearchErrored
@@ -559,6 +582,13 @@ export default function Journal() {
     }
   };
 
+  const handleSaveReflection = useCallback(async (entryId, edit) => {
+    const result = await saveReflection(entryId, edit);
+    // Server results are a separate copy of the entry; refetch so they match.
+    if (result?.success && serverSearchEnabled) refreshServerSearch();
+    return result;
+  }, [saveReflection, serverSearchEnabled, refreshServerSearch]);
+
   const handleDeleteCancel = () => {
     setDeleteConfirmModal({ isOpen: false, entryId: null });
   };
@@ -642,6 +672,7 @@ export default function Journal() {
             timezone={timezone}
             variant="sidebar"
             onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
+            shareManagement={shareManagement}
             onStartReading={handleStartReading}
             showStartReadingCta={false}
             seasonWindow={scopeWindow}
@@ -724,6 +755,7 @@ export default function Journal() {
                 onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 onDelete={handleDeleteRequest}
                 onRetryVisuals={retrySavedVisuals}
+                onSaveReflection={handleSaveReflection}
                 compact={compactList}
                 cardClass={cardClass}
               />
@@ -756,6 +788,7 @@ export default function Journal() {
           timezone={timezone}
           variant="mobile"
           onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
+          shareManagement={shareManagement}
           onStartReading={handleStartReading}
           showStartReadingCta={false}
           seasonWindow={scopeWindow}
@@ -973,32 +1006,60 @@ export default function Journal() {
                             onSearchRef={registerSearchInput}
                           />
                         </div>
+
+                        {(semanticSearchAvailable || semanticSearchActive) && (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-secondary/20 bg-surface-muted/30 px-3 py-2 text-xs text-muted-high">
+                            <span className="min-w-0 flex-[1_1_14rem]">
+                              {semanticSearchActive
+                                ? 'Showing readings with a similar meaning, not just these exact words.'
+                                : 'Looking for readings on the same theme in other words?'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={semanticSearchActive ? clearSemanticSearch : requestSemanticSearch}
+                              className="inline-flex min-h-touch items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
+                            >
+                              <JournalSearchIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              {semanticSearchActive ? 'Show exact matches' : 'Search by meaning'}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {serverSearchErrored && (
                         <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                          Full-history search failed. Showing matches from loaded entries only.
+                          {semanticSearchActive
+                            ? 'Search by meaning failed. Showing exact matches from loaded entries instead.'
+                            : 'Full-history search failed. Showing matches from loaded entries only.'}
                         </div>
                       )}
 
                       {serverSearchLoading ? (
-                        <div className="rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                        <div className="rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]" role="status">
                           <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border border-secondary/60 border-t-transparent" aria-hidden="true" />
-                          <p className="journal-prose text-lg text-main">Searching your full journal history...</p>
+                          <p className="journal-prose text-lg text-main">
+                            {semanticSearchActive ? 'Finding readings with a similar meaning...' : 'Searching your full journal history...'}
+                          </p>
                           <p className="journal-prose mt-2 text-muted">This can take a few seconds for large collections.</p>
                         </div>
                       ) : filteredEntries.length === 0 ? (
                         <div className="relative overflow-hidden rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
                           <p className="journal-prose text-lg text-main">
-                            {serverSearchEnabled
+                            {semanticSearchActive && serverSearchEnabled
+                              ? 'No readings with a similar meaning were found.'
+                              : serverSearchEnabled
                               ? 'No matches found in your full journal history.'
                               : hasMoreServerEntries
                                 ? `No matches in the most recent ${entries.length} entries.`
                                 : 'No entries match your filters.'}
                           </p>
                           <p className="journal-prose mt-2 text-muted">
-                            {serverSearchEnabled
+                            {semanticSearchActive && serverSearchEnabled
+                              ? 'Search by meaning looks through your recent analyzed readings. Try other words, or show exact matches.'
+                              : semanticSearchAvailable
+                              ? 'Try other words, adjust your filters, or search by meaning to find readings on the same theme.'
+                              : serverSearchEnabled
                               ? 'Try a different search term or adjust your filters.'
                               : hasMoreServerEntries
                                 ? 'Searching loaded entries only. Try searching older entries or adjust your filters.'

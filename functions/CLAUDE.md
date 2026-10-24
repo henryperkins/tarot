@@ -18,9 +18,10 @@ steps. CI uses Node 24 and root tests cover Worker MCP.
   request ids, tokens or timestamps. Map plan and limit errors to neutral text.
 - Personal HTTP journal saves keep seed deduplication; MCP saves use the reading
   request identity. Preserve atomic SQL admission and compare-and-swap writes.
-- HTTP reflections retain append/replace, repeated append, and `entry.id`; MCP
-  reflections are append-only with exact retry deduplication. Select policy only
-  in the trusted caller, never from request JSON. Preserve raw text in both.
+- HTTP reflections retain append/replace, repeated append, and `entry.id`, plus
+  `remove` for the journal editor; MCP reflections are append-only with exact
+  retry deduplication. Select policy only in the trusted caller, never from
+  request JSON. Preserve raw text in both.
 - Keep canonical card identity for images and deck-specific display labels.
   Reusable Thoth labels must resolve to the same card when a tool call is retried.
 - Personal journal routes reject `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` with
