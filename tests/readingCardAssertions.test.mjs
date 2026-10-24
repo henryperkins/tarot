@@ -85,6 +85,22 @@ describe('clause-local undrawn card assertions', () => {
     assert.equal(text.slice(mentions[0].start, mentions[0].end), 'The Moon');
   });
 
+  it('treats the Fool\'s Journey as terminology even when an article precedes it', () => {
+    assert.equal(typeof assertions.classifyCardMentions, 'function');
+    const majors = [{ card: 'The Star', canonicalName: 'The Star', canonicalKey: 'the star' }, { card: 'The Sun', canonicalName: 'The Sun', canonicalKey: 'the sun' }];
+    for (const text of [
+      'Two Majors from the late stretch of the Fool\'s Journey suggest more than timelines.',
+      'Both sit late in The Fool’s Journey.',
+      'This is **the Fool\'s Journey** at its culmination.',
+      'The journey of the Fool reaches the Sun.'
+    ]) {
+      assert.deepEqual(assertions.classifyCardMentions(text, { cardsInfo: majors }).filter(mention => mention.canonical === 'The Fool'), [], text);
+    }
+    // A separate mention of the card outside the term is still measured.
+    const mentions = assertions.classifyCardMentions('The Fool\'s Journey begins with The Fool card.', { cardsInfo: majors });
+    assert.deepEqual(mentions.map(mention => [mention.canonical, mention.start]), [['The Fool', 31]]);
+  });
+
   it('preserves deck identities without canonicalizing Thoth Knights twice', () => {
     assert.equal(typeof assertions.detectUndrawnCardAssertions, 'function');
     const thoth = [{ card: 'Knight of Wands', canonicalName: 'King of Wands', canonicalKey: 'king of wands' }];

@@ -26,7 +26,10 @@ const DETERMINISTIC_PATTERNS = [
 const NEGATED_DETERMINISTIC_PATTERNS = [
   /\b(?:not|never|(?:is|are|was|were)n['’]t)\s+(?:(?:a\s+)?guaranteed|fated to|destined to|set in stone|inescapable|an? inevitable outcome)\b/giu,
   /\bnothing(?:\s+[\p{L}'’-]+){0,4}\s+(?:is|was|will be)\s+guaranteed\b/giu,
-  /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu
+  /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu,
+  // A negated auxiliary can govern a short offering verb: "doesn't offer guaranteed footing".
+  /\b(?:(?:do|does|did|will|would|could|can|should)\s+not|(?:do|does|did|would|could|should)n['’]t|can['’]t|cannot|won['’]t)\s+(?:offer|promise|give|bring|provide|ensure|deliver|grant|mean|come\s+with)\s+(?:(?:a|an|any)\s+)?guaranteed\b/giu,
+  /\b(?:without|no)\s+(?:(?:a|any)\s+)?guaranteed\b/giu
 ];
 
 // Exceptions such as "nothing but success" assert a positive guarantee.
