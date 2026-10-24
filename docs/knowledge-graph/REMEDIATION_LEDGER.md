@@ -14,7 +14,7 @@ The required five-file suite first ran red with **95 passed / 28 failed** across
 
 Prompt version **1.6.0** and [remediation v1 fixtures](../../tests/fixtures/graph-rag-remediation-v1-cases.json) integrate all eight registry-backed families and every final retention mode with the existing qualification corpus. The new fixture's 16 cases are built for all three providers and also sent through real request serializers with mocked transport. Negative expectation controls reject wrong modes, removal counts and claimed family evidence. Synthetic registry mutation is restored on success and failure.
 
-The current verification results are in [qualification status](QUALIFICATION_STATUS.md#current-offline-verification). The standalone credential-free evaluator passes 874 existing cases / 2,541 builds plus the separate remediation 16 / 48 lane, with 525 deck projections, 21 passage caps and 13 grounding probes. The Worker suites pass 64/64. Lint and production build pass. The final full root rerun passes **5,839 tests**, zero failed/cancelled, with two intentional installed-CLI opt-in skips (5,841 total). Documentation checks pass for 223 maintained Markdown files; whitespace checks pass.
+The current verification results are in [qualification status](QUALIFICATION_STATUS.md#current-offline-verification). The standalone credential-free evaluator passes 874 existing cases / 2,541 builds plus the separate remediation 16 / 48 lane, with 525 deck projections, 21 passage caps and 13 grounding probes. The Worker suites pass 64/64. Lint and production build pass. The final full root rerun passes **5,852 tests**, zero failed/cancelled, with two intentional installed-CLI opt-in skips (5,854 total). Documentation and whitespace checks pass.
 
 Observed integration failures and decisions:
 
@@ -23,6 +23,10 @@ Observed integration failures and decisions:
 - The initial root run could not launch two Chromium tests and skipped a third browser control because the locked browser executable was missing. The normal Playwright CDN returned a 195-byte unavailable HTML page. Provision the exact locked Playwright 1.62.1 / Chromium 151.0.7922.34 artifacts from official Google version metadata, validating upstream MD5, ZIP CRC, safe paths and executable versions. The final root rerun executes all three browser cases; only the two installed-CLI opt-in skips remain. No tests or package versions were changed for this dependency.
 - The frozen summary-only fixture's old 5,960 test budget no longer retained its complete guardrails. Use 6,200, inside the measured 6,003–6,533 summary interval, preserving frozen fixture bytes and production budgets.
 - Final guardrail verification at the synthetic quality-bypass boundary now uses that attempt's selected passages instead of the earlier retrieval payload. It validates the actual request under test.
+
+### Independent review follow-up
+
+The fresh read-only reviewer inspected all 19 changed files and coupled callers and independently passed six targeted checks. It found no Critical or Minor issues and one Important issue: unanchored header parsing disagreed with line-based artifact discovery, so an inline heading in a theme or preselected memory could erase the whole prompt while spread-card usage remained true. The fix anchors both header parsers and disallows removal without a recognized artifact. Thirteen new regression tests first failed, then passed; existing actual malformed-block controls remain green. This is a verified builder-level data-loss regression, not a demonstrated remote HTTP exploit. The final complete verification is recorded in qualification status. No second review or live approval is implied.
 
 **Task 9 remains deferred for user review.** This continuation makes zero live embedding captures, subscription generations, deployments or merges. Historical release authorizations and narrative approvals below do not transfer to this changed source.
 

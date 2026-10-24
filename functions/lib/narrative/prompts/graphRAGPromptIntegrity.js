@@ -92,7 +92,9 @@ export function parseGraphRAGReferenceBlock(promptText, { expectedPassages = [] 
 
   const startMatches = findLineMarkerMatches(promptText, GRAPHRAG_FULL_START_MARKER);
   const endMatches = findLineMarkerMatches(promptText, GRAPHRAG_FULL_END_MARKER);
-  const headerIdx = promptText.indexOf(GRAPHRAG_FULL_HEADER);
+  // Inline mentions in theme text or serialized context are data. Match the
+  // same structural header lines that artifact discovery can safely remove.
+  const headerIdx = findLineMarkerMatches(promptText, GRAPHRAG_FULL_HEADER)[0]?.start ?? -1;
   const hasFullMarkerPrefix = /^[ \t]*<!--\s*graphrag:full:/im.test(promptText);
 
   if (headerIdx === -1 && startMatches.length === 0 && endMatches.length === 0 && !hasFullMarkerPrefix) {
@@ -217,7 +219,7 @@ export function parseGraphRAGSummaryBlock(promptText) {
 
   const startMatches = findLineMarkerMatches(promptText, GRAPHRAG_SUMMARY_START_MARKER);
   const endMatches = findLineMarkerMatches(promptText, GRAPHRAG_SUMMARY_END_MARKER);
-  const headerIdx = promptText.indexOf(GRAPHRAG_SUMMARY_HEADER);
+  const headerIdx = findLineMarkerMatches(promptText, GRAPHRAG_SUMMARY_HEADER)[0]?.start ?? -1;
   const hasSummaryMarkerPrefix = /^[ \t]*<!--\s*graphrag:summary:/im.test(promptText);
 
   if (headerIdx === -1 && startMatches.length === 0 && endMatches.length === 0 && !hasSummaryMarkerPrefix) {
@@ -333,7 +335,9 @@ export function enforceGraphRAGPromptIntegrity(text, { expectedPassages = [] } =
   const summaryParse = parseGraphRAGSummaryBlock(text);
   const artifacts = findGraphArtifactIndices(text);
 
-  if (fullParse.status === 'absent' && !summaryParse.present && artifacts.length === 0) {
+  // No recognized structural artifact means there is no authorized removal
+  // boundary. Never turn incidental text into a deletion starting at byte zero.
+  if (artifacts.length === 0) {
     return {
       text,
       changed: false,
@@ -383,7 +387,7 @@ export function enforceGraphRAGPromptIntegrity(text, { expectedPassages = [] } =
     reasonSet.add('invalid_envelope');
   }
 
-  const removeStart = artifacts.length > 0 ? artifacts[0].start : 0;
+  const removeStart = artifacts[0].start;
   const instrMatches = findLineMarkerMatches(text, READING_INSTRUCTIONS_START_MARKER).filter(
     (m) => m.start >= removeStart
   );

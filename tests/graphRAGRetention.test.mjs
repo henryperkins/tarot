@@ -46,6 +46,43 @@ function quiet(t) {
   t.mock.method(console, 'warn', () => {});
 }
 
+for (const header of ['## TRADITIONAL WISDOM (GraphRAG)', '## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)']) {
+  for (const source of ['theme', 'selected memory']) {
+    for (const mode of ['none', 'full', 'summary']) {
+      test(`inline graph heading in ${source} preserves the final ${mode} prompt: ${header}`, t => {
+        quiet(t);
+        const text = `Discussing ${header} as a concept.`;
+        const memory = { id: 'private-heading-memory', category: 'communication', text };
+        const passages = collectPassageCandidates({ singleMajorNumber: 19, totalMajors: 1 });
+        const themes = { knowledgeGraph: buildGraphContext([card]), ...(source === 'theme' ? { archetypeDescription: text } : {}) };
+        const graphRAGPayload = mode === 'summary'
+          ? { passages: [], formattedBlock: 'Unavailable historical quote.' }
+          : { passages, maxPassages: 1 };
+        const built = buildEnhancedClaudePrompt({
+          spreadInfo: { key: 'single', name: 'One-Card Insight' }, cardsInfo: [card], themes,
+          userQuestion: 'How can I approach my new job?', graphRAGPayload,
+          memorySelection: source === 'selected memory' ? { memories: [memory], candidateCount: 1, selectedCount: 1, exclusionReasons: {} } : null,
+          budgetTarget: 'modal', promptBudgetEnv: { GRAPHRAG_ENABLED: mode === 'none' ? 'false' : 'true' }
+        });
+        assert.ok(built.userPrompt.includes('The Sun'), 'Authoritative drawn card must survive');
+        assert.ok(built.userPrompt.includes('How can I approach my new job?'), 'Current question must survive');
+        assert.ok(built.userPrompt.includes(text), 'Incidental context must remain data');
+        assert.equal(built.promptMeta.sourceUsage.spreadCards.used, true);
+        const usage = built.promptMeta.sourceUsage.graphRAG;
+        assert.equal(usage.mode, mode);
+        assert.equal(usage.integrityRemovedBlocks, 0);
+        assert.deepEqual(usage.integrityRemovalReasons, []);
+        assert.equal(usage.referenceGuardrailsComplete, mode === 'full');
+        assert.equal(parseGraphRAGReferenceBlock(built.userPrompt).status, mode === 'full' ? 'complete' : 'absent');
+        assert.equal(parseGraphRAGSummaryBlock(built.userPrompt).complete, mode === 'summary');
+        assert.equal(built.promptMeta.memories.retainedCount, source === 'selected memory' ? 1 : 0);
+        if (source === 'selected memory') assert.equal(parseMemoryBlocks(built.userPrompt).get('memory-0').text, text);
+        assert.ok(!built.userPrompt.includes(memory.id));
+      });
+    }
+  }
+}
+
 function rankedReferenceFixture() {
   const passages = [0, 13, 17, 19].map((number, index) => ({
     ...collectPassageCandidates({ singleMajorNumber: number, totalMajors: 1 })[0],

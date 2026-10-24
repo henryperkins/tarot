@@ -2,7 +2,7 @@
 
 ## October 24 GraphRAG complete remediation candidate — offline Tasks 7–8
 
-Reading prompt **1.6.0** adds final-prompt integrity and source accounting on branch `claude/graphrag-complete-remediation-20261024`, continuing the published Task 6 checkpoint `a3c115c0c3abf414c78e085528664aa3c88d99c6`. Task 7 is checkpointed at `88e01b18ce4f7aec02b6cbede722112f4ee3bafa`. This is an offline candidate; **Task 9 live embeddings, subscription generations and deployment remain pending explicit user review**. Earlier release and narrative records below do not qualify this changed prompt version.
+Reading prompt **1.6.0** adds final-prompt integrity and source accounting on branch `claude/graphrag-complete-remediation-20261024`, continuing the published Task 6 checkpoint `a3c115c0c3abf414c78e085528664aa3c88d99c6`. Task 7 is checkpointed at `88e01b18ce4f7aec02b6cbede722112f4ee3bafa`; Task 8 at `96e9e0048da67dd97cd06dc3d090a9bf5926b8b3`. This is an offline candidate; **Task 9 live embeddings, subscription generations and deployment remain pending explicit user review**. Earlier release and narrative records below do not qualify this changed prompt version.
 
 The original Ubuntu worktree, cache evidence and complete-remediation plan were unavailable in this environment; the plan is also absent from the supplied Git revision. The user authorized an isolated checkout and their pasted Tasks 7–8 handoff as the execution contract. The published commit ancestry was verified. Original checkout hashes, prompt snapshots and Task 1–6 red/green logs remain unverified historical evidence.
 
@@ -21,16 +21,18 @@ All commands run in the isolated checkout on Node **24.19.0**, npm **11.9.0**, w
 | Check | Observed result |
 | --- | --- |
 | Task 7 required five-file suite | **123 passed**, zero failed/skipped at `88e01b1`. |
-| Root `npm test` | **5,839 passed**, zero failed/cancelled; **two intentional installed-CLI opt-in skips** (5,841 total). The first failed integration run remains preserved. |
+| Root `npm test` | **5,852 passed**, zero failed/cancelled; **two intentional installed-CLI opt-in skips** (5,854 total). The first failed integration run remains preserved. |
 | Worker graph and spread analysis | **64 passed**, zero failed/skipped. |
 | Credential-free assembly evaluator | **874 existing cases / 2,541 provider-target builds**, plus **16 remediation cases / 48 builds**; **525 deck projections / 21 caps / 13 grounding probes**. All passed; existing and additional lanes are reported separately. |
 | `npm run lint` | Passed, zero errors; one existing unused-import warning for `countGraphRAGPassagesInPrompt`. |
 | `npm run build` | Passed. |
-| `npm run docs:check` and `git diff --check` | Passed; **223 maintained Markdown files** have valid local links. |
+| `npm run docs:check` and `git diff --check` | Passed; all maintained Markdown local links resolve. |
 
 The full-suite integration run exposed missing GraphRAG dependencies in the offline preview's explicit source allowlist, an older telemetry assertion missing Task 5's three additive counts, and unavailable Playwright browser binaries. The allowlist and assertion are repaired, and the complete root rerun passes with the exact locked Playwright 1.62.1 / Chromium 151.0.7922.34 binaries. The normal CDN returned an unavailable-page response; the same version was installed from its official Google distribution with matching upstream MD5, ZIP integrity and executable-version checks. No package or test was changed to bypass the missing dependency. The earlier default-sandbox run was interrupted after local subprocess/listener errors and is not passing baseline evidence.
 
 The existing frozen summary-only fixture remains byte-for-byte unchanged. Its test adapter's soft budget moves from **5,960 to 6,200** so complete summary guardrails survive; measured summary retention for that input was 6,003–6,533. Production budgets stay unchanged. Synthetic malformed registry rows are isolated and restored even on a failed expectation, so repeated qualification does not change the canon.
+
+A fresh independent review of all 19 Task 7–8 changed files found one Important issue and no Critical or Minor issues: incidental inline graph headings in theme text or a preselected memory could trigger deletion of the user prompt. Header recognition now requires structural lines, and removal requires a recognized artifact boundary. **Thirteen new regressions failed before the fix and passed afterward**, covering both header kinds across disabled/full/summary prompts, source preservation and prefix fallback. Existing malformed-block checks continue to pass. This was reproduced at the supported builder boundary; a remotely exploitable HTTP input was not established. The fix passes a fresh full verification run; no second independent review is claimed.
 
 These checks do not supply real embedding relevance evidence, generated-reading quality approval, original-host preservation evidence or deployment verification. The live `REL01`–`REL10` relevance qualification below remains open.
 
