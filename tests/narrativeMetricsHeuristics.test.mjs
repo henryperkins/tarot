@@ -459,6 +459,35 @@ test('narrative metrics keep choice affirmations distinct from direct imperative
   assert.equal(metrics.perSample[1].hasHarshTone, true);
 });
 
+test('narrative tone distinguishes reported fears from restrictive advice', async () => {
+  const reportedFears = [
+    'The hope and the fear may be tangled together: wanting to finally get on top of things, and worrying that the only way there is being hard on yourself. The card suggests that harshness is more likely to scatter your focus than sharpen it.',
+    'You may fear that the only way forward is self-punishment. Consider a gentler pace instead.'
+  ];
+  const supportive = await computeMetrics(reportedFears.map((text, index) => sampleWithGuidance(`reported-fear-${index}`, text)));
+  for (const [index, result] of supportive.perSample.entries()) {
+    assert.equal(result.hasHarshTone, false, reportedFears[index]);
+    assert.deepEqual(result.issueFlags, [], reportedFears[index]);
+  }
+  await verifyGate(supportive);
+
+  const restrictiveAdvice = [
+    'The only way forward is being hard on yourself.',
+    'You may worry about this, but the only way forward is self-punishment.',
+    'You may fear that the only way forward is self-punishment. You must ignore your limits.'
+  ];
+  const restrictive = await computeMetrics(restrictiveAdvice.map((text, index) => sampleWithGuidance(`restrictive-advice-${index}`, text)));
+  for (const [index, result] of restrictive.perSample.entries()) {
+    assert.equal(result.hasHarshTone, true, restrictiveAdvice[index]);
+    assert.deepEqual(result.issueFlags, ['harsh-tone'], restrictiveAdvice[index]);
+  }
+  await assert.rejects(verifyGate(restrictive), error => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Harsh-tone issues/);
+    return true;
+  });
+});
+
 test('narrative gate detects imperative language through Markdown formatting', async () => {
   const commands = [
     'Always avoid honest conversation.',

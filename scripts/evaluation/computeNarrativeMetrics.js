@@ -88,7 +88,9 @@ const HARSH_TONE_PATTERNS = [
 
 const NON_HARSH_TONE_PATTERNS = [
   /\bnot\s+the\s+only way\b/giu,
-  /\b(?:isn't|isn’t|aren't|aren’t|wasn't|wasn’t|weren't|weren’t)\s+the\s+only way\b/giu
+  /\b(?:isn't|isn’t|aren't|aren’t|wasn't|wasn’t|weren't|weren’t)\s+the\s+only way\b/giu,
+  // Naming a feared restriction does not assert that the reader has no choice.
+  /\b(?:worry|worrying|worried|fear|fearing|afraid)\s+that\s+the\s+only way\b/giu
 ];
 
 function usage() {
