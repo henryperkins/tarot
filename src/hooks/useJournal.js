@@ -15,7 +15,8 @@ import { filterDeletedJournalEntries, isDeletedJournalEntry, isDeletedJournalRes
 import { visualStorageNamespace, writeVisualResume, patchVisualEntry,
   VISUAL_SNAPSHOT_EVENT, readSavedVisualEntry, projectJournalEntryVisuals,
   mergeCachedJournalVisuals, needsCloudVisualRefresh, requestSavedVisualRetry, adoptEntryVisuals,
-  savedVisualSourceKey, publicVisualRetryState } from '../lib/readingVisualStorage.js';
+  savedVisualSourceKey, publicVisualRetryState, persistJournalWithVisualFallback } from '../lib/readingVisualStorage.js';
+import { applyReflectionEdit, MAX_REFLECTION_LENGTH, READING_REFLECTION_KEY } from '../../shared/journal/reflectionLabels.js';
 
 const LOCALSTORAGE_KEY = 'tarot_journal';
 const CACHE_KEY_PREFIX = 'tarot_journal_cache';
@@ -127,10 +128,12 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
   const [syncSource, setSyncSource] = useState(null); // 'api' | 'cache' | 'local'
   const hasMoreEntries = pagination.hasMore;
   const prefetchedOnceRef = useRef(false);
+  const reflectionAttemptsRef = useRef(new Map());
 
   // Track previous user ID to detect account switches
   const prevUserIdRef = useRef(user?.id);
   useLayoutEffect(() => {
+    if (namespaceRef.current !== namespace) reflectionAttemptsRef.current.clear();
     namespaceRef.current = isDeletedAccount(userId) ? null : namespace;
     return subscribeToDeletedAccounts(owner => {
       if (owner !== userId) return;
@@ -746,6 +749,108 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
     return flight;
   }, [namespace, isAuthenticated, canUseCloudJournal, visualRequestsEnabled, setEntries, userId]);
 
+  /**
+   * Add, rewrite or remove one reflection on a saved entry. `key` is a card
+   * index ("0", "1", ...) or "Overall"; `mode` is append, replace or remove.
+   * Cloud entries write through the reflections endpoint; local entries are
+   * rewritten in this owner's browser journal under the storage lock.
+   */
+  const saveReflection = useCallback(async (entryId, { key, text = '', mode = 'replace', expectedText, attemptId = null } = {}) => {
+    const owner = namespace;
+    const isCurrent = () => !isDeletedAccount(userId) && namespaceRef.current === owner
+      && !isDeletedJournalEntry(owner, entryId);
+    if (!entryId || typeof key !== 'string' || !['append', 'replace', 'remove'].includes(mode)) {
+      return { success: false, error: 'Choose a note to save.' };
+    }
+    if (mode !== 'remove') {
+      if (typeof text !== 'string' || !text.trim()) return { success: false, error: 'Write a reflection before saving.' };
+      if (text.length > MAX_REFLECTION_LENGTH) {
+        return { success: false, error: `Reflections can be up to ${MAX_REFLECTION_LENGTH.toLocaleString()} characters.` };
+      }
+    }
+    if (!isCurrent()) return { success: false, error: 'This reading is no longer available.' };
+    const unavailable = { success: false, error: 'This reading is no longer available.' };
+
+    try {
+      if (isAuthenticated && canUseCloudJournal) {
+        const cardIndex = key === READING_REFLECTION_KEY ? null : Number(key);
+        if (cardIndex !== null && !Number.isInteger(cardIndex)) return { success: false, error: 'Choose a note to save.' };
+        const attemptKey = `${owner}\0${entryId}\0${key}`;
+        let attempt = reflectionAttemptsRef.current.get(attemptKey);
+        if (mode === 'append') {
+          if (!attempt || attempt.text !== text || attempt.attemptId !== attemptId) {
+            const current = entriesRef.current.find(item => item.id === entryId);
+            attempt = { text, attemptId, expectedText: typeof expectedText === 'string' ? expectedText : current?.reflections?.[key] || '' };
+            reflectionAttemptsRef.current.set(attemptKey, attempt);
+          }
+        } else reflectionAttemptsRef.current.delete(attemptKey);
+        const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}/reflections`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            scope: cardIndex === null ? 'reading' : 'card',
+            ...(cardIndex === null ? {} : { cardIndex }),
+            mode,
+            ...(mode === 'append' ? { expectedText: attempt.expectedText } : {}),
+            ...(mode === 'remove' ? {} : { text })
+          })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          if (response.status >= 400 && response.status < 500) reflectionAttemptsRef.current.delete(attemptKey);
+          return { success: false, error: data?.error || 'Your reflection could not be saved. Try again.' };
+        }
+        if (!isCurrent()) return unavailable;
+        if (!data?.reflections || typeof data.reflections !== 'object' || Array.isArray(data.reflections)) {
+          return { success: false, error: 'Unable to confirm the saved reflection. Your draft is still here. Try again.' };
+        }
+        reflectionAttemptsRef.current.delete(attemptKey);
+        const reflections = data.reflections;
+        setEntries(previous => {
+          const next = mapChanged(previous, item => item.id === entryId ? { ...item, reflections } : item);
+          if (next !== previous) {
+            try { localStorage.setItem(getCacheKey(userId), JSON.stringify(filterDeletedJournalEntries(journalNamespaceForKey(getCacheKey(userId)), next))); } catch { /* Optional cache. */ }
+          }
+          return next;
+        });
+        if (userId) invalidateNarrativeCache(userId);
+        return { success: true, reflections };
+      }
+
+      if (typeof localStorage === 'undefined') return { success: false, error: 'This browser cannot save your journal.' };
+      const localKey = getLocalJournalKey(isAuthenticated ? userId : null);
+      return await withLocalJournalStorageLock([localKey], () => {
+        if (!isCurrent()) return unavailable;
+        // Edit the latest durable copy; another tab may have saved since load.
+        const stored = readLocalJournalEntries(localStorage, localKey);
+        const target = stored.find(item => item?.id === entryId);
+        if (!target) return unavailable;
+        const reflections = applyReflectionEdit(target.reflections, { key, text, mode });
+        const persisted = persistJournalWithVisualFallback({
+          storage: localStorage,
+          key: localKey,
+          entries: stored.map(item => (item === target ? { ...item, reflections } : item))
+        });
+        if (!persisted.ok) {
+          return { success: false, error: 'Your browser could not save this reflection. Free some storage and try again.' };
+        }
+        setEntries(previous => mapChanged(previous, item => item.id === entryId ? { ...item, reflections } : item));
+        setLastLocalSaveAt(Date.now());
+        return { success: true, reflections };
+      });
+    } catch (err) {
+      console.error('Failed to save reflection:', err);
+      // fetch() rejects with a TypeError when offline; storage-lock errors explain themselves.
+      return {
+        success: false,
+        error: err instanceof TypeError
+          ? 'Your reflection could not be saved. Check your connection and try again.'
+          : err?.message || 'Your reflection could not be saved. Try again.'
+      };
+    }
+  }, [namespace, userId, isAuthenticated, canUseCloudJournal, setEntries]);
+
   const deleteEntry = async (entryId, { readingResultId = null } = {}) => {
     setError(null);
     const cloud = isAuthenticated && canUseCloudJournal;
@@ -1088,6 +1193,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
     syncSource,
     saveEntry,
     deleteEntry,
+    saveReflection,
     retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,

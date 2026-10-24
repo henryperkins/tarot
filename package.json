@@ -131,6 +131,7 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
     "@axe-core/playwright": "^4.11.0",
+    "@babel/parser": "^7.29.8",
     "@browserbasehq/sdk": "^2.22.0",
     "@browserbasehq/stagehand": "^4.3.0",
     "@eslint/js": "^9.39.1",

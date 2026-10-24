@@ -55,3 +55,36 @@ describe('buildReflectionEntries', () => {
     }
   });
 });
+
+describe('editable reflection items', () => {
+  it('carries each note’s stored key, and only index and whole-reading keys are editable', async () => {
+    const { buildReflectionItems } = await import('../shared/journal/reflectionLabels.js');
+    assert.deepEqual(buildReflectionItems({ Past: 'legacy', 1: 'present note', Overall: 'whole', 7: 'stray' }, CARDS), [
+      { key: 'Overall', label: READING_REFLECTION_LABEL, note: 'whole', cardIndex: null, editable: true },
+      { key: '1', label: 'Present · Three of Cups', note: 'present note', cardIndex: 1, editable: true },
+      { key: '7', label: 'Card 8', note: 'stray', cardIndex: 7, editable: false },
+      { key: 'Past', label: 'Past', note: 'legacy', cardIndex: null, editable: false }
+    ]);
+  });
+
+  it('offers the whole reading, then every card, as places for a new note', async () => {
+    const { buildReflectionTargets } = await import('../shared/journal/reflectionLabels.js');
+    assert.deepEqual(buildReflectionTargets(CARDS).map(({ key, label }) => [key, label]), [
+      ['Overall', READING_REFLECTION_LABEL],
+      ['0', 'Past · The Hermit'],
+      ['1', 'Present · Three of Cups'],
+      ['2', 'Future · The Star']
+    ]);
+    assert.deepEqual(buildReflectionTargets(undefined).map(({ key }) => key), ['Overall']);
+  });
+
+  it('applies append, replace and remove like the reflections endpoint, without mutating', async () => {
+    const { applyReflectionEdit } = await import('../shared/journal/reflectionLabels.js');
+    const original = Object.freeze({ 0: 'first', Overall: 'whole' });
+    assert.deepEqual(applyReflectionEdit(original, { key: '0', text: 'second', mode: 'append' }), { 0: 'first\n\nsecond', Overall: 'whole' });
+    assert.deepEqual(applyReflectionEdit(original, { key: '1', text: 'new', mode: 'append' }), { 0: 'first', 1: 'new', Overall: 'whole' });
+    assert.deepEqual(applyReflectionEdit(original, { key: 'Overall', text: 'rewritten', mode: 'replace' }), { 0: 'first', Overall: 'rewritten' });
+    assert.deepEqual(applyReflectionEdit(original, { key: '0', mode: 'remove' }), { Overall: 'whole' });
+    assert.deepEqual(applyReflectionEdit(null, { key: 'Overall', text: 'note', mode: 'replace' }), { Overall: 'note' });
+  });
+});

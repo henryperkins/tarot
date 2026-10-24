@@ -4,6 +4,7 @@
 
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
+import { useSmallScreen } from '../../../hooks/useSmallScreen';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
 import TrendSparkline from '../../charts/TrendSparkline';
 import { getSuitIcon } from '../../illustrations/suitIconUtils';
@@ -17,17 +18,21 @@ const SUIT_COLORS = {
   Major: 'text-accent',
 };
 
+// role="img" makes the SVG's label part of the row for screen readers.
 function TrendIndicator({ trend }) {
   if (trend === 'up') {
-    return <TrendUp className="h-3 w-3 text-success" aria-label="trending up" />;
+    return <TrendUp className="h-3 w-3 text-success" role="img" aria-label="Rising over recent months" />;
   }
   if (trend === 'down') {
-    return <TrendDown className="h-3 w-3 text-error" aria-label="trending down" />;
+    return <TrendDown className="h-3 w-3 text-error" role="img" aria-label="Falling over recent months" />;
   }
-  return <Minus className="h-3 w-3 text-muted opacity-60" aria-label="stable" />;
+  return <Minus className="h-3 w-3 text-muted opacity-60" role="img" aria-label="Steady over recent months" />;
 }
 
 function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSize = 0 }) {
+  // Sparklines appear from the `sm` breakpoint. Below it they are not mounted,
+  // so phones never load or measure charts they would hide.
+  const showSparklines = !useSmallScreen(639);
   if (!cards.length) {
     return (
       <p className="text-sm text-muted">
@@ -47,7 +52,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         {subtitle}
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
-        {cards.slice(0, 5).map((card, index) => {
+        {(showSparklines ? cards : cards.map(({ trendData: _trendData, ...card }) => card)).slice(0, 5).map((card, index) => {
           const hasBadge = card.hasBadge || badges.some(b => b.card_name === card.name);
           const SuitIcon = getSuitIcon(card.name);
           const suitName = card.suit || (card.name?.includes(' of ') ? card.name.split(' of ')[1] : 'Major');

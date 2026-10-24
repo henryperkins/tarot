@@ -24,10 +24,11 @@ const TrendSparkline = memo(function TrendSparkline({
   // Sort by date just in case
   const sortedData = [...data].sort((a, b) => a.year_month.localeCompare(b.year_month));
 
+  // Decorative: the row states the count and trend direction in text.
   return (
-    <div style={{ height, width: '100%', minWidth: 60 }}>
+    <div style={{ height, width: '100%', minWidth: 60 }} aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={sortedData}>
+        <AreaChart data={sortedData} accessibilityLayer={false}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={color} stopOpacity={0.3} />

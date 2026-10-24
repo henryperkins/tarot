@@ -9,7 +9,9 @@
  *
  * Contract rules:
  * - text is 1-2,000 characters, preserved verbatim;
- * - HTTP supports append/replace; MCP supports idempotent append only;
+ * - HTTP supports append/replace, and remove (no text) for the journal's own
+ *   editor; MCP supports idempotent append only. The published GPT Action
+ *   schema still offers only append/replace;
  * - a missing entry and another user's entry get the same 404.
  *
  * MCP retries are idempotent by the operation's identity (entry, target key,
@@ -20,18 +22,20 @@
 
 import { canonicalizeCardName } from '../../shared/vision/cardNameMapping.js';
 import { getDeckAlias } from '../../shared/vision/deckAssets.js';
-import { READING_REFLECTION_KEY } from '../../shared/journal/reflectionLabels.js';
+import {
+  MAX_REFLECTION_LENGTH,
+  READING_REFLECTION_KEY,
+  REFLECTION_NOTE_SEPARATOR as NOTE_SEPARATOR
+} from '../../shared/journal/reflectionLabels.js';
 import { safeJsonParse } from './utils.js';
 
-export { READING_REFLECTION_KEY };
-export const MAX_REFLECTION_LENGTH = 2000;
+export { MAX_REFLECTION_LENGTH, READING_REFLECTION_KEY };
 export const MAX_TARGET_REFLECTION_LENGTH = 20000;
 // A failed compare-and-swap means another writer succeeded. Leave room for
 // all ten card notes plus the whole-reading note to arrive concurrently.
 export const MAX_WRITE_ATTEMPTS = 32;
 
 const DEFAULT_DECK = 'rws-1909';
-const NOTE_SEPARATOR = '\n\n';
 const SCOPES = new Set(['card', 'reading']);
 
 function isProvided(value) {
@@ -164,7 +168,7 @@ function successBody(entryId, key, target, text, reflections, extra = {}, policy
  * @param {object} params.env - Worker bindings; env.DB is required
  * @param {object} params.user - Authenticated, journal-entitled user
  * @param {string} params.entryId
- * @param {object} params.input - { text, scope?, card?, position?, cardIndex? }
+ * @param {object} params.input - { text, scope?, card?, position?, cardIndex?, mode? (HTTP only) }
  * @param {'http'|'mcp'} [params.policy] - Internal caller policy, never request JSON
  * @returns {Promise<{ status: number, body: object }>}
  */
@@ -178,8 +182,19 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
     return { status: 400, body: { error: 'Reflections are append-only; mode is not supported' } };
   }
 
-  const text = typeof input.text === 'string' ? input.text : '';
-  if (!text.trim()) return { status: 400, body: { error: 'Reflection text is required' } };
+  const mode = isHttp && isProvided(input.mode) ? input.mode : 'append';
+  if (mode !== 'append' && mode !== 'replace' && mode !== 'remove') {
+    return { status: 400, body: { error: 'mode must be "append", "replace" or "remove"' } };
+  }
+  // Removal clears one target's note; it takes no text.
+  const removing = mode === 'remove';
+  const hasExpectedText = isHttp && mode === 'append' && Object.hasOwn(input, 'expectedText');
+  if (hasExpectedText && typeof input.expectedText !== 'string') {
+    return { status: 400, body: { error: 'expectedText must be a string' } };
+  }
+
+  const text = removing ? '' : typeof input.text === 'string' ? input.text : '';
+  if (!removing && !text.trim()) return { status: 400, body: { error: 'Reflection text is required' } };
   if (text.length > MAX_REFLECTION_LENGTH) {
     return {
       status: 400,
@@ -193,11 +208,6 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
   const namesCard = ['card', 'position', 'cardIndex'].some((field) => isProvided(input[field]));
   const scope = isProvided(input.scope) ? input.scope : (namesCard ? 'card' : 'reading');
   if (!SCOPES.has(scope)) return { status: 400, body: { error: 'scope must be "card" or "reading"' } };
-
-  const mode = isHttp && isProvided(input.mode) ? input.mode : 'append';
-  if (mode !== 'append' && mode !== 'replace') {
-    return { status: 400, body: { error: 'mode must be "append" or "replace"' } };
-  }
 
   for (let attempt = 1; attempt <= MAX_WRITE_ATTEMPTS; attempt += 1) {
     // Scoped to the user: another user's entry is indistinguishable from none.
@@ -233,15 +243,31 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
 
     const reflections = parseReflections(entry.reflections_json);
     const existing = typeof reflections[key] === 'string' ? reflections[key] : '';
+    // The journal editor can safely retry an uncertain append without changing
+    // the repeated-append contract for HTTP callers that omit this precondition.
+    if (hasExpectedText && existing !== input.expectedText) {
+      const appended = input.expectedText ? `${input.expectedText}${NOTE_SEPARATOR}${text}` : text;
+      if (existing === appended) {
+        return { status: 200, body: successBody(entryId, key, target, existing, reflections, { alreadyPresent: true }, policy) };
+      }
+      return { status: 409, body: {
+        error: 'This note changed while saving. Your draft is still here. Reload the journal before trying again.',
+        code: 'reflection_conflict'
+      } };
+    }
     if (!isHttp && noteIsPresent(existing, text)) {
       return { status: 200, body: successBody(entryId, key, target, existing, reflections, { alreadyPresent: true }) };
+    }
+    if (removing && !Object.hasOwn(reflections, key)) {
+      return { status: 200, body: successBody(entryId, key, target, '', reflections, { removed: false }, policy) };
     }
 
     const value = mode === 'append' && existing ? `${existing}${NOTE_SEPARATOR}${text}` : text;
     if (!isHttp && value.length > MAX_TARGET_REFLECTION_LENGTH) {
       return { status: 400, body: { error: 'This reflection is full', maxLength: MAX_TARGET_REFLECTION_LENGTH } };
     }
-    reflections[key] = value;
+    if (removing) delete reflections[key];
+    else reflections[key] = value;
 
     const nowSeconds = Math.floor(Date.now() / 1000);
     const result = await env.DB.prepare(
@@ -249,7 +275,7 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
     ).bind(JSON.stringify(reflections), nowSeconds, entryId, user.id, entry.reflections_json ?? null).run();
 
     if ((result?.meta?.changes ?? 0) === 1) {
-      return { status: 200, body: successBody(entryId, key, target, value, reflections, {}, policy) };
+      return { status: 200, body: successBody(entryId, key, target, value, reflections, removing ? { removed: true } : {}, policy) };
     }
     // Someone else changed the entry since it was read: re-read and retry.
   }

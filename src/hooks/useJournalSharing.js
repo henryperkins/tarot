@@ -2,13 +2,19 @@
  * useJournalSharing - Manages share link CRUD operations
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 export function useJournalSharing(isAuthenticated, userId = null) {
   const [shareLinks, setShareLinks] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
   const [shareOwner, setShareOwner] = useState({ isAuthenticated, userId });
+  const ownerRef = useRef(userId);
+  const loadVersionRef = useRef(0);
+  useLayoutEffect(() => {
+    ownerRef.current = isAuthenticated ? userId : null;
+    return () => { ownerRef.current = null; };
+  }, [isAuthenticated, userId]);
 
   if (shareOwner.isAuthenticated !== isAuthenticated || shareOwner.userId !== userId) {
     setShareOwner({ isAuthenticated, userId });
@@ -18,25 +24,38 @@ export function useJournalSharing(isAuthenticated, userId = null) {
   }
 
   const fetchShareLinks = useCallback(async (signal) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || ownerRef.current !== userId) return;
+    const loadVersion = ++loadVersionRef.current;
+    const isCurrent = () => !signal?.aborted && ownerRef.current === userId && loadVersionRef.current === loadVersion;
     setShareLoading(true);
     setShareError('');
     try {
-      const response = await fetch('/api/share', { credentials: 'include', signal });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Unable to load share links');
-      }
-      const payload = await response.json();
-      if (signal?.aborted) return;
-      setShareLinks(payload.shares || []);
+      const links = [];
+      let cursor = null;
+      const visited = new Set();
+      do {
+        const response = await fetch(cursor ? `/api/share?${new URLSearchParams({ cursor })}` : '/api/share', { credentials: 'include', signal });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || 'Unable to load share links');
+        }
+        const payload = await response.json();
+        if (!isCurrent()) return;
+        links.push(...(Array.isArray(payload.shares) ? payload.shares : []));
+        const next = payload.nextCursor;
+        if (next == null) break;
+        if (typeof next !== 'string' || !next || visited.has(next)) throw new Error('Unable to load older share links. Try again.');
+        visited.add(next);
+        cursor = next;
+      } while (cursor);
+      setShareLinks(links);
     } catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError') return;
+      if (!isCurrent() || error?.name === 'AbortError') return;
       setShareError(error.message || 'Unable to load share links');
     } finally {
-      if (!signal?.aborted) setShareLoading(false);
+      if (isCurrent()) setShareLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -118,13 +137,37 @@ export function useJournalSharing(isAuthenticated, userId = null) {
     [isAuthenticated, fetchShareLinks]
   );
 
+  // A blank title restores the link's default name.
+  const renameShareLink = useCallback(
+    async (shareToken, title) => {
+      if (!isAuthenticated || !shareToken) return null;
+      const response = await fetch(`/api/share/${encodeURIComponent(shareToken)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: typeof title === 'string' ? title : null })
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Unable to rename share link');
+      }
+      const data = await response.json();
+      setShareLinks((previous) => previous.map((link) => (
+        link.token === shareToken ? { ...link, title: data.title, hasCustomTitle: Boolean(data.hasCustomTitle) } : link
+      )));
+      return data;
+    },
+    [isAuthenticated]
+  );
+
   return {
     shareLinks,
     shareLoading,
     shareError,
     fetchShareLinks,
     createShareLink,
-    deleteShareLink
+    deleteShareLink,
+    renameShareLink
   };
 }
 

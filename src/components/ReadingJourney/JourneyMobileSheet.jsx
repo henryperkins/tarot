@@ -42,6 +42,7 @@ import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 import EmptyState from './sections/EmptyState';
 import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
+import PatternAlertBanner from '../PatternAlertBanner';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
 
 const TABS = [
@@ -92,6 +93,7 @@ export default function JourneyMobileSheet({
   journalSummary,
   userId,
   onCreateShareLink,
+  shareManagement,
   onStartReading,
   showStartReadingCta = true,
   locale = 'default',
@@ -359,6 +361,7 @@ export default function JourneyMobileSheet({
     <ExportSection
       isAuthenticated={isAuthenticated}
       onCreateShareLink={onCreateShareLink}
+      shareManagement={shareManagement}
       scopeEntries={scopeEntries}
       filteredEntries={filteredEntries}
       allEntries={allEntries}
@@ -512,6 +515,9 @@ export default function JourneyMobileSheet({
               </button>
             </div>
           )}
+
+          {/* Pattern alert, in the same place as the desktop sidebar's */}
+          <PatternAlertBanner isAuthenticated={isAuthenticated} className="" />
 
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
           {needsBackfill && !hasBackfilled && (

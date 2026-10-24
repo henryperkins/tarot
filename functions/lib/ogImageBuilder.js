@@ -1,4 +1,5 @@
 import { tableuMarkMarkup } from '../../shared/brand/tableuMark.js';
+import { replaceInvalidXmlCharacters } from '../../shared/journal/shareTitles.js';
 
 const DEFAULT_ERROR_MESSAGE = 'Reading not found';
 const SPREAD_MAX_LENGTH = 22;
@@ -23,7 +24,7 @@ const XML_ESCAPES = {
 
 function escapeXml(value) {
   if (value === null || value === undefined) return '';
-  return String(value).replace(/[&<>"']/g, match => XML_ESCAPES[match]);
+  return replaceInvalidXmlCharacters(value).replace(/[&<>"']/g, match => XML_ESCAPES[match]);
 }
 
 function truncate(value, maxLength) {

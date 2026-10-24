@@ -11,7 +11,9 @@ import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { jsonResponse, safeJsonParse } from '../../lib/utils.js';
 import { loadFollowUpsByEntry } from '../../lib/journalFollowups.js';
 import { buildTierLimitedPayload, isEntitled } from '../../lib/entitlements.js';
-import { buildReflectionEntries } from '../../../shared/journal/reflectionLabels.js';
+import { buildJournalText, formatEntryAsText } from '../../../shared/journal/exportFormats.js';
+
+export { formatEntryAsText };
 
 // PDF generation constants
 const PDF_PAGE_HEIGHT = 842; // A4 height in points
@@ -214,85 +216,6 @@ export function generatePDF(content) {
 }
 
 /**
- * Format a journal entry as readable text for PDF
- */
-export function formatEntryAsText(entry) {
-  const lines = [];
-  const date = new Date(entry.ts).toLocaleString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  lines.push(`# ${entry.spread || 'Tarot Reading'}`);
-  lines.push(`Date: ${date}`);
-  lines.push('');
-
-  if (entry.question) {
-    lines.push('## Question');
-    lines.push(entry.question);
-    lines.push('');
-  }
-
-  if (entry.context) {
-    lines.push(`Context: ${entry.context}`);
-    lines.push('');
-  }
-
-  lines.push('## Cards Drawn');
-  if (Array.isArray(entry.cards)) {
-    for (const card of entry.cards) {
-      const position = card.position ? `${card.position}: ` : '';
-      const orientation = card.orientation ? ` (${card.orientation})` : '';
-      lines.push(`- ${position}${card.card || card.name}${orientation}`);
-    }
-  }
-  lines.push('');
-
-  if (entry.personalReading) {
-    lines.push('## Reading');
-    // Split long reading into paragraphs
-    const paragraphs = entry.personalReading.split(/\n\n+/);
-    for (const para of paragraphs) {
-      lines.push(para.replace(/\n/g, ' ').trim());
-      lines.push('');
-    }
-  }
-
-  if (Array.isArray(entry.followUps) && entry.followUps.length) {
-    lines.push('## Follow-up Conversation');
-    for (const turn of entry.followUps) {
-      const turnNumber = Number.isFinite(turn?.turnNumber) ? turn.turnNumber : null;
-      const header = turnNumber ? `Turn ${turnNumber}` : 'Turn';
-      lines.push(header);
-
-      const question = typeof turn?.question === 'string' ? turn.question.trim() : '';
-      const answer = typeof turn?.answer === 'string' ? turn.answer.trim() : '';
-      if (question) lines.push(`Q: ${question.replace(/\n/g, ' ')}`);
-      if (answer) lines.push(`A: ${answer.replace(/\n/g, ' ')}`);
-      lines.push('');
-    }
-  }
-
-  const reflectionEntries = buildReflectionEntries(entry.reflections, entry.cards);
-  if (reflectionEntries.length > 0) {
-    lines.push('## Personal Reflections');
-    for (const [label, note] of reflectionEntries) {
-      lines.push(`${label}: ${note}`);
-    }
-    lines.push('');
-  }
-
-  lines.push('---');
-  lines.push('');
-
-  return lines.join('\n');
-}
-
-/**
  * GET /api/journal-export/:id or /api/journal-export
  */
 export async function onRequestGet(context) {
@@ -406,14 +329,7 @@ export async function onRequestGet(context) {
     }
 
     // Generate content
-    let content = `TAROT JOURNAL EXPORT\n`;
-    content += `Generated: ${new Date().toISOString()}\n`;
-    content += `Entries: ${entries.length}\n`;
-    content += `\n${'='.repeat(50)}\n\n`;
-
-    for (const entry of entries) {
-      content += formatEntryAsText(entry);
-    }
+    const content = buildJournalText(entries);
 
     if (format === 'pdf') {
       const { pdf, pageCount, truncated } = generatePDF(content);

@@ -28,6 +28,7 @@ import {
 } from '../lib/journalInsights';
 import { buildThemeQuestion } from '../lib/themeText';
 import { filterEntriesToWindow, getAllTimeWindow, getCurrentMonthWindow } from '../lib/journal/utils';
+import { computeCardTrendSeries } from '../../shared/journal/trends.js';
 
 // Empty stats fallback (computeJournalStats returns null for empty entries)
 const EMPTY_STATS = {
@@ -458,13 +459,26 @@ export function useJourneyData({
   // selected month has just begun. Scope filters never erase reading history.
   const currentStreak = useMemo(() => computeStreakFromEntries(entries, calendarDate), [entries, calendarDate]);
 
-  const cardFrequency = useMemo(() => (insightsStats.frequentCards || []).map(card => ({
-    name: card.name,
-    count: card.count,
-    reversedCount: card.reversed || 0,
-    trend: 'stable',
-    hasBadge: sortedBadges.some(badge => badge.card_name === card.name),
-  })), [insightsStats.frequentCards, sortedBadges]);
+  // Trends cover the six calendar months that end with the selected scope,
+  // drawn from the same readings (all, or the filtered set) as the scope.
+  const cardTrends = useMemo(() => computeCardTrendSeries(
+    activeEntries,
+    (insightsStats.frequentCards || []).map(card => card.name),
+    { endDate: effectiveSeasonWindow?.end }
+  ), [activeEntries, insightsStats.frequentCards, effectiveSeasonWindow]);
+
+  const cardFrequency = useMemo(() => (insightsStats.frequentCards || []).map(card => {
+    const trend = cardTrends.get(card.name);
+    return {
+      name: card.name,
+      count: card.count,
+      reversedCount: card.reversed || 0,
+      trend: trend?.trend || 'stable',
+      // A sparkline needs at least two months.
+      trendData: trend?.trendData?.length >= 2 ? trend.trendData : undefined,
+      hasBadge: sortedBadges.some(badge => badge.card_name === card.name),
+    };
+  }), [insightsStats.frequentCards, sortedBadges, cardTrends]);
   const cadence = insightsStats.monthlyCadence || [];
 
   const topContext = useMemo(() => {
