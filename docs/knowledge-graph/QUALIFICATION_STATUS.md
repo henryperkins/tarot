@@ -1,5 +1,18 @@
 # Knowledge graph and context qualification status
 
+## October 24 F1 continuation — blockers closed
+
+The owner approved five rulings ("Proceed"), and the [F1 continuation record](GRAPHRAG_F1_CONTINUATION_2026-10-24.md) closes the four blockers from the legacy-default section below.
+
+- **F1:** a supplemental per-card Major needs shared question terms to count as relevant (`0a65047b`). Against production baseline `7cd329a5`, `REL01`–`REL10` show zero new false positives, and `REL03` keeps its added relevant hit.
+- **F3b is descoped.** No score composition can rank `REL02`'s relevant candidates into its two slots, because every candidate there has zero lexical overlap. The relevance evaluator still reports that single failure.
+- **S02/S09 are accepted as not attributable** to the remediation.
+- **Evaluator false positives are corrected** (`3c511ede`, also shipped to `master` as PR #125). The paired baseline, paired candidate and 11 standard outputs now pass with 0 flags.
+
+Only S01 and S08 change their prompts on the F1 tree, so only those two were regenerated through the subscription. Both readings pass review, with no grounding failure new relative to their pairs.
+
+On `0a65047b`, credential-free `npm test` passes 5,878 tests with 2 skips. Prompt assembly passes, and the editorial artifacts reproduce byte for byte. **The candidate is qualified but not released.** Merge, deployment and live verification remain separate.
+
 ## October 24 Task 9 continuation — legacy scoring restored
 
 The owner approved restoring the legacy default, publishing the failed-attempt checkpoint `734fe475` with the rollback, and continuing the 24 paired subscription outputs and `ci:narrative-check`. Deployment and merge remain excluded. The default is now `0.3 * k + 0.7 * s` (`legacy-weighted-v1`), with the 0.3 threshold, lexical fallback, explicit custom weights and all other remediation changes retained. **F3b remains unresolved**; the original semantic-improvement acceptance gate is unchanged and a multilingual miss must still fail it.
