@@ -14,6 +14,7 @@ import { generateClaudeApiFollowUp } from '../functions/lib/claudeApiFollowUp.js
 import { CLAUDE_API_URL_PREFIX, claudeErrorResponse, claudeSseResponse } from './helpers/claudeSse.mjs';
 
 const ENV = { ANTHROPIC_API_KEY: 'test-only' };
+const errorBody = (type) => JSON.stringify({ type: 'error', error: { type, message: 'private upstream details' } });
 
 function mockClaude(t, responses) {
   const calls = [];
@@ -110,11 +111,35 @@ describe('callClaudeMessages', () => {
     );
   });
 
-  test('reports only the HTTP status of an upstream error', async (t) => {
+  test('reports the HTTP status and Anthropic error type, never the upstream message', async (t) => {
     mockClaude(t, [() => claudeErrorResponse(400)]);
     await assert.rejects(
       callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
-      (error) => error.message === 'Claude API request failed (HTTP 400).' && !error.message.includes('private')
+      (error) => error.message === 'Claude API request failed (HTTP 400, invalid_request_error).' && !error.message.includes('private')
+    );
+  });
+
+  test('names a billing failure by its error type', async (t) => {
+    mockClaude(t, [() => new Response(errorBody('billing_error'), { status: 402, headers: { 'content-type': 'application/json' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (HTTP 402, billing_error).'
+    );
+  });
+
+  test('keeps the error type of a failure reported inside the stream', async (t) => {
+    mockClaude(t, [() => new Response(`event: error\ndata: ${errorBody('overloaded_error')}\n\n`, { status: 200, headers: { 'content-type': 'text/event-stream' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (overloaded_error).' && !error.message.includes('private')
+    );
+  });
+
+  test('drops an error type that is not a plain identifier', async (t) => {
+    mockClaude(t, [() => new Response(errorBody('Private text in the type field'), { status: 400, headers: { 'content-type': 'application/json' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (HTTP 400).'
     );
   });
 

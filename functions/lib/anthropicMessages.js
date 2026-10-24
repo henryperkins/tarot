@@ -153,9 +153,12 @@ async function callClaudeMessagesInternal(env, {
     if (signal?.aborted) throw new ClaudeApiError('Claude request was cancelled.');
     if (controller.signal.aborted) throw new ClaudeApiError('Claude request timed out.');
     if (error instanceof ClaudeApiError) throw error;
-    // SDK errors can carry upstream response bodies; keep only the status.
-    const status = Number.isInteger(error?.status) ? ` (HTTP ${error.status})` : '';
-    throw new ClaudeApiError(`Claude API request failed${status}.`);
+    // SDK errors can carry upstream response bodies. Keep only the status and
+    // Anthropic's error type (invalid_request_error, billing_error, ...); the
+    // upstream message can describe the request, so it is never kept.
+    const type = error instanceof Anthropic.APIError && /^[a-z_]{1,64}$/.test(error.type || '') ? error.type : null;
+    const detail = [Number.isInteger(error?.status) ? `HTTP ${error.status}` : null, type].filter(Boolean).join(', ');
+    throw new ClaudeApiError(`Claude API request failed${detail ? ` (${detail})` : ''}.`);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onCallerAbort);
