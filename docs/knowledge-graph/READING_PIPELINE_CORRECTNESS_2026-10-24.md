@@ -1,6 +1,32 @@
 # Reading pipeline correctness execution record — October 24
 
-The [October 24 remediation plan](../superpowers/plans/2026-10-24-reading-pipeline-correctness-remediation.md) now includes a completed **47-output Claude subscription run and agent review**. The canon review remains complete with zero owner decisions. Three generated-reading defect families are corrected in prompt **1.5.2**. All eight changed prompts were then confirmed by separately authorized focused generations, with zero blocking candidate findings. The candidate is committed and pushed as branch `claude/reading-pipeline-correctness-20261024`; it is not merged or released.
+The [October 24 remediation plan](../superpowers/plans/2026-10-24-reading-pipeline-correctness-remediation.md) now includes a completed **47-output Claude subscription run and agent review**. The canon review remains complete with zero owner decisions. Three generated-reading defect families are corrected in prompt **1.5.2**. All eight changed prompts were then confirmed by separately authorized focused generations, with zero blocking candidate findings. It was merged to `master` and released on October 24 as Worker version `8d00f495`; the release record below separates what that release verified from what remains pending.
+
+## Release record — October 24
+
+The owner authorized the release on October 24 ("release as planned, fix retrieval separately") and chose to ship it together with PR #123, which merged to `master` during the release. Release commit **`f5f69f39`** merges the pushed candidate (`7b8397f8`) and the narrative-metrics reported-fear correction (`cbbaaa9f`) onto `master` `c7f40e64` (PR #123: label tracking tokens and the shared close button). It was pushed to `master` after the verification below. Private evidence is in `/home/ubuntu/tableu-evidence-archive/reading-pipeline-live-qualification-2026-10-24/`.
+
+| Lane | Result |
+| --- | --- |
+| Before deployment | Active Worker `af8edd91` (master `98106dd8`, prompt 1.4.0, evaluator 2.5.0) recorded as the rollback target; zero pending migrations; all three narrative provider credentials present; semantic GraphRAG enabled |
+| Workers AI (`@cf/baai/bge-m3`) | Compatibility qualified on 12 fixed cases with 12 of 24 authorized calls: finite 1,024-dimension unit vectors, every case scored semantically, REST latency 105–216 ms (p50 147). Ranking observations W1–W3 below |
+| Release QA (`npm run deploy`) | Root suite **5,737 passed**, zero failed, two intentional skips (5,739 total); deploy tests **74 passed**; Cloudflare command and documentation checks pass; Claude subscription narrative gate **11 samples, every metric 100%, zero flags**; prompt assembly 874 fixtures / 2,541 provider builds / 525 projections / 12 boundaries. Vision qualification not run |
+| Deployment | Worker version **`8d00f495-ff5b-4928-9634-72823e093049`** at 100% from 08:40 UTC; migrations already applied; 62 variables, 35 secret names and all bindings identical to `af8edd91`; Browserbase guest UI smoke passes at desktop and narrow widths |
+| Live identity | The downloaded Worker bundle contains reading prompt 1.5.2, evaluator 2.6.0 and `duplicate_card_identity`, with no 1.4.0 or 2.5.0 marker. The served `index.html` and its assets match the release build, apart from Cloudflare's edge-injected challenge script. Health reports `claude-api` |
+| Live admission | Direct and job routes both reject a repeated canonical card with **400 `duplicate_card_identity`** |
+| Live readings | **Not verified.** The two guest readings (workplace boundary; Marseille Cups) returned **429 `reading_limit_reached`**: this host's guest allowance was already 5 of 5 for October. No generation occurred |
+
+The first QA attempt stopped before any remote change: two file-mode tests failed under the restrictive umask the release wrapper had set, and they pass under the default. The first post-deploy smoke attempt omitted the required card `meaning` field, so schema validation rejected all four requests before admission. The corrected rerun built requests with the app's own card builder and validated them locally first. Both failed attempts are preserved. No rollback criterion was observed, so `af8edd91` was not restored. Release QA samples used keyword scoring because the local harness has no Workers AI binding; production semantic reference selection is covered only by the Workers AI lane.
+
+Workers AI ranking observations, all pre-existing on `master` and outside this plan's scope:
+
+- **W1:** the labeled weak-match floor applied in only 2 of 12 cases; three of four unrelated queries cleared the 0.3 threshold and would be cited as ordinary references.
+- **W2:** context-specific passage variants can win for unrelated questions: a grief variant for a maroon-ribbon question, and an addiction variant for a question classified as shadow work because it contains the everyday word "pattern".
+- **W3:** relevant and irrelevant controls score close together (cosine about 0.33–0.53); an irrelevant control ranked first in two workplace cases.
+
+The owner chose to release without changing retrieval and to fix it separately, on branch `claude/retrieval-variant-gating-20261024` (not merged or deployed).
+
+Still pending: a live reading on the new Worker (the guest allowance resets November 1, or a signed-in account can be used), live future-age omission and present-age retention with a signed-in account that has memories, Modal serving/capacity, OpenAI live compatibility, a seven-day telemetry window, vision qualification, physical devices and assistive technology.
 
 ## Current subscription review and corrections — prompt 1.5.2
 
@@ -18,7 +44,7 @@ The fixes replace generic Marseille geometry claims with symbolic rank meanings,
 
 The overlapping counts are reported separately. All **3,098 non-Markdown source paths** match before and after current final verification. The new private `subscription-qualification/qualification-manifest.json` binds these checks to source inventories and the generation/review evidence. Earlier manifests, failed checks and original outputs are preserved. Browser evidence below remains the historical 32-case 1.5.1 result; no fresh browser, physical-device or assistive-technology qualification is claimed for these prompt fixes.
 
-Replaying the same 47 requests changes **eight** prompt hashes; **39** remain identical, consisting of 21 accepted candidate prompts and all 18 baseline prompts. After separate authorization, the eight corrected candidate requests were generated once each, with exact hashes and the same subscription settings. All eight are accepted on agent review. The source-matched standard (11) and candidate comparison (18) gates pass with zero flags, and the qualified non-Markdown source is unchanged. The private `subscription-qualification/focused-confirmations/qualification-manifest.json` binds the run, review, gates and pre-edit document snapshots. Workers AI measurements, Modal serving/capacity, OpenAI live compatibility and production/device inspection remain pending. Embedding calls remain zero. Apart from the branch commit and push, no merge or deployment occurred, and this work made no writes to the primary checkout.
+Replaying the same 47 requests changes **eight** prompt hashes; **39** remain identical, consisting of 21 accepted candidate prompts and all 18 baseline prompts. After separate authorization, the eight corrected candidate requests were generated once each, with exact hashes and the same subscription settings. All eight are accepted on agent review. The source-matched standard (11) and candidate comparison (18) gates pass with zero flags, and the qualified non-Markdown source is unchanged. The private `subscription-qualification/focused-confirmations/qualification-manifest.json` binds the run, review, gates and pre-edit document snapshots. This qualification made zero embedding calls; the later Workers AI, production and release lanes are in the release record above. This work made no writes to the primary checkout.
 
 ## E1–E5 editorial correction snapshot — historical prompt 1.5.1
 
