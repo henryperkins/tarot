@@ -1,5 +1,6 @@
 import { useId, useRef } from 'react';
-import { BookmarkSimple, ClockCounterClockwise, Sparkle, X } from '@phosphor-icons/react';
+import { BookmarkSimple, ClockCounterClockwise, Sparkle } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { TEMPLATE_LABEL_MAX_LENGTH } from '../../lib/coachConstants';
 
@@ -73,7 +74,7 @@ export function CoachTemplatePanel({
       >
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 id={headingId} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
+            <h2 id={headingId} className="flex items-center gap-2 text-xs uppercase tracking-label-wide text-secondary">
               <BookmarkSimple className="h-4 w-4 text-secondary" aria-hidden="true" />
               Template library
             </h2>
@@ -81,21 +82,13 @@ export function CoachTemplatePanel({
               Save this question or return to wording you have saved.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            data-initial-focus="browse"
-            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 min-h-touch min-w-touch text-secondary hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-            aria-label="Close template panel"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <CloseButton label="Close template panel" size="sm" onClick={onClose} data-initial-focus="browse" />
         </div>
 
         <div className="mt-5 space-y-6">
           <section className="space-y-3" aria-labelledby={`${idPrefix}-save`}>
             <div className="flex flex-col gap-2">
-              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-[0.3em] text-accent">Save current setup</h3>
+              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-label-wide text-accent">Save current setup</h3>
               <form
                 className="flex flex-col gap-2 sm:flex-row"
                 onSubmit={event => {
@@ -142,7 +135,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-saved`}>
-            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-[0.3em] text-accent">Saved templates</h3>
+            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-label-wide text-accent">Saved templates</h3>
             {templates.length === 0 ? (
               <p className="text-xs text-muted">
                 Nothing saved yet. Create a label above to store this blend for later.
@@ -201,7 +194,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-recent`}>
-            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent">
+            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-label-wide text-accent">
               <ClockCounterClockwise className="h-4 w-4 text-secondary" aria-hidden="true" />
               Recent questions
             </h3>

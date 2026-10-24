@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { FALLBACK_IMAGE, getCardImage } from '../../../../../lib/cardLookup';
 import { styles, cn } from '../../EntryCard.primitives';
+import { META_LABEL_CLASS } from '../../../../../styles/labelClasses';
 
 export const CardThumbnail = memo(function CardThumbnail({
   card,
@@ -40,7 +41,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           {showPositionOverlay && (
             <span
               className={cn(
-                'pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-2 text-2xs uppercase tracking-[0.22em] text-(--text-muted) opacity-0 transition duration-150',
+                `${META_LABEL_CLASS} pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-2 text-(--text-muted) opacity-0 transition duration-150`,
                 'bg-(--panel-dark-2)/60 backdrop-blur-[2px]',
                 'group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100',
                 isActive && 'opacity-100'

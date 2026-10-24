@@ -42,6 +42,7 @@ import {
   getServerNarrativeFocusTarget,
   subscribeNarrativeFocusTarget
 } from './lib/narrativeFocusTarget';
+import { BADGE_LABEL_CLASS } from './styles/labelClasses';
 
 const STEP_PROGRESS_STEPS = [
   { id: 'spread', label: 'Spread' },
@@ -1116,7 +1117,7 @@ export default function TarotReading() {
               </div>
             )}
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-              <p className="text-xs-plus sm:text-sm uppercase tracking-[0.12em] text-accent">{stepIndicatorLabel}</p>
+              <p className="text-xs-plus sm:text-sm uppercase tracking-widest text-accent">{stepIndicatorLabel}</p>
               {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
             </div>
 
@@ -1280,12 +1281,12 @@ export default function TarotReading() {
               aria-live="polite"
             >
               <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
-                <span className={`text-2xs font-semibold uppercase tracking-[0.2em] ${connectionText}`}>Connection</span>
+                <span className={`${BADGE_LABEL_CLASS} ${connectionText}`}>Connection</span>
                 <span className="text-main/90">{connectionBanner.message}</span>
                 <button
                   type="button"
                   onClick={checkApiHealth}
-                  className={`ml-auto inline-flex min-h-touch items-center rounded-full border px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.14em] ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
+                  className={`${BADGE_LABEL_CLASS} ml-auto inline-flex min-h-touch items-center rounded-full border px-2.5 py-1 ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
                 >
                   {connectionBanner.actionLabel || 'Retry'}
                 </button>

@@ -30,7 +30,7 @@ export function CoachSuggestionsPanel({
     <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.3em] text-secondary">Suggested for you</p>
+          <p className="text-xs uppercase tracking-label-wide text-secondary">Suggested for you</p>
           <p className="text-xs text-muted">
             {isSuggestionsExpanded
               ? sourceSummary
@@ -63,7 +63,7 @@ export function CoachSuggestionsPanel({
               >
                 <ArrowLeft className="h-3 w-3" aria-hidden="true" />
               </button>
-              <span className="text-2xs uppercase tracking-[0.3em] text-secondary" aria-hidden="true">
+              <span className="text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">
                 {suggestionsPage + 1}/{suggestionPageCount}
               </span>
               {/* Paging swaps the cards without moving focus; say where the reader is. */}
@@ -122,13 +122,13 @@ export function CoachSuggestionsPanel({
                       <span id={helperId} className="mt-1 block text-xs text-secondary wrap-break-word">{suggestion.helper}</span>
                     )}
                   </span>
-                  <span className="shrink-0 text-2xs uppercase tracking-[0.3em] text-secondary" aria-hidden="true">Use</span>
+                  <span className="shrink-0 text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">Use</span>
                 </span>
                 {preview && (
                   <span id={previewId} className="mt-2 block text-sm text-main wrap-break-word">{preview}</span>
                 )}
                 {chips.length > 0 && (
-                  <span className="mt-2 flex flex-wrap gap-2 text-2xs uppercase tracking-[0.3em] text-secondary" aria-hidden="true">
+                  <span className="mt-2 flex flex-wrap gap-2 text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">
                     {chips.map(chip => (
                       <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
                         {chip}

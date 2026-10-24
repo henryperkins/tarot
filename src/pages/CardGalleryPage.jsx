@@ -12,6 +12,7 @@ import { useJournal } from '../hooks/useJournal';
 import { getCanonicalCard } from '../lib/cardLookup';
 import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
 import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
 
@@ -140,7 +141,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
                 event.stopPropagation();
                 onViewInJournal(card);
               }}
-              className="gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-[color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+              className={`${BADGE_LABEL_CLASS} gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-[color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-muted-high transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
               aria-label={`View ${card.name} in Journal`}
             >
               <BookOpen className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -475,7 +476,7 @@ export default function CardGalleryPage() {
               <button
                 type="button"
                 onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className="inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                className={`${LABEL_CLASS} inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
               >
                 <span className="min-w-0 wrap-anywhere">Start a reading</span>
               </button>
@@ -554,7 +555,7 @@ export default function CardGalleryPage() {
                 type="button"
                 onClick={handleLoadFullHistory}
                 disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
+                className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
                   loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
                 }`}
               >

@@ -7,6 +7,7 @@ import { Fire } from '@phosphor-icons/react';
 import { CoachSuggestion } from '../../CoachSuggestion';
 import CoachSuggestionSwitcher from '../CoachSuggestionSwitcher';
 import EmptyScopeNotice from './EmptyScopeNotice';
+import { META_LABEL_CLASS } from '../../../styles/labelClasses';
 
 function SeasonSummary({
   narrative,
@@ -111,7 +112,7 @@ function SeasonSummary({
               <span className="text-accent/80">🃏</span>
               {topCard.name}: {topCard.count}x
               {cardFrequencyReliable === false && (
-                <span className="ml-1 text-2xs uppercase tracking-[0.14em] text-accent">
+                <span className={`${META_LABEL_CLASS} ml-1 text-accent`}>
                   emerging
                 </span>
               )}

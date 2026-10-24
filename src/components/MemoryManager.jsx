@@ -127,7 +127,7 @@ export function MemoryManager({ className = '', variant = 'panel' }) {
           className={
             isEmbedded
               ? 'text-sm font-semibold text-main flex items-center gap-2'
-              : 'text-xs sm:text-sm font-serif text-accent uppercase tracking-[0.12em] flex items-center gap-2'
+              : 'text-xs sm:text-sm font-serif text-accent uppercase tracking-widest flex items-center gap-2'
           }
         >
           <Brain className={`w-4 h-4 ${isEmbedded ? 'text-accent' : ''}`} aria-hidden="true" />

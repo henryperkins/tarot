@@ -1,6 +1,7 @@
 import { useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Export, Plus, X } from '@phosphor-icons/react';
+import { Export, Plus } from '@phosphor-icons/react';
+import { CloseButton } from './CloseButton';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import { createBackdropHandler, restoreFocusTarget, useModalA11y } from '../hooks/useModalA11y';
 import { useToast } from '../contexts/ToastContext';
@@ -40,15 +41,7 @@ function HomeScreenInstructions({ onClose, onLater, onAlreadyAdded, returnFocusR
       >
         <div className="flex items-start justify-between gap-3">
           <img src="/icons/icon-maskable-512.png" width="48" height="48" alt="" className="rounded-xl" />
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            aria-label="Close home-screen instructions"
-            className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-muted hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <CloseButton ref={closeRef} label="Close home-screen instructions" onClick={onClose} />
         </div>
         <h2 id={titleId} className="mt-4 font-serif text-xl text-main">Add Tableu to your Home Screen</h2>
         <p id={descriptionId} className="mt-2 text-sm text-muted">Keep your reading room one tap away on your iPhone or iPad.</p>

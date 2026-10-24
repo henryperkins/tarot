@@ -31,7 +31,7 @@
   color: var(--text-accent);
   font-size: .875rem;
   font-weight: 500;
-  letter-spacing: .15em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   margin-bottom: .5rem;
 }

@@ -472,7 +472,19 @@
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Uppercase eyebrows and compact metadata."
+        "purpose": "Uppercase section, field and column labels (LABEL_CLASS). Never a kicker above a section heading; page-hero eyebrows are the deliberate exception."
+      },
+      "label-meta": {
+        "displayName": "Metadata Label",
+        "purpose": "Uppercase 11px captions such as card positions and stat names (META_LABEL_CLASS)."
+      },
+      "label-badge": {
+        "displayName": "Badge Label",
+        "purpose": "Uppercase 11px text inside pills, chips and count badges (BADGE_LABEL_CLASS)."
+      },
+      "label-wide": {
+        "displayName": "Spaced Label",
+        "purpose": "Uppercase labels in the spaced coach, journal, ritual and share voice (tracking-label-wide)."
       },
       "reading-title": {
         "displayName": "Reading Title",
@@ -626,7 +638,8 @@
       "typography": [
         "src/styles/tailwind.css",
         "tailwind.config.js",
-        "src/styles/reading-table.css"
+        "src/styles/reading-table.css",
+        "src/styles/labelClasses.js"
       ],
       "shapesAndMotion": "src/styles/tarot.css",
       "components": {
@@ -647,7 +660,11 @@
           "src/components/SpreadPatternThumbnail.jsx",
           "src/styles/tarot.css"
         ],
-        "warning-banner": "src/pages/DesignSystemPage.jsx"
+        "warning-banner": "src/pages/DesignSystemPage.jsx",
+        "button-close": [
+          "src/components/CloseButton.jsx",
+          "src/styles/buttonClasses.js"
+        ]
       },
       "tonalRamps": "Synthesized OKLCH display ramps; not additional production palette tokens."
     }
@@ -668,6 +685,14 @@
       "description": "Shared softer gradient action used by journey surfaces and the design reference.",
       "html": "<button type=\"button\" class=\"ds-btn-journey\">Journey CTA</button>",
       "css": ".ds-btn-journey { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid rgb(var(--brand-primary-rgb, 212 184 150) / 0.30); border-radius: 12px; background: linear-gradient(to right, rgb(var(--brand-primary-rgb, 212 184 150) / 0.20), rgb(var(--brand-primary-rgb, 212 184 150) / 0.10)); color: var(--text-main, #E8E6E3); font-family: var(--font-sans, \"Inter Variable\", system-ui, sans-serif); font-size: 14px; font-weight: 500; line-height: 20px; box-shadow: 0 8px 20px -10px rgb(var(--brand-primary-rgb, 212 184 150) / 0.40); transition: border-color 150ms ease, box-shadow 150ms ease; touch-action: manipulation; cursor: pointer; } .ds-btn-journey:hover:not(:disabled) { background: linear-gradient(to right, rgb(var(--brand-primary-rgb, 212 184 150) / 0.30), rgb(var(--brand-primary-rgb, 212 184 150) / 0.20)); border-color: rgb(var(--brand-primary-rgb, 212 184 150) / 0.40); } .ds-btn-journey:focus-visible { outline: 2px solid var(--focus-ring-color, #E8DAC3); outline-offset: 2px; } .ds-btn-journey:disabled { opacity: 0.5; cursor: not-allowed; } @media (prefers-reduced-motion: reduce) { .ds-btn-journey { transition-duration: 0.01ms !important; animation: none !important; transform: none !important; translate: none !important; } }"
+    },
+    {
+      "name": "Close Button",
+      "kind": "button",
+      "refersTo": "button-close",
+      "description": "Icon-only close and dismiss control for dialogs, sheets, panels, notices and toasts; requires an accessible label.",
+      "html": "<button type=\"button\" class=\"ds-btn-close\" aria-label=\"Close\"><svg viewBox=\"0 0 256 256\" aria-hidden=\"true\" fill=\"currentColor\"><path d=\"M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z\"/></svg></button>",
+      "css": ".ds-btn-close { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 9999px; background: transparent; color: var(--text-muted, #CCC5B9); transition: color 150ms ease, background-color 150ms ease; touch-action: manipulation; cursor: pointer; } .ds-btn-close svg { width: 20px; height: 20px; } .ds-btn-close:hover { color: var(--text-main, #E8E6E3); background: rgb(var(--brand-secondary-rgb, 168 157 146) / 0.10); } .ds-btn-close:focus-visible { outline: 2px solid transparent; box-shadow: 0 0 0 2px var(--focus-ring-color, #E8DAC3); } @media (prefers-reduced-motion: reduce) { .ds-btn-close { transition-duration: 0.01ms !important; } }"
     },
     {
       "name": "Outline Action",

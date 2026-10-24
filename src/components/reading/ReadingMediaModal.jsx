@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import clsx from 'clsx';
-import { X } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { MediaGallery } from '../MediaGallery';
 import { useModalA11y } from '../../hooks/useModalA11y';
-import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
 
 export const READING_MEDIA_MODAL_TITLE_ID = 'reading-media-modal-title';
 const DESCRIPTION_ID = 'reading-media-modal-description';
@@ -69,19 +67,7 @@ export function ReadingMediaModal({
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className={clsx(
-            'absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center',
-            'text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors touch-manipulation',
-            FOCUS_RING_ACCENT_50,
-            FOCUS_RING_OFFSET_MAIN
-          )}
-          aria-label="Close recent media"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <CloseButton label="Close recent media" onClick={onClose} className="absolute top-3 right-3 z-20" />
 
         <div className="relative z-10 px-4 sm:px-6 py-4 pr-14 sm:pr-16 border-b border-secondary/25">
           <h2

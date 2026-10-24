@@ -8,7 +8,7 @@ export function NarrativeQuestionAnchor({
   // Matches the journal's editorial treatment of a reading's question.
   return (
     <div className={className}>
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted">Your question</p>
+      <p className="text-sm font-semibold uppercase tracking-label text-muted">Your question</p>
       <p className={`mt-1.5 font-serif italic leading-snug text-main wrap-anywhere ${compact ? 'text-base' : 'text-lg'}`}>
         &ldquo;<bdi>{question}</bdi>&rdquo;
       </p>

@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { META_LABEL_CLASS } from '../../styles/labelClasses';
 import { AMBER_CARD_CLASS } from '../../lib/journal/constants';
 import { EmptyJournalIllustration } from '../illustrations/EmptyJournalIllustration';
 import { AmberStarfield } from '../AmberStarfield';
@@ -30,7 +31,7 @@ function JournalEntryPreview() {
         className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
       >
         <div className="space-y-1">
-          <p className="text-2xs uppercase tracking-[0.18em] text-muted">Journal entry preview</p>
+          <p className={`${META_LABEL_CLASS} text-muted`}>Journal entry preview</p>
           <p className="text-base font-semibold text-main">Daily check-in · Solo pull</p>
           <p className="text-sm text-muted">
             {isExpanded ? 'Hide details' : 'Expand to see cards and reflection'}
@@ -43,7 +44,7 @@ function JournalEntryPreview() {
       {isExpanded && (
         <div id={previewContentId} className="relative z-10 space-y-4 px-5 pb-5 pt-2">
           <div>
-            <p className="text-2xs uppercase tracking-[0.18em] text-muted">Cards drawn</p>
+            <p className={`${META_LABEL_CLASS} text-muted`}>Cards drawn</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-3 py-1 text-xs font-semibold text-main">
                 The Star · Upright
@@ -51,7 +52,7 @@ function JournalEntryPreview() {
             </div>
           </div>
           <div>
-            <p className="text-2xs uppercase tracking-[0.18em] text-muted">Reflection</p>
+            <p className={`${META_LABEL_CLASS} text-muted`}>Reflection</p>
             <p className="journal-prose mt-2 text-sm text-muted-high">
               Quiet progress feels steady today. Keep the intention simple, and let the next step reveal itself.
             </p>

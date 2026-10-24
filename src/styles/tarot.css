@@ -1718,7 +1718,7 @@ textarea:focus-visible {
   gap: 0.25rem;
   font-size: clamp(0.6875rem, 2vw, 0.75rem);
   /* Minimum 11px (0.6875rem) for readability */
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--brand-accent);
 }
@@ -2193,7 +2193,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  letter-spacing: 0.22em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--drawer-accent);
   color: color-mix(
@@ -4453,7 +4453,7 @@ input[type="range"]:focus::-webkit-slider-thumb {
   margin-bottom: 12px;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: rgba(90, 80, 65, 0.85);
 }

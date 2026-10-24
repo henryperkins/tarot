@@ -14,7 +14,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkle,
   Fire,
-  X,
   TrendUp,
   ChartBar,
   Export,
@@ -22,6 +21,7 @@ import {
   Info,
 } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
+import { CloseButton } from '../CloseButton';
 import { CoachSuggestion } from '../CoachSuggestion';
 import CoachSuggestionSwitcher from './CoachSuggestionSwitcher';
 import { useModalA11y } from '../../hooks/useModalA11y';
@@ -37,7 +37,8 @@ import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
-import { JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { ICON_BUTTON_CLASS, JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 import EmptyState from './sections/EmptyState';
 import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
@@ -494,7 +495,7 @@ export default function JourneyMobileSheet({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Journey
             {scopeLabel && (
-              <span className="rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className={`${BADGE_LABEL_CLASS} rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
                 Scope: {scopeLabel}
               </span>
             )}
@@ -675,7 +676,7 @@ export default function JourneyMobileSheet({
                   <span className="min-w-0 wrap-break-word">Your Reading Journey</span>
                 </h2>
                 {scopeLabel && (
-                  <span className="max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+                  <span className={`${BADGE_LABEL_CLASS} max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}
@@ -683,26 +684,17 @@ export default function JourneyMobileSheet({
               <div className="ms-auto flex shrink-0 items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) transition-colors"
+                  className={ICON_BUTTON_CLASS}
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
                 </Link>
-                <button
+                <CloseButton
                   ref={closeButtonRef}
+                  label="Close journey panel"
                   onClick={handleClose}
-                  className="
-                    flex items-center justify-center
-                    min-h-touch min-w-touch -mr-2
-                    rounded-lg text-muted
-                    hover:text-main hover:bg-(--border-warm-subtle)
-                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)
-                    transition-colors
-                  "
-                  aria-label="Close journey panel"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                  className="-mr-2"
+                />
               </div>
             </div>
 

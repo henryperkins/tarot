@@ -2,9 +2,9 @@ import { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { Sparkle, X } from '@phosphor-icons/react';
+import { Sparkle } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { useModalA11y } from '../../hooks/useModalA11y';
-import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
 
 export const VISUAL_COMPANION_MODAL_TITLE_ID = 'visual-companion-modal-title';
 const DESCRIPTION_ID = 'visual-companion-modal-description';
@@ -73,19 +73,12 @@ export function VisualCompanionModal({
         tabIndex={-1}
         inert={!isOpen || undefined}
       >
-        <button
-          type="button"
+        <CloseButton
+          label="Close visual companion studio"
           onClick={onClose}
-          className={clsx(
-            'absolute top-[min(.75rem,12px)] right-[min(.75rem,12px)] z-20 p-[min(.5rem,8px)] min-w-touch min-h-touch flex items-center justify-center',
-            'text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors touch-manipulation',
-            FOCUS_RING_ACCENT_50,
-            FOCUS_RING_OFFSET_MAIN
-          )}
-          aria-label="Close visual companion studio"
-        >
-          <X className="h-[min(1.25rem,20px)] w-[min(1.25rem,20px)]" aria-hidden="true" />
-        </button>
+          className="absolute top-[min(.75rem,12px)] right-[min(.75rem,12px)] z-20"
+          iconClassName="h-[min(1.25rem,20px)] w-[min(1.25rem,20px)]"
+        />
 
         <div
           role="region"

@@ -225,7 +225,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                   ${entry.spreadKey === 'celtic' ? 'modern-surface' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.2em] text-secondary">{positionLabel}</p>
+                  <p className="text-xs uppercase tracking-label text-secondary">{positionLabel}</p>
                   {positionNotes.length > 0 && (
                     <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs text-secondary">
                       {positionNotes.length} note{positionNotes.length === 1 ? '' : 's'}
@@ -245,7 +245,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                     />
                   </div>
                   <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
-                  <span className="text-xs uppercase tracking-[0.2em] text-secondary">{orientation}</span>
+                  <span className="text-xs uppercase tracking-label text-secondary">{orientation}</span>
                   <p className="mt-2 text-sm text-muted line-clamp-3">{meaning}</p>
                 </div>
 
@@ -269,7 +269,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
           className="rounded-2xl border border-secondary/20 bg-surface/70 p-4 shadow-inner"
           aria-labelledby="general-notes-heading"
         >
-          <h3 id="general-notes-heading" className="text-xs uppercase tracking-[0.3em] text-secondary">
+          <h3 id="general-notes-heading" className="text-xs uppercase tracking-label-wide text-secondary">
             Whole spread reflections
           </h3>
           <div

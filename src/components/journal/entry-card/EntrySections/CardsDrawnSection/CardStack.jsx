@@ -8,6 +8,7 @@ import {
   STACK_OFFSET_Y
 } from './useCardFan';
 import { styles, getSuitAccentVar } from '../../EntryCard.primitives';
+import { BADGE_LABEL_CLASS } from '../../../../../styles/labelClasses';
 
 export const CardStack = memo(function CardStack({
   cards,
@@ -70,12 +71,12 @@ export const CardStack = memo(function CardStack({
           })}
         </div>
 
-        <span className="absolute bottom-2 right-2 rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-2 py-1 text-2xs font-semibold uppercase tracking-[0.2em] text-(--text-muted)">
+        <span className={`${BADGE_LABEL_CLASS} absolute bottom-2 right-2 rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-2 py-1 text-(--text-muted)`}>
           {cards.length} card{cards.length === 1 ? '' : 's'}
         </span>
 
         {showHint && (
-          <span className="absolute bottom-2 left-3 text-2xs uppercase tracking-[0.25em] text-(--text-muted)">
+          <span className="absolute bottom-2 left-3 text-2xs uppercase tracking-label-wide text-(--text-muted)">
             Tap to view
           </span>
         )}

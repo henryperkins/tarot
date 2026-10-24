@@ -114,6 +114,11 @@ export default {
         'xs-plus': ['0.875rem', { lineHeight: '1.4' }], // 14px - improved mobile readability
         'sm-mobile': ['var(--text-sm-mobile)', { lineHeight: '1.5' }], // 16px - comfortable mobile body text
       },
+      // Uppercase label tracking; the values live in theme.css so plain CSS can share them.
+      letterSpacing: {
+        label: 'var(--tracking-label, 0.18em)',
+        'label-wide': 'var(--tracking-label-wide, 0.3em)',
+      },
       minHeight: {
         touch: 'var(--touch-target, 44px)',
         cta: 'var(--touch-target-cta, 52px)',

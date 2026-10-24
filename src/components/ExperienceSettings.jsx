@@ -96,7 +96,7 @@ export function ExperienceSettings({ className = '' }) {
   return (
     <div className={`${controlShellClass} ${className}`}>
       <div className="mb-3">
-        <h3 className="text-xs sm:text-sm font-serif text-accent uppercase tracking-[0.12em] flex items-center gap-2">
+        <h3 className="text-xs sm:text-sm font-serif text-accent uppercase tracking-widest flex items-center gap-2">
           <Stack className="w-4 h-4" aria-hidden="true" />
           Experience Preferences
         </h3>

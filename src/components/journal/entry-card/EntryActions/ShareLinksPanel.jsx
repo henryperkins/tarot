@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { ClipboardText, CircleNotch } from '@phosphor-icons/react';
 import { JournalTrashIcon } from '../../../JournalIcons';
 import { MAX_SHARE_LINKS_IN_MENU } from '../EntryCard.primitives';
+import { BADGE_LABEL_CLASS } from '../../../../styles/labelClasses';
 
 function formatShareExpiry(expiresAt) {
   if (!expiresAt) return 'No expiry';
@@ -58,7 +59,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
   return (
     <div className="mt-3 rounded-xl border border-(--border-warm) bg-(--main-45) p-3 shadow-[0_14px_36px_-24px_rgba(0,0,0,0.8)]">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-2xs font-semibold uppercase tracking-[0.18em] text-(--text-muted)">
+        <p className={`${BADGE_LABEL_CLASS} text-(--text-muted)`}>
           Active share links
         </p>
         {shareLoading ? (

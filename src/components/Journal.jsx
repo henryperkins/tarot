@@ -15,6 +15,7 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
+import { BADGE_LABEL_CLASS } from '../styles/labelClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
@@ -694,8 +695,8 @@ export default function Journal() {
     <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
-          <span className="text-2xs uppercase tracking-[0.3em] text-muted">{section.label}</span>
-          <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted">
+          <span className="text-2xs uppercase tracking-label-wide text-muted">{section.label}</span>
+          <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
             {section.count} entries
           </span>
         </div>
@@ -879,7 +880,7 @@ export default function Journal() {
                           </div>
                           {monthSections.length > 1 && (
                             <div className="flex items-center gap-2">
-                              <label htmlFor="jump-to-month" className="sr-only sm:not-sr-only sm:text-2xs sm:uppercase sm:tracking-[0.22em] sm:text-muted/80">
+                              <label htmlFor="jump-to-month" className="sr-only sm:not-sr-only sm:text-2xs sm:uppercase sm:tracking-label sm:text-muted/80">
                                 Jump to month
                               </label>
                               <select

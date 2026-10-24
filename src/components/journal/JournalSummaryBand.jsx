@@ -19,6 +19,7 @@ import {
   JournalPlusCircleIcon,
   JournalRefreshIcon
 } from '../JournalIcons';
+import { BADGE_LABEL_CLASS, META_LABEL_CLASS } from '../../styles/labelClasses';
 
 export function JournalSummaryBand({
   summaryRef,
@@ -55,19 +56,19 @@ export function JournalSummaryBand({
   const paddingClass = embedded ? 'p-4 sm:p-5 lg:p-6' : 'p-5 sm:p-6 lg:p-8';
   const headerSpacingClass = embedded ? 'mb-3 space-y-1.5' : 'mb-5 lg:mb-4 space-y-2';
   const pulseLabelClass = embedded
-    ? 'text-2xs uppercase tracking-[0.24em] text-muted-high'
-    : 'text-xs uppercase tracking-[0.2em] text-muted mb-1';
+    ? `${META_LABEL_CLASS} text-muted-high`
+    : 'text-xs uppercase tracking-label text-muted mb-1';
   const pulseTitleClass = embedded
     ? 'text-lg sm:text-xl font-serif text-main'
     : 'text-xl sm:text-2xl font-serif text-main';
   const scopeLabelClass = embedded
-    ? 'text-2xs uppercase tracking-[0.16em] text-muted'
-    : 'text-2xs uppercase tracking-[0.18em] text-muted';
+    ? `${META_LABEL_CLASS} text-muted`
+    : `${META_LABEL_CLASS} text-muted`;
   const scopeButtonSizeClass = embedded ? 'px-2.5 py-0.5 text-2xs' : 'px-3 py-1 text-2xs';
   const scopeSummaryClass = embedded ? 'text-2xs text-muted' : 'text-2xs text-muted';
   const scopeChipClass = embedded
-    ? 'px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.14em] text-muted-high'
-    : 'px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high';
+    ? `${BADGE_LABEL_CLASS} px-2 py-0.5 text-muted-high`
+    : `${BADGE_LABEL_CLASS} px-2.5 py-0.5 text-muted-high`;
   const filterNoticeClass = embedded
     ? 'px-2.5 py-0.5 text-2xs text-muted-high'
     : 'px-3 py-1 text-2xs text-muted-high';
@@ -617,7 +618,7 @@ export function JournalSummaryBand({
                             </div>
                             {/* Label at bottom like tarot card name */}
                             <div className="border-t border-(--border-warm-subtle) pt-1.5 w-full">
-                              <p className="text-2xs leading-none uppercase tracking-[0.2em] text-muted mb-0.5">{stat.label}</p>
+                              <p className={`${META_LABEL_CLASS} leading-none text-muted mb-0.5`}>{stat.label}</p>
                               <p className="font-serif text-lg text-main leading-tight">{stat.value}</p>
                             </div>
                           </>
@@ -633,7 +634,7 @@ export function JournalSummaryBand({
                             </div>
 
                             {/* Label */}
-                            <p className={`text-2xs uppercase tracking-[0.2em] mb-1.5 ${
+                            <p className={`${META_LABEL_CLASS} mb-1.5 ${
                               isHero ? 'text-(--text-accent)' : 'text-muted'
                             }`}>
                               {stat.label}

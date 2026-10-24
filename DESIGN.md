@@ -65,6 +65,24 @@ typography:
     fontWeight: 600
     lineHeight: "1rem"
     letterSpacing: "0.18em"
+  label-meta:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 400
+    lineHeight: 1.4
+    letterSpacing: "0.18em"
+  label-badge:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: "0.18em"
+  label-wide:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: "1rem"
+    letterSpacing: "0.3em"
   reading-title:
     fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
     fontSize: "clamp(1.5rem, 2.4vw, 2rem)"
@@ -181,6 +199,11 @@ components:
     rounded: "{rounded.xl}"
     padding: "10px 16px"
     height: "44px"
+  button-close:
+    backgroundColor: "transparent"
+    textColor: "{colors.softened-paper}"
+    rounded: "{rounded.pill}"
+    size: "44px"
 ---
 
 # Design System: Tableu
@@ -256,7 +279,7 @@ Exact colors live in the frontmatter. [theme.css](src/styles/theme.css) also own
 - **Headline:** regular serif page titles, including the design reference page. Reading-table titles use their own fluid, medium-weight role.
 - **Title:** semibold serif for compact artifact headings. Spread-selector names are a smaller local variant (16px at standard widths, slightly smaller on compact phones).
 - **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy.
-- **Label:** tracked uppercase eyebrows and metadata. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than eyebrow typography.
+- **Label:** tracked uppercase text that names a field, column, stat or badge, or a section with no other heading. A label is never a kicker above a section heading; the page-hero eyebrows above the Pricing and Shared Reading h1s are a deliberate exception. [Label classes](src/styles/labelClasses.js) carry three roles on `tracking-label` (0.18em): `LABEL_CLASS` (12px semibold), `META_LABEL_CLASS` (11px captions such as card positions) and `BADGE_LABEL_CLASS` (11px semibold text inside pills). The coach, journal, ritual and share surfaces keep a spaced voice with `tracking-label-wide` (0.3em). Both values live in [theme.css](src/styles/theme.css), so plain CSS reads them as `var(--tracking-label)`. The reading step indicator and the serif settings headings use `tracking-widest`, and body-size caps keep their own tighter tracking. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than label typography.
 - **Supporting scale:** 11px is the absolute minimum for non-essential metadata; 12px serves captions, 14px serves secondary text, and form controls remain 16px on mobile.
 
 ### Named Rules
@@ -314,6 +337,7 @@ Components are tactile and quietly ceremonial: clear enough for task completion,
 - **Journey action:** the shared [journey button](src/styles/buttonClasses.js) uses a transparent brass gradient, warm border, medium-weight 14px text, and a 44px minimum target. The design reference page labels this softer variant “Primary action”; it is distinct from the solid reading CTA.
 - **Hover / Focus:** use each shared variant's actual state treatment. The general focus fallback is a 2px semantic outline with 3px offset; reading-table controls use 4px offset. Shared Tailwind focus helpers use rings, sometimes with a surface-matched offset.
 - **Secondary / Panel / Destructive:** the outline action is a translucent brass pill with a small hover lift. The panel action uses 10px corners and a quieter warm wash. Both target 44px minimum height. Destructive actions use the theme-aware error token and a clear label.
+- **Close:** [CloseButton](src/components/CloseButton.jsx) closes dialogs, sheets and panels and dismisses notices and toasts. It is a 44px circle in muted text with a faint secondary wash on hover and the shared focus ring, and it requires an accessible label. Dialogs and sheets use its 20px icon; compact panels, notices and toasts pass `size="sm"` for 16px. Its style, `ICON_BUTTON_CLASS`, also serves an icon-only control that sits beside it, such as the journey sheet's settings link. Surfaces with their own stylesheet (follow-up chat, the reading-preparation drawer) keep their designed close controls.
 
 ### Chips
 
