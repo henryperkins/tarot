@@ -135,14 +135,21 @@ function compareCandidates(a, b) {
 /** Pure final selection: variant choice, full-text dedup, threshold/floor, cap. */
 export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5, minRelevanceScore = 0.3, enableDeduplication = true, qualityFilteringDisabled = false } = {}) {
   if (!isValidPassageLimit(maxPassages)) return [];
-  const stats = { ...(scoredCandidates.retrievalStats || {}), variantsRemoved: 0, deduplicatedCandidates: 0, thresholdRejected: 0, finalSelectedCount: 0 };
+  const stats = { ...(scoredCandidates.retrievalStats || {}), variantsRemoved: 0, contextVariantsGated: 0, deduplicatedCandidates: 0, thresholdRejected: 0, finalSelectedCount: 0 };
   const patterns = new Set();
   const texts = new Set();
   const eligible = [];
-  const sorted = [...scoredCandidates].filter(entry => entry && typeof entry.candidateId === 'string' && typeof entry.patternKey === 'string' && typeof entry.promptText === 'string' && entry.promptText.trim()).sort(qualityFilteringDisabled || scoredCandidates.every(entry => entry?._priorityOnly)
+  const valid = [...scoredCandidates].filter(entry => entry && typeof entry.candidateId === 'string' && typeof entry.patternKey === 'string' && typeof entry.promptText === 'string' && entry.promptText.trim());
+  // A context-specific variant (grief, addiction, ...) speaks to that situation.
+  // It competes only when the question's context matches; otherwise its pattern's
+  // general variant stands alone, so an unrelated question never inherits that
+  // framing. Patterns without a general variant keep every variant.
+  const generalPatterns = new Set(valid.filter(entry => (entry.context || 'general') === 'general').map(entry => entry.patternKey));
+  const sorted = valid.sort(qualityFilteringDisabled || scoredCandidates.every(entry => entry?._priorityOnly)
     ? (a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || (b._contextMatch || 0) - (a._contextMatch || 0) || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0)
     : compareCandidates);
   for (const candidate of sorted) {
+    if ((candidate.context || 'general') !== 'general' && candidate._contextMatch !== 2 && generalPatterns.has(candidate.patternKey)) { stats.contextVariantsGated++; continue; }
     if (patterns.has(candidate.patternKey)) { stats.variantsRemoved++; continue; }
     const key = enableDeduplication && !qualityFilteringDisabled ? normalizePassageText(candidate.promptText) : null;
     if (key !== null && texts.has(key)) { stats.deduplicatedCandidates++; continue; }

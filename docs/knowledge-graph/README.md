@@ -24,7 +24,7 @@ The catalog resolves canonical upright/reversed meanings. MCP accepts optional i
 
 ## Ranking, limits and flags
 
-Normal ranking orders by relevance, context compatibility, structural priority and stable identity. Full normalized text controls deduplication; a duplicate variant does not prevent that pattern's next eligible variant from competing. Threshold filtering, the explicit one-best weak floor and final allowances follow global consideration. Priority/bypass paths use structural ordering and deterministic context/default variants without nominal relevance scores.
+Normal ranking orders by relevance, context compatibility, structural priority and stable identity. A context-specific variant (grief, addiction and so on) competes only when the question's context matches it; otherwise its pattern's general variant stands alone, and a pattern without a general variant keeps every variant. Full normalized text controls deduplication; a duplicate variant does not prevent that pattern's next eligible variant from competing. Threshold filtering, the explicit one-best weak floor and final allowances follow global consideration. Priority/bypass paths use structural ordering and deterministic context/default variants without nominal relevance scores.
 
 | Spread | Paid allowance (Plus and Pro) | Free allowance |
 | --- | ---: | ---: |

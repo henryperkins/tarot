@@ -253,24 +253,18 @@ export const GRAPH_RAG_CONTEXT_KEYWORDS = {
     'graduation',
     'threshold'
   ],
+  // Everyday words (fear, pattern, habit, avoid, trigger) appear in ordinary
+  // questions; alone they must not route retrieval to trauma or addiction texts.
   shadow: [
     'shadow',
     'shadow work',
-    'trigger',
     'shame',
     'guilt',
     'repress',
     'repressed',
-    'avoid',
     'avoidance',
-    'fear',
-    'fears',
-    'pattern',
-    'patterns',
     'addiction',
     'compulsion',
-    'habit',
-    'habits',
     'inner child',
     'subconscious',
     'trauma'
