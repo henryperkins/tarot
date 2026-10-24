@@ -1,5 +1,11 @@
 # Knowledge graph and context qualification status
 
+## October 24 grounding and evaluator remediation — qualification in progress
+
+The owner explicitly requested fixing the F1 relevance regression, grounding failures and both evaluator false positives, retaining F3b as unresolved, reusing valid saved outputs and rerunning necessary subscription qualification. This request supersedes the earlier S02/S09 waiver for the current work; the historical ruling remains below. Deployment is excluded.
+
+The existing F1 lexical-support and evaluator corrections are retained. Prompt 1.6.1 now distinguishes a Past position from personal history throughout synthesis, recaps and closing, and labels card pacing as symbolic without deriving recovery durations or prognoses. Seven new provider-input regressions first failed and then passed; the focused 174-test set passes. Current-source subscription qualification remains pending. New evidence is isolated at `~/.cache/tarot-graphrag-remediation-20261024/task9-grounding-remediation/`; earlier evidence is preserved.
+
 ## October 24 F1 continuation — blockers closed
 
 The owner approved five rulings ("Proceed"), and the [F1 continuation record](GRAPHRAG_F1_CONTINUATION_2026-10-24.md) closes the four blockers from the legacy-default section below.

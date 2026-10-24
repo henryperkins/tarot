@@ -183,9 +183,9 @@ export function buildUserPrompt(
   }
   if (activeThemes.timingProfile) {
     const timingDescriptions = {
-      'near-term-tilt': 'Timing: This reading leans toward near-term shifts if you engage actively with the guidance.',
-      'longer-arc-tilt': 'Timing: This pattern unfolds across a longer structural arc requiring patience and sustained attention.',
-      'developing-arc': 'Timing: Expect this to emerge as a meaningful chapter rather than a single moment.'
+      'near-term-tilt': 'Symbolic pacing: Emphasize a small next step; this is not a forecast of when events will occur.',
+      'longer-arc-tilt': 'Symbolic pacing: Explore patience and sustained attention; this does not establish a real-world duration.',
+      'developing-arc': 'Symbolic pacing: Connect the cards as a developing theme; a chapter is a metaphor, not a timescale.'
     };
     const timingText = timingDescriptions[activeThemes.timingProfile];
     if (timingText) {
@@ -301,6 +301,7 @@ export function buildUserPrompt(
 - CARD NAME CONTRACT: Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate only the surrounding prose, headers, positions, and guidance.
 - Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)
 - Use the current question and reflections as the throughline; use saved interests only when relevant or when current context is absent
+- Treat personal history and timing as established only when supplied by the querent; keep other interpretations conditional through the closing
 - ${preferenceContract.nextStepGuidance}${lengthBand ? `\n- LENGTH: Aim for ~${lengthBand.min}-${lengthBand.max} words total, including any recap.` : ''}
 - Close with one explicit sentence that says the querent's choices or decisions shape outcomes; use the response language and never imply fixed fate
 - Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers
