@@ -128,10 +128,12 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
   const [syncSource, setSyncSource] = useState(null); // 'api' | 'cache' | 'local'
   const hasMoreEntries = pagination.hasMore;
   const prefetchedOnceRef = useRef(false);
+  const reflectionAttemptsRef = useRef(new Map());
 
   // Track previous user ID to detect account switches
   const prevUserIdRef = useRef(user?.id);
   useLayoutEffect(() => {
+    if (namespaceRef.current !== namespace) reflectionAttemptsRef.current.clear();
     namespaceRef.current = isDeletedAccount(userId) ? null : namespace;
     return subscribeToDeletedAccounts(owner => {
       if (owner !== userId) return;
@@ -753,7 +755,7 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
    * Cloud entries write through the reflections endpoint; local entries are
    * rewritten in this owner's browser journal under the storage lock.
    */
-  const saveReflection = useCallback(async (entryId, { key, text = '', mode = 'replace' } = {}) => {
+  const saveReflection = useCallback(async (entryId, { key, text = '', mode = 'replace', expectedText, attemptId = null } = {}) => {
     const owner = namespace;
     const isCurrent = () => !isDeletedAccount(userId) && namespaceRef.current === owner
       && !isDeletedJournalEntry(owner, entryId);
@@ -773,6 +775,15 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
       if (isAuthenticated && canUseCloudJournal) {
         const cardIndex = key === READING_REFLECTION_KEY ? null : Number(key);
         if (cardIndex !== null && !Number.isInteger(cardIndex)) return { success: false, error: 'Choose a note to save.' };
+        const attemptKey = `${owner}\0${entryId}\0${key}`;
+        let attempt = reflectionAttemptsRef.current.get(attemptKey);
+        if (mode === 'append') {
+          if (!attempt || attempt.text !== text || attempt.attemptId !== attemptId) {
+            const current = entriesRef.current.find(item => item.id === entryId);
+            attempt = { text, attemptId, expectedText: typeof expectedText === 'string' ? expectedText : current?.reflections?.[key] || '' };
+            reflectionAttemptsRef.current.set(attemptKey, attempt);
+          }
+        } else reflectionAttemptsRef.current.delete(attemptKey);
         const response = await fetch(`/api/journal/${encodeURIComponent(entryId)}/reflections`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -781,15 +792,21 @@ export function useJournal({ autoLoad = true, completeHistory = false } = {}) {
             scope: cardIndex === null ? 'reading' : 'card',
             ...(cardIndex === null ? {} : { cardIndex }),
             mode,
+            ...(mode === 'append' ? { expectedText: attempt.expectedText } : {}),
             ...(mode === 'remove' ? {} : { text })
           })
         });
         const data = await response.json().catch(() => null);
-        if (!response.ok) return { success: false, error: data?.error || 'Your reflection could not be saved. Try again.' };
+        if (!response.ok) {
+          if (response.status >= 400 && response.status < 500) reflectionAttemptsRef.current.delete(attemptKey);
+          return { success: false, error: data?.error || 'Your reflection could not be saved. Try again.' };
+        }
         if (!isCurrent()) return unavailable;
-        const current = entriesRef.current.find(item => item.id === entryId);
-        const reflections = data?.reflections && typeof data.reflections === 'object' && !Array.isArray(data.reflections)
-          ? data.reflections : applyReflectionEdit(current?.reflections, { key, text, mode });
+        if (!data?.reflections || typeof data.reflections !== 'object' || Array.isArray(data.reflections)) {
+          return { success: false, error: 'Unable to confirm the saved reflection. Your draft is still here. Try again.' };
+        }
+        reflectionAttemptsRef.current.delete(attemptKey);
+        const reflections = data.reflections;
         setEntries(previous => {
           const next = mapChanged(previous, item => item.id === entryId ? { ...item, reflections } : item);
           if (next !== previous) {

@@ -107,6 +107,7 @@ export default function Journal() {
     handleRemoveFilter,
     serverSearchState,
     refreshServerSearch,
+    updateServerSearchEntry,
     requestSemanticSearch,
     clearSemanticSearch
   } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id, completeHistory: syncSource === 'api' });
@@ -584,10 +585,11 @@ export default function Journal() {
 
   const handleSaveReflection = useCallback(async (entryId, edit) => {
     const result = await saveReflection(entryId, edit);
-    // Server results are a separate copy of the entry; refetch so they match.
-    if (result?.success && serverSearchEnabled) refreshServerSearch();
+    // Keep other expanded cards and unfinished drafts mounted while adopting
+    // the stored map in the separate search-result copy.
+    if (result?.success && serverSearchEnabled) updateServerSearchEntry(entryId, { reflections: result.reflections });
     return result;
-  }, [saveReflection, serverSearchEnabled, refreshServerSearch]);
+  }, [saveReflection, serverSearchEnabled, updateServerSearchEntry]);
 
   const handleDeleteCancel = () => {
     setDeleteConfirmModal({ isOpen: false, entryId: null });

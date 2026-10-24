@@ -2,13 +2,19 @@
  * useJournalSharing - Manages share link CRUD operations
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 
 export function useJournalSharing(isAuthenticated, userId = null) {
   const [shareLinks, setShareLinks] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState('');
   const [shareOwner, setShareOwner] = useState({ isAuthenticated, userId });
+  const ownerRef = useRef(userId);
+  const loadVersionRef = useRef(0);
+  useLayoutEffect(() => {
+    ownerRef.current = isAuthenticated ? userId : null;
+    return () => { ownerRef.current = null; };
+  }, [isAuthenticated, userId]);
 
   if (shareOwner.isAuthenticated !== isAuthenticated || shareOwner.userId !== userId) {
     setShareOwner({ isAuthenticated, userId });
@@ -18,25 +24,36 @@ export function useJournalSharing(isAuthenticated, userId = null) {
   }
 
   const fetchShareLinks = useCallback(async (signal) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || ownerRef.current !== userId) return;
+    const loadVersion = ++loadVersionRef.current;
+    const isCurrent = () => !signal?.aborted && ownerRef.current === userId && loadVersionRef.current === loadVersion;
     setShareLoading(true);
     setShareError('');
     try {
-      const response = await fetch('/api/share', { credentials: 'include', signal });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || 'Unable to load share links');
-      }
-      const payload = await response.json();
-      if (signal?.aborted) return;
-      setShareLinks(payload.shares || []);
+      const links = [];
+      let offset = 0;
+      do {
+        const response = await fetch(offset ? `/api/share?offset=${offset}` : '/api/share', { credentials: 'include', signal });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.error || 'Unable to load share links');
+        }
+        const payload = await response.json();
+        if (!isCurrent()) return;
+        links.push(...(Array.isArray(payload.shares) ? payload.shares : []));
+        const next = payload.nextOffset;
+        if (next == null) break;
+        if (!Number.isSafeInteger(next) || next <= offset) throw new Error('Unable to load older share links. Try again.');
+        offset = next;
+      } while (offset > 0);
+      setShareLinks(links);
     } catch (error) {
-      if (signal?.aborted || error?.name === 'AbortError') return;
+      if (!isCurrent() || error?.name === 'AbortError') return;
       setShareError(error.message || 'Unable to load share links');
     } finally {
-      if (!signal?.aborted) setShareLoading(false);
+      if (isCurrent()) setShareLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

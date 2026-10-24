@@ -64,6 +64,12 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const refreshServerSearch = useCallback(() => {
     setServerSearchNonce((prev) => prev + 1);
   }, []);
+  const updateServerSearchEntry = useCallback((entryId, update) => {
+    setServerSearch(previous => ({
+      ...previous,
+      results: previous.results.map(entry => entry.id === entryId ? { ...entry, ...update } : entry)
+    }));
+  }, [setServerSearch]);
 
   // Search by meaning runs only on request, for the exact query it was asked
   // for; editing the query returns to literal matches.
@@ -425,6 +431,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
       semanticActive
     },
     refreshServerSearch,
+    updateServerSearchEntry,
     requestSemanticSearch,
     clearSemanticSearch
   };

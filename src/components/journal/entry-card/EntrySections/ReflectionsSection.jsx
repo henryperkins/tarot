@@ -23,14 +23,17 @@ const DANGER_BUTTON_CLASS =
   'text-(--status-error) focus-visible:outline-hidden focus-visible:ring-2 ' +
   'focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation';
 const TEXTAREA_CLASS =
-  'w-full min-h-28 rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-sm ' +
+  'w-full min-h-28 rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm ' +
   'leading-relaxed text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)';
 
 function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, onRemove, hint, children }) {
+  const attemptId = useId();
   const [draft, setDraft] = useState(initialText);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const formRef = useRef(null);
   const confirmRef = useRef(null);
+  const removeButtonRef = useRef(null);
+  const wasConfirmingRef = useRef(false);
   const counterId = `${id}-count`;
   const hintId = `${id}-hint`;
   const tooLong = draft.length > MAX_REFLECTION_LENGTH;
@@ -45,15 +48,24 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
 
   useEffect(() => {
     if (confirmingRemove) confirmRef.current?.focus();
+    else if (wasConfirmingRef.current) removeButtonRef.current?.focus();
+    wasConfirmingRef.current = confirmingRemove;
   }, [confirmingRemove]);
 
   return (
     <form
       ref={formRef}
       className="space-y-2"
+      aria-busy={saving}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          if (!saving) onCancel();
+        }
+      }}
       onSubmit={(event) => {
         event.preventDefault();
-        if (canSave) onSubmit(draft);
+        if (canSave) onSubmit(draft, attemptId);
       }}
     >
       {children}
@@ -61,6 +73,7 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
       <textarea
         id={id}
         value={draft}
+        readOnly={saving}
         onChange={(event) => setDraft(event.target.value)}
         rows={4}
         aria-describedby={[hint ? hintId : null, counterId].filter(Boolean).join(' ')}
@@ -81,7 +94,7 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
               {saving && <CircleNotch className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
               Remove note
             </button>
-            <button type="button" onClick={() => setConfirmingRemove(false)} className={cn(styles.actionButton, styles.actionButtonEnabled)}>
+            <button type="button" disabled={saving} onClick={() => setConfirmingRemove(false)} className={cn(styles.actionButton, styles.actionButtonEnabled)}>
               Keep note
             </button>
           </div>
@@ -100,7 +113,7 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
             Cancel
           </button>
           {onRemove && (
-            <button type="button" disabled={saving} onClick={() => setConfirmingRemove(true)} className={DANGER_BUTTON_CLASS}>
+            <button ref={removeButtonRef} type="button" disabled={saving} onClick={() => setConfirmingRemove(true)} className={DANGER_BUTTON_CLASS}>
               Remove note
             </button>
           )}
@@ -136,11 +149,11 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
     setEditing(null);
   };
 
-  const save = async (key, { text, mode }) => {
+  const save = async (key, { text, mode, attemptId }) => {
     setSaving(true);
     setStatus(null);
     try {
-      const result = await onSave({ key, text, mode });
+      const result = await onSave({ key, text, mode, attemptId, expectedText: existingNote(key) });
       if (result?.success) {
         setStatus({ tone: 'success', message: mode === 'remove' ? 'Note removed.' : 'Reflection saved.' });
         return true;
@@ -227,8 +240,8 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
             saving={saving}
             hint={existingNote(addTarget) ? `Adds to your existing note on ${addTargetLabel}.` : null}
             onCancel={() => close('add')}
-            onSubmit={async (text) => {
-              if (await save(addTarget, { text, mode: 'append' })) close(addTarget);
+            onSubmit={async (text, attemptId) => {
+              if (await save(addTarget, { text, mode: 'append', attemptId })) close(addTarget);
             }}
           >
             {targets.length > 1 && (
@@ -237,8 +250,9 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
                 <select
                   id={`${formId}-target`}
                   value={addTarget}
+                  disabled={saving}
                   onChange={(event) => setAddTarget(event.target.value)}
-                  className="w-full min-h-touch rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className="w-full min-h-touch rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 >
                   {targets.map((target) => (
                     <option key={target.key} value={target.key}>{target.label}</option>

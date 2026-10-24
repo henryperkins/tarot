@@ -60,7 +60,8 @@ export function classifyCardTrend(counts) {
   if (!Array.isArray(counts) || counts.length < 2) return 'stable';
   const half = Math.floor(counts.length / 2);
   const sum = (values) => values.reduce((total, value) => total + (Number(value) || 0), 0);
-  const earlier = sum(counts.slice(0, counts.length - half));
+  // Ignore an unpaired middle month so both totals cover the same duration.
+  const earlier = sum(counts.slice(0, half));
   const recent = sum(counts.slice(counts.length - half));
   if (recent - earlier >= MIN_TREND_DELTA && recent >= earlier * MIN_TREND_RATIO) return 'up';
   if (earlier - recent >= MIN_TREND_DELTA && earlier >= recent * MIN_TREND_RATIO) return 'down';

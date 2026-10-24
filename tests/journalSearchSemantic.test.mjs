@@ -51,7 +51,7 @@ async function fixture(t) {
     const body = await response.json();
     return { mode: body.mode, ids: body.entries.map((entry) => entry.id).sort() };
   };
-  return { run, aiCalls };
+  return { db, run, aiCalls };
 }
 
 test('a literal match is returned as exact without computing embeddings', async (t) => {
@@ -79,5 +79,34 @@ test('journal filters narrow matches by meaning as they narrow exact matches', a
   assert.deepEqual(await run({ q: 'lighthouse', contexts: 'career' }), {
     mode: 'semantic',
     ids: ['similar-career']
+  });
+});
+
+test('a filtered semantic match survives higher-ranked matches outside the filter', async (t) => {
+  const { db, run } = await fixture(t);
+  for (let index = 0; index < 25; index += 1) {
+    const id = `higher-love-${index}`;
+    await seedEntry(db, { id, userId: 'owner', narrative: 'A guiding beacon.' });
+    await db.prepare('UPDATE journal_entries SET context = ?, step_embeddings = ?, extraction_version = ? WHERE id = ?')
+      .bind('love', JSON.stringify([QUERY_VECTOR]), EXTRACTION_VERSION, id).run();
+  }
+  await db.prepare('UPDATE journal_entries SET step_embeddings = ? WHERE id = ?')
+    .bind(JSON.stringify([[0.99, 0.1, 0]]), 'similar-career').run();
+  assert.deepEqual(await run({ q: 'lighthouse', mode: 'semantic', contexts: 'career', limit: '25' }), {
+    mode: 'semantic', ids: ['similar-career']
+  });
+});
+
+test('semantic candidate selection applies the active view before its 50-reading cap', async (t) => {
+  const { db, run } = await fixture(t);
+  await db.prepare('UPDATE journal_entries SET created_at = 100 WHERE id = ?').bind('similar-career').run();
+  for (let index = 0; index < 50; index += 1) {
+    const id = `recent-love-${index}`;
+    await seedEntry(db, { id, userId: 'owner', narrative: 'A guiding beacon.' });
+    await db.prepare('UPDATE journal_entries SET context = ?, step_embeddings = ?, extraction_version = ? WHERE id = ?')
+      .bind('love', JSON.stringify([QUERY_VECTOR]), EXTRACTION_VERSION, id).run();
+  }
+  assert.deepEqual(await run({ q: 'lighthouse', mode: 'semantic', contexts: 'career', limit: '25' }), {
+    mode: 'semantic', ids: ['similar-career']
   });
 });

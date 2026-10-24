@@ -29,7 +29,11 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     limit = DEFAULT_SEARCH_LIMIT, 
     minSimilarity = DEFAULT_MIN_SIMILARITY,
     requestId = 'journal-search',
-    timeframeCutoffMs = null
+    timeframeCutoffMs = null,
+    contexts = [],
+    spreads = [],
+    decks = [],
+    onlyReversals = false
   } = options;
   
   if (!env?.AI || !env?.DB) {
@@ -62,6 +66,18 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     if (timeframeCutoffMs) {
       whereParts.push('created_at >= ?');
       queryParams.push(Math.floor(timeframeCutoffMs / 1000));
+    }
+
+    // A view's eligible readings must be selected before the bounded candidate
+    // pool, otherwise unrelated recent readings can hide every valid match.
+    for (const [column, values] of [['context', contexts], ['spread_key', spreads], ['deck_id', decks]]) {
+      if (!values.length) continue;
+      whereParts.push(`${column} IN (${values.map(() => '?').join(',')})`);
+      queryParams.push(...values);
+    }
+    if (onlyReversals) {
+      whereParts.push('cards_json LIKE ?');
+      queryParams.push('%reversed%');
     }
 
     const entries = await env.DB.prepare(`

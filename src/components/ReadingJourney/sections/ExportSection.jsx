@@ -672,10 +672,11 @@ function ExportSection({
                 id="share-title"
                 type="text"
                 value={shareTitle}
+                readOnly={isCreatingLink}
                 maxLength={SHARE_TITLE_MAX_LENGTH}
                 onChange={(event) => setShareTitle(event.target.value)}
                 placeholder="Journal snapshot"
-                className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
+                className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
               />
             </div>
 

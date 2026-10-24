@@ -71,6 +71,30 @@ test('another account sees none of the owner’s links', async (t) => {
   assert.deepEqual(await list('session-other'), []);
 });
 
+test('every owner link remains reachable across pages, including tied timestamps', async (t) => {
+  const { db, env } = await fixture(t);
+  for (let index = 0; index < 55; index += 1) {
+    const token = `share-${String(index).padStart(3, '0')}`;
+    await db.prepare("INSERT INTO share_tokens (token, user_id, scope, created_at) VALUES (?, 'owner', 'entry', 1790000000)")
+      .bind(token).run();
+    await db.prepare("INSERT INTO share_token_entries (token, entry_id, sort_index) VALUES (?, 'entry-a', 0)")
+      .bind(token).run();
+  }
+  const all = [];
+  let offset = 0;
+  do {
+    const response = await listShares({ request: request(`/api/share?offset=${offset}`), env });
+    assert.equal(response.status, 200);
+    const page = await response.json();
+    assert.ok(page.shares.length <= 50);
+    all.push(...page.shares);
+    offset = page.nextOffset;
+  } while (offset != null);
+  assert.equal(all.length, 55);
+  assert.equal(new Set(all.map(link => link.token)).size, 55);
+  assert.ok(all.every(link => link.entryIds[0] === 'entry-a'));
+});
+
 test('the owner renames a link; a blank title restores the default', async (t) => {
   const { env, create, list } = await fixture(t);
   const { token } = await create({ scope: 'entry', entryIds: ['entry-a'] });

@@ -6,7 +6,7 @@
  * owner can always revoke a link even when they can no longer create one.
  */
 
-import { memo, useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowSquareOut, CircleNotch, ClipboardText, PencilSimple } from '@phosphor-icons/react';
 import { JournalTrashIcon } from '../../JournalIcons';
 import { copyTextToClipboard } from '../../../lib/journalInsights';
@@ -96,23 +96,24 @@ function ShareLinkRow({ link, now, busy, onCopy, onRename, onDelete }) {
             id={inputId}
             type="text"
             value={draft}
+            readOnly={busy}
             maxLength={TITLE_MAX_LENGTH}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 event.stopPropagation();
-                closeForm(renameButtonRef);
+                if (!busy) closeForm(renameButtonRef);
               }
             }}
             placeholder={link.scope === 'entry' ? 'Shared reading' : 'Journal snapshot'}
-            className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+            className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy} className={ACTION_BUTTON_CLASS}>
               {busy && <CircleNotch className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
               Save title
             </button>
-            <button type="button" onClick={() => closeForm(renameButtonRef)} className={ACTION_BUTTON_CLASS}>
+            <button type="button" disabled={busy} onClick={() => closeForm(renameButtonRef)} className={ACTION_BUTTON_CLASS}>
               Cancel
             </button>
           </div>
@@ -135,7 +136,7 @@ function ShareLinkRow({ link, now, busy, onCopy, onRename, onDelete }) {
               {busy ? <CircleNotch className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <JournalTrashIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               Delete link
             </button>
-            <button type="button" onClick={() => closeForm(deleteButtonRef)} className={ACTION_BUTTON_CLASS}>
+            <button type="button" disabled={busy} onClick={() => closeForm(deleteButtonRef)} className={ACTION_BUTTON_CLASS}>
               Keep link
             </button>
           </div>
@@ -201,9 +202,23 @@ function ShareLinksManager({ links = [], loading = false, error = '', onDelete, 
   const [focusListRequest, setFocusListRequest] = useState(0);
   const headingId = useId();
   const listRef = useRef(null);
-  const [now] = useState(() => Date.now());
-  const safeLinks = Array.isArray(links) ? links.filter((link) => link?.token) : [];
+  const [now, setNow] = useState(() => Date.now());
+  const safeLinks = useMemo(() => Array.isArray(links) ? links.filter((link) => link?.token) : [], [links]);
   if (safeLinks.length > 0 && !hasShownLinks) setHasShownLinks(true);
+
+  useEffect(() => {
+    const refresh = () => setNow(Date.now());
+    const nextExpiry = Math.min(...safeLinks.map(link => link.expiresAt).filter(expiry => expiry > now));
+    // Wake at expiry, and refresh relative day labels while the panel is open.
+    const timer = setTimeout(refresh, Math.max(1, Math.min(60_000, nextExpiry - Date.now())));
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [now, safeLinks]);
 
   useEffect(() => {
     if (!status) return undefined;
@@ -299,7 +314,7 @@ function ShareLinksManager({ links = [], loading = false, error = '', onDelete, 
               key={link.token}
               link={link}
               now={now}
-              busy={pendingToken === link.token}
+              busy={pendingToken !== null}
               onCopy={handleCopy}
               onRename={handleRename}
               onDelete={handleDelete}

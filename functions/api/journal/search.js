@@ -250,7 +250,11 @@ export async function onRequestGet(context) {
       const semanticMatches = await findSimilarJournalEntries(env, user.id, query, {
         limit,
         requestId,
-        timeframeCutoffMs
+        timeframeCutoffMs,
+        contexts,
+        spreads,
+        decks,
+        onlyReversals
       });
       const ids = semanticMatches.map((match) => match?.id).filter(Boolean);
       if (ids.length === 0) {
@@ -328,7 +332,7 @@ export async function onRequestGet(context) {
         rowMap.set(row.id, buildEntryFromRow(row, { hasCoachColumns }));
       });
 
-      entries = ids.map((id) => rowMap.get(id)).filter(Boolean);
+      entries = ids.map((id) => rowMap.get(id)).filter(Boolean).slice(0, limit);
     }
 
     const entryIds = entries.map((entry) => entry?.id).filter(Boolean);

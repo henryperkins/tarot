@@ -86,7 +86,7 @@ test('a cloud journal writes through the reflections endpoint and adopts its map
   assert.deepEqual(added, { success: true, reflections: { 1: 'star note', Overall: 'whole reading' } });
   await hook.saveReflection('cloud-entry', { key: '1', mode: 'remove' });
   assert.deepEqual(requests, [
-    { url: '/api/journal/cloud-entry/reflections', method: 'POST', body: { scope: 'reading', mode: 'append', text: 'whole reading' } },
+    { url: '/api/journal/cloud-entry/reflections', method: 'POST', body: { scope: 'reading', mode: 'append', text: 'whole reading', expectedText: '' } },
     { url: '/api/journal/cloud-entry/reflections', method: 'POST', body: { scope: 'card', cardIndex: 1, mode: 'remove' } }
   ]);
   driver.flush();
@@ -109,4 +109,25 @@ test('an offline cloud save explains the connection problem', async t => {
   });
   const result = await driver.render().saveReflection('cloud-entry', { key: 'Overall', text: 'note', mode: 'append' });
   assert.deepEqual(result, { success: false, error: 'Your reflection could not be saved. Check your connection and try again.' });
+});
+
+test('an uncertain append keeps its original baseline across retry and starts fresh after success', async t => {
+  journalStorageFixture(t);
+  const bodies = [];
+  const driver = await loaded(t, {
+    cloud: true,
+    fetchImpl: async (url, options = {}) => {
+      if (String(url).startsWith('/api/journal?')) return Response.json({ entries: [reading('cloud-entry')], pagination: { hasMore: false, total: 1 } });
+      const body = JSON.parse(options.body);
+      bodies.push(body);
+      if (bodies.length === 1) throw new TypeError('Response lost after commit');
+      return Response.json({ reflections: { Overall: body.expectedText ? `${body.expectedText}\n\n${body.text}` : body.text } });
+    }
+  });
+  const edit = { key: 'Overall', text: 'Leave room.', mode: 'append' };
+  assert.equal((await driver.render().saveReflection('cloud-entry', edit)).success, false);
+  assert.equal((await driver.render().saveReflection('cloud-entry', edit)).success, true);
+  driver.flush();
+  assert.equal((await driver.render().saveReflection('cloud-entry', edit)).success, true);
+  assert.deepEqual(bodies.map(body => body.expectedText), ['', '', 'Leave room.']);
 });

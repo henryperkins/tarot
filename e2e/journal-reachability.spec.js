@@ -233,7 +233,7 @@ test('reflections: a cloud entry adds, edits and removes card and whole-reading 
     expect(JSON.parse(row.reflections_json)).toEqual({ 0: 'Six months alone, and I chose them.' });
     const posts = fixture.requests.filter(request => request.path === '/api/journal/entry-1/reflections').map(request => JSON.parse(request.body));
     expect(posts).toEqual([
-      { scope: 'card', cardIndex: 2, mode: 'append', text: 'Hope, slowly.' },
+      { scope: 'card', cardIndex: 2, mode: 'append', text: 'Hope, slowly.', expectedText: '' },
       { scope: 'card', cardIndex: 0, mode: 'replace', text: 'Six months alone, and I chose them.' },
       { scope: 'card', cardIndex: 2, mode: 'remove' }
     ]);
@@ -377,5 +377,151 @@ test('exports: the journal panel downloads plain text and journal-only JSON for 
     expect(json.entries.map(entry => entry.question)).toEqual(['Newer question', 'Older question']);
     expect(json.entries[0].reflections).toEqual({ Overall: 'A whole-reading note.' });
     await expect(panel.getByText('JSON download started')).toBeVisible();
+  } finally { await fixture.close(); }
+});
+
+test('pending saves protect reflection drafts and link titles from further edits', async ({ page }) => {
+  const fixture = await prepare(page, {
+    seed: async db => {
+      await seedCloudEntry(db, { id: 'pending-note', question: 'Keep the submitted note' });
+      await db.prepare("INSERT INTO share_tokens (token, user_id, scope, title, created_at) VALUES ('pending-link', 'user-1', 'journal', 'Keep this title', ?)")
+        .bind(Math.floor(Date.now() / 1000)).run();
+      await db.prepare("INSERT INTO share_tokens (token, user_id, scope, title, created_at) VALUES ('other-link', 'user-1', 'journal', 'Another link', ?)")
+        .bind(Math.floor(Date.now() / 1000) - 1).run();
+    }
+  });
+  let release;
+  try {
+    const card = await expandEntry(page, 'Keep the submitted note');
+    const section = card.getByRole('region', { name: 'Reflections' });
+    await section.getByRole('button', { name: 'Add a reflection', exact: true }).click();
+    const field = section.getByLabel('Your reflection', { exact: true });
+    await field.fill('Keep these words.');
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/journal/pending-note/reflections', async route => { await gate; await route.fallback(); });
+    await section.getByRole('button', { name: 'Save reflection', exact: true }).click();
+    await expect(section.getByRole('button', { name: 'Saving…', exact: true })).toBeVisible();
+    await expect(field).toHaveAttribute('readonly', '');
+    await expect(section.getByLabel('Reflect on', { exact: true })).toBeDisabled();
+    release();
+    await expect(section.getByText('Reflection saved.', { exact: true })).toBeVisible();
+
+    const panel = await openDesktopSection(page, 'Export & Share');
+    const links = panel.getByRole('region', { name: /^Your share links/ });
+    await links.getByRole('button', { name: 'Rename Keep this title', exact: true }).click();
+    const title = links.getByLabel(/^Link title/);
+    await title.fill('Submitted title');
+    const renameGate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/share/pending-link', async route => { await renameGate; await route.fallback(); });
+    await links.getByRole('button', { name: 'Save title', exact: true }).click();
+    await expect(links.getByRole('button', { name: 'Save title', exact: true })).toBeDisabled();
+    await expect(title).toHaveAttribute('readonly', '');
+    await expect(links.getByRole('button', { name: 'Copy link for Another link', exact: true })).toBeDisabled();
+    release();
+    await expect(links.getByText('Renamed the link to “Submitted title”.')).toBeVisible();
+  } finally { release?.(); await fixture.close(); }
+});
+
+test('share links update when a link expires while its manager stays open', async ({ page }) => {
+  const now = Date.now();
+  await page.clock.install({ time: now });
+  const fixture = await prepare(page, {
+    seed: async db => {
+      await seedCloudEntry(db, { id: 'expires', question: 'An expiring link' });
+      await db.prepare("INSERT INTO share_tokens (token, user_id, scope, title, created_at, expires_at) VALUES ('expires-soon', 'user-1', 'entry', 'Short-lived link', ?, ?)")
+        .bind(Math.floor(now / 1000), Math.floor(now / 1000) + 60).run();
+    }
+  });
+  try {
+    const panel = await openDesktopSection(page, 'Export & Share');
+    const links = panel.getByRole('region', { name: /^Your share links/ });
+    await expect(links.getByRole('button', { name: 'Copy link for Short-lived link', exact: true })).toBeVisible();
+    await page.clock.fastForward(61_000);
+    await expect(links.getByText(/Single reading.*Expired/)).toBeVisible();
+    await expect(links.getByRole('button', { name: 'Copy link for Short-lived link', exact: true })).toHaveCount(0);
+    await expect(links.getByRole('button', { name: 'Delete Short-lived link', exact: true })).toBeVisible();
+  } finally { await fixture.close(); }
+});
+
+test('the share manager reaches and revokes a link beyond the first page', async ({ page }) => {
+  const fixture = await prepare(page, {
+    tier: 'free',
+    local: [{ id: 'local-pages', ts: Date.now(), question: 'Local reading', spreadKey: 'single', cards: [] }],
+    seed: async db => {
+      await seedCloudEntry(db, { id: 'old-shared', question: 'Old public reading' });
+      for (let index = 0; index < 52; index += 1) {
+        const token = `page-${String(index).padStart(3, '0')}`;
+        await db.prepare("INSERT INTO share_tokens (token, user_id, scope, title, created_at) VALUES (?, 'user-1', 'entry', ?, ?)")
+          .bind(token, `Shared reading ${index}`, 1790000000 + index).run();
+        await db.prepare("INSERT INTO share_token_entries (token, entry_id, sort_index) VALUES (?, 'old-shared', 0)").bind(token).run();
+      }
+    }
+  });
+  try {
+    const panel = await openDesktopSection(page, 'Export & Share');
+    const links = panel.getByRole('region', { name: /^Your share links/ });
+    await expect(links.getByRole('listitem')).toHaveCount(52);
+    await links.getByRole('button', { name: 'Delete Shared reading 0', exact: true }).click();
+    await links.getByRole('button', { name: 'Delete link', exact: true }).click();
+    await expect(links.getByRole('listitem')).toHaveCount(51);
+    expect(fixture.db.rows("SELECT token FROM share_tokens WHERE token = 'page-000'")).toEqual([]);
+    expect(fixture.requests.some(request => request.path === '/api/share' && request.search === '?offset=50')).toBe(true);
+  } finally { await fixture.close(); }
+});
+
+test('retrying a reflection after its saved response is lost appends it once', async ({ page }) => {
+  const fixture = await prepare(page, { seed: db => seedCloudEntry(db, { id: 'lost-response', question: 'Keep my reflection once' }) });
+  let first = true;
+  await page.route('**/api/journal/lost-response/reflections', async route => {
+    if (!first) return route.fallback();
+    first = false;
+    const response = await reflections.onRequestPost({
+      request: new Request(route.request().url(), { method: 'POST', headers: { Cookie: 'session=session-1', 'Content-Type': 'application/json' }, body: route.request().postData() }),
+      env: { DB: fixture.db }, params: { id: 'lost-response' }
+    });
+    expect(response.status).toBe(200);
+    await route.abort('failed');
+  });
+  try {
+    const card = await expandEntry(page, 'Keep my reflection once');
+    const section = card.getByRole('region', { name: 'Reflections' });
+    await section.getByRole('button', { name: 'Add a reflection', exact: true }).click();
+    await section.getByLabel('Your reflection', { exact: true }).fill('Leave room.');
+    await section.getByRole('button', { name: 'Save reflection', exact: true }).click();
+    await expect(section.getByText('Your reflection could not be saved. Check your connection and try again.')).toBeVisible();
+    await section.getByRole('button', { name: 'Save reflection', exact: true }).click();
+    await expect(section.getByText('Reflection saved.', { exact: true })).toBeVisible();
+    let stored = JSON.parse(fixture.db.rows("SELECT reflections_json FROM journal_entries WHERE id = 'lost-response'")[0].reflections_json);
+    expect(stored.Overall).toBe('Leave room.');
+    // Opening another editor is a new intentional append, even for identical text.
+    await section.getByRole('button', { name: 'Add a reflection', exact: true }).click();
+    await section.getByLabel('Your reflection', { exact: true }).fill('Leave room.');
+    await section.getByRole('button', { name: 'Save reflection', exact: true }).click();
+    await expect(section.getByText('Reflection saved.', { exact: true })).toBeVisible();
+    stored = JSON.parse(fixture.db.rows("SELECT reflections_json FROM journal_entries WHERE id = 'lost-response'")[0].reflections_json);
+    expect(stored.Overall).toBe('Leave room.\n\nLeave room.');
+  } finally { await fixture.close(); }
+});
+
+test('saving a reflection during search preserves the other open draft', async ({ page }) => {
+  const fixture = await prepare(page, { seed: async db => {
+    await seedCloudEntry(db, { id: 'searched-a', question: 'A guiding beacon', embedding: [1, 0, 0] });
+    await seedCloudEntry(db, { id: 'searched-b', question: 'A path through the dark', embedding: [1, 0, 0] });
+  } });
+  try {
+    await page.getByRole('searchbox', { name: 'Search journal entries', exact: true }).fill('lighthouse');
+    await page.getByRole('button', { name: 'Search by meaning', exact: true }).click();
+    await expect(entryCard(page, 'A guiding beacon')).toBeVisible();
+    const cardA = await expandEntry(page, 'A guiding beacon');
+    const cardB = await expandEntry(page, 'A path through the dark');
+    const sectionA = cardA.getByRole('region', { name: 'Reflections' });
+    const sectionB = cardB.getByRole('region', { name: 'Reflections' });
+    for (const section of [sectionA, sectionB]) await section.getByRole('button', { name: 'Add a reflection', exact: true }).click();
+    await sectionA.getByLabel('Your reflection', { exact: true }).fill('Save this one.');
+    await sectionB.getByLabel('Your reflection', { exact: true }).fill('Keep this unfinished draft.');
+    await sectionA.getByRole('button', { name: 'Save reflection', exact: true }).click();
+    await expect(sectionA.getByText('Reflection saved.', { exact: true })).toBeVisible();
+    await expect(sectionB.getByLabel('Your reflection', { exact: true })).toHaveValue('Keep this unfinished draft.');
+    expect(fixture.requests.filter(request => request.path === '/api/journal/search')).toHaveLength(1);
   } finally { await fixture.close(); }
 });

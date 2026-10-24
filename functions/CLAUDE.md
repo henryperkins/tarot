@@ -22,6 +22,9 @@ steps. CI uses Node 24 and root tests cover Worker MCP.
   `remove` for the journal editor; MCP reflections are append-only with exact
   retry deduplication. Select policy only in the trusted caller, never from
   request JSON. Preserve raw text in both.
+- The journal editor supplies an optional HTTP append `expectedText` precondition
+  to recognize an uncertain save's retry. Keep ordinary repeated appends intact
+  when it is absent, and reject conflicting edits without replacing other notes.
 - Keep canonical card identity for images and deck-specific display labels.
   Reusable Thoth labels must resolve to the same card when a tool call is retried.
 - Personal journal routes reject `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` with

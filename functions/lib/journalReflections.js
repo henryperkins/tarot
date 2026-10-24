@@ -188,6 +188,10 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
   }
   // Removal clears one target's note; it takes no text.
   const removing = mode === 'remove';
+  const hasExpectedText = isHttp && mode === 'append' && Object.hasOwn(input, 'expectedText');
+  if (hasExpectedText && typeof input.expectedText !== 'string') {
+    return { status: 400, body: { error: 'expectedText must be a string' } };
+  }
 
   const text = removing ? '' : typeof input.text === 'string' ? input.text : '';
   if (!removing && !text.trim()) return { status: 400, body: { error: 'Reflection text is required' } };
@@ -239,6 +243,18 @@ export async function addJournalReflection({ env, user, entryId, input, policy =
 
     const reflections = parseReflections(entry.reflections_json);
     const existing = typeof reflections[key] === 'string' ? reflections[key] : '';
+    // The journal editor can safely retry an uncertain append without changing
+    // the repeated-append contract for HTTP callers that omit this precondition.
+    if (hasExpectedText && existing !== input.expectedText) {
+      const appended = input.expectedText ? `${input.expectedText}${NOTE_SEPARATOR}${text}` : text;
+      if (existing === appended) {
+        return { status: 200, body: successBody(entryId, key, target, existing, reflections, { alreadyPresent: true }, policy) };
+      }
+      return { status: 409, body: {
+        error: 'This note changed while saving. Your draft is still here. Reload the journal before trying again.',
+        code: 'reflection_conflict'
+      } };
+    }
     if (!isHttp && noteIsPresent(existing, text)) {
       return { status: 200, body: successBody(entryId, key, target, existing, reflections, { alreadyPresent: true }) };
     }

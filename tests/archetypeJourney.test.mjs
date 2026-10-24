@@ -255,6 +255,13 @@ describe('computeCardTrendSeries', () => {
 });
 
 describe('classifyCardTrend', () => {
+  it('compares equal periods for journals with three or five active months', () => {
+    assert.strictEqual(classifyCardTrend([2, 2, 2]), 'stable');
+    assert.strictEqual(classifyCardTrend([2, 2, 2, 2, 2]), 'stable');
+    assert.strictEqual(classifyCardTrend([1, 1, 20, 3, 3]), 'up');
+    assert.strictEqual(classifyCardTrend([3, 3, 0, 1, 1]), 'down');
+  });
+
   it('needs a clear change between the earlier and recent months', () => {
     assert.strictEqual(classifyCardTrend([0, 0, 0, 1, 3, 6]), 'up');
     assert.strictEqual(classifyCardTrend([3, 3, 3, 0, 0, 1]), 'down');

@@ -92,3 +92,19 @@ test('journals without cloud search, and short queries, are not offered search b
   const cloud = await setup(t);
   assert.equal(cloud.query('li').serverSearchState.semanticAvailable, false);
 });
+
+test('saving a reflection updates a search result without clearing results or refetching', async t => {
+  const { driver, requests, query, respond } = await setup(t);
+  query('lighthouse').requestSemanticSearch();
+  driver.flush();
+  driver.render(true);
+  respond({ mode: 'semantic', entries: [entry('beacon', 'A beacon.')] });
+  await settle();
+  driver.flush();
+  driver.render().updateServerSearchEntry('beacon', { reflections: { Overall: 'A new perspective.' } });
+  driver.flush();
+  const view = driver.render();
+  assert.equal(view.serverSearchState.status, 'success');
+  assert.deepEqual(view.filteredEntries[0].reflections, { Overall: 'A new perspective.' });
+  assert.equal(requests.length, 1);
+});

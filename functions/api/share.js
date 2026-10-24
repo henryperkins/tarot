@@ -52,20 +52,24 @@ export async function onRequestGet(context) {
       });
     }
 
+    const requestedOffset = Number(new URL(request.url).searchParams.get('offset'));
+    const offset = Number.isSafeInteger(requestedOffset) && requestedOffset > 0 ? requestedOffset : 0;
+    const pageSize = 50;
     const result = await env.DB.prepare(`
       SELECT st.token, st.scope, st.title, st.created_at, st.expires_at, st.view_count, st.meta_json,
              (SELECT COUNT(*) FROM share_token_entries ste WHERE ste.token = st.token) AS entry_count
       FROM share_tokens st
       WHERE st.user_id = ?
-      ORDER BY st.created_at DESC
-      LIMIT 50
-    `).bind(user.id).all();
+      ORDER BY st.created_at DESC, st.token DESC
+      LIMIT ? OFFSET ?
+    `).bind(user.id, pageSize + 1, offset).all();
 
-    const rows = result.results || [];
+    const rows = (result.results || []).slice(0, pageSize);
     const entryIdsByToken = await loadShareEntryIds(env.DB, rows.map((row) => row.token));
     const shares = rows.map((row) => buildShareResponseRow(row, entryIdsByToken.get(row.token) || []));
 
-    return new Response(JSON.stringify({ shares }), {
+    const nextOffset = result.results?.length > pageSize ? offset + pageSize : null;
+    return new Response(JSON.stringify({ shares, nextOffset }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
