@@ -116,10 +116,12 @@ export function buildGraphRAGTelemetry(graphRAGStats) {
   const optionalBoolean = (value) =>
     typeof value === 'boolean' ? value : null;
 
-  const candidateCounts = sanitizeGraphRAGDiagnostics(graphRAGStats);
+  // Includes final-prompt integrity measurements only when supplied. Historical
+  // telemetry must not acquire invented zero removals or guardrail assertions.
+  const diagnostics = sanitizeGraphRAGDiagnostics(graphRAGStats);
 
   return {
-    ...candidateCounts,
+    ...diagnostics,
     queryCoverage: sanitizeQueryCoverage(graphRAGStats.queryCoverage),
     contextSelection: sanitizeContextSelection(graphRAGStats.contextSelection),
     scoringMethod: ['keyword', 'semantic', 'priority', 'bypassed', 'mixed'].includes(graphRAGStats.scoringMethod) ? graphRAGStats.scoringMethod : null,

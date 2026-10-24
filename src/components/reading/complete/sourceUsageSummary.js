@@ -111,6 +111,8 @@ export function formatUsageSummary(rawUsage) {
       ? 'Card patterns and their traditional meanings.'
       : `${count} reference passage${count === 1 ? '' : 's'} on the cards and their patterns.`;
     addRow('Traditional wisdom', 'used', detail, 'sources', 'traditional wisdom');
+  } else if (graph?.skippedReason === 'reference_integrity_failed') {
+    addRow('Traditional wisdom', 'omitted', reasonCopy(graph.skippedReason), 'sources', 'traditional wisdom');
   }
   if (sourceUsage?.patterns?.used) {
     const count = sourceUsage.patterns.patternsUsedInPrompt || 0;

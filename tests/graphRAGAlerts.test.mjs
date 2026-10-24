@@ -4,6 +4,16 @@ import { describe, it } from 'node:test';
 import { collectGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
 
 describe('GraphRAG alert heuristics', () => {
+    it('distinguishes reference integrity removal from a budget omission without logging diagnostic input', () => {
+        const alerts = collectGraphRAGAlerts({ graphRAG: {
+            includedInPrompt: false, passagesProvided: 1, passagesUsedInPrompt: 0,
+            skippedReason: 'reference_integrity_failed', integrityRemovedBlocks: 1,
+            integrityRemovalReasons: ['missing_card_guardrail', 'private reference text']
+        } });
+        assert.ok(alerts.some(alert => /integrity/i.test(alert)));
+        assert.ok(!alerts.some(alert => /budget|private reference text|missing_card_guardrail/.test(alert)));
+    });
+
     it('does not warn when no passages were retrieved', () => {
         const alerts = collectGraphRAGAlerts({
             graphRAG: {

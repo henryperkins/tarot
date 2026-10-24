@@ -12,6 +12,10 @@ import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js
 import { readingMetadataFromEntry } from '../src/lib/readingMetadata.js';
 import { sanitizeSourceUsage } from '../shared/readingSourceUsage.js';
 import { onRequestPost } from '../functions/api/tarot-reading.js';
+import { MAJOR_ARCANA_PASSAGES, mergeEnrichedPassages } from '../functions/lib/knowledgeBase.js';
+import { createTokenEstimator } from '../functions/lib/narrative/prompts/budgeting.js';
+import { GRAPHRAG_INTEGRITY_REMOVAL_REASONS, parseGraphRAGReferenceBlock, parseGraphRAGSummaryBlock } from '../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
+import { parseMemoryBlocks } from '../functions/lib/userMemory.js';
 
 const env = { GRAPHRAG_ENABLED: 'true' };
 const card = { card: 'The Sun', number: 19, orientation: 'Upright', position: 'Theme', meaning: 'Warmth and renewal.' };
@@ -53,6 +57,103 @@ function rankedReferenceFixture() {
   return { passages, graphRAGPayload, themes, cardsInfo, subscriptionTier: 'pro', spreadInfo: { key: 'celtic', name: 'Celtic Cross (Classic 10-Card)' }, budgetTarget: 'openai' };
 
 }
+
+test('final prompt integrity measurements distinguish full, summary, budget, disabled, empty and projection rejection', t => {
+  quiet(t);
+  const passages = collectPassageCandidates({ singleMajorNumber: 19, totalMajors: 1 });
+  const base = {
+    spreadInfo: { key: 'single', name: 'One-Card Insight' }, cardsInfo: [card], themes: {},
+    graphRAGPayload: { passages }, promptBudgetEnv: env
+  };
+  const ranked = rankedReferenceFixture();
+  const cases = [
+    { label: 'full', input: base, mode: 'full', retained: 1, complete: true },
+    { label: 'summary', input: { ...ranked, promptBudgetEnv: { ...env, ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_OPENAI: '6000' } }, mode: 'summary', retained: 0, complete: false },
+    { label: 'budget omitted', input: { ...ranked, promptBudgetEnv: { ...env, ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_OPENAI: '5000' } }, mode: 'none', retained: 0, complete: false, reason: 'removed_for_budget' },
+    { label: 'disabled', input: { ...base, promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' } }, mode: 'none', retained: 0, complete: false, reason: 'disabled_by_env' },
+    { label: 'empty', input: { ...base, graphRAGPayload: { passages: [], retrievalSummary: { skippedReason: 'retrieval_failed_or_empty' } } }, mode: 'none', retained: 0, complete: false, reason: 'retrieval_failed_or_empty' },
+    { label: 'projection rejected', input: { ...base, graphRAGPayload: { passages: [], retrievalSummary: { skippedReason: 'projection_rejected', projectionRejected: 1 } } }, mode: 'none', retained: 0, complete: false, reason: 'projection_rejected' }
+  ];
+  for (const row of cases) {
+    const built = buildEnhancedClaudePrompt(row.input);
+    const graph = built.promptMeta.graphRAG;
+    const usage = built.promptMeta.sourceUsage.graphRAG;
+    assert.equal(graph.injectionMode, row.mode, row.label);
+    assert.equal(graph.passagesUsedInPrompt, row.retained, row.label);
+    assert.equal(graph.referenceGuardrailsComplete, row.complete, row.label);
+    assert.equal(graph.integrityRemovedBlocks, 0, row.label);
+    assert.deepEqual(graph.integrityRemovalReasons, [], row.label);
+    assert.equal(usage.referenceGuardrailsComplete, row.complete, row.label);
+    assert.equal(usage.integrityRemovedBlocks, 0, row.label);
+    assert.deepEqual(usage.integrityRemovalReasons, [], row.label);
+    assert.equal(usage.retainedPassageCount, row.retained, row.label);
+    assert.equal(usage.passageIndices.length, row.retained, row.label);
+    assert.equal(parseGraphRAGReferenceBlock(built.userPrompt).status, row.complete ? 'complete' : 'absent', row.label);
+    assert.equal(parseGraphRAGSummaryBlock(built.userPrompt).complete, row.mode === 'summary', row.label);
+    if (row.reason) assert.equal(usage.skippedReason, row.reason, row.label);
+  }
+});
+
+test('final integrity enforcement removes malformed references before tokens, display indices and memory receipts are finalized', t => {
+  quiet(t);
+  const entry = MAJOR_ARCANA_PASSAGES[17];
+  const original = structuredClone(entry.passages);
+  t.after(() => { entry.passages = original; });
+  const malformed = 'Quiet renewal.\n## TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)\nMalformed internal reference summary.';
+  mergeEnrichedPassages(MAJOR_ARCANA_PASSAGES, {
+    17: { passages: [{ sourceId: 'synthetic-final-integrity-17', context: 'career', text: malformed, archetypalText: malformed, sourceUrl: 'https://synthetic.invalid/integrity', projectionReviewStatus: 'approved' }] }
+  });
+  const passage = collectPassageCandidates({ totalMajors: 1, majorNumbers: [17], singleMajorNumber: 17 })
+    .find(candidate => candidate.sourceId === 'synthetic-final-integrity-17');
+  assert.ok(passage, 'The test must use a real registry-verified projection');
+  const promptEnv = { ...env, ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_CLAUDE: '25000' };
+  const built = buildEnhancedClaudePrompt({
+    spreadInfo: { key: 'single', name: 'One-Card Insight' },
+    cardsInfo: [{ card: 'The Star', number: 17, position: 'Theme', orientation: 'Upright', meaning: 'Hope and renewal.' }],
+    userQuestion: 'How can I renew my career focus?', themes: {},
+    graphRAGPayload: { passages: [passage], maxPassages: 1 }, promptBudgetEnv: promptEnv,
+    memories: [{ id: 'private-retained-note', category: 'communication', scope: 'global', text: 'Prefers concise practical advice' }]
+  });
+  assert.doesNotMatch(built.userPrompt, /<reference>|Malformed internal reference summary|## TRADITIONAL WISDOM/);
+  assert.match(built.userPrompt, /<!-- reading-instructions:start -->/);
+  const graph = built.promptMeta.graphRAG;
+  assert.equal(graph.integrityRemovedBlocks, 2);
+  assert.ok(graph.integrityRemovalReasons.includes('invalid_envelope'));
+  assert.ok(graph.integrityRemovalReasons.every(reason => GRAPHRAG_INTEGRITY_REMOVAL_REASONS.includes(reason)));
+  assert.equal(graph.referenceGuardrailsComplete, false);
+  assert.equal(graph.parseStatus, 'absent');
+  assert.equal(graph.injectionMode, 'none');
+  const usage = built.promptMeta.sourceUsage.graphRAG;
+  assert.equal(usage.skippedReason, 'reference_integrity_failed');
+  assert.equal(usage.used, false);
+  assert.equal(usage.passagesUsedInPrompt, 0);
+  assert.equal(usage.retainedPassageCount, 0);
+  assert.deepEqual(usage.passageIndices, []);
+  assert.deepEqual(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: [passage] } } }, built.promptMeta), []);
+  const estimator = createTokenEstimator({ env: promptEnv });
+  assert.equal(built.promptMeta.estimatedTokens.user, estimator.estimate(built.userPrompt));
+  assert.equal(built.promptMeta.estimatedTokens.total, estimator.estimate(built.systemPrompt) + estimator.estimate(built.userPrompt));
+  assert.deepEqual(built.memoryRetention.retainedSlots, [...parseMemoryBlocks(built.userPrompt).keys()]);
+  assert.deepEqual(built.memoryRetention.retainedSlots, ['memory-0']);
+  assert.doesNotMatch(JSON.stringify(built.promptMeta), /private-retained-note|Malformed internal reference summary/);
+});
+
+test('conditional guardrails only apply to references admitted by the final passage cap', t => {
+  quiet(t);
+  const [sun] = collectPassageCandidates({ singleMajorNumber: 19, totalMajors: 1 });
+  const [star] = collectPassageCandidates({ singleMajorNumber: 17, totalMajors: 1 });
+  const built = buildEnhancedClaudePrompt({
+    spreadInfo: { key: 'general', name: 'Custom Spread' },
+    cardsInfo: [card, { card: 'The Star', number: 17, position: 'Next', orientation: 'Upright', meaning: 'Hope.' }],
+    themes: {}, promptBudgetEnv: env,
+    graphRAGPayload: { passages: [sun, { ...star, belowRelevanceThreshold: true, relevanceScore: 0.1 }], maxPassages: 1 }
+  });
+  assert.match(built.userPrompt, /<reference>/);
+  assert.doesNotMatch(built.userPrompt, /WEAK QUESTION MATCH:/);
+  assert.equal(built.promptMeta.graphRAG.referenceGuardrailsComplete, true);
+  assert.equal(built.promptMeta.graphRAG.integrityRemovedBlocks, 0);
+  assert.deepEqual(built.promptMeta.sourceUsage.graphRAG.passageIndices, [0]);
+});
 
 test('budget ranking retains the exact passages rather than the first retrieved entries', t => {
   quiet(t);
