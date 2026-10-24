@@ -16,41 +16,43 @@ function assertClose(actual, expected, epsilon = 1e-12) {
   assert.ok(Math.abs(actual - expected) <= epsilon, `Expected ${actual} to be within ${epsilon} of ${expected}`);
 }
 
-test('composeRelevanceScore satisfies design contract boundary values and null semantic fallback', () => {
+test('composeRelevanceScore restores legacy threshold behavior and preserves lexical fallback', () => {
   assert.equal(typeof scoringModule.composeRelevanceScore, 'function', 'composeRelevanceScore must be exported');
   const { composeRelevanceScore } = scoringModule;
 
-  // Design contract examples: score = s + 0.3 * k * (1 - s)
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.4 }), 0.4);
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.2 }), 0.2);
+  // Qualified rollback: score = 0.3 * k + 0.7 * s; F3b remains unresolved.
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.4 }), 0.28);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.2 }), 0.14);
   assertClose(composeRelevanceScore({ keywordScore: 1, semanticScore: 0.4 }), 0.58);
   assertClose(composeRelevanceScore({ keywordScore: 1, semanticScore: -0.2 }), 0.16);
 
   // Immediately around the 0.3 threshold
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.299 }), 0.299);
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.3 }), 0.3);
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.301 }), 0.301);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.427 }), 0.2989);
+  assertClose(composeRelevanceScore({ keywordScore: 0.3, semanticScore: 0.3 }), 0.3);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 0.429 }), 0.3003);
 
   // Negative cosine and perfect similarity
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: -0.5 }), -0.5);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: -0.5 }), -0.35);
   assertClose(composeRelevanceScore({ keywordScore: 1, semanticScore: -1 }), -0.4);
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 1 }), 1);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: 1 }), 0.7);
   assertClose(composeRelevanceScore({ keywordScore: 1, semanticScore: 1 }), 1);
 
   // Floating-point excursion clamping
-  assertClose(composeRelevanceScore({ keywordScore: 0.5, semanticScore: 1.0000000000000004 }), 1);
-  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: -1.0000000000000004 }), -1);
+  assertClose(composeRelevanceScore({ keywordScore: 0.5, semanticScore: 1.0000000000000004 }), 0.85);
+  assertClose(composeRelevanceScore({ keywordScore: 0, semanticScore: -1.0000000000000004 }), -0.7);
 
   // Null or omitted semanticScore returns lexical score
   assertClose(composeRelevanceScore({ keywordScore: 0.625, semanticScore: null }), 0.625);
   assertClose(composeRelevanceScore({ keywordScore: 0.625 }), 0.625);
+  assertClose(composeRelevanceScore({ keywordScore: 0.625, semanticScore: NaN }), 0.625);
+  assertClose(composeRelevanceScore({ keywordScore: 0.625, semanticScore: Infinity }), 0.625);
 });
 
-test('scorePassageRelevance uses semantic-primary default composition and preserves explicit custom weights', async (t) => {
+test('scorePassageRelevance uses the restored default and preserves explicit custom weights', async (t) => {
   clearEmbeddingCache();
   t.after(clearEmbeddingCache);
 
-  // Zero lexical overlap, cosine = 0.4 -> 0.4 under default policy
+  // Zero lexical overlap, cosine = 0.4 -> 0.28 under the restored default.
   const zeroOverlapEnv = {
     AI: {
       run: async (_model, { text }) => ({
@@ -63,18 +65,18 @@ test('scorePassageRelevance uses semantic-primary default composition and preser
     '悲しみのあとの再生',
     { enableSemanticScoring: true, env: zeroOverlapEnv }
   );
-  assertClose(defaultScore, 0.4, 1e-6);
+  assertClose(defaultScore, 0.28, 1e-6);
 
-  // Explicit custom weights preserve weighted linear combination: 0.3 * 0 + 0.7 * 0.4 = 0.28
+  // Explicit non-default weights remain independent of the default policy.
   const customWeightedScore = await scorePassageRelevance(
     'The Star offers quiet renewal after grief.',
     '悲しみのあとの再生',
-    { enableSemanticScoring: true, keywordWeight: 0.3, semanticWeight: 0.7, env: zeroOverlapEnv }
+    { enableSemanticScoring: true, keywordWeight: 0.8, semanticWeight: 0.2, env: zeroOverlapEnv }
   );
-  assertClose(customWeightedScore, 0.28, 1e-6);
+  assertClose(customWeightedScore, 0.08, 1e-6);
 });
 
-test('retrievePassagesWithQuality admits a cosine 0.4 zero-lexical-overlap candidate above the 0.3 threshold while keeping negative cosine weak', async (t) => {
+test('retrievePassagesWithQuality keeps cosine 0.4 zero-overlap and negative-cosine candidates on the weak floor', async (t) => {
   clearEmbeddingCache();
   t.after(clearEmbeddingCache);
 
@@ -94,8 +96,8 @@ test('retrievePassagesWithQuality admits a cosine 0.4 zero-lexical-overlap candi
     env
   });
   assert.equal(selected.length, 1);
-  assertClose(selected[0].relevanceScore, 0.4, 1e-6);
-  assert.notEqual(selected[0].belowRelevanceThreshold, true);
+  assertClose(selected[0].relevanceScore, 0.28, 1e-6);
+  assert.equal(selected[0].belowRelevanceThreshold, true);
 
   clearEmbeddingCache();
   const negativeEnv = {
@@ -153,7 +155,7 @@ test('verifyGraphRAGRelevance fails when evidence is missing or mismatched and r
     for (const c of candidates) {
       candidateMap[c.candidateId] = {
         promptTextHash: sha256Hex(c.promptText),
-        cosine: relevantSet.has(c.candidateId) ? 0.42 : 0.18
+        cosine: relevantSet.has(c.candidateId) ? 0.5 : 0.18
       };
     }
     cosinesByCase[fixture.id] = {
@@ -176,14 +178,16 @@ test('verifyGraphRAGRelevance fails when evidence is missing or mismatched and r
   assert.equal(syntheticReport.status, 'passed');
   assert.equal(syntheticReport.acceptanceChecks.zeroOverlapPositivesPass, true);
   assert.deepEqual(syntheticReport.acceptanceChecks.newFalsePositives, []);
-  assert.ok(syntheticReport.macroByClass.multilingual_retrieval.candidateMacroRecall > syntheticReport.macroByClass.multilingual_retrieval.baselineMacroRecall);
+  assert.equal(syntheticReport.macroByClass.multilingual_retrieval.candidateMacroRecall, syntheticReport.macroByClass.multilingual_retrieval.baselineMacroRecall);
+  assert.equal(syntheticReport.policy.id, 'legacy-weighted-v1');
+  assert.equal(syntheticReport.policy.formula, '0.3 * k + 0.7 * s');
 
-  // If an unrelated fixture has cosine 0.41 on an irrelevant candidate, baseline rejects it (0.7*0.41=0.287 < 0.3) while candidate admits it (>=0.3), failing acceptance
+  // Restore rejection of the observed unrelated cosine floor (0.7*0.41=0.287).
   const counterexampleCosines = structuredClone(cosinesByCase);
   for (const entry of Object.values(counterexampleCosines.REL10.candidates)) {
     entry.cosine = 0.41;
   }
-  const failedAcceptance = evaluateGraphRAGRelevance({
+  const preservedAcceptance = evaluateGraphRAGRelevance({
     fixturesDoc,
     evidenceDoc: {
       model: '@cf/baai/bge-m3',
@@ -193,7 +197,18 @@ test('verifyGraphRAGRelevance fails when evidence is missing or mismatched and r
     },
     fixturesRaw
   });
-  assert.equal(failedAcceptance.ok, false);
-  assert.equal(failedAcceptance.status, 'failed_acceptance_criteria');
-  assert.ok(failedAcceptance.acceptanceChecks.newFalsePositives.length > 0);
+  assert.equal(preservedAcceptance.ok, true);
+  assert.deepEqual(preservedAcceptance.acceptanceChecks.newFalsePositives, []);
+  assert.equal(preservedAcceptance.perCase.find(row => row.id === 'REL10').candidate.strongSelectedIds.length, 0);
+
+  // A multilingual miss must still fail the original F3b gate after rollback.
+  for (const entry of Object.values(counterexampleCosines.REL02.candidates)) entry.cosine = 0.42;
+  const unresolved = evaluateGraphRAGRelevance({
+    fixturesDoc, fixturesRaw,
+    evidenceDoc: { model: '@cf/baai/bge-m3', caseOrder: fixturesDoc.cases.map(c => c.id), cosinesByCase: counterexampleCosines }
+  });
+  assert.equal(unresolved.ok, false);
+  assert.equal(unresolved.status, 'failed_acceptance_criteria');
+  assert.equal(unresolved.acceptanceChecks.zeroOverlapPositivesPass, false);
+  assert.deepEqual(unresolved.acceptanceChecks.recallRegressions, []);
 });

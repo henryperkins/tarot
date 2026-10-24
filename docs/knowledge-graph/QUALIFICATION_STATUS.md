@@ -1,5 +1,11 @@
 # Knowledge graph and context qualification status
 
+## October 24 Task 9 continuation — legacy scoring restored
+
+The owner approved restoring the legacy default, publishing the failed-attempt checkpoint `734fe475` with the rollback, and continuing the 24 paired subscription outputs and `ci:narrative-check`. Deployment and merge remain excluded. The default is now `0.3 * k + 0.7 * s` (`legacy-weighted-v1`), with the 0.3 threshold, lexical fallback, explicit custom weights and all other remediation changes retained. **F3b remains unresolved**; the original semantic-improvement acceptance gate is unchanged and a multilingual miss must still fail it.
+
+Continuation evidence is stored separately in `~/.cache/tarot-graphrag-remediation-20261024/task9-legacy-default/`. The original Task 9 evidence and failed policy remain historical. Qualification of the revised source is in progress; this section does not claim generated-output acceptance or release readiness.
+
 ## October 24 GraphRAG Task 9 live qualification
 
 The owner authorized Task 9 except deployment ("push it, and run Task 9 except the deploy"). The four Task 7–8 commits were pushed first (`a3c115c0..aba419cf`). Live lanes ran against git exports of baseline `7cd329a5` and candidate `aba419cf`, verified blob by blob (3,456 and 3,467 tracked files). Evidence, tools, the attempt budget declared before the first live call, and a hashed manifest are in `~/.cache/tarot-graphrag-remediation-20261024/task9/`. The work made **73 Workers AI embedding requests** (2 failed: an expired OAuth access token, and a deliberate invalid-token check of the failure record), **zero narrative generations** and **zero paid-API calls**. Deployment, live production verification and Modal Qwen generation were excluded.
@@ -78,7 +84,7 @@ These checks do not supply real embedding relevance evidence, generated-reading 
 
 ### Task 4: Semantic-primary scoring and fallback qualification status
 
-- **Default relevance composition:** `composeRelevanceScore({ keywordScore, semanticScore = null })` in `functions/lib/graphRAGScoring.js`, implementing `score = s + 0.3 * k * (1 - s)` (`RELEVANCE_SCORING_POLICY_ID = 'semantic-primary-corroborated-v1'`) for valid semantic vectors (`s` clamped to `[-1, 1]`, `k` in `[0, 1]`), returning `k` when `semanticScore` is null or non-finite.
+- **Rejected composition, through `734fe475`:** `score = s + 0.3 * k * (1 - s)` (`semantic-primary-corroborated-v1`). The owner-approved continuation restores `0.3 * k + 0.7 * s` (`legacy-weighted-v1`) in `composeRelevanceScore()`, with the same clamping and null/non-finite lexical fallback. This rollback does not resolve F3b.
 - **Explicit custom-weight compatibility:** `scorePassageRelevance()` retains `keywordScore * keywordWeight + semanticScore * semanticWeight` when `keywordWeight` or `semanticWeight` is explicitly supplied by a caller.
 - **Threshold and lexical version:** `DEFAULT_RELEVANCE_THRESHOLD = 0.3`; `LEXICAL_NORMALIZATION_VERSION = 'graphrag-lexical-v1'`; `PROJECTION_VERSION = 'meaning-v1/partial-meaning-v1'`.
 - **Frozen relevance corpus:** `tests/fixtures/graph-rag-relevance-cases.json` (`REL01`–`REL10`, covering `relevant_paraphrase`, `multilingual_retrieval`, `short_word_plural`, `exact_context_unrelated`, `negated_excluded_topic`, `mixed_topic`, `partial_triad`, `cross_deck_projection`, `common_word_collision`, and `unrelated_weak_floor`).

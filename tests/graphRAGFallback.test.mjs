@@ -92,7 +92,7 @@ describe('GraphRAG embedding failures', () => {
     available = true;
     for (let attempt = 0; attempt < 2; attempt++) {
       const score = await scorePassageRelevance(passage, userQuery, options);
-      assert.ok(Math.abs(score - 1.0) < 0.00001);
+      assert.ok(Math.abs(score - 0.85) < 0.00001);
       assert.deepEqual(semanticStatus, { attempted: true, succeeded: true });
     }
     const customWeighted = await scorePassageRelevance(passage, userQuery, {
