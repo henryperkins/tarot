@@ -1,13 +1,14 @@
 {
-  "generatedAt": "2026-10-10T04:57:53.110Z",
+  "generatedAt": "2026-10-24T08:39:28.001Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
-  "artifactsDirectory": "data/evaluations/runs/2026-10-10T04-57-53.109Z-Pvi8MF",
+  "artifactsDirectory": "data/evaluations/runs/2026-10-24T08-39-28.000Z-noaTxg",
   "totalSamples": 11,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
   "deterministicLanguageCount": 0,
   "missingAgencyCount": 0,
   "hallucinationCount": 0,
+  "undrawnCardAssertionCount": 0,
   "suitCountMismatchCount": 0,
   "harshToneCount": 0,
   "missingSupportiveToneCount": 0,
@@ -38,6 +39,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -50,7 +52,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 22,
+        "sentenceCount": 26,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -70,8 +72,8 @@
       "question": "How can I navigate the transition after leaving my hometown?",
       "spine": {
         "isValid": true,
-        "totalSections": 6,
-        "completeSections": 6,
+        "totalSections": 5,
+        "completeSections": 5,
         "incompleteSections": 0
       },
       "cardCoverage": 1,
@@ -80,6 +82,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -87,12 +90,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 4,
-        "matchedTermCount": 4,
-        "ratio": 1
+        "matchedTermCount": 3,
+        "ratio": 0.75
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 43,
+        "sentenceCount": 49,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -112,9 +115,9 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 6,
+        "totalSections": 5,
         "completeSections": 4,
-        "incompleteSections": 2
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -122,6 +125,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -164,6 +168,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -171,12 +176,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 3,
-        "matchedTermCount": 3,
-        "ratio": 1
+        "matchedTermCount": 2,
+        "ratio": 0.6666666666666666
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 42,
+        "sentenceCount": 38,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -197,8 +202,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 8,
-        "completeSections": 6,
-        "incompleteSections": 2
+        "completeSections": 7,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -206,6 +211,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -218,7 +224,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 73,
+        "sentenceCount": 72,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -239,8 +245,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 9,
-        "completeSections": 7,
-        "incompleteSections": 2
+        "completeSections": 8,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -248,6 +254,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -255,12 +262,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 7,
-        "matchedTermCount": 7,
-        "ratio": 1
+        "matchedTermCount": 6,
+        "ratio": 0.8571428571428571
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 54,
+        "sentenceCount": 58,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -280,9 +287,9 @@
       "question": "What spiritual practice should I commit to this season to deepen my intuition?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 7,
-        "incompleteSections": 1
+        "totalSections": 5,
+        "completeSections": 5,
+        "incompleteSections": 0
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -290,6 +297,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -297,12 +305,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 6,
-        "matchedTermCount": 6,
-        "ratio": 1
+        "matchedTermCount": 5,
+        "ratio": 0.8333333333333334
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 41,
+        "sentenceCount": 39,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -332,6 +340,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -339,12 +348,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 7,
-        "matchedTermCount": 6,
-        "ratio": 0.8571428571428571
+        "matchedTermCount": 7,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 48,
+        "sentenceCount": 55,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -364,9 +373,9 @@
       "question": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 5,
-        "incompleteSections": 3
+        "totalSections": 7,
+        "completeSections": 6,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -374,6 +383,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -381,12 +391,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 8,
-        "matchedTermCount": 7,
-        "ratio": 0.875
+        "matchedTermCount": 8,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 39,
+        "sentenceCount": 35,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -416,6 +426,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -428,7 +439,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 72,
+        "sentenceCount": 71,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -449,8 +460,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 7,
-        "completeSections": 5,
-        "incompleteSections": 2
+        "completeSections": 4,
+        "incompleteSections": 3
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -458,6 +469,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -465,12 +477,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 5,
-        "matchedTermCount": 4,
-        "ratio": 0.8
+        "matchedTermCount": 5,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 43,
+        "sentenceCount": 40,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
