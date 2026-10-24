@@ -52,24 +52,34 @@ export async function onRequestGet(context) {
       });
     }
 
-    const requestedOffset = Number(new URL(request.url).searchParams.get('offset'));
-    const offset = Number.isSafeInteger(requestedOffset) && requestedOffset > 0 ? requestedOffset : 0;
+    const rawCursor = new URL(request.url).searchParams.get('cursor');
+    let cursor = null;
+    if (rawCursor !== null) {
+      try { cursor = JSON.parse(rawCursor); } catch { /* Validated below. */ }
+      if (!Array.isArray(cursor) || cursor.length !== 2 || !Number.isSafeInteger(cursor[0]) || cursor[0] < 0
+        || typeof cursor[1] !== 'string' || !cursor[1] || cursor[1].length > 128) {
+        return Response.json({ error: 'Invalid share-list cursor' }, { status: 400 });
+      }
+    }
     const pageSize = 50;
+    const cursorClause = cursor ? ' AND (st.created_at < ? OR (st.created_at = ? AND st.token < ?))' : '';
+    const cursorParams = cursor ? [cursor[0], cursor[0], cursor[1]] : [];
     const result = await env.DB.prepare(`
       SELECT st.token, st.scope, st.title, st.created_at, st.expires_at, st.view_count, st.meta_json,
              (SELECT COUNT(*) FROM share_token_entries ste WHERE ste.token = st.token) AS entry_count
       FROM share_tokens st
-      WHERE st.user_id = ?
+      WHERE st.user_id = ?${cursorClause}
       ORDER BY st.created_at DESC, st.token DESC
-      LIMIT ? OFFSET ?
-    `).bind(user.id, pageSize + 1, offset).all();
+      LIMIT ?
+    `).bind(user.id, ...cursorParams, pageSize + 1).all();
 
     const rows = (result.results || []).slice(0, pageSize);
     const entryIdsByToken = await loadShareEntryIds(env.DB, rows.map((row) => row.token));
     const shares = rows.map((row) => buildShareResponseRow(row, entryIdsByToken.get(row.token) || []));
 
-    const nextOffset = result.results?.length > pageSize ? offset + pageSize : null;
-    return new Response(JSON.stringify({ shares, nextOffset }), {
+    const last = rows.at(-1);
+    const nextCursor = result.results?.length > pageSize ? JSON.stringify([last.created_at, last.token]) : null;
+    return new Response(JSON.stringify({ shares, nextCursor }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });

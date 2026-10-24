@@ -31,9 +31,10 @@ export function useJournalSharing(isAuthenticated, userId = null) {
     setShareError('');
     try {
       const links = [];
-      let offset = 0;
+      let cursor = null;
+      const visited = new Set();
       do {
-        const response = await fetch(offset ? `/api/share?offset=${offset}` : '/api/share', { credentials: 'include', signal });
+        const response = await fetch(cursor ? `/api/share?${new URLSearchParams({ cursor })}` : '/api/share', { credentials: 'include', signal });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.error || 'Unable to load share links');
@@ -41,11 +42,12 @@ export function useJournalSharing(isAuthenticated, userId = null) {
         const payload = await response.json();
         if (!isCurrent()) return;
         links.push(...(Array.isArray(payload.shares) ? payload.shares : []));
-        const next = payload.nextOffset;
+        const next = payload.nextCursor;
         if (next == null) break;
-        if (!Number.isSafeInteger(next) || next <= offset) throw new Error('Unable to load older share links. Try again.');
-        offset = next;
-      } while (offset > 0);
+        if (typeof next !== 'string' || !next || visited.has(next)) throw new Error('Unable to load older share links. Try again.');
+        visited.add(next);
+        cursor = next;
+      } while (cursor);
       setShareLinks(links);
     } catch (error) {
       if (!isCurrent() || error?.name === 'AbortError') return;

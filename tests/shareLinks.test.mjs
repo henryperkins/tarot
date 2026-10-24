@@ -81,18 +81,32 @@ test('every owner link remains reachable across pages, including tied timestamps
       .bind(token).run();
   }
   const all = [];
-  let offset = 0;
+  let cursor = null;
   do {
-    const response = await listShares({ request: request(`/api/share?offset=${offset}`), env });
+    const response = await listShares({ request: request(cursor ? `/api/share?${new URLSearchParams({ cursor })}` : '/api/share'), env });
     assert.equal(response.status, 200);
     const page = await response.json();
     assert.ok(page.shares.length <= 50);
     all.push(...page.shares);
-    offset = page.nextOffset;
-  } while (offset != null);
+    cursor = page.nextCursor;
+  } while (cursor != null);
   assert.equal(all.length, 55);
   assert.equal(new Set(all.map(link => link.token)).size, 55);
   assert.ok(all.every(link => link.entryIds[0] === 'entry-a'));
+});
+
+test('deleting a first-page link between page requests does not hide an older link', async (t) => {
+  const { db, env } = await fixture(t);
+  for (let index = 0; index < 51; index += 1) {
+    const token = `concurrent-${String(index).padStart(3, '0')}`;
+    await db.prepare("INSERT INTO share_tokens (token, user_id, scope, created_at) VALUES (?, 'owner', 'entry', 1790000000)")
+      .bind(token).run();
+    await db.prepare("INSERT INTO share_token_entries (token, entry_id, sort_index) VALUES (?, 'entry-a', 0)").bind(token).run();
+  }
+  const first = await (await listShares({ request: request('/api/share'), env })).json();
+  await db.prepare("DELETE FROM share_tokens WHERE token = 'concurrent-050'").run();
+  const second = await (await listShares({ request: request(`/api/share?${new URLSearchParams({ cursor: first.nextCursor })}`), env })).json();
+  assert.deepEqual(second.shares.map(link => link.token), ['concurrent-000']);
 });
 
 test('the owner renames a link; a blank title restores the default', async (t) => {

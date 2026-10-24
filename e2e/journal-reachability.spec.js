@@ -465,7 +465,7 @@ test('the share manager reaches and revokes a link beyond the first page', async
     await links.getByRole('button', { name: 'Delete link', exact: true }).click();
     await expect(links.getByRole('listitem')).toHaveCount(51);
     expect(fixture.db.rows("SELECT token FROM share_tokens WHERE token = 'page-000'")).toEqual([]);
-    expect(fixture.requests.some(request => request.path === '/api/share' && request.search === '?offset=50')).toBe(true);
+    expect(fixture.requests.some(request => request.path === '/api/share' && new URLSearchParams(request.search).has('cursor'))).toBe(true);
   } finally { await fixture.close(); }
 });
 
