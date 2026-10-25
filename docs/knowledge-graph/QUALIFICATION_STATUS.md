@@ -1,12 +1,25 @@
 # Knowledge graph and context qualification status
 
-## October 24 grounding and evaluator remediation — qualification in progress
+## Grounding and evaluator remediation — scoped qualification complete
 
 The owner explicitly requested fixing the F1 relevance regression, grounding failures and both evaluator false positives, retaining F3b as unresolved, reusing valid saved outputs and rerunning necessary subscription qualification. This request supersedes the earlier S02/S09 waiver for the current work; the historical ruling remains below. Deployment is excluded.
 
-The existing F1 lexical-support and evaluator corrections are retained. The first correction, prompt 1.6.1 on `5931882d`, passed 5,885 root tests with two skips, but **failed actual-output review**: S06's closing and S07's synthesis still assumed unsupplied endings. Both owned generation processes were stopped; 18 attempts, 16 completions and two cancellations are recorded, with nine candidate texts preserved. The standard runner had not checkpointed its seven completed texts. Nothing from that attempt is silently substituted or called qualified.
+The requested corrections pass scoped qualification on **runtime `f9e33903101b8c93a6df9acc137e65e1a76c7d0a`, prompt 1.6.2**. The [completed execution record](GRAPHRAG_GROUNDING_REMEDIATION_2026-10-25.md) includes the failed intermediate source, exact output reuse, subscription attempts, every case judgment and checks. **F3b remains unresolved**: the original semantic-improvement predicate still fails for REL02 and was not weakened. This does not claim all GraphRAG findings resolved or establish release readiness.
 
-Prompt 1.6.2 explicitly rejects presupposed events in questions and metaphors, requires conditions to remain local, grounds closings in supplied facts or next actions, and separates recovery reflection from treatment/monitoring schedules. Two more regressions first failed and then passed; all 89 targeted framing, retention and compliance tests pass without changing production caps. Confirmation is pending in `~/.cache/tarot-graphrag-remediation-20261024/task9-grounding-confirmation/`; the failed 1.6.1 evidence remains separate in `task9-grounding-remediation/`.
+| Lane | Result |
+| --- | --- |
+| F1 actual-source replay and valid three-card REL04 request preparation | Zero new strong false positives, no relevant-hit loss, no removed original candidates; REL03 retains its gain of one relevant hit. The supplemental-Major filter excludes unsupported Lovers from the strong selection without changing its numeric score formula. |
+| Grounding confirmation | All **14 new candidate readings** reviewed, including all twelve original pairs and two supplied-fact controls. Past-event conditions survive synthesis/closing; no invented recovery duration or change to clinical monitoring identified. Useful card relationships, positions/reversals, deck conventions and reader constraints remain. |
+| Required `npm run ci:narrative-check` | **Exit 0**, all eleven fresh standard outputs, zero flags, complete spine/card coverage; downstream prompt assembly also passes. All eleven complete outputs were manually reviewed. |
+| Evaluator correction / reuse | The **12 exact baseline outputs** and **11 previous standard outputs** pass corrected gates with zero new model calls. Baseline reuse checks both prompt hashes and original output digests. Positive guarantee and separate undrawn-card controls remain covered. |
+| Root / Worker / assembly | **5,887 root passed / two intentional skips**, 64 Worker tests, 874 existing assembly fixtures / 2,541 provider builds plus remediation 23 / 69. Lint, build and documentation checks pass. Suites overlap and are not additive. |
+| Editorial | All 1,167 variant texts and identities unchanged; 282 version labels and 46 dependent group hashes refreshed for 1.6.2. All 191 prior agent-accepted groups remain accepted; no new human approval or enrichment activation. |
+
+The first correction, **1.6.1 / `5931882d`**, failed actual-output review despite passing its local tests. S06's closing and S07's synthesis still assumed unsupplied endings. Both owned inference processes were stopped, preserving 18 starts, 16 completions and two cancellations. Nine candidate texts persisted; the standard batch had not checkpointed its seven completed texts. The final confirmation then completed **25/25 outputs on 25 attempts**, with no failure or retry. Across this request: **43 observed subscription attempts**, below the declared 50-attempt task ceiling; **zero paid API calls and zero new live embedding requests**. Successful old outputs were never silently replaced under the same source.
+
+Verification commit `1344b185` changes only two test files relative to the frozen runtime: assertions now check the revised agency wording and its supplied-fact closing guard. All 861 runtime/config files compared against the frozen manifest match. Frozen case bytes, production caps, summary budgets and relevance thresholds are unchanged.
+
+Final evidence is in `~/.cache/tarot-graphrag-remediation-20261024/task9-grounding-confirmation/`; the failed 1.6.1 attempt remains in `task9-grounding-remediation/`. Both are preserved in the verified archive `~/tableu-evidence-archive/graphrag-grounding-remediation-2026-10-25/`. No merge, deployment or production verification was performed by this task.
 
 ## October 24 F1 continuation — blockers closed
 
