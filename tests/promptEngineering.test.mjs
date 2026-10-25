@@ -789,7 +789,8 @@ describe('truncateUserPromptSafely', () => {
 
     assert.ok(prompt.includes('Copy each provided card name exactly as written above at least once'));
     assert.ok(prompt.includes('do not translate, localize, rename, or substitute card names'));
-    assert.ok(prompt.includes('explicit sentence that says the querent\'s choices or decisions shape outcomes'));
+    assert.ok(prompt.includes('explicit sentence about the querent\'s choices shaping outcomes'));
+    assert.ok(prompt.includes('never treat card-implied events as completed'));
     assert.ok(prompt.includes('Never write “you should” or “you must”'));
   });
 
