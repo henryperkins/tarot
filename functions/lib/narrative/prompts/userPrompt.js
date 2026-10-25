@@ -303,7 +303,7 @@ export function buildUserPrompt(
 - Use the current question and reflections as the throughline; use saved interests only when relevant or when current context is absent
 - Treat personal history and timing as established only when supplied by the querent; keep other interpretations conditional through the closing
 - ${preferenceContract.nextStepGuidance}${lengthBand ? `\n- LENGTH: Aim for ~${lengthBand.min}-${lengthBand.max} words total, including any recap.` : ''}
-- Close with one explicit sentence that says the querent's choices or decisions shape outcomes; use the response language and never imply fixed fate
+- Close with an explicit sentence about the querent's choices shaping outcomes, using supplied facts or next actions; never treat card-implied events as completed. Use the response language, without fixed fate
 - Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers
 - Apply the reversal lens consistently throughout`;
 

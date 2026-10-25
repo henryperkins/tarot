@@ -4,7 +4,9 @@
 
 The owner explicitly requested fixing the F1 relevance regression, grounding failures and both evaluator false positives, retaining F3b as unresolved, reusing valid saved outputs and rerunning necessary subscription qualification. This request supersedes the earlier S02/S09 waiver for the current work; the historical ruling remains below. Deployment is excluded.
 
-The existing F1 lexical-support and evaluator corrections are retained. Prompt 1.6.1 now distinguishes a Past position from personal history throughout synthesis, recaps and closing, and labels card pacing as symbolic without deriving recovery durations or prognoses. Seven new provider-input regressions first failed and then passed; the focused 174-test set passes. Current-source subscription qualification remains pending. New evidence is isolated at `~/.cache/tarot-graphrag-remediation-20261024/task9-grounding-remediation/`; earlier evidence is preserved.
+The existing F1 lexical-support and evaluator corrections are retained. The first correction, prompt 1.6.1 on `5931882d`, passed 5,885 root tests with two skips, but **failed actual-output review**: S06's closing and S07's synthesis still assumed unsupplied endings. Both owned generation processes were stopped; 18 attempts, 16 completions and two cancellations are recorded, with nine candidate texts preserved. The standard runner had not checkpointed its seven completed texts. Nothing from that attempt is silently substituted or called qualified.
+
+Prompt 1.6.2 explicitly rejects presupposed events in questions and metaphors, requires conditions to remain local, grounds closings in supplied facts or next actions, and separates recovery reflection from treatment/monitoring schedules. Two more regressions first failed and then passed; all 89 targeted framing, retention and compliance tests pass without changing production caps. Confirmation is pending in `~/.cache/tarot-graphrag-remediation-20261024/task9-grounding-confirmation/`; the failed 1.6.1 evidence remains separate in `task9-grounding-remediation/`.
 
 ## October 24 F1 continuation — blockers closed
 

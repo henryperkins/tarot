@@ -99,4 +99,17 @@ describe('personal history and symbolic pacing at the provider boundary', () => 
     assert.match(result.text, /(?:recovery duration|recovery timescale|prognosis)/i);
     assert.match(result.text, /conditional[^\n]*(?:recap|closing)/i);
   });
+
+  it('rejects event presuppositions in metaphors and questions instead of trusting an opening hedge', () => {
+    const { systemPrompt, userPrompt } = build();
+    assert.match(systemPrompt, /questions and metaphors|metaphors and questions/i);
+    assert.match(systemPrompt, /(?:retain|repeat)[^\n]*condition/i);
+    const footer = userPrompt.slice(userPrompt.indexOf(USER_PROMPT_INSTRUCTION_HEADER));
+    assert.match(footer, /Close[^\n]*(?:supplied facts|next actions)[^\n]*(?:completed|implied)/i);
+  });
+
+  it('keeps recovery reflection separate from treatment and monitoring schedules', () => {
+    const { systemPrompt } = build();
+    assert.match(systemPrompt, /(?:never|not)[^\n]*(?:treatment|care)[^\n]*monitoring schedules/i);
+  });
 });

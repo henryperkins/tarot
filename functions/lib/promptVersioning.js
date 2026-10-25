@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.1';
+export const READING_PROMPT_VERSION = '1.6.2';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.2',
+    date: '2026-10-24',
+    notes: 'Reject presupposed events in questions, metaphors and closing sentences.',
+    changes: [
+      'Keep conditions local to each reference to an unsupplied event; card-story metaphors cannot establish completed personal history.',
+      'Ground closing encouragement in supplied facts or next actions, and keep recovery reflection separate from treatment or monitoring schedules.',
+      'Preserve the failed 1.6.1 qualification; keep F3b unresolved.'
+    ]
+  },
   {
     version: '1.6.1',
     date: '2026-10-24',
