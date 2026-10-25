@@ -57,6 +57,74 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
     }
 
+    test('mobile Journal defers Journey and chart chunks until their disclosures request them', async ({ page }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      const cards = [
+        { position: 'Past', name: 'The Hermit', number: 9, orientation: 'Upright' },
+        { position: 'Present', name: 'Three of Cups', suit: 'Cups', orientation: 'Reversed' },
+        { position: 'Future', name: 'The Star', number: 17, orientation: 'Upright' }
+      ];
+      const entries = [0, 1, 2].map(index => ({
+        id: `startup-journal-${index}`,
+        readingResultId: `startup-result-${index}`,
+        ts: new Date(2026, 8 + index, 2).getTime(),
+        question: `How can I make room for reflection ${index}?`,
+        spread: 'Three-Card Story',
+        spreadKey: 'threeCard',
+        deckId: 'rws-1909',
+        context: 'self',
+        cards,
+        personalReading: 'Make space for a small pause before the next commitment.',
+        reflections: { Overall: 'A steadier pace is available.' }
+      }));
+      await page.addInitScript(value => {
+        localStorage.setItem('tarot-onboarding-complete', 'true');
+        localStorage.setItem('tarot_journal', JSON.stringify(value));
+      }, entries);
+      const requests = [];
+      page.on('request', request => {
+        const path = new URL(request.url()).pathname;
+        if (/\.js$/.test(path)) requests.push(path);
+      });
+      try {
+        await page.goto('/journal');
+        await expect(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true })).toBeVisible();
+        await expect(page.getByRole('article')).toHaveCount(3);
+        test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Chunk timing applies to the production build.');
+        await page.waitForTimeout(800);
+
+        const journeyChunks = () => requests.filter(path => /\/(?:JourneyContent|JourneyMobileSheet)-[^/]+\.js$/.test(path));
+        const chartChunks = () => requests.filter(path => /\/(?:AreaChart|CartesianChart|BarChart|CadenceChart|TrendSparkline)-[^/]+\.js$/.test(path));
+        expect(journeyChunks()).toEqual([]);
+        expect(chartChunks()).toEqual([]);
+
+        // Widening the analytics scope recomputes stats without requesting Journey code.
+        // The monthly cadence chart needs entries across at least two scoped months.
+        const practiceSummary = page.getByText('Practice snapshot', { exact: true }).first();
+        const practiceDetails = practiceSummary.locator('xpath=ancestor::details[1]');
+        await practiceSummary.click();
+        await expect(practiceDetails).toHaveAttribute('open');
+        await practiceDetails.getByRole('button', { name: 'All time', exact: true }).click();
+        expect(journeyChunks()).toEqual([]);
+        expect(chartChunks()).toEqual([]);
+
+        await page.getByText('Your reading journey', { exact: true }).click();
+        const region = page.locator('[aria-label="Journal insights and journey"]');
+        await expect(region).toBeVisible();
+        await expect.poll(() => journeyChunks().length).toBeGreaterThan(0);
+        await expect(region.getByRole('button', { name: /See Full Journey/ })).toBeVisible();
+        expect(chartChunks()).toEqual([]);
+
+        await region.getByRole('button', { name: /See Full Journey/ }).click();
+        const sheet = page.getByRole('dialog', { name: 'Your Reading Journey' });
+        await sheet.getByRole('tab', { name: 'Patterns', exact: true }).click();
+        await expect.poll(() => chartChunks().some(path => /\/(?:BarChart|CadenceChart)-/.test(path))).toBe(true);
+        await expect(sheet.getByText('Reading Rhythm', { exact: true })).toBeVisible();
+      } finally {
+        await fixture.close();
+      }
+    });
+
     test('a slow reading chunk loads only after drawing and preserves the pending draw', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       let release;

@@ -2,9 +2,10 @@
  * CadenceSection - Reading cadence sparkline/bar chart.
  */
 
-import { memo } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import { ChartLine } from '@phosphor-icons/react';
-import { CadenceChart } from '../../charts/CadenceChart';
+
+const CadenceChart = lazy(() => import('../../charts/CadenceChart'));
 
 // Use larger height on mobile for better touch interaction
 const CHART_HEIGHT_MOBILE = 72;
@@ -27,7 +28,17 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
         Reading Rhythm
       </p>
 
-      <CadenceChart data={data} height={chartHeight} />
+      <Suspense fallback={(
+        <div
+          className="flex items-center justify-center rounded-lg text-xs text-muted"
+          style={{ height: chartHeight }}
+          role="status"
+        >
+          Loading reading rhythm…
+        </div>
+      )}>
+        <CadenceChart data={data} height={chartHeight} />
+      </Suspense>
 
       <p className="mt-2 text-2xs text-muted/70">
         {total} readings over {data.length} months ({avg}/month avg)

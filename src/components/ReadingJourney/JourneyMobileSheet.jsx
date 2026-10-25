@@ -493,12 +493,12 @@ export default function JourneyMobileSheet({
           {/* Header */}
           <h2
             id="reading-journey-mobile-heading"
-            className="flex items-center gap-2 journal-eyebrow text-muted-high"
+            className="flex flex-wrap items-center gap-2 journal-eyebrow text-main"
           >
-            <Sparkle className="h-3 w-3" aria-hidden="true" />
-            Your Journey
+            <Sparkle className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>Your Journey</span>
             {scopeLabel && (
-              <span className={`${BADGE_LABEL_CLASS} rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
+              <span className={`${BADGE_LABEL_CLASS} max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2 py-0.5 text-muted-high`}>
                 Scope: {scopeLabel}
               </span>
             )}
@@ -532,15 +532,15 @@ export default function JourneyMobileSheet({
 
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
-            <p className="text-2xs text-muted">
+            <p className="inline-flex max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2.5 py-1 text-2xs text-muted">
               {formattedSeasonWindow}
             </p>
           )}
 
-          {/* Top Card Feature */}
+          {/* Top Card Feature: an opaque local surface keeps text off ambient glows. */}
           {totalReadings === 0 && <EmptyScopeNotice onScopeSelect={onScopeSelect} />}
           {topCard && (
-            <div className="rounded-xl bg-gradient-ambient p-4 border border-(--border-warm-light) text-center">
+            <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-center">
               <div className="text-2xl mb-1">🃏</div>
               <p className="text-lg font-serif text-main">{topCard.name}</p>
               <p className="text-xs text-muted-high">
@@ -556,7 +556,7 @@ export default function JourneyMobileSheet({
           )}
 
           {/* Stats row */}
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <div className="text-center">
               <p className="text-xl font-medium text-main">{totalReadings}</p>
               <p className="text-2xs text-muted">readings</p>

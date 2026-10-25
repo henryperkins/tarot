@@ -387,7 +387,7 @@ export default function JourneySidebar({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className={`${BADGE_LABEL_CLASS} ml-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
+              <span className={`${BADGE_LABEL_CLASS} ml-2 max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2 py-0.5 text-main`}>
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}

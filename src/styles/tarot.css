@@ -521,6 +521,28 @@ textarea,
   }
 }
 
+/* Keep the Journal constellation only while its fixed geometry can contain the text.
+   The history column caps near 680px at normal text, so the constellation stays while
+   the container exceeds 40em; enlarged text doubles the em threshold and the flex
+   rail wraps, so 200% text always lands on the wrapping flow layout instead. */
+.journal-summary__desktop {
+  container: journal-summary / inline-size;
+}
+
+.journal-summary__flow {
+  display: none;
+}
+
+@container journal-summary (max-width: 40em) {
+  .journal-summary__constellation {
+    display: none;
+  }
+
+  .journal-summary__flow {
+    display: grid;
+  }
+}
+
 /* Global mobile optimizations */
 body {
   overflow-x: hidden;

@@ -7,6 +7,16 @@ const entry = {
   question: 'What can I learn from this week?', personalReading: 'Make room for a fresh perspective.'
 };
 
+// The mobile Journey mounts only after its native disclosure is opened.
+async function openMobileJourney(page) {
+  const summary = page.locator('summary', { hasText: 'Your reading journey' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await summary.waitFor();
+  // getAttribute returns '' (falsy) for present boolean attributes; test for absence instead.
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
 async function checkArcanaBoundaries(page, row) {
   await row.evaluate(async element => {
     await document.fonts.ready;
@@ -126,6 +136,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       }, entry);
       try {
         await page.goto('/journal');
+        await openMobileJourney(page);
         const opener = page.getByRole('button', { name: 'See Full Journey', exact: false });
         await opener.press('Enter');
         const panel = page.getByRole('dialog', { name: 'Your Reading Journey', exact: true });
@@ -138,7 +149,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           expect(box.width).toBeGreaterThanOrEqual(43.99);
           expect(box.height).toBeGreaterThanOrEqual(43.99);
         }
-        const card = panel.getByRole('list', { name: 'Your top most frequently appearing cards' }).locator('li').first().locator('span.text-main');
+        const card = panel.getByRole('list', { name: 'Your top most frequently appearing cards' }).locator('li').first()
+          .locator('span.text-main').filter({ hasText: entry.cards[0].name });
         expect(await card.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
         const row = panel.getByRole('group', { name: 'Major Arcana 0 to 10', exact: true });
         await row.focus();
@@ -177,6 +189,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.goto('/journal');
           let surface = page.locator('aside');
           if (width < 1024) {
+            await openMobileJourney(page);
             surface = page.getByRole('region', { name: 'Journal insights and journey', exact: true });
           }
           const trigger = surface.getByRole('button', { name: 'About streak grace period', exact: true });

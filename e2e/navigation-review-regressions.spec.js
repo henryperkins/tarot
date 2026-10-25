@@ -243,11 +243,20 @@ test('a dock resize keeps a partially visible focused input above chrome', async
   await page.setViewportSize({ width: 390, height: 844 });
   await prepareNavigation(page, { populated: true });
   await page.goto('/journal');
-  // Its delayed panel sits above the search field. Establish the loaded layout
-  // before deliberately clipping the focused input for this resize regression.
+  // Load the deferred Journey before deliberately clipping the focused input
+  // so its layout has settled when the dock resize is measured.
+  await page.locator('summary', { hasText: 'Your reading journey' }).click();
   await page.getByRole('button', { name: 'See Full Journey', exact: false }).waitFor({ state: 'attached' });
   await settleNavigation(page);
   const search = page.locator('input[type="search"]');
+  // Keep the clipping precondition independent of where the Journey sits in
+  // the page: an input near the document top cannot scroll below the viewport.
+  await page.locator('main').evaluate(main => {
+    const spacer = document.createElement('div');
+    spacer.style.height = `${innerHeight}px`;
+    spacer.setAttribute('aria-hidden', 'true');
+    main.prepend(spacer);
+  });
   await search.focus(); await settleNavigation(page);
   const before = await search.evaluate(element => {
     scrollTo({ top: scrollY + element.getBoundingClientRect().top - innerHeight + 15, behavior: 'instant' });
@@ -266,6 +275,7 @@ test('a dock resize preserves deliberate scrolling away from a focused page inpu
   await page.setViewportSize({ width: 390, height: 844 });
   await prepareNavigation(page, { populated: true });
   await page.goto('/journal');
+  await page.locator('summary', { hasText: 'Your reading journey' }).click();
   await page.getByRole('button', { name: 'See Full Journey', exact: false }).waitFor({ state: 'attached' });
   await settleNavigation(page);
   const search = page.locator('input[type="search"]');

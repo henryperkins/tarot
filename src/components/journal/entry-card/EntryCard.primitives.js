@@ -110,7 +110,7 @@ export const styles = {
     'focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) shrink-0',
 
   actionButton:
-    'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ' +
+    'inline-flex min-h-touch items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ' +
     'transition focus-visible:outline-hidden focus-visible:ring-2 ' +
     'focus-visible:ring-(--focus-ring-color)',
 

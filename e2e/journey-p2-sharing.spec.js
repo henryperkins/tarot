@@ -50,8 +50,19 @@ async function prepare(page, { tier = 'free', guest = false, local = [localEntry
   return { db, posts, async close() { await page.close(); db.sqlite.close(); expect(errors).toEqual([]); } };
 }
 
+// The mobile Journey mounts only after its native disclosure is opened.
+async function openMobileJourney(page) {
+  const summary = page.locator('summary', { hasText: 'Your reading journey' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await summary.waitFor();
+  // getAttribute returns '' (falsy) for present boolean attributes; test for absence instead.
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
 async function openSection(page, name, mobile) {
   if (mobile) {
+    await openMobileJourney(page);
     await page.getByRole('button', { name: 'See Full Journey', exact: false }).click();
     await page.getByRole('tab', { name: name === 'AI Summary' ? 'Summary' : 'Export', exact: true }).click();
     return page.getByRole('tabpanel');
@@ -69,7 +80,11 @@ for (const mobile of [false, true]) {
         if (source === 'AI summary') {
           const panel = await openSection(page, 'AI Summary', mobile);
           await panel.getByRole('button', { name: 'Upgrade to Plus', exact: true }).click();
-        } else await page.getByRole('button', { name: 'Upgrade to Cloud Journal', exact: true }).click();
+        } else {
+          // The status banner explains cloud eligibility inside its sync disclosure.
+          await page.locator('summary', { hasText: 'Storage and sync' }).click();
+          await page.getByRole('button', { name: 'View cloud journal plans', exact: true }).click();
+        }
         await expect(page).toHaveURL(/\/pricing$/);
         await expect(page.getByRole('heading', { name: 'Keep every reading grounded and growing', exact: true })).toBeVisible();
         await expect(page.getByRole('heading', { name: 'Choose your path', exact: true })).toBeVisible();
@@ -77,16 +92,14 @@ for (const mobile of [false, true]) {
     });
   }
 
-  test(`Free local readings disable cloud links and retain summary/CSV sharing (${mobile ? 'mobile' : 'desktop'})`, async ({ page }) => {
+  test(`Free local readings keep cloud links unavailable and retain summary/CSV sharing (${mobile ? 'mobile' : 'desktop'})`, async ({ page }) => {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     const fixture = await prepare(page);
     try {
       const panel = await openSection(page, 'Export & Share', mobile);
-      const create = panel.getByRole('button', { name: 'Create Share Link', exact: true });
-      await expect(create).toBeDisabled();
-      await expect(panel.getByText(/These readings are stored locally only/)).toBeVisible();
-      await panel.locator('input[name="shareScope"][value="scope"]').check();
-      await expect(create).toBeDisabled();
+      // Cloud share controls require the cloud capability; device-only sharing copies a summary.
+      await expect(panel.getByRole('button', { name: 'Create Share Link', exact: true })).toHaveCount(0);
+      await expect(panel.locator('input[name="shareScope"]')).toHaveCount(0);
       await panel.getByRole('button', { name: 'Copy summary', exact: true }).click();
       await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('Entries: 1');
       const pending = page.waitForEvent('download');
@@ -95,8 +108,7 @@ for (const mobile of [false, true]) {
       if (mobile) await page.getByRole('button', { name: 'Close journey panel', exact: true }).click();
       await page.getByRole('searchbox', { name: 'Search journal entries', exact: true }).fill('Device-only');
       const filteredPanel = mobile ? await openSection(page, 'Export & Share', true) : panel;
-      await filteredPanel.locator('input[name="shareScope"][value="filters"]').check();
-      await expect(filteredPanel.getByRole('button', { name: 'Create Share Link', exact: true })).toBeDisabled();
+      await expect(filteredPanel.getByRole('button', { name: 'Create Share Link', exact: true })).toHaveCount(0);
       expect(fixture.posts).toEqual([]);
       expect(fixture.db.rows('SELECT * FROM share_tokens')).toEqual([]);
     } finally { await fixture.close(); }
@@ -107,25 +119,26 @@ test('local ID whitespace cannot turn a Free reading into a shareable cloud ID',
   const fixture = await prepare(page, { local: [localEntry('  local-imported  ')] });
   try {
     const panel = await openSection(page, 'Export & Share', false);
-    await expect(panel.getByRole('button', { name: 'Create Share Link', exact: true })).toBeDisabled();
+    // Without the cloud capability no share controls are offered, so no ID can be posted.
+    await expect(panel.getByRole('button', { name: 'Create Share Link', exact: true })).toHaveCount(0);
     expect(fixture.posts).toEqual([]);
   } finally { await fixture.close(); }
 });
 
-test('a mixed local journal selects cloud IDs before applying the share limit', async ({ page }) => {
+test('a mixed local journal cannot create cloud share links without the cloud capability', async ({ page }) => {
   const local = [
     ...Array.from({ length: 6 }, (_, i) => localEntry(`local-${i}`, `Device-only ${i}`)),
     localEntry('cloud-1', 'Previous cloud reading'), localEntry('cloud-2', 'Another cloud reading'),
   ];
   const fixture = await prepare(page, { local, cloud: ['cloud-1', 'cloud-2'] });
   try {
+    // Cloud IDs only surface for cloud-capable tiers; this Free journal is device-only,
+    // so no share controls are offered and no share can be created at all.
     const panel = await openSection(page, 'Export & Share', false);
-    await panel.getByLabel('Max entries to share', { exact: true }).fill('1');
-    await panel.getByRole('button', { name: 'Create Share Link', exact: true }).click();
-    await expect(panel.getByRole('textbox', { name: 'Share link - tap to select and copy', exact: true })).toHaveValue(/\/share\/[a-f0-9]+$/);
-    expect(fixture.posts).toHaveLength(1);
-    expect(fixture.posts[0].entryIds).toEqual(['cloud-1']);
-    expect(fixture.db.rows('SELECT entry_id FROM share_token_entries ORDER BY sort_index')).toEqual([{ entry_id: 'cloud-1' }]);
+    await expect(panel.getByRole('button', { name: 'Create Share Link', exact: true })).toHaveCount(0);
+    expect(fixture.posts).toEqual([]);
+    expect(fixture.db.rows('SELECT * FROM share_tokens')).toEqual([]);
+    expect(fixture.db.rows('SELECT * FROM share_token_entries')).toEqual([]);
   } finally { await fixture.close(); }
 });
 

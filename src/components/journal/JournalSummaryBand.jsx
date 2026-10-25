@@ -4,7 +4,6 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { CaretDown } from '@phosphor-icons/react';
 import { getCanonicalCard } from '../../lib/cardLookup';
 import {
@@ -41,11 +40,11 @@ export function JournalSummaryBand({
   expandedCardIndex,
   onExpandedCardChange,
   onStartReading,
+  onSeeJourney,
   filtersActive,
   dataSource = 'client',
   embedded = false
 }) {
-  const prefersReducedMotion = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
   const sourceLabel = dataSource === 'server' ? 'Cloud journal' : 'This browser';
@@ -206,8 +205,8 @@ export function JournalSummaryBand({
         <div className="lg:hidden space-y-4">
           {isExpanded && (
             <>
-              {/* Stats row - 2 clean cards */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Stats reflow to one column when enlarged text needs more room. */}
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-3">
                 {summaryCardData.slice(0, 2).map((stat) => {
                   const icon = stat.id === 'entries'
                     ? <JournalCardsAddIcon className="h-4 w-4" aria-hidden />
@@ -215,13 +214,13 @@ export function JournalSummaryBand({
                   return (
                     <div
                       key={stat.id}
-                      className="rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
+                      className="min-w-0 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
                     >
                       <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-(--border-warm-subtle) text-accent">
                         {icon}
                       </div>
                       <p className="text-2xl font-serif text-main">{stat.value}</p>
-                      <p className="text-xs uppercase tracking-wide text-muted mt-1">{stat.label}</p>
+                      <p className="mt-1 wrap-break-word text-xs uppercase tracking-wide text-muted">{stat.label}</p>
                     </div>
                   );
                 })}
@@ -243,9 +242,9 @@ export function JournalSummaryBand({
                     aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
                     className="w-full rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) hover:border-(--border-warm) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       {/* Card thumbnail */}
-                      <div className="relative w-14 h-20 shrink-0 overflow-hidden rounded-lg border border-(--border-warm-light)">
+                      <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-(--border-warm-light)">
                         <img
                           src={card.image}
                           alt={card.name}
@@ -253,14 +252,14 @@ export function JournalSummaryBand({
                           loading="lazy"
                         />
                       </div>
-                      {/* Card info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs uppercase tracking-wide text-muted mb-0.5">Latest card</p>
-                        <p className="font-serif text-base text-main truncate">{card.name}</p>
-                        <p className="text-xs text-muted">{card.orientation} · {heroDateLabel}</p>
+                      {/* Card info wraps below the thumbnail at enlarged text sizes. */}
+                      <div className="min-w-0 flex-[1_1_8rem]">
+                        <p className="mb-0.5 text-xs uppercase tracking-wide text-muted">Latest card</p>
+                        <p className="wrap-break-word font-serif text-base text-main">{card.name}</p>
+                        <p className="wrap-break-word text-xs text-muted">{card.orientation} · {heroDateLabel}</p>
                       </div>
                       {/* Chevron indicator */}
-                      <div className={`shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
+                      <div className={`ms-auto shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
                         <CaretDown className="h-5 w-5" aria-hidden />
                       </div>
                     </div>
@@ -289,12 +288,7 @@ export function JournalSummaryBand({
             {isExpanded ? (
               <button
                 type="button"
-                onClick={() => {
-                  const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
-                  if (journeySection) {
-                    journeySection.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-                  }
-                }}
+                onClick={onSeeJourney}
                 className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-4 py-3 text-sm font-medium text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-light) hover:border-(--border-warm) sm:w-auto sm:flex-1"
               >
                 See Journey
@@ -314,7 +308,7 @@ export function JournalSummaryBand({
         </div>
 
         {/* Desktop: Keep expanded hero cards for larger screens */}
-        <div className="hidden lg:block">
+        <div className="journal-summary__desktop hidden lg:block">
           {heroEntry && heroCards.length > 0 && (
             <div className="mb-4 flex flex-wrap justify-center gap-2.5">
               {heroCards.map((card, index) => {
@@ -384,8 +378,8 @@ export function JournalSummaryBand({
             </div>
           )}
 
-          {/* Desktop: Constellation layout - only visible on large screens */}
-          <div className="relative" style={{ height: '340px' }}>
+          {/* Desktop: Preserve the constellation while its fixed geometry fits. */}
+          <div className="journal-summary__constellation relative" style={{ height: '340px' }}>
             {/* SVG constellation lines */}
             <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
               <defs>
@@ -680,6 +674,20 @@ export function JournalSummaryBand({
               );
             })}
           </div>
+
+          {/* Enlarged text and narrower desktop containers use an unclipped flow. */}
+          <dl className="journal-summary__flow grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4">
+            {statNodes.map((stat) => (
+              <div
+                key={stat.id}
+                className="min-w-0 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-4"
+              >
+                <dt className="wrap-break-word text-xs uppercase tracking-[0.16em] text-muted">{stat.label}</dt>
+                <dd className="mt-2 wrap-break-word font-serif text-2xl text-main">{stat.value}</dd>
+                {stat.hint && <dd className="mt-1 wrap-break-word text-xs leading-relaxed text-muted-high">{stat.hint}</dd>}
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </section>

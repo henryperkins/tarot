@@ -466,6 +466,59 @@ test('entry-associated original metadata lets local erasure retire an orphan han
   assert.equal(storage.getItem(`tarot_visual_resume:user:${owner}:${removed.readingResultId}`), null);
 });
 
+test('large history filtering indexes tombstone keys instead of reading one marker per entry', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-index-benchmark';
+  const entries = Array.from({ length: 1000 }, (_, index) => entry(`indexed-${index}`));
+  let markerReads = 0;
+  const getItem = storage.getItem;
+  storage.getItem = key => {
+    if (key.startsWith('tarot_deleted_journal_entry:')) markerReads += 1;
+    return getItem(key);
+  };
+  assert.equal(h.filterDeletedJournalEntries(namespace, entries, { storage }).length, 1000);
+  assert.equal(markerReads, 0, 'an empty tombstone index must not read every entry marker');
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:indexed-499`, '{}');
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, entries, { storage }).map(item => item.id),
+    entries.filter((_, index) => index !== 499).map(item => item.id)
+  );
+  assert.equal(markerReads, 0, 'marker keys supply the tombstone IDs without per-entry getItem calls');
+});
+
+test('deleted entries stay filtered when marker enumeration fails but exact reads remain available', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-enumeration-failed';
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:removed`, '{}');
+  storage.key = () => { throw new Error('Storage enumeration unavailable'); };
+
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, [entry('removed'), entry('keep')], { storage }).map(item => item.id),
+    ['keep']
+  );
+});
+
+test('deleted entries stay filtered when another tab removes a preceding key during enumeration', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-enumeration-shrank';
+  storage.setItem('unrelated-old-handle', '1');
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:removed`, '{}');
+  const key = storage.key;
+  storage.key = index => {
+    const current = key(index);
+    if (index === 0) storage.removeItem('unrelated-old-handle');
+    return current;
+  };
+
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, [entry('removed'), entry('keep')], { storage }).map(item => item.id),
+    ['keep']
+  );
+});
+
 test('confirmed cloud deletion with an unreadable retirement receipt reports cleanup uncertainty and preserves unknown aliases', async t => {
   const owner = 'entry-missing-retirement-receipt'; const { storage } = storageFixture(t); const removed = entry('missing-retirement-receipt'); const b = binding(removed.readingResultId);
   writeVisualResume({ namespace: visualStorageNamespace(owner), binding: b, resumeHandle: { visualBinding: b, visualJobToken: 'unknown-alias-secret' }, storage });

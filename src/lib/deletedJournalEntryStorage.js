@@ -18,6 +18,26 @@ function remember(map, namespace, id) {
   map.get(namespace).add(String(id));
 }
 function markerKey(prefix, namespace, id) { return `${prefix}${namespace}:${encodeURIComponent(String(id))}`; }
+// Indexing marker keys avoids one synchronous getItem per entry. Key scans see
+// tombstones written by this document or another tab without trusting values.
+// Incomplete scans keep the exact per-entry checks as a deletion fence.
+function rememberEntryMarkers(namespace, storage) {
+  const target = targetStorage(storage);
+  if (!target) return false;
+  const prefix = `${ENTRY_PREFIX}${namespace}:`;
+  try {
+    const length = target.length;
+    for (let index = 0; index < length; index += 1) {
+      const key = target.key(index);
+      if (key == null || target.length !== length) return false;
+      if (!key.startsWith(prefix)) continue;
+      try { remember(deletedEntries, namespace, decodeURIComponent(key.slice(prefix.length))); }
+      catch { /* Invalid marker keys cannot identify an entry. */ }
+    }
+    return target.length === length;
+  } catch { /* Memory markers still fence writes when storage is unavailable. */ }
+  return false;
+}
 function journalKeys(namespace) {
   const userId = userForNamespace(namespace);
   return userId ? [`tarot_journal_${userId}`, `tarot_journal_cache_${userId}`] : ['tarot_journal', 'tarot_journal_cache_anon'];
@@ -62,7 +82,13 @@ export function isDeletedJournalResult(namespace, resultId, { storage } = {}) {
 }
 export function filterDeletedJournalEntries(namespace, entries, { storage } = {}) {
   if (!Array.isArray(entries)) return [];
-  const filtered = entries.filter(entry => !isDeletedJournalEntry(namespace, entry?.id, { storage }));
+  if (isDeletedAccount(userForNamespace(namespace), { storage })) return [];
+  const indexed = rememberEntryMarkers(namespace, storage);
+  const deleted = deletedEntries.get(namespace);
+  if (indexed && !deleted?.size) return entries;
+  const filtered = entries.filter(entry => indexed
+    ? !deleted.has(String(entry?.id))
+    : !isDeletedJournalEntry(namespace, entry?.id, { storage }));
   return filtered.length === entries.length ? entries : filtered;
 }
 export function hasJournalEntryDeletions(namespace, { storage } = {}) {

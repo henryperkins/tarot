@@ -167,7 +167,11 @@ export default function Journal() {
   const [entryVisibility, setEntryVisibility] = useState({ filterSignature, count: VISIBLE_ENTRY_BATCH });
   const [monthJump, setMonthJump] = useState('');
   const [journeyReady, setJourneyReady] = useState(false);
+  const [hasOpenedMobileJourney, setHasOpenedMobileJourney] = useState(false);
   const summaryRef = useRef(null);
+  const mobileJourneyDetailsRef = useRef(null);
+  const mobileJourneySummaryRef = useRef(null);
+  const journeyScrollFrameRef = useRef(null);
   const searchInputRef = useRef(null);
   const highlightRequestRef = useRef(0);
   const filteredEntriesRef = useRef(filteredEntries);
@@ -498,6 +502,34 @@ export default function Journal() {
     };
   }, [hasEntries]);
 
+  useEffect(() => () => {
+    if (journeyScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(journeyScrollFrameRef.current);
+    }
+  }, []);
+
+  const handleMobileJourneyToggle = useCallback((event) => {
+    if (event.currentTarget.open) setHasOpenedMobileJourney(true);
+  }, []);
+
+  const handleSeeJourney = useCallback(() => {
+    const details = mobileJourneyDetailsRef.current;
+    if (!details) return;
+    details.open = true;
+    setHasOpenedMobileJourney(true);
+    mobileJourneySummaryRef.current?.focus({ preventScroll: true });
+    if (journeyScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(journeyScrollFrameRef.current);
+    }
+    journeyScrollFrameRef.current = window.requestAnimationFrame(() => {
+      journeyScrollFrameRef.current = null;
+      details.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+  }, [prefersReducedMotion]);
+
   const handleMigrate = async () => {
     setMigrating(true);
 
@@ -768,7 +800,7 @@ export default function Journal() {
     </div>
   ));
 
-  const mobileRailContent = (journeyReady && !loading && hasEntries && isMobileLayout) ? (
+  const mobileRailContent = (hasOpenedMobileJourney && !loading && hasEntries && isMobileLayout) ? (
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
@@ -1123,8 +1155,17 @@ export default function Journal() {
                 {hasEntries && (
                   <div className="space-y-4">
                     {isMobileLayout && (
-                      <details className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4">
-                        <summary className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)">Your reading journey</summary>
+                      <details
+                        ref={mobileJourneyDetailsRef}
+                        onToggle={handleMobileJourneyToggle}
+                        className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4"
+                      >
+                        <summary
+                          ref={mobileJourneySummaryRef}
+                          className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)"
+                        >
+                          Your reading journey
+                        </summary>
                         <div className="pt-3">{mobileRailContent}</div>
                       </details>
                     )}
@@ -1152,6 +1193,7 @@ export default function Journal() {
                             expandedCardIndex={expandedCardIndex}
                             onExpandedCardChange={setExpandedCardIndex}
                             onStartReading={handleStartReading}
+                            onSeeJourney={handleSeeJourney}
                             filtersActive={filtersActive}
                             dataSource={summaryDataSource}
                             embedded

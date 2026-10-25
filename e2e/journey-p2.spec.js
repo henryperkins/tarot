@@ -46,6 +46,24 @@ async function open(page) {
   await expect.poll(async () => (await state(page))?.ready).toBe(true);
 }
 
+// Scope chips live behind the Practice snapshot disclosure; open it before use.
+async function openPracticeSnapshot(page) {
+  const summary = page.locator('summary', { hasText: 'Practice snapshot' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  // getAttribute returns '' (falsy) for present boolean attributes; test for absence instead.
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
+// The mobile Journey mounts only after its native disclosure is opened.
+async function openMobileJourney(page) {
+  const summary = page.locator('summary', { hasText: 'Your reading journey' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await summary.waitFor();
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
 async function custom(page, start, end) {
   await page.evaluate(({ start, end }) => {
     window.journeyP2.setScope('custom');
@@ -481,9 +499,11 @@ for (const mobile of [false, true]) {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 });
     await prepare(page, { now: '2026-11-01T12:00:00Z', entries: [entry('october', '2026-10-31T12:00:00Z')] });
     await page.goto('/journal');
+    if (mobile) await openMobileJourney(page);
     await expect(page.getByRole('button', { name: 'View all time', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View all time', exact: true }).click();
     await expect(page.getByText(/Strength.*(?:1x|appeared)/).first()).toBeVisible();
+    await openPracticeSnapshot(page);
     await page.getByRole('button', { name: 'Custom', exact: true }).click();
     await expect(page.getByText('Select a valid start and end date for custom scope.').first()).toBeVisible();
     await expect(page.getByText(/appeared 1x/)).toHaveCount(0);

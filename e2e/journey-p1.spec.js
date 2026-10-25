@@ -64,6 +64,24 @@ async function openHarness(page) {
   await expect.poll(async () => { const s = await state(page); return !s.authLoading && !s.journalLoading; }).toBe(true);
 }
 
+// Scope chips live behind the Practice snapshot disclosure; open it before use.
+async function openPracticeSnapshot(page) {
+  const summary = page.locator('summary', { hasText: 'Practice snapshot' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  // getAttribute returns '' (falsy) for present boolean attributes; test for absence instead.
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
+// The mobile Journey mounts only after its native disclosure is opened.
+async function openMobileJourney(page) {
+  const summary = page.locator('summary', { hasText: 'Your reading journey' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await summary.waitFor();
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
 test('real journal hook and export retain all 125 entries beyond paginated history', async ({ page }) => {
   const fixture = await prepare(page, { count: 125, analyzed: true });
   try {
@@ -138,6 +156,7 @@ for (const mobile of [false, true]) {
             JSON.stringify({ suitFocus: i < 3 ? 'Water brings emotional matters to this reading.' : 'A different theme.' }), `entry-${i}`).run();
       }
       await page.goto('/journal');
+      if (mobile) await openMobileJourney(page);
       await expect(page.getByRole('button', { name: 'Open journal', exact: true })).toBeVisible();
       const theme = page.getByRole('button', { name: 'Theme', exact: true });
       if (await theme.count()) await theme.click();
@@ -208,6 +227,7 @@ for (const mobile of [false, true]) {
       ])));
       await page.route('**/api/journal?*', route => route.fulfill({ status: 503, json: { error: 'Offline' } }));
       await page.goto('/journal');
+      if (mobile) await openMobileJourney(page);
       await expect(page.getByText('Journey insights and exports need your complete journal.', { exact: false })).toBeVisible();
       await expect(page.getByRole('button', { name: 'CSV', exact: true })).toHaveCount(0);
     } finally { await fixture.close(); }
@@ -229,6 +249,7 @@ for (const scenario of [
       await page.goto('/journal');
       await page.getByRole('button', { name: scenario.button, exact: true }).click();
       // Keep analytics on All time while the history has an unrelated search.
+      await openPracticeSnapshot(page);
       await page.getByRole('button', { name: 'All time', exact: true }).first().click();
       await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('Question 2');
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(1);
@@ -286,6 +307,7 @@ for (const source of ['Journal prompt', 'Streak check-in']) {
       await fixture.db.prepare("UPDATE journal_entries SET cards_json = '[]'").run();
       await page.goto('/journal');
       await page.getByRole('button', { name: source, exact: true }).click();
+      await openPracticeSnapshot(page);
       await page.getByRole('button', { name: 'All time', exact: true }).first().click();
       await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('Question 1');
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(1);
@@ -302,6 +324,7 @@ test('the Journal page wires full history into All time and All entries CSV', as
   const fixture = await prepare(page, { count: 125, analyzed: true });
   try {
     await page.goto('/journal');
+    await openPracticeSnapshot(page);
     await page.getByRole('button', { name: 'All time', exact: true }).first().click();
     await page.getByRole('button', { name: 'Export & Share', exact: true }).click();
     await page.locator('input[name="exportScope"][value="all"]').check();
@@ -320,6 +343,7 @@ for (const mobile of [false, true]) {
     try {
       if (mobile) await page.setViewportSize({ width: 390, height: 844 });
       await page.goto('/journal');
+      if (mobile) await openMobileJourney(page);
       await expect(page.getByText('Journey analytics are currently disabled.', { exact: true })).toBeVisible();
       if (!mobile) await page.getByRole('button', { name: 'Export & Share', exact: true }).click();
       await page.locator('input[name="exportScope"][value="all"]').check();
@@ -365,6 +389,8 @@ for (const mobile of [false, true]) {
       for (let i = 0; i < steps.length; i++) await fixture.db.prepare('UPDATE journal_entries SET extracted_steps = ?, step_embeddings = ?, extraction_version = ? WHERE id = ?')
         .bind(JSON.stringify(steps[i]), JSON.stringify(steps[i].map(() => i < 2 ? [1, 0, 0] : [0, 1, 0])), EXTRACTION_VERSION, `entry-${i}`).run();
       await page.goto('/journal');
+      await openPracticeSnapshot(page);
+      if (mobile) await openMobileJourney(page);
       await page.getByRole('button', { name: 'All time', exact: true }).first().click();
       await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('Question 3');
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(1);
@@ -385,6 +411,7 @@ test('a journal above 200 entries keeps every text-filter match in its export', 
   const fixture = await prepare(page, { count: 220, analyzed: true });
   try {
     await page.goto('/journal');
+    await openPracticeSnapshot(page);
     await page.getByRole('button', { name: 'All time', exact: true }).first().click();
     await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('Question');
     await page.getByRole('button', { name: 'Export & Share', exact: true }).click();

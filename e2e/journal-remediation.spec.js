@@ -39,6 +39,35 @@ async function openJournal(page, { owner = null, tier = 'free', corrupt = false,
   return state;
 }
 
+async function openPracticeDetails(page) {
+  const summary = page.getByText('Practice snapshot', { exact: true }).first();
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await expect(details).not.toHaveAttribute('open');
+  await summary.click();
+  await expect(details).toHaveAttribute('open');
+  const showDetails = page.getByRole('button', { name: 'Show Details', exact: true });
+  if (await showDetails.isVisible()) await showDetails.click();
+  return details;
+}
+
+async function expectUnclipped(locator, label) {
+  const measurement = await locator.evaluate(element => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    return {
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      clipped: style.overflowX !== 'visible' && element.scrollWidth > element.clientWidth + 1,
+      outside: [...range.getClientRects()].some(textRect =>
+        textRect.left < rect.left - 1 || textRect.right > rect.right + 1)
+    };
+  });
+  expect(measurement.clipped, `${label} must wrap rather than clip`).toBe(false);
+  expect(measurement.outside, `${label} text must stay inside its container`).toBe(false);
+}
+
 for (const width of [390, 1440]) {
   test(`saved questions and search lead the Journal at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
@@ -214,4 +243,101 @@ test('Escape from the mobile card fan restores its disclosure focus', async ({ p
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[aria-label="Cards drawn in this reading"]') !== null)).toBe(true);
   await expect(page.locator(':focus')).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator(':focus')).toHaveJSProperty('tagName', 'BUTTON');
+});
+
+test('See Journey opens and focuses the deferred mobile Journey, then preserves its selected view', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openJournal(page);
+  const journeySummary = page.getByText('Your reading journey', { exact: true }).first();
+  const journeyDetails = journeySummary.locator('xpath=ancestor::details[1]');
+  await expect(journeyDetails).not.toHaveAttribute('open');
+  await expect(page.locator('[aria-label="Journal insights and journey"]')).toHaveCount(0);
+  await openPracticeDetails(page);
+  await page.getByRole('button', { name: 'See Journey', exact: true }).click();
+  await expect(journeyDetails).toHaveAttribute('open');
+  await expect(journeySummary).toBeFocused();
+  const region = page.locator('[aria-label="Journal insights and journey"]');
+  await expect(region).toBeVisible();
+  const journeyHero = region.locator('[aria-labelledby="reading-journey-mobile-heading"]');
+  await expect(journeyHero.getByRole('button', { name: /See Full Journey/ })).toBeVisible();
+  await expect.poll(() => journeySummary.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  })).toBe(true);
+
+  await journeyHero.getByRole('button', { name: /See Full Journey/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Your Reading Journey' });
+  await sheet.getByRole('tab', { name: 'Patterns', exact: true }).click();
+  await expect(sheet.getByRole('tab', { name: 'Patterns', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await sheet.getByRole('button', { name: 'Close journey panel', exact: true }).click();
+  await journeySummary.click();
+  await expect(journeyDetails).not.toHaveAttribute('open');
+  await journeySummary.click();
+  await expect(journeyDetails).toHaveAttribute('open');
+  await journeyHero.getByRole('button', { name: /See Full Journey/ }).click();
+  await expect(sheet.getByRole('tab', { name: 'Patterns', exact: true })).toHaveAttribute('aria-selected', 'true');
+});
+
+test('mobile practice snapshot and Journey reflow at 200% text without clipping', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openJournal(page);
+  const practice = await openPracticeDetails(page);
+  const journeySummary = page.getByText('Your reading journey', { exact: true }).first();
+  await journeySummary.click();
+  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  await page.evaluate(() => document.fonts.ready);
+
+  const journeyHero = page.locator('[aria-label="Journal insights and journey"] [aria-labelledby="reading-journey-mobile-heading"]');
+  const scopeChip = journeyHero.locator('h2 span').filter({ hasText: /^Scope:/ });
+  await expect(scopeChip).toBeVisible();
+  await expectUnclipped(scopeChip, 'mobile Journey scope');
+
+  const latestCard = practice.getByRole('button', { name: /The Hermit, Upright.*Tap for insight/ }).filter({ visible: true }).first();
+  await expect(latestCard).toBeVisible();
+  await expectUnclipped(latestCard.locator('p').filter({ hasText: /^The Hermit$/ }), 'latest card name');
+
+  const reversalLabel = practice.getByText('Reversal rate', { exact: true }).filter({ visible: true }).first();
+  await expect(reversalLabel).toBeVisible();
+  await expectUnclipped(reversalLabel, 'practice reversal label');
+});
+
+test('desktop practice snapshot switches from the fixed constellation to flowing stats at 200% text', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await openJournal(page);
+  await openPracticeDetails(page);
+  const constellation = page.locator('.journal-summary__constellation');
+  const flow = page.locator('.journal-summary__flow');
+  await expect(constellation).toBeVisible();
+  await expect(flow).toBeHidden();
+
+  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  await page.evaluate(() => document.fonts.ready);
+  await expect(constellation).toBeHidden();
+  await expect(flow).toBeVisible();
+  await expect(flow.locator('dt')).toHaveCount(4);
+  for (const label of ['Entries logged', 'Reversal rate', 'Top context', 'Last entry']) {
+    const term = flow.getByText(label, { exact: true });
+    if (await term.count()) await expectUnclipped(term.first(), label);
+  }
+});
+
+
+
+test('follow-up actions keep the shared 44px touch target for guests and Pro', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await openJournal(page);
+  let article = page.getByRole('article').first();
+  await article.getByTitle('Expand entry', { exact: true }).click();
+  const guestAction = article.getByRole('button', { name: 'Sign in to ask', exact: true });
+  await expect(guestAction).toBeVisible();
+  expect((await guestAction.boundingBox()).height).toBeGreaterThanOrEqual(44);
+
+  state.owner = 'owner-a';
+  state.tier = 'pro';
+  await page.reload();
+  article = page.getByRole('article').first();
+  await article.getByTitle('Expand entry', { exact: true }).click();
+  const proAction = article.getByRole('button', { name: 'Ask a follow-up', exact: true });
+  await expect(proAction).toBeVisible();
+  expect((await proAction.boundingBox()).height).toBeGreaterThanOrEqual(44);
 });

@@ -2,12 +2,13 @@
  * CardsCallingYou - Top cards list with inline badges and suit icons.
  */
 
-import { memo } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useSmallScreen } from '../../../hooks/useSmallScreen';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
-import TrendSparkline from '../../charts/TrendSparkline';
 import { getSuitIcon } from '../../illustrations/suitIconUtils';
+
+const TrendSparkline = lazy(() => import('../../charts/TrendSparkline'));
 
 // Suit color mapping for visual distinction
 const SUIT_COLORS = {
@@ -65,7 +66,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
             >
               <div className="flex flex-wrap min-w-0 flex-[1_1_12rem] items-center gap-x-2 gap-y-1">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent shrink-0"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-main shrink-0"
                   aria-hidden="true"
                 >
                   {index + 1}
@@ -90,7 +91,9 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
 
               {card.trendData && (
                 <div className="mx-2 hidden sm:block">
-                  <TrendSparkline data={card.trendData} height={24} color="var(--brand-primary)" />
+                  <Suspense fallback={<div className="h-6 w-16" aria-hidden="true" />}>
+                    <TrendSparkline data={card.trendData} height={24} color="var(--brand-primary)" />
+                  </Suspense>
                 </div>
               )}
 
