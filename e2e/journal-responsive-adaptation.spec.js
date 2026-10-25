@@ -70,7 +70,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             await expect(chip).toBeVisible();
             expect(await chip.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
           }
-          const actions = article.getByRole('button', { name: 'Open entry actions', exact: true });
+          const actions = article.getByRole('button', { name: /^Open entry actions for / });
           await actions.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
           await actions.click();
           const menu = page.getByRole('menu');
@@ -79,7 +79,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           expect(menuBox.x).toBeGreaterThanOrEqual(0);
           expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(width);
           await page.keyboard.press('Escape');
-          await expect(article.getByRole('button', { name: 'Open entry actions', exact: true })).toBeFocused();
+          await expect(article.getByRole('button', { name: /^Open entry actions for / })).toBeFocused();
 
           const compact = page.getByTitle('Compact view - shows more entries', { exact: true });
           await compact.press('Enter');

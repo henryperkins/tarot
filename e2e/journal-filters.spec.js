@@ -210,7 +210,7 @@ test.describe('Filter Functionality @desktop', () => {
   const articles = page => page.locator('[id^="journal-entry-mock-entry-"]');
   const expectIds = async (page, ids) => {
     await expect.poll(() => articles(page).evaluateAll(elements => elements.map(el => Number(el.id.split('-').at(-1))).sort((a, b) => a - b))).toEqual(ids);
-    await expect(page.getByText(`Filtered: ${ids.length}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`Showing ${ids.length} of ${ids.length} ${ids.length === 1 ? 'reading' : 'readings'}`, { exact: true })).toBeVisible();
     await expect(page.getByText('Loaded: 15 of 15', { exact: true })).toBeVisible();
   };
   const select = async (page, label, option) => {
@@ -220,7 +220,7 @@ test.describe('Filter Functionality @desktop', () => {
   };
 
   test('entry count badge updates when filtering', async ({ page }) => {
-    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(page.getByText('Showing 10 of 15 readings', { exact: true })).toBeVisible();
     await expect(articles(page)).toHaveCount(10);
     await select(page, 'Context', 'Love');
     await expectIds(page, [0, 6, 12]);
@@ -232,7 +232,7 @@ test.describe('Filter Functionality @desktop', () => {
     await expectIds(page, [0, 9, 10, 11, 12, 13, 14]);
     await search.fill('');
     await expect(articles(page)).toHaveCount(10);
-    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(page.getByText('Showing 10 of 15 readings', { exact: true })).toBeVisible();
   });
 
   test('timeframe filter works', async ({ page }) => {
@@ -255,7 +255,7 @@ test.describe('Filter Functionality @desktop', () => {
     await page.getByPlaceholder('Search readings...').fill('test');
     await page.locator('#history').getByRole('button', { name: 'Reset view', exact: true }).click();
     await expect(page.getByPlaceholder('Search readings...')).toHaveValue('');
-    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(page.getByText('Showing 10 of 15 readings', { exact: true })).toBeVisible();
     await expect(articles(page)).toHaveCount(10);
   });
 
@@ -263,7 +263,7 @@ test.describe('Filter Functionality @desktop', () => {
     await expect(articles(page)).toHaveCount(10);
     await page.getByRole('button', { name: 'Load 5 more', exact: true }).click();
     await expect(articles(page)).toHaveCount(15);
-    await expect(page.getByText('Filtered: 15', { exact: true })).toBeVisible();
+    await expect(page.getByText('Showing 15 of 15 readings', { exact: true })).toBeVisible();
     const search = page.getByPlaceholder('Search readings...');
     await search.fill('test');
     await expect(articles(page)).toHaveCount(10);

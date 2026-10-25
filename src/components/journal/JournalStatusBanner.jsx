@@ -5,7 +5,7 @@ import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
 import { FOCUS_RING_DEFAULT } from '../../styles/focusClasses';
 
 export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastSyncAt, lastLocalSaveAt,
-  syncSource, journalError, loading, localStoragePresence, localEntryCount = 0,
+  syncSource, journalError, loading, historyPending = false, historyError = null, localStoragePresence, localEntryCount = 0,
   onMigrate, migrating, onImportLegacy, importingLegacy, onReload, onShowAuthModal }) {
   const navigate = useNavigate();
   const [now, setNow] = useState(Date.now);
@@ -20,6 +20,7 @@ export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastS
   const elapsed = timestamp ? Math.max(0, Math.round((now - timestamp) / 60000)) : null;
   const timeLabel = elapsed === null ? '' : elapsed < 1 ? ' · just now' : elapsed < 60 ? ` · ${elapsed} min ago` : ` · ${Math.round(elapsed / 60)}h ago`;
   const label = journalError ? 'Journal needs attention' : loading && cloud ? 'Syncing cloud journal'
+    : cloud && historyPending ? (historyError ? 'Cloud history partly loaded' : 'Loading cloud history')
     : cached ? 'Saved copy · this device' : local ? 'Local only · this browser' : `Synced · cloud${timeLabel}`;
   const hasLegacy = Boolean(localStoragePresence?.hasLegacy);
   const canMigrate = cloud && (hasLegacy || localStoragePresence?.hasScoped);

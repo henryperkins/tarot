@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parse } from '@babel/parser';
 
 // Exercise the actual hook body; substitute only React scheduling/auth and HTTP.
-export async function journalHookDriver(owner, { cloud = false, fetchImpl = async () => { throw new Error('Unexpected HTTP request'); } } = {}) {
+export async function journalHookDriver(owner, { cloud = false, hookOptions = {}, fetchImpl = async () => { throw new Error('Unexpected HTTP request'); } } = {}) {
   const url = new URL('../../src/hooks/useJournal.js', import.meta.url);
   const source = await readFile(url, 'utf8');
   const ast = parse(source, { sourceType: 'module' });
@@ -36,7 +36,7 @@ export async function journalHookDriver(owner, { cloud = false, fetchImpl = asyn
   return {
     render() {
       stateIndex = 0; refIndex = 0;
-      const result = hook({ autoLoad: false });
+      const result = hook({ autoLoad: false, ...hookOptions });
       for (const effect of [...layouts.splice(0), ...effects.splice(0)]) {
         const cleanup = effect(); if (cleanup) cleanups.push(cleanup);
       }

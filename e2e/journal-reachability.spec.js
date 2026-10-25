@@ -133,12 +133,12 @@ test('share links: the entry menu and the journal panel list, rename and delete 
   try {
     // A single-reading link made from the entry header.
     const card = entryCard(page, 'What steadies me this week?');
-    await card.getByRole('button', { name: 'Create share link', exact: true }).click();
+    await card.getByRole('button', { name: /^Create share link for / }).click();
     await expect(card.getByText('Share link copied (single reading).')).toBeVisible();
     await expect.poll(() => fixture.db.rows('SELECT scope FROM share_tokens')).toEqual([{ scope: 'entry' }]);
 
     // The entry's own menu now finds it (it reported "No active links" before).
-    await card.getByRole('button', { name: 'Open entry actions', exact: true }).click();
+    await card.getByRole('button', { name: /^Open entry actions for / }).click();
     const menu = page.getByRole('menu', { name: 'Entry actions' });
     await expect(menu.getByRole('group', { name: 'Shared reading' })).toBeVisible();
     await expect(menu.getByText('No active links for this reading yet')).toHaveCount(0);

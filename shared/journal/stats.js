@@ -138,8 +138,9 @@ export function computeJournalStats(entries, { dateWindow } = {}) {
 
     if (entryDate && !Number.isNaN(entryDate.getTime())) {
       const monthKey = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}`;
-      const label = entryDate.toLocaleString('default', { month: 'short', year: 'numeric' });
-      const existing = monthMap.get(monthKey) || { label, count: 0 };
+      const existing = monthMap.get(monthKey) || {
+        label: entryDate.toLocaleString('default', { month: 'short', year: 'numeric' }), count: 0,
+      };
       existing.count += 1;
       monthMap.set(monthKey, existing);
     }

@@ -132,7 +132,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                       onCopyShareLink(link.token);
                     }}
                     disabled={isShareLinkPending}
-                    className="inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2.5 py-1 text-2xs font-semibold text-(--text-main) hover:bg-(--primary-20) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2.5 py-1 text-2xs font-semibold text-(--text-main) hover:bg-(--primary-20) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {pendingAction === 'share-link-copy' ? (
                       <CircleNotch
@@ -157,7 +157,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
                         onDeleteShareLink(link.token);
                       }}
                       disabled={isShareLinkPending}
-                      className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] px-2.5 py-1 text-2xs font-semibold text-(--status-error) hover:border-[color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="inline-flex min-h-touch min-w-touch items-center justify-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--status-error)_45%,transparent)] bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] px-2.5 py-1 text-2xs font-semibold text-(--status-error) hover:border-[color-mix(in_srgb,var(--status-error)_70%,transparent)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {pendingAction === 'share-link-delete' ? (
                         <CircleNotch

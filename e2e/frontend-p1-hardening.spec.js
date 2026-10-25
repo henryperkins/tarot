@@ -155,8 +155,10 @@ for (const width of [320, 390, 1280]) {
       await page.goto('/journal');
       // Deferred journey controls and scroll-triggered controls must exist before
       // recording the page's natural Tab destinations.
+      const journeyDisclosure = page.locator('summary').filter({ hasText: /Your reading journey/i });
+      if (width < 1024) await journeyDisclosure.click();
       await expect(page.getByRole('heading', { name: /^Your (Reading )?Journey/ }).filter({ visible: true }).first()).toBeVisible();
-      const trigger = page.getByRole('button', { name: 'Open entry actions', exact: true }).filter({ visible: true }).first();
+      const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
       await trigger.scrollIntoViewIfNeeded();
       await trigger.focus();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -255,7 +257,7 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
     await route.fulfill({ json: { ok: true } });
   });
   await page.goto('/journal');
-  const trigger = page.getByRole('button', { name: 'Open entry actions', exact: true }).filter({ visible: true }).first();
+  const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
   await trigger.click();
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   const removeLink = page.getByRole('menuitem', { name: 'Delete', exact: true });

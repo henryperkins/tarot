@@ -98,6 +98,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   // IDs for accessibility
   const entryIdPrefix = useId();
   const entryContentId = `${entryIdPrefix}-content`;
+  const entryHeadingId = `${entryIdPrefix}-heading`;
   const narrativeId = `${entryIdPrefix}-narrative`;
   const cardsId = `${entryIdPrefix}-cards`;
   const actionMenuId = `${entryIdPrefix}-actions-menu`;
@@ -168,6 +169,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const headerProps = {
     entry,
     entryContentId,
+    entryHeadingId,
     onToggle: handleToggle,
     metadata,
     actionMenu,
@@ -182,7 +184,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   };
 
   return (
-    <article className={cn(fullCardClass, actionMenu.isOpen ? 'z-50' : 'z-0')}>
+    <article tabIndex={-1} aria-labelledby={entryHeadingId} className={cn(fullCardClass, actionMenu.isOpen ? 'z-50' : 'z-0')}>
       {/* Accent bar */}
       <span
         aria-hidden="true"

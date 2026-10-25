@@ -67,6 +67,10 @@ export async function onRequestGet(context) {
     const cursorParam = url.searchParams.get('cursor');
     const cursorMs = cursorParam ? Number(cursorParam) : null;
     const cursorSeconds = Number.isFinite(cursorMs) ? Math.floor(cursorMs / 1000) : null;
+    const cursorId = cursorSeconds !== null ? url.searchParams.get('cursorId') : null;
+    const cursorClause = cursorSeconds === null ? '' : cursorId
+      ? 'AND (created_at < ? OR (created_at = ? AND id < ?))'
+      : 'AND created_at < ?';
 
     // Default limit: 100, max: 500 (unless fetching all)
     const DEFAULT_LIMIT = 100;
@@ -116,8 +120,8 @@ export async function onRequestGet(context) {
         location_consent
       FROM journal_entries
       WHERE user_id = ?
-      ${cursorSeconds ? 'AND created_at < ?' : ''}
-      ORDER BY created_at DESC
+      ${cursorClause}
+      ORDER BY created_at DESC, id DESC
     `;
 
     // Legacy base query for pre-migration databases.
@@ -141,18 +145,19 @@ export async function onRequestGet(context) {
         request_id
       FROM journal_entries
       WHERE user_id = ?
-      ${cursorSeconds ? 'AND created_at < ?' : ''}
-      ORDER BY created_at DESC
+      ${cursorClause}
+      ORDER BY created_at DESC, id DESC
     `;
 
     let entries;
     let hasCoachColumns = true;
-    const selectParams = cursorSeconds ? [user.id, cursorSeconds] : [user.id];
+    const selectParams = cursorSeconds === null ? [user.id] : cursorId
+      ? [user.id, cursorSeconds, cursorSeconds, cursorId] : [user.id, cursorSeconds];
     try {
       if (fetchAll) {
         entries = await env.DB.prepare(baseSelect).bind(...selectParams).all();
       } else {
-        if (cursorSeconds) {
+        if (cursorSeconds !== null) {
           entries = await env.DB.prepare(`${baseSelect} LIMIT ?`).bind(...selectParams, limit).all();
         } else {
           entries = await env.DB.prepare(`${baseSelect} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
@@ -167,7 +172,7 @@ export async function onRequestGet(context) {
       if (fetchAll) {
         entries = await env.DB.prepare(legacyBaseSelect).bind(...selectParams).all();
       } else {
-        if (cursorSeconds) {
+        if (cursorSeconds !== null) {
           entries = await env.DB.prepare(`${legacyBaseSelect} LIMIT ?`).bind(...selectParams, limit).all();
         } else {
           entries = await env.DB.prepare(`${legacyBaseSelect} LIMIT ? OFFSET ?`).bind(user.id, limit, offset).all();
@@ -306,22 +311,25 @@ export async function onRequestGet(context) {
     }
 
     // Build response with pagination metadata
-    const lastEntry = dedupedEntries[dedupedEntries.length - 1];
-    const nextCursor = !fetchAll && lastEntry ? lastEntry.ts : null;
+    // A logical duplicate may be removed from the public list. Continue after
+    // the last database row so deduplication cannot truncate or repeat a page.
+    const lastRow = results[results.length - 1];
+    const nextCursor = !fetchAll && lastRow ? lastRow.created_at * 1000 : null;
     const hasMore = fetchAll
       ? false
-      : cursorSeconds
-        ? dedupedEntries.length === limit
-        : (offset + dedupedEntries.length) < total;
+      : cursorSeconds !== null
+        ? results.length === limit
+        : (offset + results.length) < total;
 
     const response = {
       entries: dedupedEntries,
       pagination: {
         total,
         limit: fetchAll ? total : limit,
-        offset: cursorSeconds ? null : offset,
-        cursor: cursorSeconds ? cursorMs : null,
+        offset: cursorSeconds !== null ? null : offset,
+        cursor: cursorSeconds !== null ? cursorMs : null,
         nextCursor,
+        nextCursorId: !fetchAll && lastRow ? lastRow.id : null,
         hasMore
       }
     };

@@ -156,6 +156,6 @@ test('summary=false preserves the existing paginated list response', async t => 
   assert.equal(payload.entries[0].id, 'second-entry');
   assert.equal(payload.entries[0].personalReading, 'The second reading.');
   assert.deepEqual(payload.pagination, {
-    total: 2, limit: 1, offset: 0, cursor: null, nextCursor: 1700100000000, hasMore: true
+    total: 2, limit: 1, offset: 0, cursor: null, nextCursor: 1700100000000, nextCursorId: 'second-entry', hasMore: true
   });
 });

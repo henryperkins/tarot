@@ -44,7 +44,7 @@ import {
   AMBER_SHELL_MOBILE_CLASS,
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
-import { getMonthHeader } from '../lib/journal/utils';
+import { buildJournalMonthSections } from '../lib/journal/utils';
 import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
 
 
@@ -64,6 +64,8 @@ export default function Journal() {
     entries,
     loading,
     loadingMore,
+    historyComplete,
+    historyError,
     deleteEntry,
     saveReflection,
     retrySavedVisuals,
@@ -79,12 +81,13 @@ export default function Journal() {
     lastLocalSaveAt,
     syncSource,
     reload: reloadJournal
-  } = useJournal({ completeHistory: true });
+  } = useJournal({ completeHistory: true, progressiveHistory: true });
+  const historyPending = syncSource === 'api' && !historyComplete;
 
   const journalSummary = useJournalSummary({
     userId: user?.id,
     entries,
-    enabled: isAuthenticated && canUseAdvancedInsights,
+    enabled: isAuthenticated && canUseAdvancedInsights && historyComplete,
   });
 
   // Layout detection
@@ -156,6 +159,7 @@ export default function Journal() {
   // Local UI state
   const [migrating, setMigrating] = useState(false);
   const [importingLegacy, setImportingLegacy] = useState(false);
+  const [localStorageRevision, setLocalStorageRevision] = useState(0);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
   const [compactList, setCompactList] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -166,6 +170,8 @@ export default function Journal() {
   const [highlightStatus, setHighlightStatus] = useState(null);
   const [entryVisibility, setEntryVisibility] = useState({ filterSignature, count: VISIBLE_ENTRY_BATCH });
   const [monthJump, setMonthJump] = useState('');
+  const [historyNavigation, setHistoryNavigation] = useState(null);
+  const [historyAnnouncement, setHistoryAnnouncement] = useState(null);
   const [journeyReady, setJourneyReady] = useState(false);
   const [hasOpenedMobileJourney, setHasOpenedMobileJourney] = useState(false);
   const summaryRef = useRef(null);
@@ -175,6 +181,8 @@ export default function Journal() {
   const searchInputRef = useRef(null);
   const highlightRequestRef = useRef(0);
   const filteredEntriesRef = useRef(filteredEntries);
+  const historyListRef = useRef(null);
+  const historyLoadRequestRef = useRef(null);
   const hasMoreServerEntriesRef = useRef(hasMoreServerEntries);
   const [summaryVisibility, setSummaryVisibility] = useState({ small: isSmallSummary, seen: false });
 
@@ -202,6 +210,11 @@ export default function Journal() {
   );
   if (entryVisibility.filterSignature !== filterSignature || entryVisibility.count !== visibleCount) {
     setEntryVisibility({ filterSignature, count: visibleCount });
+    if (entryVisibility.filterSignature !== filterSignature) {
+      setMonthJump('');
+      setHistoryNavigation(null);
+      setHistoryAnnouncement(null);
+    }
   }
   const setVisibleCount = useCallback(update => {
     setEntryVisibility(previous => ({
@@ -213,11 +226,14 @@ export default function Journal() {
   // Derived values
   const hasEntries = entries.length > 0;
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
+  const historyCountLabel = historyPending
+    ? `Showing ${visibleEntries.length} loaded ${visibleEntries.length === 1 ? 'reading' : 'readings'}`
+    : `Showing ${visibleEntries.length} of ${filteredEntries.length} ${filteredEntries.length === 1 ? 'reading' : 'readings'}`;
   const localRemaining = Math.max(filteredEntries.length - visibleEntries.length, 0);
   const hasLocalMoreEntries = filteredEntries.length > visibleCount;
   const hasMoreVisibleResults = filteredEntries.length > visibleEntries.length;
   const hasMoreEntries = hasLocalMoreEntries || hasMoreServerEntries;
-  const showSummaryBand = !loading && hasEntries;
+  const showSummaryBand = !loading && hasEntries && !historyPending;
   const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
   const hasRemoteEntries = hasMoreServerEntries || (hasTotalEntries && totalEntryCount > entries.length);
@@ -333,16 +349,6 @@ export default function Journal() {
     }, 240);
   }, [historyFiltersEl, prefersReducedMotion]);
 
-  const handleMonthJump = useCallback((event) => {
-    const value = event.target.value;
-    setMonthJump(value);
-    if (!value || typeof document === 'undefined') return;
-    const anchor = document.getElementById(`month-${value}`);
-    if (anchor) {
-      anchor.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-    }
-  }, [prefersReducedMotion]);
-
   const locale = useMemo(() => {
     if (typeof navigator !== 'undefined' && navigator.language) {
       return navigator.language;
@@ -360,6 +366,36 @@ export default function Journal() {
   useEffect(() => {
     filteredEntriesRef.current = filteredEntries;
   }, [filteredEntries]);
+
+  useEffect(() => {
+    historyLoadRequestRef.current = null;
+  }, [filterSignature]);
+
+  useEffect(() => () => { historyLoadRequestRef.current = null; }, []);
+
+  // A destination can be outside the current batch. Move focus after it mounts,
+  // and leave a newer filter or user-selected focus alone.
+  useEffect(() => {
+    if (!historyNavigation || historyNavigation.filterSignature !== filterSignature) return;
+    const target = historyListRef.current?.querySelector(
+      `[data-journal-entry-index="${historyNavigation.index}"] [data-journal-entry-toggle]`
+    );
+    if (!target) return;
+    const { trigger, monthKey, keyboard } = historyNavigation;
+    if (document.activeElement === trigger || document.activeElement === document.body) {
+      // A pointer click schedules the app chrome's focus reveal. Anchor focus
+      // to the new article so it cannot chase the loading button down the page.
+      const focusTarget = keyboard || monthKey ? target : target.closest('article');
+      focusTarget?.focus({ preventScroll: true });
+      if (keyboard || monthKey) {
+        const anchor = monthKey
+          ? document.getElementById(`month-${monthKey}`)
+          : target.closest('[data-journal-entry-index]');
+        anchor?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+      }
+    }
+    setHistoryNavigation(null);
+  }, [historyNavigation, filterSignature, visibleEntries, prefersReducedMotion]);
 
   useEffect(() => {
     hasMoreServerEntriesRef.current = hasMoreServerEntries;
@@ -488,19 +524,20 @@ export default function Journal() {
   }, [pendingHighlightEntryId, filteredEntries, visibleCount, prefersReducedMotion]);
 
   useEffect(() => {
-    if (!hasEntries) return undefined;
+    if (!hasEntries || historyPending || journeyReady) return undefined;
     const activate = () => setJourneyReady(true);
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(activate, { timeout: 600 });
-      return () => window.cancelIdleCallback(idleId);
-    }
-    const timer = typeof window !== 'undefined' ? window.setTimeout(activate, 250) : null;
+    let idleId;
+    // Let the first readings and a newly typed query settle before importing
+    // secondary charts. Restart the quiet period while the reader is typing.
+    const timer = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) idleId = window.requestIdleCallback(activate, { timeout: 600 });
+      else activate();
+    }, 300);
     return () => {
-      if (timer) {
-        window.clearTimeout(timer);
-      }
+      window.clearTimeout(timer);
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
     };
-  }, [hasEntries]);
+  }, [hasEntries, historyPending, journeyReady, filters.query]);
 
   useEffect(() => () => {
     if (journeyScrollFrameRef.current !== null) {
@@ -579,10 +616,10 @@ export default function Journal() {
     setImportingLegacy(false);
   };
 
-  const handleDeleteRequest = (entryId) => {
-    const entry = filteredEntries.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
+  const handleDeleteRequest = useCallback((entryId) => {
+    const entry = filteredEntriesRef.current.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
     setDeleteConfirmModal({ isOpen: true, entryId, ownerId: user?.id || null, readingResultId: entry?.readingResultId || null });
-  };
+  }, [entries, user?.id]);
 
   const handleDeleteConfirm = async () => {
     const entryId = deleteConfirmModal.entryId;
@@ -627,19 +664,36 @@ export default function Journal() {
     setDeleteConfirmModal({ isOpen: false, entryId: null });
   };
 
-  const handleLoadMoreEntries = async () => {
-    if (loadingMore) return;
+  const handleLoadMoreEntries = async (event) => {
+    if (loadingMore && !hasLocalMoreEntries) return;
+    const request = { filterSignature, index: visibleEntries.length, trigger: event.currentTarget, keyboard: event.detail === 0 };
+    historyLoadRequestRef.current = request;
     if (filteredEntries.length > visibleCount) {
       setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
+      setHistoryAnnouncement(filterSignature);
+      setHistoryNavigation(request);
       return;
     }
     if (hasMoreServerEntries) {
       const result = await loadMoreEntries();
+      if (historyLoadRequestRef.current !== request) return;
       const appended = result?.appended || 0;
       if (appended > 0) {
         setVisibleCount((prev) => prev + Math.min(VISIBLE_ENTRY_BATCH, appended));
+        setHistoryAnnouncement(filterSignature);
+        setHistoryNavigation(request);
       }
     }
+  };
+
+  const handleRetryHistory = async event => {
+    const request = { filterSignature, index: visibleEntries.length, trigger: event.currentTarget, keyboard: event.detail === 0 };
+    historyLoadRequestRef.current = request;
+    const result = await loadMoreEntries();
+    if (historyLoadRequestRef.current !== request || !result?.success) return;
+    setVisibleCount(previous => previous + Math.min(VISIBLE_ENTRY_BATCH, result.appended || 0));
+    setHistoryNavigation({ ...request, index: result.appended ? request.index : 0 });
+    setHistoryAnnouncement(filterSignature);
   };
 
   const handleLoadOlderForHighlight = async () => {
@@ -650,7 +704,18 @@ export default function Journal() {
   // Check if we have localStorage entries that can be migrated/imported.
   // - legacy: tarot_journal (anonymous)
   // - user-scoped: tarot_journal_<userId>
-  const getLocalStorageEntryPresence = () => {
+  useEffect(() => {
+    const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
+    const refresh = event => {
+      if (event.storageArea && event.storageArea !== localStorage) return;
+      if (event.key === null || event.key === 'tarot_journal' || event.key === scopedKey) {
+        setLocalStorageRevision(revision => revision + 1);
+      }
+    };
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, [user?.id]);
+  const localStoragePresence = useMemo(() => {
     try {
       if (typeof localStorage === 'undefined') return { hasLegacy: false, hasScoped: false };
       const state = {
@@ -678,13 +743,12 @@ export default function Journal() {
 
       return state;
     } catch { return { hasLegacy: false, hasScoped: false }; }
-  };
+    // These dependencies invalidate external storage after reloads and writes;
+    // other tabs invalidate it through the storage event above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, loading, lastLocalSaveAt, migrating, importingLegacy, localStorageRevision]);
 
-  // Compute each render so it updates after import/migration without needing
-  // brittle dependency tracking.
-  const localStoragePresence = getLocalStorageEntryPresence();
-
-  const desktopRailContent = (journeyReady && !loading && hasEntries && !isMobileLayout) ? (
+  const desktopRailContent = (journeyReady && !loading && hasEntries && !historyPending && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8 w-full">
       <div className="w-full">
         <InsightsErrorBoundary>
@@ -717,57 +781,37 @@ export default function Journal() {
       </div>
     </div>
   ) : null;
-  const hasRailContent = !loading && hasEntries && journeyReady;
+  const hasRailContent = !loading && hasEntries && !historyPending && journeyReady;
   const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
-  const monthSections = useMemo(() => {
-    const sections = [];
-    let current = null;
-    visibleEntries.forEach((entry) => {
-      const timestamp = getTimestamp(entry);
-      let monthKey = 'undated';
-      if (timestamp) {
-        const date = new Date(timestamp);
-        if (!Number.isNaN(date.getTime())) {
-          monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        }
-      }
-      const monthLabel = getMonthHeader(timestamp);
-      if (!current || current.key !== monthKey) {
-        if (current) {
-          current.count = current.entries.length;
-          sections.push(current);
-        }
-        current = {
-          key: monthKey,
-          label: monthLabel,
-          entries: []
-        };
-      }
-      current.entries.push(entry);
-    });
-    if (current) {
-      current.count = current.entries.length;
-      sections.push(current);
-    }
-    return sections.map((section) => ({
-      ...section,
-      anchorId: `month-${section.key}`
-    }));
-  }, [visibleEntries]);
+  const monthSections = useMemo(() => buildJournalMonthSections(filteredEntries), [filteredEntries]);
+  const visibleMonthSections = useMemo(() => buildJournalMonthSections(visibleEntries, { consecutive: true }), [visibleEntries]);
+  const visibleMonthTotals = useMemo(() => new Map(buildJournalMonthSections(visibleEntries).map(section => [section.key, section.count])), [visibleEntries]);
+  const monthTotals = useMemo(() => new Map(monthSections.map(section => [section.key, section.count])), [monthSections]);
   const monthJumpValue = monthSections.some((section) => section.key === monthJump) ? monthJump : '';
 
-  const renderedHistoryEntries = monthSections.map((section) => (
-    <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
+  const handleMonthJump = (event) => {
+    const value = event.target.value;
+    setMonthJump(value);
+    const section = monthSections.find(item => item.key === value);
+    if (!section) return;
+    const count = Math.ceil((section.firstIndex + 1) / VISIBLE_ENTRY_BATCH) * VISIBLE_ENTRY_BATCH;
+    setVisibleCount(previous => Math.max(previous, count));
+    setHistoryNavigation({ filterSignature, index: section.firstIndex, monthKey: value, trigger: event.currentTarget });
+    setHistoryAnnouncement(filterSignature);
+  };
+
+  const renderedHistoryEntries = visibleMonthSections.map((section) => (
+    <div key={section.anchorId} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
           <span className="text-2xs uppercase tracking-label-wide text-muted">{section.label}</span>
           <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
-            {section.count} entries
+            {visibleMonthTotals.get(section.key) < monthTotals.get(section.key) ? `${visibleMonthTotals.get(section.key)} of ${monthTotals.get(section.key)}` : monthTotals.get(section.key)} {monthTotals.get(section.key) === 1 ? 'reading' : 'readings'}
           </span>
         </div>
       </div>
       <div className={entryStackSpacingClass}>
-        {section.entries.map((entry, index) => {
+        {section.items.map(({ entry, index }) => {
           const timestamp = getTimestamp(entry);
           const key = entry.id || `${timestamp || 'entry'}-${index}`;
           const isHighlighted = pendingHighlightEntryId && String(entry?.id || '') === String(pendingHighlightEntryId);
@@ -775,8 +819,9 @@ export default function Journal() {
           return (
             <div
               id={anchorId}
+              data-journal-entry-index={index}
               key={key}
-              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
+              className={`space-y-2 scroll-mt-40 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
             >
               <JournalEntryCard
                 entry={entry}
@@ -800,7 +845,7 @@ export default function Journal() {
     </div>
   ));
 
-  const mobileRailContent = (hasOpenedMobileJourney && !loading && hasEntries && isMobileLayout) ? (
+  const mobileRailContent = (hasOpenedMobileJourney && !loading && hasEntries && !historyPending && isMobileLayout) ? (
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
@@ -888,6 +933,8 @@ export default function Journal() {
             syncSource={syncSource}
             journalError={journalError}
             loading={loading}
+            historyPending={historyPending}
+            historyError={historyError}
             localStoragePresence={localStoragePresence}
             localEntryCount={entries.length}
             onMigrate={handleMigrate}
@@ -925,7 +972,7 @@ export default function Journal() {
             <div className={hasEntries && hasRailContent ? 'lg:flex lg:flex-wrap lg:gap-6 xl:gap-8' : ''}>
               {/* Let the rail move below history when enlarged text needs more room. */}
               <div className="min-w-0 flex-[999_1_32rem] space-y-8">
-                {hasEntries ? (
+                {hasEntries || historyPending ? (
                   <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
                     {/* Keep decorative orbs from becoming native focus-scroll space. */}
                     <div className="pointer-events-none absolute inset-0 overflow-clip rounded-[inherit]" aria-hidden="true">
@@ -939,7 +986,7 @@ export default function Journal() {
                         <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
-                              Filtered: {filteredEntries.length}
+                              {historyCountLabel}
                             </span>
                             <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
                               Loaded: {entries.length}{hasTotalEntries ? ` of ${totalEntryCount}` : hasMoreEntries ? '+' : ''}
@@ -954,7 +1001,9 @@ export default function Journal() {
                                 id="jump-to-month"
                                 value={monthJumpValue}
                                 onChange={handleMonthJump}
-                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
+                                disabled={historyPending}
+                                aria-describedby={historyPending ? 'journal-history-progress' : undefined}
+                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                               >
                                 <option value="">Jump to month</option>
                                 {monthSections.map((section) => (
@@ -1015,30 +1064,42 @@ export default function Journal() {
                       )}
 
                       <div className="space-y-4">
-
-
+                        {historyPending && (
+                          <div id="journal-history-progress" className="space-y-2 rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-3 text-sm text-muted-high">
+                            <p className="font-semibold text-main" role="status">{historyError ? 'History loading paused' : 'Loading your complete history'}</p>
+                            <p>{hasEntries ? 'Open a reading now. ' : ''}Search and insights become available when your full history has loaded.</p>
+                            {historyError && (
+                              <button type="button" onClick={handleRetryHistory} disabled={loadingMore} className={`${OUTLINE_BUTTON_CLASS} text-sm`}>
+                                Retry loading history
+                              </button>
+                            )}
+                          </div>
+                        )}
                         <div
                           id="journal-history-filters"
                           ref={registerHistoryFiltersEl}
                           className="scroll-mt-24"
                         >
-                          <JournalFilters
-                            ownerId={isAuthenticated ? user?.id : null}
-                            storageReady={!authLoading}
-                            filters={filters}
-                            onChange={setFilters}
-                            contexts={CONTEXT_FILTERS}
-                            spreads={SPREAD_FILTERS}
-                            decks={DECK_FILTERS}
-                            variant={isMobileLayout ? 'compact' : 'full'}
-                            viewMode={compactList ? 'compact' : 'comfortable'}
-                            onViewModeChange={(mode) => setCompactList(mode === 'compact')}
-                            resultCount={filteredEntries.length}
-                            totalCount={entries.length}
-                            searchCoverageLabel={searchCoverageLabel}
-                            searchScopeLabel={searchScopeLabel}
-                            onSearchRef={registerSearchInput}
-                          />
+                          <fieldset disabled={historyPending} aria-describedby={historyPending ? 'journal-history-progress' : undefined} className="min-w-0">
+                            <legend className="sr-only">Search and filter saved readings</legend>
+                            <JournalFilters
+                              ownerId={isAuthenticated ? user?.id : null}
+                              storageReady={!authLoading}
+                              filters={filters}
+                              onChange={setFilters}
+                              contexts={CONTEXT_FILTERS}
+                              spreads={SPREAD_FILTERS}
+                              decks={DECK_FILTERS}
+                              variant={isMobileLayout ? 'compact' : 'full'}
+                              viewMode={compactList ? 'compact' : 'comfortable'}
+                              onViewModeChange={(mode) => setCompactList(mode === 'compact')}
+                              resultCount={filteredEntries.length}
+                              totalCount={entries.length}
+                              searchCoverageLabel={searchCoverageLabel}
+                              searchScopeLabel={searchScopeLabel}
+                              onSearchRef={registerSearchInput}
+                            />
+                          </fieldset>
                         </div>
 
                         {(semanticSearchAvailable || semanticSearchActive) && (
@@ -1051,6 +1112,7 @@ export default function Journal() {
                             <button
                               type="button"
                               onClick={semanticSearchActive ? clearSemanticSearch : requestSemanticSearch}
+                              disabled={historyPending}
                               className="inline-flex min-h-touch items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
                             >
                               <JournalSearchIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1076,7 +1138,7 @@ export default function Journal() {
                           </p>
                           <p className="journal-prose mt-2 text-muted">This can take a few seconds for large collections.</p>
                         </div>
-                      ) : filteredEntries.length === 0 ? (
+                      ) : filteredEntries.length === 0 && !historyPending ? (
                         <div className="relative overflow-hidden rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
                           <p className="journal-prose text-lg text-main">
@@ -1115,7 +1177,7 @@ export default function Journal() {
                         </div>
                       ) : (
                         <>
-                          <div className={entryStackSpacingClass}>
+                          <div ref={historyListRef} className={entryStackSpacingClass}>
                             {renderedHistoryEntries}
                           </div>
                           {showLoadMoreButton && (
@@ -1123,13 +1185,16 @@ export default function Journal() {
                               <button
                                 type="button"
                                 onClick={handleLoadMoreEntries}
-                                disabled={loadingMore}
-                                className={`${OUTLINE_BUTTON_CLASS} min-h-touch px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                                disabled={loadingMore && !hasLocalMoreEntries}
+                                className={`${OUTLINE_BUTTON_CLASS} min-h-touch px-4 py-2 ${loadingMore && !hasLocalMoreEntries ? 'cursor-wait opacity-60' : ''}`}
                               >
-                                {loadingMore ? 'Loading...' : loadMoreLabel}
+                                {loadingMore && !hasLocalMoreEntries ? 'Loading...' : loadMoreLabel}
                               </button>
                             </div>
                           )}
+                          <p role="status" aria-atomic="true" className="sr-only">
+                            {historyAnnouncement === filterSignature ? `${historyCountLabel}.` : ''}
+                          </p>
                         </>
                       )}
                         <JournalFloatingControls
@@ -1152,7 +1217,7 @@ export default function Journal() {
                     onStartReading={handleStartReading}
                   />
                 )}
-                {hasEntries && (
+                {hasEntries && !historyPending && (
                   <div className="space-y-4">
                     {isMobileLayout && (
                       <details

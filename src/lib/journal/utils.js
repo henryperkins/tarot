@@ -8,10 +8,39 @@ import { getTimestamp } from '../../../shared/journal/utils.js';
  * Get month header label for journal entry grouping
  */
 export function getMonthHeader(timestamp) {
-  if (!timestamp) return 'Undated';
+  if (timestamp == null) return 'Undated';
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'Undated';
   return date.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+}
+
+/** Index the whole matching history independently of its rendered prefix. */
+export function buildJournalMonthSections(entries, { consecutive = false } = {}) {
+  const sections = [];
+  const byMonth = new Map();
+  (Array.isArray(entries) ? entries : []).forEach((entry, index) => {
+    const timestamp = getTimestamp(entry);
+    const date = timestamp == null ? null : new Date(timestamp);
+    const dated = date && Number.isFinite(date.getTime());
+    const key = dated ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : 'undated';
+    const previous = sections[sections.length - 1];
+    let section = consecutive ? (previous?.key === key ? previous : null) : byMonth.get(key);
+    if (!section) {
+      section = {
+        key,
+        label: dated ? getMonthHeader(timestamp) : 'Undated',
+        anchorId: `month-${key}${byMonth.has(key) ? `-${index}` : ''}`,
+        firstIndex: index,
+        items: [],
+        count: 0
+      };
+      sections.push(section);
+      byMonth.set(key, section);
+    }
+    section.items.push({ entry, index });
+    section.count += 1;
+  });
+  return sections;
 }
 
 /**

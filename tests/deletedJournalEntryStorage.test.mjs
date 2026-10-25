@@ -92,7 +92,8 @@ test('pagination queued before confirmed deletion cannot persist or reinsert the
   const owner = 'entry-queued-page'; const { storage } = storageFixture(t); const removed = entry('remove-page'); const keep = entry('keep-page');
   seed(storage, owner, [removed, keep]); let gets = 0;
   const driver = await journalDriver(owner, async (_url, options) => options?.method === 'DELETE' ? Response.json({ success: true, retiredReadingResultIds: [removed.readingResultId] })
-    : Response.json({ entries: ++gets === 1 ? [removed, keep] : [removed, entry('new-page')], pagination: { hasMore: true, nextCursor: 'next' } }));
+    : Response.json({ entries: ++gets === 1 ? [removed, keep] : [removed, { ...entry('new-page'), ts: 1791688000000 }],
+      pagination: { hasMore: true, nextCursor: gets === 1 ? 1791689000000 : 1791688000000 } }));
   t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render();
   await hook.loadMoreEntries(); await hook.deleteEntry(removed.id); driver.flush();
   assert.deepEqual(new Set(driver.render().entries.map(e => e.id)), new Set(['keep-page', 'new-page']));
@@ -438,7 +439,8 @@ test('actual Journal search-result deletion carries its result identity and purg
   function visit(node) { if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && ['handleDeleteRequest', 'handleDeleteConfirm'].includes(node.id?.name)) callbacks[node.id.name] = node.init;
     for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value?.type) visit(value); } }
-  visit(ast); let modal; const notices = []; const common = { filteredEntries: [removed], entries: [], user: { id: owner }, isAuthenticated: true,
+  visit(ast); let modal; const notices = []; const common = { filteredEntries: [removed], filteredEntriesRef: { current: [removed] },
+    useCallback: callback => callback, entries: [], user: { id: owner }, isAuthenticated: true,
     setDeleteConfirmModal: next => { modal = next; }, deleteEntry: hook.deleteEntry, showToast: notice => notices.push(notice), serverSearchEnabled: false, refreshServerSearch() {} };
   const compile = (node, dependencies) => new Function(...Object.keys(dependencies), `return (${source.slice(node.start, node.end)});`)(...Object.values(dependencies));
   compile(callbacks.handleDeleteRequest, common)(removed.id); await compile(callbacks.handleDeleteConfirm, { ...common, deleteConfirmModal: modal })(); driver.flush();
