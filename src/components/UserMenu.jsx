@@ -8,6 +8,7 @@ import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionCon
 import { usePreferences } from '../contexts/PreferencesContext';
 import { ConfirmModal } from './ConfirmModal';
 import { DeferredDialog } from './DeferredDialog';
+import { OPEN_SIGN_IN_EVENT } from '../lib/openSignIn';
 
 const AuthModal = lazy(() => import('./AuthModal'));
 
@@ -87,6 +88,16 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
       setJourneyLoading(false);
     }
   }, [isAuthenticated, journeyLoading, journeyEnabled]);
+
+  useEffect(() => {
+    const openSignIn = () => {
+      if (isAuthenticated) return;
+      closeDropdown();
+      setShowAuthModal(true);
+    };
+    window.addEventListener(OPEN_SIGN_IN_EVENT, openSignIn);
+    return () => window.removeEventListener(OPEN_SIGN_IN_EVENT, openSignIn);
+  }, [isAuthenticated, closeDropdown]);
 
   const handleRetryJourney = useCallback(() => {
     fetchJourneyPreference(true);

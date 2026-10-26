@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { generateFollowUpSuggestions } from '../lib/followUpSuggestions';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { requestSignIn } from '../lib/openSignIn';
 import { SPREADS } from '../data/spreads';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import clsx from 'clsx';
@@ -767,12 +768,17 @@ export default function FollowUpChat({
         >
           {messages.map((msg, idx) => (
             msg.role === 'user' ? (
-              <div key={msg.id || idx} className="follow-up-log__question">
-                <p className="whitespace-pre-wrap" dir="auto">{msg.content}</p>
+              <div key={msg.id || idx} className="follow-up-log__turn follow-up-log__turn--you">
+                <p className="follow-up-log__speaker">You</p>
+                <div className="follow-up-log__question">
+                  <p className="whitespace-pre-wrap" dir="auto">{msg.content}</p>
+                </div>
               </div>
             ) : (
               // The reader's answer reads as prose on the page, not a boxed bubble.
-              <div key={msg.id || idx} className="follow-up-log__answer">
+              <div key={msg.id || idx} className="follow-up-log__turn">
+                <p className="follow-up-log__speaker">Reader</p>
+                <div className="follow-up-log__answer">
                 {msg.content ? (
                   <FollowUpAnswer content={msg.content} variant="compact" />
                 ) : msg.isStreaming ? (
@@ -797,6 +803,7 @@ export default function FollowUpChat({
                     </span>
                   </p>
                 )}
+                </div>
               </div>
             )
           ))}
@@ -940,6 +947,21 @@ export default function FollowUpChat({
           )}
         </div>
       )}
+      {!isAuthenticated && (
+        <button
+          type="button"
+          className="follow-up-chat__signin"
+          onClick={() => {
+            // Let the chat return focus, then open sign-in so its field keeps it.
+            onClose?.();
+            window.setTimeout(() => requestSignIn(), 80);
+          }}
+        >
+          <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
+          Sign in to ask follow-up questions
+        </button>
+      )}
+
       {/* On phones the sheet's close button is in the far top corner. */}
       {variant === 'drawer' && onClose && (
         <button type="button" onClick={onClose} className="follow-up-chat__bottom-close">
@@ -957,14 +979,6 @@ export default function FollowUpChat({
             </a>
             {' '}for journal-powered insights
           </span>
-        </div>
-      )}
-
-      {/* Sign-in prompt for unauthenticated users */}
-      {!isAuthenticated && (
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <Lock className="w-3 h-3" aria-hidden="true" />
-          <span>Sign in to ask follow-up questions</span>
         </div>
       )}
       </div>

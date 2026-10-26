@@ -27,7 +27,7 @@ for (const tier of ['guest', 'free', 'plus', 'pro']) {
       await expect(page.locator('#history')).toContainText(QUESTION);
       await expect(page.locator('#history')).toContainText('What would enough look like today?');
       if (tier === 'guest') {
-        await expect(page.getByRole('button', { name: 'Sign in to ask', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Sign in to ask', exact: true })).toBeEnabled();
         await expect(page.locator('#history')).toContainText('My original note, kept exactly.');
         return;
       }

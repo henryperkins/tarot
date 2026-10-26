@@ -10,7 +10,10 @@ const entries = Array.from({ length: 6 }, (_, index) => ({
   reflections: { Overall: 'I can choose a steadier pace.' }
 }));
 
-async function openJournal(page, { owner = null, tier = 'free', corrupt = false, outage = false, empty = false, legacyViews = false } = {}) {
+async function openJournal(page, {
+  owner = null, tier = 'free', corrupt = false, outage = false, empty = false,
+  legacyViews = false, fixtureEntries = entries
+} = {}) {
   const state = { owner, tier, outage, mutations: [] };
   await page.route('**/api/**', async route => {
     const request = route.request(), path = new URL(request.url()).pathname;
@@ -21,7 +24,7 @@ async function openJournal(page, { owner = null, tier = 'free', corrupt = false,
       state.mutations.push(path); return route.fulfill({ status: 503, json: { error: 'Read-only browser fixture' } });
     }
     if (path === '/api/journal') return route.fulfill(state.outage ? { status: 503, json: { error: 'Synthetic outage' } }
-      : { json: { entries: empty ? [] : entries, pagination: { total: empty ? 0 : entries.length, hasMore: false } } });
+      : { json: { entries: empty ? [] : fixtureEntries, pagination: { total: empty ? 0 : fixtureEntries.length, hasMore: false } } });
     if (path === '/api/archetype-journey/preferences') return route.fulfill({ json: { preferences: { archetype_journey_enabled: false } } });
     if (path === '/api/share') return route.fulfill({ json: { shares: [] } });
     return route.fulfill({ json: {} });
@@ -33,7 +36,7 @@ async function openJournal(page, { owner = null, tier = 'free', corrupt = false,
       if (legacyViews) localStorage.setItem('journal_saved_filters_v1', JSON.stringify([{ id: 'older', name: 'Private older view', values: { query: 'Earlier private question' } }]));
       sessionStorage.setItem('journal-remediation-seeded', 'true');
     }
-  }, { entries, corrupt, empty, legacyViews });
+  }, { entries: fixtureEntries, corrupt, empty, legacyViews });
   await page.goto('/journal');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   return state;
@@ -94,6 +97,36 @@ test('a guest can delete one local entry with confirmation and keep the deletion
   await page.reload();
   await expect(page.getByRole('article')).toHaveCount(5);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_journal')).length)).toBe(5);
+});
+
+test('saved follow-up answers match chat size and the upgrade link keeps a 44px target', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const entry = {
+    ...entries[0],
+    id: 'journal-followup-typeset',
+    question: 'What can I keep this week?',
+    followUps: [{
+      question: 'What would a smaller step look like?',
+      answer: 'Protect ten quiet minutes today.\n\n> Hope is a direction, not a guarantee.',
+      turnNumber: 1,
+      createdAt: Date.now()
+    }]
+  };
+  await openJournal(page, { owner: 'owner-a', tier: 'free', fixtureEntries: [entry] });
+  await page.getByRole('heading', { name: 'What can I keep this week?', exact: true }).click();
+  const article = page.getByRole('article').first();
+  const answer = article.locator('.journal-narrative-prose p', { hasText: 'Protect ten quiet minutes today.' });
+  await expect(answer).toBeVisible();
+  expect(await answer.evaluate(element => getComputedStyle(element).fontSize)).toBe('16px');
+  const upgrade = article.getByRole('link', { name: 'Upgrade to Plus for 3 follow-ups', exact: true });
+  await expect(upgrade).toBeVisible();
+  const box = await upgrade.boundingBox();
+  expect(box.height).toBeGreaterThanOrEqual(44);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  const quote = article.locator('.journal-narrative-prose blockquote p');
+  await expect(quote).toBeVisible();
+  expect(await quote.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
 test('a signed-in Free local entry copies a summary without requesting a cloud share', async ({ page }) => {

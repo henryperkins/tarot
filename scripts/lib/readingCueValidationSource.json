@@ -945,6 +945,7 @@
     "src/lib/observeAppChrome.js",
     "src/lib/onboardingMetrics.js",
     "src/lib/onboardingVariant.js",
+    "src/lib/openSignIn.js",
     "src/lib/particleLifecycle.js",
     "src/lib/pdfExport.js",
     "src/lib/positionSynthesis.js",

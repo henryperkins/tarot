@@ -24,6 +24,49 @@ test('reading overview, contents and journal actions preserve the complete origi
   }
 });
 
+test('Save and Ask stay in the first screen on a 900px desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await createNarrativeFixture(page, { narrative: 'The Star asks for one quiet, repeatable step.' });
+  try {
+    await startReading(page, fixture);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true })).toBeInViewport();
+  } finally {
+    await fixture.close();
+  }
+});
+
+for (const textScale of [100, 200]) {
+  test(`desktop reading actions keep keyboard-focused prose clear at ${textScale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const narrative = Array.from({ length: 12 }, (_, index) => `## Reflection ${index + 1}\n\nNotice what helps you return to a steadier rhythm. Choose one small action you can keep. [Reflection guide ${index + 1}](https://example.invalid/guide-${index + 1})`).join('\n\n');
+    const fixture = await createNarrativeFixture(page, { narrative });
+    try {
+      await startReading(page, fixture, { complete: false });
+      await fixture.emit('reading', 'done', { fullText: narrative, provider: 'fixture', requestId: 'reading-actions-focus' });
+      const actions = page.locator('.reading-completion-actions');
+      await expect(actions).toBeVisible();
+      if (textScale === 200) await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+      const target = page.getByRole('link', { name: 'Reflection guide 7', exact: true });
+      const previous = page.getByRole('link', { name: 'Reflection guide 6', exact: true });
+      const actionBox = await actions.boundingBox();
+      // Reproduce native Tab navigation to content that starts behind the row.
+      await target.evaluate((element, y) => window.scrollBy(0, element.getBoundingClientRect().top - y), actionBox.y + 8);
+      await previous.evaluate(element => element.focus({ preventScroll: true }));
+      await page.keyboard.press('Tab');
+      await expect(target).toBeFocused();
+      await expect.poll(() => target.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= innerHeight
+          && element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    } finally {
+      await fixture.close();
+    }
+  });
+}
+
 test('setext reading headings render and their contents links reach the original source destinations', async ({ page }) => {
   const narrative = 'Opening\n=======\n\nA quiet beginning.\n\nClosing\n=======\n\nAn ending worth keeping.';
   const fixture = await createNarrativeFixture(page, { narrative });

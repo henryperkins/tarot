@@ -271,6 +271,18 @@ test.describe('Follow-up questions - Desktop @desktop', () => {
     await expect(followUpButton).toBeVisible();
   });
 
+  test('chat subtitle stays visible at 200% text on a tall desktop sheet', async ({ page }) => {
+    await mockAuth(page);
+    await mockTarotReading(page);
+    await completeReading(page);
+    await openFollowUpModal(page);
+
+    const subtitle = page.locator('.follow-up-chat__subtitle');
+    await expect(subtitle).toBeVisible();
+    await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+    await expect(subtitle).toBeVisible();
+  });
+
   test('a suggested question stays an editable draft until Send is chosen', async ({ page }) => {
     await mockAuth(page, 'plus');
     await mockTarotReading(page);

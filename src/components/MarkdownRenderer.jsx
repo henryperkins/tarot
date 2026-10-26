@@ -121,7 +121,7 @@ const STYLE_VARIANTS = {
       h3: 'text-base'
     },
     list: 'list-disc pl-5 space-y-1.5 text-base leading-relaxed',
-    blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-accent/85 my-3 text-base',
+    blockquote: 'border-l-2 border-secondary/40 pl-3 italic text-main my-3 text-base',
     inlineCode:
       'bg-surface-muted/70 text-accent px-1.5 py-0.5 rounded text-xs font-mono wrap-break-word',
     codeBlock: 'block p-2 text-xs font-mono whitespace-pre-wrap wrap-break-word',
