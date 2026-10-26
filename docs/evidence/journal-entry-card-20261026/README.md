@@ -46,7 +46,7 @@ is Pro at desktop width; other tiers use existing controlled browser fixtures.
 - Ten rendered guest/real Pro cases passed, including card-scoped axe checks.
 - Production frontend build, repository ESLint, and maintained Markdown links
   passed. The manual Impeccable scan returned two advisory size findings in
-  existing `.prose-reading` and `.journal-quote` CSS, outside this pass's additions.
+  existing `.journal-prose` and `.journal-quote` CSS, outside this pass's additions.
 
 The preceding handoff records 55 failures across seven other reading/journal
 specs, reproduced on a clean master worktree. That larger comparison was not
