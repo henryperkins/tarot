@@ -8,7 +8,7 @@ const values = Array.from({ length: 300 }, (_, index) => ({
   reflections: { Overall: `A personal note ${index}` }
 }));
 
-async function openPaged(page, { hold = false, fail = false, entries = values, firstPageSize = 10 } = {}) {
+async function openPaged(page, { hold = false, fail = false, entries = values, firstPageSize = 10, total = entries.length } = {}) {
   const state = { requests: [], release: null, fail };
   await page.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname;
@@ -26,7 +26,7 @@ async function openPaged(page, { hold = false, fail = false, entries = values, f
         state.fail = false;
         return route.fulfill({ status: 503, json: { error: 'Synthetic interrupted connection' } });
       }
-      return route.fulfill({ json: { entries: batch, pagination: { total: entries.length,
+      return route.fulfill({ json: { entries: batch, pagination: { total,
         hasMore: start + batch.length < entries.length,
         nextCursor: batch.at(-1)?.ts ?? null, nextCursorId: batch.at(-1)?.id ?? null } } });
     }
@@ -67,6 +67,25 @@ test('first readings work while bounded pages load; full-text search waits for c
   await expect(page.getByRole('heading', { name: 'Saved question 299', exact: true })).toBeVisible();
   await search.fill('A personal note 298');
   await expect(page.getByRole('heading', { name: 'Saved question 298', exact: true })).toBeVisible();
+});
+
+test('completed history reconciles both count labels when server rows include a duplicate', async ({ page }) => {
+  const state = await openPaged(page, { entries: values.slice(0, 12), total: 13, hold: true });
+  const search = page.getByRole('searchbox', { name: 'Search journal entries' });
+  await expect(search).toBeDisabled();
+  await expect(page.getByText('Loaded: 10 of 13', { exact: true })).toBeVisible();
+  await expect(page.getByText('Loaded 10 of 13 entries', { exact: true })).toBeVisible();
+  await expect.poll(() => Boolean(state.release)).toBe(true);
+  state.release();
+
+  await expect(search).toBeEnabled();
+  await expect(page.getByText('Loaded: 12 of 12', { exact: true })).toBeVisible();
+  await expect(page.getByText('Showing 10 of 12 readings', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Loaded [0-9]+ of [0-9]+ entries$/)).toHaveCount(0);
+  await search.fill('A personal note 11');
+  await expect(page.locator('#history article')).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Saved question 11', exact: true })).toBeVisible();
+  await expect(page.getByText('Loaded: 12 of 12', { exact: true })).toBeVisible();
 });
 
 test('an interrupted background page pauses automatically and explicit retry restores full-history tools', async ({ page }) => {

@@ -4,8 +4,8 @@ import { journalHookDriver, journalStorageFixture } from './helpers/journalHookD
 
 const reading = (id, ts = 1700100000000) => ({ id, readingResultId: id, ts,
   question: id, personalReading: `Full saved prose ${id}`, reflections: { Overall: `Reflection ${id}` }, cards: [] });
-const response = (entries, hasMore = false) => new Response(JSON.stringify({ entries,
-  pagination: { total: 12, hasMore, nextCursor: entries.at(-1)?.ts ?? null, nextCursorId: entries.at(-1)?.id ?? null }
+const response = (entries, hasMore = false, total = 12) => new Response(JSON.stringify({ entries,
+  pagination: { total, hasMore, nextCursor: entries.at(-1)?.ts ?? null, nextCursorId: entries.at(-1)?.id ?? null }
 }));
 
 async function setup(t, fetchImpl) {
@@ -49,6 +49,42 @@ test('first page is bounded and the last complete cache survives until full hist
   assert.equal(JSON.parse(storage.getItem(key)).length, 12);
 });
 
+test('completed history counts deduplicated readings after preserving the server total during pagination', async t => {
+  let calls = 0;
+  const first = reading('same-reading');
+  const duplicate = { ...first, id: 'duplicate-row', ts: 1700050000000 };
+  const older = reading('older-reading', 1700000000000);
+  const { hook, render } = await setup(t, async () => ++calls === 1
+    ? response([first], true, 3)
+    : response([duplicate, older], false, 3));
+
+  await hook.reload();
+  let current = render();
+  assert.equal(current.entries.length, 1);
+  assert.equal(current.totalEntries, 3);
+  assert.equal(current.historyComplete, false);
+
+  await current.loadMoreEntries();
+  current = render();
+  assert.equal(current.entries.length, 2);
+  assert.equal(current.totalEntries, 2);
+  assert.equal(current.hasTotalEntries, true);
+  assert.equal(current.historyComplete, true);
+});
+
+test('a complete single-page response counts its unique readings rather than raw rows', async t => {
+  const first = reading('same-reading');
+  const { hook, render } = await setup(t, async () => response([
+    first, { ...first, id: 'duplicate-row' }
+  ], false, 2));
+
+  await hook.reload();
+  const current = render();
+  assert.equal(current.entries.length, 1);
+  assert.equal(current.totalEntries, 1);
+  assert.equal(current.historyComplete, true);
+});
+
 test('older pages preserve source-matched local visual outcomes in memory and the completed cache', async t => {
   const older = { ...reading('older', 1700000000000), visualState: {
     attachmentStatus: 'failed', retryStatus: 'unavailable', sourceFingerprint: 'a'.repeat(64),
@@ -76,10 +112,12 @@ test('failed background loading retains entries and the complete cache, and expl
   storage.setItem('tarot_journal_cache_progressive-owner', JSON.stringify([reading('complete-copy')]));
   await hook.reload();
   let current = render();
+  assert.equal(current.totalEntries, 12);
   await current.loadMoreEntries({ prefetch: true });
   current = render();
   assert.equal(current.entries.length, 1);
   assert.equal(current.historyComplete, false);
+  assert.equal(current.totalEntries, 12);
   assert.match(current.historyError, /load/i);
   assert.equal(JSON.parse(storage.getItem('tarot_journal_cache_progressive-owner'))[0].id, 'complete-copy');
   await current.loadMoreEntries();
@@ -87,6 +125,7 @@ test('failed background loading retains entries and the complete cache, and expl
   assert.equal(current.historyError, null);
   assert.equal(current.historyComplete, true);
   assert.equal(current.entries.length, 2);
+  assert.equal(current.totalEntries, 2);
 });
 
 test('concurrent continuation requests share one flight', async t => {

@@ -128,6 +128,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
   const [lastLocalSaveAt, setLastLocalSaveAt] = useState(null);
   const [syncSource, setSyncSource] = useState(null); // 'api' | 'cache' | 'local'
   const hasMoreEntries = pagination.hasMore;
+  const historyComplete = !loading && !hasMoreEntries;
   const prefetchedOnceRef = useRef(false);
   const historyRequestRef = useRef(0);
   const pageFlightRef = useRef(null);
@@ -1211,11 +1212,14 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
     loading,
     loadingMore,
     historyError,
-    historyComplete: !loading && !pagination.hasMore,
+    historyComplete,
     error,
     pageSize: PAGE_SIZE,
     hasMoreEntries,
-    totalEntries: pagination.total ?? entries.length,
+    // The API counts stored rows; completed cloud history counts unique readings.
+    totalEntries: syncSource === 'api' && historyComplete
+      ? entries.length
+      : pagination.total ?? entries.length,
     hasTotalEntries: typeof pagination.total === 'number',
     // Sync state for UX feedback
     lastSyncAt,
