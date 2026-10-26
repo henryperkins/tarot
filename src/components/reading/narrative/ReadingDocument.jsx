@@ -69,7 +69,8 @@ export function ReadingDocument({ model, callbacks }) {
         cardLinks={model.gestureStudyEnabled && model.personalReading?.hasMarkdown ? model.cardLinkCatalog : null}
         gestureSource={model.gestureSource} getHeadingProps={headingProps} renderHeadingLead={headingLead} />
     </div>
-    {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions">
+    {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions"
+      data-app-secondary="3" data-chrome-placement="bottom">
       {model.saveController ? <ReadingCompletionActions saveController={model.saveController}
         onViewJournalEntry={callbacks.onViewJournalEntry} onOpenFollowUp={callbacks.onOpenFollowUp} /> : <>
       <button type="button" className="reading-screen__primary" disabled={model.controlsModel?.isSaving}

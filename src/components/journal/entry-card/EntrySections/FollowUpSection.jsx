@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Lightning } from '@phosphor-icons/react';
 import { normalizeTimestamp } from '../../../../../shared/journal/utils.js';
+import { requestSignIn } from '../../../../lib/openSignIn.js';
 import { styles, cn } from '../EntryCard.primitives';
 
 function formatFollowUpTimestamp(value) {
@@ -41,12 +42,18 @@ const FollowUpTurn = memo(function FollowUpTurn({ turn, fallbackTurnNumber }) {
           </span>
         )}
       </div>
-      <div className="mt-2 space-y-2">
-        <p className="text-sm font-semibold text-(--text-main)">Q: {turn.question}</p>
-        <div className="prose prose-invert prose-sm max-w-none text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
+      <div className="mt-2 space-y-3">
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-label text-muted">You</p>
+          <p className="text-sm font-semibold text-(--text-main)">{turn.question}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-label text-muted">Reader</p>
+          <div className="journal-narrative-prose prose prose-base max-w-none wrap-anywhere text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
             {turn.answer || ''}
           </ReactMarkdown>
+          </div>
         </div>
       </div>
     </li>
@@ -111,7 +118,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             {!canAskFollowUp && effectiveTier === 'free' && (
               <a
                 href="/pricing"
-                className="text-(--brand-primary) hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
+                className="inline-flex min-h-touch items-center rounded px-1 text-(--brand-primary) hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 Upgrade to Plus for 3 follow-ups
               </a>
@@ -123,8 +130,14 @@ export const FollowUpSection = memo(function FollowUpSection({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => onOpenFollowUp('ask')}
-            disabled={!canAskFollowUp}
+            onClick={() => {
+              if (!isAuthenticated) {
+                requestSignIn();
+                return;
+              }
+              onOpenFollowUp('ask');
+            }}
+            disabled={isAuthenticated && !canAskFollowUp}
             title={
               canAskFollowUp
                 ? 'Ask a follow-up'
@@ -134,7 +147,7 @@ export const FollowUpSection = memo(function FollowUpSection({
             }
             className={cn(
               styles.actionButton,
-              canAskFollowUp ? styles.actionButtonEnabled : styles.actionButtonDisabled
+              !isAuthenticated || canAskFollowUp ? styles.actionButtonEnabled : styles.actionButtonDisabled
             )}
           >
             <Lightning className="h-3.5 w-3.5 text-(--brand-primary)" aria-hidden="true" />
