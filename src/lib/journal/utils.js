@@ -107,6 +107,18 @@ export function getTimeframeWindow(timeframe, now = new Date()) {
 }
 
 /**
+ * Whether a saved card is reversed, including legacy cards that only carry `isReversed`.
+ */
+export function isReversedCard(card) {
+  if (card?.isReversed === true) return true;
+  return String(card?.orientation || '').toLowerCase().includes('reversed');
+}
+
+export function entryHasReversal(entry) {
+  return Array.isArray(entry?.cards) && entry.cards.some(isReversedCard);
+}
+
+/**
  * Filter entries to a specific date window
  */
 export function filterEntriesToWindow(entries, window) {

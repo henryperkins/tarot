@@ -110,3 +110,35 @@ test('semantic candidate selection applies the active view before its 50-reading
     mode: 'semantic', ids: ['similar-career']
   });
 });
+
+test('an explicit client window keeps a Tokyo New Year reading in exact and semantic results', async (t) => {
+  const { db, run } = await fixture(t);
+  // Jan 1 00:30 in Tokyo is Dec 31 15:30 UTC, before the server's UTC year start.
+  const tokyoYearStart = Date.UTC(2025, 11, 31, 15, 0, 0);
+  const createdAt = Math.floor(Date.UTC(2025, 11, 31, 15, 30, 0) / 1000);
+  await db.prepare('UPDATE journal_entries SET created_at = ? WHERE id IN (?, ?)')
+    .bind(createdAt, 'literal', 'similar-love').run();
+  // Saved before the reader's year began, so the window excludes it.
+  await db.prepare('UPDATE journal_entries SET created_at = ? WHERE id = ?')
+    .bind(Math.floor(tokyoYearStart / 1000) - 60, 'similar-career').run();
+  const windowParams = {
+    timeframe: 'ytd',
+    windowStart: String(tokyoYearStart),
+    windowEnd: String(Date.UTC(2026, 5, 1))
+  };
+
+  assert.deepEqual(await run({ q: 'lighthouse', ...windowParams }), { mode: 'exact', ids: ['literal'] });
+  assert.deepEqual(await run({ q: 'lighthouse', mode: 'semantic', ...windowParams }), {
+    mode: 'semantic',
+    ids: ['similar-love']
+  });
+});
+
+test('an invalid client window falls back to the named timeframe', async (t) => {
+  const { db, run } = await fixture(t);
+  await db.prepare('UPDATE journal_entries SET created_at = 100 WHERE id = ?').bind('literal').run();
+  assert.deepEqual(await run({ q: 'lighthouse', timeframe: '30d', windowStart: '200', windowEnd: '100' }), {
+    mode: 'semantic',
+    ids: ['similar-career', 'similar-love']
+  });
+});

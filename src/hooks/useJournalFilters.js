@@ -8,7 +8,7 @@ import { filterDeletedJournalEntries, subscribeToDeletedJournalEntries } from '.
 import { matchesJourneyFilter } from '../lib/coachSuggestionUtils';
 import { formatContextName } from '../lib/journalInsights';
 import { getTimestamp } from '../../shared/journal/utils.js';
-import { filterEntriesToWindow, getTimeframeWindow } from '../lib/journal/utils';
+import { entryHasReversal, filterEntriesToWindow, getTimeframeWindow } from '../lib/journal/utils';
 import {
   CONTEXT_FILTERS,
   SPREAD_FILTERS,
@@ -235,6 +235,11 @@ export function useJournalFilters(sourceEntries, options = {}) {
     if (filters.timeframe !== 'all') {
       urlParams.append('timeframe', filters.timeframe);
     }
+    // The reader's local window; the server's own "ytd" boundary is UTC.
+    if (timeframeWindow) {
+      urlParams.append('windowStart', String(timeframeWindow.start.getTime()));
+      urlParams.append('windowEnd', String(timeframeWindow.end.getTime()));
+    }
     if (filters.onlyReversals) {
       urlParams.append('onlyReversals', 'true');
     }
@@ -283,12 +288,13 @@ export function useJournalFilters(sourceEntries, options = {}) {
         controller.abort();
       }
     };
-  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, requestedSearchMode, namespace, userId, setServerSearch]);
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, timeframeWindow, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, requestedSearchMode, namespace, userId, setServerSearch]);
 
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {
       if (serverSearch.status === 'success') {
-        return filterEntriesToWindow(serverSearch.results, timeframeWindow);
+        const windowed = filterEntriesToWindow(serverSearch.results, timeframeWindow);
+        return filters.onlyReversals ? windowed.filter(entryHasReversal) : windowed;
       }
       if (serverSearch.status === 'loading') {
         return [];
@@ -312,11 +318,8 @@ export function useJournalFilters(sourceEntries, options = {}) {
       if (deckSet.size > 0 && !deckSet.has(entry?.deckId)) {
         return false;
       }
-      if (filters.onlyReversals) {
-        const hasReversal = (entry?.cards || []).some((card) => (card?.orientation || '').toLowerCase().includes('reversed'));
-        if (!hasReversal) {
-          return false;
-        }
+      if (filters.onlyReversals && !entryHasReversal(entry)) {
+        return false;
       }
       if (query) {
         const reflections = entry?.reflections ? Object.values(entry.reflections).join(' ') : '';

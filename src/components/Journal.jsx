@@ -310,8 +310,12 @@ export default function Journal() {
       }));
     }
 
-    // Clear the navigation state so back/forward doesn't keep re-applying.
-    navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, { replace: true, state: null });
+    // Clear the one-shot requests so back/forward doesn't keep re-applying,
+    // but keep `fromReading`, which drives the "Back to Reading" button.
+    navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, {
+      replace: true,
+      state: state.fromReading ? { fromReading: true } : null
+    });
   }, [location.key, location.pathname, location.search, location.hash, location.state, navigate, setFilters, handleScopeSelect]);
 
   const registerHistoryFiltersEl = useCallback((node) => {

@@ -96,7 +96,18 @@ export async function onRequestGet(context) {
     const spreads = url.searchParams.getAll('spreads');
     const decks = url.searchParams.getAll('decks');
     const timeframe = (url.searchParams.get('timeframe') || 'all').toLowerCase();
+    // Clients send their local window so "This year" starts at the reader's
+    // midnight, not UTC midnight. The timeframe name is only a fallback.
+    const windowStartParam = Number(url.searchParams.get('windowStart'));
+    const windowEndParam = Number(url.searchParams.get('windowEnd'));
+    const hasClientWindow = timeframe !== 'all'
+      && url.searchParams.has('windowStart')
+      && Number.isFinite(windowStartParam) && windowStartParam > 0
+      && (!url.searchParams.has('windowEnd')
+        || (Number.isFinite(windowEndParam) && windowEndParam >= windowStartParam));
+    const timeframeEndMs = hasClientWindow && url.searchParams.has('windowEnd') ? windowEndParam : null;
     const timeframeCutoffMs = (() => {
+      if (hasClientWindow) return windowStartParam;
       const now = Date.now();
       switch (timeframe) {
         case '30d':
@@ -144,6 +155,10 @@ export async function onRequestGet(context) {
     if (timeframeCutoffMs) {
       filterClauses.push('created_at >= ?');
       filterParams.push(Math.floor(timeframeCutoffMs / 1000));
+    }
+    if (timeframeEndMs) {
+      filterClauses.push('created_at <= ?');
+      filterParams.push(Math.floor(timeframeEndMs / 1000));
     }
     if (onlyReversals) {
       filterClauses.push('cards_json LIKE ?');
@@ -251,6 +266,7 @@ export async function onRequestGet(context) {
         limit,
         requestId,
         timeframeCutoffMs,
+        timeframeEndMs,
         contexts,
         spreads,
         decks,

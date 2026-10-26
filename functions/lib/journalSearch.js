@@ -30,6 +30,7 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     minSimilarity = DEFAULT_MIN_SIMILARITY,
     requestId = 'journal-search',
     timeframeCutoffMs = null,
+    timeframeEndMs = null,
     contexts = [],
     spreads = [],
     decks = [],
@@ -66,6 +67,10 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
     if (timeframeCutoffMs) {
       whereParts.push('created_at >= ?');
       queryParams.push(Math.floor(timeframeCutoffMs / 1000));
+    }
+    if (timeframeEndMs) {
+      whereParts.push('created_at <= ?');
+      queryParams.push(Math.floor(timeframeEndMs / 1000));
     }
 
     // A view's eligible readings must be selected before the bounded candidate
@@ -129,8 +134,9 @@ export async function findSimilarJournalEntries(env, userId, query, options = {}
       })
       .filter(Boolean)
       .filter(entry => {
-        if (!timeframeCutoffMs) return true;
-        return (entry.created_at || 0) * 1000 >= timeframeCutoffMs;
+        const createdMs = (entry.created_at || 0) * 1000;
+        if (timeframeCutoffMs && createdMs < timeframeCutoffMs) return false;
+        return !timeframeEndMs || createdMs <= timeframeEndMs;
       })
       .filter(e => e.similarity >= minSimilarity);
     
