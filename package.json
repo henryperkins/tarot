@@ -28,7 +28,7 @@
     "migrations:status": "node scripts/deploy.js --migrations-only --dry-run",
     "migrations:apply": "node scripts/deploy.js --migrations-only",
     "migrations:apply:local": "node scripts/deploy.js --migrations-only --local",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-concurrency=2 tests/*.test.mjs",
     "test:vision-grounding": "node --test tests/rwsEvidenceOntology.test.mjs tests/rwsCaptionDataset.test.mjs tests/symbolDetectorWeightedScoring.test.mjs tests/visionEvidence.test.mjs tests/visionFusionRouter.test.mjs tests/visionMetricsWeightedGrounding.test.mjs tests/symbolDetectorIntegrity.test.mjs tests/visionMetricsIntegrity.test.mjs tests/visionGateIntegrity.test.mjs tests/visionEvaluationDataset.test.mjs tests/visionAnnotationEligibility.test.mjs",
     "test:eval:synthetic": "node --test tests/evaluationSyntheticFailures.test.mjs",
     "test:deploy": "node --test tests/deployScript.test.mjs tests/deploySettings.test.mjs tests/deployQualityGate.test.mjs tests/releaseChecks.test.mjs tests/ciVisionPolicy.test.mjs",

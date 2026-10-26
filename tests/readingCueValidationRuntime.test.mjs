@@ -99,8 +99,8 @@ test('cold startup serves callable development JSX after the production build, w
   const privateDirectory = path.join(dir, 'run');
   await missing(path.join(privateDirectory, 'vite-cache'));
   const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
-  let startupError;
-  void started.catch(error => { startupError = error; });
+  let startupError; let startupSettled = false;
+  void started.then(() => { startupSettled = true; }, error => { startupError = error; startupSettled = true; });
   t.after(async () => {
     try { const owned = await started.catch(() => null); await owned?.close(); }
     finally { await rm(dir, { recursive: true, force: true }); }
@@ -109,22 +109,36 @@ test('cold startup serves callable development JSX after the production build, w
   // Its availability must follow the production build; there is no mock server,
   // warmed optimizer cache, or delay chosen to hide the original startup race.
   const origin = `http://127.0.0.1:${ports.frontend}`;
-  const deadline = Date.now() + 60000;
+  const observerNow = Date.now.bind(Date);
+  let observerClockAdvanced = false;
   let firstFrontendIdentity;
   while (firstFrontendIdentity === undefined) {
     if (startupError) throw startupError;
+    const startupWasSettled = startupSettled;
     try {
       const response = await fetch(`${origin}/__cue_validation_identity`, { signal: AbortSignal.timeout(5000) });
       firstFrontendIdentity = { status: response.status, body: await response.json() };
-    } catch { /* owned frontend is still acquiring */ }
+    } catch (error) {
+      if (startupError) throw startupError;
+      // Readiness can overtake a refusal from a probe begun during startup.
+      if (startupWasSettled) throw error;
+      // Exercise startup beyond the observer's old 60-second cutoff without
+      // sleeping or warming the real build, optimizer, or JSX dependency graph.
+      if (!observerClockAdvanced) {
+        t.mock.method(Date, 'now', () => observerNow() + 61000);
+        observerClockAdvanced = true;
+      }
+    }
     if (firstFrontendIdentity !== undefined) break;
-    if (Date.now() > deadline) throw new Error('Cold owned frontend never acquired its listener');
+    // The runtime owns the bounded startup deadline. A shorter observer timeout
+    // would reject a valid build before the runtime can report ready or failed.
     await new Promise(resolve => setTimeout(resolve, 10));
   }
   const entry = await fetch(`${origin}/src/main.jsx`);
   assert.equal(entry.status, 200);
   const transformed = await entry.text();
   const owned = await started;
+  assert.equal(observerClockAdvanced, true, 'observe the real cold listener while startup is still pending');
   const dependencyPath = transformed.match(/["']([^"']*\/react_jsx-dev-runtime\.js(?:\?[^"']*)?)["']/)?.[1];
   assert.ok(dependencyPath, 'development entry must import the actual optimized JSX development runtime');
   const modules = new Map();
