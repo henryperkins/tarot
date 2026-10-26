@@ -6,8 +6,8 @@
  *   import { JournalEntryCard } from './journal/entry-card';
  * 
  * Or import sub-components directly:
- *   import { CompactHeader } from './journal/entry-card/EntryHeader';
- *   import { QuestionSection } from './journal/entry-card/EntrySections';
+ *   import { ComfortableHeader } from './journal/entry-card/EntryHeader';
+ *   import { NarrativeSection } from './journal/entry-card/EntrySections';
  */
 
 // Main component
@@ -17,10 +17,9 @@ export { JournalEntryCard } from './JournalEntryCard';
 export { useEntryMetadata, useActionMenu, useEntryActions } from './hooks';
 
 // Sub-components (for composition)
-export { CompactHeader, ComfortableHeader } from './EntryHeader';
+export { ComfortableHeader } from './EntryHeader';
 export { ActionMenu, ShareLinksPanel } from './EntryActions';
 export {
-  QuestionSection,
   CardsDrawnSection,
   ReflectionsSection,
   KeyThemesSection,

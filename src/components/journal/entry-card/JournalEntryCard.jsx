@@ -22,7 +22,6 @@ import { useEntryMetadata, useActionMenu, useEntryActions } from './hooks';
 import { ComfortableHeader } from './EntryHeader';
 import { ActionMenu } from './EntryActions';
 import {
-  QuestionSection,
   CardsDrawnSection,
   ReflectionsSection,
   KeyThemesSection,
@@ -87,6 +86,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     onDelete,
     onCreateShareLink,
     onDeleteShareLink,
+    shareLinks,
     isAuthenticated,
     showStatus,
     clearStatus,
@@ -129,14 +129,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const baseCardClass = cardClass || (isSmallScreen ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS);
   
   const fullCardClass = useCompactStyle
-    ? cn(styles.cardCompact, 'group relative overflow-hidden animate-fade-in text-(--text-main)')
-    : cn(baseCardClass, styles.cardBase, styles.cardHover, 'text-(--text-main)');
+    ? cn(styles.cardCompact, 'relative overflow-hidden animate-fade-in text-(--text-main)')
+    : cn(baseCardClass, styles.cardBase, !isExpanded && styles.cardHover, 'text-(--text-main)');
 
   const accentBarClass = useCompactStyle
     ? cn(styles.accentBar, styles.accentBarCompact)
     : cn(styles.accentBar, styles.accentBarDefault);
 
-  const contentPadding = 'px-4 py-4 sm:p-5';
+  const contentPadding = 'px-[min(1rem,4vw)] py-4 sm:p-5';
 
   // Render action menu (shared by both headers)
   const renderActionMenu = () => (
@@ -195,17 +195,14 @@ export const JournalEntryCard = memo(function JournalEntryCard({
       {/* Header */}
       <ComfortableHeader {...headerProps} isExpanded={isExpanded} />
 
-      {/* Collapsible content */}
+      {/* Collapsible content. The header's title already carries the question. */}
       {isExpanded && (
         <div id={entryContentId} className={cn('relative z-10 animate-slide-down', contentPadding)}>
-          <QuestionSection question={entry.question} />
-
           {hasCards && (
             <CardsDrawnSection
               cards={cards}
               cardsId={cardsId}
               isSmallScreen={isSmallScreen}
-              hasQuestion={Boolean(entry.question)}
               collapsible
               defaultExpanded={!isSmallScreen && defaultExpanded}
             />
@@ -238,6 +235,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             <KnowledgeGraphSection
               cards={cards}
               graphKeys={entry.themes.knowledgeGraph.graphKeys}
+              deckStyle={entry.deckId}
             />
           )}
 
@@ -255,9 +253,9 @@ export const JournalEntryCard = memo(function JournalEntryCard({
         </div>
       )}
 
-      {/* Inline status */}
+      {/* Inline status: the live region stays mounted, but takes no space until it speaks. */}
       {(inlineStatus.message || !useCompactStyle) && (
-        <div className={useCompactStyle ? 'px-3 pb-2' : 'px-4 pb-3 pt-2'} aria-live="polite">
+        <div className={inlineStatus.message ? (useCompactStyle ? 'px-3 pb-2' : 'px-4 pb-3 pt-2') : undefined} aria-live="polite">
           <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
         </div>
       )}

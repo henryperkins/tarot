@@ -248,11 +248,14 @@ test('reflections: a local journal saves a new note in this browser', async ({ p
   try {
     const card = await expandEntry(page, 'What is mine to carry?');
     const section = card.getByRole('region', { name: 'Reflections' });
-    await expect(section.getByText('No reflections yet.', { exact: false })).toBeVisible();
+    await expect(section.getByText('What resonates for you now?', { exact: true })).toBeVisible();
     await section.getByRole('button', { name: 'Add a reflection', exact: true }).click();
+    // The prompt stays beside the editor it invites.
+    await expect(section.getByText('What resonates for you now?', { exact: true })).toBeVisible();
     await section.getByLabel('Your reflection', { exact: true }).fill('Only what I chose.');
     await section.getByRole('button', { name: 'Save reflection', exact: true }).click();
     await expect(section.getByText('Only what I chose.')).toBeVisible();
+    await expect(section.getByText('What resonates for you now?', { exact: true })).toHaveCount(0);
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_journal_user-1')));
     expect(stored[0].reflections).toEqual({ Overall: 'Only what I chose.' });
     expect(fixture.requests.some(request => request.path.endsWith('/reflections'))).toBe(false);
@@ -430,9 +433,12 @@ test('share links update when a link expires while its manager stays open', asyn
       await seedCloudEntry(db, { id: 'expires', question: 'An expiring link' });
       await db.prepare("INSERT INTO share_tokens (token, user_id, scope, title, created_at, expires_at) VALUES ('expires-soon', 'user-1', 'entry', 'Short-lived link', ?, ?)")
         .bind(Math.floor(now / 1000), Math.floor(now / 1000) + 60).run();
+      await db.prepare("INSERT INTO share_token_entries (token, entry_id, sort_index) VALUES ('expires-soon', 'expires', 0)").run();
     }
   });
   try {
+    const quickShare = entryCard(page, 'An expiring link').getByRole('button', { name: /^Copy share link for / });
+    await expect(quickShare).toBeVisible();
     const panel = await openDesktopSection(page, 'Export & Share');
     const links = panel.getByRole('region', { name: /^Your share links/ });
     await expect(links.getByRole('button', { name: 'Copy link for Short-lived link', exact: true })).toBeVisible();
@@ -440,6 +446,11 @@ test('share links update when a link expires while its manager stays open', asyn
     await expect(links.getByText(/Single reading.*Expired/)).toBeVisible();
     await expect(links.getByRole('button', { name: 'Copy link for Short-lived link', exact: true })).toHaveCount(0);
     await expect(links.getByRole('button', { name: 'Delete Short-lived link', exact: true })).toBeVisible();
+    // The header's cached label can outlive the link; the click must recheck
+    // expiry and create a usable link rather than copying the expired token.
+    await quickShare.click();
+    await expect.poll(() => fixture.requests.filter(request => request.method === 'POST' && request.path === '/api/share').length).toBe(1);
+    await expect.poll(() => fixture.db.rows("SELECT token FROM share_tokens WHERE token != 'expires-soon'").length).toBe(1);
   } finally { await fixture.close(); }
 });
 

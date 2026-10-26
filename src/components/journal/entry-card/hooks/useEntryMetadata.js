@@ -8,7 +8,6 @@ import { buildReflectionEntries } from '../../../../../shared/journal/reflection
 import { formatContextName } from '../../../../lib/journalInsights';
 import { DECK_OPTIONS } from '../../../deckOptions';
 import {
-  CONTEXT_SUMMARIES,
   TIMING_SUMMARIES,
   FOLLOW_UP_LIMITS,
   getEntryAccentColor
@@ -19,15 +18,12 @@ const DECK_LABEL_MAP = Object.fromEntries(
 );
 
 /**
- * Build theme insight lines from entry data
+ * Build theme insight lines from entry data. The reading's context is not
+ * repeated here: the header already names it.
  */
 function buildThemeInsights(entry) {
   const lines = [];
   const themes = entry?.themes;
-
-  if (entry?.context) {
-    lines.push(CONTEXT_SUMMARIES[entry.context] || `Context lens: ${entry.context}`);
-  }
 
   if (!themes || typeof themes !== 'object') {
     return lines;

@@ -139,7 +139,7 @@ export const NarrativeSection = memo(function NarrativeSection({
       handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
   ) : null;
   const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
-    <div className="journal-narrative-prose prose prose-base max-w-none text-(--text-main) prose-p:leading-relaxed wrap-anywhere">
+    <div className="journal-narrative-prose journal-reading prose prose-base text-(--text-main) wrap-anywhere">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkJournalHeadings]} skipHtml components={MARKDOWN_COMPONENTS}>
         {narrativeText}
       </ReactMarkdown>
@@ -157,17 +157,17 @@ export const NarrativeSection = memo(function NarrativeSection({
             aria-controls={narrativeId}
             className={styles.sectionHeaderClickable}
           >
-            <div className="flex items-center gap-2">
-              <JournalNarrativeIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
-              <div className={styles.sectionLabel}>Reading narrative</div>
-            </div>
-            <div className="text-(--text-muted)">
+            <span className="flex min-w-0 items-center gap-2">
+              <JournalNarrativeIcon className={styles.sectionIcon} aria-hidden="true" />
+              <span className={styles.sectionLabel}>Reading narrative</span>
+            </span>
+            <span className="shrink-0 text-(--text-muted)">
               {showNarrative ? (
                 <CaretUp className="h-5 w-5" aria-hidden="true" />
               ) : (
                 <CaretDown className="h-5 w-5" aria-hidden="true" />
               )}
-            </div>
+            </span>
           </button>
 
           <div
@@ -186,8 +186,8 @@ export const NarrativeSection = memo(function NarrativeSection({
       ) : (
         <>
           <header className={styles.sectionHeader}>
-            <div className="flex items-center gap-2">
-              <JournalNarrativeIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
+            <div className="flex min-w-0 items-center gap-2">
+              <JournalNarrativeIcon className={styles.sectionIcon} aria-hidden="true" />
               <div className={styles.sectionLabel}>Reading narrative</div>
             </div>
           </header>

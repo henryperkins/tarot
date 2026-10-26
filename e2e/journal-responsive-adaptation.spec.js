@@ -24,9 +24,10 @@ const entry = {
 async function expectReadableTitle(article) {
   const title = article.getByRole('heading', { name: entry.question, exact: true });
   await expect(title).toBeVisible();
+  await expect(title.locator('button[data-journal-entry-toggle]')).toHaveAccessibleName(entry.question);
   const bounds = await title.evaluate(element => {
     const rect = element.getBoundingClientRect();
-    const button = element.closest('button').getBoundingClientRect();
+    const button = element.querySelector('[data-journal-entry-toggle]').getBoundingClientRect();
     return {
       clippedWidth: element.scrollWidth - element.clientWidth,
       clippedHeight: element.scrollHeight - element.clientHeight,
@@ -85,11 +86,11 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await compact.press('Enter');
           await expect(compact).toHaveAttribute('aria-pressed', 'true');
           await expectReadableTitle(article);
-          const expand = article.getByRole('button', { expanded: false }).filter({ has: page.getByRole('heading', { name: entry.question }) });
+          const expand = article.getByRole('button', { name: entry.question, exact: true, expanded: false });
           // Exercise keyboard activation after the layout switch, as well as pointer menu access.
           await expand.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
           await expand.press('Enter');
-          await expect(article.getByRole('button', { expanded: true }).filter({ has: page.getByRole('heading', { name: entry.question }) })).toBeVisible();
+          await expect(article.getByRole('button', { name: entry.question, exact: true, expanded: true })).toBeVisible();
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         } finally {
           await fixture.close();
@@ -194,12 +195,14 @@ function journalSavedMarkdownThemeTests() {
         await expect(title).toHaveJSProperty('tagName', 'H3');
         const article = page.getByRole('article').filter({ has: title });
         await expect(article).toHaveCount(1);
-        const expand = article.getByRole('button').filter({ has: title });
+        const expand = title.getByRole('button', { name: saved[0].question, exact: true });
         await expand.focus();
         if (await expand.getAttribute('aria-expanded') === 'false') await expand.press('Enter');
         await expect(expand).toHaveAttribute('aria-expanded', 'true');
         await expect(expand).toBeFocused();
-        await expect(article.getByText(`“${QUESTION}”`, { exact: true })).toBeVisible();
+        // The open entry's title carries the question; no section repeats it.
+        await expect(title).toBeVisible();
+        await expect(article.getByText(QUESTION, { exact: true })).toHaveCount(1);
 
         const narrative = article.getByRole('button', { name: 'Reading narrative', exact: true });
         if (await narrative.getAttribute('aria-expanded') === 'false') await narrative.press('Enter');

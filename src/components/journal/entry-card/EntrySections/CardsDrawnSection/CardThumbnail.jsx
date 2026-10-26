@@ -1,94 +1,53 @@
 import { memo } from 'react';
-import { FALLBACK_IMAGE, getCardImage } from '../../../../../lib/cardLookup';
+import { FALLBACK_IMAGE, getCardImage, getCardThumbnailSrcSet } from '../../../../../lib/cardLookup';
 import { styles, cn } from '../../EntryCard.primitives';
-import { META_LABEL_CLASS } from '../../../../../styles/labelClasses';
 
+/**
+ * Card artwork for the journal. The art is never dimmed or covered: the card's
+ * name and position are written beside it, and its control carries the
+ * accessible name. Rider-Waite-Smith scans use their 360 px rendition.
+ */
 export const CardThumbnail = memo(function CardThumbnail({
   card,
   size,
-  suitColor,
-  isReversed,
-  showLabels = true,
-  showPosition = true,
-  showName = true,
-  showPositionOverlay = false,
-  isActive = false,
+  isReversed = false,
+  active = false,
   loading = 'lazy',
-  className,
-  nameMaxWidth = 84
+  className
 }) {
-  const name = card?.displayName || card?.name || 'Unknown card';
-  const position = card?.position || 'Position';
   const cardImage = getCardImage(card);
-  const shouldShowPosition = showLabels && showPosition;
-  const shouldShowName = showLabels && showName;
 
   return (
-    <div className={cn('flex flex-col items-center gap-1', className)}>
-      {shouldShowPosition && (
-        <span className="text-2xs uppercase tracking-wider text-(--text-muted)">
-          {position}
-        </span>
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-md border border-(--border-warm-light) bg-(--panel-dark-2)',
+        'shadow-[0_8px_18px_-10px_rgba(0,0,0,0.55)]',
+        active && 'ring-2 ring-(--brand-primary)',
+        className
       )}
-      <div
-        className="relative"
-        style={{ width: size.width, height: size.height }}
-      >
-        <div
-          className="relative z-10 overflow-hidden rounded-md border border-(--border-warm-light) shadow-md"
-          style={{ width: size.width, height: size.height }}
-        >
-          {showPositionOverlay && (
-            <span
-              className={cn(
-                `${META_LABEL_CLASS} pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-2 text-(--text-muted) opacity-0 transition duration-150`,
-                'bg-(--panel-dark-2)/60 backdrop-blur-[2px]',
-                'group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100',
-                isActive && 'opacity-100'
-              )}
-              aria-hidden="true"
-            >
-              <span className="rounded-full border border-(--border-warm-subtle) bg-(--panel-dark-3)/70 px-2 py-0.5 text-2xs text-(--text-main) shadow-[0_10px_22px_-16px_rgba(0,0,0,0.7)]">
-                {position}
-              </span>
-            </span>
-          )}
-          <span
-            className="absolute left-0 top-0 z-10 h-full w-[3px]"
-            style={{ backgroundColor: suitColor }}
-            aria-hidden="true"
-          />
-          <img
-            src={cardImage}
-            alt={`${name}${isReversed ? ' (Reversed)' : ''}`}
-            className={cn(
-              'relative z-10 h-full w-full object-cover transition-opacity duration-300 ease-out',
-              'group-hover:opacity-70 group-focus-visible:opacity-70 group-active:opacity-60',
-              isActive && 'opacity-60',
-              isReversed && 'rotate-180'
-            )}
-            loading={loading}
-            decoding="async"
-            onError={(event) => {
-              const target = event.currentTarget;
-              if (!target) return;
-              target.onerror = null;
-              target.src = FALLBACK_IMAGE;
-            }}
-          />
-          {isReversed && (
-            <span className={cn(styles.reversedBadge, 'absolute right-1 top-1 z-20 text-2xs')}>
-              Rev
-            </span>
-          )}
-        </div>
-      </div>
-      {shouldShowName && (
-        <span
-          className="text-xs font-medium text-main truncate"
-          style={{ maxWidth: `${nameMaxWidth}px` }}
-        >
-          {name}
+      style={{ width: size.width, height: size.height }}
+    >
+      <img
+        src={cardImage}
+        srcSet={getCardThumbnailSrcSet(cardImage)}
+        sizes={`${size.width}px`}
+        alt=""
+        width={size.width}
+        height={size.height}
+        className={cn('h-full w-full object-cover', isReversed && 'rotate-180')}
+        loading={loading}
+        decoding="async"
+        onError={(event) => {
+          const target = event.currentTarget;
+          if (!target || target.dataset.fallback) return;
+          target.dataset.fallback = 'true';
+          target.removeAttribute('srcset');
+          target.src = FALLBACK_IMAGE;
+        }}
+      />
+      {isReversed && (
+        <span aria-hidden="true" className={cn(styles.reversedBadgeSolid, 'absolute right-1 top-1')}>
+          Rev
         </span>
       )}
     </div>

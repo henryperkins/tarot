@@ -134,7 +134,7 @@ for (const theme of ['dark', 'light']) {
     await page.locator('#history article').first().getByRole('button', { name: /^Open entry actions/ }).click();
     const menu = page.getByRole('menu');
     await expect(menu.getByRole('group', { name: 'A saved reflection', exact: true })).toBeVisible();
-    for (const name of ['Copy', 'Delete']) {
+    for (const name of ['Copy link', 'Delete']) {
       const target = await menu.getByRole('menuitem', { name, exact: true }).boundingBox();
       expect(target.width).toBeGreaterThanOrEqual(44);
       expect(target.height).toBeGreaterThanOrEqual(44);

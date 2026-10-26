@@ -278,7 +278,7 @@ Exact colors live in the frontmatter. [theme.css](src/styles/theme.css) also own
 - **Display:** regular serif onboarding welcomes. Short landscape layouts use the smaller headline size.
 - **Headline:** regular serif page titles, including the design reference page. Reading-table titles use their own fluid, medium-weight role.
 - **Title:** semibold serif for compact artifact headings. Spread-selector names are a smaller local variant (16px at standard widths, slightly smaller on compact phones).
-- **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy.
+- **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy. A saved reading's narrative in the journal uses 16px prose, 17px from 640px, at 1.7 leading and about 70 characters a line (`.journal-reading`); its section headings are Source Serif.
 - **Label:** tracked uppercase text that names a field, column, stat or badge, or a section with no other heading. A label is never a kicker above a section heading; the page-hero eyebrows above the Pricing and Shared Reading h1s are a deliberate exception. [Label classes](src/styles/labelClasses.js) carry three roles on `tracking-label` (0.18em): `LABEL_CLASS` (12px semibold), `META_LABEL_CLASS` (11px captions such as card positions) and `BADGE_LABEL_CLASS` (11px semibold text inside pills). The coach, journal, ritual and share surfaces keep a spaced voice with `tracking-label-wide` (0.3em). Both values live in [theme.css](src/styles/theme.css), so plain CSS reads them as `var(--tracking-label)`. The reading step indicator and the serif settings headings use `tracking-widest`, and body-size caps keep their own tighter tracking. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than label typography.
 - **Supporting scale:** 11px is the absolute minimum for non-essential metadata; 12px serves captions, 14px serves secondary text, and form controls remain 16px on mobile.
 
@@ -416,6 +416,10 @@ The selected reading references continue the quiet table treatment in [ReadingPr
 - **Don't** turn the light theme into a generic white dashboard; preserve the warm paper-and-brass hierarchy.
 - **Don't** dilute the approved focal hierarchy or accelerate ceremonial motion into generic app-speed transitions.
 
-### Journal card fan visibility
+### Journal entries
 
-Expanded card fans preserve the full rotated card and name within the section, including at 320px and with enlarged text. Reserve the measured card footprint around the bottom-center rotation origin. Intentional overlap remains; keyboard selection brings the active card forward. Section radius clipping must not crop the card edges or focus ring.
+An open journal entry is one surface. Its sections (cards, narrative, reflections, themes, pattern web, follow-ups) are open regions divided by hairlines under a tracked label row, never cards nested inside the entry. The entry header carries the question once; once open, it drops the card chips and counts that its sections already show. With no notes yet, Reflections asks "What resonates for you now?", the reading table's own question, above a brass Add a reflection action.
+
+The entry heading contains its expand/collapse button, named by the question or spread title, with the full header remaining clickable. Reversal labels use neutral text and surfaces; card orientation is not an error state. Copied summaries use the same catalog deck names as the header.
+
+Expanded card fans preserve the full rotated card and name within the section, including at 320px and with enlarged text. Reserve the measured card footprint around the bottom-center rotation origin. Intentional overlap remains; keyboard selection brings the active card forward. The entry card is the only clipping edge, so it must not crop the card edges or any focus ring.

@@ -1,6 +1,7 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
 import { buildJournalJson, buildJournalText } from '../../shared/journal/exportFormats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
 import { filterDeletedJournalEntries, canPersistJournalDerivation } from './deletedJournalEntryStorage.js';
@@ -1478,6 +1479,8 @@ function formatDeckLabel(value) {
   if (!value || typeof value !== 'string') return '';
   const trimmed = value.trim();
   if (!trimmed) return '';
+  const knownDeck = DECK_CATALOG[trimmed.toLowerCase()];
+  if (knownDeck) return knownDeck.label;
   if (/[A-Z]/.test(trimmed) || trimmed.includes(' ')) return trimmed;
   return trimmed
     .split(/[-_]/g)
