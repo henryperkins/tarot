@@ -10,14 +10,6 @@ import { META_LABEL_CLASS } from '../../../styles/labelClasses';
 // CONTEXT & SUIT MAPPINGS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const CONTEXT_SUMMARIES = {
-  love: 'Relationship lens — center relational reciprocity and communication.',
-  career: 'Career lens — focus on vocation, impact, and material pathways.',
-  self: 'Self lens — emphasize personal growth and inner landscape.',
-  spiritual: 'Spiritual lens — frame insights through devotion, meaning, and practice.',
-  decision: 'Decision lens — weigh the tradeoffs and clarify what aligns before choosing a path.'
-};
-
 export const TIMING_SUMMARIES = {
   'near-term-tilt': 'Timing: energy is likely to shift in the near-term if you engage with it.',
   'longer-arc-tilt': 'Timing: this pattern stretches over a longer arc demanding patience.',
@@ -51,43 +43,57 @@ export const FOLLOW_UP_LIMITS = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const styles = {
-  // Section containers
+  // Sections are regions of one entry, not cards inside it: a hairline and
+  // space separate them, and the first sits directly under the entry header.
   section:
-    'relative overflow-hidden rounded-2xl border border-(--border-warm-subtle) ' +
-    'bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] ' +
-    'shadow-[0_18px_40px_-28px_rgba(0,0,0,0.8)] ' +
-    'before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,var(--halo-star-color),transparent_55%)] ' +
-    'before:opacity-70 before:pointer-events-none before:content-[""]',
+    'relative min-w-0 border-t border-(--border-warm-subtle) pt-3 first:mt-0 first:border-t-0 first:pt-0',
 
-  sectionHeader:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-(--border-warm-subtle) ' +
-    'bg-(--panel-dark-3) backdrop-blur',
+  // Every section header is a 44px row, so static and collapsible sections
+  // share one rhythm. Labels shrink and wrap so a count or chevron is never
+  // pushed out at large text sizes. Headers are size containers: see sectionLabel.
+  sectionHeader: 'relative @container flex min-h-touch items-center justify-between gap-3',
 
+  // The hover wash reaches slightly past the text edge, never further than half
+  // the entry's side padding (min(1rem,4vw)), so the inset ring is never clipped.
   sectionHeaderClickable:
-    'relative z-10 flex items-center justify-between gap-3 px-4 py-3 border-b border-(--border-warm-subtle) ' +
-    'w-full text-left bg-(--panel-dark-3) hover:bg-(--border-warm-subtle) ' +
-    'transition cursor-pointer backdrop-blur',
+    'relative @container -mx-[min(0.5rem,2vw)] flex min-h-touch w-[calc(100%+2*min(0.5rem,2vw))] items-center ' +
+    'justify-between gap-3 rounded-lg px-[min(0.5rem,2vw)] ' +
+    'text-left transition-colors cursor-pointer hover:bg-(--border-warm-subtle) ' +
+    'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--focus-ring-color)',
 
+  // When enlarged text leaves a header under 12rem wide (too narrow for a word
+  // like REFLECTIONS with its spacing), the label drops its wide spacing and
+  // the icon steps aside, so whole words still fit a line. A 320px phone at
+  // normal text size stays above it.
   sectionLabel:
-    'text-2xs font-semibold tracking-label-wide uppercase text-(--text-muted)',
+    'min-w-0 wrap-anywhere text-2xs font-semibold tracking-label-wide uppercase text-(--text-muted) ' +
+    '@max-[12rem]:tracking-normal',
 
-  sectionBody: 'relative z-10 px-4 py-4',
+  sectionIcon: 'h-4 w-4 shrink-0 text-(--brand-primary) @max-[12rem]:hidden',
+
+  // Counts beside a section label.
+  sectionCount: 'shrink-0 text-xs tabular-nums text-(--text-muted)',
+
+  sectionBody: 'relative pt-2',
 
   // Pills and chips
   pill:
     'inline-flex items-center gap-2 rounded-full border border-(--border-warm-light) ' +
-    `${META_LABEL_CLASS} bg-(--border-warm-subtle) px-2.5 py-1 ` +
-    'text-(--text-muted) shadow-[0_10px_20px_-18px_rgba(0,0,0,0.7)]',
+    `${META_LABEL_CLASS} bg-(--border-warm-subtle) px-2.5 py-1 text-(--text-muted)`,
 
   cardChip:
     'inline-flex max-w-full items-center gap-1 rounded-full border border-(--border-warm-light) ' +
-    'bg-(--panel-dark-2) px-2.5 py-1 text-2xs font-semibold text-(--text-muted) ' +
-    'shadow-[0_12px_22px_-18px_rgba(0,0,0,0.7)]',
+    'bg-(--panel-dark-2) px-2.5 py-1 text-2xs font-semibold text-(--text-muted)',
 
   reversedBadge:
-    'shrink-0 rounded-full border border-[color-mix(in_srgb,var(--status-error)_45%,transparent)] ' +
-    'bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] px-1.5 py-0.5 text-2xs ' +
-    'font-semibold text-(--status-error)',
+    'shrink-0 rounded-full border border-(--border-warm-light) ' +
+    'bg-(--panel-dark-2) px-1.5 py-0.5 text-2xs font-semibold text-(--text-muted-high)',
+
+  // Over card artwork: an opaque surface keeps the label readable on any art.
+  reversedBadgeSolid:
+    'shrink-0 rounded-full border border-(--border-warm) ' +
+    'bg-(--bg-surface) px-1.5 py-0.5 text-2xs font-semibold leading-none text-(--text-main) ' +
+    'shadow-[0_2px_6px_-2px_rgba(0,0,0,0.5)]',
 
   uprightBadge:
     'shrink-0 rounded-full border border-(--border-warm-light) px-1.5 py-0.5 text-2xs ' +
@@ -124,20 +130,22 @@ export const styles = {
     'text-(--text-muted) cursor-not-allowed opacity-70',
 
   // Cards
+  // No `group` here: hover inside an open entry must not restyle its parts.
   cardBase:
-    'group relative overflow-hidden text-(--text-main) transition-[transform,box-shadow,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) animate-fade-in ' +
+    'relative overflow-hidden text-(--text-main) transition-[translate,border-color] duration-(--duration-medium) ease-(--ease-out) animate-fade-in ' +
     'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,var(--border-warm-subtle),transparent_45%)] ' +
     'before:opacity-70 before:pointer-events-none before:content-[""]',
 
+  // Collapsed entries only: a small lift and a warmer edge mark them as openable.
   cardHover:
-    'hover:translate-y-[-2px] hover:shadow-[0_24px_48px_-32px_rgba(0,0,0,0.85),0_0_26px_var(--brand-primary),inset_0_1px_0_rgba(255,255,255,0.08)]',
+    'hover:border-(--border-warm) motion-safe:hover:-translate-y-0.5',
 
   cardCompact:
     'rounded-2xl border border-(--border-warm-light) bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
     'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-(--border-warm-subtle)',
 
   // Accent bar
-  accentBar: 'absolute left-0 w-1 rounded-full opacity-80 shadow-[0_0_12px_var(--primary-20),inset_0_0_0_1px_rgba(255,255,255,0.02)]',
+  accentBar: 'absolute left-0 w-1 rounded-full opacity-80',
   accentBarDefault: 'top-3 bottom-3',
   accentBarCompact: 'top-2 bottom-2 w-[3px]',
 
@@ -160,10 +168,8 @@ export const styles = {
     'text-(--status-error) hover:bg-[color-mix(in_srgb,var(--status-error)_12%,transparent)] ' +
     'focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)]',
 
-  // Follow-up turn card
-  turnCard:
-    'rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-2) ' +
-    'p-3 shadow-[0_16px_32px_-24px_rgba(0,0,0,0.8)]',
+  // Follow-up turns: separated by a hairline, not boxed inside the entry.
+  turnCard: 'border-t border-(--border-warm-subtle) pt-3 first:border-t-0 first:pt-0',
 
   // Divider
   divider: 'my-4 h-px bg-(--border-warm-subtle)'

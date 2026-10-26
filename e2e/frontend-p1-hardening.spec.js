@@ -268,7 +268,7 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
   await page.keyboard.press('End');
   await expect(removeLink).toBeFocused();
   await page.keyboard.press('ArrowUp');
-  await expect(page.getByRole('menuitem', { name: 'Copy', exact: true })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: 'Copy link', exact: true })).toBeFocused();
   await page.keyboard.press('Home');
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -277,11 +277,22 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   await page.keyboard.press('End');
   await expect(removeLink).toBeFocused();
+  // Deleting a link asks first: focus moves to the safe choice, and Escape
+  // backs out of the question without closing the menu.
+  await page.keyboard.press('Enter');
+  const keepLink = page.getByRole('menuitem', { name: 'Keep link', exact: true });
+  await expect(keepLink).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(removeLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(keepLink).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('menuitem', { name: 'Delete link', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(trigger).toBeFocused();
   finishDeletion();
-  await expect(page.getByText('Share link removed.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Deleted “Shared reflection”. It no longer opens.', { exact: true })).toBeVisible();
   await expect(trigger).toBeFocused();
 });
 

@@ -85,14 +85,19 @@ for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, '
       const expand = page.getByTitle('Expand entry').first();
       if (await expand.isVisible()) await expand.click();
       await expect(page.locator('#history')).toContainText(SAVED_READING.question);
-      const cardsToggle = page.getByRole('button', { name: 'Cards drawn (3)', exact: true });
+      // Collapsed on phones, the toggle is named by its label alone; the stack names the count.
+      const cardsToggle = page.getByRole('button', { name: 'Cards drawn', exact: true });
       if (await cardsToggle.isVisible() && await cardsToggle.getAttribute('aria-expanded') === 'false') await cardsToggle.click();
       const renderedCards = page.getByRole('group', { name: 'Cards drawn in this reading', exact: true });
+      // Each card is a button named by card, position and orientation; its art is decorative inside it.
+      const cardButton = (name, orientation) => renderedCards.getByRole('button', {
+        name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, .+, ${orientation === 'Reversed' ? 'Reversed' : 'Upright'}$`)
+      });
       for (const card of cardsInfo) {
-        await expect(renderedCards.getByRole('img', { name: `${card.card}${card.orientation === 'Reversed' ? ' (Reversed)' : ''}`, exact: true })).toBeVisible();
+        await expect(cardButton(card.card, card.orientation)).toBeVisible();
       }
       if (deckStyle === 'thoth-a1') {
-        await expect(renderedCards.getByRole('img', { name: 'Knight of Cups (Reversed)', exact: true })).toHaveAttribute('src', '/images/cards/RWS1909_-_Cups_14.jpeg');
+        await expect(cardButton('Knight of Cups', 'Reversed').locator('img')).toHaveAttribute('src', '/images/cards/RWS1909_-_Cups_14.jpeg');
         await renderedCards.scrollIntoViewIfNeeded();
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         await page.screenshot({ path: testInfo.outputPath('journal-thoth-cards.png'), fullPage: false });

@@ -7,8 +7,8 @@ import {
   STACK_OFFSET_X,
   STACK_OFFSET_Y
 } from './useCardFan';
-import { styles, getSuitAccentVar } from '../../EntryCard.primitives';
-import { BADGE_LABEL_CLASS } from '../../../../../styles/labelClasses';
+import { styles } from '../../EntryCard.primitives';
+import { BADGE_LABEL_CLASS, META_LABEL_CLASS } from '../../../../../styles/labelClasses';
 
 export const CardStack = memo(function CardStack({
   cards,
@@ -36,16 +36,15 @@ export const CardStack = memo(function CardStack({
         ref={stackButtonRef}
         aria-expanded={isExpanded}
         aria-controls={cardsId}
-        className="relative flex w-full min-h-[100px] items-center justify-center rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-1) py-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+        className="flex w-full flex-col items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--focus-ring-color) touch-manipulation"
       >
         <div
-          className="relative"
+          className="relative shrink-0"
           style={{ width: stackWidth, height: stackHeight }}
           aria-hidden="true"
         >
           {stackCards.map((card, index) => {
             const { isReversed } = getOrientationState(card);
-            const suitColor = getSuitAccentVar(card?.name) || 'var(--brand-primary)';
             const { x, y, rotation, zIndex } = getCardStackOffset(index, stackCards.length);
 
             return (
@@ -60,26 +59,24 @@ export const CardStack = memo(function CardStack({
                 <CardThumbnail
                   card={card}
                   size={COLLAPSED_THUMB_SIZE}
-                  suitColor={suitColor}
                   isReversed={isReversed}
-                  showLabels={false}
                   loading="eager"
-                  className="shadow-[0_18px_38px_-28px_rgba(0,0,0,0.8)]"
                 />
               </div>
             );
           })}
         </div>
 
-        <span className={`${BADGE_LABEL_CLASS} absolute bottom-2 right-2 rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-2 py-1 text-(--text-muted)`}>
-          {cards.length} card{cards.length === 1 ? '' : 's'}
-        </span>
-
-        {showHint && (
-          <span className="absolute bottom-2 left-3 text-2xs uppercase tracking-label-wide text-(--text-muted)">
-            Tap to view
+        <span className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className={`${BADGE_LABEL_CLASS} text-(--text-muted)`}>
+            {cards.length} card{cards.length === 1 ? '' : 's'}
           </span>
-        )}
+          {showHint && (
+            <span className={`${META_LABEL_CLASS} text-(--text-muted)`}>
+              Tap to view
+            </span>
+          )}
+        </span>
       </button>
     </div>
   );

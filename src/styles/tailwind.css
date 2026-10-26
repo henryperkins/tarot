@@ -216,6 +216,62 @@ body {
   --tw-prose-td-borders: var(--border-warm-subtle);
 }
 
+/* A saved reading's narrative keeps the reading document's voice: sans
+   paragraphs at 1.7 leading, serif headings, and about 70 characters a line
+   (Inter averages 0.46em a character, so the measure is set in em, not ch).
+   16px on phones, 17px from 640px. */
+.journal-reading {
+  max-width: 33em;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+@media (min-width: 40rem) {
+  .journal-reading {
+    font-size: 1.0625rem;
+  }
+}
+
+.journal-reading :where(p, li) {
+  text-wrap: pretty;
+}
+
+.journal-reading :where(h4, h5, h6) {
+  font-family: var(--font-serif);
+  color: var(--text-main);
+  text-wrap: balance;
+}
+
+/* Beats of the reading ("Opening", "The Story"), then their subsections. */
+.journal-reading h4 {
+  margin-top: 1.75em;
+  margin-bottom: 0.5em;
+  font-size: 1.2em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.journal-reading h5 {
+  margin-top: 1.5em;
+  margin-bottom: 0.4em;
+  font-size: 1.05em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.journal-reading h6 {
+  margin-top: 1.25em;
+  margin-bottom: 0.25em;
+  font-size: 1em;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.journal-reading > :first-child {
+  margin-top: 0;
+}
+
 .journal-quote {
   font-family: var(--font-serif);
   font-size: clamp(1.1rem, 1.02rem + 0.3vw, 1.35rem);

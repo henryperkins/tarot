@@ -1,33 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { safeStorage } from '../../../../../lib/safeStorage';
 import { REVERSED_PATTERN } from '../../../../../lib/journalInsights';
+import { extractShortLabel } from '../../../../readingBoardUtils';
 
 export const STACK_HINT_STORAGE_KEY = 'cards_drawn_stack_hint_dismissed';
 export const COLLAPSED_THUMB_SIZE = { width: 56, height: 84 };
-export const EXPANDED_THUMB_SIZE = { width: 52, height: 78 };
 export const STACK_OFFSET_X = 6;
 export const STACK_OFFSET_Y = 3;
 export const EAGER_LOAD_COUNT = 4;
-
-// Arc/fan geometry constants
-export const ARC_SPAN_DEGREES = 40; // Total arc span (-20° to +20°)
-export const ARC_VERTICAL_RISE = 20; // Max vertical offset at arc edges
-export const BASE_OVERLAP_RATIO = 0.42; // Base overlap for small spreads
-export const EDGE_SCALE = 0.94; // Scale factor for edge cards
-
-// Dynamic overlap for larger spreads (more cards = more overlap)
-function getOverlapRatio(cardCount) {
-  if (cardCount <= 5) return BASE_OVERLAP_RATIO;
-  if (cardCount <= 7) return 0.52;
-  return 0.60; // 10 cards need significant overlap
-}
-
-// Dynamic arc span for larger spreads (more cards = wider arc)
-function getArcSpan(cardCount) {
-  if (cardCount <= 5) return ARC_SPAN_DEGREES;
-  if (cardCount <= 7) return 50;
-  return 60; // 10 cards get a wider arc
-}
 
 const ROTATION_MAP = {
   1: [0],
@@ -36,61 +16,6 @@ const ROTATION_MAP = {
   4: [-3, -1, 1, 3],
   5: [-4, -2, 0, 2, 4]
 };
-
-/**
- * Calculate arc/fan position for a card
- * @param {number} index - Card index (0-based)
- * @param {number} total - Total number of cards
- * @param {number} containerWidth - Available container width
- * @returns {{ x: number, y: number, rotation: number, scale: number, zIndex: number }}
- */
-export function getArcPosition(index, total, containerWidth = 360, footprint = { width: 64, height: 102 }) {
-  if (total === 1) {
-    return { x: 0, y: 0, rotation: 0, scale: 1, zIndex: 10 };
-  }
-
-  // Normalized position from -1 (leftmost) to +1 (rightmost)
-  const normalizedPos = (2 * index / (total - 1)) - 1;
-
-  // Dynamic arc span based on card count
-  const arcSpan = getArcSpan(total);
-  const halfArc = arcSpan / 2;
-  const rotation = normalizedPos * halfArc;
-
-  // Vertical offset: parabolic curve (higher at edges for larger spreads)
-  const verticalRise = total > 7 ? ARC_VERTICAL_RISE * 1.2 : ARC_VERTICAL_RISE;
-  const y = Math.abs(normalizedPos) * verticalRise;
-
-  // Dynamic overlap based on card count
-  const overlapRatio = getOverlapRatio(total);
-  const cardWidth = EXPANDED_THUMB_SIZE.width;
-  const safeContainerWidth = Math.max(
-    Number.isFinite(containerWidth) ? containerWidth : 0,
-    cardWidth
-  );
-  const effectiveCardWidth = cardWidth * (1 - overlapRatio);
-  const totalFanWidth = cardWidth + (total - 1) * effectiveCardWidth;
-
-  // Use most of the container width for larger spreads
-  const padding = total > 7 ? 8 : 16;
-  const availableWidth = Math.max(safeContainerWidth - padding * 2, cardWidth);
-  // Reserve rotated extents, including the name below the thumbnail. The
-  // transform rotates around bottom center, so height contributes to width.
-  const edgeScaleForBounds = total > 7 ? 0.90 : EDGE_SCALE;
-  const radians = halfArc * Math.PI / 180;
-  const edgeExtent = edgeScaleForBounds * (footprint.width / 2 * Math.cos(radians) + footprint.height * Math.sin(radians));
-  const maxOffset = Math.max(0, Math.min(safeContainerWidth / 2 - edgeExtent - 4, availableWidth / 2, totalFanWidth / 2));
-  const x = normalizedPos * maxOffset;
-
-  // Scale: slightly smaller at edges, more reduction for large spreads
-  const edgeScale = total > 7 ? 0.90 : EDGE_SCALE;
-  const scale = 1 - (Math.abs(normalizedPos) * (1 - edgeScale));
-
-  // Z-index: center cards on top, edges below
-  const zIndex = Math.round(10 + (1 - Math.abs(normalizedPos)) * total);
-
-  return { x, y, rotation, scale, zIndex };
-}
 
 export function getCardStackOffset(index, count) {
   const safeCount = Math.max(1, Math.min(count, 5));
@@ -113,6 +38,12 @@ export function getOrientationState(card) {
     isReversed,
     label: isReversed ? 'Reversed' : 'Upright'
   };
+}
+
+/** "Past" from "Past — influences that led here"; long titles stay whole. */
+export function getShortPosition(position) {
+  if (typeof position !== 'string' || !position.trim()) return 'Position';
+  return extractShortLabel(position, Infinity) || position.trim();
 }
 
 export function getCardAriaLabel(card, orientationLabel) {

@@ -55,7 +55,7 @@ test.describe('Cards Drawn Section - Mobile @mobile', () => {
   });
 
   test('expands stack into arc/fan and collapses back', async ({ page }) => {
-    const entryToggle = page.getByRole('button', { name: /celtic cross/i }).first();
+    const entryToggle = page.getByRole('button', { name: buildEntry().question, exact: true });
     await entryToggle.click();
 
     const cardsSection = page.getByRole('group', { name: 'Cards drawn in this reading' });
@@ -98,7 +98,7 @@ test.describe('Cards Drawn Section - Mobile @mobile', () => {
     test(`all ${count} rotated cards fit at 320px with enlarged text`, async ({ page }) => {
       await page.setViewportSize({ width: 320, height: 700 });
       await page.evaluate(() => document.documentElement.style.fontSize = '20px');
-      await page.getByRole('button', { name: /celtic cross/i }).first().click();
+      await page.getByRole('button', { name: buildEntry().question, exact: true }).click();
       const section = page.getByRole('group', { name: 'Cards drawn in this reading' });
       const stack = section.getByRole('button', { name: /tap to view/i });
       if (await stack.count()) await stack.click();
@@ -115,7 +115,7 @@ test.describe('Cards Drawn Section - Mobile @mobile', () => {
   }
 
   test('matches visual snapshots for collapsed and expanded fan states', async ({ page }) => {
-    const entryToggle = page.getByRole('button', { name: /celtic cross/i }).first();
+    const entryToggle = page.getByRole('button', { name: buildEntry().question, exact: true });
     await entryToggle.click();
 
     const cardsSection = page.getByRole('group', { name: 'Cards drawn in this reading' });
@@ -156,7 +156,7 @@ test.describe('Cards Drawn Section - Desktop @desktop', () => {
   });
 
   test('supports keyboard navigation without card insights popover', async ({ page }) => {
-    const entryToggle = page.getByRole('button', { name: /celtic cross/i }).first();
+    const entryToggle = page.getByRole('button', { name: buildEntry().question, exact: true });
     await entryToggle.click();
 
     const cardsSection = page.getByRole('group', { name: 'Cards drawn in this reading' });

@@ -2,7 +2,7 @@
  * useEntryActions.js
  * Custom hook for all entry action handlers (export, copy, share, delete).
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   exportJournalEntriesToCsv,
@@ -10,6 +10,49 @@ import {
   copyJournalEntrySummary,
   copyJournalEntriesToClipboard
 } from '../../../../lib/journalInsights';
+import { findReusableShareLink } from '../../../../lib/journal/shareLinkSelection';
+
+function shareUrlFor(token) {
+  return `${window.location.origin}/share/${encodeURIComponent(token)}`;
+}
+
+/** Network failures read as a connection problem, not as "Failed to fetch". */
+function describeShareFailure(error, fallback) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return "You're offline. Connect to the internet and try again.";
+  }
+  if (error instanceof TypeError) return "Couldn't reach Tableu. Check your connection and try again.";
+  return error?.message || fallback;
+}
+
+async function writeToClipboard(text) {
+  if (navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      console.warn('Clipboard write failed for share link', error);
+    }
+  }
+  // Older mobile browsers without the async clipboard.
+  if (typeof document === 'undefined') return false;
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch (error) {
+    console.warn('Fallback copy failed for share link', error);
+    return false;
+  }
+}
 
 /**
  * Hook providing all action handlers for a journal entry
@@ -18,6 +61,7 @@ export function useEntryActions(entry, {
   onDelete,
   onCreateShareLink,
   onDeleteShareLink,
+  shareLinks = [],
   isAuthenticated,
   showStatus,
   clearStatus,
@@ -38,62 +82,36 @@ export function useEntryActions(entry, {
     }
   }, [clearStatus]);
 
+  const reusableShareLink = useMemo(
+    () => (isAuthenticated && onCreateShareLink ? findReusableShareLink(shareLinks, entry.id) : null),
+    [isAuthenticated, onCreateShareLink, shareLinks, entry.id]
+  );
+
+  // Phones offer the share sheet; elsewhere the link goes to the clipboard.
+  // Closing the sheet is a choice, so it ends quietly without copying.
   const deliverShareLink = useCallback(async (shareUrl, {
-    successMessage = 'Share link copied.',
-    fallbackMessage = 'Share link created—open it to copy manually.'
+    copiedMessage = 'Share link copied.',
+    sharedMessage = 'Share link shared.'
   } = {}) => {
     if (!shareUrl) return false;
 
-    const sharePayload = { url: shareUrl, title: 'Tarot reading share link' };
-
-    // Prefer the Web Share API on mobile—more reliable than clipboard on iOS.
     if (navigator?.share) {
       try {
-        await navigator.share(sharePayload);
-        showStatus?.({ tone: 'success', message: successMessage });
+        await navigator.share({ url: shareUrl, title: 'Tarot reading share link' });
+        showStatus?.({ tone: 'success', message: sharedMessage });
         return true;
       } catch (error) {
-        // User cancellations are expected; fall back to copy paths.
-        if (error?.name !== 'AbortError') {
-          console.warn('Share sheet failed for share link', error);
-        }
+        if (error?.name === 'AbortError') return false;
+        console.warn('Share sheet failed for share link', error);
       }
     }
 
-    // Attempt async clipboard if available.
-    if (navigator?.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        showStatus?.({ tone: 'success', message: successMessage });
-        return true;
-      } catch (error) {
-        console.warn('Clipboard write failed for share link', error);
-      }
+    if (await writeToClipboard(shareUrl)) {
+      showStatus?.({ tone: 'success', message: copiedMessage });
+      return true;
     }
 
-    // Legacy fallback for browsers without navigator.clipboard (common on mobile).
-    if (typeof document !== 'undefined') {
-      try {
-        const textarea = document.createElement('textarea');
-        textarea.value = shareUrl;
-        textarea.setAttribute('readonly', '');
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        textarea.setSelectionRange(0, textarea.value.length);
-        const copied = document.execCommand('copy');
-        document.body.removeChild(textarea);
-        if (copied) {
-          showStatus?.({ tone: 'success', message: successMessage });
-          return true;
-        }
-      } catch (error) {
-        console.warn('Fallback copy failed for share link', error);
-      }
-    }
-
-    showStatus?.({ tone: 'warning', message: fallbackMessage });
+    showStatus?.({ tone: 'warning', message: `Couldn't copy the link automatically. Copy it here: ${shareUrl}` });
     return false;
   }, [showStatus]);
 
@@ -144,32 +162,32 @@ export function useEntryActions(entry, {
     () =>
       runAction('share', async () => {
         if (isAuthenticated && onCreateShareLink) {
+          if (typeof window === 'undefined') return false;
+          // The journal can stay open past a link's expiry without new props.
+          const liveShareLink = findReusableShareLink(shareLinks, entry.id);
+          if (liveShareLink) {
+            return deliverShareLink(shareUrlFor(liveShareLink.token), {
+              copiedMessage: 'Copied your existing share link (single reading).',
+              sharedMessage: 'Shared your existing link (single reading).'
+            });
+          }
           try {
             const data = await onCreateShareLink({ scope: 'entry', entryId: entry.id });
-            const shareUrl =
-              data?.url && typeof window !== 'undefined'
-                ? `${window.location.origin}${data.url}`
-                : null;
-
-            if (shareUrl) {
-              await deliverShareLink(shareUrl, {
-                successMessage: 'Share link copied (single reading).',
-                fallbackMessage: 'Share link ready—tap to open and copy manually.'
-              });
-              return true;
+            if (!data?.url) {
+              showStatus?.({ tone: 'error', message: 'The share link was created, but its address is missing. Find it in Export & Share.' });
+              return false;
             }
-            showStatus?.({ tone: 'error', message: 'Share link created, but the URL is missing.' });
-            return false;
-          } catch (error) {
-            showStatus?.({
-              tone: 'error',
-              message: error.message || 'Unable to create a share link right now.'
+            return deliverShareLink(`${window.location.origin}${data.url}`, {
+              copiedMessage: 'Share link copied (single reading).',
+              sharedMessage: 'Share link shared (single reading).'
             });
+          } catch (error) {
+            showStatus?.({ tone: 'error', message: describeShareFailure(error, 'Unable to create a share link right now.') });
             return false;
           }
         }
 
-        // Fallback: copy summary for non-authenticated users
+        // Signed out or local journal: copy a plain summary instead.
         const success = await copyJournalEntrySummary(entry);
         showStatus?.({
           tone: success ? 'success' : 'error',
@@ -179,7 +197,7 @@ export function useEntryActions(entry, {
         });
         return success;
       }),
-    [deliverShareLink, entry, isAuthenticated, onCreateShareLink, runAction, showStatus]
+    [deliverShareLink, entry, isAuthenticated, onCreateShareLink, shareLinks, runAction, showStatus]
   );
 
   const handleCopyShareLink = useCallback(
@@ -190,25 +208,24 @@ export function useEntryActions(entry, {
           showStatus?.({ tone: 'error', message: 'Copy is unavailable in this environment.' });
           return false;
         }
-        const url = `${window.location.origin}/share/${token}`;
-        return deliverShareLink(url, {
-          successMessage: 'Share link copied.',
-          fallbackMessage: 'Copy blocked—open the link and share manually.'
+        return deliverShareLink(shareUrlFor(token), {
+          copiedMessage: 'Share link copied.',
+          sharedMessage: 'Share link shared.'
         });
       }),
     [deliverShareLink, runAction, showStatus]
   );
 
   const handleDeleteShareLink = useCallback(
-    (token) =>
+    (token, title = 'Shared reading') =>
       runAction('share-link-delete', async () => {
         if (!token || !onDeleteShareLink) return false;
         try {
           await onDeleteShareLink(token);
-          showStatus?.({ tone: 'success', message: 'Share link removed.' });
+          showStatus?.({ tone: 'success', message: `Deleted “${title}”. It no longer opens.` });
           return true;
         } catch (error) {
-          showStatus?.({ tone: 'error', message: error?.message || 'Unable to delete share link.' });
+          showStatus?.({ tone: 'error', message: describeShareFailure(error, 'Unable to delete this share link right now.') });
           return false;
         }
       }),
@@ -267,6 +284,7 @@ export function useEntryActions(entry, {
 
   return {
     pendingAction,
+    reusableShareLink,
     handleExportCsv,
     handleExportMarkdown,
     handleCopyCsv,

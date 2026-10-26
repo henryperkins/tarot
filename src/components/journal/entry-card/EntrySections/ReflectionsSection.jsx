@@ -2,6 +2,8 @@
  * ReflectionsSection.jsx
  * Displays reflections labelled by card ("Past · The Hermit") or "Whole reading",
  * and, when the journal can save them, lets the reader add, edit or remove notes.
+ * With no notes yet, the section asks the reading table's question again: adding
+ * a reflection is what turns a saved reading into part of a practice.
  */
 import { memo, useEffect, useId, useRef, useState } from 'react';
 import { CircleNotch, PencilSimple, Plus } from '@phosphor-icons/react';
@@ -11,6 +13,8 @@ import {
   MAX_REFLECTION_LENGTH,
   READING_REFLECTION_KEY
 } from '../../../../../shared/journal/reflectionLabels.js';
+import { JournalCommentAddIcon } from '../../../JournalIcons';
+import { OUTLINE_BUTTON_CLASS } from '../../../../styles/buttonClasses';
 import { styles, cn } from '../EntryCard.primitives';
 
 const TEXT_BUTTON_CLASS =
@@ -143,6 +147,7 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
   });
 
   if (items.length === 0 && !canEdit) return null;
+  const isEmpty = items.length === 0;
 
   const close = (focusKey) => {
     pendingFocusRef.current = focusKey;
@@ -171,13 +176,23 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
   return (
     <section className={cn(styles.section, 'mt-4')} aria-labelledby={`${formId}-heading`}>
       <header className={styles.sectionHeader}>
-        <div id={`${formId}-heading`} className={styles.sectionLabel}>Reflections</div>
-        <span className="text-xs text-muted">{items.length}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <JournalCommentAddIcon className={styles.sectionIcon} aria-hidden="true" />
+          <div id={`${formId}-heading`} className={styles.sectionLabel}>Reflections</div>
+        </div>
+        {items.length > 0 && <span className={styles.sectionCount}>{items.length}</span>}
       </header>
 
       <div className={cn(styles.sectionBody, 'space-y-3')}>
-        {items.length === 0 && editing !== 'add' && (
-          <p className="text-sm text-muted">No reflections yet. Note what stands out as you revisit this reading.</p>
+        {isEmpty && (
+          <div className="space-y-1">
+            <p className="font-serif text-lg leading-snug text-(--text-main)">What resonates for you now?</p>
+            {editing !== 'add' && (
+              <p className="max-w-[34em] text-sm leading-relaxed text-(--text-muted)">
+                Write about the whole reading or a single card. Your notes stay with this entry for the next time you open it.
+              </p>
+            )}
+          </div>
         )}
 
         {items.length > 0 && (
@@ -224,7 +239,7 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
                         </button>
                       )}
                     </div>
-                    <span className="block whitespace-pre-wrap text-muted wrap-anywhere">{item.note}</span>
+                    <span className="block max-w-[33em] whitespace-pre-wrap text-base text-(--text-muted-high) wrap-anywhere">{item.note}</span>
                   </>
                 )}
               </li>
@@ -276,7 +291,9 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
               setAddTarget(READING_REFLECTION_KEY);
               setEditing('add');
             }}
-            className={cn(styles.actionButton, editing ? styles.actionButtonDisabled : styles.actionButtonEnabled)}
+            className={isEmpty
+              ? OUTLINE_BUTTON_CLASS
+              : cn(styles.actionButton, editing ? styles.actionButtonDisabled : styles.actionButtonEnabled)}
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             Add a reflection

@@ -45,8 +45,9 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     buttonRef: actionMenuButtonRef
   } = actionMenu;
 
+  // A reading that already has a live link copies it rather than minting another.
   const shareActionLabel = actions.isAuthenticated && actions.onCreateShareLink
-    ? 'Create share link'
+    ? (actions.reusableShareLink ? 'Copy share link' : 'Create share link')
     : 'Copy summary';
 
   const questionTitle = typeof entry.question === 'string' ? entry.question.trim() : '';
@@ -60,6 +61,22 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     ? 'px-[min(0.875rem,4vw)] py-3 sm:px-4 sm:py-3.5'
     : 'px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5';
 
+  // Keep the title in the heading outline. The button's stretched hit area
+  // preserves the full header target without putting a heading inside a button.
+  const titleButton = (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isExpanded}
+      aria-controls={entryContentId}
+      data-journal-entry-toggle
+      title={isExpanded ? 'Collapse entry' : 'Expand entry'}
+      className="block w-full min-w-0 text-left focus-visible:outline-hidden after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-(--focus-ring-color)"
+    >
+      {questionTitle || spreadTitle}
+    </button>
+  );
+
   return (
     <div className={cn(
       'relative z-10',
@@ -68,22 +85,16 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     )}>
       <div className="flex flex-wrap items-start gap-3">
         {/* Main clickable area */}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={isExpanded}
-          aria-controls={entryContentId}
-          data-journal-entry-toggle
-          title={isExpanded ? 'Collapse entry' : 'Expand entry'}
+        <div
           className={cn(
-            'group flex min-w-0 flex-[1_1_14rem] rounded-2xl px-1 py-1 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
+            'group/toggle relative flex min-w-0 flex-[1_1_14rem] rounded-2xl px-1 py-1 text-left',
             isCompactView ? 'flex-row items-start gap-3' : 'flex-col gap-3'
           )}
         >
           <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
             {/* Expand/collapse icon */}
             <span className={cn(
-              'mt-0.5 flex shrink-0 items-center justify-center rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-2) text-(--text-muted) shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover:border-(--border-warm)',
+              'mt-0.5 flex shrink-0 items-center justify-center rounded-2xl border border-(--border-warm-light) bg-(--panel-dark-2) text-(--text-muted) shadow-[0_14px_28px_-18px_rgba(0,0,0,0.7)] transition group-hover/toggle:border-(--border-warm)',
               isCompactView ? 'h-8 w-8 rounded-xl shadow-[0_10px_18px_-12px_rgba(0,0,0,0.6)]' : 'h-10 w-10'
             )}>
               {isExpanded ? (
@@ -97,11 +108,11 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               {isCompactView ? (
                 <>
                   <h3 id={entryHeadingId} className="min-w-0 wrap-break-word text-sm font-semibold text-accent">
-                    {questionTitle || spreadTitle}
+                    {titleButton}
                   </h3>
-                  {questionTitle && <p className="mt-1 text-sm text-muted wrap-anywhere">{spreadTitle}</p>}
+                  {questionTitle && <p className="mt-1 text-sm text-muted text-pretty wrap-anywhere">{spreadTitle}</p>}
                   {formattedTimestamp && (
-                    <p className="mt-1 wrap-break-word text-2xs text-muted">
+                    <p className="mt-1 wrap-break-word text-xs text-muted">
                       {timestamp}
                     </p>
                   )}
@@ -112,7 +123,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   <div className="flex flex-wrap items-center gap-2 text-2xs uppercase tracking-label-wide text-(--text-muted)">
                     {formattedTimestamp && (
                       <span
-                        className="inline-flex items-center rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 normal-case tracking-normal"
+                        className="inline-flex items-center rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-xs normal-case tracking-normal"
                       >
                         {timestamp}
                       </span>
@@ -120,7 +131,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     {deckLabel && (
                       <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded-full border border-(--border-warm-subtle) px-2 py-0.5">
                         Deck
-                        <span className="min-w-0 wrap-break-word normal-case text-(--text-main)">
+                        <span className="min-w-0 wrap-break-word text-xs normal-case tracking-normal text-(--text-main)">
                           {deckLabel}
                         </span>
                       </span>
@@ -128,10 +139,10 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   </div>
 
                   {/* Title */}
-                  <h3 id={entryHeadingId} className="mt-1 min-w-0 wrap-break-word font-serif text-lg sm:text-xl text-(--brand-primary) tracking-[0.04em] leading-normal">
-                    {questionTitle || spreadTitle}
+                  <h3 id={entryHeadingId} className="mt-1 min-w-0 wrap-break-word font-serif text-lg sm:text-xl text-(--brand-primary) leading-normal">
+                    {titleButton}
                   </h3>
-                  {questionTitle && <p className="mt-1 text-sm text-muted wrap-anywhere">{spreadTitle}</p>}
+                  {questionTitle && <p className="mt-1 text-sm text-muted text-pretty wrap-anywhere">{spreadTitle}</p>}
                 </>
               )}
             </div>
@@ -139,28 +150,30 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
           {!isCompactView && (
             <>
-              {/* Meta pills */}
-              <div className="flex flex-wrap items-center gap-2">
-                {contextLabel && (
-                  <span className={cn(styles.pill, 'whitespace-nowrap')}>
-                    {contextLabel}
-                  </span>
-                )}
-                {cards.length > 0 && (
-                  <span className={cn(styles.pill, 'whitespace-nowrap')}>
-                    {cards.length} {cards.length === 1 ? 'card' : 'cards'}
-                  </span>
-                )}
-                {hasReflections && (
-                  <span className={cn(styles.pill, 'whitespace-nowrap')}>
-                    <JournalCommentAddIcon className="h-3 w-3 text-(--brand-primary)" aria-hidden="true" />
-                    {reflections.length}
-                  </span>
-                )}
-              </div>
+              {/* Meta pills. Once open, the entry's own sections show its cards and notes. */}
+              {(contextLabel || (!isExpanded && (cards.length > 0 || hasReflections))) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {contextLabel && (
+                    <span className={cn(styles.pill, 'whitespace-nowrap')}>
+                      {contextLabel}
+                    </span>
+                  )}
+                  {!isExpanded && cards.length > 0 && (
+                    <span className={cn(styles.pill, 'whitespace-nowrap')}>
+                      {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+                    </span>
+                  )}
+                  {!isExpanded && hasReflections && (
+                    <span className={cn(styles.pill, 'whitespace-nowrap')}>
+                      <JournalCommentAddIcon className="h-3 w-3 text-(--brand-primary)" aria-hidden="true" />
+                      {reflections.length}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Card preview chips */}
-              {cardPreview.length > 0 && (
+              {!isExpanded && cardPreview.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 text-2xs text-(--text-muted)">
                   {cardPreview.map((card, idx) => {
                     const name = card.displayName || card.name || 'Card';
@@ -175,7 +188,10 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                           {name}
                         </span>
                         {reversed && (
-                          <span className={styles.reversedBadge}>Rev</span>
+                          <>
+                            <span className={styles.reversedBadge} aria-hidden="true">Rev</span>
+                            <span className="sr-only">, reversed</span>
+                          </>
                         )}
                       </span>
                     );
@@ -190,7 +206,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             </>
           )}
 
-        </button>
+        </div>
 
         {/* Action buttons */}
         <div className={cn('relative max-w-full self-start', !isCompactView && 'pt-1')}>
