@@ -107,10 +107,14 @@ const SPREAD_THEMES = {
 export function SpreadSelector({
   selectedSpread,
   onSelectSpread,
-  onSpreadConfirm
+  onSpreadConfirm,
+  // Phones introduce this panel with the reading step line directly above it.
+  showHeader = true
 }) {
   const spreadRefs = useRef({});
   const carouselRef = useRef(null);
+  // A tap centres its own card; only selections made elsewhere move the carousel.
+  const carouselSelectionRef = useRef(null);
   const spreadKeys = Object.keys(SPREADS);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -183,17 +187,19 @@ export function SpreadSelector({
     };
   }, [spreadKeys.length, updateEdgeFades]);
 
-  // A spread selected outside the carousel (a reading restored after a reload,
-  // a journal suggestion) can sit entirely off screen; bring it into view.
-  // A partly visible card is left alone: the carousel keeps its starting
-  // position, and a tapped card already centres itself (scrollToIndex).
+  // The selected spread leads: the default on first load, a reading restored
+  // after a reload, a journal suggestion. Centre it, without animation, unless
+  // it is already fully in view. A tapped card centres itself (scrollToIndex).
   useLayoutEffect(() => {
+    const tappedHere = carouselSelectionRef.current === selectedSpread;
+    carouselSelectionRef.current = null;
+    if (tappedHere) return;
     const el = carouselRef.current;
     if (!el || el.scrollWidth <= el.clientWidth) return;
     const card = el.children[spreadKeys.indexOf(selectedSpread)];
     if (!card) return;
     const left = card.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
-    if (left + card.offsetWidth > el.scrollLeft && left < el.scrollLeft + el.clientWidth) return;
+    if (left >= el.scrollLeft - 1 && left + card.offsetWidth <= el.scrollLeft + el.clientWidth + 1) return;
     el.scrollTo({ left: Math.max(0, left + card.offsetWidth / 2 - el.clientWidth / 2), behavior: 'instant' });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- follow the selection, not the list identity
   }, [selectedSpread]);
@@ -227,6 +233,7 @@ export function SpreadSelector({
 
     const selectedIndex = spreadKeys.indexOf(key);
     if (selectedIndex !== -1) {
+      if (key !== selectedSpread) carouselSelectionRef.current = key;
       scrollToIndex(selectedIndex);
     }
 
@@ -308,16 +315,18 @@ export function SpreadSelector({
   return (
     <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
-        <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
-          <div className="space-y-1">
-            <p className={`${LABEL_CLASS} text-accent`}>Spread Selection</p>
-            {!isLandscape && (
-              <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
-                Choose how your reading unfolds.
-              </p>
-            )}
-          </div>
-        </header>
+        {showHeader && (
+          <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
+            <div className="space-y-1">
+              <p className={`${LABEL_CLASS} text-accent`}>Spread Selection</p>
+              {!isLandscape && (
+                <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
+                  Choose how your reading unfolds.
+                </p>
+              )}
+            </div>
+          </header>
+        )}
 
         {/* Carousel wrapper with edge fade indicators and navigation */}
         <div className="relative">
@@ -479,7 +488,8 @@ export function SpreadSelector({
                   </div>
                   <div className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
                     <span>{spread.tag || 'Guided spread'}</span>
-                    <span className="whitespace-nowrap">· {cardLabel}</span>
+                    {/* Keep "· 3 cards" together; longer counts may wrap at large zoom. */}
+                    <span>{`·\u00A0${cardLabel.replace(' ', '\u00A0')}`}</span>
                   </div>
 
                   {!isLandscape && !isExperienced && (

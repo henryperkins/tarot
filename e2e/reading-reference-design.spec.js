@@ -167,13 +167,13 @@ test('larger text and light theme keep the last section above the dock and contr
     await startReading(page, fixture);
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
     await page.getByRole('button', { name: /^Contents/ }).click();
-    await expect.poll(() => page.locator('.reading-wayfinding').evaluate(toolbar => ({
-      position: getComputedStyle(toolbar).position,
-      gap: toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
-    }))).toMatchObject({ position: 'static', gap: expect.any(Number) });
-    const gap = await page.locator('.reading-wayfinding').evaluate(toolbar =>
-      toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom);
-    expect(gap).toBeGreaterThanOrEqual(0);
+    // The shared chrome coordinator releases the toolbar into normal flow.
+    // Its unpinned rule uses relative positioning with no positional offset.
+    await expect(page.locator('.reading-wayfinding')).toHaveAttribute('data-chrome-pinned', 'false');
+    await expect(page.locator('.reading-wayfinding')).toHaveCSS('position', 'relative');
+    await expect.poll(() => page.locator('.reading-wayfinding').evaluate(toolbar =>
+      toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
+    )).toBeGreaterThanOrEqual(0);
     await page.getByRole('navigation', { name: 'Reading contents' }).getByRole('link', { name: 'Reflection', exact: true }).click();
     const last = page.getByText('What would enough look like today? Use what resonates, and set aside what does not.', { exact: true });
     await last.scrollIntoViewIfNeeded();

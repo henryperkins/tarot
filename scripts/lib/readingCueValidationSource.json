@@ -773,6 +773,7 @@
     "src/components/onboarding/trimmed/WelcomeStep.jsx",
     "src/components/onboarding/trimmed/index.js",
     "src/components/questionField.js",
+    "src/components/reading/ClampedQuestion.jsx",
     "src/components/reading/InsightText.jsx",
     "src/components/reading/NarrativeStageLayout.jsx",
     "src/components/reading/ReadingChrome.jsx",

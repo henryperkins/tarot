@@ -678,6 +678,16 @@ export default function TarotReading() {
     handleCoachClose();
   };
 
+  // Mirrors the reading's "Save or ask" shortcut: focus the existing Draw cards
+  // action where it currently sits in the page.
+  const handleSetupActionsJump = useCallback(event => {
+    const control = event.currentTarget.closest('[data-app-chrome]')
+      ?.querySelector('[data-app-bottom-actions] [data-chrome-action="draw"]');
+    if (!control || control.disabled) return;
+    control.focus({ preventScroll: true });
+    control.scrollIntoView({ block: 'center', behavior: prefersReducedMotion ? 'instant' : 'smooth' });
+  }, [prefersReducedMotion]);
+
   const handleStepNav = useCallback((stepId) => {
     setViewedProgressStep(stepId);
     const refs = {
@@ -1124,6 +1134,13 @@ export default function TarotReading() {
             <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
               <p className="text-xs-plus sm:text-sm uppercase tracking-widest text-accent">{stepIndicatorLabel}</p>
               {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
+              {/* Shown only while short or enlarged views release Draw cards into
+                  the page, which can leave it below every spread. */}
+              {isHandset && (
+                <button type="button" className="setup-actions-jump" onClick={handleSetupActionsJump}>
+                  Go to Draw cards
+                </button>
+              )}
             </div>
 
             <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
@@ -1136,6 +1153,7 @@ export default function TarotReading() {
                   selectedSpread={selectedSpread}
                   onSelectSpread={handleSpreadSelection}
                   onSpreadConfirm={onSpreadConfirm}
+                  showHeader={!isHandset}
                 />
               </div>
 

@@ -48,8 +48,15 @@
 }
 .reading-spread { min-width: 0; margin-block: 1.25rem 1.5rem; }
 .reading-spread__cards--small { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-.reading-spread__cards--small .reading-card { flex: 1 1 7rem; max-width: 10rem; }
-.reading-spread__cards--small[data-card-count="1"] .reading-card { flex: none; width: 9rem; }
+/* Three cards keep one ordered row from 360px phones up. Below that, whole
+   names such as "Temperance" no longer fit a third of the width, so the row
+   wraps rather than splitting a word. The half-row cap (less half the 12px
+   gap) keeps the wrapped card the same size as the pair above it. */
+.reading-spread__cards--small .reading-card { flex: 1 1 6rem; max-width: min(10rem, calc(50% - 6px)); }
+@media (max-width: 400px) {
+  .reading-spread__cards--small .reading-card__name { font-size: .9375rem; }
+}
+.reading-spread__cards--small[data-card-count="1"] .reading-card { flex: none; width: 9rem; max-width: 100%; }
 .reading-card { position: relative; margin: 0; min-width: 0; text-align: center; overflow-wrap: normal; word-break: normal; hyphens: none; }
 .reading-card__art {
   display: block;
@@ -124,7 +131,7 @@
 .reading-section-tabs a { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 4px 8px; font-size: .9375rem; border-bottom: 2px solid transparent; }
 .reading-section-tabs [aria-current] { border-color: var(--brand-accent); color: var(--text-accent); }
 .reading-continue { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--text-muted); font-size: .875rem; }
-.reading-actions-jump { display: none; align-items: center; min-height: 44px; color: var(--brand-primary); font-size: .875rem; text-align: left; }
+.reading-actions-jump { display: none; align-items: center; min-height: 44px; color: var(--brand-primary); font-size: .875rem; text-align: left; text-decoration: underline; text-underline-offset: 4px; }
 [data-app-chrome]:has([data-app-bottom-region][data-actions-in-flow='true'] [data-reading-completion]) .reading-actions-jump { display: inline-flex; }
 .reading-prose { margin-top: 1.25rem; }
 .reading-prose > div, .reading-prose [data-narrative-content], .reading-prose .narrative-atmosphere { margin: 0; padding: 0; max-width: none; border: 0; background: transparent; box-shadow: none; }
@@ -195,10 +202,14 @@
 .reading-preparation__cancel-hint { color: var(--text-muted); font-size: .875rem; line-height: 1.5; }
 .reading-preparation__cards h3 { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
 .reading-preparation__draw { display: flex; gap: 12px; overflow-x: auto; padding: 4px 4px 12px; scrollbar-width: thin; }
-.reading-preparation__draw .reading-card { display: block; flex: 0 0 clamp(4.25rem, 22vw, 6.5rem); min-width: 0; margin: 0; text-align: center; }
-.reading-preparation__draw--many .reading-card { flex-basis: 6.5rem; }
+/* Up to three cards share the row while each keeps room for a whole name such
+   as "Temperance" (6rem); narrower screens wrap the row instead of splitting a
+   word. Larger spreads keep their fixed-width scrolling row. */
+.reading-preparation__draw:not(.reading-preparation__draw--many) { flex-wrap: wrap; }
+.reading-preparation__draw .reading-card { display: block; flex: 1 1 6rem; max-width: 6.5rem; min-width: 0; margin: 0; text-align: center; }
+.reading-preparation__draw--many .reading-card { flex: 0 0 6.5rem; }
 .reading-preparation__draw .reading-card__art { width: 64px; margin-inline: auto; }
-.reading-preparation__draw figcaption { padding-top: .5rem; overflow-wrap: anywhere; }
+.reading-preparation__draw figcaption { padding-top: .5rem; overflow-wrap: break-word; }
 .reading-preparation__draw .reading-card__position { font-size: .75rem; letter-spacing: .04em; }
 .reading-preparation__draw .reading-card__name { font-size: .9375rem; line-height: 1.4; }
 .reading-preparation__draw .reading-card__orientation { font-size: .8125rem; }

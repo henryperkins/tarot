@@ -146,6 +146,11 @@
 [data-app-secondary][data-chrome-pinned='false'] { position: relative !important; top: auto !important; right: auto !important; bottom: auto !important; }
 [data-app-secondary]:not([data-chrome-placement='bottom'])[data-chrome-pinned='true'] { position: sticky; top: var(--chrome-secondary-top, var(--sticky-header-height, 0px)); }
 [data-app-secondary][data-chrome-placement='bottom'][data-chrome-pinned='true'] { bottom: calc(var(--app-bottom-height, 0px) + var(--app-keyboard-clearance, 0px) + 1rem); }
+/* Setup counterpart of the reading's "Save or ask" shortcut: appears only while
+   Draw cards has been released into the page (short landscape, enlarged text). */
+.setup-actions-jump { display: none; align-items: center; min-height: 44px; color: var(--brand-primary); font-size: .875rem; text-align: left; text-decoration: underline; text-underline-offset: 4px; touch-action: manipulation; }
+.setup-actions-jump:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; border-radius: 4px; }
+[data-app-chrome]:has([data-app-bottom-region][data-actions-in-flow='true'] [data-chrome-action='draw']) .setup-actions-jump { display: inline-flex; }
 .share-desktop-actions[hidden] { display: none; }
 [data-reading-settings-drawer][hidden] { display: none !important; }
 @media (max-height: 500px) {

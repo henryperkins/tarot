@@ -40,7 +40,8 @@ function ActionButton({
   icon: Icon,
   className = '',
   readingTableAction = false,
-  isLandscape = false
+  isLandscape = false,
+  chromeAction
 }) {
   const variantClass = {
     primary: BTN_PRIMARY,
@@ -62,6 +63,7 @@ function ActionButton({
         onClick?.(event);
       }}
       data-reading-primary={readingTableAction || undefined}
+      data-chrome-action={chromeAction}
       onKeyDown={event => {
         if (readingTableAction && event.key === 'Enter' && event.repeat) event.preventDefault();
       }}
@@ -309,6 +311,7 @@ function renderActions(mode, options) {
             ariaLabel={drawLabel}
             className={`${widthClasses.prepPrimary} ${px}`}
             isLandscape={isLandscape}
+            chromeAction="draw"
           >
             {drawLabel}
           </ActionButton>

@@ -5,6 +5,7 @@ import { SpreadTable } from '../SpreadTable';
 import { getReadingTableAction, extractShortLabel } from '../readingBoardUtils';
 import { getCardImage, getCardThumbnailSrcSet, getOrientationMeaning } from '../../lib/cardLookup';
 import { getSceneModel } from './sceneModelUtils';
+import { ClampedQuestion } from '../reading/ClampedQuestion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import '../../styles/reading-table.css';
 
@@ -51,7 +52,7 @@ export function ReadingTableScene({ sceneModels = {} }) {
           >
             {spreadName?.split(' (')[0]}
           </h2>
-          {userQuestion ? <p className="reading-table__question" dir="auto">{userQuestion}</p> : null}
+          {userQuestion ? <ClampedQuestion className="reading-table__question" text={userQuestion} /> : null}
         </div>
         {!isHandset && action ? (
           <button type="button" className="reading-table__primary" data-reading-primary data-reading-focus-target onKeyDown={event => {

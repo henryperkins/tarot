@@ -6,6 +6,7 @@ import { NarrativePanelHeader } from './NarrativePanelHeader';
 import { ReadingSpread, ReadingCardFigure, ReadingChapterCards } from './ReadingSpread';
 import { ReadingContents } from './ReadingContents';
 import { ReadingCompletionActions } from '../complete/ReadingCompletionActions';
+import { ClampedQuestion } from '../ClampedQuestion';
 import { getReadingSections, getSectionKeyFromHeading, getReadingChapterCards } from '../../../lib/narrativeSections';
 
 const EMPTY_CARDS = [];
@@ -39,7 +40,7 @@ export function ReadingDocument({ model, callbacks }) {
 
   return <div className="reading-screen__column" ref={root}>
     <NarrativePanelHeader />
-    {model.question && <div className="reading-question"><span>Your question</span><p>{model.question}</p></div>}
+    {model.question && <div className="reading-question"><span>Your question</span><ClampedQuestion text={model.question} /></div>}
     {Object.values(model.originalContext?.reflections || {}).some(value => typeof value === 'string' && value.trim())
       && <details className="reading-options"><summary>Your notes<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
         {Object.entries(model.originalContext.reflections).filter(([, value]) => typeof value === 'string' && value.trim()).map(([key, value]) => {

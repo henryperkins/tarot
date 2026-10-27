@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ReadingCardFigure, ReadingSpread } from './narrative/ReadingSpread';
+import { ClampedQuestion } from './ClampedQuestion';
 import '../../styles/reading-screen.css';
 
 export function ReadingPreparationScreen({ cards = [], spreadName = '', question = '', onSelectCard, onCancel }) {
@@ -20,7 +21,9 @@ export function ReadingPreparationScreen({ cards = [], spreadName = '', question
       {shortSpreadName && <p className="reading-screen__subtitle">{shortSpreadName}</p>}
     </header>
 
-    <div className="reading-preparation__waiting">
+    {/* Status and Cancel stay pinned while the shared chrome budget allows;
+        on short phones the coordinator releases them into the page. */}
+    <div className="reading-preparation__waiting" data-app-secondary="1">
       <div className="reading-preparation__status" role="status" aria-live="polite" aria-atomic="true">
         <span className="reading-preparation__spinner" aria-hidden="true" />
         <div>
@@ -38,7 +41,7 @@ export function ReadingPreparationScreen({ cards = [], spreadName = '', question
       </>}
     </div>
 
-    {question && <div className="reading-question"><span>Your question</span><p dir="auto">{question}</p></div>}
+    {question && <div className="reading-question"><span>Your question</span><ClampedQuestion text={question} /></div>}
 
     {cards.length > 0 && <section className="reading-preparation__cards" aria-label="Your drawn cards">
       <h3>{cards.length === 1 ? 'Your drawn card' : 'Your drawn cards'}</h3>
