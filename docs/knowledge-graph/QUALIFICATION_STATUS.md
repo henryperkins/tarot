@@ -1,5 +1,15 @@
 # Knowledge graph and context qualification status
 
+## November 1 F3b problematic-pair check on 1.6.13 — no F3b fault, 3 of 23 changed pairs covered
+
+The owner asked to run only the problematic cases. That means the three changed-prompt pairs whose candidate arm had a recorded problem in the 10-31 paired review. The run used six subscription readings, with no retries, no paid fallback and no new embeddings. Two blind reviews, one executing-agent and one independent, agreed on every verdict before unblinding.
+
+- **REL01** (formerly a candidate-only H1): both arms clean; comparable.
+- **FRESH03** (formerly a candidate spine-gate failure): the candidate passed the gate and every hard check. The baseline failed H1 in its closing ("残っているのは、どこへ向かうかを選ぶことです。"), a narrative residual of the D02 family. The blind verdict favoured the candidate.
+- **FRESH07** (formerly a candidate usefulness 2 versus 3): both arms 3/3/3/3; comparable.
+
+There were zero attributable candidate faults and zero quality losses, and the stop rule did not trigger. Coverage is 3 of the 23 changed pairs; the 23 identical-prompt pairs are settled offline. Full protocol acceptance still needs the other 20 changed pairs or an explicit owner acceptance. Evidence: `~/.local/state/tarot/f3b-comparison-v1613-20261101T124726Z/dispatch-01`.
+
 ## November 1 F3b rebased onto 1.6.13 — comparison re-prepared with a revised stop rule, no readings
 
 The retrieval candidate now sits on the 1.6.13 narrative branch (`7d226594` on `76de5e7a`), with its delta byte-identical. The root suite gives 6,277 pass / 0 fail / 2 skipped, with 184 focused, 70 Worker and 874 / 2,541 assembly checks. Retrieval replay and all 92 prompts match the 1.6.11 preparation apart from the intended narrative edits. The partition stays at 23 changed-prompt and 23 identical-prompt pairs.
