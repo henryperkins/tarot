@@ -20,6 +20,12 @@ The separate `fix/symbolic-deficit-grounding-20261101` branch labels symbol glos
 
 No generated reading was made. D02's unfinished-plan H1 failure remains historical evidence; no content gate is cleared. This fix is separate from local trunk and from the F3b experiment's common 1.6.11 narrative baseline. Japanese prose quality alone remains waived. The older entries below retain their original dated status.
 
+## November 1 comparison preparation — unchanged retrieval candidate, no new readings
+
+The candidate is rebased onto qualified local integration `99238712`; its eleven prior delta files remain byte-identical before this documentation update. The [new comparison preparation](F3B_COMPARISON_PREPARATION_2026-11-01.md) freezes a common 1.6.11 narrative baseline and excludes the separate 1.6.12 correction. Cached replay reproduces all 50 cases exactly, with 7/7, 19/19 and 12/12 designated positives. All 46 eligible pairs retain semantic GraphRAG in actual prompts: 23 changed pairs and 23 identical-prompt controls. The final question bytes are preserved in both arms.
+
+There were no generated readings, provider authentication or new embedding calls. The prepared five-pair pilot needs 10 fresh readings; the complete matrix needs 92 because no historical output is reused. Current generation authorization is zero. The unchanged relative criteria and Japanese prose-quality-only waiver remain. F3b's historical REL01 failure and the separate narrative content failure remain open. This is local preparation, not integration or release clearance. The older entries below are dated historical checkpoints.
+
 ## November 1 local cleanup checkpoint — F3b on current master, content qualification still open
 
 The outstanding retrieval candidate is preserved on `wip/f3b-retrieval-20261101`, based on master `19be91abd8a3f90e4f9fcea84423231e5aa17e08`. Its four retrieval runtime files are byte-identical to the prior uncommitted candidate. The five evaluation/test changes are retained, the current-master Unicode regression remains, and the validation source manifest includes both the ranking module and canonical scene evidence. Prompt 1.6.11 and the other narrative/runtime safeguards already on master remain unchanged.
