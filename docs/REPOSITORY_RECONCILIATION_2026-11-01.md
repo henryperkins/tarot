@@ -1,5 +1,7 @@
 # Repository reconciliation — 2026-11-01
 
+This is the completed cleanup snapshot, before the later local integration. See the [current work index](CURRENT_WORK.md) for integrated checkpoints, separate qualification branches and the next decisions. Counts and branch positions below describe the cleanup's completion time.
+
 The approved local cleanup is complete. The primary checkout is clean, and four
 worktrees remain. Local master and the freshly observed remote master are both
 `19be91abd8a3f90e4f9fcea84423231e5aa17e08`, unchanged throughout cleanup. `master`
