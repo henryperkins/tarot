@@ -94,7 +94,7 @@ test('remediation fixture preservation reaches each serialized provider request'
             });
             result = await (target === 'modal' ? generateWithModalQwen : generateWithOpenAIResponses)(providerEnv, payload, row.id);
           }
-          assert.equal(result.promptMeta.readingPromptVersion, '1.6.11');
+          assert.equal(result.promptMeta.readingPromptVersion, '1.6.13');
           gate.verifyGraphRAGRemediationPrompt(row, target, payload, {
             systemPrompt: system, userPrompt: user, promptMeta: result.promptMeta, memoryRetention: payload.memoryRetention
           });
