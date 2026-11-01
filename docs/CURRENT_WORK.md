@@ -1,10 +1,10 @@
 # Current local work — November 1, 2026
 
-This is the current index for local master. Earlier reports keep their dated observations. Generated readings in this work were owner-authorized calls to the owner's Claude subscription only. Nothing after `307896e7` has been pushed or deployed.
+This is the current index for local master. Earlier reports keep their dated observations. Generated readings in this work were owner-authorized calls to the owner's Claude subscription only. Master was pushed to origin on November 1. Nothing was deployed: production still runs Worker version `10d052d3`, deployed at 02:48 UTC, which predates prompts 1.6.12/1.6.13 and F3b.
 
 ## Local master
 
-Local master builds on the qualified integration baseline `99238712` and the index commit `307896e7`, which was pushed to origin on November 1 at 06:46 UTC. Two local merges follow, neither pushed:
+Local master builds on the qualified integration baseline `99238712` and the index commit `307896e7`, which was pushed to origin on November 1 at 06:46 UTC. Two merges follow, pushed with this index:
 
 - **`f8bb013a`** integrates the narrative correction from `fix/symbolic-deficit-grounding-20261101`. Prompt 1.6.12 frames symbol glosses as possibilities. Prompt 1.6.13 keeps closings and topic exclusions from asserting unsupplied status.
 - **`7680c2ca`** integrates F3b retrieval from `wip/f3b-retrieval-20261101`. It was rebased onto 1.6.13 with its delta byte-identical; the old head is kept as the local tag `archive/f3b-retrieval-20261101-on-99238712`.
@@ -43,4 +43,4 @@ Combined verification: **6,238 root tests pass, 0 fail, 2 skipped; 19/19 journal
 
 The [completed cleanup record](REPOSITORY_RECONCILIATION_2026-11-01.md) and its verified recovery root remain the baseline; they were not redone. The earlier integration evidence is in `/home/ubuntu/.local/state/tarot/integration-grounding-20261101T051522Z`. Its restored Git mirror uses the previous verified recovery mirror as an explicit alternate; retain that recovery chain together.
 
-The next decisions are publication and release: pushing local master, then releasing with `npm run deploy` (which runs fresh QA). Both are separate owner decisions.
+The next decision is release: `npm run deploy`, which runs fresh QA first, from an install that matches the lockfile. It is a separate owner decision.

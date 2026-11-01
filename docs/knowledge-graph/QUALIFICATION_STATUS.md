@@ -2,7 +2,7 @@
 
 ## November 1 local integration — narrative 1.6.13 and F3b merged into local master; F3b accepted by the owner
 
-The owner accepted F3b on the [problematic-pair evidence below](#november-1-f3b-problematic-pair-check-on-1613--no-f3b-fault-3-of-23-changed-pairs-covered), without generating the other 20 changed-prompt pairs. Local master merges the narrative branch (`f8bb013a`), then F3b (`7680c2ca`). The merged runtime, test and configuration files are byte-identical to the tested F3b tree `7d226594`. The D02 unfinished-plan failure stays open as a known narrative failure. Nothing is pushed or deployed.
+The owner accepted F3b on the [problematic-pair evidence below](#november-1-f3b-problematic-pair-check-on-1613--no-f3b-fault-3-of-23-changed-pairs-covered), without generating the other 20 changed-prompt pairs. Local master merges the narrative branch (`f8bb013a`), then F3b (`7680c2ca`). The merged runtime, test and configuration files are byte-identical to the tested F3b tree `7d226594`. The D02 unfinished-plan failure stays open as a known narrative failure. Master was pushed to origin on November 1; nothing was deployed.
 
 ## November 1 F3b problematic-pair check on 1.6.13 — no F3b fault, 3 of 23 changed pairs covered
 
