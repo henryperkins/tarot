@@ -1,5 +1,13 @@
 # Knowledge graph and context qualification status
 
+## November 1 closing and topic-scope correction — 1.6.13 offline-qualified, content still open
+
+Both REL05 pilot outputs (byte-identical 1.6.11 prompts) restated the closing instruction almost verbatim. One output turned "never treat card-implied events as completed" into an unsupplied absence ("None of the habits or outcomes the cards suggest are already in place"). The other turned the question's topic exclusion into a job status ("Your job stays exactly as it is"). Prompt 1.6.13 makes two changes on top of 1.6.12. The closing now names choices and next steps, no longer asks for supplied facts, and treats card-implied habits and events as neither done nor missing. The premise principle now says that "not asking about X" establishes nothing about X. The always-on system prompt keeps its exact byte length, because the tightest GraphRAG-summary fixture had only 2 tokens of headroom: ASCII quotes and apostrophes in four adjacent principle lines offset the new clause.
+
+D02's synthesis slip ("a plan with pieces left in camp") happened under correct, unchanged instructions. This correction does not target it, and no further premise rule was added for it. The proposed `readingQuality.js` phrase detector was rejected: that gate runs on every live reading, so a false positive would discard a Claude reading in favor of the fallback chain, and fixed English phrases would not cover the other supported languages.
+
+Offline results: 10 new provider-boundary tests fail on 1.6.12 and pass on 1.6.13. Root suite 6,251 pass / 0 fail / 2 skip; 556 focused prompt/budget tests; 70 established Worker tests; 874 fixtures / 2,541 prompt builds; build and ESLint pass. 45 frozen before/after comparisons reproduce the 1.6.12 diagnostic hashes and show only the intended lines, with identical trimming, GraphRAG and scene metadata. No reading, embedding request, push or deployment was made for this offline qualification. Evidence: `~/.local/state/tarot/narrative-closing-scope-v1613-20261101T105456Z`.
+
 ## November 1 symbol-scope checkpoint — 1.6.12 offline-qualified, content still open
 
 The separate `fix/symbolic-deficit-grounding-20261101` branch labels symbol glosses as possibilities at their source, preserving image facts and supplied context. The [source diagnosis and offline record](NARRATIVE_SYMBOL_SCOPE_2026-11-01.md) reports 6,241 root passes / 0 failures / 2 skips, 237 focused passes, 70 established Worker passes, and 874 fixtures / 2,541 prompt builds. The 45 before/after comparisons preserve prompt trimming, GraphRAG metadata and scene contracts. Four legacy telemetry-test failures reproduce on baseline and remain separately recorded.

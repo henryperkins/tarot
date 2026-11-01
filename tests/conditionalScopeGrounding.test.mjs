@@ -167,3 +167,84 @@ it('keeps the local-scope instruction through actual tight-budget fitting, with 
     assert.ok(fittedCount > 0, 'Exercise a fitted prompt, not only fail-closed rejection');
   }
 });
+
+// Prompt 1.6.13. Both REL05 outputs (byte-identical 1.6.11 prompts) echoed the
+// closing line almost verbatim: one inverted "never treat card-implied events as
+// completed" into an unsupplied absence ("None of the habits or outcomes the
+// cards suggest are already in place"); the other promoted the question's topic
+// exclusion into a job status ("Your job stays exactly as it is"). These checks
+// cover the final provider prompts only; generated prose still needs separately
+// authorized review, and the live quality gate deliberately stays unchanged.
+const rel05 = {
+  id: 'REL05-topic-exclusion', spreadKey: 'threeCard',
+  userQuestion: 'I am not asking about quitting my job; how can I nurture creative art at home?', reflectionsText: '',
+  cards: [
+    { name: 'The Empress', orientation: 'Upright', position: 'Self' },
+    { name: 'The Emperor', orientation: 'Upright', position: 'Other' },
+    { name: 'The Hierophant', orientation: 'Upright', position: 'Bond' }
+  ]
+};
+
+function closingLine(userPrompt) {
+  const lines = userPrompt.split('\n').filter(line => /^- Close with an explicit sentence/.test(line));
+  assert.equal(lines.length, 1, 'Exactly one protected closing contract');
+  return lines[0];
+}
+
+function assertStatusNeutralClosing(line) {
+  const said = line.match(/^- Close with an explicit sentence(?::| about)([^.]*)\./)?.[1] || '';
+  assert.match(said, /choices/); assert.match(said, /next steps/);
+  assert.doesNotMatch(said, /never|card-implied|supplied facts/i, 'Keep what the closing says apart from the constraint it obeys');
+  assert.match(line, /card-implied[^.]*(?:habits|events)[^.]*done or missing/i, 'Neither completion nor absence may be asserted');
+  assert.doesNotMatch(line, /supplied facts|as completed/i);
+}
+
+function assertStatusScope(systemPrompt) {
+  const core = systemPrompt.split('SPECIFICITY')[0];
+  assert.match(core, /personal facts[^\n]*asking if X is true, or not asking about X, establishes nothing about X/,
+    'A topic exclusion establishes neither change nor no change');
+  assert.match(core, /deficits conditional/, 'Unsupplied absence stays covered as a deficit');
+}
+
+// REL05 on RWS receives the compact scene-contract wording; Marseille REL05 and
+// the D02 creative-project input receive the standard wording.
+for (const [sample, sceneContract] of [
+  [rel05, true], [{ ...rel05, id: 'REL05-marseille', deckStyle: 'marseille-classic' }, false], [cases[1], false]
+]) {
+  for (const budgetTarget of ['claude', 'openai', 'modal']) {
+    it(`${sample.id} closes on choices without asserting status at the ${budgetTarget} boundary`, async () => {
+      const payload = await prepareNarrativeSamplePayload(sample, { env, referenceTime });
+      const prompt = buildOpenAIResponsesPrompts(env, payload, 'closing-status-control', { backendId: 'claude-api', budgetTarget });
+      assert.equal(prompt.userPrompt.includes('- SCENE OUTPUT CONTRACT:'), sceneContract);
+      assertStatusNeutralClosing(closingLine(prompt.userPrompt));
+      assertStatusScope(prompt.systemPrompt);
+      assert.ok(prompt.userPrompt.includes(sample.userQuestion), 'The exclusion stays in the reader’s own words');
+      if (sample.reflectionsText) assert.ok(prompt.userPrompt.includes(sample.reflectionsText));
+      assertScopeContract(prompt);
+    });
+  }
+}
+
+it('keeps the status-neutral closing and topic scope through actual tight-budget fitting', async () => {
+  for (const deckStyle of ['rws-1909', 'marseille-classic']) {
+    const payload = await prepareNarrativeSamplePayload({ ...rel05, deckStyle }, { env, referenceTime });
+    const prompt = buildOpenAIResponsesPrompts(env, payload, 'tight-closing-control');
+    const closing = closingLine(prompt.userPrompt);
+    assertStatusNeutralClosing(closing);
+    assertStatusScope(truncateSystemPromptSafely(prompt.systemPrompt, 2000).text);
+    const inventory = 'DRAWN CARD INVENTORY\n' + payload.cardsInfo.map(card => `${card.position}: ${card.card} ${card.orientation}`).join('\n');
+    let fittedCount = 0;
+    for (const budget of [700, 900, 1200]) {
+      try {
+        const fitted = truncateUserPromptSafely(prompt.userPrompt, budget, { spreadKey: 'threeCard', cardInventory: inventory });
+        assert.ok(fitted.text.split('\n').includes(closing), 'The protected closing survives intact');
+        assert.ok(fitted.text.includes(rel05.userQuestion));
+        fittedCount++;
+      } catch (error) {
+        if (error.code !== 'PROMPT_BUILD_BUDGET_EXCEEDED') throw error;
+        assert.notEqual(budget, 1200, 'The complete short question and protected contract fit at this budget');
+      }
+    }
+    assert.ok(fittedCount > 0, 'Exercise a fitted prompt, not only fail-closed rejection');
+  }
+});

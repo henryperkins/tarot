@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.12';
+export const READING_PROMPT_VERSION = '1.6.13';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.13',
+    date: '2026-11-01',
+    notes: 'Keep closings and topic exclusions from asserting unsupplied status.',
+    changes: [
+      'The closing names choices and next steps, no longer asks for supplied facts, and treats card-implied habits and events as neither done nor missing.',
+      'Asking if X is true, or not asking about X, establishes nothing about X.',
+      'System prompt length is unchanged (ASCII quotes offset the new clause); the live quality gate is unchanged and content qualification remains pending.'
+    ]
+  },
   {
     version: '1.6.12',
     date: '2026-11-01',
