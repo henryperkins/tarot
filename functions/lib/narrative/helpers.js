@@ -923,8 +923,10 @@ function buildKeySymbolText(cardInfo, options, reviewedOnly = false) {
   const parts = [];
   if (!reviewedOnly && keySymbols.archetype) parts.push(`Archetype: ${keySymbols.archetype}`);
   if (symbols.length) {
-    parts.push(`Key symbols: ${symbols.map(symbol =>
-      `${symbol.object}${symbol.position ? ` ${symbol.position}` : ''} (${symbol.meaning})`
+    // Image objects/relations are source evidence; their glosses are possible
+    // interpretations, never evidence of the reader's circumstances.
+    parts.push(`May symbolize: ${symbols.map(symbol =>
+      `${symbol.object}${symbol.position ? ` ${symbol.position}` : ''} → ${symbol.meaning}`
     ).join(', ')}`);
   }
   return parts.length ? ` *${parts.join('. ')}.*` : '';

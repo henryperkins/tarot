@@ -14,13 +14,22 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.11';
+export const READING_PROMPT_VERSION = '1.6.12';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.12',
+    date: '2026-11-01',
+    notes: 'Label card-symbol glosses as possibilities at their source.',
+    changes: [
+      'Separate literal symbol objects and reviewed positions from possible interpretations, including the Seven of Swords incomplete-plan gloss.',
+      'Retain canonical annotations, supplied context, scene facts and qualification criteria unchanged; content qualification remains pending.'
+    ]
+  },
   {
     version: '1.6.11',
     date: '2026-10-31',

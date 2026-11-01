@@ -33,6 +33,33 @@ const roles = [
   ['Support', assertedSupport], ['sUpPoRt: possible collaborators', assertedSupport]
 ];
 
+// D02 supplied no incomplete plan, but the emitted symbol gloss presented
+// "two swords (incomplete plan)" without a local possibility scope. Exercise
+// the final provider prompts, retaining the gloss and literal image instead
+// of deleting useful card evidence or pretending to test generated prose.
+for (const budgetTarget of ['claude', 'openai', 'modal']) {
+  it(`scopes the unfinished-plan symbol as a possibility at the ${budgetTarget} boundary`, async () => {
+    for (const reflectionsText of [
+      cases[1].reflectionsText,
+      'My plan is complete; I have no missing preparations.',
+      'My plan is incomplete: I have not booked the venue for 2027-02-12.'
+    ]) {
+      const sample = { ...cases[1], reflectionsText };
+      const payload = await prepareNarrativeSamplePayload(sample, { env, referenceTime });
+      const prompt = buildOpenAIResponsesPrompts(env, payload, 'symbol-premise-control', { backendId: 'claude-api', budgetTarget });
+      const line = prompt.userPrompt.split('\n').find(text => text.includes('<reading_context>') && text.includes('two swords'));
+      assert.ok(line, 'Exercise the exact symbol that supplied the unsupported premise');
+      assert.match(line, /(?:may symbolize|symbolic possibilities|possible symbol meanings):[^.]*two swords[^.]*incomplete plan/i,
+        'Keep the interpretation explicitly possible at its source, not only in a distant global rule');
+      assert.doesNotMatch(line, /Key symbols:.*two swords \(incomplete plan\)/);
+      assert.match(line, /carrying five swords, two left behind/, 'Preserve the image; only its application is uncertain');
+      assert.ok(prompt.userPrompt.includes(sample.userQuestion));
+      assert.ok(prompt.userPrompt.includes(reflectionsText), 'Supplied completeness, incompleteness and dates remain authoritative');
+      assertScopeContract(prompt);
+    }
+  });
+}
+
 // Mutating a role back to a factual activity/available-resource projection must
 // fail for both normal templates and custom-role fallback, while preserving
 // the card's meaningful content. Real seed-selected variants are exercised.

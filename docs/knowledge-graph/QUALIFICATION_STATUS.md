@@ -1,5 +1,11 @@
 # Knowledge graph and context qualification status
 
+## November 1 symbol-scope checkpoint — 1.6.12 offline-qualified, content still open
+
+The separate `fix/symbolic-deficit-grounding-20261101` branch labels symbol glosses as possibilities at their source, preserving image facts and supplied context. The [source diagnosis and offline record](NARRATIVE_SYMBOL_SCOPE_2026-11-01.md) reports 6,241 root passes / 0 failures / 2 skips, 237 focused passes, 70 established Worker passes, and 874 fixtures / 2,541 prompt builds. The 45 before/after comparisons preserve prompt trimming, GraphRAG metadata and scene contracts. Four legacy telemetry-test failures reproduce on baseline and remain separately recorded.
+
+No generated reading was made. D02's unfinished-plan H1 failure remains historical evidence; no content gate is cleared. This fix is separate from local trunk and from the F3b experiment's common 1.6.11 narrative baseline. Japanese prose quality alone remains waived. The older entries below retain their original dated status.
+
 ## November 1 publication checkpoint — narrative qualification remains incomplete
 
 This checkpoint saves the **71-file narrative overlay through prompt 1.6.11** on `qualify/narrative-grounding-20261031`, including grounding/role/imagery/Unicode/scene-contract changes, qualification process safeguards, structural validation and their evidence records. It retains the existing GraphRAG commit history beneath the overlay. The separate uncommitted F3b retrieval candidate is outside this publication; master remains separate.
