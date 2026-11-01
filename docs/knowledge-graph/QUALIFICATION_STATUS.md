@@ -1,12 +1,18 @@
 # Knowledge graph and context qualification status
 
-## November 1 closing and topic-scope correction — 1.6.13 offline-qualified, content still open
+## November 1 closing and topic-scope correction — 1.6.13 committed; four-reading check REL05 2/2, D02 1/2; content still open
 
 Both REL05 pilot outputs (byte-identical 1.6.11 prompts) restated the closing instruction almost verbatim. One output turned "never treat card-implied events as completed" into an unsupplied absence ("None of the habits or outcomes the cards suggest are already in place"). The other turned the question's topic exclusion into a job status ("Your job stays exactly as it is"). Prompt 1.6.13 makes two changes on top of 1.6.12. The closing now names choices and next steps, no longer asks for supplied facts, and treats card-implied habits and events as neither done nor missing. The premise principle now says that "not asking about X" establishes nothing about X. The always-on system prompt keeps its exact byte length, because the tightest GraphRAG-summary fixture had only 2 tokens of headroom: ASCII quotes and apostrophes in four adjacent principle lines offset the new clause.
 
 D02's synthesis slip ("a plan with pieces left in camp") happened under correct, unchanged instructions. This correction does not target it, and no further premise rule was added for it. The proposed `readingQuality.js` phrase detector was rejected: that gate runs on every live reading, so a false positive would discard a Claude reading in favor of the fallback chain, and fixed English phrases would not cover the other supported languages.
 
 Offline results: 10 new provider-boundary tests fail on 1.6.12 and pass on 1.6.13. Root suite 6,251 pass / 0 fail / 2 skip; 556 focused prompt/budget tests; 70 established Worker tests; 874 fixtures / 2,541 prompt builds; build and ESLint pass. 45 frozen before/after comparisons reproduce the 1.6.12 diagnostic hashes and show only the intended lines, with identical trimming, GraphRAG and scene metadata. No reading, embedding request, push or deployment was made for this offline qualification. Evidence: `~/.local/state/tarot/narrative-closing-scope-v1613-20261101T105456Z`.
+
+**Generated check on `641fe2f0`.** The owner authorized four subscription readings: REL05 twice and D02 twice, sequential, with no retries, no paid fallback and no new embedding requests.
+- REL05 rebuilt the pilot scenario exactly and replayed its frozen vectors. Its prompt was the pilot's 1.6.11 prompt plus only the 1.6.13 edits. Both readings passed H1; both 1.6.11 pilot readings had failed. Each closing ends on choices and next steps, and each keeps the exclusion as scope ("leaves your job out of it, as you asked").
+- D02 used the frozen 1.6.12 payload and passed in one of two readings. D02-a hedged its synthesis but presupposed unfinished work in its steps ("Sort your list into "unfinished" and "polish"") and in its closing ("which pieces you finish"). The Seven of Swords incomplete-plan possibility therefore still carries into later sections.
+
+All four outputs passed the live quality gate. An independent reviewer, not told what had changed, reached the same H1 verdict on every output. Four readings are directional evidence, not qualification. Evidence: `~/.local/state/tarot/narrative-v1613-closing-check-20261101T113816Z`.
 
 ## November 1 symbol-scope checkpoint — 1.6.12 offline-qualified, content still open
 
