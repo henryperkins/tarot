@@ -22,6 +22,7 @@ import {
 } from '../../functions/lib/graphRAGScoring.js';
 import { cosineSimilarity } from '../../functions/lib/embeddings.js';
 import { PARTIAL_PROJECTION_VERSION } from '../../functions/lib/knowledgeBasePartialProjections.js';
+import { PATTERN_RANKING_POLICY_ID } from '../../functions/lib/graphRAGRanking.js';
 
 export const LEXICAL_NORMALIZATION_VERSION = 'graphrag-lexical-v1';
 export const PROJECTION_VERSION = `meaning-v1/${PARTIAL_PROJECTION_VERSION}`;
@@ -159,6 +160,7 @@ export function evaluateGraphRAGRelevance({ fixturesDoc, evidenceDoc, fixturesRa
         relevanceScore: baselineScore,
         _semanticScoringAttempted: true,
         _semanticScoringSucceeded: cosine !== null,
+        _semanticScore: cosine,
         _contextMatch: contextMatch,
         _priorityOnly: false
       });
@@ -169,6 +171,7 @@ export function evaluateGraphRAGRelevance({ fixturesDoc, evidenceDoc, fixturesRa
         relevanceScore: proposedScore,
         _semanticScoringAttempted: true,
         _semanticScoringSucceeded: cosine !== null,
+        _semanticScore: cosine,
         _contextMatch: contextMatch,
         _priorityOnly: false
       });
@@ -191,7 +194,9 @@ export function evaluateGraphRAGRelevance({ fixturesDoc, evidenceDoc, fixturesRa
     const baselineSelected = selectPassageCandidates(baselineScored, {
       maxPassages,
       minRelevanceScore: DEFAULT_RELEVANCE_THRESHOLD,
-      enableDeduplication: true
+      enableDeduplication: true,
+      // Preserve the pre-F3b baseline: passage-local ranking, same admission.
+      enablePatternRanking: false
     });
     const candidateSelected = selectPassageCandidates(candidateScored, {
       maxPassages,
@@ -318,6 +323,8 @@ export function evaluateGraphRAGRelevance({ fixturesDoc, evidenceDoc, fixturesRa
       id: RELEVANCE_SCORING_POLICY_ID,
       formula: RELEVANCE_SCORING_FORMULA,
       baselineFormula: '0.3 * k + 0.7 * s',
+      ranking: PATTERN_RANKING_POLICY_ID,
+      baselineRanking: 'passage-score-v1',
       threshold: DEFAULT_RELEVANCE_THRESHOLD,
       lexicalVersion: LEXICAL_NORMALIZATION_VERSION,
       projectionVersion: PROJECTION_VERSION

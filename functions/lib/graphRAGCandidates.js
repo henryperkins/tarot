@@ -1,10 +1,29 @@
 import { getPassagesForPattern, listKnowledgeBasePassages } from './knowledgeBase.js';
 import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
 import { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance } from './graphRAGLexical.js';
+import { rankQualifiedPatterns, getPassageRankingScore } from './graphRAGRanking.js';
 export { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance };
 
 /** Priority of per-card Majors that only multi-Major spreads make eligible. */
 export const SUPPLEMENTAL_MAJOR_PRIORITY = 7;
+
+/** Admission policy for semantic-only supplemental Majors; see topicCorroboratedMajorId. */
+export const MAJOR_TOPIC_CORROBORATION_POLICY_ID = 'major-topic-corroboration-v1';
+
+/**
+ * Canonical topic descriptor for a Major: the registry theme plus the tags of
+ * its hand-written general passage. Enrichment variants never contribute, so
+ * this text is stable registry data, independent of deck projection.
+ */
+export function getMajorTopicDescriptor(cardNumber) {
+  if (typeof cardNumber !== 'number' && (typeof cardNumber !== 'string' || !cardNumber.trim())) return null;
+  const number = Number(cardNumber);
+  if (!Number.isInteger(number) || number < 0 || number > 21) return null;
+  const entry = getPassagesForPattern('major-arcana', number);
+  const canonical = entry?.passages?.find(passage => (passage.context || 'general') === 'general' && !passage.isEnriched);
+  if (typeof entry?.theme !== 'string' || !entry.theme.trim() || !Array.isArray(canonical?.tags) || !canonical.tags.length) return null;
+  return `${entry.theme}. ${canonical.tags.join(', ')}`;
+}
 
 const CONTEXT_ALIASES = {
   grief: ['grief', 'loss', 'mourning', 'bereavement'],
@@ -137,10 +156,37 @@ export function resolveRetrievalMode({ graphEnabled = true, qualityFilteringDisa
   return retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority';
 }
 
+function isSupplementalMajor(candidate) {
+  return candidate.type === 'major-arcana' && candidate.priority === SUPPLEMENTAL_MAJOR_PRIORITY;
+}
+
 // Measured bge-m3 cosines of unrelated passages reach the threshold band, so a
 // supplemental Major needs shared question terms before it counts as relevant.
 function lacksLexicalSupport(candidate) {
-  return candidate.type === 'major-arcana' && candidate.priority === SUPPLEMENTAL_MAJOR_PRIORITY && !(candidate.relevance > 0);
+  return isSupplementalMajor(candidate) && !(candidate.relevance > 0);
+}
+
+const byScoreThenId = (a, b) => (Number.isFinite(b.relevanceScore) ? b.relevanceScore : -Infinity) - (Number.isFinite(a.relevanceScore) ? a.relevanceScore : -Infinity)
+  || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0);
+
+/**
+ * One semantic-only supplemental Major may count as relevant without shared
+ * question terms when all of these hold: it is the strongest supplemental
+ * Major among the eligible candidates, the query independently clears the
+ * same relevance threshold against its canonical topic descriptor
+ * (_supplementalMajorTopicScore, attached by the semantic scoring layer),
+ * and it is pivotal — no other pattern qualifies, or it outranks every
+ * qualified non-Major pattern. Anything else keeps the lexical safeguard,
+ * including missing or invalid descriptor evidence.
+ */
+function topicCorroboratedMajorId(eligible, minRelevanceScore) {
+  const top = eligible.filter(isSupplementalMajor).sort(byScoreThenId)[0];
+  if (!top || !lacksLexicalSupport(top) || top._semanticScoringSucceeded !== true) return null;
+  if (!Number.isFinite(top._supplementalMajorTopicScore) || top._supplementalMajorTopicScore <= minRelevanceScore) return null;
+  const qualifiedOthers = eligible.filter(candidate => !isSupplementalMajor(candidate)
+    && Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore);
+  if (qualifiedOthers.length && !qualifiedOthers.every(candidate => top.relevanceScore > candidate.relevanceScore)) return null;
+  return top.candidateId;
 }
 
 function compareCandidates(a, b) {
@@ -152,7 +198,7 @@ function compareCandidates(a, b) {
 }
 
 /** Pure final selection: variant choice, full-text dedup, threshold/floor, cap. */
-export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5, minRelevanceScore = 0.3, enableDeduplication = true, qualityFilteringDisabled = false } = {}) {
+export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5, minRelevanceScore = 0.3, enableDeduplication = true, qualityFilteringDisabled = false, enablePatternRanking = true } = {}) {
   if (!isValidPassageLimit(maxPassages)) return [];
   const stats = { ...(scoredCandidates.retrievalStats || {}), variantsRemoved: 0, contextVariantsGated: 0, deduplicatedCandidates: 0, thresholdRejected: 0, finalSelectedCount: 0 };
   const patterns = new Set();
@@ -179,9 +225,18 @@ export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5
     eligible.push(candidate);
   }
   stats.patternsRepresented = patterns.size;
-  const retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly
-    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore && !lacksLexicalSupport(candidate));
+  const corroboratedMajorId = qualityFilteringDisabled ? null : topicCorroboratedMajorId(eligible, minRelevanceScore);
+  let retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly
+    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore
+    && (!lacksLexicalSupport(candidate) || candidate.candidateId === corroboratedMajorId));
   stats.thresholdRejected = eligible.length - retained.length;
+  // Rank only after every passage independently passes the existing gates.
+  // Keep variant choice, duplicate suppression and weak-floor selection local
+  // to the actual passage; a sibling's affinity grants none of those permissions.
+  if (!qualityFilteringDisabled && enablePatternRanking && retained.length) {
+    retained = rankQualifiedPatterns(retained, valid).sort((a, b) =>
+      getPassageRankingScore(b) - getPassageRankingScore(a) || compareCandidates(a, b));
+  }
   // The weak floor keeps a pre-existing pattern ahead of an unsupported supplemental Major.
   if (!retained.length && eligible.length) retained.push({ ...(eligible.find(candidate => !lacksLexicalSupport(candidate)) || eligible[0]), belowRelevanceThreshold: true });
   const selected = retained.slice(0, maxPassages);

@@ -412,6 +412,19 @@ export function matchedContextPhrases(text, keywords = []) {
   return [...new Set(keywords.map(normalizeContextWords))].filter((phrase) => phrase && words.includes(` ${phrase} `));
 }
 
+// Restrict nominal topic exclusions to known topic nouns/phrases. An arbitrary
+// span ending in "question" can instead describe a person, action, or quality.
+const NOMINAL_TOPIC_TERMS = [...new Set([
+  ...Object.values(CONTEXT_KEYWORDS).flat(),
+  ...Object.values(GRAPH_RAG_CONTEXT_KEYWORDS).flat(),
+  'lawsuit', 'medical recovery'
+])].sort((a, b) => b.length - a.length)
+  .map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const NOMINAL_TOPIC = `not\\s+(?:a|an)\\s+(?:${NOMINAL_TOPIC_TERMS})`;
+const COORDINATED_TOPICS = `${NOMINAL_TOPIC}(?:\\s*,\\s*(?:${NOMINAL_TOPIC_TERMS}))*\\s*,?\\s+or\\s+(?:(?:a|an)\\s+)?(?:${NOMINAL_TOPIC_TERMS})`;
+const REPEATED_NEGATED_TOPICS = `${NOMINAL_TOPIC}(?:\\s*,\\s*(?:(?:and|or)\\s+)?${NOMINAL_TOPIC})*`;
+const NOMINAL_TOPIC_EXCLUSION = new RegExp(`\\b(?:${COORDINATED_TOPICS}|${REPEATED_NEGATED_TOPICS})\\s+(?:question|reading|topic)\\b`, 'giu');
+
 /** Explicit rejection of a topic, rather than a negative action within it. */
 export function excludedContextRanges(text = '') {
   const ranges = [];
@@ -421,6 +434,11 @@ export function excludedContextRanges(text = '') {
     const excludedText = match[0].slice(0, boundary < 0 ? match[0].length : boundary);
     const action = /(?:about|on)\s+(?:quitting|leaving|changing|switching|resigning|getting|taking|accepting|rejecting|ending|breaking|finding|moving)\b/iu.test(excludedText);
     ranges.push({ start: match.index, end: match.index + excludedText.length, scope: action ? 'action' : 'topic' });
+  }
+  // Bounded known-topic lists either repeat their negation or end in "or".
+  // They cannot span clauses or turn "not a job I want to leave" into a veto.
+  for (const match of text.matchAll(NOMINAL_TOPIC_EXCLUSION)) {
+    ranges.push({ start: match.index, end: match.index + match[0].length, scope: 'topic' });
   }
   return ranges;
 }

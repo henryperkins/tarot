@@ -1,5 +1,21 @@
 # Knowledge graph and context qualification status
 
+## November 1 F3b problematic-pair check on 1.6.13 — no F3b fault, 3 of 23 changed pairs covered
+
+The owner asked to run only the problematic cases. That means the three changed-prompt pairs whose candidate arm had a recorded problem in the 10-31 paired review. The run used six subscription readings, with no retries, no paid fallback and no new embeddings. Two blind reviews, one executing-agent and one independent, agreed on every verdict before unblinding.
+
+- **REL01** (formerly a candidate-only H1): both arms clean; comparable.
+- **FRESH03** (formerly a candidate spine-gate failure): the candidate passed the gate and every hard check. The baseline failed H1 in its closing ("残っているのは、どこへ向かうかを選ぶことです。"), a narrative residual of the D02 family. The blind verdict favoured the candidate.
+- **FRESH07** (formerly a candidate usefulness 2 versus 3): both arms 3/3/3/3; comparable.
+
+There were zero attributable candidate faults and zero quality losses, and the stop rule did not trigger. Coverage is 3 of the 23 changed pairs; the 23 identical-prompt pairs are settled offline. Full protocol acceptance still needs the other 20 changed pairs or an explicit owner acceptance. Evidence: `~/.local/state/tarot/f3b-comparison-v1613-20261101T124726Z/dispatch-01`.
+
+## November 1 F3b rebased onto 1.6.13 — comparison re-prepared with a revised stop rule, no readings
+
+The retrieval candidate now sits on the 1.6.13 narrative branch (`7d226594` on `76de5e7a`), with its delta byte-identical. The root suite gives 6,277 pass / 0 fail / 2 skipped, with 184 focused, 70 Worker and 874 / 2,541 assembly checks. Retrieval replay and all 92 prompts match the 1.6.11 preparation apart from the intended narrative edits. The partition stays at 23 changed-prompt and 23 identical-prompt pairs.
+
+The [revised protocol](F3B_COMPARISON_PREPARATION_2026-11-01.md) settles identical-prompt pairs offline and generates only changed-prompt pairs. It stops only on faults that trace to candidate-only prompt content. The pilot is REL01, FRESH14, FRESH15, FRESH05 and HOLD2_03 (10 outputs); the maximum total is 46. Authorized outputs: zero. D02's unfinished-plan failure stays open as a known narrative residual.
+
 ## November 1 closing and topic-scope correction — 1.6.13 committed; four-reading check REL05 2/2, D02 1/2; content still open
 
 Both REL05 pilot outputs (byte-identical 1.6.11 prompts) restated the closing instruction almost verbatim. One output turned "never treat card-implied events as completed" into an unsupplied absence ("None of the habits or outcomes the cards suggest are already in place"). The other turned the question's topic exclusion into a job status ("Your job stays exactly as it is"). Prompt 1.6.13 makes two changes on top of 1.6.12. The closing now names choices and next steps, no longer asks for supplied facts, and treats card-implied habits and events as neither done nor missing. The premise principle now says that "not asking about X" establishes nothing about X. The always-on system prompt keeps its exact byte length, because the tightest GraphRAG-summary fixture had only 2 tokens of headroom: ASCII quotes and apostrophes in four adjacent principle lines offset the new clause.
@@ -19,6 +35,20 @@ All four outputs passed the live quality gate. An independent reviewer, not told
 The separate `fix/symbolic-deficit-grounding-20261101` branch labels symbol glosses as possibilities at their source, preserving image facts and supplied context. The [source diagnosis and offline record](NARRATIVE_SYMBOL_SCOPE_2026-11-01.md) reports 6,241 root passes / 0 failures / 2 skips, 237 focused passes, 70 established Worker passes, and 874 fixtures / 2,541 prompt builds. The 45 before/after comparisons preserve prompt trimming, GraphRAG metadata and scene contracts. Four legacy telemetry-test failures reproduce on baseline and remain separately recorded.
 
 No generated reading was made. D02's unfinished-plan H1 failure remains historical evidence; no content gate is cleared. This fix is separate from local trunk and from the F3b experiment's common 1.6.11 narrative baseline. Japanese prose quality alone remains waived. The older entries below retain their original dated status.
+
+## November 1 comparison preparation — unchanged retrieval candidate, no new readings
+
+The candidate is rebased onto qualified local integration `99238712`; its eleven prior delta files remain byte-identical before this documentation update. The [new comparison preparation](F3B_COMPARISON_PREPARATION_2026-11-01.md) freezes a common 1.6.11 narrative baseline and excludes the separate 1.6.12 correction. Cached replay reproduces all 50 cases exactly, with 7/7, 19/19 and 12/12 designated positives. All 46 eligible pairs retain semantic GraphRAG in actual prompts: 23 changed pairs and 23 identical-prompt controls. The final question bytes are preserved in both arms.
+
+There were no generated readings, provider authentication or new embedding calls. The prepared five-pair pilot needs 10 fresh readings; the complete matrix needs 92 because no historical output is reused. Current generation authorization is zero. The unchanged relative criteria and Japanese prose-quality-only waiver remain. F3b's historical REL01 failure and the separate narrative content failure remain open. This is local preparation, not integration or release clearance. The older entries below are dated historical checkpoints.
+
+## November 1 local cleanup checkpoint — F3b on current master, content qualification still open
+
+The outstanding retrieval candidate is preserved on `wip/f3b-retrieval-20261101`, based on master `19be91abd8a3f90e4f9fcea84423231e5aa17e08`. Its four retrieval runtime files are byte-identical to the prior uncommitted candidate. The five evaluation/test changes are retained, the current-master Unicode regression remains, and the validation source manifest includes both the ranking module and canonical scene evidence. Prompt 1.6.11 and the other narrative/runtime safeguards already on master remain unchanged.
+
+This is a local preservation checkpoint. Credential-free offline verification passes: **6,264 root tests / 0 failures / 2 skips**, 171 focused tests, 70 Worker tests, 874 prompt-assembly fixtures / 2,541 provider builds, build and scoped ESLint. These results verify the reconciled source and do not clear a content gate. No new generated reading or embedding request is authorized. The historical F3b REL01 paired failure remains, and the creative-project unsupported unfinished-plan finding for the narrative checkpoint is still open. A paired comparison using this newer common narrative baseline would be a new experiment, not a resumption of a halted historical run. Japanese prose quality alone remains waived. No merge, push, or deployment is part of this checkpoint.
+
+Recovery, exact source-transfer checks, and verification receipts: `/home/ubuntu/.local/state/tarot/reconciliation-cleanup/20261101T030802Z`.
 
 ## November 1 publication checkpoint — narrative qualification remains incomplete
 
