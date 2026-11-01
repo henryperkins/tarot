@@ -24,6 +24,7 @@ import { resolveNarrativeEvalBackend, runSubscriptionNarrative, describeSubscrip
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
+import { generateSamplesWithCheckpoint } from './lib/narrativeSampleCheckpoint.js';
 
 const CARD_LOOKUP = new Map([
   ...MAJOR_ARCANA.map((card) => [card.name, card]),
@@ -359,7 +360,7 @@ export async function generateSampleImpl(sample, { env, backendId, referenceTime
   const narrativePayload = await prepareNarrativeSamplePayload(sample, { env, referenceTime: actualReferenceTime });
   const { spreadInfo, cardsInfo, analysis, context, deckStyle } = narrativePayload;
 
-  const { reading, model, usage } = backendId === 'claude-code'
+  const { reading, rawReading, canonicalSceneRendering, model, usage } = backendId === 'claude-code'
     ? await runSubscriptionNarrative(env, narrativePayload, `eval-${sample.id}`)
     : await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
 
@@ -378,6 +379,8 @@ export async function generateSampleImpl(sample, { env, backendId, referenceTime
     cardsInfo,
     deckStyle,
     reading,
+    rawReading: rawReading ?? reading,
+    ...(canonicalSceneRendering ? { canonicalSceneRendering } : {}),
     ...(model && { inference: { provider: backendId, model, usage } }),
     // What retrieval did for this sample, not what the env asked for
     semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
@@ -431,12 +434,12 @@ export async function main() {
     throw new Error('Some requested sample IDs do not exist in the corpus.');
   }
 
-  const generated = [];
-  for (const sample of selectedSamples) {
+  const outPath = path.resolve(process.cwd(), options.output);
+  const generated = await generateSamplesWithCheckpoint(selectedSamples, async sample => {
     console.log(`Generating sample: ${sample.id}...`);
     const sampleReferenceTime = resolveReferenceTime(options.fixtures ? sample.referenceTime || fixtureCorpus.referenceTime || referenceTime : referenceTime);
-    generated.push(await generateSample(sample, { env, backendId, referenceTime: sampleReferenceTime }));
-  }
+    return generateSample(sample, { env, backendId, referenceTime: sampleReferenceTime });
+  }, outPath);
 
   const referenceTimes = [...new Set(generated.map(sample => sample.referenceTime))];
   const payload = {
@@ -467,9 +470,10 @@ export async function main() {
     samples: generated
   };
 
-  const outPath = path.resolve(process.cwd(), options.output);
   await fs.mkdir(path.dirname(outPath), { recursive: true });
-  await fs.writeFile(outPath, JSON.stringify(payload, null, 2));
+  const finalTemporary = `${outPath}.${process.pid}.final.tmp`;
+  await fs.writeFile(finalTemporary, JSON.stringify(payload, null, 2), { mode: 0o600 });
+  await fs.rename(finalTemporary, outPath);
   console.log(`Narrative samples written to ${path.relative(process.cwd(), outPath)} (${generated.length} samples).`);
 }
 

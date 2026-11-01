@@ -302,8 +302,21 @@ test('deterministic token-budget sweep and character-cut sweep preserve atomic G
   );
 
   const fullTokens = estimator.estimate(fullPrompt);
+  let refusedBudgets = 0;
+  let fittedBudgets = 0;
   for (let budget = 1; budget <= fullTokens + 20; budget += 7) {
-    const first = truncateUserPromptSafely(fullPrompt, budget, { spreadKey: 'threeCard', estimator, expectedPassages: passages });
+    let first;
+    try {
+      first = truncateUserPromptSafely(fullPrompt, budget, { spreadKey: 'threeCard', estimator, expectedPassages: passages });
+    } catch (error) {
+      assert.equal(error?.code, 'PROMPT_BUILD_BUDGET_EXCEEDED');
+      // Tiny budgets may refuse a build instead of emitting an incomplete
+      // question or required contract. The ordinary fitting range must work.
+      assert.ok(budget < 800, `The required question and contract fit by 800 tokens, refused ${budget}`);
+      refusedBudgets++;
+      continue;
+    }
+    fittedBudgets++;
     assert.ok(estimator.estimate(first.text) <= budget, `Estimated tokens ${estimator.estimate(first.text)} exceeded budget ${budget}`);
     assertGraphSectionAtomic(first.text, first.text.includes('PARTIAL PATTERN:') ? passages : [passages[0]]);
 
@@ -313,6 +326,8 @@ test('deterministic token-budget sweep and character-cut sweep preserve atomic G
     const enforced = enforceGraphRAGPromptIntegrity(first.text);
     assert.equal(enforced.changed, false);
   }
+  assert.ok(refusedBudgets > 0, 'Impossible budgets must fail closed');
+  assert.ok(fittedBudgets > 0, 'Feasible budgets must still produce atomic prompts');
 
   // Exact fit preserves original content
   const exactFull = truncateUserPromptSafely(fullPrompt, fullTokens, { spreadKey: 'threeCard', estimator, expectedPassages: passages });

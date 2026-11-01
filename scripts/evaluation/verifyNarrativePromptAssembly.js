@@ -466,8 +466,16 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
     // Use the actual final user-prompt rebuild. Its component budget is below
     // a provider cap, whose independent hard-cap behavior is checked above.
     let truncated = null;
+    const refusedBudgets = [];
     for (let budget = config.truncateUserBudget; budget <= 1600; budget += 10) {
-      const candidate = truncateUserPromptSafely(built.userPrompt, budget, { spreadKey: 'decision' });
+      let candidate;
+      try {
+        candidate = truncateUserPromptSafely(built.userPrompt, budget, { spreadKey: 'decision' });
+      } catch (error) {
+        if (error?.code !== 'PROMPT_BUILD_BUDGET_EXCEEDED') throw error;
+        refusedBudgets.push(budget);
+        continue;
+      }
       const partial = parseUserContext(candidate.text).get('pathA');
       if (partial?.omittedForBudget && partial.head.length >= 8 && partial.tail.length >= 8) {
         truncated = { ...candidate, budget };
@@ -479,7 +487,7 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
     assert.equal(retention.pathA.budgetTruncated, true);
     assert.ok(retention.pathA.includedLength > 0 && retention.pathA.includedLength < label.length);
     assert.ok(estimateTokenCount(truncated.text) <= truncated.budget);
-    summary.boundaries[boundary] = { partial: true, includedLength: retention.pathA.includedLength, eligibleLength: retention.pathA.eligibleLength, userBudget: truncated.budget };
+    summary.boundaries[boundary] = { partial: true, includedLength: retention.pathA.includedLength, eligibleLength: retention.pathA.eligibleLength, userBudget: truncated.budget, refusedBudgets };
   } else if (boundary === 'removed-memory' || boundary === 'removed-highlights') {
     const themes = config.repeatThemeContext ? { ...payload.analysis.themes, suitFocus: `${payload.analysis.themes.suitFocus || 'Card patterns support reflective interpretation.'} `.repeat(config.repeatThemeContext) } : payload.analysis.themes;
     built = buildEnhancedClaudePrompt(promptArguments(payload, config.budgetTarget, { themes }));

@@ -2,6 +2,7 @@
   "version": "reading-local-acceptance-v7",
   "scope": "frontend-build-and-controlled-fixtures; Worker execution is disabled",
   "paths": [
+    "functions/lib/canonicalSceneEvidence.js",
     "functions/lib/crypto.js",
     "functions/lib/embeddings.js",
     "functions/lib/graphCardMembership.js",

@@ -17,7 +17,8 @@ import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { sanitizeReadingCard, sanitizeReadingContext } from '../../readingCardContext.js';
 import { projectVisionInsightForPrompt } from '../../visionPromptProjection.js';
 import { renderUserContext } from './userContext.js';
-import { RELATIONSHIP_SPREAD_MAX_CLARIFIERS } from '../../spreadContracts.js';
+import { RELATIONSHIP_SPREAD_MAX_CLARIFIERS, usesThreeCardTimeline } from '../../spreadContracts.js';
+import { getCanonicalSceneFacts } from '../../canonicalSceneEvidence.js';
 
 // Derived prose can contain client interpretations and custom positions. Keep
 // every such value in a serialized data boundary, including direct callers that
@@ -43,6 +44,7 @@ export function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context
   cards += getElementalImageryText(analysis.nucleus.elementalDynamic) + '\n\n';
 
   cards += `**TIMELINE**:\n`;
+  cards += 'The card relationships below describe symbolic contrasts, not events in the querent’s history. Keep any unsupplied event conditional in the opening arc and in each later question or reference.\n';
   cards += buildCardWithImagery(cardsInfo[2], cardsInfo[2].position || 'Past — what lies behind (Card 3)', optionsFor(2));
 
   const presentPosition = cardsInfo[0].position || 'Present — core situation (Card 1)';
@@ -76,8 +78,8 @@ export function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context
   cards += buildCardWithImagery(cardsInfo[8], cardsInfo[8].position || 'Hopes & Fears — deepest wishes & worries (Card 9)', optionsFor(8));
 
   const outcomeLabel = userQuestion
-    ? `Outcome — likely path for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })}" if unchanged (Card 10)`
-    : 'Outcome — likely path if unchanged (Card 10)';
+    ? `Outcome — prospective symbolic lens for "${sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })}" (Card 10)`
+    : 'Outcome — prospective symbolic lens (Card 10)';
 
   cards += buildCardWithImagery(cardsInfo[9], cardsInfo[9].position || outcomeLabel, optionsFor(9));
   cards += `Advice-to-outcome insight: ${formatReadingContext(analysis.staff.adviceImpact)}\n`;
@@ -87,16 +89,16 @@ export function buildCelticCrossPromptCards(cardsInfo, analysis, themes, context
   cards += buildPromptCrossChecks(analysis.crossChecks, themes);
 
   cards += `\n\n**POSITION INTERPRETATION NOTES**:\n`;
-  cards += `- Present (1): Anchor for all axes; core atmosphere of this moment\n`;
+  cards += `- Present (1): Anchor for symbolic reflection on supplied present context\n`;
   cards += `- Challenge (2): Obstacle to integrate, not to defeat\n`;
-  cards += `- Past (3): Foundation influencing current state\n`;
-  cards += `- Near Future (4): Next chapter; cross-check with Outcome\n`;
-  cards += `- Conscious (5): Stated goals; verify alignment with Outcome\n`;
-  cards += `- Subconscious (6): Hidden drivers; mirror with Hopes/Fears\n`;
+  cards += `- Past (3): Symbolic reflection; personal history comes only from the querent\n`;
+  cards += `- Near Future (4): Symbolic next-step lens; compare Outcome\n`;
+  cards += `- Conscious (5): Explore supplied goals or possible aims\n`;
+  cards += `- Subconscious (6): Reflective possibilities, not hidden facts\n`;
   cards += `- Advice (7): Active guidance; assess impact on Outcome\n`;
-  cards += `- External (8): Environmental context, not command\n`;
+  cards += `- External (8): Known conditions or conditional examples only\n`;
   cards += `- Hopes/Fears (9): Mixed desires/anxieties\n`;
-  cards += `- Outcome (10): Trajectory if unchanged, never deterministic\n`;
+  cards += `- Outcome (10): Symbolic choices, not an estimated trajectory\n`;
 
   return cards;
 }
@@ -107,10 +109,21 @@ export function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, 
     ...makeCardOptions('threeCard', index, baseOptions, promptOptions),
     ...extra
   });
+  if (!usesThreeCardTimeline(cardsInfo)) {
+    let cards = '**THREE-CARD POSITION STRUCTURE**\n';
+    cards += 'Use the supplied position labels as their actual roles. Card order does not assign a chronology or a forecast. Compare the roles and their symbolic relationships without renaming them.\n\n';
+    cardsInfo.forEach((card, index) => {
+      cards += buildCardWithImagery(card, card.position || `Position ${index + 1}`, optionsFor(index));
+    });
+    if (analysis?.narrative) {
+      cards += `\n${formatReadingContext(analysis.narrative)}\n`;
+    }
+    return cards;
+  }
   const [past, present, future] = cardsInfo;
 
   let cards = `**THREE-CARD STORY STRUCTURE**\n`;
-  cards += `- Past foundation\n- Present dynamics\n- Future trajectory if nothing shifts\n\n`;
+  cards += `- Past: symbolic reflection, with personal history supplied by the querent\n- Present: symbolic lens\n- Future: prospective symbolic lens, without assuming a current personal course\n\n`;
 
   cards += buildCardWithImagery(
     past,
@@ -131,9 +144,7 @@ export function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, 
   const sanitizedQuestion = userQuestion
     ? sanitizeText(userQuestion, { maxLength: 100, addEllipsis: true, stripMarkdown: true, filterInstructions: true })
     : '';
-  const futureLabel = sanitizedQuestion
-    ? `Future — likely trajectory for "${sanitizedQuestion}" if nothing shifts`
-    : 'Future — trajectory if nothing shifts';
+  const futureLabel = 'Future — prospective symbolic lens';
 
   const baseFuturePosition = future.position || '';
   const hasGenericFuturePosition = /future\s*[—–-]\s*trajectory\s+if\s+nothing\s+shifts/i.test(baseFuturePosition);
@@ -152,10 +163,11 @@ export function buildThreeCardPromptCards(cardsInfo, analysis, themes, context, 
   );
 
   if (analysis?.narrative) {
+    cards += '\nThe card relationships below describe symbolic contrasts, not events in the querent’s history. Keep any unsupplied event conditional in the opening arc and in each later question or reference.\n';
     cards += `\n${formatReadingContext(analysis.narrative)}\n`;
   }
 
-  cards += '\nThis future position points toward the most likely trajectory if nothing shifts, inviting you to adjust your path with intention.';
+  cards += '\nThe Future position offers a prospective symbolic lens, not evidence of a current personal course or likely event. Explore how its meaning might inform a next choice.';
 
   return cards;
 }
@@ -224,6 +236,7 @@ function makeCardOptions(spreadKey, positionIndex, baseOptions, promptOptions = 
     positionIndex,
     userContextFields: promptOptions.userContextFields,
     drawnCards: promptOptions.drawnCards,
+    canonicalSceneContract: promptOptions.canonicalSceneContract === true,
     deckStyle: promptOptions.deckStyle || baseOptions?.deckStyle || 'rws-1909',
     sourceUsageSignals: promptOptions.sourceUsageSignals || baseOptions?.sourceUsageSignals || null
   };
@@ -236,7 +249,9 @@ function makeCardOptions(spreadKey, positionIndex, baseOptions, promptOptions = 
 function buildCardWithImagery(cardInfo, position, options, prefix = '') {
   cardInfo = sanitizeReadingCard(cardInfo);
   position = sanitizeReadingContext(position);
-  const safeOptions = options || {};
+  const controlledScene = options?.canonicalSceneContract
+    && getCanonicalSceneFacts([cardInfo], options.deckStyle).length > 0;
+  const safeOptions = { ...options, ...(controlledScene ? { includeSymbols: false, canonicalSceneOnly: true } : {}) };
   const base = buildPositionCardText(cardInfo, position, safeOptions);
   const lead = prefix ? `${prefix} ${base}` : base;
   let text = `${formatReadingContext(lead)}\n`;
@@ -256,9 +271,10 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
     if (hook) {
       // The hooks describe the 1909 RWS scenes; Thoth and Marseille art differs,
       // so those decks rely on the deck-specific notes instead.
-      if (usesRwsImagery(safeOptions.deckStyle)) {
-        text += `*Canonical RWS imagery: ${hook.visual}*\n`;
-        text += `*Sensory: ${hook.sensory}*\n`;
+      if (usesRwsImagery(safeOptions.deckStyle) && !controlledScene) {
+        const owner = cardInfo.card || cardInfo.name;
+        text += `*RWS image (${owner}): ${hook.visual}*\n`;
+        text += `*Metaphor: ${hook.sensory}*\n`;
       }
 
       // NEW: Add vision-detected tone if available
@@ -347,6 +363,11 @@ export function buildDeckSpecificContext(deckStyle, cardsInfo, options = {}) {
         return `- ${formatReadingContext(header)}: **${info.title}**${astrology} — ${info.description}`;
       })
       .filter(Boolean);
+    if (cardsInfo.some(card => canonicalCardKey(card?.canonicalName || card?.card || card?.name, deckStyle) === 'temperance')) {
+      // Crowley, The Book of Thoth, XIV Art: https://hermetic.com/crowley/book-of-thoth/atu
+      // This is a traditional motif reference, not a claim about uploaded imagery.
+      lines.push('- Traditional Thoth Art motif: a raven perched on a skull on the cauldron, not inside it or added as an ingredient. Keep this symbolic; do not imply an uploaded image was observed.');
+    }
     if (!lines.length) {
       return '';
     }

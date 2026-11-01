@@ -245,7 +245,7 @@ export const SYMBOL_ANNOTATIONS = {
       { object: 'one foot in water', position: 'left foot', meaning: 'subconscious, emotion' },
       { object: 'one foot on land', position: 'right foot', meaning: 'conscious, stability' },
       { object: 'mountain path', position: 'background', meaning: 'journey to enlightenment' },
-      { object: 'rising sun', position: 'distant', meaning: 'healing, integration' }
+      { object: 'radiant crown', position: 'distant', meaning: 'healing, integration' }
     ],
     dominantColors: [
       { color: 'blue', meaning: 'flow, emotion' },
@@ -276,8 +276,8 @@ export const SYMBOL_ANNOTATIONS = {
       { object: 'lightning', position: 'striking crown', color: 'white', meaning: 'sudden revelation, destruction' },
       { object: 'tower', position: 'center', color: 'gray', meaning: 'false structures, ego' },
       { object: 'falling figures', position: 'from tower', meaning: 'release, downfall' },
-      { object: 'flaming debris', position: 'falling', color: 'yellow', meaning: 'purification by fire' },
-      { object: 'gray sky', position: 'background', meaning: 'chaos, upheaval' }
+      { object: 'flame-shaped drops', position: 'falling', color: 'yellow', meaning: 'purification by fire' },
+      { object: 'dark sky with pale clouds', position: 'background', meaning: 'chaos, upheaval' }
     ],
     dominantColors: [
       { color: 'gray', meaning: 'instability' },
@@ -307,7 +307,7 @@ export const SYMBOL_ANNOTATIONS = {
   },
   18: { // The Moon
     symbols: [
-      { object: 'full moon with face', position: 'center sky', meaning: 'illusion, subconscious' },
+      { object: 'moon with face', position: 'center sky', meaning: 'illusion, subconscious' },
       { object: 'two towers', position: 'background', color: 'gray', meaning: 'boundaries, duality' },
       { object: 'dog and wolf', position: 'howling at moon', meaning: 'tame and wild instincts' },
       { object: 'crayfish', position: 'emerging from water', meaning: 'deep subconscious' },
@@ -993,9 +993,9 @@ export const SYMBOL_ANNOTATIONS = {
   62: { // Three of Pentacles
     symbols: [
       { object: 'craftsman', position: 'on bench', meaning: 'skilled work' },
-      { object: 'architect and monk', position: 'consulting', meaning: 'collaboration, expertise' },
+      { object: 'two figures', position: 'beside craftsman', meaning: 'collaboration, expertise' },
       { object: 'three pentacles', position: 'in archway', color: 'carved', meaning: 'recognized skill' },
-      { object: 'cathedral', position: 'being built', meaning: 'sacred work' },
+      { object: 'stone arch', position: 'above figures', meaning: 'sacred work' },
       { object: 'plans', position: 'held', meaning: 'design, planning' }
     ],
     dominantColors: [

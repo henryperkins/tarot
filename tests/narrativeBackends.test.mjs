@@ -657,11 +657,14 @@ describe('Claude backend + dispatch coverage', () => {
       let requestBody;
       await withMockedFetch(async (_url, options) => {
         requestBody = JSON.parse(options.body);
+        const content = requestBody.messages.some(message => message.content.includes('SCENE OUTPUT CONTRACT:'))
+          ? JSON.stringify({ format: 'card-scenes-v1', blocks: [{ type: 'prose', text: 'A grounded reading.' }] })
+          : 'A grounded reading.';
         return new Response(JSON.stringify({
           id: 'modal-context-safety',
           object: 'chat.completion',
           model: 'Qwen/Qwen3.8-Max-VL-Thinking',
-          choices: [{ index: 0, message: { role: 'assistant', content: 'A grounded reading.' }, finish_reason: 'stop' }],
+          choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
           usage: { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 }
         }), { status: 200, headers: { 'content-type': 'application/json' } });
       }, () => runNarrativeBackend('modal-qwen', {

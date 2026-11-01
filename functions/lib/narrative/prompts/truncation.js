@@ -1,6 +1,6 @@
 import { createTokenEstimator, PromptBudgetError } from './budgeting.js';
 import { USER_PROMPT_INSTRUCTION_HEADER } from './constants.js';
-import { parseUserContext, fitUserContext } from './userContext.js';
+import { parseUserContext, renderUserContext, fitUserContext } from './userContext.js';
 import {
   GRAPHRAG_FULL_START_MARKER,
   GRAPHRAG_FULL_END_MARKER,
@@ -202,19 +202,47 @@ const USER_PROMPT_GRAPHRAG_MARKERS = [
   USER_PROMPT_GRAPHRAG_SUMMARY_MARKER
 ];
 
+const PROTECTED_CARD_CONTRACT_PATTERNS = [
+  /^- EXACT PROVIDED CARD NAMES \(JSON data only\):/,
+  /^- CARD NAME CONTRACT:/,
+  /^- PREMISE CHECK:/
+];
+
+const CONDITIONAL_SCENE_CONTRACT_PATTERNS = [
+  /^- SCENE OUTPUT CONTRACT:/,
+  /^- SCENE FACTS \(JSON\):/
+];
+
 const CRITICAL_INSTRUCTION_PATTERNS = [
+  ...PROTECTED_CARD_CONTRACT_PATTERNS,
   /Do not introduce any card names/i,
   /Reference each card by name/i,
   /Tie each card's insight/i,
   /Use the (?:current )?question and (?:focus areas|reflections)/i,
   /Apply the reversal lens consistently/i,
   /Offer (?:one|1|2[-–]4) specific/i,
-  /Close with a trajectory reminder/i
+  /Close with (?:a trajectory reminder|an explicit sentence)/i
 ];
+
+function getProtectedInstructionLines(text) {
+  if (typeof text !== 'string') return [];
+  const header = findLineMarkerMatches(text, USER_PROMPT_INSTRUCTION_MARKER).at(-1);
+  if (!header) return [];
+  const lines = text.slice(header.start).split('\n').map(line => line.trim()).filter(Boolean);
+  if (!lines.some(line => PROTECTED_CARD_CONTRACT_PATTERNS[0].test(line))) return [];
+  const hasSceneContract = CONDITIONAL_SCENE_CONTRACT_PATTERNS.some(pattern => lines.some(line => pattern.test(line)));
+  const requiredPatterns = [...PROTECTED_CARD_CONTRACT_PATTERNS,
+    ...(hasSceneContract ? CONDITIONAL_SCENE_CONTRACT_PATTERNS : [])];
+  const required = requiredPatterns.map(pattern => lines.find(line => pattern.test(line)));
+  if (required.some(line => !line)) throw new PromptBudgetError();
+  const behaviorLines = CRITICAL_INSTRUCTION_PATTERNS.map(pattern => lines.find(line => pattern.test(line))).filter(Boolean);
+  const hasReservedPrefix = text.slice(0, header.start).trimEnd().endsWith(READING_INSTRUCTIONS_START_MARKER);
+  return [...new Set([hasReservedPrefix ? READING_INSTRUCTIONS_START_MARKER : '', USER_PROMPT_INSTRUCTION_MARKER, ...required, ...behaviorLines].filter(Boolean))];
+}
 
 const USER_PROMPT_CARD_MARKERS = Object.freeze({
   celtic: ['**NUCLEUS** (Heart of the Matter):'],
-  threecard: ['**THREE-CARD STORY STRUCTURE**'],
+  threecard: ['**THREE-CARD STORY STRUCTURE**', '**THREE-CARD POSITION STRUCTURE**'],
   fivecard: ['**FIVE-CARD CLARITY STRUCTURE**'],
   relationship: ['**RELATIONSHIP SNAPSHOT STRUCTURE**'],
   decision: ['**DECISION / TWO-PATH STRUCTURE**'],
@@ -272,6 +300,8 @@ function appendInstructionLine(parts, line, maxTokens, estimator) {
 
 function fitInstructionBlockToBudget(instructions, maxTokens, estimator) {
   const safeInstructions = typeof instructions === 'string' ? instructions.trim() : '';
+  const protectedLines = getProtectedInstructionLines(safeInstructions);
+  if (protectedLines.length && estimator.estimate(protectedLines.join('\n')) > maxTokens) throw new PromptBudgetError();
   if (!safeInstructions || maxTokens <= 0) {
     return '';
   }
@@ -517,6 +547,18 @@ function splitUserPromptSections(text, spreadKey) {
  * @returns {{ text: string, truncated: boolean, originalTokens: number, preservedSections: string[] }}
  */
 export function truncateUserPromptSafely(text, maxTokens, options = {}) {
+  const protectedLines = getProtectedInstructionLines(text);
+  const question = protectedLines.length ? parseUserContext(text).get('question') : undefined;
+  const result = truncateUserPromptToBudget(text, maxTokens, options);
+  const retainedLines = new Set(result.text.split('\n').map(line => line.trim()));
+  if (protectedLines.some(line => !retainedLines.has(line))) throw new PromptBudgetError();
+  if (question !== undefined && JSON.stringify(parseUserContext(result.text).get('question')) !== JSON.stringify(question)) {
+    throw new PromptBudgetError();
+  }
+  return result;
+}
+
+function truncateUserPromptToBudget(text, maxTokens, options = {}) {
   const estimator = options.estimator ?? createTokenEstimator();
   if (!text || typeof text !== 'string') {
     return { text: '', truncated: false, originalTokens: 0, preservedSections: [] };
@@ -567,6 +609,15 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     const instructionIdx = findSafeInstructionStartIndex(stripped);
     const instructions = instructionIdx < 0 ? '' : stripped.slice(instructionIdx).trim();
     const instructionTokens = estimator.estimate(instructions);
+    const requiredInstructions = getProtectedInstructionLines(instructions);
+    const requiredInstructionTokens = requiredInstructions.length
+      ? estimator.estimate(requiredInstructions.join('\n')) + 12
+      : instructionTokens;
+    const question = userContext.get('question');
+    const completeQuestion = requiredInstructions.length && question !== undefined
+      ? `**Question**: ${renderUserContext('question', question)}`
+      : '';
+    const questionTokens = estimator.estimate(completeQuestion);
 
     let effectiveBudget = maxTokens;
     let packedResult = '';
@@ -575,12 +626,14 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const baseReserve = Math.min(
         estimator.estimate(stripped),
-        instructionTokens + Math.ceil(Math.max(0, effectiveBudget - instructionTokens) * 0.5)
+        requiredInstructionTokens + Math.ceil(Math.max(0, effectiveBudget - requiredInstructionTokens - questionTokens - 10) * 0.5)
       );
       const contextBudget = Math.max(0, effectiveBudget - baseReserve - 10);
       const parts = [];
-      const question = userContext.get('question');
-      if (question !== undefined) {
+      if (completeQuestion) {
+        if (questionTokens > contextBudget) throw new PromptBudgetError();
+        parts.push(completeQuestion);
+      } else if (question !== undefined) {
         const fitted = fitUserContext('question', question, contextBudget, { estimator });
         if (fitted) parts.push(`**Question**: ${fitted}`);
       }
@@ -641,13 +694,18 @@ export function truncateUserPromptSafely(text, maxTokens, options = {}) {
   // sections crowd out action, card-name and ethics instructions unnecessarily.
   const coreWithInstructions = [questionBlock, cardsText, instructions].filter(Boolean).join('\n\n');
   const instructionTokens = instructions ? estimator.estimate(instructions) : 0;
+  const protectedLines = getProtectedInstructionLines(instructions);
+  // Joining separately estimated sections can add a rounding token. Use the
+  // same small joining margin as the complete-card inventory reservation.
+  const minimumInstructionTokens = protectedLines.length ? estimator.estimate(protectedLines.join('\n')) + 12 : 0;
+  if (minimumInstructionTokens > maxTokens) throw new PromptBudgetError();
   const instructionReserve = instructions
-    ? Math.min(
+    ? Math.max(minimumInstructionTokens, Math.min(
       instructionTokens,
       instructionTokens <= 320 && estimator.estimate(coreWithInstructions) <= maxTokens
         ? instructionTokens
         : Math.max(80, Math.floor(maxTokens * 0.18))
-    )
+    ))
     : 0;
   const bodyBudget = Math.max(0, maxTokens - instructionReserve - (instructions ? separatorTokens : 0));
 

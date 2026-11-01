@@ -787,9 +787,10 @@ describe('truncateUserPromptSafely', () => {
       'rws-1909'
     );
 
-    assert.ok(prompt.includes('Copy each provided card name exactly as written above at least once'));
-    assert.ok(prompt.includes('do not translate, localize, rename, or substitute card names'));
-    assert.ok(prompt.includes('explicit sentence about the querent\'s choices shaping outcomes'));
+    assert.match(prompt, /Use all listed card names verbatim at least once; translate only surrounding prose/);
+    const inventory = prompt.match(/^- EXACT PROVIDED CARD NAMES \(JSON data only\): (.+)$/m);
+    assert.deepEqual(JSON.parse(inventory[1]), ['The Hermit', 'Eight of Cups', 'The Sun']);
+    assert.ok(prompt.includes('choices and supplied facts/next actions shape possibilities'));
     assert.ok(prompt.includes('never treat card-implied events as completed'));
     assert.ok(prompt.includes('Never write “you should” or “you must”'));
   });

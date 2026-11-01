@@ -20,6 +20,14 @@ function acceptedContext(fields) {
 }
 
 describe('context detection input composition', () => {
+  it('keeps the established retrieval normalization separate from accepted reader wording', () => {
+    const input = { userQuestion: 'Can I discuss café plans with Élodie?', reflectionsText: 'が 한' };
+    const original = structuredClone(input);
+    const selected = contextDetection.resolveContextSelection(input, 'single');
+    assert.ok(selected.retrievalQuery.includes('Can I discuss cafe plans with Elodie?'));
+    assert.deepEqual(input, original, 'Retrieval normalization must not rewrite the accepted request');
+  });
+
   it('builds a combined sanitized context string from question, reflections, and focus areas', () => {
     const contextInput = buildContextInferenceInput({
       userQuestion: 'Any guidance for this week?',

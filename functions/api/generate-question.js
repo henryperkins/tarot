@@ -8,7 +8,7 @@ import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
-import { filterInstructionPatterns, normalizeUnicodeForPatternMatch, sanitizeText } from '../lib/utils.js';
+import { filterInstructionPatterns, sanitizeText } from '../lib/utils.js';
 import { hashString, ensureQuestionMark } from '../../shared/utils.js';
 import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
 import { checkQuestionRefinement } from '../../shared/coach/questionRefinement.js';
@@ -266,7 +266,7 @@ function existingQuestion(metadata) {
 }
 
 function containsInstructionLikeText(text) {
-  return filterInstructionPatterns(text) !== normalizeUnicodeForPatternMatch(text);
+  return filterInstructionPatterns(text) !== text;
 }
 
 function buildRefinementPrompt(questionText, metadata) {

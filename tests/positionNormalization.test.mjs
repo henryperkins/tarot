@@ -68,13 +68,11 @@ describe('buildPositionCardText with Celtic Cross positions', () => {
     // Position from spreads.js (without Card #)
     const result = buildPositionCardText(cardInfo, 'Present — core situation', {});
 
-    // Should contain position-specific intro (not generic fallback)
-    assert.ok(
-      result.includes('At the heart of this moment') ||
-      result.includes('Right now, your story') ||
-      result.includes('The core tone of this moment'),
-      `Expected position-specific intro, got: ${result.substring(0, 200)}`
-    );
+    // The alias must select the same template as its canonical position while
+    // keeping the supplied label; a generic fallback cannot satisfy both.
+    const canonical = buildPositionCardText(cardInfo, 'Present — core situation (Card 1)', {});
+    assert.equal(result, canonical.replace('Present — core situation (Card 1):', 'Present — core situation:'));
+    assert.equal(result.startsWith('Present — core situation: The Magician Upright.'), false);
   });
 
   it('still handles unknown positions with fallback', () => {
@@ -111,12 +109,9 @@ describe('getConnector with Celtic Cross positions', () => {
     // 'Past — what lies behind' has connectorToNext defined
     const connector = getConnector('Past — what lies behind', 'toNext');
 
-    assert.ok(
-      connector === 'Because of this,' ||
-      connector === 'Because of this history,' ||
-      connector === 'Because of this groundwork,',
-      `Expected a valid connector, got: "${connector}"`
-    );
+    assert.match(connector, /symbolic|reflection/i);
+    assert.doesNotMatch(connector, /Because of (?:this|what)/);
+    assert.equal(connector, getConnector('Past — what lies behind (Card 3)', 'toNext'));
   });
 
   it('returns empty string for unknown position', () => {

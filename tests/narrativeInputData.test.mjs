@@ -103,12 +103,12 @@ describe('deck-aware Major Arcana imagery in prompts', () => {
   }
 
   it('keeps canonical RWS imagery for the Rider–Waite–Smith deck', async () => {
-    assert.match(await buildPrompt('rws-1909'), /Canonical RWS imagery:/);
+    assert.match(await buildPrompt('rws-1909'), /RWS image \([^)]+\):/);
   });
 
   it('does not describe RWS scenes such as keys, acolytes, or the veil for Thoth readings', async () => {
     const prompt = await buildPrompt('thoth-a1');
-    assert.doesNotMatch(prompt, /Canonical RWS imagery|acolyte|crossed keys|\bveil\b|blessing hand/i);
+    assert.doesNotMatch(prompt, /RWS image \(|Canonical RWS imagery|acolyte|crossed keys|\bveil\b|blessing hand/i);
   });
 });
 

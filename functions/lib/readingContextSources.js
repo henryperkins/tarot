@@ -1,6 +1,7 @@
 import { prepareUserContext } from './narrative/prompts/userContext.js';
 import { resolveDecisionPathContext } from './decisionPathContext.js';
 import { sanitizeReadingContext } from './readingCardContext.js';
+import { normalizeUnicodeForPatternMatch } from './utils.js';
 import { MAXIMUM_CARD_COUNT } from '../../shared/contracts/readingRequestLimits.js';
 
 /**
@@ -33,7 +34,15 @@ export function prepareReadingContextSources({ userQuestion, reflectionsText, ca
     const text = sanitizeReadingContext(raw);
     sources.push({ id: `focus-${index}`, kind: 'savedFocus', text: sliceContextUnicode(text, 0, 60), originalLength: raw.length, sanitizedLength: text.length });
   });
-  return sources;
+  // Preserve the established private retrieval representation independently of
+  // prompt filtering. The narrative still receives the original accepted fields.
+  return sources.map(source => {
+    if (!['question', 'reflection'].includes(source.kind)) return source;
+    // The previous question/reflection filter normalized each line separately;
+    // keep those boundaries because they delimit topic-exclusion clauses.
+    const text = source.text.split('\n').map(normalizeUnicodeForPatternMatch).join('\n');
+    return { ...source, text, sanitizedLength: text.length };
+  });
 }
 
 /** Cut at complete grapheme boundaries; offsets remain UTF-16 code units. */

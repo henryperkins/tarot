@@ -34,6 +34,8 @@ export {
   enforceGraphRAGPromptIntegrity
 } from './graphRAGPromptIntegrity.js';
 import { buildSystemPrompt } from './systemPrompt.js';
+import { usesThreeCardTimeline } from '../../spreadContracts.js';
+import { buildCanonicalSceneContract, CANONICAL_SCENE_FORMAT, getCanonicalSceneFacts } from '../../canonicalSceneEvidence.js';
 import { buildUserPrompt } from './userPrompt.js';
 import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../../../shared/readingSourceUsage.js';
 import { buildMemorySourceUsage, buildUserContextSourceUsage } from '../sourceUsage.js';
@@ -615,6 +617,7 @@ export function buildEnhancedClaudePrompt({
     includeForecast: astroRelevant,
     includeDeckContext: true,
     includeDiagnostics: true,
+    includeDrawnCardTallies: true,
     omitLowWeightImagery: false,
     enableSemanticScoring,
     subscriptionTier,
@@ -642,6 +645,8 @@ export function buildEnhancedClaudePrompt({
         maxTokenBudget: promptBudget,
         estimator,
         nonPresentAgeContext,
+        threeCardTimeline: usesThreeCardTimeline(cardsInfo),
+        canonicalSceneContract: getCanonicalSceneFacts(cardsInfo, resolvedDeckStyle).length > 0,
         sourceUsageSignals
       }
     );
@@ -778,6 +783,15 @@ export function buildEnhancedClaudePrompt({
     return true;
   };
 
+  // Step 0: Drop the drawn-card tally line first. It is the newest optional
+  // context, so any budget-pressured prompt keeps every earlier fitting result.
+  const dropDrawnCardTallies = () => {
+    if (controls.includeDrawnCardTallies === false) return false;
+    controls = { ...controls, includeDrawnCardTallies: false };
+    return true;
+  };
+  maybeSlim('drop-drawn-card-tallies', dropDrawnCardTallies);
+
   // Step 1: Drop imagery/vision sub-points for lower-weight cards
   maybeSlim('drop-low-weight-imagery', () => {
     if (controls.omitLowWeightImagery) return false;
@@ -803,6 +817,16 @@ export function buildEnhancedClaudePrompt({
   maybeSlim('trim-graphrag-passages', () => {
     return trimGraphRAGPassages();
   });
+
+  // The scene contract is required evidence. Reclaim optional deck tables
+  // before replacing the remaining authenticated references with a summary.
+  if (getCanonicalSceneFacts(cardsInfo, resolvedDeckStyle).length) {
+    maybeSlim('drop-deck-geometry', () => {
+      if (controls.includeDeckContext === false) return false;
+      controls = { ...controls, includeDeckContext: false };
+      return true;
+    });
+  }
 
   // Step 4: Keep a compact GraphRAG summary before dropping GraphRAG completely.
   maybeSlim('reduce-graphrag-to-summary', () => {
@@ -849,6 +873,8 @@ export function buildEnhancedClaudePrompt({
   if (hasHardCap && built.totalTokens > hardCap) {
     console.warn(`[Prompt Budget] Exceeded hard cap after slimming: ${built.totalTokens} > ${hardCap} tokens`);
 
+    applyHardCapTrim('hard-cap-drop-drawn-card-tallies', dropDrawnCardTallies);
+
     applyHardCapTrim('hard-cap-drop-low-weight-imagery', () => {
       if (controls.omitLowWeightImagery) return false;
       controls = { ...controls, omitLowWeightImagery: true };
@@ -868,6 +894,14 @@ export function buildEnhancedClaudePrompt({
     });
 
     applyHardCapTrim('hard-cap-trim-graphrag-passages', () => trimGraphRAGPassages());
+
+    if (getCanonicalSceneFacts(cardsInfo, resolvedDeckStyle).length) {
+      applyHardCapTrim('hard-cap-drop-deck-geometry', () => {
+        if (controls.includeDeckContext === false) return false;
+        controls = { ...controls, includeDeckContext: false };
+        return true;
+      });
+    }
 
     applyHardCapTrim('hard-cap-reduce-graphrag-to-summary', () => reduceGraphRAGToSummary());
 
@@ -1021,6 +1055,17 @@ export function buildEnhancedClaudePrompt({
       originalTotalTokens: built.totalTokens
     } : null,
     variantPrompt: buildVariantPromptMeta(controls.variantOverrides)
+  };
+
+  const canonicalSceneFacts = getCanonicalSceneFacts(cardsInfo, resolvedDeckStyle);
+  const sceneContract = buildCanonicalSceneContract(cardsInfo, resolvedDeckStyle);
+  if (sceneContract && sceneContract.split('\n').some(line => !finalUser.split('\n').includes(line))) {
+    throw new PromptBudgetError();
+  }
+  promptMeta.canonicalSceneFacts = {
+    format: CANONICAL_SCENE_FORMAT,
+    required: canonicalSceneFacts.length > 0,
+    providedIds: canonicalSceneFacts.map(fact => fact.id)
   };
 
   const graphRAGBudgetTrimmed = isGraphRAGBudgetTrimmed(slimmingSteps);

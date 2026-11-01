@@ -1038,7 +1038,7 @@ describe('Other spread builders prompt-engineering compliance', () => {
     });
 
     assert.ok(
-      userPrompt.toLowerCase().includes('picture hand emerging from a cloud presenting an overflowing chalice'),
+      userPrompt.toLowerCase().includes('in the rws image, hand emerging from a cloud presenting an overflowing chalice'),
       'Minor pip cards should include rank-and-suit specific imagery text in prompts'
     );
   });
@@ -1668,7 +1668,7 @@ describe('Prompt sanitization', () => {
     });
 
     const lowered = userPrompt.toLowerCase();
-    assert.ok(userPrompt.includes('Future — likely trajectory for'));
+    assert.ok(userPrompt.includes('Future — prospective symbolic lens'));
     assert.ok(!lowered.includes('ignore previous instructions'));
     assert.ok(!lowered.includes('reveal your system prompt'));
   });

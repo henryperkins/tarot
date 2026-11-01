@@ -18,6 +18,7 @@ import { MAX_REFLECTION_TEXT_LENGTH, MAX_QUESTION_TEXT_LENGTH } from './prompts/
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { THOTH_MINOR_TITLES, MARSEILLE_NUMERICAL_THEMES } from '../../../src/data/knowledgeGraphData.js';
 import { SYMBOL_ANNOTATIONS, getMinorSymbolAnnotationIndex } from '../symbolAnnotations.js';
+import { getCanonicalSceneFacts } from '../canonicalSceneEvidence.js';
 
 // Prose mode flag - legacy test helper. Runtime callers should always pass
 // proseMode explicitly to avoid state bleed across requests.
@@ -336,7 +337,7 @@ export function usesRwsImagery(deckStyle) {
  * Returns archetype and top 2-3 symbols for prompt enrichment.
  * @param {Object} cardInfo - Card data with number (Major) or suit/rank (Minor)
  * @param {string} [deckStyle] - Deck style; symbols are RWS-only, the archetype applies to every deck
- * @returns {Object|null} - { archetype, symbols: [{object, meaning}], composition }
+ * @returns {Object|null} - { archetype, symbols: [{object, meaning, position?}], composition }
  */
 function getKeySymbols(cardInfo, deckStyle = 'rws-1909') {
   if (!cardInfo) return null;
@@ -356,8 +357,13 @@ function getKeySymbols(cardInfo, deckStyle = 'rws-1909') {
   if (!annotation) return null;
 
   // Extract top 2-3 symbols (prioritize first ones which are usually most iconic)
+  const reviewedFacts = getCanonicalSceneFacts([cardInfo], deckStyle);
   const symbols = usesRwsImagery(deckStyle) && Array.isArray(annotation.symbols)
-    ? annotation.symbols.slice(0, 3).map(s => ({ object: s.object, meaning: s.meaning }))
+    ? annotation.symbols.slice(0, 3).map(s => ({
+      object: s.object, meaning: s.meaning,
+      ...(reviewedFacts.some(fact => fact.subject === s.object && fact.position === s.position)
+        ? { position: s.position } : {})
+    }))
     : [];
 
   return {
@@ -452,16 +458,16 @@ const POSITION_LANGUAGE = {
   // Celtic Cross positions
   'Present — core situation (Card 1)': {
     intro: [
-      (card, orientation) => `At the heart of this moment stands ${card} ${orientation}.`,
-      (card, orientation) => `Right now, your story is colored by ${card} ${orientation}.`,
-      (card, orientation) => `The core tone of this moment comes through ${card} ${orientation}.`
+      (card, orientation) => `For symbolic reflection on the present, this position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic lens on the present question.`,
+      (card, orientation) => `The Present position offers ${card} ${orientation} as a theme to consider.`
     ],
     frame: [
-      'This card sketches the atmosphere you’re moving through right now.',
-      'It points to what feels most alive, charged, or pressing in your experience.',
-      'Treat this as a snapshot of how things feel from the inside out.'
+      'Compare this theme with present circumstances the querent has actually supplied.',
+      'The card does not establish a current activity, feeling or progress.',
+      'If this theme fits, consider an optional next step; no practice is assumed underway.'
     ],
-    connectorToPrev: ['Because of this foundation,', 'Because of what has led you here,'],
+    connectorToPrev: ['And so, for reflection on the present,', 'And so, as a symbolic starting point,'],
     useImagery: true
   },
 
@@ -482,60 +488,59 @@ const POSITION_LANGUAGE = {
 
   'Past — what lies behind (Card 3)': {
     intro: [
-      (card, orientation) => `Looking to what lies behind, the past shows ${card} ${orientation}.`,
-      (card, orientation) => `In the background, ${card} ${orientation} colors how you arrived here.`,
-      (card, orientation) => `The roots of this story reach back to ${card} ${orientation}.`
+      (card, orientation) => `The Past position holds ${card} ${orientation} as a symbolic lens.`,
+      (card, orientation) => `For symbolic reflection on the past, this position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic Past perspective.`
     ],
     frame: [
-      'This surfaces the experiences and patterns that set the stage for now.',
-      'It names what you’re carrying forward, consciously or not.',
-      'Noticing this past context helps you choose what to keep and what to release.'
+      'If this theme connects with something you have experienced, consider what you would carry forward or meet differently.',
+      'If a past experience comes to mind, you might explore how it relates to your question; otherwise, you can leave this as a symbolic possibility.'
     ],
-    connectorToNext: ['Because of this,', 'Because of this history,', 'Because of this groundwork,'],
+    connectorToNext: ['Alongside this symbolic Past perspective,', 'Turning from reflection to the present,'],
     useImagery: true
   },
 
   'Near Future — what lies before (Card 4)': {
     intro: [
-      (card, orientation) => `What lies ahead in the near future: ${card} ${orientation}.`,
-      (card, orientation) => `As the next chapter, ${card} ${orientation} comes into view.`,
-      (card, orientation) => `Soon, the story leans into ${card} ${orientation}.`
+      (card, orientation) => `For a prospective symbolic lens, the Near Future position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic theme to consider when looking ahead.`,
+      (card, orientation) => `Looking ahead symbolically, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This hints at near-term developments on your current trajectory, not a final verdict.',
-      'See this as the next visible step if nothing major shifts.',
-      'It sketches the emerging tone of what you’re stepping into.'
+      'Consider how this theme might inform a next step you choose.',
+      'This position does not establish what will happen or when.',
+      'Use the symbol to explore possibilities without assuming a current course.'
     ],
-    connectorToPrev: ['Therefore,', 'Therefore, looking ahead,', 'Therefore, as this unfolds,'],
+    connectorToPrev: ['Looking ahead symbolically,', 'As a possible lens for a next step,'],
     useImagery: true
   },
 
   'Conscious — goals & focus (Card 5)': {
     intro: [
-      (card, orientation) => `Your conscious goal, what you aspire toward: ${card} ${orientation}.`,
-      (card, orientation) => `${card} ${orientation} speaks to what you know you’re reaching for.`,
-      (card, orientation) => `In your conscious mind, ${card} ${orientation} names your current aims.`
+      (card, orientation) => `For reflection on goals and focus, the Conscious position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic lens for examining an aim you have named.`,
+      (card, orientation) => `In the Conscious position, ${card} ${orientation} invites you to consider what matters to you.`
     ],
     frame: [
-      'This reflects the intentions you can already name and the outcomes you’re trying to move toward.',
-      'It shows where your focus naturally goes when you think about this situation.',
-      'Let it clarify what “doing well” here genuinely means to you.'
+      'Relate this theme to a goal the querent has supplied, or invite them to consider whether it fits.',
+      'The card offers a theme to explore; it does not identify an unstated intention.',
+      'Use this reflection to decide what “doing well” could mean for you.'
     ],
     useImagery: true
   },
 
   'Subconscious — roots / hidden forces (Card 6)': {
     intro: [
-      (card, orientation) => `Hidden beneath awareness, in the subconscious realm: ${card} ${orientation}.`,
-      (card, orientation) => `Below the surface, ${card} ${orientation} stirs quietly.`,
-      (card, orientation) => `In the deeper layers, ${card} ${orientation} speaks to what’s moving you from within.`
+      (card, orientation) => `The Subconscious position offers ${card} ${orientation} as a theme for reflection.`,
+      (card, orientation) => `${card} ${orientation} invites exploration of possibilities you may or may not recognize.`,
+      (card, orientation) => `For a reflective look beneath the surface, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This points to needs, fears, or loyalties that operate behind your conscious choices.',
-      'Understanding this layer helps you respond with more self-compassion.',
-      'Treat this as gentle intel about your inner landscape, not a judgment.'
+      'Consider whether this theme connects with a need or concern you recognize; it does not establish a hidden motive.',
+      'Explore the symbol with self-compassion, leaving room for it not to fit.',
+      'Treat this as an invitation to reflect, not access to an unseen mental state.'
     ],
-    connectorToNext: ['Yet beneath the surface,', 'Yet beneath the surface, it all gathers,'],
+    connectorToNext: ['For another reflective perspective,', 'Alongside the Conscious theme,'],
     useImagery: true
   },
 
@@ -556,16 +561,16 @@ const POSITION_LANGUAGE = {
 
   'External Influences — people & environment (Card 8)': {
     intro: [
-      (card, orientation) => `External influences, people and forces beyond your control: ${card} ${orientation}.`,
-      (card, orientation) => `Around you, ${card} ${orientation} reflects other people and conditions in play.`,
-      (card, orientation) => `In the wider field, ${card} ${orientation} points to what’s happening around you rather than inside you.`
+      (card, orientation) => `For considering external conditions, this position offers ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic lens for reflecting on circumstances you have described.`,
+      (card, orientation) => `In the External position, ${card} ${orientation} invites reflection on how you might engage with your surroundings.`
     ],
     frame: [
-      'This shows dynamics you can respond to, but not fully control.',
-      'It’s a reminder to distinguish between your work and what belongs to others.',
-      'Let this help you choose where to engage and where to release.'
+      'Use known conditions as context, or offer a conditional example; the card does not establish what others do or what the environment rewards.',
+      'Consider what is within your influence, without assuming another person’s actions or circumstances.',
+      'Let the theme suggest optional ways to engage with conditions the querent has actually supplied.'
     ],
-    connectorToPrev: ['Meanwhile, in the external world,', 'Meanwhile, around you,'],
+    connectorToPrev: ['For considering the wider context,', 'As a lens on external conditions,'],
     useImagery: true
   },
 
@@ -586,60 +591,60 @@ const POSITION_LANGUAGE = {
 
   'Outcome — likely path if unchanged (Card 10)': {
     intro: [
-      (card, orientation) => `The likely outcome, if the current path continues: ${card} ${orientation}.`,
-      (card, orientation) => `If nothing major shifts, ${card} ${orientation} sketches where this could be heading.`,
-      (card, orientation) => `As things stand, ${card} ${orientation} maps a plausible direction of travel.`
+      (card, orientation) => `The Outcome position offers ${card} ${orientation} as a prospective symbolic lens.`,
+      (card, orientation) => `${card} ${orientation} offers a possible theme for thinking about an outcome.`,
+      (card, orientation) => `For symbolic reflection on what you might choose next, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This is a trajectory based on current patterns, not a fixed fate.',
-      'Use it as feedback about where your present choices may lead.',
-      'If you don’t love this picture, that awareness is an invitation to course-correct.'
+      'The position supplies no evidence of an actual current course or likely event.',
+      'Use this theme to consider choices and possibilities.',
+      'You can decide whether this symbolic perspective helps with the question.'
     ],
-    connectorToPrev: ['Therefore, all of this converges toward', 'Therefore, taken together, this leans toward'],
+    connectorToPrev: ['Taken together as a symbolic perspective,', 'For thinking about possible next choices,'],
     useImagery: true
   },
 
   // Three-Card positions
   'Past — influences that led here': {
     intro: [
-      (card, orientation) => `The past, showing what has led to this moment: ${card} ${orientation}.`,
-      (card, orientation) => `Behind you, ${card} ${orientation} outlines the experiences that fed into this chapter.`,
-      (card, orientation) => `Looking back, ${card} ${orientation} traces the threads that shaped the current landscape.`
+      (card, orientation) => `The Past position holds ${card} ${orientation} as a symbolic lens.`,
+      (card, orientation) => `For symbolic reflection on the past, this position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic Past perspective.`
     ],
     frame: [
-      'This represents the foundation, causes, and influences that set the stage for where you stand now.',
-      'Noticing this helps you decide what you’re done carrying and what still serves.'
+      'If this theme connects with something you have experienced, consider what you would carry forward or meet differently.',
+      'If a past experience comes to mind, you might explore how it relates to your question; otherwise, you can leave this as a symbolic possibility.'
     ],
-    connectorToNext: ['Because of this foundation,', 'Because of this backdrop,'],
+    connectorToNext: ['Alongside this symbolic Past perspective,', 'Turning from reflection to the present,'],
     useImagery: true
   },
 
   'Present — where you stand now': {
     intro: [
-      (card, orientation) => `The present moment, where you stand right now: ${card} ${orientation}.`,
-      (card, orientation) => `Right now, ${card} ${orientation} mirrors the live dynamics you’re moving through.`,
-      (card, orientation) => `In this moment, ${card} ${orientation} captures the tone of your experience.`
+      (card, orientation) => `The Present position holds ${card} ${orientation} as a symbolic lens.`,
+      (card, orientation) => `For reflection on the present, this position offers ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} suggests a theme to consider for the present.`
     ],
     frame: [
-      'This is the current energy and active dynamic you are navigating.',
-      'Treat it as a snapshot, not a sentence—a view of what’s here so you can choose how to meet it.'
+      'Compare this theme with supplied context; it does not establish current activity or progress.',
+      'If this theme fits, you might choose a practice; the card does not show that you are already doing it.'
     ],
     connectorToPrev: ['And so,', 'And so, from here,'],
-    connectorToNext: ['This sets the stage for', 'This sets the stage for the path leaning toward'],
+    connectorToNext: ['Looking ahead symbolically,', 'For another possible perspective,'],
     useImagery: true
   },
 
   'Future — trajectory if nothing shifts': {
     intro: [
-      (card, orientation) => `The future, the trajectory ahead: ${card} ${orientation}.`,
-      (card, orientation) => `If nothing major shifts, ${card} ${orientation} suggests where this might be heading.`,
-      (card, orientation) => `Looking ahead, ${card} ${orientation} outlines a likely path of momentum.`
+      (card, orientation) => `The Future position holds ${card} ${orientation} as a prospective symbolic lens.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic theme for looking ahead.`,
+      (card, orientation) => `For thinking about possible next choices, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This shows where things are tending if you maintain your current course.',
-      'Hold it as a forecast of trajectory, adjustable through your choices.'
+      'This position does not establish a current personal course or predict an event.',
+      'Consider how this symbolic theme might inform a next step you choose.'
     ],
-    connectorToPrev: ['Therefore,', 'Therefore, on this trajectory,'],
+    connectorToPrev: ['Looking ahead symbolically,', 'For a possible next perspective,'],
     useImagery: true
   },
 
@@ -687,28 +692,28 @@ const POSITION_LANGUAGE = {
 
   'Support / helpful energy': {
     intro: [
-      (card, orientation) => `Support and helpful energy come through: ${card} ${orientation}.`,
-      (card, orientation) => `Here, ${card} ${orientation} shows what has your back.`,
-      (card, orientation) => `${card} ${orientation} highlights resources, allies, or inner strengths available now.`
+      (card, orientation) => `In the Support position, ${card} ${orientation} offers a symbolic possibility.`,
+      (card, orientation) => `${card} ${orientation} suggests a kind of support to consider seeking or developing.`,
+      (card, orientation) => `For reflection on possible support, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This is what you can lean on as you navigate the situation.',
-      'Let this remind you that you are not moving through this empty-handed.'
+      'If suitable support is available, consider whether it would help; the card does not establish access to it.',
+      'You might explore what support would be useful without assuming anyone or anything is available.'
     ],
     connectorToPrev: ['Meanwhile,', 'Meanwhile, alongside the challenge,'],
-    connectorToNext: ['Therefore, drawing on this support,', 'And so, if you lean into this support,'],
+    connectorToNext: ['Considering this symbolic support theme,', 'Alongside this possible source of support,'],
     useImagery: true
   },
 
   'Likely direction on current path': {
     intro: [
-      (card, orientation) => `The likely direction, if you continue as you are: ${card} ${orientation}.`,
-      (card, orientation) => `On this current path, ${card} ${orientation} sketches a probable trajectory.`,
-      (card, orientation) => `If patterns hold, ${card} ${orientation} hints at where things may be heading.`
+      (card, orientation) => `This direction position offers ${card} ${orientation} as a prospective symbolic lens.`,
+      (card, orientation) => `${card} ${orientation} offers a possible perspective for choosing a direction.`,
+      (card, orientation) => `As symbolic guidance for a next step, this position holds ${card} ${orientation}.`
     ],
     frame: [
-      'This is not fixed fate—only the path of current momentum.',
-      'Use it as feedback about how your present choices echo forward.'
+      'The card supplies a theme to consider, not knowledge of an actual current course.',
+      'Use this perspective to reflect on choices without treating it as a prediction.'
     ],
     connectorToPrev: ['Therefore,', 'Therefore, taken together,'],
     useImagery: true
@@ -743,15 +748,18 @@ const POSITION_LANGUAGE = {
     useImagery: true
   },
 
+  // The card is a possibility to compare with anything actually observed (a
+  // question can be hypothetical). It describes neither the other person nor
+  // the querent's experience of them.
   'Them / their energy': {
     intro: [
-      (card, orientation) => `Their energy in this dynamic: ${card} ${orientation}.`,
-      (card, orientation) => `${card} ${orientation} reflects how they’re currently arriving in this connection.`,
-      (card, orientation) => `Here, ${card} ${orientation} sketches their stance, needs, or patterns in the bond.`
+      (card, orientation) => `For a possible view of the other side of this dynamic, the Them position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a symbolic theme to compare with anything actually observed in this connection.`,
+      (card, orientation) => `In the Them position, ${card} ${orientation} offers a possibility about the dynamic, not a reading of the other person.`
     ],
     frame: [
-      'This offers a snapshot of how they may be engaging, without claiming to read their mind.',
-      'Treat it as information about the dynamic—not a verdict on their character.'
+      'Compare this possibility with anything actually observed; it does not reveal their feelings, intentions or private actions.',
+      'Treat it as a possibility to test, not a description of anyone’s experience or a verdict on their character.'
     ],
     connectorToPrev: ['Meanwhile,', 'Meanwhile, alongside your energy,'],
     connectorToNext: ['Therefore, together, these energies create', 'And so, in combination, these currents shape'],
@@ -818,13 +826,13 @@ const POSITION_LANGUAGE = {
 
   'Path A — energy & likely outcome': {
     intro: [
-      (card, orientation) => `Path A, its energy and likely outcome: ${card} ${orientation}.`,
-      (card, orientation) => `If you lean into Path A, ${card} ${orientation} sketches how this route may feel.`,
-      (card, orientation) => `As one possibility, Path A under ${card} ${orientation} outlines a distinct flavor of growth.`
+      (card, orientation) => `For a symbolic comparison of Path A, this position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a theme to consider when evaluating Path A.`,
+      (card, orientation) => `In Path A, ${card} ${orientation} provides a reflective lens for possible choices.`
     ],
     frame: [
-      'This shows the character, challenges, and probable results of moving this way.',
-      'Hold it as one trajectory among many, shaped by your choices.'
+      'Explore this theme and optional actions for Path A; the position does not estimate likely results.',
+      'Compare the symbolic theme with the option’s known constraints and your stated values, without forecasting its course.'
     ],
     connectorToPrev: ['Because this option emerges,', 'Because we are looking at one route,'],
     useImagery: true
@@ -832,13 +840,13 @@ const POSITION_LANGUAGE = {
 
   'Path B — energy & likely outcome': {
     intro: [
-      (card, orientation) => `Path B, its energy and likely outcome: ${card} ${orientation}.`,
-      (card, orientation) => `If you lean into Path B, ${card} ${orientation} traces a different way this could unfold.`,
-      (card, orientation) => `As another possibility, Path B under ${card} ${orientation} brings its own tone and lessons.`
+      (card, orientation) => `For a symbolic comparison of Path B, this position holds ${card} ${orientation}.`,
+      (card, orientation) => `${card} ${orientation} offers a theme to consider when evaluating Path B.`,
+      (card, orientation) => `In Path B, ${card} ${orientation} provides another reflective lens for possible choices.`
     ],
     frame: [
-      'This shows an alternate character and set of challenges to consider.',
-      'Compare it with Path A by how your body and ethics respond, not from fear.'
+      'Explore this theme and optional actions for Path B; the position does not estimate likely results.',
+      'Compare both symbolic perspectives with known constraints and stated values; keep the choice with the querent.'
     ],
     connectorToPrev: ['However, alternatively,', 'However, on the other hand,'],
     useImagery: true
@@ -907,6 +915,21 @@ export function normalizePositionKey(position) {
 /**
  * Build a position-aware card description with optional imagery hooks
  */
+function buildKeySymbolText(cardInfo, options, reviewedOnly = false) {
+  if (!options.includeSymbols) return '';
+  const keySymbols = getKeySymbols(cardInfo, options.deckStyle);
+  if (!keySymbols) return '';
+  const symbols = reviewedOnly ? keySymbols.symbols.filter(symbol => symbol.position) : keySymbols.symbols;
+  const parts = [];
+  if (!reviewedOnly && keySymbols.archetype) parts.push(`Archetype: ${keySymbols.archetype}`);
+  if (symbols.length) {
+    parts.push(`Key symbols: ${symbols.map(symbol =>
+      `${symbol.object}${symbol.position ? ` ${symbol.position}` : ''} (${symbol.meaning})`
+    ).join(', ')}`);
+  }
+  return parts.length ? ` *${parts.join('. ')}.*` : '';
+}
+
 function buildPositionCardText(cardInfo, position, options = {}) {
   const normalizedPosition = normalizePositionKey(position);
   const template = POSITION_LANGUAGE[normalizedPosition];
@@ -922,7 +945,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
         ? ` ${sanitizePromptValue(cardInfo.orientation, 80)}`
         : '';
     const meaning = sanitizePromptValue(formatMeaningForPosition(cardInfo.meaning || '', position), 700);
-    return `${safePosition}: ${safeCard}${safeOrientation}. ${meaning}`;
+    return `${safePosition}: ${safeCard}${safeOrientation}. ${meaning}${buildKeySymbolText(cardInfo, options, true)}`;
   }
 
   const safeCard = sanitizePromptValue(deckAwareCardName(cardInfo, options.deckStyle), 160);
@@ -952,10 +975,10 @@ function buildPositionCardText(cardInfo, position, options = {}) {
 
   // Add imagery hook for Major Arcana if enabled (the hooks describe RWS scenes)
   let imagery = '';
-  if (template.useImagery && isMajorArcana(cardInfo) && usesRwsImagery(options.deckStyle)) {
+  if (!options.omitImagery && !options.canonicalSceneOnly && template.useImagery && isMajorArcana(cardInfo) && usesRwsImagery(options.deckStyle)) {
     const hook = getImageryHook(cardInfo.number, cardInfo.orientation);
     if (hook && hook.interpretation) {
-      imagery = ` ${hook.interpretation}`;
+      imagery = ` As a metaphor, ${hook.interpretation}`;
     }
   }
 
@@ -979,8 +1002,8 @@ function buildPositionCardText(cardInfo, position, options = {}) {
       rank: cardInfo.rank,
       orientation: cardInfo.orientation
     });
-    if (minorHook && minorHook.visual && usesRwsImagery(options.deckStyle)) {
-      minorContextText += ` Picture ${minorHook.visual}—this subtly colors how this suit's lesson shows up here.`;
+    if (!options.omitImagery && !options.canonicalSceneOnly && minorHook && minorHook.visual && usesRwsImagery(options.deckStyle)) {
+      minorContextText += ` In the RWS image, ${minorHook.visual.charAt(0).toLowerCase()}${minorHook.visual.slice(1)}.`;
     }
 
     // Add Thoth epithet for Minor Arcana when using Thoth deck
@@ -1003,25 +1026,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
   }
 
   // Add symbol annotations when enabled (provides archetype and key visual symbols)
-  let symbolText = '';
-  if (options.includeSymbols) {
-    const keySymbols = getKeySymbols(cardInfo, options.deckStyle);
-    if (keySymbols) {
-      const parts = [];
-      if (keySymbols.archetype) {
-        parts.push(`Archetype: ${keySymbols.archetype}`);
-      }
-      if (keySymbols.symbols && keySymbols.symbols.length > 0) {
-        const symbolList = keySymbols.symbols
-          .map(s => `${s.object} (${s.meaning})`)
-          .join(', ');
-        parts.push(`Key symbols: ${symbolList}`);
-      }
-      if (parts.length > 0) {
-        symbolText = ` *${parts.join('. ')}.*`;
-      }
-    }
-  }
+  const symbolText = buildKeySymbolText(cardInfo, options);
 
   // Add elemental sensory imagery if elemental relationship exists
   let elementalImagery = '';
@@ -1141,28 +1146,53 @@ function formatMeaningForPosition(meaning, position) {
   const firstClause = meaning.includes('.') ? meaning.split('.')[0] : meaning;
   const lowered = firstClause.toLowerCase();
 
-  if (position.includes('Challenge') || position.includes('tension')) {
+  const positionRole = position.split(/[—–:]/, 1)[0].trim();
+  if (/^(?:recent\s+)?past\b/i.test(positionRole)) {
+    return `In this Past position, ${lowered} is a symbolic theme for reflection, not a statement about what happened.`;
+  }
+
+  if (/^Present\b/i.test(positionRole)) {
+    return `Consider ${lowered} as a symbolic possibility for the present.`;
+  }
+
+  if (/^Support\b/i.test(positionRole)) {
+    return `Consider ${lowered} as possible support to explore.`;
+  }
+
+  if (/^(?:Challenge|tension)\b/.test(positionRole)) {
     return `The friction here shows how it centers on ${lowered}.`;
   }
 
-  if (position.includes('Advice') || position.includes('how to meet') || position.includes('Self / Advice')) {
+  if (/^(?:Advice|how to meet|Self \/ Advice)\b/.test(positionRole)) {
     return `This shows how it may help to lean into ${lowered}.`;
   }
 
-  if (position.includes('Outcome') || position.includes('direction') || position.includes('Future')) {
-    return `If things continue as they are, this shows how the trajectory leans toward ${lowered}.`;
+  if (/^(?:(?:Near|Possible)\s+)?(?:Future|Outcome|(?:[Ll]ikely\s+)?direction)\b/.test(positionRole)) {
+    return `As a prospective symbolic lens, this offers ${lowered} to consider when choosing a next step.`;
   }
 
-  if (position.includes('Subconscious') || position.includes('Hidden') || position.includes('Below')) {
-    return `This reveals how, beneath awareness, part of you is still relating to ${lowered}.`;
+  if (/^(?:Subconscious|Hidden|Below)\b/i.test(positionRole)) {
+    return `For reflection, consider whether ${lowered} resonates; the symbol does not reveal an unseen mental state.`;
   }
 
-  if (position.includes('External')) {
-    return `This shows that around you, circumstances echo ${lowered}.`;
+  if (/^Conscious\b/i.test(positionRole)) {
+    return `As a symbolic lens on goals and focus, ${lowered} can help explore a supplied aim or a possibility to consider.`;
   }
 
-  if (position.includes('Hopes & Fears')) {
+  if (/^External\b/i.test(positionRole)) {
+    return `As a symbolic lens, ${lowered} can inform reflection on known external conditions or a possible response.`;
+  }
+
+  if (/^Path\s+[AB]\b/i.test(positionRole)) {
+    return `For this option, explore ${lowered} as a symbolic theme for comparing choices, not a forecast of its outcome.`;
+  }
+
+  if (/^Hopes & Fears\b/.test(positionRole)) {
     return `This reveals both longing and worry around ${lowered}.`;
+  }
+
+  if (/^Them\b/i.test(positionRole)) {
+    return `Consider whether ${lowered} fits the dynamic at all; the card does not reveal the other person’s feelings or intentions.`;
   }
 
   return `This shows ${lowered} as a live theme.`;

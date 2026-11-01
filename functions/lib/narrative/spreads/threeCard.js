@@ -21,6 +21,7 @@ import {
   buildReasoningSynthesis
 } from '../reasoningIntegration.js';
 import { BaseSpreadBuilder, buildSpreadFallback } from './base.js';
+import { usesThreeCardTimeline } from '../../spreadContracts.js';
 
 class ThreeCardBuilder extends BaseSpreadBuilder {
   constructor(options = {}) {
@@ -29,6 +30,10 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
 
   async buildThreeCardGuidance(cardsInfo, themes, context, direction, rotationIndex = 0) {
     let section = `### Guidance\n\n`;
+
+    if (!usesThreeCardTimeline(cardsInfo)) {
+      return section + 'Consider one optional action that connects these roles to your question. The positions describe perspectives rather than a forecast; your choices shape what you do with their insights.';
+    }
 
     if (themes.suitFocus) {
       section += `${themes.suitFocus}\n\n`;
@@ -63,8 +68,8 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
     const future = cardsInfo[2];
     const futureWeight = getPositionWeight('threeCard', 2);
     const presentWeight = getPositionWeight('threeCard', 1);
-    section += `The path ahead shows ${future.card} ${future.orientation}.`;
-    section += ` This is not fixed fate, but the trajectory of current momentum. Your awareness and choices shape what unfolds next.`;
+    section += `The Future position offers ${future.card} ${future.orientation} as a prospective symbolic lens.`;
+    section += ' Consider how its theme might inform a next step you choose; it does not establish a current personal course or predict an event.';
 
     if (futureWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
       section += ` The Future position carries a weight of ${futureWeight.toFixed(2)}, so its voice leads the guidance.`;
@@ -115,6 +120,7 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
       }
     }
     const sections = [];
+    const spreadTitle = usesThreeCardTimeline(cardsInfo) ? 'Three-Card Story (Past · Present · Future)' : 'Three-Card Reading';
     const prioritized = sortCardsByImportance(cardsInfo, 'threeCard');
     const personalization = this.options.personalization || null;
     const tone = getToneStyle(personalization?.readingTone);
@@ -139,14 +145,14 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
     // Use reasoning-aware opening if available
     const opening = reasoning
       ? buildReasoningAwareOpening(
-        'Three-Card Story (Past · Present · Future)',
+        spreadTitle,
         userQuestion,
         context,
         reasoning,
         { personalization: this.options.personalization }
       )
       : this.buildOpening(
-        'Three-Card Story (Past · Present · Future)',
+        spreadTitle,
         userQuestion,
         context
       );
@@ -166,7 +172,7 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
 
     const pastPosition = past.position || 'Past — influences that led here';
     const presentPosition = present.position || 'Present — where you stand now';
-    const futurePosition = future.position || 'Future — trajectory if nothing shifts';
+    const futurePosition = future.position || 'Future — prospective symbolic lens';
 
     // Past card
     let pastText = buildPositionCardText(past, pastPosition, positionOptions);

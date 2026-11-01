@@ -513,9 +513,7 @@ const CONFUSABLE_REGEX = new RegExp('[' + Object.keys(CONFUSABLE_MAP).join('') +
  * @param {string} text - Input text
  * @returns {string} Normalized text safe for pattern matching
  */
-export function normalizeUnicodeForPatternMatch(text) {
-  if (!text || typeof text !== 'string') return '';
-
+function decomposePatternMatchText(text) {
   // Step 1: NFD decomposition to separate base chars from combining marks
   // This allows us to strip accents that were added to letters
   let result = text.normalize('NFD');
@@ -528,9 +526,13 @@ export function normalizeUnicodeForPatternMatch(text) {
   result = result.replace(/[\u20D0-\u20FF]/g, ''); // Combining Diacritical Marks for Symbols
   result = result.replace(/[\uFE20-\uFE2F]/g, ''); // Combining Half Marks
 
+  return result;
+}
+
+function foldUnicodeForPatternMatch(text) {
   // Step 3: NFKC normalization for compatibility characters
   // Converts lookalike chars (e.g., Roman numeral 'ⅰ' → 'i', fullwidth 'Ａ' → 'A')
-  result = result.normalize('NFKC');
+  let result = decomposePatternMatchText(text).normalize('NFKC');
 
   // Step 4: Replace known confusable characters (Cyrillic/Greek lookalikes)
   result = result.replace(CONFUSABLE_REGEX, char => CONFUSABLE_MAP[char] || char);
@@ -539,9 +541,54 @@ export function normalizeUnicodeForPatternMatch(text) {
   // then collapse multiple spaces. This handles cases where invisible chars are
   // used to join/separate words in ways that evade pattern matching.
   result = result.replace(/[\u200B-\u200F\uFEFF\u00AD\u2060\u180E\u2028\u2029]/g, ' ');
-  result = result.replace(/\s+/g, ' ').trim();
-
   return result;
+}
+
+export function normalizeUnicodeForPatternMatch(text) {
+  if (!text || typeof text !== 'string') return '';
+  return foldUnicodeForPatternMatch(text).replace(/\s+/g, ' ').trim();
+}
+
+// Normalize only the search copy. Grapheme spans keep a decomposed accent,
+// compatibility expansion or joined character attached to its original text.
+// Whitespace contraction must likewise retain the whole original span.
+function patternMatchOffsets(text) {
+  const offsets = [];
+  let normalized = '';
+  const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+  const decomposedOffsets = [];
+  let decomposed = '';
+  for (const { segment, index } of segmenter.segment(text)) {
+    const span = { start: index, end: index + segment.length };
+    // Strip the same marks as the whole-string normalizer, then decompose
+    // compatibility characters. Removing a mark can join old graphemes (e.g.
+    // Hangul Jamo), so composition must use the resulting boundaries.
+    const part = decomposePatternMatchText(segment).normalize('NFKD');
+    decomposed += part;
+    for (let i = 0; i < part.length; i++) decomposedOffsets.push(span);
+  }
+  for (const { segment, index } of segmenter.segment(decomposed)) {
+    const span = { start: decomposedOffsets[index].start, end: decomposedOffsets[index + segment.length - 1].end };
+    const folded = segment.normalize('NFC')
+      .replace(CONFUSABLE_REGEX, char => CONFUSABLE_MAP[char] || char)
+      .replace(/[\u200B-\u200F\uFEFF\u00AD\u2060\u180E\u2028\u2029]/g, ' ');
+    for (let i = 0; i < folded.length; i++) {
+      const char = folded[i];
+      if (/\s/.test(char)) {
+        if (!normalized) continue;
+        if (normalized.endsWith(' ')) {
+          offsets[offsets.length - 1] = { start: offsets.at(-1).start, end: span.end };
+          continue;
+        }
+        normalized += ' ';
+      } else {
+        normalized += char;
+      }
+      offsets.push(span);
+    }
+  }
+  if (normalized.endsWith(' ')) offsets.pop();
+  return { normalized: normalized.trimEnd(), offsets };
 }
 
 /**
@@ -554,13 +601,44 @@ export function normalizeUnicodeForPatternMatch(text) {
 export function filterInstructionPatterns(text) {
   if (!text || typeof text !== 'string') return '';
 
-  // Normalize Unicode to catch homoglyph attacks (e.g., Cyrillic 'о' → Latin 'o')
-  let result = normalizeUnicodeForPatternMatch(text);
+  let normalized = normalizeUnicodeForPatternMatch(text);
+  const hasMatch = INSTRUCTION_OVERRIDE_PATTERNS.some(pattern => {
+    const matched = pattern.test(normalized);
+    pattern.lastIndex = 0;
+    return matched;
+  });
+  if (!hasMatch) return text;
 
+  const mapped = patternMatchOffsets(text);
+  // Fail closed if a runtime's grapheme segmentation cannot reproduce the
+  // security normalizer. Never use uncertain offsets to retain an unsafe span.
+  if (mapped.normalized !== normalized) return '[filtered]';
+  const offsets = mapped.offsets;
+  const removed = [];
   for (const pattern of INSTRUCTION_OVERRIDE_PATTERNS) {
-    result = result.replace(pattern, '[filtered]');
-    pattern.lastIndex = 0; // Reset global regex state
+    const matches = [...normalized.matchAll(pattern)];
+    // Work backwards so replacing this match cannot shift an earlier offset.
+    for (const match of matches.reverse()) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const span = { start: offsets[start].start, end: offsets[end - 1].end };
+      removed.push(span);
+      normalized = normalized.slice(0, start) + '[filtered]' + normalized.slice(end);
+      offsets.splice(start, end - start, ...Array(10).fill(span));
+    }
+    pattern.lastIndex = 0;
   }
-
-  return result;
+  const spans = [];
+  for (const span of removed.sort((a, b) => a.start - b.start)) {
+    const previous = spans.at(-1);
+    if (previous && span.start < previous.end) previous.end = Math.max(previous.end, span.end);
+    else spans.push({ ...span });
+  }
+  let result = '';
+  let cursor = 0;
+  for (const span of spans) {
+    result += text.slice(cursor, span.start) + '[filtered]';
+    cursor = span.end;
+  }
+  return result + text.slice(cursor);
 }

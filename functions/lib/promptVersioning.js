@@ -14,13 +14,100 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.2';
+export const READING_PROMPT_VERSION = '1.6.11';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.11',
+    date: '2026-10-31',
+    notes: 'Retain conditional scope for proposed activity and support through synthesis and closing.',
+    changes: [
+      'Keep Present and Support role projections symbolic without asserting ongoing practice or available people/resources.',
+      'Require each reused activity or support premise to retain its own condition; a possible outcome does not qualify an assumed cause.',
+      'Preserve supplied facts and explicit absence, and keep the premise instruction protected during budget fitting.'
+    ]
+  },
+  {
+    version: '1.6.10',
+    date: '2026-10-31',
+    notes: 'Keep relationship Them cards conditional, document complete scene references and supply drawn-card tallies.',
+    changes: [
+      'Read the Them card as a possibility to test, not as the querent’s experience or the other person’s stance, through synthesis and closing.',
+      'Show the complete fact and interpretation reference shapes, with id and language, in the scene contract; validation stays strict.',
+      'Name the reversed cards and each element’s cards, Major associations included, so aggregate claims use supplied counts.'
+    ]
+  },
+  {
+    version: '1.6.9',
+    date: '2026-10-31',
+    notes: 'Correct supplied literal imagery and preserve accepted Unicode through instruction filtering.',
+    changes: [
+      'Replace unsupported scene precision in the bounded qualification inventory with primary-image observations.',
+      'Keep instruction matching on a normalized search copy while retaining original safe question and role text.',
+      'Preserve retrieval scores, passage selection, scene contracts and qualification criteria.'
+    ]
+  },
+  {
+    version: '1.6.8',
+    date: '2026-10-31',
+    notes: 'Keep image attributes with their card evidence and distinguish symbolic interpretation.',
+    changes: [
+      'Add reviewed RWS Eight of Cups and Hermit observations without inventing a hood or an illumination range.',
+      'Render validated interpretation references with a fixed card caption and a localized symbolic lead-in.',
+      'Separate supplied imagery from sensory interpretation and suppress competing covered-card hooks, including Minors.'
+    ]
+  },
+  {
+    version: '1.6.7',
+    date: '2026-10-28',
+    notes: 'Keep role projections symbolic without supplying goals, external facts or likely outcomes.',
+    changes: [
+      'Align Conscious and External notes and the paired consciousness axis with supplied facts and conditional possibilities.',
+      'Preserve Path A/B labels while framing their meanings and position notes as symbolic comparisons, not forecasts.',
+      'Remove residual trajectory framing from Celtic position notes without changing reader inputs, card evidence or budgets.'
+    ]
+  },
+  {
+    version: '1.6.6',
+    date: '2026-10-28',
+    notes: 'Preserve reviewed card-scene relations and render validated literal fact references.',
+    changes: [
+      'Carry the approved RWS Hierophant and Thoth Art relations through every role and protect their prompt contract during fitting.',
+      'Validate deck/drawn-card/final-prompt fact references before rendering localized captions; retain raw provider transport separately.',
+      'Treat Future and Outcome as prospective symbolic lenses without inventing a current personal course.'
+    ]
+  },
+  {
+    version: '1.6.5',
+    date: '2026-10-27',
+    notes: 'Honor explicit non-temporal positions in three-card analysis, prompts and local readings.',
+    changes: ['Keep the temporal path for Past/Present/Future spreads; treat custom labels as supplied roles rather than a timeline.']
+  },
+  {
+    version: '1.6.4',
+    date: '2026-10-27',
+    notes: 'Preserve the conditions of illustrative premises and exact accepted card names throughout the reading.',
+    changes: [
+      'Distinguish supplied reader facts from card-derived possibilities, including habits, missing preparation, unresolved burdens and avoided conversations.',
+      'Keep unsupplied premises conditional in questions, next steps, synthesis and closing, while allowing useful optional new actions.',
+      'Reserve an atomic accepted-name checklist and premise check through prompt fitting; retain the failed 1.6.3 standard outputs and the Japanese prose-quality waiver.'
+    ]
+  },
+  {
+    version: '1.6.3',
+    date: '2026-10-27',
+    notes: 'Separate symbolic Past card notes and card-story arcs from supplied personal history.',
+    changes: [
+      'Remove live-event framing and assumed causal history from Past meanings, templates and connectors while preserving card meanings and supplied reader facts.',
+      'Keep opening arcs and rhetorical questions conditional instead of turning symbolic contrasts into unsupplied past events.',
+      'Keep shared card notes readable in the local composer, preserve Future roles when a quoted question contains past, and describe the Celtic timeline as card relationships rather than lived causes.',
+      'Retain the failed semantic-reading pilot and Japanese language-quality waiver; paired qualification remains required.'
+    ]
+  },
   {
     version: '1.6.2',
     date: '2026-10-24',

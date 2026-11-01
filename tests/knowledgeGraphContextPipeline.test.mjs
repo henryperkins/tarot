@@ -16,6 +16,7 @@ import { sanitizeContextSelection } from '../shared/readingSourceUsage.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { parseGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
+import { modelReadingForRequest } from './helpers/canonicalScenes.mjs';
 
 const corpus = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-cases.json', import.meta.url)));
 const remediationFixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url)));
@@ -80,7 +81,7 @@ test('remediation fixture preservation reaches each serialized provider request'
             result = await generateWithClaudeApi(providerEnv, payload, row.id, { send: async (_env, request) => {
               user = request.messages[0].content;
               system = request.system;
-              return { text: 'A synthetic reading.', model: 'synthetic' };
+              return { text: modelReadingForRequest(request, 'A synthetic reading.'), model: 'synthetic' };
             } });
           } else {
             subtest.mock.method(globalThis, 'fetch', async (_url, request) => {
@@ -88,12 +89,12 @@ test('remediation fixture preservation reaches each serialized provider request'
               user = target === 'modal' ? body.messages.at(-1).content : body.input;
               system = target === 'modal' ? body.messages.find(message => message.role === 'system').content : body.instructions;
               return Response.json(target === 'modal'
-                ? { choices: [{ message: { content: 'A synthetic reading.' }, finish_reason: 'stop' }], model: 'synthetic' }
-                : { output_text: 'A synthetic reading.', model: 'synthetic' });
+                ? { choices: [{ message: { content: modelReadingForRequest(body, 'A synthetic reading.') }, finish_reason: 'stop' }], model: 'synthetic' }
+                : { output_text: modelReadingForRequest(body, 'A synthetic reading.'), model: 'synthetic' });
             });
             result = await (target === 'modal' ? generateWithModalQwen : generateWithOpenAIResponses)(providerEnv, payload, row.id);
           }
-          assert.equal(result.promptMeta.readingPromptVersion, '1.6.2');
+          assert.equal(result.promptMeta.readingPromptVersion, '1.6.11');
           gate.verifyGraphRAGRemediationPrompt(row, target, payload, {
             systemPrompt: system, userPrompt: user, promptMeta: result.promptMeta, memoryRetention: payload.memoryRetention
           });
@@ -122,7 +123,7 @@ for (let index = 0; index < 7; index++) {
         result = await generateWithClaudeApi(env, payload, 'pipeline', { send: async (_env, request) => {
           user = request.messages[0].content;
           system = request.system;
-          return { text: 'A synthetic reading.', model: 'synthetic' };
+          return { text: modelReadingForRequest(request, 'A synthetic reading.'), model: 'synthetic' };
         } });
       } else {
         t.mock.method(globalThis, 'fetch', async (_url, request) => {
@@ -130,8 +131,8 @@ for (let index = 0; index < 7; index++) {
           user = provider === 'modal' ? body.messages.at(-1).content : body.input;
           system = provider === 'modal' ? body.messages.find(message => message.role === 'system').content : body.instructions;
           return Response.json(provider === 'modal'
-            ? { choices: [{ message: { content: 'A synthetic reading.' }, finish_reason: 'stop' }], model: 'synthetic' }
-            : { output: [{ type: 'message', content: [{ type: 'output_text', text: 'A synthetic reading.' }] }], model: 'synthetic' });
+            ? { choices: [{ message: { content: modelReadingForRequest(body, 'A synthetic reading.') }, finish_reason: 'stop' }], model: 'synthetic' }
+            : { output: [{ type: 'message', content: [{ type: 'output_text', text: modelReadingForRequest(body, 'A synthetic reading.') }] }], model: 'synthetic' });
         });
         result = await (provider === 'modal' ? generateWithModalQwen : generateWithOpenAIResponses)(env, payload, 'pipeline');
       }
@@ -214,11 +215,11 @@ for (const delivery of ['json', 'stream', 'job']) {
       const body = JSON.parse(request.body);
       if (String(url).startsWith('https://modal.test/')) {
         requests.push({ provider: 'modal', user: body.messages.at(-1).content });
-        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, 'No card coverage.') } }] });
       }
       assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
       requests.push({ provider: 'openai', user: body.input });
-      return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
+      return Response.json({ id: 'accepted', model: 'test-openai', output_text: modelReadingForRequest(body, acceptedReading), usage: { input_tokens: 10, output_tokens: 10 } });
     });
     const input = {
       spreadInfo: { name: 'Custom Spread', key: 'custom' },

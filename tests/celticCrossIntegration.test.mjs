@@ -27,16 +27,16 @@ describe('Celtic Cross End-to-End Integration', () => {
 
   // Position-specific intro patterns from POSITION_LANGUAGE (exact phrases from templates)
   const positionSpecificPatterns = {
-    'Present — core situation': ['At the heart of this moment', 'Right now, your story', 'The core tone of this moment'],
+    'Present — core situation': ['symbolic reflection on the present', 'symbolic lens on the present question', 'Present position offers'],
     'Challenge — crossing / tension': ['Crossing this, the challenge', 'In tension with that', 'highlights the knot'],
-    'Past — what lies behind': ['Looking to what lies behind', 'In the background', 'The roots of this story'],
-    'Near Future — what lies before': ['What lies ahead', 'As the next chapter', 'Soon, the story leans'],
-    'Conscious — goals & focus': ['Your conscious goal', 'speaks to what you know', 'In your conscious mind'],
-    'Subconscious — roots / hidden forces': ['Hidden beneath awareness', 'Below the surface', 'In the deeper layers'],
+    'Past — what lies behind': ['symbolic lens', 'symbolic reflection', 'symbolic Past perspective'],
+    'Near Future — what lies before': ['prospective symbolic lens', 'symbolic theme to consider', 'Looking ahead symbolically'],
+    'Conscious — goals & focus': ['For reflection on goals and focus', 'symbolic lens for examining an aim', 'In the Conscious position'],
+    'Subconscious — roots / hidden forces': ['Subconscious position offers', 'invites exploration of possibilities', 'For a reflective look beneath the surface'],
     'Self / Advice — how to meet this': ['Guidance on how to meet', 'offers a way you might', 'As counsel'],
-    'External Influences — people & environment': ['External influences, people and forces', 'Around you', 'In the wider field'],
+    'External Influences — people & environment': ['For considering external conditions', 'symbolic lens for reflecting on circumstances', 'In the External position'],
     'Hopes & Fears — deepest wishes & worries': ['Hopes and fears blend', 'deepest wishes', 'What you long for'],
-    'Outcome — likely path if unchanged': ['The likely outcome', 'If nothing major shifts', 'As things stand']
+    'Outcome — likely path if unchanged': ['prospective symbolic lens', 'possible theme for thinking', 'symbolic reflection on what you might choose']
   };
 
   it('all 10 Celtic Cross positions use position-specific templates', () => {
@@ -66,10 +66,8 @@ describe('Celtic Cross End-to-End Integration', () => {
   it('getConnector returns valid connectors for Celtic Cross positions', () => {
     // Past has connectorToNext
     const pastConnector = getConnector('Past — what lies behind', 'toNext');
-    assert.ok(
-      ['Because of this,', 'Because of this history,', 'Because of this groundwork,'].includes(pastConnector),
-      `Expected valid connector for Past, got: "${pastConnector}"`
-    );
+    assert.match(pastConnector, /symbolic|reflection/i);
+    assert.doesNotMatch(pastConnector, /Because of (?:this|what)/);
 
     // Challenge has connectorToPrev
     const challengeConnector = getConnector('Challenge — crossing / tension', 'toPrev');
@@ -81,7 +79,7 @@ describe('Celtic Cross End-to-End Integration', () => {
     // Near Future has connectorToPrev
     const futureConnector = getConnector('Near Future — what lies before', 'toPrev');
     assert.ok(
-      ['Therefore,', 'Therefore, looking ahead,', 'Therefore, as this unfolds,'].includes(futureConnector),
+      ['Looking ahead symbolically,', 'As a possible lens for a next step,'].includes(futureConnector),
       `Expected valid connector for Near Future, got: "${futureConnector}"`
     );
   });

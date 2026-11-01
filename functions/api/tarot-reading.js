@@ -92,6 +92,7 @@ import {
 import { getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
 import { streamCodexSubscription } from '../lib/codexSubscription.js';
 import { createCodexReadingStream } from '../lib/codexReadingStream.js';
+import { getCanonicalSceneFacts, renderCanonicalSceneReading } from '../lib/canonicalSceneEvidence.js';
 import { createReadingPassageGuard } from '../lib/readingPassageGuard.js';
 import {
   getSpreadDefinition,
@@ -1305,6 +1306,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const codexLiveEnabled = useStreaming
       && getAvailableNarrativeBackends(env)[0]?.id === 'codex-subscription'
       && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
+      && getCanonicalSceneFacts(cardsInfo, deckStyle).length === 0
       && !evalGatePolicy.effectiveEvalGateEnabled;
     if (codexLiveEnabled) {
       beginMemoryAttempt(narrativePayload);
@@ -1484,6 +1486,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
       if (!streamingFallback) {
         applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
+        const sceneContract = narrativePayload.promptMeta?.canonicalSceneFacts;
+        const requiresSceneRendering = sceneContract?.required === true;
 
         const effectiveModel = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
         const reasoningEffort = getReasoningEffort(env, effectiveModel);
@@ -1522,7 +1526,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         const transformedStream = transformOpenAIStream(openaiStream);
 
-        if (shouldBufferStreaming) {
+        if (shouldBufferStreaming || requiresSceneRendering) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
           streamModel = collected.donePayload?.model || collected.errorPayload?.model || null;
@@ -1531,7 +1535,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             throw Object.assign(new Error('Streaming provider returned an error.'), { code: collected.errorPayload?.code, model: streamModel, usage: streamUsage });
           }
 
-          const finalText = (collected.fullText || '').trim();
+          const finalText = renderCanonicalSceneReading((collected.fullText || '').trim(), {
+            cardsInfo, deckStyle: narrativePayload.promptMeta?.deckStyle || deckStyle,
+            allowedFactIds: sceneContract?.providedIds || [], required: requiresSceneRendering
+          }).reading;
           if (!finalText) {
             throw new Error('Streaming provider returned empty reading text.');
           }
@@ -1629,7 +1636,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         if (streamingFallback) {
           // Skip live streaming when we need to fall back to buffered backends.
-        } else if (!shouldBufferStreaming) {
+        } else if (!shouldBufferStreaming && !requiresSceneRendering) {
           // Use promptMeta.graphRAG directly (set by buildOpenAIResponsesPrompts)
           const graphRAGStats = narrativePayload.promptMeta?.graphRAG || null;
           const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)

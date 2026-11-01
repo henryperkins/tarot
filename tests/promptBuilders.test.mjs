@@ -113,11 +113,12 @@ describe('buildStoryArtPrompt', () => {
     assert.ok(!prompt.includes(imageryOf(majors[1])), 'Should skip cards between the panels');
   });
 
-  it('seats a crowned figure on queen and king thrones', () => {
+  it('retains seated court figures and their supported card imagery', () => {
     const queen = buildStoryArtPrompt([courtCard], testQuestion, 'watercolor', 'vignette');
     const king = buildStoryArtPrompt([{ ...courtCard, name: 'King of Swords', suit: 'swords', rank: 'king' }], testQuestion, 'watercolor', 'vignette');
     const page = buildStoryArtPrompt([{ ...courtCard, name: 'Page of Cups', rank: 'page' }], testQuestion, 'watercolor', 'vignette');
-    assert.ok(queen.includes('A crowned queen on a throne by the sea'));
+    assert.ok(queen.includes('Seated figure by the sea'));
+    assert.ok(queen.includes('ornate covered cup'));
     assert.ok(king.includes('A crowned king on a throne high above'));
     assert.ok(page.includes(imageryOf({ name: 'Page of Cups' })));
   });
@@ -125,7 +126,7 @@ describe('buildStoryArtPrompt', () => {
   it('paints only the lead card in a portrait vignette', () => {
     const prompt = buildStoryArtPrompt([courtCard, minorArcanaCard], testQuestion, 'watercolor', 'vignette');
     assert.ok(prompt.includes('tall portrait format'));
-    assert.ok(prompt.includes('A crowned queen on a throne'));
+    assert.ok(prompt.includes('Seated figure by the sea'));
     assert.ok(!prompt.includes(imageryOf(minorArcanaCard)));
   });
 

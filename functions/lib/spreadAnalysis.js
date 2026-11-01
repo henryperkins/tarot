@@ -18,6 +18,7 @@ import { parseMinorName } from './minorMeta.js';
 import { sanitizeReadingCard } from './readingCardContext.js';
 import { getLeadingKeys, getUniqueLeader } from '../../shared/utils.js';
 import { getDeckSuitAlias } from '../../shared/vision/deckAssets.js';
+import { usesThreeCardTimeline } from './spreadContracts.js';
 
 /**
  * Traditional elemental correspondences for Major Arcana
@@ -219,6 +220,29 @@ export function getCardElement(cardName, cardNumber, cardSuit) {
   }
 
   return null;
+}
+
+/**
+ * Name the drawn cards behind each reversal and element total, counting each
+ * position once with the same rules as analyzeSpreadThemes. Readings that had
+ * to count these themselves have miscounted reversals and missed Major
+ * elemental associations (The Hermit is Earth).
+ *
+ * @param {Array} cardsInfo - Drawn cards with card, orientation and number/suit
+ * @returns {{ total: number, reversed: string[], elements: Object<string, string[]>, unmapped: string[] }}
+ */
+export function getDrawnCardTallies(cardsInfo) {
+  const tallies = { total: 0, reversed: [], elements: { Fire: [], Water: [], Air: [], Earth: [] }, unmapped: [] };
+  for (const card of Array.isArray(cardsInfo) ? cardsInfo : []) {
+    if (!card || typeof card !== 'object') continue;
+    const name = typeof card.card === 'string' ? card.card : '';
+    tallies.total += 1;
+    if (String(card.orientation || '').toLowerCase() === 'reversed') tallies.reversed.push(name);
+    const element = getCardElement(card.card, getCardNumber(card), card.suit);
+    if (element && tallies.elements[element]) tallies.elements[element].push(name);
+    else tallies.unmapped.push(name);
+  }
+  return tallies;
 }
 
 /**
@@ -1081,24 +1105,24 @@ function analyzeTimeline(past, present, future) {
   const presentToFuture = analyzeElementalDignity(present, future);
   const pastToFuture = analyzeElementalDignity(past, future);
 
-  let causality = `${past.card} in the past has led to ${present.card} in the present.`;
+  let causality = `The symbolic timeline relates ${past.card} in the Past position to ${present.card} in the Present position.`;
 
   if (pastToPresent.relationship === 'tension') {
-    causality += ` The transition from past to present involved friction and adjustment.`;
+    causality += ` These two cards have elemental tension, which can be explored as a symbolic contrast.`;
   } else if (pastToPresent.relationship === 'supportive') {
-    causality += ` The past supports and flows naturally into the present state.`;
+    causality += ` The two card themes are elementally supportive.`;
   } else if (pastToPresent.relationship === 'amplified') {
-    causality += ` The same elemental theme persists from past into present.`;
+    causality += ` The two cards share the same elemental theme.`;
   }
 
-  causality += ` This is developing toward ${future.card} in the near future.`;
+  causality += ` The Future position contributes ${future.card} as a possible direction for reflection.`;
 
   if (presentToFuture.relationship === 'tension') {
-    causality += ` Moving forward will require navigating elemental tension.`;
+    causality += ` The Present and Future cards form an elemental contrast.`;
   } else if (presentToFuture.relationship === 'supportive') {
-    causality += ` The trajectory ahead is supported by current energies.`;
+    causality += ` The Present and Future card themes support each other.`;
   } else if (presentToFuture.relationship === 'amplified') {
-    causality += ` The elemental energy intensifies as you move forward.`;
+    causality += ` The Present and Future cards share an elemental theme.`;
   }
 
   return {
@@ -1141,22 +1165,23 @@ function analyzeConsciousness(subconscious, present, conscious) {
       alignment = 'complex';
   }
 
-  let synthesis = `Hidden beneath awareness: ${subconscious.card} ${subconscious.orientation}. `;
-  synthesis += `Conscious goal or aspiration: ${conscious.card} ${conscious.orientation}. `;
+  let synthesis = `Subconscious: ${subconscious.card} ${subconscious.orientation}; `;
+  synthesis += `Conscious: ${conscious.card} ${conscious.orientation}. `;
 
   switch (alignment) {
     case 'aligned':
-      synthesis += `Your subconscious drives and conscious goals are working together harmoniously.`;
+      synthesis += `Supportive symbolic card themes for reflection.`;
       break;
     case 'conflicted':
-      synthesis += `There is tension between what you want consciously and what drives you beneath awareness. Integration is needed.`;
+      synthesis += `Contrasting symbolic card themes for examining supplied aims.`;
       break;
     case 'intensely unified':
-      synthesis += `Your inner depths and conscious mind are unified around the same ${belowToAbove.element} theme.`;
+      synthesis += `A shared ${belowToAbove.element} theme to explore symbolically.`;
       break;
     default:
-      synthesis += `Your inner and outer goals show nuanced dynamics worth exploring.`;
+      synthesis += `Different symbolic perspectives to explore.`;
   }
+  synthesis += ` Neither establishes unstated goals or hidden motives.`;
 
   return {
     theme: 'Consciousness Flow (Vertical Axis)',
@@ -1189,16 +1214,16 @@ function analyzeStaff(self, external, hopesFears, outcome) {
   let adviceImpact;
   switch (adviceToOutcome.relationship) {
     case 'supportive':
-      adviceImpact = `Following the guidance of ${self.card} actively supports and harmonizes with the likely outcome of ${outcome.card}.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): supportive symbolic themes for optional next steps.`;
       break;
     case 'tension':
-      adviceImpact = `Acting on ${self.card} creates dynamic tension with the trajectory toward ${outcome.card}, requiring skillful navigation.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): contrasting symbolic themes for exploring choices.`;
       break;
     case 'amplified':
-      adviceImpact = `The advice (${self.card}) and outcome (${outcome.card}) share the same ${adviceToOutcome.element} energy, creating a unified path forward.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): a shared ${adviceToOutcome.element} theme to explore symbolically for optional actions.`;
       break;
     default:
-      adviceImpact = `The relationship between the advice of ${self.card} and the outcome shows subtle complexity.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): different symbolic perspectives on choices.`;
   }
 
   return {
@@ -1356,7 +1381,10 @@ export function analyzeThreeCard(cardsInfo) {
   const secondToThird = analyzeElementalDignity(second, third);
   const firstToThird = analyzeElementalDignity(first, third);
 
-  const narrative = buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird);
+  const timeline = usesThreeCardTimeline(cardsInfo);
+  const narrative = timeline
+    ? buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird)
+    : `Consider ${first.card} in ${first.position}, ${second.card} in ${second.position}, and ${third.card} in ${third.position} together. Their elemental relationships describe symbolic support or tension between the supplied roles, not a chronology.`;
 
   return {
     version: '1.0.0',
@@ -1373,11 +1401,11 @@ export function analyzeThreeCard(cardsInfo) {
         ]
       }
     ],
-    positionNotes: [
+    positionNotes: timeline ? [
       { index: 0, label: 'Past', notes: ['Foundation / cause.'] },
       { index: 1, label: 'Present', notes: ['Current state shaped by past.'] },
       { index: 2, label: 'Future', notes: ['Trajectory if nothing shifts.'] }
-    ],
+    ] : [first, second, third].map((card, index) => ({ index, label: card.position, notes: ['Interpret this supplied role without assigning a temporal position.'] })),
     flow: {
       first: first.card,
       second: second.card,
@@ -1633,7 +1661,7 @@ export function analyzeRelationship(cardsInfo) {
     relationships,
     positionNotes: [
       { index: 0, label: 'You / your energy', notes: ['How you are currently showing up.'] },
-      { index: 1, label: 'Them / their energy', notes: ['How they are approaching the connection.'] },
+      { index: 1, label: 'Them / their energy', notes: ['A symbolic possibility about their side of the dynamic, to compare with anything actually observed.'] },
       { index: 2, label: 'The connection / shared lesson', notes: ['The third energy between you—what the bond is asking from both sides.'] },
       ...(dynamics ? [{ index: 3, label: dynamicsLabel, notes: ['Clarifying guidance on how to engage the dynamic.'] }] : []),
       ...(outcome ? [{ index: 4, label: outcomeLabel, notes: ['Likely trajectory if current relational dynamics continue.'] }] : [])
@@ -1880,8 +1908,8 @@ export function analyzeDecision(cardsInfo) {
     relationships,
     positionNotes: [
       { index: 0, label: 'Heart of the decision', notes: ['Core desire or non-negotiable value.'] },
-      { index: 1, label: 'Path A — energy & likely outcome', notes: ['Trajectory if you commit to Path A.'] },
-      { index: 2, label: 'Path B — energy & likely outcome', notes: ['Trajectory if you commit to Path B.'] },
+      { index: 1, label: 'Path A — energy & likely outcome', notes: ['Symbolic perspective for evaluating Path A and optional actions, not a forecast.'] },
+      { index: 2, label: 'Path B — energy & likely outcome', notes: ['Symbolic perspective for evaluating Path B and optional actions, not a forecast.'] },
       { index: 3, label: 'What clarifies the best path', notes: ['Insight that helps you evaluate the options.'] },
       { index: 4, label: 'What to remember about your free will', notes: ['Agency reminder; how you shape the outcome.'] }
     ],

@@ -7,6 +7,7 @@ import { ReadingJob } from '../src/worker/readingJob.js';
 import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
+import { modelReadingForRequest } from './helpers/canonicalScenes.mjs';
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
@@ -440,8 +441,8 @@ test('provider fallback recomputes retention for the accepted final capped promp
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     const payload = JSON.parse(init.body);
     requests.push({ url: String(url), payload });
-    if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'No card coverage.' } }] });
-    return Response.json({ id: 'accepted', model: 'test-openai', output_text: acceptedReading, usage: { input_tokens: 10, output_tokens: 10 } });
+    if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(payload, 'No card coverage.') } }] });
+    return Response.json({ id: 'accepted', model: 'test-openai', output_text: modelReadingForRequest(payload, acceptedReading), usage: { input_tokens: 10, output_tokens: 10 } });
   });
   // Ordinary readings now reject repeated identities. Keep this cap/fallback
   // regression on the complete distinct catalog rather than 78 repeated Suns.

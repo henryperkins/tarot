@@ -13,6 +13,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { modelReadingForRequest } from './helpers/canonicalScenes.mjs';
 import { webcrypto } from 'node:crypto';
 
 import {
@@ -276,8 +277,8 @@ describe('worst-case response stays under the GPT Actions ceiling', () => {
     };
 
     const originalFetch = global.fetch;
-    global.fetch = async () => new Response(
-      JSON.stringify({ output_text: reading, usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } }),
+    global.fetch = async (_url, init) => new Response(
+      JSON.stringify({ output_text: modelReadingForRequest(init.body, reading), usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } }),
       { status: 200, headers: { 'content-type': 'application/json' } }
     );
     let text;
@@ -302,6 +303,33 @@ describe('worst-case response stays under the GPT Actions ceiling', () => {
 // ---------------------------------------------------------------------------
 
 describe('createReadingStream promptDebug passthrough', () => {
+  it('renders validated card facts before an OpenAI token completion reaches SSE consumers', async t => {
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const raw = JSON.stringify({ format: 'card-scenes-v1', blocks: [
+      { type: 'prose', text: '### Opening\n\nThe Hierophant offers a symbolic perspective on learning.\n\n### The Hierophant\n\n**The Hierophant** can invite reflection on a practice you choose.' },
+      { type: 'fact', id: 'rws-hierophant-keys-at-feet', language: 'en' },
+      { type: 'prose', text: '### Guidance\n\nYou might try one small practice that suits your question.\n\n### Closing\n\nYour choices shape how you use this perspective.' }
+    ] });
+    t.mock.method(globalThis, 'fetch', async () => new Response(
+      `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: raw })}\n\nevent: response.completed\ndata: ${JSON.stringify({ type: 'response.completed', response: { status: 'completed', model: 'test-openai', output: [{ type: 'message', content: [{ type: 'output_text', text: raw }] }] } })}\n\n`,
+      { headers: { 'content-type': 'text/event-stream' } }
+    ));
+    const response = await onRequestPost({
+      request: new Request('http://localhost/api/tarot-reading?stream=true', { method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${OWNER_TOKEN}` },
+        body: JSON.stringify({ ...SINGLE_CARD_PAYLOAD, cardsInfo: [{ card: 'The Hierophant', position: 'Focus', orientation: 'Upright', meaning: 'Tradition.' }], userQuestion: 'What can a practice offer?' }) }),
+      env: { OPENAI_API_KEY: 'synthetic', OPENAI_STREAMING_ENABLED: 'true', ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+        EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false', GPT_SERVICE_TOKEN: SERVICE_TOKEN, GPT_OWNER_TOKEN: OWNER_TOKEN },
+      waitUntil() {}
+    });
+    assert.equal(response.status, 200);
+    const events = await readSSE(response.body);
+    assert.equal(events.find(event => event.event === 'meta')?.data.provider, 'openai-native');
+    const reading = events.filter(event => event.event === 'delta').map(event => event.data.text).join('');
+    assert.match(reading, /crossed keys are at the Hierophant's feet/);
+    assert.doesNotMatch(reading, /card-scenes-v1|"blocks"|rws-hierophant-keys/);
+  });
+
   it('carries promptDebug through the buffered SSE meta event', async () => {
     const promptDebug = {
       templateVersion: '1.0.0',

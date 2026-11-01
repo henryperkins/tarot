@@ -319,6 +319,49 @@ test('decision agency detection rejects bare mentions, negation and fatalistic c
   }
 });
 
+test('explicit reader actions shaping outcomes satisfy the agency criterion', async () => {
+  const readings = [
+    'How you pace these changes, including which thread you pick up first, where you let things rest and how kindly you treat yourself in between, is what shapes how much of that Sun-warmth you walk into.',
+    'How you approach this project can influence the direction it takes.',
+    'How you respond to the news shapes what follows.',
+    'How you work with these constraints affects the path ahead.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `reader-influence-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+  assert.equal(metrics.missingAgencyCount, 0);
+  for (const sample of metrics.perSample) assert.equal(sample.hasAgencyLanguage, true);
+});
+
+test('reader-action agency excludes questions, bare advice, negation and fixed outcomes', async () => {
+  const readings = [
+    'How you pace these changes is difficult.',
+    'How you approach this project is a topic for reflection.',
+    'How you respond to the news shapes what follows?',
+    'How you pace these changes cannot shape the path ahead.',
+    "How you pace these changes can't shape the path ahead.",
+    'How you pace these changes is not what shapes the outcome.',
+    'How you pace these changes shapes nothing.',
+    'How you pace these changes shapes the outcome, but the future is predetermined.',
+    'How you approach this project influences an irrelevant detail; fate determines the outcome.',
+    'How you approach this project is meaningless because outside forces influence the outcome.',
+    'How you approach this project shapes what follows — a claim that is untrue.',
+    'How you pace these changes affects the outcome; that assertion is incorrect.',
+    'How you approach this project can influence the direction it takes; I reject that idea.',
+    'How you approach this project shapes what follows, and that assertion is incorrect.',
+    'How you approach this project shapes what follows. That claim is untrue.',
+    'How you pace these changes, the weather is what shapes the outcome.',
+    'How you pace these changes. The cards shape the outcome.',
+    'How the team paces these changes shapes what follows.',
+    'Consider how you pace these changes.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `not-reader-influence-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+  assert.equal(metrics.missingAgencyCount, readings.length);
+  for (const sample of metrics.perSample) assert.equal(sample.hasAgencyLanguage, false);
+});
+
 test('narrative metrics distinguish negated guarantees from deterministic claims', async () => {
   const metrics = await computeMetrics([
     {

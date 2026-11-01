@@ -136,12 +136,28 @@ function hasAffirmativeDecisionAgency(text) {
   // Recognize explicit influence without treating any mention of decisions as agency.
   const direct = /^your\s+decisions\s+(?:(?:are\s+what|can|will)\s+)?(?:shape|steer|guide|influence|affect)\b/iu;
   const about = /^your\s+decisions\s+about\s+(?:when|how)(?:\s+and\s+(?:when|how))?\s+to\s+[\p{L}'’-]+\s+(?:this|the|your|our|my|a|an)\s+[\p{L}'’-]+\s+are\s+what\s+(?:shape|steer|guide|influence|affect)\b/iu;
+  // A reader-controlled action can state influence without using a decision
+  // noun. Keep the subject/action/object grammar and any "including" aside
+  // bounded so another subject or an unrelated later clause cannot supply it.
+  const readerAction = /^how\s+you\s+(?:pace|approach|respond\s+to|work\s+with|engage\s+with|act\s+on)\s+(?:this|these|that|those|the|your)\s+[\p{L}'’-]+(?:,\s+including\s+[^.!?;:\n]{1,240},)?\s+(?:(?:is\s+what|can|will)\s+)?(?:shapes?|steers?|guides?|influences?|affects?)\s+(?:how|what|where|the|your)\b/iu;
+  const includingAside = /,\s+including\s+[^.!?;:\n]{1,240},/iu;
+  const additionalClause = /[;:—–,]|\b(?:and|but|yet|although|though|however|if)\b/iu;
+  const repudiation = /\b(?:untrue|incorrect|inaccurate|false|reject\w*|disput\w*|den(?:y|ies|ied)|refut\w*|myth|illusion|nonsense)\b/iu;
   const negativeContext = /\b(?:not|never|no|none|nothing|nobody|cannot|powerless|irrelevant|inevitable|predetermined|destined|fated|destiny|fate|fixed|false|illusion|myth)\b|\b(?:can['’]t|won['’]t|(?:do|does|did|is|are|was|were|has|have|had|should|could|would|must)n['’]t)\b/iu;
 
-  return text.split(/[.!?\n]+/u).some((part) => {
-    const sentence = part.trim();
-    return (direct.test(sentence) || about.test(sentence)) && !negativeContext.test(sentence);
-  });
+  return text.split(/\n\s*\n/u).some(paragraph => (
+    (paragraph.match(/[^.!?\n]+[.!?]?/gu) || []).some(part => {
+      const sentence = part.trim();
+      // This added family recognizes a single affirmative main clause, with
+      // only the bounded including-aside. Do not infer affirmation through an
+      // extra clause or a nearby explicit rejection of the proposition.
+      const affirmativeAction = !sentence.endsWith('?') && readerAction.test(sentence)
+        && !additionalClause.test(sentence.replace(includingAside, ''))
+        && !repudiation.test(paragraph);
+      return (direct.test(sentence) || about.test(sentence) || affirmativeAction)
+        && !negativeContext.test(sentence);
+    })
+  ));
 }
 
 function findDeterministicLanguage(text) {

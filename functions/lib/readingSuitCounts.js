@@ -11,6 +11,7 @@ const NUMBERS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 
   'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
 const NUMBER = `(?:\\d+|${NUMBERS.join('|')})`;
 const SUIT = `(?:${Object.keys(SUIT_ALIASES).join('|')})`;
+const MINOR_REFERENCE = new RegExp(`\\b(?:ace|two|three|four|five|six|seven|eight|nine|ten|page|knight|queen|king|prince|princess)\\s+of\\s+${SUIT}\\b`, 'gi');
 
 // Count identities/positions, never repeated mentions in generated prose or
 // elemental correspondences (Major Arcana can be Water without being Cups).
@@ -44,6 +45,32 @@ function isNonAssertion(prefix, suffix) {
     || /\b(?:at\s+(?:least|most)|(?:no\s+)?(?:more|less|fewer)\s+than|about|around|approximately|up\s+to)\s*$/i.test(clause);
 }
 
+function isNamedDrawnSubset(prefix, suffix, suit, claimed, actual, cardsInfo, deckStyle) {
+  if (claimed < 2 || claimed >= actual || !/\b(?:these|those)\s+$/i.test(prefix)) return false;
+  const paragraph = prefix.split(/\n\s*\n/).at(-1);
+  const tail = suffix.split(/\n\s*\n/)[0];
+  // A demonstrative must not excuse an explicit whole-spread count.
+  if (/\b(?:only|exactly|all|every|total|entire|entirety|exhaust\w*|whole|altogether|full|complete|spread|drawn|inventory|lineup|group|contingent|collection|roster|set|no others|nothing else)\b/i.test(`${paragraph} ${tail}`)) return false;
+  // Require a local comparison rather than inferring a subset from a bare list.
+  const local = paragraph.slice(-700);
+  if (!/\b(?:next to|alongside|paired|pair|between|compared|contrast|connect(?:s|ed)?|together|beside)\b/i.test(local)) return false;
+  const referents = new Set();
+  const add = name => {
+    const key = canonicalCardKey(name, deckStyle);
+    if (parseMinorName(key)?.suit === suit) referents.add(key);
+  };
+  for (const match of local.matchAll(MINOR_REFERENCE)) add(match[0]);
+  // A deck epithet needs explicit card context, e.g. "Disappointment reversed".
+  // Ordinary uses of words such as love or pleasure do not supply an identity.
+  for (const match of local.matchAll(/\b([A-Z][\p{L}]*(?:\s+[A-Z][\p{L}]*){0,2})\s+(?:[Rr]eversed|[Uu]pright|[Cc]ard)\b/gu)) add(match[1]);
+  if (referents.size !== claimed) return false;
+  const drawn = new Set((Array.isArray(cardsInfo) ? cardsInfo : []).map(card => {
+    const key = card?.canonicalKey || card?.canonicalName;
+    return key ? key.toLowerCase() : canonicalCardKey(typeof card === 'string' ? card : card?.card || card?.name, deckStyle);
+  }));
+  return [...referents].every(key => drawn.has(key));
+}
+
 // Intentionally checks explicit English count assertions, not every possible
 // numerical paraphrase. In particular, "Four of Cups" is a card rank, not a count.
 export function detectSuitCountMismatches(readingText, cardsInfo, deckStyle = 'rws-1909') {
@@ -62,6 +89,7 @@ export function detectSuitCountMismatches(readingText, cardsInfo, deckStyle = 'r
       const suit = SUIT_ALIASES[match.groups.suit.toLowerCase()];
       const claimed = numericCount(match.groups.count);
       const actual = counts[suit];
+      if (claimed !== actual && isNamedDrawnSubset(text.slice(0, match.index), text.slice(match.index + match[0].length), suit, claimed, actual, cardsInfo, deckStyle)) continue;
       const key = `${suit}:${claimed}`;
       if (claimed !== actual && !seen.has(key)) {
         seen.add(key);

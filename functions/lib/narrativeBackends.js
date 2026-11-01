@@ -61,6 +61,33 @@ import { withSpan } from './tracingSpans.js';
 import { getSpreadKey } from './readingQuality.js';
 import { resolveContextSelection } from './contextDetection.js';
 import { collectQuerentReflections } from './querentReflections.js';
+import { CANONICAL_SCENE_FORMAT, renderCanonicalSceneReading } from './canonicalSceneEvidence.js';
+
+function finalizeCanonicalScenes(result, payload) {
+  if (!result || typeof result !== 'object' || typeof result.reading !== 'string'
+    || result.canonicalSceneRendering?.validated === true) return result;
+  const contract = result.promptMeta?.canonicalSceneFacts;
+  let rendered;
+  try {
+    rendered = renderCanonicalSceneReading(result.reading, {
+      cardsInfo: payload.cardsInfo, deckStyle: result.promptMeta?.deckStyle || payload.deckStyle,
+      allowedFactIds: contract?.providedIds || [], required: contract?.required === true
+    });
+  } catch (error) {
+    // Qualification retains the first raw completion even if its transport is
+    // invalid. Keep it non-enumerable so ordinary error logging cannot expose it.
+    Object.defineProperty(error, 'unrenderedNarrative', { value: {
+      rawReading: result.reading, prompts: result.prompts, promptMeta: result.promptMeta,
+      usage: result.usage, model: result.model
+    } });
+    throw error;
+  }
+  if (!contract?.required && rendered.reading === result.reading) return result;
+  return {
+    ...result, reading: rendered.reading, rawReading: rendered.rawReading,
+    canonicalSceneRendering: { format: CANONICAL_SCENE_FORMAT, validated: true, usedFactIds: rendered.usedFactIds }
+  };
+}
 
 // ============================================================================
 // Backend Registry
@@ -884,7 +911,7 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
   console.log(`[${requestId}] Generated Modal reading length: ${result.text.length} characters`);
   promptMeta.inference = { provider: 'modal-qwen', model: result.model };
 
-  return {
+  return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: null,
     prompts: {
@@ -894,7 +921,7 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
     usage: result.usage,
     model: result.model,
     promptMeta
-  };
+  }, payload);
 }
 
 /**
@@ -948,7 +975,7 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
   }
 
   // Return reading with captured prompts for engineering analysis
-  return {
+  return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: result.reasoningSummary || null,
     prompts: {
@@ -958,7 +985,7 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
     usage: result.usage,
     model: result.model,
     promptMeta
-  };
+  }, payload);
 }
 
 // ============================================================================
@@ -1005,7 +1032,7 @@ export async function generateWithClaudeApi(env, payload, requestId = 'unknown',
     promptMeta.inference = { provider, model: result.model };
   }
 
-  return {
+  return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: null,
     prompts: {
@@ -1015,7 +1042,7 @@ export async function generateWithClaudeApi(env, payload, requestId = 'unknown',
     usage: result.usage,
     promptMeta,
     model: result.model
-  };
+  }, payload);
 }
 
 // ============================================================================
@@ -1626,6 +1653,6 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
     if (span) {
       span.setAttribute('tarot.narrative.length', typeof reading === 'string' ? reading.length : 0);
     }
-    return result;
+    return finalizeCanonicalScenes(result, payload);
   });
 }

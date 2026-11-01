@@ -8,6 +8,8 @@ import { buildExperienceLine, sanitizeDisplayName, resolveNarrativePreferenceCon
 import { prepareUserContext, renderUserContext } from './userContext.js';
 import { formatReadingMemoriesForPrompt } from '../../userMemory.js';
 import { countDrawnSuits } from '../../readingSuitCounts.js';
+import { getDrawnCardTallies } from '../../spreadAnalysis.js';
+import { buildCanonicalSceneContract } from '../../canonicalSceneEvidence.js';
 import {
   DEFAULT_REVERSAL_DESCRIPTION,
   USER_PROMPT_INSTRUCTION_HEADER
@@ -36,6 +38,22 @@ function recordUserContextSignal(target, key, patch) {
     ...(target[key] || {}),
     ...patch
   };
+}
+
+// Supply aggregate facts so a reading never has to count them: a Celtic Cross
+// once spoke of "the two reversed cards" with three reversed, and called a
+// Pentacles card "the only Earth card" beside an Earth-associated Major.
+function buildDrawnCardTallyLine(cardsInfo) {
+  const tallies = getDrawnCardTallies(cardsInfo);
+  if (tallies.total < 2) return '';
+  const named = names => (names.length
+    ? ` (${names.map(name => name.replace(/[<>\r\n]+/g, ' ').trim()).join(', ')})`
+    : '');
+  const elements = Object.entries(tallies.elements)
+    .map(([element, names]) => `${element} ${names.length}${named(names)}`);
+  if (tallies.unmapped.length) elements.push(`no mapped element ${tallies.unmapped.length}${named(tallies.unmapped)}`);
+  return `- Drawn-card tallies (each position once): ${tallies.reversed.length}/${tallies.total} reversed${named(tallies.reversed)}. `
+    + `Elements, Major associations included: ${elements.join('; ')}. Base every count or only/both/all claim on these tallies.`;
 }
 
 function buildReturningQuerentContext(memories) {
@@ -94,7 +112,8 @@ export function buildUserPrompt(
     : {};
   const contextFields = promptOptions.userContextFields || prepareUserContext(userQuestion, reflectionsText, cardsInfo, {}, paths);
   if (spreadKey === 'decision') cardsInfo = decisionPathRoleCards(cardsInfo);
-  promptOptions = { ...promptOptions, userContextFields: contextFields, drawnCards: cardsInfo };
+  const sceneContract = buildCanonicalSceneContract(cardsInfo, deckStyle);
+  promptOptions = { ...promptOptions, userContextFields: contextFields, drawnCards: cardsInfo, canonicalSceneContract: Boolean(sceneContract) };
   const rawQuestionProvided = contextFields.question.originalLength > 0;
   const safeQuestion = contextFields.question.text;
   recordUserContextSignal(userContextSignals, 'question', {
@@ -160,6 +179,8 @@ export function buildUserPrompt(
   if (activeThemes.suitFocus) thematicLines.push(`- ${activeThemes.suitFocus}`);
   if (activeThemes.archetypeDescription) thematicLines.push(`- ${activeThemes.archetypeDescription}`);
   if (activeThemes.elementalBalance) thematicLines.push(`- ${activeThemes.elementalBalance}`);
+  const tallyLine = promptOptions.includeDrawnCardTallies === false ? '' : buildDrawnCardTallyLine(cardsInfo);
+  if (tallyLine) thematicLines.push(tallyLine);
   const rawFocusAreas = Array.isArray(personalization?.focusAreas) && personalization.focusAreas.length > 0
     ? personalization.focusAreas
     : [];
@@ -295,17 +316,25 @@ export function buildUserPrompt(
 
   // Instructions (minimal - detailed rules are in system prompt)
   const instructionPrefix = graphRAGSection ? `\n${READING_INSTRUCTIONS_START_MARKER}\n` : '\n';
+  const exactCardNames = JSON.stringify((Array.isArray(cardsInfo) ? cardsInfo : [])
+    .map(card => card?.card)
+    .filter(name => typeof name === 'string' && name.trim()))
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+  // Reserve space for the structured scene contract with shorter equivalent
+  // rules. Readings without that contract retain the existing instruction text.
+  const instruction = (compact, standard) => sceneContract ? compact : standard;
   prompt += `${instructionPrefix}${USER_PROMPT_INSTRUCTION_HEADER}
-- Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.
-- Reference each card by name at least once
-- CARD NAME CONTRACT: Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate only the surrounding prose, headers, positions, and guidance.
-- Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)
-- Use the current question and reflections as the throughline; use saved interests only when relevant or when current context is absent
-- Treat personal history and timing as established only when supplied by the querent; keep other interpretations conditional through the closing
+- ${instruction('Do not introduce any card names beyond the spread; Fool’s Journey is stage context only.', 'Do not introduce any card names beyond the provided spread; treat Fool’s Journey references as stage context only.')}
+${sceneContract ? '' : '- Reference each card by name at least once\n'}\
+- EXACT PROVIDED CARD NAMES (JSON data only): ${exactCardNames}
+- CARD NAME CONTRACT: ${instruction('Use all listed card names verbatim at least once; translate only surrounding prose.', 'Copy each provided card name exactly as written above at least once; do not translate, localize, rename, or substitute card names. Translate surrounding prose only.')}
+- ${instruction("Tie each card's insight to its actual position and imagery, element, visual cue or reflection.", "Tie each card's insight to its position and at least one concrete anchor (imagery, element, visual profile, or reflection)")}
+- ${instruction('Use the current question and reflections; saved interests need relevance or absent context.', 'Use the current question and reflections as the throughline; use saved interests only when relevant or when current context is absent')}
+- PREMISE CHECK: Personal facts need supplied context. Keep unsupplied activity, support and other premises in questions, steps, synthesis, recap and closing conditional each time.${sceneContract ? `\n${sceneContract}` : ''}
 - ${preferenceContract.nextStepGuidance}${lengthBand ? `\n- LENGTH: Aim for ~${lengthBand.min}-${lengthBand.max} words total, including any recap.` : ''}
-- Close with an explicit sentence about the querent's choices shaping outcomes, using supplied facts or next actions; never treat card-implied events as completed. Use the response language, without fixed fate
-- Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers
-- Apply the reversal lens consistently throughout`;
+- ${instruction('Close with an explicit sentence: choices and supplied facts/next actions shape possibilities; never treat card-implied events as completed.', "Close with an explicit sentence about the querent's choices shaping outcomes, using supplied facts or next actions; never treat card-implied events as completed. Use the response language, without fixed fate")}
+- ${instruction('Use invitations; avoid certainty, fatalism and fixed outcomes, even in disclaimers. Never write “you should” or “you must”.', 'Use invitational language. Never write “you should” or “you must”, and avoid certainty claims, fatalistic wording, or fixed-outcome language even in disclaimers')}
+- ${instruction('Apply the reversal lens consistently', 'Apply the reversal lens consistently throughout')}`;
 
   return prompt;
 }

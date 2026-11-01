@@ -17,6 +17,7 @@ import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
 import { resolveContextSelection } from '../functions/lib/contextDetection.js';
 import { parseMemoryBlocks } from '../functions/lib/userMemory.js';
 import { claudeSseResponse } from './helpers/claudeSse.mjs';
+import { modelReadingForRequest } from './helpers/canonicalScenes.mjs';
 
 const constrainedEnv = {
   ENABLE_PROMPT_SLIMMING: 'true',
@@ -52,7 +53,7 @@ describe('Modal prompt budgeting', () => {
     let body;
     t.mock.method(globalThis, 'fetch', async (_url, options) => {
       body = JSON.parse(options.body);
-      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'A complete reading.' } }] });
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, 'A complete reading.') } }] });
     });
     const input = acceptedLongContext();
     const result = await runNarrativeBackend('modal-qwen', {
@@ -150,9 +151,10 @@ for (const scenario of ['ten-card-japanese', '78-card-custom']) {
         let sent;
         t.mock.method(globalThis, 'fetch', async (_url, init) => {
           sent = JSON.parse(init.body);
-          if (provider === 'claude-api') return claudeSseResponse('A synthetic reading.');
-          if (provider === 'modal-qwen') return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'A synthetic reading.' } }] });
-          return Response.json({ output_text: 'A synthetic reading.' });
+          const text = modelReadingForRequest(sent, 'A synthetic reading.');
+          if (provider === 'claude-api') return claudeSseResponse(text);
+          if (provider === 'modal-qwen') return Response.json({ choices: [{ finish_reason: 'stop', message: { content: text } }] });
+          return Response.json({ output_text: text });
         });
         const result = await runNarrativeBackend(provider, env, payload, 'budget-matrix');
         const user = provider === 'openai-native' ? sent.input : sent.messages.at(-1).content;

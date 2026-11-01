@@ -53,7 +53,7 @@ export const MINOR_ARCANA_IMAGERY = {
     interpretation: 'Romantic or idealistic pursuit; moving toward emotional or creative offers.'
   },
   'Queen of Cups': {
-    visual: 'Throne by the sea, ornate covered cup held with devotion',
+    visual: 'Seated figure by the sea holding an ornate covered cup',
     sensory: 'Quiet waves, deep listening, comforting embrace',
     interpretation: 'Emotional depth, empathy, intuitive care; holding space with sensitivity.'
   },
@@ -279,7 +279,7 @@ export const MINOR_PIP_IMAGERY = {
     interpretation: buildPipInterpretation('Swords', 'Five')
   },
   'Six of Swords': {
-    visual: 'Boat ferries cloaked figures across calm water with swords standing in the bow',
+    visual: 'Ferryman poles a boat carrying two passengers, six swords standing in the bow',
     sensory: 'Gentle rocking of the boat, soft lapping water, muted conversation of transition',
     interpretation: buildPipInterpretation('Swords', 'Six')
   },
@@ -294,7 +294,7 @@ export const MINOR_PIP_IMAGERY = {
     interpretation: buildPipInterpretation('Swords', 'Eight')
   },
   'Nine of Swords': {
-    visual: 'Person bolts upright in bed with hands covering their face, nine swords etched on the wall',
+    visual: 'Person sits upright in bed with hands covering their face, nine swords above',
     sensory: 'Nightmare echo, rapid heartbeat, darkness pressing against awareness',
     interpretation: buildPipInterpretation('Swords', 'Nine')
   },
@@ -314,8 +314,8 @@ export const MINOR_PIP_IMAGERY = {
     interpretation: buildPipInterpretation('Pentacles', 'Two')
   },
   'Three of Pentacles': {
-    visual: 'Craftsman discusses cathedral plans with monk and noble as pentacles decorate the arch',
-    sensory: 'Chisel tapping stone, collaborative murmurs, dust motes lit by stained glass',
+    visual: 'Craftsman beneath a stone arch with two figures, one holding plans, three pentacles in the arch',
+    sensory: 'Chisel tapping stone, collaborative murmurs, the texture of careful craft',
     interpretation: buildPipInterpretation('Pentacles', 'Three')
   },
   'Four of Pentacles': {
@@ -339,7 +339,7 @@ export const MINOR_PIP_IMAGERY = {
     interpretation: buildPipInterpretation('Pentacles', 'Seven')
   },
   'Eight of Pentacles': {
-    visual: 'Craftsman carves pentacles along a workbench with a town in the distance',
+    visual: 'Craftsman works on a pentacle on a workbench, other pentacles displayed nearby, town in the distance',
     sensory: 'Steady rhythm of hammer and chisel, focused gaze, calloused hands warm with effort',
     interpretation: buildPipInterpretation('Pentacles', 'Eight')
   },
@@ -357,7 +357,7 @@ export const MINOR_PIP_IMAGERY = {
 
 export const MAJOR_ARCANA_IMAGERY = {
   0: { // The Fool
-    visual: "Figure at cliff's edge, white rose in hand, small dog at heels, sun rising behind",
+    visual: "Figure at cliff's edge, white rose in hand, small dog at heels, sun shining behind",
     upright: "Notice the Fool's gaze toward the horizon—an invitation to step forward into the unknown with trust.",
     reversed: "The figure hesitates at the precipice; the leap requires more preparation before the jump.",
     sensory: "Air fresh with possibility, ground firm yet temporary, the moment before flight"
@@ -378,7 +378,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   3: { // The Empress
-    visual: "Reclining figure in nature, wheat fields, waterfall, Venus symbol on heart shield",
+    visual: "Seated figure in nature, wheat fields, waterfall, Venus symbol on heart shield",
     upright: "Observe the Empress amid abundance—creativity flows when you nurture rather than push.",
     reversed: "The garden needs tending; creative blocks signal a call to self-care first.",
     sensory: "Rich earth, lush growth, the warmth of sunlight on skin, generative overflow"
@@ -406,7 +406,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   7: { // The Chariot
-    visual: "Armored figure in chariot, two sphinxes (black and white) pulling, city behind, starry canopy above",
+    visual: "Armored figure in chariot, two sphinxes (black and white) seated in front, city behind, starry canopy above",
     upright: "Notice the Chariot's opposing sphinxes—mastery comes through directing contrary forces as one.",
     reversed: "The sphinxes pull in different directions; regain control by clarifying where you're heading.",
     sensory: "Momentum building, opposing pulls held in a steady direction"
@@ -448,14 +448,14 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   13: { // Death
-    visual: "Armored skeleton on white horse, banner with five-petaled rose, sun rising between towers",
-    upright: "Picture the sun rising behind Death—endings clear ground for what must be born next.",
+    visual: "Armored skeleton on white horse, banner with five-petaled rose, sun between towers on the horizon",
+    upright: "Picture the sun between the towers behind Death—endings clear ground for what may grow next.",
     reversed: "The transformation stalls; inner metamorphosis proceeds privately before outer change manifests.",
     sensory: "Finality's clean cut, composting decay into fertile ground, the phoenix moment"
   },
 
   14: { // Temperance
-    visual: "Angelic figure pouring water between cups, one foot on land, one in water, mountain and rising sun behind",
+    visual: "Angelic figure pouring water between cups, one foot on land, one in water, path toward mountains and a radiant crown",
     upright: "Notice Temperance's flowing water—balance is active mixing, not static division.",
     reversed: "The flow disrupts; excess or deficiency calls for recalibration and patience.",
     sensory: "Alchemical blending, fluid adjustment, the art of measured integration"
@@ -469,7 +469,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   16: { // The Tower
-    visual: "Lightning strikes crown of tower, figures falling, flaming debris, gray sky",
+    visual: "Lightning strikes tower, crown displaced, figures falling, flames, dark sky with pale clouds",
     upright: "Notice the Tower's lightning—sudden upheaval shatters false structures, clearing space for truth.",
     reversed: "The strike lands internally; transformation proceeds through private revelation rather than external crisis.",
     sensory: "Thunderclap revelation, foundations crumbling, the vertigo of necessary collapse"
@@ -483,7 +483,7 @@ export const MAJOR_ARCANA_IMAGERY = {
   },
 
   18: { // The Moon
-    visual: "Full moon with face, two towers, dog and wolf howling, crayfish emerging from water, winding path",
+    visual: "Moon with face, two towers, dog and wolf howling, crayfish emerging from water, winding path",
     upright: "See the Moon's deceptive path—navigate uncertainty by trusting intuition when clarity is absent.",
     reversed: "Illusions begin to thin; repressed emotions surface, bringing difficult clarity.",
     sensory: "Silver ambiguity, shifting shadows, the howl of primal emotion"
