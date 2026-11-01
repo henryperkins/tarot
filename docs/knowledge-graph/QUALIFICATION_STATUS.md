@@ -20,6 +20,14 @@ The separate `fix/symbolic-deficit-grounding-20261101` branch labels symbol glos
 
 No generated reading was made. D02's unfinished-plan H1 failure remains historical evidence; no content gate is cleared. This fix is separate from local trunk and from the F3b experiment's common 1.6.11 narrative baseline. Japanese prose quality alone remains waived. The older entries below retain their original dated status.
 
+## November 1 local cleanup checkpoint — F3b on current master, content qualification still open
+
+The outstanding retrieval candidate is preserved on `wip/f3b-retrieval-20261101`, based on master `19be91abd8a3f90e4f9fcea84423231e5aa17e08`. Its four retrieval runtime files are byte-identical to the prior uncommitted candidate. The five evaluation/test changes are retained, the current-master Unicode regression remains, and the validation source manifest includes both the ranking module and canonical scene evidence. Prompt 1.6.11 and the other narrative/runtime safeguards already on master remain unchanged.
+
+This is a local preservation checkpoint. Credential-free offline verification passes: **6,264 root tests / 0 failures / 2 skips**, 171 focused tests, 70 Worker tests, 874 prompt-assembly fixtures / 2,541 provider builds, build and scoped ESLint. These results verify the reconciled source and do not clear a content gate. No new generated reading or embedding request is authorized. The historical F3b REL01 paired failure remains, and the creative-project unsupported unfinished-plan finding for the narrative checkpoint is still open. A paired comparison using this newer common narrative baseline would be a new experiment, not a resumption of a halted historical run. Japanese prose quality alone remains waived. No merge, push, or deployment is part of this checkpoint.
+
+Recovery, exact source-transfer checks, and verification receipts: `/home/ubuntu/.local/state/tarot/reconciliation-cleanup/20261101T030802Z`.
+
 ## November 1 publication checkpoint — narrative qualification remains incomplete
 
 This checkpoint saves the **71-file narrative overlay through prompt 1.6.11** on `qualify/narrative-grounding-20261031`, including grounding/role/imagery/Unicode/scene-contract changes, qualification process safeguards, structural validation and their evidence records. It retains the existing GraphRAG commit history beneath the overlay. The separate uncommitted F3b retrieval candidate is outside this publication; master remains separate.

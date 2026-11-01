@@ -13,6 +13,7 @@
     "functions/lib/graphRAGPatternSummary.js",
     "functions/lib/graphRAGProjection.js",
     "functions/lib/graphRAGScoring.js",
+    "functions/lib/graphRAGRanking.js",
     "functions/lib/knowledgeBase.js",
     "functions/lib/knowledgeBaseEnrichment.js",
     "functions/lib/knowledgeBasePartialProjections.js",

@@ -226,6 +226,52 @@ it('equivalent apostrophes preserve topic exclusions and original matching offse
 });
 
 describe('scoped exclusions preserve positive current authority and relevant interests', () => {
+  it('does not turn a coordinated excluded-topic question into health or relationship context', () => {
+    const userQuestion = 'Not a divorce, not a lawsuit, and not a medical recovery question. Le 2026-12-03, je dois parler avec mon père de nos responsabilités dans le soin du jardin commun.';
+    const input = { userQuestion };
+    const selected = contextDetection.resolveContextSelection(input, 'threeCard');
+    assert.equal(selected.graphRAGContext, 'general');
+    assert.ok(selected.excludedContexts.graph.includes('health'));
+    assert.ok(selected.excludedContexts.graph.includes('relationship'));
+    assert.equal(input.userQuestion, userQuestion);
+    assert.ok(selected.retrievalQuery.includes('2026-12-03'));
+    assert.doesNotMatch(selected.retrievalContentText, /medical recovery|divorce|lawsuit/);
+  });
+
+  it('keeps an affirmative topic after an excluded question and preserves ordinary negative constraints', () => {
+    const selected = contextDetection.resolveContextSelection({
+      userQuestion: 'Not a medical recovery question, but I need support with burnout.'
+    }, 'threeCard');
+    assert.equal(selected.graphRAGContext, 'health');
+    assert.ok(selected.retrievalContentText.includes('burnout'));
+    const negativeAction = contextDetection.resolveContextSelection({
+      userQuestion: 'I am not a person who wants to stop therapy. What can help my healing?'
+    }, 'threeCard');
+    assert.equal(negativeAction.graphRAGContext, 'health');
+    assert.deepEqual(negativeAction.excludedContexts.graph, []);
+  });
+
+  for (const userQuestion of ['This is not a health or work question.', 'This is not a love, work, or health question.']) {
+    it(`recognizes a bounded coordinated topic list: ${userQuestion}`, () => {
+      const selected = contextDetection.resolveContextSelection({ userQuestion }, 'threeCard');
+      assert.equal(selected.graphRAGContext, 'general');
+      assert.ok(selected.excludedContexts.graph.includes('health'));
+      assert.ok(selected.excludedContexts.graph.includes('career'));
+    });
+  }
+
+  for (const [userQuestion, graphContext] of [
+    ['I am not a person who wants to stop therapy, so my question is how to keep going.', 'health'],
+    ['This is not a job I want to leave, and my question is how to keep going.', 'career'],
+    ['Not a day goes by without worrying about my job, and I question whether to ask for help.', 'career'],
+    ['This is not a simple career question; I need help with my job.', 'career']
+  ]) it(`does not misread a person, action, or quality negation as topic exclusion: ${userQuestion}`, () => {
+    const selected = contextDetection.resolveContextSelection({ userQuestion }, 'threeCard');
+    assert.equal(selected.graphRAGContext, graphContext);
+    assert.deepEqual(selected.excludedContexts.graph, []);
+    assert.ok(selected.retrievalContentText.length > 0);
+  });
+
   const questions = [
     'I am not asking about quitting my job. How can I handle my boss at work?',
     'I’m not asking about leaving my job; I need guidance on my workplace boundaries.',
