@@ -12,7 +12,7 @@ const entries = Array.from({ length: 6 }, (_, index) => ({
 
 async function openJournal(page, {
   owner = null, tier = 'free', corrupt = false, outage = false, empty = false,
-  legacyViews = false, fixtureEntries = entries
+  legacyViews = false, fixtureEntries = entries, instrumentReads = false, seedOwners = true
 } = {}) {
   const state = { owner, tier, outage, mutations: [] };
   await page.route('**/api/**', async route => {
@@ -29,14 +29,23 @@ async function openJournal(page, {
     if (path === '/api/share') return route.fulfill({ json: { shares: [] } });
     return route.fulfill({ json: {} });
   });
-  await page.addInitScript(({ entries, corrupt, empty, legacyViews }) => {
+  await page.addInitScript(({ entries, corrupt, empty, legacyViews, instrumentReads, seedOwners }) => {
     localStorage.setItem('tarot-onboarding-complete', 'true');
     if (!sessionStorage.getItem('journal-remediation-seeded')) {
-      for (const key of ['tarot_journal', 'tarot_journal_owner-a', 'tarot_journal_owner-b']) localStorage.setItem(key, corrupt ? '{broken' : JSON.stringify(empty ? [] : entries));
+      const keys = seedOwners ? ['tarot_journal', 'tarot_journal_owner-a', 'tarot_journal_owner-b'] : ['tarot_journal'];
+      for (const key of keys) localStorage.setItem(key, corrupt ? '{broken' : JSON.stringify(empty ? [] : entries));
       if (legacyViews) localStorage.setItem('journal_saved_filters_v1', JSON.stringify([{ id: 'older', name: 'Private older view', values: { query: 'Earlier private question' } }]));
       sessionStorage.setItem('journal-remediation-seeded', 'true');
     }
-  }, { entries: fixtureEntries, corrupt, empty, legacyViews });
+    if (instrumentReads) {
+      window.__journalStorageReads = 0;
+      const getItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = function (...args) {
+        window.__journalStorageReads += 1;
+        return getItem.apply(this, args);
+      };
+    }
+  }, { entries: fixtureEntries, corrupt, empty, legacyViews, instrumentReads, seedOwners });
   await page.goto('/journal');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   return state;
@@ -354,7 +363,58 @@ test('desktop practice snapshot switches from the fixed constellation to flowing
   }
 });
 
+test('large local histories do not perform a marker read per entry during load or first search', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const largeEntries = Array.from({ length: 1000 }, (_, index) => ({
+    ...entries[index % entries.length],
+    id: `large-${index}`,
+    readingResultId: `large-result-${index}`,
+    question: `Reflection ${index}`,
+    ts: Date.now() - index * 60000
+  }));
+  // One 1000-entry copy already approaches the storage quota; owner mirrors would exceed it.
+  await openJournal(page, { fixtureEntries: largeEntries, instrumentReads: true, seedOwners: false });
+  await page.getByRole('article').first().waitFor();
+  const initialReads = await page.evaluate(() => window.__journalStorageReads);
+  expect(initialReads).toBeLessThan(3000);
 
+  const firstInput = await page.getByRole('searchbox', { name: 'Search journal entries' }).evaluate(async element => {
+    window.__journalStorageReads = 0;
+    const start = performance.now();
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, 'Reflection 999');
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    const dispatched = performance.now();
+    // Measure the first render opportunity with the correct result, rather
+    // than waiting another frame after that result is already available.
+    return new Promise(resolve => {
+      const frames = [];
+      let frame;
+      const finish = matched => resolve({ reads: window.__journalStorageReads,
+        duration: performance.now() - start, dispatchDuration: dispatched - start,
+        matched, frames, visibility: document.visibilityState });
+      const deadline = setTimeout(() => {
+        cancelAnimationFrame(frame);
+        finish(false);
+      }, 5000);
+      const sample = () => {
+        const articles = document.querySelectorAll('article');
+        const matched = articles.length === 1
+          && articles[0].querySelector('h3')?.textContent === 'Reflection 999';
+        frames.push({ elapsed: performance.now() - start, entries: articles.length, matched });
+        if (matched) {
+          clearTimeout(deadline);
+          finish(true);
+        } else frame = requestAnimationFrame(sample);
+      };
+      frame = requestAnimationFrame(sample);
+    });
+  });
+  await testInfo.attach('first-search-measurement', { body: JSON.stringify(firstInput), contentType: 'application/json' });
+  expect(firstInput.reads).toBeLessThan(2000);
+  expect(firstInput.matched).toBe(true);
+  expect(firstInput.duration).toBeLessThan(500);
+  await expect(page.getByRole('article')).toHaveCount(1);
+});
 
 test('follow-up actions keep the shared 44px touch target for guests and Pro', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
