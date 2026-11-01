@@ -1,5 +1,11 @@
 # Knowledge graph and context qualification status
 
+## November 1 F3b rebased onto 1.6.13 — comparison re-prepared with a revised stop rule, no readings
+
+The retrieval candidate now sits on the 1.6.13 narrative branch (`7d226594` on `76de5e7a`), with its delta byte-identical. The root suite gives 6,277 pass / 0 fail / 2 skipped, with 184 focused, 70 Worker and 874 / 2,541 assembly checks. Retrieval replay and all 92 prompts match the 1.6.11 preparation apart from the intended narrative edits. The partition stays at 23 changed-prompt and 23 identical-prompt pairs.
+
+The [revised protocol](F3B_COMPARISON_PREPARATION_2026-11-01.md) settles identical-prompt pairs offline and generates only changed-prompt pairs. It stops only on faults that trace to candidate-only prompt content. The pilot is REL01, FRESH14, FRESH15, FRESH05 and HOLD2_03 (10 outputs); the maximum total is 46. Authorized outputs: zero. D02's unfinished-plan failure stays open as a known narrative residual.
+
 ## November 1 closing and topic-scope correction — 1.6.13 committed; four-reading check REL05 2/2, D02 1/2; content still open
 
 Both REL05 pilot outputs (byte-identical 1.6.11 prompts) restated the closing instruction almost verbatim. One output turned "never treat card-implied events as completed" into an unsupplied absence ("None of the habits or outcomes the cards suggest are already in place"). The other turned the question's topic exclusion into a job status ("Your job stays exactly as it is"). Prompt 1.6.13 makes two changes on top of 1.6.12. The closing now names choices and next steps, no longer asks for supplied facts, and treats card-implied habits and events as neither done nor missing. The premise principle now says that "not asking about X" establishes nothing about X. The always-on system prompt keeps its exact byte length, because the tightest GraphRAG-summary fixture had only 2 tokens of headroom: ASCII quotes and apostrophes in four adjacent principle lines offset the new clause.

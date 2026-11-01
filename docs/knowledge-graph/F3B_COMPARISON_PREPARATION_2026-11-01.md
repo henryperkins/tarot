@@ -1,5 +1,33 @@
 # F3b comparison preparation — November 1, 2026
 
+## Current: rebased onto common narrative 1.6.13, revised stop rule
+
+**Prepared offline; no reading was generated.** The owner chose to leave the D02 unfinished-plan failure open and move F3b to 1.6.13.
+
+- **Rebase.** `wip/f3b-retrieval-20261101` was rebased onto `fix/symbolic-deficit-grounding-20261101` at `76de5e7a`, giving `7d226594`. The old head is kept as the local tag `archive/f3b-retrieval-20261101-on-99238712`.
+- **Byte identity.** The ten retrieval code and test files and this document are byte-identical to the old head. Every 1.6.12/1.6.13 narrative file is byte-identical to the narrative branch.
+- **Arms.** The frozen arm snapshots differ in exactly those ten files: baseline is `76de5e7a`, candidate is `7d226594`.
+
+**Offline results:**
+- Root suite 6,277 pass / 0 fail / 2 skipped.
+- 184 focused retrieval, grounding and launcher checks; 70 Worker tests; 874 fixtures / 2,541 prompt builds; build, lint and docs pass.
+- All 50 retrieval cases replay identically to the 1.6.11 preparation in both arms: 7/7, 19/19 and 12/12 positives, with no new false positives and no cap or weak-floor regressions.
+- All 92 final prompts equal their 1.6.11 predecessors plus only the 1.6.12 symbol label and the 1.6.13 edits.
+- The partition is unchanged: 23 changed-prompt pairs and 23 identical-prompt pairs.
+- Questions are byte-exact and GraphRAG is retained in every prompt. No provider call, authentication or embedding request was made.
+
+**Revised stop rule.** The hard checks and quality scales are byte-identical to the previous protocol.
+
+- **Identical-prompt pairs** are settled offline: the retrieval change cannot alter what the model receives, so they are not generated. REL05's failure remains a narrative defect, not an F3b result.
+- **Changed-prompt pairs** are reviewed blind. After unblinding, each candidate hard fault is classified against that pair's frozen prompt diff. It is attributable if it draws on candidate-only prompt content; a disputed classification counts as attributable.
+- **Dispatch stops** on an attributable candidate hard fault, an attributable material quality loss, or a transport, capture or rendering failure. Non-attributable faults are recorded as narrative residuals and do not stop dispatch.
+- **Pilot:** REL01, FRESH14, FRESH15, FRESH05 and HOLD2_03, 10 outputs in one batch.
+- **Remaining:** 18 pairs (36 outputs), only after a passing pilot and separate authorization. The maximum is 46 outputs instead of 92. Authorized outputs: zero.
+
+Evidence: `~/.local/state/tarot/f3b-comparison-v1613-20261101T124726Z` (`review-protocol.md`, `experiment-plan.json`, `source-manifest.json`, `retrieval-replay.json`, `prompt-comparisons.json`, `diffs/`, `zero-dispatch-receipt.json`).
+
+## Superseded: preparation on common narrative 1.6.11
+
 **Prepared offline; no new generation or content pass.** The retrieval candidate was rebased from `75fc1ea3` to `f264bf74` on the qualified local integration revision `99238712`. All eleven files in the prior candidate delta are byte-identical after the rebase. The four runtime retrieval modules remain the same candidate; no score, label, threshold, cap or acceptance criterion changed.
 
 Both comparison arms use the same prompt **1.6.11**, scene validator/renderer, Unicode safeguards, request validation and dependency lockfiles. The separate 1.6.12 symbol-scope fix is excluded from both. Source snapshots and hashes prevent later worktree edits from silently changing the experiment.
