@@ -78,7 +78,8 @@ for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
     // This real draw has Five, Six, and Two of Cups, with an RWS water cue.
     await withInsights(page, { drawTime: 1790500049689 }, async (panel, fixture) => {
       await openSupportingSections(panel);
-      await expect(panel).toContainText('three spilled cups');
+      // The cue capitalizes whichever symbol leads its sentence.
+      await expect(panel).toContainText(/three spilled cups/i);
       const cards = fixture.requests.reading[0].cardsInfo;
       expect(cards.every(card => card.suit === 'Cups')).toBe(true);
       const themes = await analyzeSpreadThemes(cards, { deckStyle });
@@ -100,7 +101,7 @@ for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
       await openSupportingSections(restored);
       await expect(restored).toContainText('Suit Focus:');
       await expect(restored).not.toContainText('Symbol Cue:');
-      await expect(restored).not.toContainText('three spilled cups');
+      await expect(restored).not.toContainText(/three spilled cups/i);
     });
   });
 }

@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
-import { createNarrativeFixture, startReading, SOURCE_USAGE, expectNoHorizontalOverflow, expectForeground, openReadingSupport } from './helpers/narrativeFixtures.js';
+import { createNarrativeFixture, startReading, SOURCE_USAGE, expectNoHorizontalOverflow, expectForeground, openReadingSupport, badgeContrast } from './helpers/narrativeFixtures.js';
 
 test.setTimeout(60000);
 test.use({ serviceWorkers: 'block' });
@@ -64,6 +64,52 @@ for (const state of ['unknown', 'fallback', 'error']) {
         await expect(page.getByText('The reading provider failed. Please try again.').first()).toBeVisible();
       }
       await expect(page.getByRole('region', { name: panelName })).toHaveCount(0);
+    } finally {
+      await fixture.close();
+    }
+  });
+}
+
+const MEMORY_STATES = {
+  // Four memories checked, none selected: a selection decision, not lost input.
+  notApplicable: {
+    usage: { requested: true, used: false, candidatesProvided: 4, memoriesSelected: 0, memoriesUsedInPrompt: 0, skippedReason: 'not_relevant' },
+    badge: 'Not needed', detail: 'Checked 4 saved memories; none applied to this question.', warns: false
+  },
+  // A selected memory that the final reading dropped is a real omission.
+  leftOut: {
+    usage: { requested: true, used: false, candidatesProvided: 4, memoriesSelected: 1, memoriesUsedInPrompt: 0, skippedReason: 'removed_for_budget' },
+    badge: 'Not included', detail: 'Left out to keep the reading within its length limit.', warns: true
+  }
+};
+
+for (const [state, theme] of [['notApplicable', 'light'], ['notApplicable', 'dark'], ['leftOut', 'light']]) {
+  test(`saved memories ${state === 'notApplicable' ? 'that did not apply raise no warning' : 'left out of the reading still warn'} (${theme})`, async ({ page }, testInfo) => {
+    const expected = MEMORY_STATES[state];
+    await page.addInitScript(value => localStorage.setItem('tarot-theme', value), theme);
+    const fixture = await createNarrativeFixture(page, { sourceUsage: { ...SOURCE_USAGE.reference, memories: expected.usage } });
+    try {
+      await startReading(page, fixture);
+      await openReadingSupport(page);
+      const region = page.getByRole('region', { name: panelName });
+      const trigger = region.getByRole('button', { name: panelName, exact: true });
+      const warning = /shortened or left out/;
+      // The warning is visible and announced while the panel is still collapsed.
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      if (expected.warns) {
+        await expect(region).toContainText(warning);
+        await expect(trigger).toHaveAccessibleDescription(warning);
+      } else {
+        await expect(region).not.toContainText(warning);
+        await expect(trigger).not.toHaveAccessibleDescription(warning);
+      }
+      await trigger.press('Enter');
+      const row = region.getByRole('listitem').filter({ has: page.getByText('Saved memories', { exact: true }) });
+      const badge = row.locator('span:has(> svg)');
+      await expect(badge).toHaveText(new RegExp(`^\\s*${expected.badge}\\s*$`));
+      await expect(row).toContainText(expected.detail);
+      expect((await badgeContrast(badge)).ratio, `${theme} ${expected.badge}`).toBeGreaterThanOrEqual(4.5);
+      await region.screenshot({ path: testInfo.outputPath(`memories-${state}-${theme}-expanded.png`) });
     } finally {
       await fixture.close();
     }
