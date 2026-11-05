@@ -943,6 +943,7 @@
     "src/lib/microcopy.js",
     "src/lib/mobileStableMode.js",
     "src/lib/motionAdapter.js",
+    "src/lib/narrationCoordinator.js",
     "src/lib/narrationStream.js",
     "src/lib/narrativeAtmosphere.js",
     "src/lib/narrativeCardLinks.js",

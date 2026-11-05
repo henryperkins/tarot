@@ -162,6 +162,7 @@ for (const provider of ['elevenlabs', 'deepgram']) {
       expect(requests).toHaveLength(2);
       await openReadingSupport(page);
       await control('Start a new reading and reset this spread').click();
+      await page.getByRole('dialog', { name: 'Start a new reading?' }).getByRole('button', { name: 'Start new reading', exact: true }).click();
       await expect.poll(async () => (await state()).status).toBe('idle');
       expect(errors).toEqual([]);
     } finally { await fixture.close(); }
@@ -196,6 +197,7 @@ test('starting a new reading aborts narration still waiting for its response', a
     await expect.poll(() => fullReadingRequests).toBe(1);
     await openReadingSupport(page);
     await page.getByRole('button', { name: 'Start a new reading and reset this spread' }).click();
+    await page.getByRole('dialog', { name: 'Start a new reading?' }).getByRole('button', { name: 'Start new reading', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.pendingNarrationAborted)).toBe(true);
     release();
     await expect.poll(() => page.evaluate(async () => (await import('/src/lib/audio.js')).getCurrentTTSState().status)).toBe('idle');
