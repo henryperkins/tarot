@@ -42,6 +42,22 @@ function personalInputs(context) {
   });
 }
 
+// Loaded memories that the selector found inapplicable are a deliberate
+// choice, not lost input. Memories selected and then dropped still need attention.
+function describeMemories(memories) {
+  if (memories.used) {
+    const count = memories.memoriesUsedInPrompt || 0;
+    return ['used', `${count} saved memor${count === 1 ? 'y' : 'ies'} included as reading context.`];
+  }
+  if (memories.skippedReason !== 'not_relevant' || memories.memoriesSelected > 0) {
+    return ['omitted', reasonCopy(memories.skippedReason)];
+  }
+  const checked = memories.candidatesProvided || 0;
+  if (checked > 1) return ['neutral', `Checked ${checked} saved memories; none applied to this question.`];
+  if (checked === 1) return ['neutral', 'Checked 1 saved memory; it did not apply to this question.'];
+  return ['neutral', 'None of your saved memories applied to this question.'];
+}
+
 export function formatUsageSummary(rawUsage) {
   const sourceUsage = sanitizeSourceUsage(rawUsage);
   const rows = [];
@@ -98,10 +114,8 @@ export function formatUsageSummary(rawUsage) {
 
   const memories = sourceUsage?.memories;
   if (memories?.requested || memories?.used) {
-    const count = memories.memoriesUsedInPrompt || 0;
-    addRow('Saved memories', memories.used ? 'used' : 'omitted', memories.used
-      ? `${count} saved memor${count === 1 ? 'y' : 'ies'} included as reading context.`
-      : reasonCopy(memories.skippedReason), 'you', 'saved memories');
+    const [state, detail] = describeMemories(memories);
+    addRow('Saved memories', state, detail, 'you', 'saved memories');
   }
 
   const graph = sourceUsage?.graphRAG;

@@ -141,6 +141,46 @@ test('saved memory attribution distinguishes selection from final inclusion with
   assert.doesNotMatch(included.rows[0].detail, /influenced|followed|proved/);
 });
 
+test('saved memories that did not apply are not needed and raise no warning', () => {
+  // Question fully included; four saved memories checked and none selected.
+  const live = {
+    spreadCards: { requested: true, used: true, skippedReason: null },
+    userContext: {
+      requested: true, used: true, questionProvided: true, questionUsed: true, providedInputs: ['question'], usedInputs: ['question'],
+      fields: { question: { originalLength: 124, sanitizedLength: 124, eligibleLength: 124, includedLength: 124, representedLength: 124 } }
+    },
+    memories: { requested: true, used: false, candidatesProvided: 4, memoriesSelected: 0, memoriesUsedInPrompt: 0, skippedReason: 'not_relevant' }
+  };
+  const result = formatUsageSummary(live);
+  const row = result.rows.find(entry => entry.label === 'Saved memories');
+  assert.equal(row.state, 'neutral');
+  assert.equal(row.badgeText, 'Not needed');
+  assert.equal(row.detail, 'Checked 4 saved memories; none applied to this question.');
+  assert.equal(result.summary.attention, 0);
+  assert.equal(result.summaryText, 'Prepared with your cards and your question.');
+  for (const [candidatesProvided, detail] of [
+    [1, 'Checked 1 saved memory; it did not apply to this question.'],
+    [undefined, 'None of your saved memories applied to this question.']
+  ]) {
+    const counted = formatUsageSummary({ memories: { ...live.memories, candidatesProvided } });
+    assert.equal(counted.rows[0].state, 'neutral');
+    assert.equal(counted.rows[0].detail, detail);
+    assert.equal(counted.summary.attention, 0);
+  }
+});
+
+test('selected memories that were left out still raise the warning', () => {
+  // A selected memory that is missing from the reading is real omission, whatever the reason code says.
+  for (const skippedReason of ['removed_for_budget', 'not_used_by_backend', 'not_relevant']) {
+    const result = formatUsageSummary({ memories: {
+      requested: true, used: false, candidatesProvided: 4, memoriesSelected: 1, memoriesUsedInPrompt: 0, skippedReason
+    } });
+    assert.equal(result.rows[0].state, 'omitted', skippedReason);
+    assert.equal(result.rows[0].badgeText, 'Not included', skippedReason);
+    assert.equal(result.summary.attention, 1, skippedReason);
+  }
+});
+
 test('integrity omission has reader copy without exposing internal diagnostics or suggesting references were used', () => {
   const result = formatUsageSummary({ graphRAG: {
     requested: true, used: false, mode: 'none', skippedReason: 'reference_integrity_failed',
