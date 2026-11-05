@@ -685,7 +685,6 @@
     "src/components/ReadingJourney/sections/ShareLinksManager.jsx",
     "src/components/ReadingPreparation.jsx",
     "src/components/ResponsiveSpreadArt.jsx",
-    "src/components/RitualControls.jsx",
     "src/components/RouteAccessibility.jsx",
     "src/components/SaveIntentionButton.jsx",
     "src/components/SavedIntentionsList.jsx",
@@ -1028,6 +1027,11 @@
     "src/worker/readingVisualJob.js",
     "tailwind.config.js",
     "theme.json",
-    "vite.config.js"
+    "vite.config.js",
+    "src/hooks/useSavedIntentions.js",
+    "src/hooks/useSavedMemoryPresence.js",
+    "src/lib/accountPreferences.js",
+    "src/components/scenes/TableDeck.jsx",
+    "src/lib/tableRitual.js"
   ]
 }

@@ -431,7 +431,7 @@
    SPREAD CARDS (.spread-card)
    ---------------------------
    --spread-card-height-mobile  : Card height on mobile (default: 18rem)
-   --spread-card-height-desktop : Card height on desktop (default: 22rem)
+   --spread-card-height-desktop : Card height on desktop (default: 18rem)
    --spread-background          : Card surface (default: theme panel gradient)
    --spread-border              : Card border color (default: var(--border-warm-subtle))
    --spread-accent              : Accent color for glows (default: var(--brand-primary))
@@ -1171,7 +1171,7 @@ body {
   border-radius: 1.35rem;
   padding: 1rem 1.15rem 1.35rem;
   --spread-card-height-mobile: 18rem;
-  --spread-card-height-desktop: 22rem;
+  --spread-card-height-desktop: 18rem;
   /* Let enlarged labels set the height while retaining the carousel baseline. */
   min-width: min(100%, 14rem);
   min-height: var(--spread-card-height-mobile, 18rem);
@@ -1214,11 +1214,6 @@ body {
   .spread-card {
     --spread-card-height-mobile: 15rem;
     padding: 0.75rem 0.85rem 1rem;
-  }
-
-  .spread-card__meta {
-    flex-wrap: wrap;
-    row-gap: 0.35rem;
   }
 }
 
@@ -1383,49 +1378,7 @@ body {
     inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-.spread-card__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-warm-subtle);
-}
-
-.spread-card__complexity {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  max-width: 100%;
-  gap: 0.35rem;
-  padding: 0.4rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--brand-primary-rgb) / 0.24);
-  border-color: color-mix(
-    in srgb,
-    var(--spread-accent, var(--brand-primary)) 24%,
-    transparent
-  );
-  background: var(--surface-88);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-  font-size: 0.75rem;
-  flex-shrink: 1;
-  min-width: 0;
-}
-
-/* Hide the "Complexity" label on mobile to save space, keeping the stars and
-   level visible. It stays in the card's accessible description. */
 @media (max-width: 639px) {
-  .spread-card__complexity-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   /* Room for the 6px focus outline plus the selected card's 2px lift; the
      scroller otherwise clips the outline's top edge and the end cards' sides.
      The frame reaches 6px into the panel padding so the side room does not
@@ -1486,24 +1439,10 @@ body {
   line-height: 1.25;
 }
 
-/* The Selected badge, border and glow mark the choice and "Requires Plus"
-   names a locked spread, so the corner check and lock give way to the title. */
-.spread-selector-grid--landscape .spread-card__check,
+/* "Requires Plus" names a locked spread, so the corner lock gives way to the
+   title. */
 .spread-selector-grid--landscape .spread-card__lock {
   display: none;
-}
-
-.spread-selector-grid--landscape .spread-card__complexity-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.spread-selector-grid--landscape .spread-card__meta {
-  padding-top: 0.5rem;
 }
 
 .spread-panel-footnote {
@@ -2711,6 +2650,54 @@ input[type="range"]:focus::-webkit-slider-thumb {
 
 .prepare-panel-footnote {
   padding-top: 0.9rem;
+}
+
+/* The chosen deck's artwork in the closed "Deck" row (DeckThumbnail). */
+.deck-thumbnail {
+  display: block;
+  flex: none;
+  width: 4.5rem;
+  aspect-ratio: 982 / 799;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-warm-light);
+  background: var(--bg-main);
+}
+
+.deck-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The reading option under the deck and ritual lines up with their text. */
+.prepare-details .saved-memories-option {
+  padding-inline: 1.35rem;
+}
+
+/* Wider screens: Draw cards, with the step and what will be drawn, stays at
+   the bottom edge while the setup scrolls. Like .reading-completion-actions it
+   is bottom chrome (data-app-secondary), so the page's chrome budget releases
+   it into the flow on short or enlarged views. */
+.setup-draw-row {
+  position: sticky;
+  bottom: 1rem;
+  z-index: var(--z-sticky-nav);
+  max-width: 64rem;
+  margin: 2rem auto;
+}
+
+.setup-draw-row__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 0.75rem 0.75rem 0.75rem 1.35rem;
+  border: 1px solid var(--border-warm);
+  border-radius: 1rem;
+  background: var(--bg-surface);
+  box-shadow: var(--ui-elevated-shadow);
 }
 
 /* ==========================================================================

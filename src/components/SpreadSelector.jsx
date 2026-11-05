@@ -1,6 +1,5 @@
 import { useRef, useState, useId } from 'react';
-import { Star, Lock } from './icons';
-import { Icon } from './Icon';
+import { Lock } from './icons';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 import { CarouselDots } from './CarouselDots';
@@ -25,7 +24,6 @@ const DEPTH_REASONS = {
   standard: 'balanced readings',
   deep: 'deep dives'
 };
-const STAR_TOTAL = 3;
 // Handset cards have a 14rem minimum, then occupy 70% of the padded carousel.
 // Account for the panel/card padding instead of requesting nearly a full viewport.
 const SPREAD_PREVIEW_SIZES = '(max-width: 374px) 196px, (max-width: 639px) calc(70vw - 80px), (max-width: 1023px) 46vw, 340px';
@@ -178,23 +176,6 @@ export function SpreadSelector({
     onSpreadConfirm?.(key);
   };
 
-  const renderStars = stars => (
-    <div className="flex items-center gap-0.5 text-primary">
-      {Array.from({ length: STAR_TOTAL }).map((_, index) => (
-        <Icon
-          key={`${index}-star`}
-          icon={Star}
-          size="sm"
-          weight={index < stars ? 'fill' : 'regular'}
-          className={index < stars
-            ? 'text-primary drop-shadow-[0_0_10px_var(--primary-30)]'
-            : 'text-secondary/60'}
-          decorative
-        />
-      ))}
-    </div>
-  );
-
   return (
     <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
@@ -245,29 +226,25 @@ export function SpreadSelector({
               ? `${baseCount} ${cardNoun} + clarifiers`
               : `${baseCount} ${cardNoun}`;
             const showDescription = !isLandscape && !isExperienced;
-            const stars = spread.complexity?.stars ?? 0;
-            const complexityLabel = spread.complexity?.label || 'Beginner';
             const theme = SPREAD_THEMES[key] || FALLBACK_SPREAD_THEME;
             const resolvedBorder = isActive
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
             const previewArt = getSpreadArt(key, { alt: spread.preview?.alt }) || spread.preview;
-            // The radio is named by its title alone; the badges, card count,
-            // description and complexity follow as its description.
+            // The radio is named by its title alone; the badges, kind and card
+            // count, and description follow as its description.
             const ids = {
               title: `${idBase}-${key}-title`,
               locked: `${idBase}-${key}-locked`,
               recommended: `${idBase}-${key}-recommended`,
               meta: `${idBase}-${key}-meta`,
-              description: `${idBase}-${key}-description`,
-              complexity: `${idBase}-${key}-complexity`
+              description: `${idBase}-${key}-description`
             };
             const describedBy = [
               isLocked && ids.locked,
               isRecommended && ids.recommended,
               ids.meta,
-              showDescription && ids.description,
-              ids.complexity
+              showDescription && ids.description
             ].filter(Boolean).join(' ');
 
             return (
@@ -290,9 +267,7 @@ export function SpreadSelector({
                   '--spread-glow': theme.glow || FALLBACK_SPREAD_THEME.glow
                 }}
               >
-                {isActive && (
-                  <ChosenMarks glow="var(--spread-glow, var(--primary-30))" checkClassName="spread-card__check" />
-                )}
+                {isActive && <ChosenMarks />}
                 {/* Lock indicator for premium-only spreads; "Requires Plus" below names it. */}
                 {!isActive && isLocked && (
                   <div className="spread-card__lock absolute top-3 right-3 z-20" aria-hidden="true">
@@ -339,18 +314,10 @@ export function SpreadSelector({
                   </div>
 
                   {showDescription && (
-                    <p id={ids.description} className={`spread-card__description text-sm text-muted leading-normal text-pretty ${isCompactCopy ? 'mb-2' : 'mb-3'}`}>
+                    <p id={ids.description} className="spread-card__description text-sm text-muted leading-normal text-pretty">
                       {isCompactCopy ? (spread.mobileDescription || baseDescription) : baseDescription}
                     </p>
                   )}
-
-                  <div className="spread-card__meta">
-                    <div id={ids.complexity} className="spread-card__complexity">
-                      <span className="spread-card__complexity-label text-xs font-medium uppercase tracking-widest text-muted">Complexity</span>
-                      {renderStars(stars)}
-                      <span className="text-sm text-muted capitalize">{complexityLabel}</span>
-                    </div>
-                  </div>
                 </div>
               </button>
             );

@@ -1,18 +1,12 @@
-import { useState, useCallback, useRef } from 'react';
+import { useId } from 'react';
 import { Link } from 'react-router-dom';
-import { CaretDown, CaretUp, Sparkle, Stack } from '@phosphor-icons/react';
+import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { QuestionInput } from './QuestionInput';
-import { RitualControls } from './RitualControls';
-import { DeckSelector } from './DeckSelector';
+import { DeckSelector, DeckThumbnail } from './DeckSelector';
+import { DECK_OPTIONS } from './deckOptions';
 
-// Mobile tab configuration (Audio/Theme settings moved to Account page).
-// The question is written on the page itself (QuickIntentionCard), so the
-// drawer no longer carries a second editor for it.
-const MOBILE_TABS = [
-    { id: 'deck', label: 'Deck', icon: Stack },
-    { id: 'ritual', label: 'Ritual', icon: Sparkle }
-];
-
+// The ritual is no longer part of preparation: it happens at the reading
+// table, on the deck itself, before Deal (scenes/TableDeck).
 export function ReadingPreparation({
     variant = 'desktop',
     // State & Setters
@@ -27,207 +21,39 @@ export function ReadingPreparation({
     // UI State
     prepareSectionsOpen,
     togglePrepareSection,
-    prepareSummaries,
-    prepareSectionLabels,
 
-    // Ritual Props
-    hasKnocked,
-    handleKnock,
-    cutIndex,
-    setCutIndex,
-    hasCut,
-    applyCut,
-    knockCount,
-    onSkipRitual,
-    deckAnnouncement,
     deckStyleId,
     onDeckChange,
     hasDrawnCards = false,
-    initialMobileTab = 'deck',
     sectionRef,
-    shouldSkipRitual = false
+    // Desktop only: 'question' or 'details' (see the desktop render below).
+    part = 'question',
+    // Desktop 'details': reading options that follow the deck.
+    children = null
 }) {
-    const mobileTabs = shouldSkipRitual
-        ? MOBILE_TABS.filter(tab => tab.id !== 'ritual')
-        : MOBILE_TABS;
-    // Audio/Theme settings moved to Account page - only ritual remains as collapsible section
-    const sectionOrder = shouldSkipRitual
-        ? []
-        : ['ritual'];
+    const idBase = useId();
+    const canChangeDeck = typeof onDeckChange === 'function';
 
-    const renderSectionContent = (section) => {
-        if (section === 'intention') {
-            return (
-                <>
-                    <QuestionInput
-                        userQuestion={userQuestion}
-                        setUserQuestion={setUserQuestion}
-                        onFocus={onQuestionFocus}
-                        onBlur={onQuestionBlur}
-                        onLaunchCoach={onLaunchCoach}
+    if (variant === 'mobile') {
+        // The handset drawer holds the deck. The question is written on the
+        // page itself (QuickIntentionCard), and the ritual waits at the table.
+        return (
+            <div className="space-y-4">
+                {canChangeDeck ? (
+                    <DeckSelector
+                        selectedDeck={deckStyleId}
+                        onDeckChange={onDeckChange}
+                        variant="drawer"
+                        hasDrawnCards={hasDrawnCards}
                     />
-                </>
-            );
-        }
-        if (section === 'deck') {
-            if (typeof onDeckChange !== 'function') {
-                return (
+                ) : (
                     <p className="text-sm text-muted">
                         Deck selection is unavailable right now.
                     </p>
-                );
-            }
-            // Only the handset drawer renders this tab; its title and Deck tab
-            // already introduce the choice.
-            return (
-                <DeckSelector
-                    selectedDeck={deckStyleId}
-                    onDeckChange={onDeckChange}
-                    variant="drawer"
-                    hasDrawnCards={hasDrawnCards}
-                />
-            );
-        }
-        if (section === 'ritual') {
-            if (shouldSkipRitual) {
-                return (
-                    <p className="text-sm text-muted">
-                        Ritual steps are hidden based on your personalization preferences.
-                    </p>
-                );
-            }
-            return (
-                <RitualControls
-                    hasKnocked={hasKnocked}
-                    handleKnock={handleKnock}
-                    cutIndex={cutIndex}
-                    setCutIndex={setCutIndex}
-                    hasCut={hasCut}
-                    applyCut={applyCut}
-                    knockCount={knockCount}
-                    onSkip={onSkipRitual}
-                    deckAnnouncement={deckAnnouncement}
-                />
-            );
-        }
-        return null;
-    };
-
-    // Mobile tabbed navigation state
-    const [activeTabRaw, setActiveTabRaw] = useState(() => {
-        const availableTabIds = new Set(mobileTabs.map(tab => tab.id));
-        const requested = typeof initialMobileTab === 'string' ? initialMobileTab : 'deck';
-        const normalizedRequested = (shouldSkipRitual && requested === 'ritual') ? 'deck' : requested;
-        return availableTabIds.has(normalizedRequested) ? normalizedRequested : 'deck';
-    });
-    const tabRefs = useRef({});
-
-    // Derive the effective active tab - if ritual is skipped and ritual was selected, fall back to deck
-    const activeTab = (shouldSkipRitual && activeTabRaw === 'ritual') ? 'deck' : activeTabRaw;
-
-    const handleTabChange = useCallback((tabId) => {
-        setActiveTabRaw(tabId);
-    }, []);
-
-    // Keyboard navigation for tabs (roving tabindex pattern)
-    const handleTabKeyDown = useCallback((event, currentIndex) => {
-        const tabIds = mobileTabs.map(t => t.id);
-        let nextIndex = currentIndex;
-
-        switch (event.key) {
-            case 'ArrowLeft':
-                event.preventDefault();
-                nextIndex = currentIndex === 0 ? tabIds.length - 1 : currentIndex - 1;
-                break;
-            case 'ArrowRight':
-                event.preventDefault();
-                nextIndex = currentIndex === tabIds.length - 1 ? 0 : currentIndex + 1;
-                break;
-            case 'Home':
-                event.preventDefault();
-                nextIndex = 0;
-                break;
-            case 'End':
-                event.preventDefault();
-                nextIndex = tabIds.length - 1;
-                break;
-            default:
-                return;
-        }
-
-        const nextTabId = tabIds[nextIndex];
-        setActiveTabRaw(nextTabId);
-        tabRefs.current[nextTabId]?.focus();
-    }, [mobileTabs]);
-
-    if (variant === 'mobile') {
-        // With the ritual hidden by personalization only Deck remains: no tabs.
-        const hasTabs = mobileTabs.length > 1;
-        return (
-            <div className="space-y-4">
-                {/* Segmented tab control */}
-                {hasTabs && (
-                <div
-                    className="flex bg-surface-muted/60 rounded-xl p-1 border border-secondary/20"
-                    role="tablist"
-                    aria-label="Preparation settings"
-                >
-                    {mobileTabs.map((tab, index) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                ref={(el) => { tabRefs.current[tab.id] = el; }}
-                                type="button"
-                                role="tab"
-                                id={`mobile-tab-${tab.id}`}
-                                aria-selected={isActive}
-                                aria-controls={`mobile-panel-${tab.id}`}
-                                tabIndex={isActive ? 0 : -1}
-                                onClick={() => handleTabChange(tab.id)}
-                                onKeyDown={(e) => handleTabKeyDown(e, index)}
-                                className={`
-                                    flex-1 flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-lg min-h-touch
-                                    text-xs font-semibold transition-colors touch-manipulation
-                                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/70
-                                    ${isActive
-                                        ? 'bg-surface shadow-xs border border-secondary/30 text-accent'
-                                        : 'text-muted hover:text-main'
-                                    }
-                                `}
-                            >
-                                <Icon className={`w-4 h-4 ${isActive ? 'text-secondary' : ''}`} weight={isActive ? 'fill' : 'regular'} />
-                                <span className="truncate">{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
                 )}
 
-                {/* Tab panel content */}
-                    {mobileTabs.map((tab) => (
-                        <div
-                            key={tab.id}
-                            id={`mobile-panel-${tab.id}`}
-                            role={hasTabs ? 'tabpanel' : undefined}
-                            aria-labelledby={hasTabs ? `mobile-tab-${tab.id}` : undefined}
-                            hidden={activeTab !== tab.id}
-                        >
-                            {activeTab === tab.id && (
-                            tab.id === 'deck'
-                                ? renderSectionContent(tab.id)
-                                : (
-                                    <div className="rounded-2xl border border-secondary/20 bg-surface/40 p-4">
-                                        {renderSectionContent(tab.id)}
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    ))}
-
-                {/* A pointer to other settings; the deck and ritual come first
-                    so short phones show the choices without scrolling. */}
+                {/* A pointer to other settings; the deck comes first so short
+                    phones show the choices without scrolling. */}
                 <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
                     <span>Audio and appearance live in Settings.</span>
                     <Link
@@ -241,58 +67,89 @@ export function ReadingPreparation({
         );
     }
 
-    return (
-        <section
-            ref={sectionRef}
-            aria-label="Prepare your reading"
-            id="step-intention"
-            className="hidden sm:block prepare-reading-panel deck-selector-panel animate-fade-in"
-        >
-            <div className="relative z-10 space-y-5">
-                <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="font-serif text-xl text-accent">Prepare your reading</h2>
+    // Desktop reads in the order a reading is made: the question leads the page
+    // ('question'), the spreads follow, and the deck and reading options gather
+    // after them, just before Draw cards ('details').
+    if (part === 'question') {
+        return (
+            <section
+                ref={sectionRef}
+                aria-labelledby={`${idBase}-heading`}
+                id="step-intention"
+                tabIndex={-1}
+                className="hidden sm:block prepare-reading-panel animate-fade-in"
+            >
+                <div className="relative z-10 space-y-4">
+                    <header>
+                        <h2 id={`${idBase}-heading`} className="font-serif text-xl text-accent">Prepare your reading</h2>
                         <p className="mt-1 text-sm text-muted max-w-2xl">
                             Add an optional question and settle into your reading.
                         </p>
-                    </div>
-                </header>
-
-                <div className="space-y-4">
+                    </header>
                     <div className="prepare-card">
                         <div className="prepare-card__body">
-                            {renderSectionContent('intention')}
+                            <QuestionInput
+                                userQuestion={userQuestion}
+                                setUserQuestion={setUserQuestion}
+                                onFocus={onQuestionFocus}
+                                onBlur={onQuestionBlur}
+                                onLaunchCoach={onLaunchCoach}
+                            />
                         </div>
                     </div>
+                </div>
+            </section>
+        );
+    }
 
-                    {sectionOrder.map(section => (
-                        <div key={section} className={`prepare-card ${prepareSectionsOpen[section] ? 'prepare-card--open' : ''}`}>
-                            <button
-                                type="button"
-                                onClick={() => togglePrepareSection(section)}
-                                className="prepare-card__toggle min-h-touch"
-                                aria-expanded={prepareSectionsOpen[section]}
-                            >
-                                <div>
-                                    <p className="font-serif text-accent text-base leading-tight">
-                                        {prepareSectionLabels[section]?.title || (section === 'audio' ? 'Audio' : section.charAt(0).toUpperCase() + section.slice(1))}
-                                    </p>
-                                    <p className="text-xs text-muted">
-                                        {prepareSummaries[section] || (section === 'audio' ? 'Voice narration and ambience settings' : '')}
-                                    </p>
-                                </div>
-                                {prepareSectionsOpen[section]
-                                    ? <CaretUp className="w-4 h-4 text-accent" />
-                                    : <CaretDown className="w-4 h-4 text-accent" />}
-                            </button>
-                            {prepareSectionsOpen[section] && (
-                                <div className="prepare-card__content">
-                                    {renderSectionContent(section)}
-                                </div>
+    const chosenDeck = DECK_OPTIONS.find(deck => deck.id === deckStyleId) || DECK_OPTIONS[0];
+    const isDeckOpen = Boolean(prepareSectionsOpen?.deck);
+
+    return (
+        <section
+            aria-labelledby={`${idBase}-details-heading`}
+            className="hidden sm:block prepare-details animate-fade-in"
+        >
+            {/* The deck row explains itself on screen; the heading gives screen
+                readers a landmark between the spreads and the draw. */}
+            <h2 id={`${idBase}-details-heading`} className="sr-only">Before you draw</h2>
+            <div className="relative z-10 space-y-3">
+                {canChangeDeck && (
+                    <div className={`prepare-card ${isDeckOpen ? 'prepare-card--open' : ''}`}>
+                        <button
+                            type="button"
+                            onClick={() => togglePrepareSection('deck')}
+                            className="prepare-card__toggle min-h-touch"
+                            aria-expanded={isDeckOpen}
+                            aria-controls={`${idBase}-deck`}
+                        >
+                            <span className="flex min-w-0 items-center gap-4">
+                                <DeckThumbnail deckId={chosenDeck?.id} />
+                                <span className="min-w-0">
+                                    <span className="block font-serif text-accent text-base leading-tight">Deck</span>
+                                    <span className="block text-xs text-muted">
+                                        {chosenDeck ? `${chosenDeck.label} · ${chosenDeck.subtitle}` : 'Choose a deck'}
+                                    </span>
+                                </span>
+                            </span>
+                            {isDeckOpen
+                                ? <CaretUp className="w-4 h-4 shrink-0 text-accent" aria-hidden="true" />
+                                : <CaretDown className="w-4 h-4 shrink-0 text-accent" aria-hidden="true" />}
+                        </button>
+                        <div id={`${idBase}-deck`} className="prepare-card__content" hidden={!isDeckOpen}>
+                            {isDeckOpen && (
+                                <DeckSelector
+                                    selectedDeck={deckStyleId}
+                                    onDeckChange={onDeckChange}
+                                    variant="inline"
+                                    hasDrawnCards={hasDrawnCards}
+                                />
                             )}
                         </div>
-                    ))}
-                </div>
+                    </div>
+                )}
+
+                {children}
 
                 <div className="deck-panel-footnote prepare-panel-footnote">
                     <p className="text-xs leading-relaxed text-muted">

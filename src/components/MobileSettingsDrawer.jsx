@@ -170,7 +170,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null,
             <div className="space-y-1">
               <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
               <p className="text-xs text-muted leading-relaxed max-w-88">
-                Choose your deck and ritual for your next draw.
+                Choose the deck for your next draw.
               </p>
             </div>
 

@@ -146,36 +146,36 @@ async function _enterQuestion(page, question) {
 }
 
 /**
- * Perform the knock ritual (3 knocks)
+ * Draw cards: the shuffled deck comes to the reading table, ready to deal.
+ */
+async function drawCards(page) {
+  await page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true }).first().click();
+  await expect(page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first()).toBeVisible();
+}
+
+/**
+ * Knock on the deck at the reading table (the ritual waits there until Deal).
  */
 async function performKnocks(page, count = 3) {
   for (let i = 0; i < count; i++) {
-    // Match the actual knock button (shows "Knock X of 3" pattern), not the accordion header
-    const knockButton = page.getByRole('button', { name: /knock \d+ of \d+|tap.*knock/i });
-    await knockButton.click({ force: true });
-    // Small delay between knocks to simulate natural rhythm
-    await page.waitForTimeout(150);
+    await page.getByRole('button', { name: /^Knock on the deck, \d of 3$/ }).click();
   }
 }
 
 /**
- * Apply the cut at current slider position and deal the cards
+ * Cut the deck along its edge at the table: arrows move the cut, Enter makes it.
  */
 async function applyCut(page) {
-  const applyButton = page.getByRole('button', { name: /lock cut/i });
-  if (await applyButton.isVisible()) {
-    await applyButton.click({ force: true });
-  }
-
-  // After ritual is complete, click "Draw cards" to deal
-  const drawCardsButton = page.getByRole('button', { name: /draw cards|deal the cards/i });
-  if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await drawCardsButton.click({ force: true });
-  }
+  const edge = page.getByRole('slider', { name: 'Cut the deck', exact: true });
+  await edge.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.reading-table__status')).toContainText(`Cut at card ${await edge.inputValue()} of`);
 }
 
 /**
- * Skip the ritual entirely and trigger shuffle/deal
+ * Skip the ritual: it is optional at the table, so drawing and then dealing
+ * without knocking or cutting is the whole of skipping it.
  */
 async function skipRitual(page) {
   // Dismiss any overlays first (loading, modals, etc.)
@@ -185,35 +185,9 @@ async function skipRitual(page) {
     await page.waitForTimeout(500);
   }
 
-  // Try the ritual section's skip button - look for the specific Skip button in RitualControls
-  // (not the accordion toggle which also has "Skip" text)
-  const skipButton = page.getByRole('button', { name: /^skip$/i });
-  if (await skipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await skipButton.scrollIntoViewIfNeeded();
-    await skipButton.click({ force: true });
-    // Wait for skip confirm dropdown to appear, then click "Skip & draw"
-    const confirmButton = page.getByRole('button', { name: /skip\s*&\s*draw/i });
-    if (await confirmButton.isVisible({ timeout: 1500 }).catch(() => false)) {
-      await confirmButton.click({ force: true });
-      return;
-    }
-  }
-
-  // Fallback: click the "Draw cards" button directly
-  const drawCardsButton = page.getByRole('button', { name: /draw cards|deal the cards/i });
-  if (await drawCardsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await drawCardsButton.scrollIntoViewIfNeeded();
-    await drawCardsButton.click({ force: true });
-    return;
-  }
-
-  // Mobile fallback: the primary action bar uses a combined label.
-  // Example: "Draw cards — Set your intention"
-  const shuffleDrawButton = page.getByRole('button', { name: /^Draw cards/ });
-  if (await shuffleDrawButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await shuffleDrawButton.scrollIntoViewIfNeeded();
-    await shuffleDrawButton.click({ force: true });
-  }
+  const drawCardsButton = page.getByRole('button', { name: /^Draw cards/ }).filter({ visible: true }).first();
+  await drawCardsButton.scrollIntoViewIfNeeded();
+  await drawCardsButton.click();
 }
 
 /**
@@ -373,13 +347,15 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     const questionInput = page.locator('textarea').first();
     await questionInput.fill('What are the influences on my career path?');
 
-    // 3. Perform ritual - 3 knocks
+    // 3. Draw: the shuffled deck comes to the table
+    await drawCards(page);
+
+    // 4. Perform the ritual on the deck - 3 knocks and a cut
     await performKnocks(page, 3);
-
-    // 4. Apply cut
     await applyCut(page);
+    await expect(page.getByRole('button', { name: 'Knocked three times', exact: true })).toBeVisible();
 
-    // 5. Wait for cards
+    // 5. Deal and wait for cards
     await waitForCardsDealt(page, 3);
 
     // 6. Reveal cards one by one
@@ -712,22 +688,19 @@ test.describe('Ritual Mechanics @desktop', () => {
   });
 
   test('knock counter increments correctly', async ({ page }) => {
-    // First knock
-    const knockButton = page.getByRole('button', { name: /knock 1 of 3/i });
-    if (await knockButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await knockButton.click({ force: true });
-
-      // Should now show "Knock 2 of 3"
-      await expect(page.getByRole('button', { name: /knock 2 of 3/i })).toBeVisible({ timeout: 2000 });
-    }
+    await drawCards(page);
+    await page.getByRole('button', { name: 'Knock on the deck, 1 of 3', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Knock on the deck, 2 of 3', exact: true })).toBeVisible();
+    await expect(page.locator('.reading-table__status')).toHaveText('Knocked once.');
   });
 
   test('cut slider is interactive', async ({ page }) => {
-    const cutSlider = page.locator('[aria-label="Cut position"]');
-    if (await cutSlider.isVisible({ timeout: 2000 }).catch(() => false)) {
-      // Slider should be draggable
-      await expect(cutSlider).toBeEnabled();
-    }
+    await drawCards(page);
+    const cutSlider = page.getByRole('slider', { name: 'Cut the deck', exact: true });
+    await expect(cutSlider).toBeEnabled();
+    await expect(cutSlider).toHaveAttribute('aria-valuetext', 'Card 39 of 78');
+    await applyCut(page);
+    await expect(page.locator('.reading-table__status')).toHaveText('Cut at card 40 of 78.');
   });
 
   test('skip ritual triggers shuffle', async ({ page }) => {

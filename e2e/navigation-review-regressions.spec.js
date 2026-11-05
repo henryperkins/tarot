@@ -68,16 +68,17 @@ async function expectVisiblePageFocus(page) {
 
 async function expectPreparationReleased(page) {
   await expect(page.locator('[data-reading-settings-drawer]')).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Skip ritual confirmation', includeHidden: true })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard))).toBe(false);
   await expect.poll(() => page.evaluate(() => !document.body.style.overflow && !document.body.style.position
     && !document.querySelector('main')?.closest('[inert], [aria-hidden="true"]'))).toBe(true);
   await expectVisiblePageFocus(page);
 }
 
+// The drawer holds the deck only: the ritual waits at the reading table, on
+// the deck itself, so the Ritual step never opens preparation.
 test.describe('drawer preparation lifetime @mobile', () => {
   for (const close of ['Escape', 'close button', 'Done', 'backdrop', 'Back', 'desktop transition']) {
-    test(`closing preparation clears its descendant ritual confirmation guard: ${close}`, async ({ page }) => {
+    test(`closing preparation releases its guard and keeps the page: ${close}`, async ({ page }) => {
       await prepareNavigation(page, { completed: true, rituals: true });
       await page.goto('/journal');
       await settleNavigation(page);
@@ -87,36 +88,27 @@ test.describe('drawer preparation lifetime @mobile', () => {
       const entry = await page.evaluate(() => ({ idx: history.state.idx, key: history.state.key }));
       await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
       const drawer = page.locator('[data-reading-settings-drawer]');
-      await drawer.getByRole('tab', { name: 'Ritual', exact: true }).click();
-      await drawer.getByRole('button', { name: 'Skip', exact: true }).click();
-      const confirmation = page.getByRole('dialog', { name: 'Skip ritual confirmation', exact: true });
-      await expect(confirmation).toBeAttached();
+      await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
+      await expect(drawer.getByRole('tab')).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard))).toBe(true);
       if (close === 'Escape') await page.keyboard.press('Escape');
       else if (close === 'close button') await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
       else if (close === 'Done') await drawer.getByRole('button', { name: 'Done', exact: true }).click();
       else if (close === 'backdrop') await drawer.locator('[data-modal-backdrop]').click({ position: { x: 4, y: 4 } });
       else if (close === 'desktop transition') await page.setViewportSize({ width: 1440, height: 1000 });
-      else {
-        await page.goBack();
-        await expect(confirmation).toHaveCount(0);
-        await expect(drawer).toBeVisible();
-        await expect.poll(() => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard))).toBe(true);
-        await page.goBack();
-      }
+      else await page.goBack();
       await expectPreparationReleased(page);
       expect(await page.evaluate(() => ({ idx: history.state.idx, key: history.state.key }))).toEqual(entry);
       await page.goBack();
       await expect(page).toHaveURL(/\/journal$/);
       await page.goForward();
       await expect(page).toHaveURL(/\/$/);
-      await expect(page.getByRole('dialog', { name: 'Skip ritual confirmation', includeHidden: true })).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard))).toBe(false);
     });
   }
 
   for (const phase of ['setup', 'pending', 'completed']) {
-    test(`Ritual progress opens preparation on the requested tab: ${phase}`, async ({ page }) => {
+    test(`Ritual progress leads to Draw cards before a draw and to the reading after: ${phase}`, async ({ page }) => {
       await prepareNavigation(page, { completed: phase === 'completed', rituals: true });
       const fixture = phase === 'pending' ? await createNarrativeFixture(page, { signedOut: true }) : null;
       const cancellations = [];
@@ -129,17 +121,19 @@ test.describe('drawer preparation lifetime @mobile', () => {
         const drawer = page.locator('[data-reading-settings-drawer]');
         for (let attempt = 0; attempt < 2; attempt++) {
           await ritual.click();
-          await expect(drawer.getByRole('tab', { name: 'Ritual', exact: true })).toHaveAttribute('aria-selected', 'true');
-          await expect(drawer.getByRole('tab', { name: 'Deck', exact: true })).toHaveAttribute('aria-selected', 'false');
-          await drawer.getByRole('tab', { name: 'Deck', exact: true }).click();
-          await drawer.getByRole('button', { name: 'Done', exact: true }).click();
-          await expectPreparationReleased(page);
+          await expect(drawer).toBeHidden();
+          if (phase === 'setup') {
+            await expect(page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Draw cards', exact: true })).toBeFocused();
+            await expectVisiblePageFocus(page);
+          } else {
+            await expect(page.locator('#step-reading')).toBeFocused();
+          }
         }
-        // Change deck explicitly requests Deck. Revisit Intent to expose that
-        // existing opener during pending/completed cinematic reading phases.
+        // Change deck opens preparation on the deck. Revisit Intent to expose
+        // that opener during pending/completed cinematic reading phases.
         await page.getByRole('button', { name: /^Step 2: Intent/ }).click();
         await page.getByRole('button', { name: 'Change deck', exact: true }).click();
-        await expect(drawer.getByRole('tab', { name: 'Deck', exact: true })).toHaveAttribute('aria-selected', 'true');
+        await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
         await drawer.getByRole('button', { name: 'Done', exact: true }).click();
         await expectPreparationReleased(page);
         if (phase !== 'setup') await page.getByRole('button', { name: /^Step 4: Read/ }).click();
@@ -158,7 +152,7 @@ test.describe('drawer preparation lifetime @mobile', () => {
     });
   }
 
-  test('closing preparation preserves question, selected deck, knocks and cut', async ({ page }) => {
+  test('closing preparation preserves the question and the selected deck', async ({ page }) => {
     await prepareNavigation(page, { rituals: true });
     await page.goto('/');
     await settleNavigation(page);
@@ -168,32 +162,23 @@ test.describe('drawer preparation lifetime @mobile', () => {
     const deck = drawer.getByRole('radio', { name: /Thoth/ });
     await deck.click();
     await expect(deck).toHaveAttribute('aria-checked', 'true');
-    await drawer.getByRole('tab', { name: 'Ritual', exact: true }).click();
-    for (let i = 1; i <= 3; i++) await drawer.getByRole('button', { name: `Knock ${i} of 3`, exact: true }).click();
-    await drawer.getByRole('slider', { name: 'Cut position', exact: true }).fill('7');
-    await drawer.getByRole('button', { name: 'Confirm cut at position 7', exact: true }).click();
+    await expect(drawer.getByRole('slider')).toHaveCount(0);
     await drawer.getByRole('button', { name: 'Done', exact: true }).click();
     await expectPreparationReleased(page);
     await expect(page.locator('#quick-intention')).toHaveValue('How can I protect a quiet morning?');
     await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
     await expect(deck).toHaveAttribute('aria-checked', 'true');
-    await drawer.getByRole('tab', { name: 'Ritual', exact: true }).click();
-    await expect(drawer.getByRole('button', { name: 'Deck cleared with 3 knocks', exact: true })).toBeVisible();
-    await expect(drawer.getByRole('slider', { name: 'Cut position', exact: true })).toHaveValue('7');
-    await expect(drawer.getByRole('button', { name: 'Update cut at position 7', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await drawer.getByRole('button', { name: 'Done', exact: true }).click();
     await expectPreparationReleased(page);
   });
 
-  test('Ritual progress falls back to Deck when rituals are disabled', async ({ page }) => {
+  test('Ritual progress stays with the reading when ritual steps are hidden', async ({ page }) => {
     await prepareNavigation(page, { completed: true });
     await page.goto('/');
     await settleNavigation(page);
     await page.getByRole('button', { name: /^Step 3: Ritual/ }).click();
-    const drawer = page.locator('[data-reading-settings-drawer]');
-    await expect(drawer).toBeVisible();
-    await expect(drawer.getByRole('tab')).toHaveCount(0);
-    await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
+    await expect(page.locator('[data-reading-settings-drawer]')).toBeHidden();
+    await expect(page.locator('#step-reading')).toBeFocused();
   });
 });
 

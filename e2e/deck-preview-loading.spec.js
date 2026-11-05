@@ -18,8 +18,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
     async function openDecks(page) {
       await openSetup(page);
+      // Phones open the decks from the question card; wider screens from the
+      // Deck row that follows the spreads.
       if (page.viewportSize().width < 640) {
         await page.getByRole('button', { name: 'Change deck', exact: true }).click();
+      } else {
+        await page.getByRole('button', { name: /^Deck\b/ }).click();
       }
       return page.getByRole('radiogroup', { name: 'Choose your deck style' });
     }

@@ -7,6 +7,13 @@ import { safeStorage } from '../lib/safeStorage';
 import { migrateLegacyPersonalization, REVERSAL_FRAMEWORK_KEYS, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
 import {
+  accountPayloadKey,
+  buildAccountPreferencesPayload,
+  fetchAccountPreferences,
+  mergeAccountPersonalization,
+  saveAccountPreferences
+} from '../lib/accountPreferences';
+import {
   DEFAULT_PERSONALIZATION,
   PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
   derivePersonalizationExplicitFields,
@@ -24,11 +31,9 @@ const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
 const LOCATION_JOURNAL_CONSENT_KEY = 'tarot-location-journal-consent';
+// Setup's one remaining disclosure; the ritual moved to the reading table.
 const DEFAULT_PREPARE_SECTIONS = {
-  intention: false,
-  experience: false,
-  ritual: false,
-  audio: false
+  deck: false
 };
 const PERSONALIZATION_REQUEST_FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS);
 
@@ -409,6 +414,92 @@ export function PreferencesProvider({ children }) {
     setOnboardingSpreadKey(null);
   };
 
+  // --- Account continuity (signed-in readers) ---
+  // Personalization and finished onboarding live on this device; a signed-in
+  // reader's account keeps a copy, so another device opens on their own setup
+  // instead of first-run onboarding. Read once per account per page load, after
+  // this device's choices for that account are loaded.
+  const [accountSync, setAccountSync] = useState({ userId: null, status: 'idle' });
+  const accountRequestedForRef = useRef(null);
+  const accountPushKeyRef = useRef(null);
+  const explicitFieldsRef = useRef(personalizationExplicitFields);
+  useEffect(() => {
+    explicitFieldsRef.current = personalizationExplicitFields;
+  }, [personalizationExplicitFields]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) {
+      accountRequestedForRef.current = null;
+      accountPushKeyRef.current = null;
+      return;
+    }
+    if (loadedPersonalizationKey !== personalizationStorageKey) return;
+    if (accountRequestedForRef.current === userId) return;
+    accountRequestedForRef.current = userId;
+    fetchAccountPreferences()
+      .then((data) => {
+        if (accountRequestedForRef.current !== userId) return;
+        if (data?.available === false) {
+          setAccountSync({ userId, status: 'unavailable' });
+          return;
+        }
+        const remote = data?.preferences || null;
+        const { adopted, adoptedFields } = mergeAccountPersonalization({
+          explicitFields: explicitFieldsRef.current,
+          remote
+        });
+        if (adoptedFields.length > 0) {
+          setPersonalizationState(prev => sanitizePersonalization({ ...prev, ...adopted }));
+          setPersonalizationExplicitFields(prev => Array.from(new Set([...prev, ...adoptedFields])));
+        }
+        if (remote?.onboardingCompletedAt) {
+          setOnboardingCompleteState(true);
+          safeStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+        }
+        // What the account already holds (nothing counts as an empty record), so
+        // only a real difference is sent back.
+        accountPushKeyRef.current = accountPayloadKey(buildAccountPreferencesPayload({
+          personalization: remote?.personalization || {},
+          explicitFields: remote?.explicitFields || [],
+          onboardingComplete: Boolean(remote?.onboardingCompletedAt)
+        }));
+        setAccountSync({ userId, status: 'ready' });
+      })
+      .catch(() => {
+        if (accountRequestedForRef.current === userId) setAccountSync({ userId, status: 'error' });
+      });
+  }, [authLoading, userId, loadedPersonalizationKey, personalizationStorageKey]);
+
+  // 'signed-out' | 'loading' | 'ready' | 'unavailable' | 'error'
+  const accountPreferencesStatus = !userId
+    ? 'signed-out'
+    : accountSync.userId === userId ? accountSync.status : 'loading';
+
+  // Send this device's choices back whenever they differ from the account copy.
+  useEffect(() => {
+    if (!userId || accountSync.userId !== userId || accountSync.status !== 'ready') return undefined;
+    const payload = buildAccountPreferencesPayload({
+      personalization,
+      explicitFields: personalizationExplicitFields,
+      onboardingComplete
+    });
+    const key = accountPayloadKey(payload);
+    if (key === accountPushKeyRef.current) return undefined;
+    const timer = setTimeout(() => {
+      accountPushKeyRef.current = key;
+      saveAccountPreferences(payload).catch((error) => {
+        if (error?.code === 'preferences_unavailable') {
+          setAccountSync({ userId, status: 'unavailable' });
+        } else if (accountPushKeyRef.current === key) {
+          // Let the next change try again.
+          accountPushKeyRef.current = null;
+        }
+      });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [userId, accountSync, personalization, personalizationExplicitFields, onboardingComplete]);
+
   // --- Nudge State (Contextual Discovery) ---
   const [nudgeState, setNudgeStateInternal] = useState(() => {
     try {
@@ -531,6 +622,7 @@ export function PreferencesProvider({ children }) {
     // Onboarding
     onboardingComplete,
     setOnboardingComplete,
+    accountPreferencesStatus,
     onboardingSpreadKey,
     setOnboardingSpreadKey,
     resetOnboarding,

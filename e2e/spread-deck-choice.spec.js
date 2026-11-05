@@ -84,7 +84,12 @@ test.describe('Spread and deck choice @desktop', () => {
 
   test('deck copy explains the choice, and says when it waits for the next draw', async ({ page }) => {
     await openSetup(page);
-    // The Prepare panel reuses the deck panel's class; take the one holding the decks.
+    // The decks open from the Deck row that follows the spreads, and stay open.
+    const deckRow = page.getByRole('button', { name: /^Deck\b/ });
+    await expect(deckRow).toHaveAttribute('aria-expanded', 'false');
+    await expect(deckRow).toContainText('Rider-Waite-Smith');
+    await deckRow.click();
+    await expect(deckRow).toHaveAttribute('aria-expanded', 'true');
     const deckPanel = page.locator('.deck-selector-panel').filter({ has: page.locator(DECK_GROUP) });
     await expect(deckPanel).toContainText('The deck sets the card art and the card names in your reading.');
     // The photo study is off in this build, so nobody is recruited for it.

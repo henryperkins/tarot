@@ -82,7 +82,7 @@ export function ReadingDisplay({
         revealCard,
         revealAll,
 
-        // Ritual State (for DeckRitual)
+        // Ritual State (the reading table's deck)
         knockCount,
         knockCadenceResetAt,
         hasKnocked: _hasKnocked,
@@ -91,6 +91,7 @@ export function ReadingDisplay({
         setCutIndex,
         handleKnock,
         applyCut,
+        shouldSkipRitual,
 
         // Vision
         visionResults,
@@ -557,6 +558,7 @@ export function ReadingDisplay({
 
     const ritualModel = {
         deckSize,
+        shouldSkipRitual,
         reading,
         revealedCards,
         visibleCount,

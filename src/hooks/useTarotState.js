@@ -231,7 +231,8 @@ export function useTarotState(speak) {
 
   // Three knocks at the person's own pace. The times still seed the draw, but
   // there is no deadline: a slow tapper, VoiceOver or Switch Control user
-  // completes the ritual the same way as anyone else.
+  // completes the ritual the same way as anyone else. Each knock answers with
+  // a light tap where the device has haptics; the third with a fuller one.
   const handleKnock = useCallback(() => {
     if (hasKnocked) return;
     if (typeof performance === 'undefined') return;
@@ -241,6 +242,8 @@ export function useTarotState(speak) {
     if (knocks.length >= 3) {
       setHasKnocked(true);
       vibrate([18, 40, 18]);
+    } else {
+      vibrate(10);
     }
   }, [hasKnocked, vibrate, updateKnockTimes]);
 

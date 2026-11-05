@@ -228,7 +228,10 @@ test('authentication refresh on reload mounts a fresh journal without the former
 
 test('saved memory reuse is keyboard accessible and survives retry and new reading', async ({ page }) => {
   const { createNarrativeFixture, openSetup } = await import('./helpers/narrativeFixtures.js');
-  const fixture = await createNarrativeFixture(page);
+  // The choice appears once the reader has something in Reader Memory.
+  const fixture = await createNarrativeFixture(page, {
+    memories: [{ id: 'memory-1', text: 'Returns often to questions about work and rest.', category: 'theme' }]
+  });
   try {
     await openSetup(page);
     const reuse = page.getByRole('checkbox', { name: 'Use saved memories in this reading.', exact: true });

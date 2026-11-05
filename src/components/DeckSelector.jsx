@@ -6,7 +6,6 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { isVisionResearchEnabled } from '../hooks/useFeatureFlags';
 import { useAuth } from '../contexts/AuthContext';
 import { DECK_OPTIONS } from './deckOptions';
-import { LABEL_CLASS } from '../styles/labelClasses';
 
 const DECK_IDS = DECK_OPTIONS.map(deck => deck.id);
 const DECK_LABELS = DECK_OPTIONS.map(deck => deck.label);
@@ -60,17 +59,39 @@ function DeckPreviewImage({ preview, priority = 'lazy' }) {
 }
 
 /**
- * @param {'panel' | 'drawer'} [variant='panel'] - The handset preparation drawer
- *   already introduces the deck choice in its title and Deck tab, so 'drawer'
- *   leaves out the panel header and starts with the decks themselves.
+ * The chosen deck's artwork at summary size, for the row that stands in for
+ * the deck choice until it is opened. Decorative: the row names the deck.
+ */
+export function DeckThumbnail({ deckId, className = '' }) {
+  const deck = DECK_OPTIONS.find(option => option.id === deckId) || DECK_OPTIONS[0];
+  const preview = deck?.preview;
+  if (!preview?.src) return null;
+  return (
+    <span className={`deck-thumbnail ${className}`.trim()} aria-hidden="true">
+      <picture>
+        {(preview.sources || []).map(source => (
+          <source key={source.type} type={source.type} srcSet={source.srcSet} sizes="80px" />
+        ))}
+        <img src={preview.src} width={preview.width} height={preview.height} alt="" loading="lazy" decoding="async" />
+      </picture>
+    </span>
+  );
+}
+
+/**
+ * @param {'inline' | 'drawer'} [variant='inline'] - Where the choice sits.
+ *   'inline': inside the desktop "Deck" disclosure (ReadingPreparation), which
+ *   names and frames the choice, so the decks open on their explanation.
+ *   'drawer': the handset preparation drawer already introduces the choice in
+ *   its title and Deck tab, so the decks come first, in their own panel.
  * @param {boolean} [hasDrawnCards=false] - Cards are on the table: a new deck
  *   applies to the next draw, and the copy says so.
  */
-export function DeckSelector({ selectedDeck, onDeckChange, variant = 'panel', hasDrawnCards = false }) {
+export function DeckSelector({ selectedDeck, onDeckChange, variant = 'inline', hasDrawnCards = false }) {
   const idBase = useId();
   const prefersReducedMotion = useReducedMotion();
   const { isAuthenticated } = useAuth();
-  const showHeader = variant !== 'drawer';
+  const isInline = variant !== 'drawer';
   // The photo study runs only in research builds and needs an account, as the
   // reading's vision panel does (ReadingDisplay); everyone else never sees it.
   const showResearchNote = isVisionResearchEnabled() && isAuthenticated;
@@ -103,22 +124,19 @@ export function DeckSelector({ selectedDeck, onDeckChange, variant = 'panel', ha
     onDeckChange(deckId);
   };
 
+  const introNote = hasDrawnCards ? nextDrawNote : 'The deck sets the card art and the card names in your reading.';
+
   return (
-    <div className="panel-mystic deck-selector-panel animate-fade-in">
-      <div className="relative z-10 space-y-5">
-        {showHeader ? (
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h2 className={`${LABEL_CLASS} text-accent`}>Choose Your Deck</h2>
-              <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
-                {hasDrawnCards ? nextDrawNote : 'The deck sets the card art and the card names in your reading.'}
-              </p>
-            </div>
-            <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs font-medium text-accent backdrop-blur">
+    <div className={isInline ? 'deck-selector-panel' : 'panel-mystic deck-selector-panel animate-fade-in'}>
+      <div className={`relative z-10 ${isInline ? 'space-y-4' : 'space-y-5'}`}>
+        {isInline ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <p className="min-w-0 text-sm leading-relaxed text-muted max-w-[65ch] text-pretty">{introNote}</p>
+            <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs font-medium text-accent">
               <span className="w-1.5 h-1.5 rounded-full bg-gold-soft" aria-hidden="true" />
               <span>Curated editions</span>
             </div>
-          </header>
+          </div>
         ) : hasDrawnCards && (
           <p className="text-sm leading-relaxed text-muted text-pretty">{nextDrawNote}</p>
         )}
@@ -177,15 +195,15 @@ export function DeckSelector({ selectedDeck, onDeckChange, variant = 'panel', ha
                   onKeyDown={event => onItemKeyDown(event, deck.id)}
                   className="flex w-full flex-1 flex-col gap-3 rounded-xl text-left cursor-pointer select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 >
-                  {isSelected && <ChosenMarks glow="var(--deck-glow, var(--primary-30))" />}
+                  {isSelected && <ChosenMarks />}
 
-                  {/* The wide grid shows all three decks above the fold, so none
-                      waits for lazy loading; the chosen one, often the largest
-                      paint, goes first. The drawer centres the chosen deck and
-                      lets the others load as they come into view. */}
+                  {/* A grid shows all three decks at once, so none waits for
+                      lazy loading; the chosen one, often the largest paint,
+                      goes first. The drawer centres the chosen deck and lets
+                      the others load as they come into view. */}
                   <DeckPreviewImage
                     preview={deck.preview}
-                    priority={isSelected ? 'high' : showHeader ? 'eager' : 'lazy'}
+                    priority={isSelected ? 'high' : isInline ? 'eager' : 'lazy'}
                   />
 
                   <div className="min-w-0 pr-1 wrap-anywhere">

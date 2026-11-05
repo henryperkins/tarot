@@ -790,21 +790,6 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(coach).toBeVisible();
   });
 
-  test('a tooltip left open behind the coach does not swallow its Escape', async ({ page }) => {
-    await seedApp(page);
-    await gotoReading(page);
-
-    // Hovered, then the coach opened from the keyboard: no pointerdown hides
-    // the page's tooltip, and the coach now covers it.
-    await page.getByRole('button', { name: /^Ritual \(optional\)/ }).click();
-    await page.getByRole('button', { name: 'About clearing the deck ritual' }).hover();
-    await expect(page.getByRole('tooltip')).toBeVisible();
-    const coach = await openCoachWithShortcut(page);
-
-    await page.keyboard.press('Escape');
-    await expect(coach).toHaveCount(0);
-  });
-
   test('the template library is a layer of its own', async ({ page }) => {
     await seedApp(page, { templates: [TEMPLATE] });
     await gotoReading(page);
