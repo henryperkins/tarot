@@ -50,7 +50,7 @@ import {
 import { buildOpening, buildReflectionsSection, prepareReflectionsText, sanitizeQuestionForNarrative } from './narrative/helpers.js';
 import { sanitizeQueryCoverage, sanitizeContextSelection, sanitizeGraphRAGDiagnostics } from '../../shared/readingSourceUsage.js';
 import { buildMemorySourceUsage, buildUserContextSourceUsage } from './narrative/sourceUsage.js';
-import { formatPassagesForPrompt } from './graphRAG.js';
+import { formatPassagesForPrompt, hasMeaningfulGraphKeys } from './graphRAG.js';
 import { buildReadingRedactionOptions } from './promptEngineering.js';
 import { evaluateVisionInsightPromptEligibility } from './readingQuality.js';
 import {
@@ -462,22 +462,6 @@ function shouldAppendGraphRAGDebugOutput(env) {
     env?.LOCAL_COMPOSER_APPEND_GRAPHRAG_DEBUG ?? env?.DEBUG_LOCAL_COMPOSER_GRAPHRAG,
     false
   );
-}
-
-function hasMeaningfulGraphData(value) {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'boolean') return value === true;
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
-  if (typeof value === 'object') {
-    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
-  }
-  return false;
-}
-
-function hasMeaningfulGraphKeys(graphKeys) {
-  return hasMeaningfulGraphData(graphKeys);
 }
 
 function hasMeaningfulGraphRAGPayload(payload) {

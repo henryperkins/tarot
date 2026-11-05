@@ -284,6 +284,30 @@ export function buildRetrievalSummary(graphKeys, passages) {
   return summary;
 }
 
+function hasMeaningfulGraphData(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value === true;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
+  }
+  return false;
+}
+
+/**
+ * Whether graph keys contain a detected pattern or Major Arcana card.
+ * buildGraphContext() returns keys for every nonempty spread, so keys that
+ * are all empty mean no patterns were found and there is nothing to retrieve.
+ *
+ * @param {Object|null|undefined} graphKeys - Graph keys from buildGraphContext()
+ * @returns {boolean}
+ */
+export function hasMeaningfulGraphKeys(graphKeys) {
+  return hasMeaningfulGraphData(graphKeys);
+}
+
 /**
  * Check if GraphRAG is enabled via environment
  *

@@ -196,6 +196,37 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
   });
 
+  it('reports a keyword retrieval exception as retrieval_error, apart from an empty result', (t) => {
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const build = ({ card, graphKeys, deckStyle }, enableSemanticScoring) => buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'single', name: 'One-Card Insight' },
+      cardsInfo: [{ ...card, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+      deckStyle,
+      userQuestion: 'What supports me today?',
+      themes: { knowledgeGraph: { graphKeys } },
+      enableSemanticScoring,
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+    }).promptMeta;
+    // A Thoth epithet counts as a pattern but has no registry passage.
+    const epithetOnly = { card: { card: 'Two of Cups', suit: 'Cups' }, graphKeys: { thothEntries: ['Two of Cups'] }, deckStyle: 'thoth-a1' };
+    const sun = { card: { card: 'The Sun', number: 19 }, graphKeys: { totalMajors: 1, majorNumbers: [19], singleMajorNumber: 19 } };
+
+    for (const enableSemanticScoring of [false, true]) {
+      const meta = build(epithetOnly, enableSemanticScoring);
+      assert.equal(meta.sourceUsage.graphRAG.skippedReason, 'retrieval_failed_or_empty', `semantic=${enableSemanticScoring}`);
+    }
+
+    const entry = MAJOR_ARCANA_PASSAGES[19];
+    const descriptor = Object.getOwnPropertyDescriptor(entry, 'passages');
+    Object.defineProperty(entry, 'passages', { configurable: true, get() { throw new Error('Synthetic registry failure'); } });
+    t.after(() => Object.defineProperty(entry, 'passages', descriptor));
+    for (const enableSemanticScoring of [false, true]) {
+      const meta = build(sun, enableSemanticScoring);
+      assert.equal(meta.graphRAG.skippedReason, 'retrieval_error', `semantic=${enableSemanticScoring}`);
+      assert.deepEqual([meta.sourceUsage.graphRAG.used, meta.sourceUsage.graphRAG.skippedReason], [false, 'retrieval_error']);
+    }
+  });
+
   it('injects payload-driven GraphRAG even when themes.graphKeys are absent', () => {
     const graphRAGPayload = {
       passages: [
