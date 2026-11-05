@@ -51,8 +51,7 @@ for (const [name, invalidate] of [
   ['spread selection', (h, state) => state.selectSpread('celtic')],
   ['direct spread replacement', (h, state) => state.setSelectedSpread('celtic')],
   ['logout', h => h.setOwner(null)],
-  ['account switch', h => h.setOwner('owner-b')],
-  ['auto-selected spread change', h => { h.preferences.personalization.preferredSpreadDepth = 'deep'; }]
+  ['account switch', h => h.setOwner('owner-b')]
 ]) {
   test(`a pending shuffle cannot restore cards, scope or ritual after ${name}`, async t => {
     const h = await tarotStateHarness();
@@ -173,6 +172,46 @@ test('an untouched default is not saved as a choice', async t => {
   assert.deepEqual(h.savedSpreadDrafts, []);
 });
 
+test('an untouched spread follows preferences received before drawing', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'threeCard');
+  h.preferences.personalization.preferredSpreadDepth = 'deep';
+  assert.equal(h.render().selectedSpread, 'celtic');
+  assert.deepEqual(h.savedSpreadDrafts, []);
+});
+
+test('late preferences keep the accepted spread through shuffle, deal and reveal', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  h.render().shuffle();
+  const queued = h.pendingShuffle();
+  h.preferences.personalization.preferredSpreadDepth = 'deep';
+  assert.equal(h.render().selectedSpread, 'threeCard');
+  assert.equal(h.render().isShuffling, true, 'account loading must not cancel the draw');
+  queued();
+  assert.equal(h.render().reading.length, 3);
+  h.render().dealSpread();
+  h.preferences.personalization.preferredSpreadDepth = 'short';
+  assert.equal(h.render().selectedSpread, 'threeCard');
+  assert.equal(h.render().reading.length, 3);
+  h.render().dealNext();
+  assert.deepEqual([...h.render().revealedCards], [0]);
+});
+
+test('drawing accepts the personalized spread shown instead of the initial fallback', async t => {
+  const h = await tarotStateHarness({ preferences: {
+    personalization: { preferredSpreadDepth: 'deep', showRitualSteps: true }
+  } });
+  t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'celtic');
+  h.render().shuffle();
+  assert.equal(h.render().selectedSpread, 'celtic');
+  h.pendingShuffle()();
+  h.preferences.personalization.preferredSpreadDepth = 'short';
+  assert.equal(h.render().selectedSpread, 'celtic');
+  assert.equal(h.render().reading.length, 10);
+  assert.equal(h.savedSpreadDrafts.at(-1), 'celtic', 'the accepted spread survives a reload');
+});
+
 test('a plan fallback stands in for a locked spread without replacing the saved choice', async t => {
   const freePlan = ['single', 'threeCard', 'fiveCard'];
   const h = await tarotStateHarness({
@@ -186,6 +225,11 @@ test('a plan fallback stands in for a locked spread without replacing the saved 
   const { selectedSpread } = h.render();
   assert.ok(freePlan.includes(selectedSpread), `fallback ${selectedSpread} is on the plan`);
   assert.equal(h.savedSpreadDrafts.slice(savedBefore).includes(selectedSpread), false, 'the substitute is not saved');
+  h.render().shuffle();
+  h.pendingShuffle()();
+  h.preferences.personalization.preferredSpreadDepth = 'short';
+  assert.equal(h.render().selectedSpread, selectedSpread, 'the fallback draw keeps its accepted spread');
+  assert.equal(h.savedSpreadDrafts.slice(savedBefore).includes(selectedSpread), false, 'drawing a fallback preserves the saved choice');
   h.render().chooseSpread(selectedSpread);
   assert.equal(h.render().selectedSpread, selectedSpread);
   assert.equal(h.savedSpreadDrafts.at(-1), selectedSpread, 'choosing it afterwards does save it');

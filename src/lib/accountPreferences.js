@@ -1,18 +1,45 @@
-import { PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personalizationConstants.js';
+import { NARRATIVE_PERSONALIZATION_DEFAULTS, PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personalizationConstants.js';
 
 /**
  * A signed-in reader's choices kept on their account, so a new device opens
  * on their own setup instead of first-run onboarding (GET/PUT
  * /api/account/preferences, functions/api/account/preferences.js).
  *
- * The device stays the source of truth for what it already knows: the account
- * copy fills only the fields this device has not chosen, then receives the
- * union back.
+ * This device's own choices take precedence. Values inherited from the
+ * account keep their provenance, so a later account update or reset can
+ * refresh them without turning an old copy into a local override.
  */
 const ENDPOINT = '/api/account/preferences';
 export const ACCOUNT_PREFERENCES_TIMEOUT_MS = 4000;
 const FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS);
 const hasOwn = (source, key) => Boolean(source) && Object.prototype.hasOwnProperty.call(source, key);
+const normalizeFields = fields => Array.isArray(fields) ? [...new Set(fields.filter(field => FIELD_SET.has(field)))] : [];
+
+/** Provenance is local to the same account-scoped key as personalization. */
+export function loadAccountPreferenceOrigins(storageKey, storage) {
+  try {
+    const parsed = JSON.parse(storage?.getItem(`${storageKey}:account-origins`) || 'null');
+    if (parsed?.v === 1) {
+      return { inheritedFields: normalizeFields(parsed.inheritedFields), resetPending: parsed.resetPending === true };
+    }
+  } catch {
+    // Old records have no provenance. Preserve their choices as local rather
+    // than guessing which ones came from an earlier account copy.
+  }
+  return { inheritedFields: [], resetPending: false };
+}
+
+export function saveAccountPreferenceOrigins(storageKey, origins, storage) {
+  try {
+    storage?.setItem(`${storageKey}:account-origins`, JSON.stringify({
+      v: 1,
+      inheritedFields: normalizeFields(origins.inheritedFields),
+      resetPending: origins.resetPending === true
+    }));
+  } catch {
+    // Storage blocked or full: live choices still work for this page.
+  }
+}
 
 async function request(method, body, { signal, timeoutMs = ACCOUNT_PREFERENCES_TIMEOUT_MS, keepalive = false } = {}) {
   const controller = new AbortController();
@@ -66,14 +93,19 @@ export function buildAccountPreferencesPayload({ personalization, explicitFields
  * What the account adds to this device: values for fields the reader chose
  * elsewhere but not here. Choices made on this device are never replaced.
  */
-export function mergeAccountPersonalization({ explicitFields, remote }) {
-  const local = new Set(Array.isArray(explicitFields) ? explicitFields : []);
+export function mergeAccountPersonalization({ explicitFields, inheritedFields = [], remote }) {
+  const inherited = new Set(normalizeFields(inheritedFields));
+  const local = new Set(normalizeFields(explicitFields).filter(field => !inherited.has(field)));
   const adopted = {};
-  for (const field of Array.isArray(remote?.explicitFields) ? remote.explicitFields : []) {
+  const adoptedFields = [];
+  for (const field of normalizeFields(remote?.explicitFields)) {
     if (!FIELD_SET.has(field) || local.has(field) || !hasOwn(remote?.personalization, field)) continue;
     adopted[field] = remote.personalization[field];
+    adoptedFields.push(field);
   }
-  return { adopted, adoptedFields: Object.keys(adopted) };
+  const clearedFields = [...inherited].filter(field => !local.has(field) && !adoptedFields.includes(field));
+  for (const field of clearedFields) adopted[field] = NARRATIVE_PERSONALIZATION_DEFAULTS[field];
+  return { adopted, adoptedFields, clearedFields };
 }
 
 /** A stable key for comparing what this device would send with what the account holds. */

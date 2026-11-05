@@ -328,6 +328,10 @@ export function useTarotState(speak) {
 
   const shuffle = useCallback((onShuffleComplete) => {
     const currentSpread = selectedSpread;
+    // Draw accepts the spread shown, including a personalized default. Account
+    // preferences arriving later must not relabel its cards or cancel its shuffle.
+    setHasUserSelectedSpread(true);
+    setSelectedSpreadState(currentSpread);
     // A new draw must not consume the ritual recorded for an existing reading.
     // Keep those facts for progress/restoration until this explicit transition.
     const startingNewReading = Boolean(reading?.length);

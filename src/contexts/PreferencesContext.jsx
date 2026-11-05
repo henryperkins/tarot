@@ -10,7 +10,9 @@ import {
   accountPayloadKey,
   buildAccountPreferencesPayload,
   fetchAccountPreferences,
+  loadAccountPreferenceOrigins,
   mergeAccountPersonalization,
+  saveAccountPreferenceOrigins,
   saveAccountPreferences
 } from '../lib/accountPreferences';
 import {
@@ -239,6 +241,9 @@ export function PreferencesProvider({ children }) {
     if (storedFields.length > 0) return storedFields;
     return derivePersonalizationExplicitFields(loadPersonalizationFromStorage(personalizationStorageKey, safeStorage));
   });
+  const [accountPreferenceOrigins, setAccountPreferenceOrigins] = useState(() =>
+    loadAccountPreferenceOrigins(personalizationStorageKey, safeStorage)
+  );
 
   // Handle auth transitions + migrate legacy device-scoped personalization storage.
   useEffect(() => {
@@ -254,6 +259,7 @@ export function PreferencesProvider({ children }) {
       const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
       const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
       setPersonalizationState(loadedPersonalization);
+      setAccountPreferenceOrigins(loadAccountPreferenceOrigins(nextKey, safeStorage));
       setPersonalizationExplicitFields(
         loadedExplicitFields.length > 0
           ? loadedExplicitFields
@@ -278,9 +284,15 @@ export function PreferencesProvider({ children }) {
     savePersonalizationExplicitFields(personalizationKeyRef.current, personalizationExplicitFields, safeStorage);
   }, [authLoading, loadedPersonalizationKey, personalizationExplicitFields, personalizationStorageKey]);
 
+  useEffect(() => {
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey) return;
+    saveAccountPreferenceOrigins(personalizationKeyRef.current, accountPreferenceOrigins, safeStorage);
+  }, [authLoading, loadedPersonalizationKey, accountPreferenceOrigins, personalizationStorageKey]);
+
   const resetPersonalization = useCallback(() => {
     setPersonalizationState({ ...DEFAULT_PERSONALIZATION });
     setPersonalizationExplicitFields([]);
+    setAccountPreferenceOrigins({ inheritedFields: [], resetPending: true });
     safeStorage.removeItem(personalizationKeyRef.current);
   }, []);
 
@@ -290,6 +302,12 @@ export function PreferencesProvider({ children }) {
       : [];
 
     if (touchedFields.length === 0) return;
+
+    // Choosing the same value is still an explicit local choice.
+    setAccountPreferenceOrigins(current => ({
+      ...current,
+      inheritedFields: current.inheritedFields.filter(field => !touchedFields.includes(field))
+    }));
 
     setPersonalizationExplicitFields((current) => {
       const merged = new Set(current);
@@ -421,38 +439,66 @@ export function PreferencesProvider({ children }) {
   // this device's choices for that account are loaded.
   const [accountSync, setAccountSync] = useState({ userId: null, status: 'idle' });
   const accountRequestedForRef = useRef(null);
+  const accountRequestEpochRef = useRef(0);
   const accountPushKeyRef = useRef(null);
+  const accountConfirmedKeyRef = useRef(null);
+  const accountDesiredKeyRef = useRef(null);
+  const accountReadyForRef = useRef(null);
   const explicitFieldsRef = useRef(personalizationExplicitFields);
+  const accountOriginsRef = useRef(accountPreferenceOrigins);
   useEffect(() => {
     explicitFieldsRef.current = personalizationExplicitFields;
-  }, [personalizationExplicitFields]);
+    accountOriginsRef.current = accountPreferenceOrigins;
+  }, [personalizationExplicitFields, accountPreferenceOrigins]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!userId) {
+      accountRequestEpochRef.current += 1;
       accountRequestedForRef.current = null;
       accountPushKeyRef.current = null;
+      accountConfirmedKeyRef.current = null;
+      accountDesiredKeyRef.current = null;
+      accountReadyForRef.current = null;
       return;
     }
-    if (loadedPersonalizationKey !== personalizationStorageKey) return;
+    if (loadedPersonalizationKey !== personalizationStorageKey) {
+      accountRequestEpochRef.current += 1;
+      accountRequestedForRef.current = null;
+      accountReadyForRef.current = null;
+      accountConfirmedKeyRef.current = null;
+      accountDesiredKeyRef.current = null;
+      return;
+    }
     if (accountRequestedForRef.current === userId) return;
+    const requestEpoch = ++accountRequestEpochRef.current;
     accountRequestedForRef.current = userId;
+    accountReadyForRef.current = null;
+    accountConfirmedKeyRef.current = null;
+    accountDesiredKeyRef.current = null;
     fetchAccountPreferences()
       .then((data) => {
-        if (accountRequestedForRef.current !== userId) return;
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
         if (data?.available === false) {
           setAccountSync({ userId, status: 'unavailable' });
           return;
         }
         const remote = data?.preferences || null;
-        const { adopted, adoptedFields } = mergeAccountPersonalization({
+        const origins = accountOriginsRef.current;
+        const { adopted, adoptedFields, clearedFields } = mergeAccountPersonalization({
           explicitFields: explicitFieldsRef.current,
-          remote
+          inheritedFields: origins.inheritedFields,
+          // A reset made here must reach the account even when its GET was
+          // still in flight, or the page reloaded before the PUT completed.
+          remote: origins.resetPending ? null : remote
         });
-        if (adoptedFields.length > 0) {
+        if (adoptedFields.length > 0 || clearedFields.length > 0) {
           setPersonalizationState(prev => sanitizePersonalization({ ...prev, ...adopted }));
-          setPersonalizationExplicitFields(prev => Array.from(new Set([...prev, ...adoptedFields])));
+          setPersonalizationExplicitFields(prev => Array.from(new Set([
+            ...prev.filter(field => !clearedFields.includes(field)), ...adoptedFields
+          ])));
         }
+        setAccountPreferenceOrigins(current => ({ ...current, inheritedFields: adoptedFields }));
         if (remote?.onboardingCompletedAt) {
           setOnboardingCompleteState(true);
           safeStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
@@ -464,10 +510,14 @@ export function PreferencesProvider({ children }) {
           explicitFields: remote?.explicitFields || [],
           onboardingComplete: Boolean(remote?.onboardingCompletedAt)
         }));
+        accountConfirmedKeyRef.current = accountPushKeyRef.current;
+        accountReadyForRef.current = userId;
         setAccountSync({ userId, status: 'ready' });
       })
       .catch(() => {
-        if (accountRequestedForRef.current === userId) setAccountSync({ userId, status: 'error' });
+        if (accountRequestedForRef.current === userId && accountRequestEpochRef.current === requestEpoch) {
+          setAccountSync({ userId, status: 'error' });
+        }
       });
   }, [authLoading, userId, loadedPersonalizationKey, personalizationStorageKey]);
 
@@ -478,17 +528,43 @@ export function PreferencesProvider({ children }) {
 
   // Send this device's choices back whenever they differ from the account copy.
   useEffect(() => {
-    if (!userId || accountSync.userId !== userId || accountSync.status !== 'ready') return undefined;
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey
+      || !userId || accountReadyForRef.current !== userId
+      || accountSync.userId !== userId || accountSync.status !== 'ready') return undefined;
     const payload = buildAccountPreferencesPayload({
       personalization,
       explicitFields: personalizationExplicitFields,
       onboardingComplete
     });
     const key = accountPayloadKey(payload);
-    if (key === accountPushKeyRef.current) return undefined;
+    const requestEpoch = accountRequestEpochRef.current;
+    accountDesiredKeyRef.current = key;
+    if (key === accountPushKeyRef.current) {
+      // The account may already be empty (for example after a reset elsewhere).
+      // A confirmed matching copy also acknowledges this device's pending reset.
+      if (accountPreferenceOrigins.resetPending && key === accountConfirmedKeyRef.current) queueMicrotask(() => {
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
+        setAccountPreferenceOrigins(current => current === accountPreferenceOrigins
+          ? { ...current, resetPending: false } : current);
+      });
+      return undefined;
+    }
     const timer = setTimeout(() => {
       accountPushKeyRef.current = key;
-      saveAccountPreferences(payload).catch((error) => {
+      saveAccountPreferences(payload).then(() => {
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
+        if (accountRequestedForRef.current === userId && accountPushKeyRef.current === key) {
+          accountConfirmedKeyRef.current = key;
+        }
+        if (accountRequestedForRef.current === userId && accountPushKeyRef.current === key
+          && accountDesiredKeyRef.current === key) {
+          // Repeating the same reset while its request is in flight has the
+          // same intended payload and is acknowledged by this success too.
+          setAccountPreferenceOrigins(current => current.resetPending
+            ? { ...current, resetPending: false } : current);
+        }
+      }).catch((error) => {
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
         if (error?.code === 'preferences_unavailable') {
           setAccountSync({ userId, status: 'unavailable' });
         } else if (accountPushKeyRef.current === key) {
@@ -498,7 +574,7 @@ export function PreferencesProvider({ children }) {
       });
     }, 700);
     return () => clearTimeout(timer);
-  }, [userId, accountSync, personalization, personalizationExplicitFields, onboardingComplete]);
+  }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId, accountSync, personalization, personalizationExplicitFields, onboardingComplete, accountPreferenceOrigins]);
 
   // --- Nudge State (Contextual Discovery) ---
   const [nudgeState, setNudgeStateInternal] = useState(() => {
