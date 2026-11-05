@@ -50,6 +50,9 @@ export async function checkGuestUi(context, run, { targetUrl, guard, signal, log
         await expect(page.getByRole('dialog', { name: 'Prepare your reading', exact: true })).toBeVisible();
       }
       const decks = page.getByRole('radiogroup', { name: 'Choose your deck style', exact: true });
+      if (!handset && !await decks.isVisible()) {
+        await page.getByRole('button', { name: /^Deck / }).click();
+      }
       const choices = decks.getByRole('radio');
       await expect(choices).toHaveCount(3);
       for (let i = 0; i < 3; i++) {

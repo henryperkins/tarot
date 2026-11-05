@@ -10,7 +10,7 @@
 
 **Spec:** [Remediation design and acceptance criteria](#remediation-design-and-acceptance-criteria), embedded below. Tasks 1–4 were initially authorized for native implementation with one independent final review. After local integration and verification, the user explicitly authorized the remaining Task 5 release work, including commits, pushes, deployment, and bounded Deepgram live verification.
 
-**Status:** Tasks 1–4 completed and locally verified on November 5, 2026, using native execution and one independent final review. The candidate was subsequently integrated and locally reverified against current `master` at `216e157d`, as recorded below. Task 5 is now authorized and in progress. Release preflight verified the local Claude subscription login, Browserbase credential availability, and a successful repository deployment dry run with all production migrations already applied. Original implementation baseline: `6e4d15bf`.
+**Status:** Tasks 1–4 completed and locally verified on November 5, 2026, then integrated against `master` at `216e157d`. Task 5 published audio source commit `2d21f349` as Worker `35b897e5-7962-411a-abd7-4cc40090a874`, serving 100% of traffic with `enable_request_signal`. Live guest UI, Deepgram playback, cancellation cleanup, accounting, and asset verification passed. The user has agreed to perform the signed-in Pro/physical iPhone check; those results are pending. Browserbase cloud verification was unavailable because its browser-minutes allowance was exhausted; local Chromium exercised the live guest checks instead. Original implementation baseline: `6e4d15bf`.
 
 ## Global Constraints
 
@@ -212,19 +212,60 @@ The product code checked by the root suite, build, socket tests, browser matrix,
 
 Authenticated verification used a private copy of the local reviewer database; the incoming preferences migration was applied only to that copy. The local Worker configuration omitted AI, email, remote provider credentials, and tail bindings, and the browser intercepted generation/media with deterministic responses. The verified task-owned Worker was stopped and the private database copy removed after logout. The browser matrix log includes refused loopback health probes after that Worker stopped; these were not provider requests or failed media/control assertions.
 
-The integration ledger, exact source hashes, logs, failed browser evidence, and targeted rerun are retained under `.superpowers/sdd/2026-11-05-reading-audio-cancellation/` in the managed worktree. Production generation/accounting, deployed cancellation flags, edge transports, and physical iPhone Safari unlocking/backgrounding/interruption remain Task 5 qualification limits.
+The integration ledger, exact source hashes, logs, failed browser evidence, and targeted rerun are retained under `.superpowers/sdd/2026-11-05-reading-audio-cancellation/` in the managed worktree. At this integration stage, production generation/accounting, deployed cancellation flags, edge transports, and physical iPhone behavior were pending Task 5. The subsequent release results are recorded below.
 
 ## Task 5: Prepare and verify an authorized release
 
 The user explicitly authorized this release stage after reviewing the completed local integration. The normal deployment entrypoint must still pass its fresh release QA before production changes. Live ElevenLabs usage requires separate explicit provider authorization and remains outside this release's live probe scope.
 
 - [x] Prepare a concrete scoped diff and final local evidence; preserve the unrelated critique file and any newly discovered dirty work. If isolation is needed, use an owned worktree and verify the final source being released.
-- [ ] When publication/deployment is authorized, run the repository's required release checks and `npm run deploy:dry-run` before `npm run deploy`. Use local verification on the subscription-authenticated host. GitHub Actions billing is unavailable; missing subscription access must not trigger paid narrative fallback.
-- [ ] Record source/remote SHA, active Worker version and traffic, deployed `enable_request_signal`, and matching live frontend assets separately. Verify that dashboard-managed settings and provider secrets were preserved.
-- [ ] Perform a bounded live smoke test with synthetic text and sufficient allowance: complete Deepgram narration, cancel a short card request, then start a full reading. Verify actual MP3 delivery and playback, prompt reservation resolution, and no repeated 409 sequence. Confirm guest and real signed-in Pro behavior with their coverage stated. Exercise ElevenLabs only within explicitly authorized provider usage; otherwise retain its live lane as unverified.
-- [ ] Verify real cancellation did not debit a no-audio request and that partial paid audio consumes exactly one unit when that lane is exercised. Inspect safe request/cleanup logs; do not expose credentials, account identifiers, or reading text.
+- [x] When publication/deployment is authorized, run the repository's required release checks and `npm run deploy:dry-run` before `npm run deploy`. Use local verification on the subscription-authenticated host. GitHub Actions billing is unavailable; missing subscription access must not trigger paid narrative fallback.
+- [x] Record source/remote SHA, active Worker version and traffic, deployed `enable_request_signal`, and matching live frontend assets separately. Verify that dashboard-managed settings and provider secrets were preserved.
+- [x] Perform a bounded live guest smoke test with synthetic text and sufficient allowance: complete Deepgram narration, cancel a card request, then start a full reading. Verify actual MP3 delivery and browser playback, prompt reservation resolution, and no repeated 409 sequence. Exercise ElevenLabs only within explicitly authorized provider usage; otherwise retain its live lane as unverified.
+- [ ] Confirm real signed-in Pro behavior on production. The user will perform this together with the physical iPhone check; local real-Pro authentication with mocked media is already recorded separately.
+- [x] Verify real cancellation did not debit a no-audio request and that partial paid audio consumes exactly one unit when that lane is exercised. Live Deepgram no-audio cancellation was verified; the unexercised live ElevenLabs partial-audio lane remains explicitly unverified. Do not expose credentials, account identifiers, or reading text.
 - [ ] Arrange a physical iPhone Safari check of rapid reveals, Listen, Stop/Replay, and background/foreground. If device evidence is unavailable, report the gap while keeping browser/runtime/live-generation results distinct.
 - [ ] Close the release only with these named results. If a material regression appears, inspect active production/process ownership and resource compatibility before choosing rollback; do not clear reservations wholesale, bypass accounting, or shorten the crash lease as a workaround.
+
+### Release execution and live evidence — November 5, 2026
+
+The exact 25-file audio implementation was committed and pushed to `master` as `2d21f349b032604cfec5f635120e32ce43f122b4`. Git publication required a command-scoped use of the existing valid `gh` login after the default credential path failed; all 46 new Git objects, fast-forward ancestry, and remote parity were checked. No force push or branch-rule change was used. The user's separate Impeccable hook installation and pre-existing critique remain local and were excluded from the audio commit.
+
+Both `npm run deploy:dry-run` and Wrangler's actual packaging dry run passed. The first normal deployment attempt stopped before production changes when the owner's Claude subscription reported its five-hour limit. After the reported 10:30 a.m. America/Chicago reset, the unchanged normal release entrypoint passed its full fresh QA using the same subscription, Opus 5.5 model, and `xhigh` effort. No paid narrative API fallback or gate waiver was used.
+
+| Release check | Observed result |
+| --- | --- |
+| Root tests | 6,390 passed, two existing opt-in skips, zero failed. |
+| Deployment tests | 74 passed, zero failed. |
+| Cloudflare command validation | 591 files passed. |
+| Maintained Markdown links in release worktree | 241 files passed before upload. |
+| Claude-subscription narrative qualification | All 11 samples generated; zero flagged samples; 100% narrative spine and card coverage. |
+| Prompt assembly | 874 fixtures, 2,541 provider builds, 30 partial pairs, 10 complete triads, 525 canon/deck projections, and 12 boundaries passed. |
+| Production migrations | Already applied; this audio release introduced no migration. |
+| Production frontend build | Passed in 10.78 seconds. |
+| Settings preservation | Deployment script verified existing variables, secrets, and monitoring settings; independent metadata reads retained 35 secret bindings and 62 plaintext/JSON variables. |
+
+Worker deployment `af5b0f86-2d80-4a8d-90a3-2374037008cd` activated version `35b897e5-7962-411a-abd7-4cc40090a874` at 100% traffic at 10:50 a.m. America/Chicago. Compatibility date remains `2025-11-24`; deployed flags are `nodejs_compat` and `enable_request_signal`. The normal deployment command returned a nonzero result after publication because its hosted post-check was unavailable, as detailed below; the upload itself and settings verification succeeded.
+
+Browserbase session creation returned HTTP 402 because the free-plan browser-minutes limit had been reached. No cloud session or UI run started, and the report has no cleanup errors. Billing was unchanged. As additional live functional evidence, the same guest checker and network guard were run in local Chromium against `https://tarot.lakefrontdev.com` at 1280×900 and 390×844. All four checks passed at both sizes: onboarding/exit, deck/spread selection, sign-in dialog open/close, and draw/deal/reveal. No page errors or unexpected failed requests were observed. This is a local browser against production, not a Browserbase cloud pass or physical-device result.
+
+That check exposed one stale desktop fixture assumption: the current setup hides deck choices inside its Deck disclosure. The three-line runner correction opens that existing disclosure before testing the choices. Its original live desktop failure is retained, followed by passing checks at both sizes, all 11 Browserbase unit/guard tests, targeted ESLint, and whitespace validation. No application UI or deployed bundle changed for this correction.
+
+The subsequent fresh root suite also passed 6,390 tests with two existing opt-in skips and zero failures. Final documentation checks passed for 241 maintained files in the release worktree and 295 in the primary checkout, including the local Impeccable installation. The follow-up changes only this evidence record and the guest smoke-test helper; deployed application, Worker, configuration, and dependency source remain identical to `2d21f349`.
+
+Eight served JavaScript/CSS resources, including entry, reading, and narration bundles, match the release build byte for byte by SHA-256. The served index contains one identified Cloudflare JavaScript Detection script; after removing only that injected tag for comparison, the index exactly matches the build. Both raw and normalized hashes are retained. No Cloudflare challenge or security setting was changed.
+
+The bounded real-guest Deepgram check made exactly three POSTs using synthetic text and SELECT-only accounting reads for its own identity:
+
+| Request | Live result |
+| --- | --- |
+| Complete narration | HTTP 200, 50,256 MP3 bytes, advancing browser playback, one monthly unit settled. |
+| Buffered card narration cancelled before audio delivery | Client `AbortError`, zero received audio bytes; reservation released in 274 ms, before lease expiry; zero monthly debit and no remaining reservation. |
+| Full reading after cancellation | HTTP 200, 62,496 MP3 bytes, advancing browser playback, one monthly unit settled; no busy response or synthesis retry. |
+
+Observed monthly usage moved from `used=1, reserved=0` to `used=3, reserved=0`: exactly two completed narrations were counted. The guest browser context was closed afterward. Playback used a temporary diagnostic gesture control; this proves delivered MP3 playback and the live backend sequence, while production rapid-reveal UI and physical Safari behavior remain part of the user's Pro/iPhone check. Remote Workers AI stop timing and unobserved provider-side work remain outside the guarantee.
+
+All release logs, the unavailable Browserbase report, initial/corrected live guest checks, raw/normalized asset hashes, and the successful live accounting result are retained in the managed worktree's `.superpowers/sdd/2026-11-05-reading-audio-cancellation/`. Generated narrative samples and metrics were copied there and hash-verified before restoring only those task-generated tracked outputs. Original worktree evidence, unrelated files, the critique, hook installation, and stash remain preserved.
 
 ## Execution boundaries and sequencing
 
