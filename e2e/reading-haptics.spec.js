@@ -1,19 +1,28 @@
 import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, QUESTION } from './helpers/narrativeFixtures.js';
 
+// The ritual waits at the table, on the deck itself (scenes/TableDeck).
 async function openRitual(page) {
   await openSetup(page);
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: 'Deal spread', exact: true }).waitFor();
-  await page.locator('summary').filter({ hasText: 'Optional ritual' }).click();
+}
+
+// Arrow keys move the cut along the deck's edge; Enter makes it.
+async function cutDeck(page, key = 'ArrowRight') {
+  const edge = page.getByRole('slider', { name: 'Cut the deck', exact: true });
+  await edge.focus();
+  await page.keyboard.press(key);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.reading-table__status')).toContainText(`Cut at card ${await edge.inputValue()} of`);
 }
 
 async function knockAndReveal(page) {
-  for (let count = 0; count < 3; count += 1) {
-    await page.getByRole('button', { name: `Knock (${count}/3)`, exact: true }).click();
+  for (let count = 1; count <= 3; count += 1) {
+    await page.getByRole('button', { name: `Knock on the deck, ${count} of 3`, exact: true }).click();
   }
-  await expect(page.getByRole('button', { name: 'Knock (3/3)', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Knocked three times', exact: true })).toHaveAttribute('aria-disabled', 'true');
   await page.getByRole('button', { name: 'Deal spread', exact: true }).click();
   await page.getByRole('button', { name: 'Reveal next: Past', exact: true }).click();
   await page.getByRole('button', { name: /Card in Present position.*Click to reveal/ }).click();
@@ -46,8 +55,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('reduced motion suppresses ritual and individual card haptics', async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       await openRitual(page);
-      await page.getByRole('button', { name: 'Set cut', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Cut set', exact: true })).toBeVisible();
+      await cutDeck(page);
       await knockAndReveal(page);
       expect(await page.evaluate(() => window.readingVibrations)).toEqual([]);
     });
@@ -55,12 +63,15 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('changing motion preference disables haptics in existing action callbacks', async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       await openRitual(page);
-      await page.getByRole('button', { name: 'Set cut', exact: true }).click();
+      await cutDeck(page);
       expect(await page.evaluate(() => window.readingVibrations)).toContain(12);
       await page.emulateMedia({ reducedMotion: 'reduce' });
-      // The cut action is already mounted when the preference changes.
+      // The cut edge is already mounted when the preference changes; re-cut.
+      // Media query changes are reported with the next rendering update, so
+      // let two frames pass before acting from the keyboard.
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await page.evaluate(() => { window.readingVibrations = []; });
-      await page.getByRole('button', { name: 'Cut set', exact: true }).click();
+      await cutDeck(page, 'ArrowLeft');
       await knockAndReveal(page);
       // Stopping an earlier vibration with vibrate(0) remains safe and desirable.
       expect(await page.evaluate(() => window.readingVibrations.filter(pattern => pattern !== 0))).toEqual([]);
@@ -77,8 +88,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           value() { throw new DOMException('Vibration blocked', 'NotAllowedError'); }
         });
       });
-      await page.getByRole('button', { name: 'Set cut', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Cut set', exact: true })).toBeVisible();
+      await cutDeck(page);
       await knockAndReveal(page);
       expect(errors).toEqual([]);
     });

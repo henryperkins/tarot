@@ -10,7 +10,7 @@ const personalizationModule = build({
 
 // Run the production hook and real pure dependencies with deterministic React
 // scheduling and timers. Contexts, storage, audio and haptics stay local.
-export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, snapshot = null } = {}) {
+export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, snapshot = null, spreadDraft = null, subscription: subscriptionOverride = null } = {}) {
   const url = new URL('../../src/hooks/useTarotState.js', import.meta.url);
   const source = await readFile(url, 'utf8');
   const ast = parse(source, { sourceType: 'module' });
@@ -23,7 +23,9 @@ export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, s
   let authLoading = false;
   let activeOwner = owner;
   const prefs = { includeMinors: false, deckSize: 22, personalization: { showRitualSteps: false, preferredSpreadDepth: 'standard' }, ...preferences };
-  const subscription = { canUseSpread: () => true };
+  const subscription = subscriptionOverride || { canUseSpread: () => true };
+  // Animation frames queue until flushFrames(), like timers until pendingShuffle().
+  const frames = [];
   const noop = () => {};
   const effect = (run, deps) => {
     const index = cursor++;
@@ -61,7 +63,7 @@ export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, s
     unlockAudio: noop,
     setTimeout(run, delay) { const id = ++timerId; timers.set(id, { run, delay }); return id; },
     clearTimeout: id => timers.delete(id),
-    requestAnimationFrame: noop
+    requestAnimationFrame(run) { frames.push(run); return frames.length; }
   };
   const removed = [];
   for (const node of ast.program.body) {
@@ -74,6 +76,10 @@ export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, s
     } else if (node.type === 'ExportNamedDeclaration') removed.push([node.start, node.declaration.start]);
   }
   dependencies.loadReadingSnapshot = () => snapshot;
+  // The tab's saved spread choice (lib/spreadDraft); saves are recorded, not stored.
+  const savedSpreadDrafts = [];
+  dependencies.loadSpreadDraft = () => spreadDraft;
+  dependencies.saveSpreadDraft = spreadKey => { savedSpreadDrafts.push(spreadKey); };
   let program = source;
   for (const [start, end] of removed.sort((a, b) => b[0] - a[0])) program = program.slice(0, start) + program.slice(end);
   const hook = new Function(...Object.keys(dependencies), `${program}; return useTarotState;`)(...Object.values(dependencies));
@@ -94,6 +100,8 @@ export async function tarotStateHarness({ owner = 'owner-a', preferences = {}, s
     setOwner(next) { activeOwner = next; },
     setAuthLoading(next) { authLoading = next; },
     pendingShuffle() { return [...timers.values()].find(timer => timer.delay === 1200)?.run; },
+    savedSpreadDrafts,
+    flushFrames() { for (const run of frames.splice(0)) run(); },
     unmount() { for (const cell of cells) cell?.cleanup?.(); }
   };
 }

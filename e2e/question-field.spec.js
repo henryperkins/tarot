@@ -235,16 +235,17 @@ test.describe('Question card hardening @mobile', () => {
       .toBe('How can I prepare for the interview this week?');
   });
 
-  test('More opens deck and ritual settings, not a second question field', async ({ page }) => {
+  test('More opens the deck, not a second question field or a ritual', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
 
     await page.getByRole('button', { name: 'More reading settings' }).click();
     const drawer = page.getByRole('dialog', { name: 'Prepare your reading' });
     await expect(drawer).toBeVisible();
-    const tabs = drawer.getByRole('tablist', { name: 'Preparation settings' }).getByRole('tab');
-    await expect(tabs).toHaveText(['Deck', 'Ritual']);
-    await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
+    // The ritual waits at the reading table, so the drawer needs no tabs.
+    await expect(drawer.getByRole('tab')).toHaveCount(0);
+    await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
+    await expect(drawer.getByRole('slider')).toHaveCount(0);
     await expect(drawer.getByRole('textbox', { name: PROMPT })).toHaveCount(0);
   });
 

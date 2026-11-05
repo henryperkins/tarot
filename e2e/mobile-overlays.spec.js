@@ -303,15 +303,21 @@ test.describe('Phone card gestures and safe areas — Chromium', () => {
   test('toasts clear the status bar and notch', async ({ page }) => {
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 59, bottom: 34, left: 0, right: 0 } });
+    // The classic deck interface announces a finished shuffle with a toast.
+    await page.addInitScript(() => localStorage.setItem('ff_new_deck_interface', 'false'));
     await openSetup(page);
     const stack = page.locator('div.pointer-events-none.z-toast');
     await expect(stack).toHaveCSS('top', '59px');
 
-    await page.getByRole('button', { name: 'Open reading preparation', exact: true }).click();
-    await page.getByRole('tab', { name: /Ritual/ }).or(page.getByRole('button', { name: /^Ritual/ })).first().click();
-    await page.getByRole('button', { name: /^Confirm cut at position/ }).click();
-    const toast = stack.getByText('Cut confirmed');
+    // The reading table is fetched after the first tap; let it arrive so it is
+    // ready to announce the shuffle when Draw cards is pressed.
+    await page.locator('#quick-intention').click();
+    await expect.poll(() => page.evaluate(() => performance.getEntriesByType('resource')
+      .some(entry => /ReadingDisplay/.test(entry.name)))).toBe(true);
+    await page.waitForLoadState('networkidle');
+    await page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Draw cards', exact: true }).click();
+    const toast = stack.getByText('Cards ready');
     await expect(toast).toBeVisible();
-    expect((await toast.boundingBox()).y).toBeGreaterThanOrEqual(59);
+    expect(await toast.evaluate(element => element.getBoundingClientRect().y)).toBeGreaterThanOrEqual(59);
   });
 });

@@ -51,6 +51,7 @@ import * as usage from '../../functions/api/usage.js';
 import * as subscription from '../../functions/api/subscription.js';
 import * as subscriptionRestore from '../../functions/api/subscription/restore.js';
 import * as accountProfile from '../../functions/api/account/profile.js';
+import * as accountPreferences from '../../functions/api/account/preferences.js';
 import * as accountPassword from '../../functions/api/account/password.js';
 import * as accountDelete from '../../functions/api/account/delete.js';
 import * as accountExport from '../../functions/api/account/export.js';
@@ -238,6 +239,7 @@ const routes = [
   { pattern: /^\/api\/subscription$/, handlers: subscription },
   { pattern: /^\/api\/subscription\/restore$/, handlers: subscriptionRestore },
   { pattern: /^\/api\/account\/profile$/, handlers: accountProfile },
+  { pattern: /^\/api\/account\/preferences$/, handlers: accountPreferences },
   { pattern: /^\/api\/account\/password$/, handlers: accountPassword },
   { pattern: /^\/api\/account\/delete$/, handlers: accountDelete },
   { pattern: /^\/api\/account\/export$/, handlers: accountExport },

@@ -595,6 +595,7 @@
     "src/components/CardModal.jsx",
     "src/components/CardSymbolInsights.jsx",
     "src/components/CarouselDots.jsx",
+    "src/components/ChoiceCarousel.jsx",
     "src/components/CloseButton.jsx",
     "src/components/CoachSuggestion.jsx",
     "src/components/ConfirmModal.jsx",
@@ -684,7 +685,6 @@
     "src/components/ReadingJourney/sections/ShareLinksManager.jsx",
     "src/components/ReadingPreparation.jsx",
     "src/components/ResponsiveSpreadArt.jsx",
-    "src/components/RitualControls.jsx",
     "src/components/RouteAccessibility.jsx",
     "src/components/SaveIntentionButton.jsx",
     "src/components/SavedIntentionsList.jsx",
@@ -863,6 +863,7 @@
     "src/hooks/useAudioController.js",
     "src/hooks/useAutoGrow.js",
     "src/hooks/useBodyScrollLock.js",
+    "src/hooks/useChoiceCarousel.js",
     "src/hooks/useCinematicBeat.js",
     "src/hooks/useEnhancedTextStreaming.js",
     "src/hooks/useFeatureFlags.js",
@@ -977,6 +978,7 @@
     "src/lib/safeStorage.js",
     "src/lib/savedReadingGestureSource.js",
     "src/lib/slotRevealBurst.js",
+    "src/lib/spreadDraft.js",
     "src/lib/spreadInsights.js",
     "src/lib/spreadLayouts.js",
     "src/lib/spreadTablePresentation.js",
@@ -1025,6 +1027,11 @@
     "src/worker/readingVisualJob.js",
     "tailwind.config.js",
     "theme.json",
-    "vite.config.js"
+    "vite.config.js",
+    "src/hooks/useSavedIntentions.js",
+    "src/hooks/useSavedMemoryPresence.js",
+    "src/lib/accountPreferences.js",
+    "src/components/scenes/TableDeck.jsx",
+    "src/lib/tableRitual.js"
   ]
 }

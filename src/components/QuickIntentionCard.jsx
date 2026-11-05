@@ -13,6 +13,7 @@ import {
 } from './questionField';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useAutoGrow } from '../hooks/useAutoGrow';
+import { useSavedIntentions } from '../hooks/useSavedIntentions';
 import { getQuestionNudge } from '../lib/questionQuality';
 import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
 
@@ -49,6 +50,15 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   const trimmedQuestion = userQuestion.trim();
   const nudgeKind = getQuestionNudge(userQuestion);
   const describedBy = nudgeKind ? `${helperId} ${nudgeId}` : helperId;
+
+  const [lastIntention] = useSavedIntentions(1);
+  // The reader's own last intention fills the field; continue there, at its end.
+  const focusFieldAtEnd = () => requestAnimationFrame(() => {
+    const field = localInputRef.current;
+    if (!field) return;
+    field.focus();
+    field.setSelectionRange?.(field.value.length, field.value.length);
+  });
 
   // Merge inputRef (from parent) with autoGrowRef (from hook)
   const mergedRef = useCallback((el) => {
@@ -216,7 +226,12 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
       </div>
       <QuestionNudge id={nudgeId} kind={nudgeKind} onOpenCoach={onCoachOpen} />
       {showExamples ? (
-        <QuestionExamples value={userQuestion} onChange={onQuestionChange} />
+        <QuestionExamples
+          value={userQuestion}
+          onChange={onQuestionChange}
+          lastIntention={lastIntention}
+          onIntentionUsed={focusFieldAtEnd}
+        />
       ) : (
         <SaveIntentionButton question={userQuestion} />
       )}
