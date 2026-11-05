@@ -4,6 +4,7 @@ import { ReadingPreparation } from './components/ReadingPreparation';
 import { ReadingStart } from './components/reading/ReadingStart';
 import { DeferredDialog } from './components/DeferredDialog';
 import { DeckSelector } from './components/DeckSelector';
+import { ConfirmModal } from './components/ConfirmModal';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
@@ -131,6 +132,7 @@ export default function TarotReading() {
     selectedSpread,
     setSelectedSpread: _setSelectedSpread,
     selectSpread,
+    chooseSpread,
     reading,
     setReading,
     isShuffling,
@@ -653,19 +655,45 @@ export default function TarotReading() {
     scrollQuickIntentionIntoView();
   }, [scrollQuickIntentionIntoView]);
 
-  const handleSpreadSelection = useCallback((key) => {
+  const applySpreadSelection = useCallback((key) => {
     const shouldPromptQuickIntention = isHandset && !hasConfirmedSpread;
-    // Use the centralized selectSpread from useTarotState
-    selectSpread(key);
-    // Reset narrative/analysis state
-    setPersonalReading(null);
-    setJournalStatus(null);
-    setReflections({});
-    setIsGenerating(false);
+    const keepsCurrentSpread = normalizeSpreadKey(key) === selectedSpread;
+    // The reader's tap (useTarotState.chooseSpread): the spread already in use
+    // keeps its cards, ritual and reading.
+    chooseSpread(key);
+    if (!keepsCurrentSpread) {
+      // Reset narrative/analysis state
+      setPersonalReading(null);
+      setJournalStatus(null);
+      setReflections({});
+      setIsGenerating(false);
+    }
     if (shouldPromptQuickIntention) {
       promptQuickIntention();
     }
-  }, [hasConfirmedSpread, isHandset, promptQuickIntention, selectSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
+  }, [chooseSpread, hasConfirmedSpread, isHandset, promptQuickIntention, selectedSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
+
+  // A different spread puts drawn cards away, so a tap on the revisited setup
+  // asks first instead of clearing the table and its reading at once. Returns
+  // false while the question is open so the selector leaves its carousel be.
+  const [pendingSpreadKey, setPendingSpreadKey] = useState(null);
+  // WebKit focuses the nearest focusable ancestor of a clicked card, so the
+  // confirmation returns focus to the card itself, not to #step-spread.
+  const spreadChangeReturnRef = useRef(null);
+  const handleSpreadSelection = useCallback((key, { opener = null } = {}) => {
+    if (normalizeSpreadKey(key) !== selectedSpread && reading?.length) {
+      spreadChangeReturnRef.current = opener;
+      setPendingSpreadKey(normalizeSpreadKey(key));
+      return false;
+    }
+    applySpreadSelection(key);
+    return true;
+  }, [applySpreadSelection, reading, selectedSpread]);
+  const closeSpreadChange = useCallback(() => setPendingSpreadKey(null), []);
+  const confirmSpreadChange = useCallback(() => {
+    if (pendingSpreadKey) applySpreadSelection(pendingSpreadKey);
+  }, [applySpreadSelection, pendingSpreadKey]);
+  const pendingSpreadHasReading = Boolean(personalReading && !personalReading.isError);
 
   const handleCoachClose = useCallback(() => {
     setIsIntentionCoachOpen(false);
@@ -1145,15 +1173,18 @@ export default function TarotReading() {
 
             <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
               {!isHandset && (
-                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} />
+                <DeckSelector selectedDeck={deckStyleId} onDeckChange={handleDeckChange} hasDrawnCards={Boolean(reading?.length)} />
               )}
 
-              <div aria-label="Spread selection" ref={spreadSectionRef} id="step-spread" tabIndex={-1}>
+              {/* Step navigation target; the panel inside carries the heading
+                  and the named radio group. */}
+              <div ref={spreadSectionRef} id="step-spread" tabIndex={-1}>
                 <SpreadSelector
                   selectedSpread={selectedSpread}
                   onSelectSpread={handleSpreadSelection}
                   onSpreadConfirm={onSpreadConfirm}
                   showHeader={!isHandset}
+                  prioritizeChosenArt={isHandset}
                 />
               </div>
 
@@ -1208,6 +1239,23 @@ export default function TarotReading() {
             </div>
           </section>
         )}
+
+        {/* Outside the setup section, so hiding the setup cannot leave the
+            question pending and bring it back later. */}
+        <ConfirmModal
+          isOpen={Boolean(pendingSpreadKey)}
+          onClose={closeSpreadChange}
+          onConfirm={confirmSpreadChange}
+          title={`Switch to ${getSpreadInfo(pendingSpreadKey)?.name || 'this spread'}?`}
+          message={pendingSpreadHasReading
+            ? 'This clears the cards on the table, your notes on them and their reading. Your question stays, and anything already saved to your journal is kept.'
+            : 'This clears the cards on the table and your notes on them. Your question stays.'}
+          confirmText="Switch spread"
+          cancelText="Keep these cards"
+          returnFocusRef={spreadChangeReturnRef}
+          fallbackFocusSelector='#step-spread [role="radio"][aria-checked="true"]'
+          renderInPortal
+        />
 
         {!isOnboardingOpen && (isShuffling || reading?.length || isGenerating || personalReading ? (
           <LazyLoadBoundary title="Your reading table did not load" className="my-6">
@@ -1369,6 +1417,7 @@ export default function TarotReading() {
               }}
               deckStyleId={deckStyleId}
               onDeckChange={handleDeckChange}
+              hasDrawnCards={Boolean(reading?.length)}
               initialMobileTab={mobileSettingsTab}
               hasKnocked={hasKnocked}
               handleKnock={handleKnock}

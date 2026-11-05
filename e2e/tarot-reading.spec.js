@@ -415,25 +415,21 @@ test.describe('Tarot Reading Flow - Desktop @desktop', () => {
     // Celtic Cross is a premium spread (requires Plus subscription)
     const celticButton = page.getByRole('radio', { name: /celtic/i });
 
-    // Should show lock indicator
-    const lockIcon = celticButton.locator('[aria-label="Premium spread - requires subscription"]');
-    await expect(lockIcon).toBeVisible();
+    // The lock is drawn for sight; the radio's description names the plan.
+    await expect(celticButton.locator('.spread-card__lock')).toBeVisible();
+    await expect(celticButton).toHaveAccessibleDescription(/Requires Plus/);
 
-    // Clicking should show upgrade modal, not select the spread
+    // Clicking opens the upgrade dialog instead of selecting the spread
     await celticButton.click();
+    const upgradeDialog = page.getByRole('dialog', { name: /Unlock Celtic Cross/ });
+    await expect(upgradeDialog).toBeVisible({ timeout: 3000 });
+    await expect(upgradeDialog.getByRole('heading', { name: /Unlock Celtic Cross/ })).toBeFocused();
 
-    // Upgrade modal should appear
-    const upgradeModal = page.locator('text=Unlock Celtic Cross');
-    await expect(upgradeModal).toBeVisible({ timeout: 3000 });
-
-    // Spread should NOT be selected
+    // Escape closes it and returns focus to the spread that opened it
+    await page.keyboard.press('Escape');
+    await expect(upgradeDialog).toBeHidden();
+    await expect(celticButton).toBeFocused();
     await expect(celticButton).toHaveAttribute('aria-checked', 'false');
-
-    // Close the modal
-    const closeButton = page.getByLabel('Close');
-    if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await closeButton.click();
-    }
   });
 
   test('reveal all cards button works', async ({ page }) => {

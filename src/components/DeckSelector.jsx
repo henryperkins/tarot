@@ -1,11 +1,20 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Check, CaretRight } from '@phosphor-icons/react';
+import { useCallback, useId } from 'react';
 import { CarouselDots } from './CarouselDots';
+import { CarouselEdges, ChosenMarks } from './ChoiceCarousel';
+import { useChoiceCarousel } from '../hooks/useChoiceCarousel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { isVisionResearchEnabled } from '../hooks/useFeatureFlags';
+import { useAuth } from '../contexts/AuthContext';
 import { DECK_OPTIONS } from './deckOptions';
 import { LABEL_CLASS } from '../styles/labelClasses';
 
-function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
+const DECK_IDS = DECK_OPTIONS.map(deck => deck.id);
+const DECK_LABELS = DECK_OPTIONS.map(deck => deck.label);
+
+// The preview sits inside a deck radio that its title already names, so the
+// image itself is decorative. `priority`: 'high' (eager, fetched first),
+// 'eager', or 'lazy'.
+function DeckPreviewImage({ preview, priority = 'lazy' }) {
   const fallbackSrc = preview?.src;
   const attachImage = useCallback((image) => {
     // WebKit starts eager src requests while React builds detached nodes.
@@ -18,11 +27,11 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   }
 
   const isHighPriority = priority === 'high';
-  const loading = isHighPriority ? 'eager' : 'lazy';
+  const loading = priority === 'lazy' ? 'lazy' : 'eager';
   const sizes = '(min-width: 1024px) 280px, (min-width: 640px) 42vw, 60vw';
 
   return (
-    <div className="relative aspect-982/799 overflow-hidden rounded-[14px] bg-main mb-1">
+    <div className="deck-card__preview relative aspect-982/799 overflow-hidden rounded-[14px] bg-main mb-1">
       <picture className="block h-full w-full">
         {(preview.sources || []).map(source => (
           <source key={source.type} type={source.type} srcSet={source.srcSet} sizes={sizes} />
@@ -32,7 +41,7 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
           width={preview.width}
           height={preview.height}
           sizes={sizes}
-          alt={preview.alt || `${deckLabel} deck preview`}
+          alt=""
           className="block w-full h-full object-cover"
           loading={loading}
           fetchPriority={isHighPriority ? 'high' : 'auto'}
@@ -50,185 +59,104 @@ function DeckPreviewImage({ preview, deckLabel, priority = 'auto' }) {
   );
 }
 
-export function DeckSelector({ selectedDeck, onDeckChange }) {
-  const deckRefs = useRef({});
-  const carouselRef = useRef(null);
-  const deckIds = DECK_OPTIONS.map(d => d.id);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
+/**
+ * @param {'panel' | 'drawer'} [variant='panel'] - The handset preparation drawer
+ *   already introduces the deck choice in its title and Deck tab, so 'drawer'
+ *   leaves out the panel header and starts with the decks themselves.
+ * @param {boolean} [hasDrawnCards=false] - Cards are on the table: a new deck
+ *   applies to the next draw, and the copy says so.
+ */
+export function DeckSelector({ selectedDeck, onDeckChange, variant = 'panel', hasDrawnCards = false }) {
+  const idBase = useId();
   const prefersReducedMotion = useReducedMotion();
+  const { isAuthenticated } = useAuth();
+  const showHeader = variant !== 'drawer';
+  // The photo study runs only in research builds and needs an account, as the
+  // reading's vision panel does (ReadingDisplay); everyone else never sees it.
+  const showResearchNote = isVisionResearchEnabled() && isAuthenticated;
+  const nextDrawNote = 'Your next draw uses the deck you choose. The cards on the table keep theirs.';
 
-  // Update edge fade visibility based on scroll position
-  const updateEdgeFades = useCallback((el) => {
-    if (!el) return;
-    const scrollLeft = el.scrollLeft;
-    const scrollWidth = el.scrollWidth;
-    const clientWidth = el.clientWidth;
+  const {
+    carouselRef,
+    frameRef,
+    itemRefs,
+    activeIndex,
+    showStartFade,
+    showEndFade,
+    scrollToIndex,
+    markChosenHere,
+    step,
+    onItemKeyDown,
+    onItemFocus,
+    onGroupBlur,
+    tabStopKey
+  } = useChoiceCarousel({
+    keys: DECK_IDS,
+    selectedKey: selectedDeck,
+    onChoose: deckId => chooseDeck(deckId),
+    prefersReducedMotion,
+    artworkSelector: '.deck-card__preview'
+  });
 
-    setShowLeftFade(scrollLeft > 10);
-    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
-  }, []);
-
-  // Track scroll position for pagination dots using actual element positions
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el || deckIds.length <= 1) return undefined;
-
-    const handleScroll = () => {
-      const cards = Array.from(el.children);
-      if (cards.length === 0) return;
-
-      // Find the card whose center is closest to the viewport center
-      const viewportCenter = el.scrollLeft + el.clientWidth / 2;
-      let closestIndex = 0;
-      let closestDistance = Infinity;
-
-      cards.forEach((card, idx) => {
-        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-        const distance = Math.abs(viewportCenter - cardCenter);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestIndex = idx;
-        }
-      });
-
-      setActiveIndex(closestIndex);
-      updateEdgeFades(el);
-    };
-
-    handleScroll();
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [deckIds.length, updateEdgeFades]);
-
-  const scrollToIndex = (index) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const clamped = Math.min(deckIds.length - 1, Math.max(0, index));
-    setActiveIndex(clamped);
-
-    // Scroll to center the target card in the viewport
-    const cards = Array.from(el.children);
-    const targetCard = cards[clamped];
-    if (targetCard) {
-      const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
-      const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({
-        left: Math.max(0, scrollTarget),
-        behavior: prefersReducedMotion ? 'auto' : 'smooth'
-      });
-    }
-  };
-
-  const handleKeyDown = (event, deckId) => {
-    const deckIds = DECK_OPTIONS.map(d => d.id);
-    const currentIndex = deckIds.indexOf(deckId);
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onDeckChange(deckId);
-      return;
-    }
-
-    let nextIndex = -1;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      nextIndex = (currentIndex + 1) % deckIds.length;
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      nextIndex = (currentIndex - 1 + deckIds.length) % deckIds.length;
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      nextIndex = deckIds.length - 1;
-    }
-
-    if (nextIndex !== -1) {
-      const nextDeckId = deckIds[nextIndex];
-      const nextElement = deckRefs.current[nextDeckId];
-      if (nextElement && typeof nextElement.focus === 'function') {
-        nextElement.focus();
-        nextElement.scrollIntoView({
-          behavior: prefersReducedMotion ? 'auto' : 'smooth',
-          block: 'nearest',
-          inline: 'center'
-        });
-      }
-      // Note: Selection only happens on Enter/Space (handled above), not on arrow navigation
-      // This follows the roving tabindex pattern where arrows move focus, not selection
-    }
+  const chooseDeck = (deckId) => {
+    markChosenHere(deckId);
+    onDeckChange(deckId);
   };
 
   return (
     <div className="panel-mystic deck-selector-panel animate-fade-in">
       <div className="relative z-10 space-y-5">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <p className={`${LABEL_CLASS} text-accent`}>Choose Your Deck</p>
-            <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
-              Select the deck art for today&apos;s reading. Match it to your physical deck if you&apos;re contributing photos to the vision study.
-            </p>
-          </div>
-          <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs font-medium text-accent backdrop-blur">
-            <span className="w-1.5 h-1.5 rounded-full bg-gold-soft animate-pulse" aria-hidden="true" />
-            <span>Curated editions</span>
-          </div>
-        </header>
+        {showHeader ? (
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h2 className={`${LABEL_CLASS} text-accent`}>Choose Your Deck</h2>
+              <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
+                {hasDrawnCards ? nextDrawNote : 'The deck sets the card art and the card names in your reading.'}
+              </p>
+            </div>
+            <div className="hidden sm:flex shrink-0 items-center gap-2 rounded-full border border-gold-soft/50 bg-surface/60 px-3 py-1 text-xs font-medium text-accent backdrop-blur">
+              <span className="w-1.5 h-1.5 rounded-full bg-gold-soft" aria-hidden="true" />
+              <span>Curated editions</span>
+            </div>
+          </header>
+        ) : hasDrawnCards && (
+          <p className="text-sm leading-relaxed text-muted text-pretty">{nextDrawNote}</p>
+        )}
 
-        {/* Carousel wrapper with edge fade indicators */}
-        <div className="relative">
-          {/* Left edge fade - indicates scrolled content behind */}
-          <div
-            className={`
-              absolute left-0 top-0 bottom-3 w-8 z-10
-              pointer-events-none
-              bg-linear-to-r from-(--panel-dark-1)/90 to-transparent
-              rounded-l-2xl
-              transition-opacity duration-200
-              sm:hidden
-              ${showLeftFade ? 'opacity-100' : 'opacity-0'}
-            `}
-            aria-hidden="true"
+        {/* Carousel wrapper with edge fades and Previous/Next */}
+        <div ref={frameRef} className="relative">
+          <CarouselEdges
+            showStart={showStartFade}
+            showEnd={showEndFade}
+            onStep={step}
+            previousLabel="Previous deck"
+            nextLabel="Next deck"
           />
-
-          {/* Right edge fade with scroll hint arrow */}
-          <div
-            className={`
-              absolute right-0 top-0 bottom-3 w-12 z-10
-              pointer-events-none
-              bg-linear-to-l from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
-              rounded-r-2xl
-              transition-opacity duration-200
-              sm:hidden
-              flex items-center justify-end pr-1
-              ${showRightFade ? 'opacity-100' : 'opacity-0'}
-            `}
-            aria-hidden="true"
-          >
-            <CaretRight
-              className="w-5 h-5 text-accent/70 animate-pulse drop-shadow-md"
-              weight="bold"
-            />
-          </div>
 
           <div
             ref={carouselRef}
             role="radiogroup"
             aria-label="Choose your deck style"
+            onBlur={onGroupBlur}
             className="deck-selector-grid flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-4"
           >
-          {DECK_OPTIONS.map((deck, index) => {
+          {DECK_OPTIONS.map(deck => {
             const isSelected = selectedDeck === deck.id;
-            const isFirstDeck = index === 0;
-            const isTabbable = isSelected || (!selectedDeck && isFirstDeck);
+            // The radio is named by the deck title; the edition, description
+            // and note follow as its description.
+            const ids = {
+              title: `${idBase}-${deck.id}-title`,
+              subtitle: `${idBase}-${deck.id}-subtitle`,
+              description: `${idBase}-${deck.id}-description`,
+              note: `${idBase}-${deck.id}-note`
+            };
+            const describedBy = [ids.subtitle, ids.description, deck.note && ids.note].filter(Boolean).join(' ');
 
             return (
               <div
                 key={deck.id}
-                className={`deck-card relative flex h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 transition-all shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink ${isSelected ? 'deck-card--active' : ''}`}
+                // Carousel cards stretch to the tallest; the grid sizes its rows.
+                className={`deck-card relative flex sm:h-full flex-col gap-3 rounded-2xl px-4 py-4 sm:px-5 sm:py-5 transition-all shrink-0 basis-[82%] xs:basis-[70%] snap-center sm:basis-auto sm:shrink ${isSelected ? 'deck-card--active' : ''}`}
                 style={{
                   '--deck-accent': deck.accent,
                   '--deck-border': isSelected ? deck.borderActive : deck.border,
@@ -237,61 +165,42 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
                 }}
               >
                 <button
-                  ref={el => { deckRefs.current[deck.id] = el; }}
+                  ref={el => { itemRefs.current[deck.id] = el; }}
                   type="button"
                   role="radio"
                   aria-checked={isSelected}
-                  tabIndex={isTabbable ? 0 : -1}
-                  onClick={() => onDeckChange(deck.id)}
-                  onKeyDown={(e) => handleKeyDown(e, deck.id)}
+                  aria-labelledby={ids.title}
+                  aria-describedby={describedBy}
+                  tabIndex={deck.id === tabStopKey ? 0 : -1}
+                  onClick={() => chooseDeck(deck.id)}
+                  onFocus={() => onItemFocus(deck.id)}
+                  onKeyDown={event => onItemKeyDown(event, deck.id)}
                   className="flex w-full flex-1 flex-col gap-3 rounded-xl text-left cursor-pointer select-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main"
                 >
-                  {isSelected && (
-                    <>
-                      <div className="absolute top-3 right-3 z-20">
-                        <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center border border-(--border-warm-light)"
-                          style={{
-                            backgroundColor: 'var(--brand-primary)',
-                            boxShadow: '0 12px 26px -18px var(--deck-glow, var(--primary-30))'
-                          }}
-                        >
-                          <Check className="w-4 h-4 text-surface" strokeWidth={3} aria-hidden="true" />
-                        </div>
-                      </div>
-                      <div
-                        className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-main"
-                        style={{
-                          backgroundColor: 'var(--surface-92)',
-                          border: '1px solid var(--border-warm-light)',
-                          boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
-                        }}
-                      >
-                        <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
-                        <span>Selected</span>
-                      </div>
-                    </>
-                  )}
+                  {isSelected && <ChosenMarks glow="var(--deck-glow, var(--primary-30))" />}
 
+                  {/* The wide grid shows all three decks above the fold, so none
+                      waits for lazy loading; the chosen one, often the largest
+                      paint, goes first. The drawer centres the chosen deck and
+                      lets the others load as they come into view. */}
                   <DeckPreviewImage
                     preview={deck.preview}
-                    deckLabel={deck.label}
-                    priority={index === 0 ? 'high' : 'low'}
+                    priority={isSelected ? 'high' : showHeader ? 'eager' : 'lazy'}
                   />
 
                   <div className="min-w-0 pr-1 wrap-anywhere">
-                    <div className="deck-card__title font-serif text-accent text-lg font-semibold leading-tight text-balance">
+                    <div id={ids.title} className="deck-card__title font-serif text-accent text-lg font-semibold leading-tight text-balance">
                       {deck.label}
                     </div>
-                    <div className="mt-1 mb-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
+                    <div id={ids.subtitle} className="mt-1 mb-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
                       {deck.subtitle}
                     </div>
-                    <p className="deck-card__description text-sm text-muted leading-normal text-pretty">
+                    <p id={ids.description} className="deck-card__description text-sm text-muted leading-normal text-pretty">
                       {deck.mobileDescription || deck.description}
                     </p>
 
                     {deck.note && (
-                      <p className="text-xs leading-relaxed text-muted italic mt-2 text-pretty">
+                      <p id={ids.note} className="text-xs leading-relaxed text-muted italic mt-2 text-pretty">
                         {deck.note}
                       </p>
                     )}
@@ -307,19 +216,21 @@ export function DeckSelector({ selectedDeck, onDeckChange }) {
         <div className="sm:hidden">
           <CarouselDots
             activeIndex={activeIndex}
-            totalItems={deckIds.length}
+            totalItems={DECK_IDS.length}
             onSelectItem={scrollToIndex}
-            labels={DECK_OPTIONS.map(d => d.label)}
+            labels={DECK_LABELS}
             ariaLabel="Browse decks"
             variant="compact"
           />
         </div>
 
-        <div className="deck-panel-footnote">
-          <p className="max-w-[65ch] text-sm leading-relaxed text-muted text-pretty">
-            <strong className="text-accent">For research participants:</strong> Choose the matching deck to help the vision model recognize suits and illustrations across art styles.
-          </p>
-        </div>
+        {showResearchNote && (
+          <div className="deck-panel-footnote">
+            <p className="max-w-[65ch] text-sm leading-relaxed text-muted text-pretty">
+              <strong className="text-accent">For research participants:</strong> Choose the matching deck to help the vision model recognize suits and illustrations across art styles.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

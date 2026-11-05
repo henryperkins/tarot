@@ -42,6 +42,7 @@ export function ReadingPreparation({
     deckAnnouncement,
     deckStyleId,
     onDeckChange,
+    hasDrawnCards = false,
     initialMobileTab = 'deck',
     sectionRef,
     shouldSkipRitual = false
@@ -76,10 +77,14 @@ export function ReadingPreparation({
                     </p>
                 );
             }
+            // Only the handset drawer renders this tab; its title and Deck tab
+            // already introduce the choice.
             return (
                 <DeckSelector
                     selectedDeck={deckStyleId}
                     onDeckChange={onDeckChange}
+                    variant="drawer"
+                    hasDrawnCards={hasDrawnCards}
                 />
             );
         }
@@ -200,16 +205,6 @@ export function ReadingPreparation({
                 </div>
                 )}
 
-                <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
-                    <span>Audio and appearance live in Settings.</span>
-                    <Link
-                        to="/account#audio"
-                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
-                    >
-                        Open Settings
-                    </Link>
-                </div>
-
                 {/* Tab panel content */}
                     {mobileTabs.map((tab) => (
                         <div
@@ -230,6 +225,18 @@ export function ReadingPreparation({
                             )}
                         </div>
                     ))}
+
+                {/* A pointer to other settings; the deck and ritual come first
+                    so short phones show the choices without scrolling. */}
+                <div className="px-1 text-xs text-muted flex flex-wrap items-center justify-between gap-2">
+                    <span>Audio and appearance live in Settings.</span>
+                    <Link
+                        to="/account#audio"
+                        className="min-h-touch inline-flex items-center rounded-lg px-2 text-accent underline underline-offset-2 text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                        Open Settings
+                    </Link>
+                </div>
             </div>
         );
     }

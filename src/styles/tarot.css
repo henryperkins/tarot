@@ -1414,11 +1414,96 @@ body {
   min-width: 0;
 }
 
-/* Hide "Complexity" label on mobile to save space - keep stars and level label */
+/* Hide the "Complexity" label on mobile to save space, keeping the stars and
+   level visible. It stays in the card's accessible description. */
 @media (max-width: 639px) {
-  .spread-card__complexity > span:first-child {
-    display: none;
+  .spread-card__complexity-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
+
+  /* Room for the 6px focus outline plus the selected card's 2px lift; the
+     scroller otherwise clips the outline's top edge and the end cards' sides.
+     The frame reaches 6px into the panel padding so the side room does not
+     narrow the cards, which matters with enlarged text on 320px screens. */
+  .spread-carousel-frame {
+    margin-inline: -6px;
+  }
+
+  .spread-carousel-frame > .spread-selector-grid {
+    padding-top: 8px;
+    padding-inline: 6px;
+  }
+}
+
+/* Handset Previous/Next buttons of the spread and deck carousels sit level
+   with the artwork (useChoiceCarousel measures --choice-arrow-y), so they
+   cover art and never a card's title or count. */
+.choice-carousel-arrow {
+  position: absolute;
+  top: var(--choice-arrow-y, 50%);
+  translate: 0 -50%;
+}
+
+/* Daylight brass is 5.5:1 on bare paper, but the card glow and grain behind
+   unselected titles and badges brought it to 4.0–4.4:1. A deeper brass keeps
+   the hue and reaches AA. Selected spread titles already use the main text. */
+:root.light .spread-card:not(.spread-card--active) .spread-card__title,
+:root.light .spread-card .spread-card__badge,
+:root.light .deck-card:not(.deck-card--active) .deck-card__title {
+  color: color-mix(in srgb, var(--brand-primary) 78%, var(--text-main));
+}
+
+/* Short landscape phones (useLandscape): stacked, each card was taller than
+   the visible area. Art beside the text keeps a card within the short
+   viewport, in the two-column grid and in the narrower carousel alike. */
+.spread-selector-grid--landscape .spread-card {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  column-gap: 0.75rem;
+  align-items: center;
+  min-height: 0;
+  padding: 0.75rem;
+}
+
+.spread-selector-grid--landscape .spread-card__preview {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.spread-selector-grid--landscape .spread-card__body {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+}
+
+.spread-selector-grid--landscape .spread-card__title-text {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+/* The Selected badge, border and glow mark the choice and "Requires Plus"
+   names a locked spread, so the corner check and lock give way to the title. */
+.spread-selector-grid--landscape .spread-card__check,
+.spread-selector-grid--landscape .spread-card__lock {
+  display: none;
+}
+
+.spread-selector-grid--landscape .spread-card__complexity-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.spread-selector-grid--landscape .spread-card__meta {
+  padding-top: 0.5rem;
 }
 
 .spread-panel-footnote {
@@ -3129,9 +3214,14 @@ input[type="range"]:focus::-webkit-slider-thumb {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
-    translate: none !important;
-    scale: none !important;
-    rotate: none !important;
+    /* `initial` is `none` for these three. Written as `none` beside
+       `transform: none`, Lightning CSS (the build minifier) merges all four
+       into `transform: translate(0) scale(1) rotate(0)`, which is not `none`:
+       every animated panel then became the containing block for fixed
+       descendants, trapping dialogs inside it. */
+    translate: initial !important;
+    scale: initial !important;
+    rotate: initial !important;
     filter: none !important;
   }
 
@@ -3212,10 +3302,10 @@ input[type="range"]:focus::-webkit-slider-thumb {
     transition: none;
   }
 
-  /* Disable carousel snap scrolling momentum */
-  .cc-grid,
-  .spread-selector-grid,
-  .deck-selector-grid {
+  /* Disable carousel snap scrolling momentum. The spread and deck choices
+     keep snapping: without it a swipe stopped up to 92px off centre, and the
+     settle is part of the reader's own scroll, not decorative motion. */
+  .cc-grid {
     scroll-behavior: auto;
     scroll-snap-type: none;
   }

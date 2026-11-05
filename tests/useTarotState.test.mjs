@@ -107,3 +107,86 @@ test('a cancellation from the shuffle-start callback prevents scheduling a draw'
   h.pendingShuffle()?.();
   assert.deepEqual(emptyReading(h.render()), cleared);
 });
+
+test('choosing the spread already in use keeps its cards, ritual and a pending shuffle', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  h.render().shuffle(); h.pendingShuffle()();
+  const { selectedSpread, reading } = h.render();
+  assert.equal(reading.length, 3);
+  h.render().chooseSpread(selectedSpread);
+  assert.deepEqual(h.render().reading, reading);
+  assert.equal(h.render().hasKnocked, true);
+  assert.equal(h.render().hasCut, true);
+
+  h.render().shuffle();
+  const queued = h.pendingShuffle();
+  h.render().chooseSpread(selectedSpread);
+  queued();
+  assert.equal(h.render().reading.length, 3, 'a re-tap during the shuffle does not cancel the draw');
+});
+
+test('a programmatic choice of the same spread still starts a fresh table', async t => {
+  // Journal suggestions and restored follow-ups rely on selectSpread clearing
+  // the previous cards and ritual even when the spread does not change.
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  h.render().shuffle(); h.pendingShuffle()();
+  const { selectedSpread } = h.render();
+  h.render().selectSpread(selectedSpread);
+  assert.deepEqual(emptyReading(h.render()), cleared);
+});
+
+test('choosing a different spread clears the table', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  h.render().shuffle(); h.pendingShuffle()();
+  h.render().chooseSpread('fiveCard');
+  assert.equal(h.render().selectedSpread, 'fiveCard');
+  assert.deepEqual(emptyReading(h.render()), cleared);
+});
+
+test('re-choosing the default spread makes it the reader\'s choice without a reset', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  // The personalization default follows the preferred depth until a choice is made.
+  assert.equal(h.render().selectedSpread, 'threeCard');
+  h.render().chooseSpread('threeCard');
+  h.preferences.personalization.preferredSpreadDepth = 'deep';
+  assert.equal(h.render().selectedSpread, 'threeCard');
+  assert.equal(h.savedSpreadDrafts.at(-1), 'threeCard');
+});
+
+test('a spread chosen before the draw survives a reload; a saved reading wins over it', async t => {
+  const h = await tarotStateHarness({ spreadDraft: 'fiveCard' }); t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'fiveCard', 'the saved choice wins over the personalization default');
+  h.render().chooseSpread('single');
+  assert.equal(h.render().selectedSpread, 'single');
+  assert.equal(h.savedSpreadDrafts.at(-1), 'single');
+
+  const restored = await tarotStateHarness({ spreadDraft: 'fiveCard', snapshot: {
+    owner: 'user:owner-a', spreadKey: 'threeCard', reading: [{ name: 'Temperance' }]
+  } });
+  t.after(() => restored.unmount());
+  assert.equal(restored.render().selectedSpread, 'threeCard');
+});
+
+test('an untouched default is not saved as a choice', async t => {
+  const h = await tarotStateHarness(); t.after(() => h.unmount());
+  h.render();
+  assert.deepEqual(h.savedSpreadDrafts, []);
+});
+
+test('a plan fallback stands in for a locked spread without replacing the saved choice', async t => {
+  const freePlan = ['single', 'threeCard', 'fiveCard'];
+  const h = await tarotStateHarness({
+    spreadDraft: 'celtic',
+    subscription: { canUseSpread: key => freePlan.includes(key), config: { spreads: freePlan } }
+  });
+  t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'celtic');
+  const savedBefore = h.savedSpreadDrafts.length;
+  h.flushFrames();
+  const { selectedSpread } = h.render();
+  assert.ok(freePlan.includes(selectedSpread), `fallback ${selectedSpread} is on the plan`);
+  assert.equal(h.savedSpreadDrafts.slice(savedBefore).includes(selectedSpread), false, 'the substitute is not saved');
+  h.render().chooseSpread(selectedSpread);
+  assert.equal(h.render().selectedSpread, selectedSpread);
+  assert.equal(h.savedSpreadDrafts.at(-1), selectedSpread, 'choosing it afterwards does save it');
+});

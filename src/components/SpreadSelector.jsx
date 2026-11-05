@@ -1,9 +1,11 @@
-import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
-import { Sparkle, Check, Star, CaretRight, Lock } from './icons';
+import { useRef, useState, useId } from 'react';
+import { Star, Lock } from './icons';
 import { Icon } from './Icon';
 import { SPREADS } from '../data/spreads';
 import { SpreadPatternThumbnail } from './SpreadPatternThumbnail';
 import { CarouselDots } from './CarouselDots';
+import { CarouselEdges, ChosenMarks } from './ChoiceCarousel';
+import { useChoiceCarousel } from '../hooks/useChoiceCarousel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useLandscape } from '../hooks/useLandscape';
 import { useSmallScreen } from '../hooks/useSmallScreen';
@@ -11,38 +13,26 @@ import { usePreferences } from '../contexts/PreferencesContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { UpgradeNudge } from './UpgradeNudge';
 import { getSpreadFromDepth } from '../utils/personalization';
+import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
 import { getSpreadArt } from '../utils/spreadArt';
-import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
 import { LABEL_CLASS } from '../styles/labelClasses';
 
+const SPREAD_KEYS = Object.keys(SPREADS);
+const SPREAD_NAMES = SPREAD_KEYS.map(key => SPREADS[key]?.name || key);
+// Onboarding's names for the reading-depth preference behind "Recommended".
+const DEPTH_REASONS = {
+  short: 'quick check-ins',
+  standard: 'balanced readings',
+  deep: 'deep dives'
+};
 const STAR_TOTAL = 3;
 // Handset cards have a 14rem minimum, then occupy 70% of the padded carousel.
 // Account for the panel/card padding instead of requesting nearly a full viewport.
 const SPREAD_PREVIEW_SIZES = '(max-width: 374px) 196px, (max-width: 639px) calc(70vw - 80px), (max-width: 1023px) 46vw, 340px';
 
-function hexToRgb(hex) {
-  if (!hex || typeof hex !== 'string') return null;
-  const normalized = hex.trim().replace('#', '');
-  if (!/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized)) return null;
-  if (normalized.length === 3) {
-    const r = parseInt(normalized[0] + normalized[0], 16);
-    const g = parseInt(normalized[1] + normalized[1], 16);
-    const b = parseInt(normalized[2] + normalized[2], 16);
-    return { r, g, b };
-  }
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  return { r, g, b };
-}
-
-function toRgba(color, alpha) {
-  const rgb = hexToRgb(color);
-  if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-  if (!color || typeof color !== 'string') return `rgba(0, 0, 0, ${alpha})`;
-  const percent = Math.round(alpha * 100);
-  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
-}
+// Accents are CSS colours (custom properties or color-mix), tinted by mixing
+// with transparent.
+const tint = (color, alpha) => `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`;
 
 function createSpreadTheme({
   accent,
@@ -52,9 +42,9 @@ function createSpreadTheme({
 }) {
   return {
     accent,
-    border: toRgba(accent, borderAlpha),
-    borderActive: toRgba(accent, borderActiveAlpha),
-    glow: toRgba(accent, glowAlpha)
+    border: tint(accent, borderAlpha),
+    borderActive: tint(accent, borderActiveAlpha),
+    glow: tint(accent, glowAlpha)
   };
 }
 
@@ -109,16 +99,15 @@ export function SpreadSelector({
   onSelectSpread,
   onSpreadConfirm,
   // Phones introduce this panel with the reading step line directly above it.
-  showHeader = true
+  showHeader = true,
+  // On phones the chosen spread's artwork is the largest paint of the setup
+  // screen, so it loads first. On wider screens the deck panel comes first and
+  // the spread art sits at or below the fold, so it waits its turn (lazy).
+  prioritizeChosenArt = false
 }) {
-  const spreadRefs = useRef({});
-  const carouselRef = useRef(null);
-  // A tap centres its own card; only selections made elsewhere move the carousel.
-  const carouselSelectionRef = useRef(null);
-  const spreadKeys = Object.keys(SPREADS);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [showLeftFade, setShowLeftFade] = useState(false);
-  const [showRightFade, setShowRightFade] = useState(true);
+  // The locked spread that opened the upgrade dialog gets focus back when it closes.
+  const lockedReturnFocusRef = useRef(null);
+  const idBase = useId();
   const [lockedSpreadKey, setLockedSpreadKey] = useState(null);
   const prefersReducedMotion = useReducedMotion();
   const isLandscape = useLandscape();
@@ -126,167 +115,67 @@ export function SpreadSelector({
   const { personalization } = usePreferences();
   const { subscription } = useSubscription();
   const canUseSpread = subscription?.canUseSpread ?? (() => true);
-  const recommendedSpread = getSpreadFromDepth(personalization?.preferredSpreadDepth);
   const isExperienced = personalization?.tarotExperience === 'experienced';
 
-  // In landscape: smaller cards to fit more on screen
+  // Recommend only a spread the reader can use: when the plan lacks the one
+  // their depth preference points to, recommend the substitute the reading
+  // starts with instead (useTarotState's plan fallback).
+  const depth = personalization?.preferredSpreadDepth;
+  const preferredSpread = getSpreadFromDepth(depth);
+  const preferredIsUsable = canUseSpread(preferredSpread);
+  const recommendedSpread = preferredIsUsable
+    ? preferredSpread
+    : resolveFallbackSpreadKey(preferredSpread, subscription?.config?.spreads);
+  const recommendationReason = DEPTH_REASONS[depth]
+    ? `for ${DEPTH_REASONS[depth]}${preferredIsUsable ? '' : ' on your plan'}`
+    : '';
+
+  const {
+    carouselRef,
+    frameRef,
+    itemRefs,
+    activeIndex,
+    showStartFade,
+    showEndFade,
+    scrollToIndex,
+    markChosenHere,
+    step,
+    onItemKeyDown,
+    onItemFocus,
+    onGroupBlur,
+    tabStopKey
+  } = useChoiceCarousel({
+    keys: SPREAD_KEYS,
+    selectedKey: selectedSpread,
+    onChoose: key => handleSpreadSelection(key),
+    prefersReducedMotion,
+    artworkSelector: '.spread-card__preview'
+  });
+
+  // In landscape the card lays its art beside the text (tarot.css), so it
+  // needs the width for one readable card rather than two cramped ones.
   const cardBasisClass = isLandscape
-    ? 'basis-[55%] xs:basis-[45%]'
+    ? 'basis-[78%]'
     : 'basis-[82%] xs:basis-[70%]';
 
   const isCompactCopy = isSmallScreen && !isLandscape;
 
-  // Update edge fade visibility based on scroll position
-  const updateEdgeFades = useCallback((el) => {
-    if (!el) return;
-    const scrollLeft = el.scrollLeft;
-    const scrollWidth = el.scrollWidth;
-    const clientWidth = el.clientWidth;
-
-    const threshold = Math.max(10, clientWidth * 0.05);
-    const maxScrollLeft = Math.max(0, scrollWidth - clientWidth);
-
-    setShowLeftFade(scrollLeft > threshold);
-    setShowRightFade(maxScrollLeft - scrollLeft > threshold);
-  }, []);
-
-  // Track scroll position for pagination dots using actual element positions
-  useEffect(() => {
-    const el = carouselRef.current;
-    if (!el || spreadKeys.length <= 1) return undefined;
-
-    const handleScroll = () => {
-      const cards = Array.from(el.children);
-      if (cards.length === 0) return;
-
-      const viewportCenter = el.scrollLeft + el.clientWidth / 2;
-      let closestIndex = 0;
-      let closestDistance = Infinity;
-
-      cards.forEach((card, idx) => {
-        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-        const distance = Math.abs(viewportCenter - cardCenter);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestIndex = idx;
-        }
-      });
-
-      setActiveIndex(closestIndex);
-      updateEdgeFades(el);
-    };
-
-    // Initialize on mount
-    handleScroll();
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(handleScroll) : null;
-    resizeObserver?.observe(el);
-    return () => {
-      el.removeEventListener('scroll', handleScroll);
-      resizeObserver?.disconnect();
-    };
-  }, [spreadKeys.length, updateEdgeFades]);
-
-  // The selected spread leads: the default on first load, a reading restored
-  // after a reload, a journal suggestion. Centre it, without animation, unless
-  // it is already fully in view. A tapped card centres itself (scrollToIndex).
-  useLayoutEffect(() => {
-    const tappedHere = carouselSelectionRef.current === selectedSpread;
-    carouselSelectionRef.current = null;
-    if (tappedHere) return;
-    const el = carouselRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    const card = el.children[spreadKeys.indexOf(selectedSpread)];
-    if (!card) return;
-    const left = card.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
-    if (left >= el.scrollLeft - 1 && left + card.offsetWidth <= el.scrollLeft + el.clientWidth + 1) return;
-    el.scrollTo({ left: Math.max(0, left + card.offsetWidth / 2 - el.clientWidth / 2), behavior: 'instant' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- follow the selection, not the list identity
-  }, [selectedSpread]);
-
-  const scrollToIndex = (index) => {
-    const clamped = Math.min(spreadKeys.length - 1, Math.max(0, index));
-    setActiveIndex(clamped);
-    const el = carouselRef.current;
-    if (!el) return;
-
-    // Scroll to center the target card in the viewport
-    const cards = Array.from(el.children);
-    const targetCard = cards[clamped];
-    if (targetCard) {
-      const cardCenter = targetCard.offsetLeft + targetCard.offsetWidth / 2;
-      const scrollTarget = cardCenter - el.clientWidth / 2;
-      el.scrollTo({
-        left: Math.max(0, scrollTarget),
-        behavior: prefersReducedMotion ? 'auto' : 'smooth'
-      });
-      updateEdgeFades(el);
-    }
-  };
-
   const handleSpreadSelection = key => {
+    const opener = itemRefs.current[key] || null;
     // Check if spread is locked (requires subscription)
     if (!canUseSpread(key)) {
+      // Safari does not focus a clicked button, so name the opener explicitly.
+      lockedReturnFocusRef.current = opener;
       setLockedSpreadKey(key);
       return;
     }
 
-    const selectedIndex = spreadKeys.indexOf(key);
-    if (selectedIndex !== -1) {
-      if (key !== selectedSpread) carouselSelectionRef.current = key;
-      scrollToIndex(selectedIndex);
-    }
-
-    // Update parent's selection state (for visual feedback)
-    if (onSelectSpread) {
-      onSelectSpread(key);
-    }
-    if (onSpreadConfirm) {
-      onSpreadConfirm(key);
-    }
-  };
-
-  const handleUpgradeDismiss = () => {
-    setLockedSpreadKey(null);
-  };
-
-  const handleCardKeyDown = (event, key) => {
-    const spreadKeys = Object.keys(SPREADS);
-    const currentIndex = spreadKeys.indexOf(key);
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleSpreadSelection(key);
-      return;
-    }
-
-    let nextIndex = -1;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      nextIndex = (currentIndex + 1) % spreadKeys.length;
-    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      nextIndex = (currentIndex - 1 + spreadKeys.length) % spreadKeys.length;
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      nextIndex = 0;
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      nextIndex = spreadKeys.length - 1;
-    }
-
-    if (nextIndex !== -1) {
-      const nextKey = spreadKeys[nextIndex];
-      const nextElement = spreadRefs.current[nextKey];
-      if (nextElement && typeof nextElement.focus === 'function') {
-        nextElement.focus();
-        nextElement.scrollIntoView({
-          behavior: prefersReducedMotion ? 'auto' : 'smooth',
-          block: 'nearest',
-          inline: 'center'
-        });
-      }
-    }
+    // The parent may first ask before a drawn reading is cleared (it returns
+    // false then); scroll and mark the tap only once the choice is made, so a
+    // kept reading leaves the carousel on its own spread.
+    if (onSelectSpread?.(key, { opener }) === false) return;
+    markChosenHere(key);
+    onSpreadConfirm?.(key);
   };
 
   const renderStars = stars => (
@@ -306,19 +195,13 @@ export function SpreadSelector({
     </div>
   );
 
-  const handleArrowNav = direction => {
-    if (direction === 'prev' ? !showLeftFade : !showRightFade) return;
-    const nextIndex = direction === 'next' ? activeIndex + 1 : activeIndex - 1;
-    scrollToIndex(nextIndex);
-  };
-
   return (
     <section className="panel-mystic spread-selector-panel animate-fade-in mb-6 sm:mb-8">
       <div className="relative z-10 space-y-5">
-        {showHeader && (
+        {showHeader ? (
           <header className={`flex flex-col ${isLandscape ? 'gap-1' : 'gap-2'} sm:flex-row sm:items-center sm:justify-between`}>
             <div className="space-y-1">
-              <p className={`${LABEL_CLASS} text-accent`}>Spread Selection</p>
+              <h2 className={`${LABEL_CLASS} text-accent`}>Spread Selection</h2>
               {!isLandscape && (
                 <p className="text-base leading-relaxed text-muted max-w-[65ch] text-pretty">
                   Choose how your reading unfolds.
@@ -326,67 +209,34 @@ export function SpreadSelector({
               )}
             </div>
           </header>
+        ) : (
+          // Phones show the reading step line above this panel instead of a
+          // header; the heading still lets screen readers jump to the choice.
+          <h2 className="sr-only">Spread Selection</h2>
         )}
 
         {/* Carousel wrapper with edge fade indicators and navigation */}
-        <div className="relative">
-          {/* Left edge fade with navigation arrow */}
-          <div
-            className={`
-              absolute left-0 top-0 bottom-3 w-12 z-10
-              bg-linear-to-r from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
-              rounded-l-2xl
-              transition-opacity duration-200
-              sm:hidden
-              pointer-events-none flex items-center justify-start pl-1
-              ${showLeftFade ? 'opacity-100' : 'invisible opacity-0 focus-within:visible focus-within:opacity-100'}
-            `}
-          >
-            <button
-              type="button"
-              onClick={() => handleArrowNav('prev')}
-              className={`pointer-events-auto min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
-              aria-label="Previous spread"
-              aria-disabled={!showLeftFade}
-              tabIndex={showLeftFade ? 0 : -1}
-            >
-              <CaretRight className="w-5 h-5 rotate-180" weight="bold" />
-            </button>
-          </div>
-
-          {/* Right edge fade with navigation arrow */}
-          <div
-            className={`
-              absolute right-0 top-0 bottom-3 w-12 z-10
-              bg-linear-to-l from-(--panel-dark-1)/90 via-(--panel-dark-1)/60 to-transparent
-              rounded-r-2xl
-              transition-opacity duration-200
-              sm:hidden
-              pointer-events-none flex items-center justify-end pr-1
-              ${showRightFade ? 'opacity-100' : 'invisible opacity-0 focus-within:visible focus-within:opacity-100'}
-            `}
-          >
-            <button
-              type="button"
-              onClick={() => handleArrowNav('next')}
-              className={`pointer-events-auto min-w-touch min-h-touch rounded-full bg-surface/80 border border-secondary/55 text-main hover:border-secondary/75 hover:bg-surface transition touch-manipulation flex items-center justify-center shadow-lg ${FOCUS_RING_DEFAULT}`}
-              aria-label="Next spread"
-              aria-disabled={!showRightFade}
-              tabIndex={showRightFade ? 0 : -1}
-            >
-              <CaretRight className="w-5 h-5" weight="bold" />
-            </button>
-          </div>
+        <div ref={frameRef} className="spread-carousel-frame relative">
+          <CarouselEdges
+            showStart={showStartFade}
+            showEnd={showEndFade}
+            onStep={step}
+            previousLabel="Previous spread"
+            nextLabel="Next spread"
+          />
 
           <div
             ref={carouselRef}
             role="radiogroup"
             aria-label="Spread selection"
-            className={`spread-selector-grid flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory scroll-smooth sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
+            onBlur={onGroupBlur}
+            className={`spread-selector-grid ${isLandscape ? 'spread-selector-grid--landscape' : ''} flex ${isLandscape ? 'gap-2 pb-2' : 'gap-3 pb-3'} overflow-x-auto snap-x snap-mandatory scroll-smooth sm:overflow-visible sm:snap-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 sm:gap-4`}
             style={{ scrollPaddingLeft: '1rem', scrollPaddingRight: '1rem' }}
           >
-          {Object.entries(SPREADS).map(([key, spread], index) => {
+          {Object.entries(SPREADS).map(([key, spread]) => {
             const isActive = selectedSpread === key;
+            const isLocked = !canUseSpread(key);
+            const isRecommended = key === recommendedSpread;
             const baseDescription = spread.description || 'Guided snapshot for your focus.';
             const maxCards = typeof spread.maxCards === 'number' ? spread.maxCards : null;
             const baseCount = typeof spread.drawCount === 'number' ? spread.drawCount : spread.count;
@@ -394,8 +244,7 @@ export function SpreadSelector({
             const cardLabel = maxCards && maxCards > baseCount
               ? `${baseCount} ${cardNoun} + clarifiers`
               : `${baseCount} ${cardNoun}`;
-            const isFirstSpread = index === 0;
-            const isTabbable = isActive || (!selectedSpread && isFirstSpread);
+            const showDescription = !isLandscape && !isExperienced;
             const stars = spread.complexity?.stars ?? 0;
             const complexityLabel = spread.complexity?.label || 'Beginner';
             const theme = SPREAD_THEMES[key] || FALLBACK_SPREAD_THEME;
@@ -403,17 +252,37 @@ export function SpreadSelector({
               ? (theme.borderActive || FALLBACK_SPREAD_THEME.borderActive)
               : (theme.border || FALLBACK_SPREAD_THEME.border);
             const previewArt = getSpreadArt(key, { alt: spread.preview?.alt }) || spread.preview;
+            // The radio is named by its title alone; the badges, card count,
+            // description and complexity follow as its description.
+            const ids = {
+              title: `${idBase}-${key}-title`,
+              locked: `${idBase}-${key}-locked`,
+              recommended: `${idBase}-${key}-recommended`,
+              meta: `${idBase}-${key}-meta`,
+              description: `${idBase}-${key}-description`,
+              complexity: `${idBase}-${key}-complexity`
+            };
+            const describedBy = [
+              isLocked && ids.locked,
+              isRecommended && ids.recommended,
+              ids.meta,
+              showDescription && ids.description,
+              ids.complexity
+            ].filter(Boolean).join(' ');
 
             return (
               <button
                 key={key}
-                ref={el => { spreadRefs.current[key] = el; }}
+                ref={el => { itemRefs.current[key] = el; }}
                 type="button"
                 role="radio"
-                tabIndex={isTabbable ? 0 : -1}
+                tabIndex={key === tabStopKey ? 0 : -1}
                 aria-checked={isActive}
+                aria-labelledby={ids.title}
+                aria-describedby={describedBy}
                 onClick={() => handleSpreadSelection(key)}
-                onKeyDown={event => handleCardKeyDown(event, key)}
+                onFocus={() => onItemFocus(key)}
+                onKeyDown={event => onItemKeyDown(event, key)}
                 className={`spread-card relative flex h-full flex-col ${isLandscape ? 'gap-2' : 'gap-3'} cursor-pointer select-none shrink-0 ${cardBasisClass} snap-center snap-always sm:basis-auto sm:shrink focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-main ${isActive ? 'spread-card--active' : ''}`}
                 style={{
                   '--spread-accent': theme.accent || FALLBACK_SPREAD_THEME.accent,
@@ -422,43 +291,18 @@ export function SpreadSelector({
                 }}
               >
                 {isActive && (
-                  <>
-                    <div className="absolute top-3 right-3 z-20">
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center border border-(--border-warm-light)"
-                        style={{
-                          backgroundColor: 'var(--brand-primary)',
-                          boxShadow: '0 12px 26px -18px var(--spread-glow, var(--primary-30))'
-                        }}
-                      >
-                        <Check className="w-4 h-4 text-surface" weight="bold" aria-hidden="true" />
-                      </div>
-                    </div>
-                    <div
-                      className="absolute left-3 top-3 z-20 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
-                      style={{
-                        backgroundColor: 'var(--surface-92)',
-                        color: 'var(--text-accent)',
-                        border: '1px solid var(--border-warm-light)',
-                        boxShadow: '0 12px 28px -20px rgba(0,0,0,0.7)'
-                      }}
-                    >
-                    <Sparkle className="h-3.5 w-3.5" weight="fill" aria-hidden="true" />
-                    <span>Selected</span>
-                  </div>
-                </>
-              )}
-              {/* Lock indicator for premium-only spreads */}
-                {!isActive && !canUseSpread(key) && (
-                  <div className="absolute top-3 right-3 z-20">
+                  <ChosenMarks glow="var(--spread-glow, var(--primary-30))" checkClassName="spread-card__check" />
+                )}
+                {/* Lock indicator for premium-only spreads; "Requires Plus" below names it. */}
+                {!isActive && isLocked && (
+                  <div className="spread-card__lock absolute top-3 right-3 z-20" aria-hidden="true">
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center border border-accent/40 bg-accent/15 backdrop-blur-sm"
                       style={{
                         boxShadow: '0 8px 20px -12px var(--accent-45)'
                       }}
-                      aria-label="Premium spread - requires subscription"
                     >
-                      <Lock className="w-3.5 h-3.5 text-accent" weight="fill" aria-hidden="true" />
+                      <Lock className="w-3.5 h-3.5 text-accent" weight="fill" />
                     </div>
                   </div>
                 )}
@@ -468,39 +312,41 @@ export function SpreadSelector({
                   preview={previewArt ? { ...previewArt, sizes: SPREAD_PREVIEW_SIZES } : null}
                   spreadName={spread.name}
                   className="spread-card__preview w-full"
-                  priority={isFirstSpread || isActive}
+                  priority={prioritizeChosenArt && isActive}
+                  decorative
                 />
 
                 <div className="spread-card__body">
                   <div className="spread-card__title text-accent">
-                    <span className="spread-card__title-text font-serif text-lg font-semibold leading-tight text-balance">{spread.name}</span>
-                    {!canUseSpread(key) && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 font-sans text-xs font-semibold uppercase tracking-wide text-accent">
+                    <span id={ids.title} className="spread-card__title-text font-serif text-lg font-semibold leading-tight text-balance">{spread.name}</span>
+                    {isLocked && (
+                      <span id={ids.locked} className="spread-card__badge inline-flex items-center gap-1 rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 font-sans text-xs font-semibold uppercase tracking-wide text-accent">
                         <Lock className="w-3 h-3" weight="fill" aria-hidden="true" />
                         Requires Plus
                       </span>
                     )}
-                    {key === recommendedSpread && (
-                      <span className="font-sans text-xs font-semibold uppercase tracking-wide text-accent bg-accent/15 border border-accent/40 px-2 py-0.5 rounded-full">
+                    {isRecommended && (
+                      <span id={ids.recommended} className="spread-card__badge font-sans text-xs font-semibold uppercase tracking-wide text-accent bg-accent/15 border border-accent/40 px-2 py-0.5 rounded-full">
                         Recommended
+                        {recommendationReason && <span className="sr-only normal-case"> {recommendationReason}</span>}
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
+                  <div id={ids.meta} className="mt-1 mb-2 flex flex-wrap items-baseline gap-x-2 text-xs font-medium uppercase tracking-widest leading-normal text-muted">
                     <span>{spread.tag || 'Guided spread'}</span>
                     {/* Keep "· 3 cards" together; longer counts may wrap at large zoom. */}
                     <span>{`·\u00A0${cardLabel.replace(' ', '\u00A0')}`}</span>
                   </div>
 
-                  {!isLandscape && !isExperienced && (
-                    <p className={`spread-card__description text-sm text-muted leading-normal text-pretty ${isCompactCopy ? 'mb-2' : 'mb-3'}`}>
+                  {showDescription && (
+                    <p id={ids.description} className={`spread-card__description text-sm text-muted leading-normal text-pretty ${isCompactCopy ? 'mb-2' : 'mb-3'}`}>
                       {isCompactCopy ? (spread.mobileDescription || baseDescription) : baseDescription}
                     </p>
                   )}
 
                   <div className="spread-card__meta">
-                    <div className="spread-card__complexity">
-                      <span className="text-xs font-medium uppercase tracking-widest text-muted">Complexity</span>
+                    <div id={ids.complexity} className="spread-card__complexity">
+                      <span className="spread-card__complexity-label text-xs font-medium uppercase tracking-widest text-muted">Complexity</span>
                       {renderStars(stars)}
                       <span className="text-sm text-muted capitalize">{complexityLabel}</span>
                     </div>
@@ -516,9 +362,9 @@ export function SpreadSelector({
         <div className="sm:hidden">
           <CarouselDots
             activeIndex={activeIndex}
-            totalItems={spreadKeys.length}
+            totalItems={SPREAD_KEYS.length}
             onSelectItem={scrollToIndex}
-            labels={spreadKeys.map(key => SPREADS[key]?.name || key)}
+            labels={SPREAD_NAMES}
             ariaLabel="Browse spreads"
             variant="compact"
           />
@@ -526,14 +372,15 @@ export function SpreadSelector({
 
       </div>
 
-      {/* Upgrade modal for locked spreads */}
+      {/* Upgrade dialog for locked spreads (rendered on document.body) */}
       {lockedSpreadKey && (
         <UpgradeNudge
-          feature={`${SPREADS[lockedSpreadKey]?.name || 'Advanced Spread'} layout`}
+          feature={SPREADS[lockedSpreadKey]?.name || 'This spread'}
           requiredTier="plus"
           variant="modal"
           dismissible={true}
-          onDismiss={handleUpgradeDismiss}
+          onDismiss={() => setLockedSpreadKey(null)}
+          returnFocusRef={lockedReturnFocusRef}
         />
       )}
 

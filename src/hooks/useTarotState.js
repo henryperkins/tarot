@@ -14,6 +14,7 @@ import {
   saveQuestionDraft
 } from '../lib/questionDraft';
 import { clearReadingSnapshot, loadReadingSnapshot, snapshotBelongsTo } from '../lib/readingSnapshot';
+import { loadSpreadDraft, saveSpreadDraft } from '../lib/spreadDraft';
 import { getSpreadFromDepth } from '../utils/personalization';
 import { resolveFallbackSpreadKey } from '../utils/spreadEntitlements';
 import { getKnownDeckStyleId, getSnapshotDeckStyleId } from '../lib/readingDeck.js';
@@ -33,8 +34,16 @@ export function useTarotState(speak) {
   // resumes where it was (see lib/readingSnapshot). The owner is checked once
   // auth settles; restoring first avoids flashing the setup screen.
   const [initialSnapshot] = useState(() => loadReadingSnapshot());
-  const [selectedSpreadState, setSelectedSpreadState] = useState(() => initialSnapshot?.spreadKey || DEFAULT_SPREAD_KEY);
-  const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(() => Boolean(initialSnapshot));
+  // Before the draw there is no snapshot; a spread chosen earlier in this tab
+  // still survives the reload (see lib/spreadDraft).
+  const [initialSpreadDraft] = useState(() => (initialSnapshot ? null : loadSpreadDraft()));
+  const [selectedSpreadState, setSelectedSpreadState] = useState(() => (
+    initialSnapshot?.spreadKey || initialSpreadDraft || DEFAULT_SPREAD_KEY
+  ));
+  const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(() => Boolean(initialSnapshot || initialSpreadDraft));
+  // False while a plan fallback stands in for the spread: that substitute is
+  // not the reader's choice and must not replace a saved one.
+  const [spreadChoiceIsReaders, setSpreadChoiceIsReaders] = useState(true);
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
     ? getSpreadFromDepth(personalization.preferredSpreadDepth)
     : null;
@@ -265,13 +274,39 @@ export function useTarotState(speak) {
     }
   }, [setReading, updateKnockTimes]);
 
-  const selectSpread = useCallback((key) => {
+  const startSpread = useCallback((key, { readerChoice = true } = {}) => {
     setHasUserSelectedSpread(true);
+    setSpreadChoiceIsReaders(readerChoice);
     setSelectedSpread(key);
     resetReadingState(false); // Keep question
     // Reset cut index to deck center
     setCutIndex(Math.floor(deckSize / 2));
   }, [setSelectedSpread, resetReadingState, deckSize]);
+
+  // Programmatic choices (a journal suggestion, a restored follow-up,
+  // onboarding) start a fresh table for the spread, even the one in use.
+  const selectSpread = useCallback(key => startSpread(key), [startSpread]);
+
+  // The reader's own tap in the spread selector. The spread already in use
+  // keeps its cards, ritual and any shuffle in progress; the tap only makes a
+  // personalized default the reader's own choice.
+  const chooseSpread = useCallback((key) => {
+    const nextKey = normalizeSpreadKey(key);
+    if (nextKey !== selectedSpread) {
+      startSpread(nextKey);
+      return;
+    }
+    setHasUserSelectedSpread(true);
+    setSpreadChoiceIsReaders(true);
+    setSelectedSpreadState(nextKey);
+  }, [selectedSpread, startSpread]);
+
+  // Remember the reader's own choice for this tab; an untouched default keeps
+  // following their personalization instead.
+  useEffect(() => {
+    if (!hasUserSelectedSpread || !spreadChoiceIsReaders) return;
+    saveSpreadDraft(selectedSpread);
+  }, [hasUserSelectedSpread, spreadChoiceIsReaders, selectedSpread]);
 
   // Enforce spread entitlements (e.g., after logout/downgrade) to avoid hitting
   // the reading API with a spread that isn't available on the current plan.
@@ -282,9 +317,11 @@ export function useTarotState(speak) {
 
     const fallbackKey = resolveFallbackSpreadKey(selectedSpread, subscription?.config?.spreads);
     if (!fallbackKey || fallbackKey === selectedSpread) return;
-    // Defer to next frame to avoid synchronous setState cascade
-    requestAnimationFrame(() => selectSpread(fallbackKey));
-  }, [subscriptionLoading, subscription, selectedSpread, selectSpread]);
+    // Defer to next frame to avoid synchronous setState cascade. The fallback
+    // is not saved as the reader's choice: once the plan allows it again, the
+    // next load restores their saved spread or personalized default.
+    requestAnimationFrame(() => startSpread(fallbackKey, { readerChoice: false }));
+  }, [subscriptionLoading, subscription, selectedSpread, startSpread]);
 
   const shuffle = useCallback((onShuffleComplete) => {
     const currentSpread = selectedSpread;
@@ -431,6 +468,7 @@ export function useTarotState(speak) {
     selectedSpread,
     setSelectedSpread,
     selectSpread,
+    chooseSpread,
     reading,
     drawIncludeMinors,
     drawDeckStyleId,
