@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.13';
+export const READING_PROMPT_VERSION = '1.6.14';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.14',
+    date: '2026-11-05',
+    notes: 'End embedded card meanings and elemental descriptions as sentences in spread-analysis prose.',
+    changes: [
+      'Relationship and single-card summaries end each card meaning and elemental description as a sentence instead of running it into the next; Decision axis summaries gain their closing period.',
+      'When two cards share an element, one Relationship bridge sentence covers both instead of repeating it; "all three" replaces "Both" when every card shares it.',
+      'Card meanings, elemental descriptions and the system prompt are unchanged.'
+    ]
+  },
   {
     version: '1.6.13',
     date: '2026-11-01',
