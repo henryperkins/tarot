@@ -27,6 +27,53 @@ for (const platform of ['desktop', 'phone @mobile']) {
       await fixture.close();
     }
   });
+
+  for (const returnTo of ['page focus', 'setup']) {
+    test(`Reader Memory opt-out refreshes after returning to ${returnTo} — ${platform}`, async ({ page }) => {
+      const fixture = await createNarrativeFixture(page);
+      let memoryAdded = false;
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      await page.route('**/api/memories?limit=1', async route => {
+        if (!memoryAdded) return route.fulfill({ json: { memories: [] } });
+        await gate;
+        await route.fulfill({ json: { memories: [{ id: 'new-memory', text: 'A newly saved work theme.', category: 'theme' }] } });
+      });
+      try {
+        await openSetup(page);
+        await expect(choice(page)).toHaveCount(0);
+        if (returnTo === 'setup') {
+          await page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true }).click();
+          await expect(page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true })).toBeVisible();
+        }
+        // Another tab, or a follow-up while setup was hidden, saved a memory.
+        memoryAdded = true;
+        if (returnTo === 'page focus') await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        else await page.getByRole('button', { name: /^Step 1: Spread/ }).click();
+
+        // An old empty response cannot hide the choice during revalidation.
+        await expect(choice(page)).toBeChecked();
+        await choice(page).uncheck();
+        release();
+        await expect(page.getByRole('link', { name: 'Review Reader Memory' })).toBeVisible();
+        await expect(choice(page)).not.toBeChecked();
+
+        if (returnTo === 'page focus') {
+          await startReading(page, fixture, { setup: false, complete: false });
+        } else {
+          await page.getByRole('button', { name: /^Step 4: Reading/ }).click();
+          await page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true }).click();
+          await page.getByRole('button', { name: 'Reveal all cards', exact: true }).filter({ visible: true }).click();
+          await page.getByRole('button', { name: 'Interpret cards', exact: true }).filter({ visible: true }).click();
+        }
+        await expect.poll(() => fixture.requests.reading.length).toBe(1);
+        expect(fixture.requests.reading[0].useSavedMemories).toBe(false);
+      } finally {
+        release();
+        await fixture.close();
+      }
+    });
+  }
 }
 
 test('Reader Memory choice hides only once an empty memory list is confirmed', async ({ page }) => {

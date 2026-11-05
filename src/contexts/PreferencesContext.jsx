@@ -482,6 +482,9 @@ export function PreferencesProvider({ children }) {
     accountReadyForRef.current = null;
     accountConfirmedKeyRef.current = null;
     accountDesiredKeyRef.current = null;
+    // A prior login's PUT may commit after this GET takes its snapshot. Keep
+    // this fact even if that PUT finishes before the GET response arrives.
+    const readOverlapsSave = accountSaveQueueRef.current.inFlight?.userId === userId;
     fetchAccountPreferences()
       .then((data) => {
         if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
@@ -509,9 +512,9 @@ export function PreferencesProvider({ children }) {
           setOnboardingCompleteState(true);
           safeStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
         }
-        // What the account already holds (nothing counts as an empty record), so
-        // only a real difference is sent back.
-        accountPushKeyRef.current = accountPayloadKey(buildAccountPreferencesPayload({
+        // An overlapping read cannot confirm a reset or suppress a corrective
+        // save. The queue will reassert this login's choices after the old PUT.
+        accountPushKeyRef.current = readOverlapsSave ? null : accountPayloadKey(buildAccountPreferencesPayload({
           personalization: remote?.personalization || {},
           explicitFields: remote?.explicitFields || [],
           onboardingComplete: Boolean(remote?.onboardingCompletedAt)

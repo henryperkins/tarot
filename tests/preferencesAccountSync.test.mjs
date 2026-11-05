@@ -180,3 +180,60 @@ test('a queued reset is sent after a failed PUT even when it matches the earlier
   await harness.settle();
   assert.equal(harness.origins().resetPending, false);
 });
+
+for (const outcome of ['success', 'lost response']) {
+  for (const finishOrder of ['before', 'after']) {
+    test(`a reset survives same-account login when the old PUT has ${outcome} ${finishOrder} the new GET response`, async () => {
+      const harness = await preferencesAccountHarness();
+      let remote = record({});
+      harness.render();
+      harness.reads[0].resolve(remote);
+      let state = await harness.settle();
+      state.setDisplayName('Ann');
+      harness.render();
+      harness.flushPush();
+      state = harness.render();
+      state.resetPersonalization();
+      harness.render();
+      harness.flushPush();
+      assert.equal(harness.writes.length, 1);
+
+      harness.setOwner(null);
+      harness.setOwner('owner-a');
+      // This GET observes the empty account before the earlier PUT commits.
+      // Its response can arrive on either side of the PUT's completion.
+      const readSnapshot = remote;
+      const finishOldSave = async () => {
+        remote = record({ displayName: 'Ann' });
+        if (outcome === 'success') harness.writes[0].resolve(remote);
+        else harness.writes[0].reject(new Error('Response lost after commit'));
+        await harness.settle();
+      };
+      if (finishOrder === 'before') await finishOldSave();
+      harness.reads[1].resolve(readSnapshot);
+      state = await harness.settle();
+      assert.equal(state.personalization.displayName, '');
+      assert.equal(harness.origins().resetPending, true, 'an overlapping GET cannot acknowledge the reset');
+      harness.flushPush();
+      if (finishOrder === 'after') {
+        assert.equal(harness.writes.length, 1, 'the reset waits for the old save');
+        await finishOldSave();
+      }
+
+      assert.equal(harness.writes.length, 2, 'reassert the reset after the previous login can no longer overwrite it');
+      assert.equal(harness.writes[1].owner, 'owner-a');
+      assert.deepEqual(harness.writes[1].payload.personalization, {});
+      assert.deepEqual(harness.writes[1].payload.explicitFields, []);
+      remote = record({});
+      harness.writes[1].resolve(remote);
+      await harness.settle();
+      assert.equal(harness.origins().resetPending, false);
+
+      const reloaded = await preferencesAccountHarness({ values: harness.values });
+      reloaded.render();
+      reloaded.reads[0].resolve(remote);
+      state = await reloaded.settle();
+      assert.equal(state.personalization.displayName, '', 'the cleared name must stay cleared after reload');
+    });
+  }
+}

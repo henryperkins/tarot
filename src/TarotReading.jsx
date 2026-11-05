@@ -111,7 +111,6 @@ export default function TarotReading() {
   const isSmallScreen = useSmallScreen();
   const isLandscape = useLandscape();
   const isHandsetLayout = useHandsetLayout();
-  const memoryPresence = useSavedMemoryPresence(userId);
   const memoriesHintId = useId();
   const { newDeckInterface } = useFeatureFlags();
   const showDegradedServiceBanner = import.meta.env?.VITE_SHOW_DEGRADED_SERVICE_BANNER === 'true';
@@ -208,6 +207,7 @@ export default function TarotReading() {
   const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
   const [viewedProgressStep, setViewedProgressStep] = useState(null);
   const showSetupSection = !isOnboardingOpen && !onboardingDecisionPending && (!shouldFocusCinematicFlow || showSetupInFocusMode);
+  const memoryPresence = useSavedMemoryPresence(userId, showSetupSection && !isFollowUpOpen);
   const suppressFocusInterruptions = shouldFocusCinematicFlow;
   const shouldEnableMobileStableMode = useMemo(() => shouldUseMobileStableMode({
     isHandset,

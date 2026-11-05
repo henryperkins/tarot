@@ -1,30 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { parseMemoryList, requestMemoryJson } from '../lib/memoryApi';
 
 /**
- * Whether a signed-in reader has any saved memories, so the setup offers the
- * "use saved memories" choice only when it changes something.
+ * Refresh when setup is revisited or the reader returns from another tab.
+ * An old empty result must not hide the opt-out while the new check is pending.
  *
  * @returns {'loading' | 'some' | 'none' | 'error'} 'error' when the check could
  *   not be made; callers keep the choice visible then, as before this check.
  */
-export function useSavedMemoryPresence(userId) {
-  const [result, setResult] = useState({ userId: null, presence: 'loading' });
+export function useSavedMemoryPresence(userId, setupVisible = true) {
+  // A new setup visit has a different scope even for the same account, so its
+  // first render cannot reuse the previous visit's empty result.
+  const scope = useMemo(() => ({ userId, setupVisible }), [userId, setupVisible]);
+  const [result, setResult] = useState({ scope: null, presence: 'loading' });
 
   useEffect(() => {
-    if (!userId) return undefined;
-    const controller = new AbortController();
-    requestMemoryJson('/api/memories?limit=1', { signal: controller.signal })
-      .then((data) => {
-        const presence = parseMemoryList(data).length > 0 ? 'some' : 'none';
-        if (!controller.signal.aborted) setResult({ userId, presence });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setResult({ userId, presence: 'error' });
-      });
-    return () => controller.abort();
-  }, [userId]);
+    if (!scope.userId || !scope.setupVisible) return undefined;
+    let active = true;
+    let controller;
+    const refresh = () => {
+      if (!active) return;
+      controller?.abort();
+      const requestController = new AbortController();
+      controller = requestController;
+      setResult({ scope, presence: 'loading' });
+      requestMemoryJson('/api/memories?limit=1', { signal: requestController.signal })
+        .then((data) => {
+          const presence = parseMemoryList(data).length > 0 ? 'some' : 'none';
+          if (!requestController.signal.aborted) setResult({ scope, presence });
+        })
+        .catch(() => {
+          if (!requestController.signal.aborted) setResult({ scope, presence: 'error' });
+        });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    queueMicrotask(refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      active = false;
+      controller?.abort();
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [scope]);
 
   if (!userId) return 'none';
-  return result.userId === userId ? result.presence : 'loading';
+  return result.scope === scope ? result.presence : 'loading';
 }
