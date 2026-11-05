@@ -166,6 +166,32 @@ test('a spread chosen before the draw survives a reload; a saved reading wins ov
   assert.equal(restored.render().selectedSpread, 'threeCard');
 });
 
+test('restoring a snapshot leaves the saved spread choice intact until an explicit choice', async t => {
+  const h = await tarotStateHarness({ spreadDraft: 'celtic', snapshot: {
+    owner: 'user:owner-a', spreadKey: 'fiveCard', reading: [{ name: 'Temperance' }]
+  } });
+  t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'fiveCard', 'the table restores its own spread');
+  assert.deepEqual(h.savedSpreadDrafts, [], 'restoration must not replace the earlier Celtic choice');
+  h.render().chooseSpread('fiveCard');
+  h.render();
+  assert.equal(h.savedSpreadDrafts.at(-1), 'fiveCard', 'an explicit choice may replace the saved draft');
+});
+
+test('an inaccessible restored snapshot cannot overwrite an earlier paid spread draft', async t => {
+  const allowed = ['single', 'threeCard'];
+  const h = await tarotStateHarness({ spreadDraft: 'celtic', snapshot: {
+    owner: 'user:owner-a', spreadKey: 'fiveCard', reading: [{ name: 'Temperance' }]
+  }, subscription: { canUseSpread: key => allowed.includes(key), config: { spreads: allowed } } });
+  t.after(() => h.unmount());
+  assert.equal(h.render().selectedSpread, 'fiveCard');
+  assert.deepEqual(h.savedSpreadDrafts, [], 'the initial effect must not save the snapshot spread');
+  h.flushFrames();
+  assert.equal(h.render().selectedSpread, 'single');
+  assert.equal(h.render().reading, null);
+  assert.deepEqual(h.savedSpreadDrafts, [], 'neither the snapshot nor its fallback replaces the draft');
+});
+
 test('an untouched default is not saved as a choice', async t => {
   const h = await tarotStateHarness(); t.after(() => h.unmount());
   h.render();

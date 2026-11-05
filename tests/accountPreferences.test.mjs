@@ -19,6 +19,11 @@ function createDb({ stored = null, missingColumn = false } = {}) {
           first: async () => {
             if (missingColumn) throw new Error('D1_ERROR: no such column: preferences_json');
             if (query.startsWith('SELECT preferences_json')) return { preferences_json: state.stored };
+            if (query.startsWith('UPDATE users SET preferences_json')) {
+              state.stored = args[0];
+              state.writes.push(args);
+              return { preferences_json: state.stored };
+            }
             return null;
           },
           run: async () => {
@@ -48,6 +53,39 @@ function deps({ user = { id: 'user-1', auth_provider: 'email' }, body = {}, now 
 }
 
 const request = (method = 'GET') => new Request('https://example.com/api/account/preferences', { method });
+
+// Hold both requests at the write boundary so their earlier reads see the
+// same record, then execute the real SQLite writes in the requested order.
+function orderedPreferenceWrites(DB, order) {
+  let arrivals = 0;
+  let releaseWrites;
+  let releaseSecond;
+  const bothArrived = new Promise(resolve => { releaseWrites = resolve; });
+  const firstFinished = new Promise(resolve => { releaseSecond = resolve; });
+  return {
+    prepare(query) {
+      const statement = DB.prepare(query);
+      return {
+        bind(...args) {
+          const bound = statement.bind(...args);
+          const execute = async (method, ...methodArgs) => {
+            if (!query.trimStart().startsWith('UPDATE users SET preferences_json')) return bound[method](...methodArgs);
+            const name = JSON.parse(args[0]).personalization.displayName;
+            if (++arrivals === 2) releaseWrites();
+            await bothArrived;
+            if (name !== order[0]) await firstFinished;
+            try {
+              return await bound[method](...methodArgs);
+            } finally {
+              if (name === order[0]) releaseSecond();
+            }
+          };
+          return { first: column => execute('first', column), run: () => execute('run') };
+        }
+      };
+    }
+  };
+}
 
 describe('account preferences API', () => {
   it('requires a signed-in session, not a machine credential', async () => {
@@ -113,6 +151,62 @@ describe('account preferences API', () => {
     const { preferences } = await later.json();
     assert.equal(preferences.onboardingCompletedAt, 1_700_000_000);
     assert.equal(preferences.updatedAt, 1_800_000_000);
+  });
+
+  for (const order of [['completed', 'replay'], ['replay', 'completed']]) {
+    it(`preserves onboarding completion atomically when concurrent writes finish ${order.join(' then ')}`, async () => {
+      const { createD1 } = await import('./helpers/d1Sqlite.mjs');
+      const DB = await createD1();
+      await DB.prepare(`INSERT INTO users (id, email, username, password_hash, password_salt, created_at, updated_at)
+        VALUES ('reader', 'reader@example.test', 'reader', 'hash', 'salt', 1, 1)`).run();
+      const user = { id: 'reader', auth_provider: 'email' };
+      const concurrent = orderedPreferenceWrites(DB, order);
+      const [completedResponse, replayResponse] = await Promise.all([
+        onRequestPut({ request: request('PUT'), env: { DB: concurrent } }, deps({
+          user, now: 1_800_000_000,
+          body: { personalization: { displayName: 'completed' }, explicitFields: ['displayName'], onboardingCompleted: true }
+        })),
+        onRequestPut({ request: request('PUT'), env: { DB: concurrent } }, deps({
+          user, now: 1_800_000_001,
+          body: { personalization: { displayName: 'replay' }, explicitFields: ['displayName'], onboardingCompleted: false }
+        }))
+      ]);
+      assert.equal(completedResponse.status, 200);
+      assert.equal(replayResponse.status, 200);
+      assert.equal((await completedResponse.json()).preferences.onboardingCompletedAt, 1_800_000_000);
+      const replay = (await replayResponse.json()).preferences;
+      assert.equal(replay.onboardingCompletedAt, order[0] === 'completed' ? 1_800_000_000 : null,
+        'the response reports the completion persisted by its own atomic write');
+      const row = await DB.prepare('SELECT preferences_json FROM users WHERE id = ?').bind(user.id).first();
+      const saved = JSON.parse(row.preferences_json);
+      assert.equal(saved.onboardingCompletedAt, 1_800_000_000);
+      assert.equal(saved.personalization.displayName, order[1], 'other preferences retain replacement semantics');
+    });
+  }
+
+  it('keeps the first committed completion when both concurrent devices finish onboarding', async () => {
+    const { createD1 } = await import('./helpers/d1Sqlite.mjs');
+    const DB = await createD1();
+    await DB.prepare(`INSERT INTO users (id, email, username, password_hash, password_salt, created_at, updated_at)
+      VALUES ('reader', 'reader@example.test', 'reader', 'hash', 'salt', 1, 1)`).run();
+    const user = { id: 'reader', auth_provider: 'email' };
+    const concurrent = orderedPreferenceWrites(DB, ['first', 'second']);
+    const responses = await Promise.all([
+      onRequestPut({ request: request('PUT'), env: { DB: concurrent } }, deps({
+        user, now: 1_800_000_002,
+        body: { personalization: { displayName: 'first' }, explicitFields: ['displayName'], onboardingCompleted: true }
+      })),
+      onRequestPut({ request: request('PUT'), env: { DB: concurrent } }, deps({
+        user, now: 1_800_000_001,
+        body: { personalization: { displayName: 'second' }, explicitFields: ['displayName'], onboardingCompleted: true }
+      }))
+    ]);
+    for (const response of responses) {
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).preferences.onboardingCompletedAt, 1_800_000_002);
+    }
+    const row = await DB.prepare('SELECT preferences_json FROM users WHERE id = ?').bind(user.id).first();
+    assert.equal(JSON.parse(row.preferences_json).onboardingCompletedAt, 1_800_000_002);
   });
 
   it('replaces the chosen fields, so a reset on one device clears them everywhere', async () => {

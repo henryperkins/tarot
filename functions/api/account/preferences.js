@@ -140,11 +140,21 @@ export async function onRequestPut(context, deps = DEFAULT_DEPS) {
       return deps.jsonResponse({ error: 'Preferences are too large' }, { status: 413 });
     }
 
-    await env.DB.prepare('UPDATE users SET preferences_json = ?, updated_at = ? WHERE id = ?')
-      .bind(serialized, next.updatedAt, user.id)
-      .run();
+    // Preserve completion from the row at write time, not the earlier SELECT:
+    // another device can finish onboarding while this request is in flight.
+    // RETURNING also keeps the response consistent with this atomic write.
+    const saved = await env.DB.prepare(`UPDATE users SET preferences_json = json_set(
+      ?, '$.onboardingCompletedAt', COALESCE(
+        NULLIF(CAST(json_extract(
+          CASE WHEN json_valid(preferences_json) THEN preferences_json ELSE '{}' END,
+          '$.onboardingCompletedAt'
+        ) AS NUMERIC), 0), ?
+      )
+    ), updated_at = ? WHERE id = ? RETURNING preferences_json`)
+      .bind(serialized, next.onboardingCompletedAt, next.updatedAt, user.id)
+      .first();
 
-    return deps.jsonResponse({ preferences: next, available: true });
+    return deps.jsonResponse({ preferences: parseStoredPreferences(saved?.preferences_json), available: true });
   } catch (error) {
     console.error('[account] Preferences save error:', error?.message || error);
     return deps.jsonResponse({ error: 'Failed to save preferences' }, { status: 500 });

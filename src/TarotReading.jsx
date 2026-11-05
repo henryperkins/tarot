@@ -1017,10 +1017,10 @@ export default function TarotReading() {
   // --- Render Helper Wrappers ---
 
   // Signed-in readers with Reader Memory choose whether it informs this reading:
-  // below the spreads on phones, with the deck on wider screens. With
-  // no memories the choice changes nothing, so it waits until there are some;
-  // if the check fails it stays, as before the check existed.
-  const showSavedMemoriesOption = Boolean(user) && (memoryPresence === 'some' || memoryPresence === 'error');
+  // below the spreads on phones, with the deck on wider screens. A confirmed
+  // empty memory list makes the choice unnecessary. While the check loads
+  // or fails, keep opt-out available before the reader starts generating.
+  const showSavedMemoriesOption = Boolean(user) && memoryPresence !== 'none';
   const savedMemoriesOption = showSavedMemoriesOption ? (
     <div className="saved-memories-option">
       <label className="flex min-h-11 items-center gap-3 text-sm text-muted-high">

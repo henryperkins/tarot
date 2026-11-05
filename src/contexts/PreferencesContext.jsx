@@ -408,6 +408,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Onboarding State ---
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
+  const onboardingMutationEpochRef = useRef(0);
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
 
@@ -422,6 +423,7 @@ export function PreferencesProvider({ children }) {
   });
 
   const setOnboardingComplete = (value) => {
+    onboardingMutationEpochRef.current += 1;
     setOnboardingCompleteState(value);
     safeStorage.setItem(ONBOARDING_STORAGE_KEY, value.toString());
   };
@@ -444,6 +446,7 @@ export function PreferencesProvider({ children }) {
   const accountConfirmedKeyRef = useRef(null);
   const accountDesiredKeyRef = useRef(null);
   const accountReadyForRef = useRef(null);
+  const accountSaveQueueRef = useRef({ inFlight: null, pending: null });
   const explicitFieldsRef = useRef(personalizationExplicitFields);
   const accountOriginsRef = useRef(accountPreferenceOrigins);
   useEffect(() => {
@@ -460,6 +463,7 @@ export function PreferencesProvider({ children }) {
       accountConfirmedKeyRef.current = null;
       accountDesiredKeyRef.current = null;
       accountReadyForRef.current = null;
+      accountSaveQueueRef.current.pending = null;
       return;
     }
     if (loadedPersonalizationKey !== personalizationStorageKey) {
@@ -468,10 +472,12 @@ export function PreferencesProvider({ children }) {
       accountReadyForRef.current = null;
       accountConfirmedKeyRef.current = null;
       accountDesiredKeyRef.current = null;
+      accountSaveQueueRef.current.pending = null;
       return;
     }
     if (accountRequestedForRef.current === userId) return;
     const requestEpoch = ++accountRequestEpochRef.current;
+    const onboardingEpoch = onboardingMutationEpochRef.current;
     accountRequestedForRef.current = userId;
     accountReadyForRef.current = null;
     accountConfirmedKeyRef.current = null;
@@ -499,7 +505,7 @@ export function PreferencesProvider({ children }) {
           ])));
         }
         setAccountPreferenceOrigins(current => ({ ...current, inheritedFields: adoptedFields }));
-        if (remote?.onboardingCompletedAt) {
+        if (remote?.onboardingCompletedAt && onboardingMutationEpochRef.current === onboardingEpoch) {
           setOnboardingCompleteState(true);
           safeStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
         }
@@ -539,6 +545,10 @@ export function PreferencesProvider({ children }) {
     const key = accountPayloadKey(payload);
     const requestEpoch = accountRequestEpochRef.current;
     accountDesiredKeyRef.current = key;
+    const queue = accountSaveQueueRef.current;
+    // A newer edit supersedes queued work immediately, even while its debounce
+    // is still pending. The request already in flight must finish first.
+    if (queue.pending?.key !== key) queue.pending = null;
     if (key === accountPushKeyRef.current) {
       // The account may already be empty (for example after a reset elsewhere).
       // A confirmed matching copy also acknowledges this device's pending reset.
@@ -549,29 +559,43 @@ export function PreferencesProvider({ children }) {
       });
       return undefined;
     }
-    const timer = setTimeout(() => {
-      accountPushKeyRef.current = key;
-      saveAccountPreferences(payload).then(() => {
-        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
-        if (accountRequestedForRef.current === userId && accountPushKeyRef.current === key) {
-          accountConfirmedKeyRef.current = key;
-        }
-        if (accountRequestedForRef.current === userId && accountPushKeyRef.current === key
-          && accountDesiredKeyRef.current === key) {
+    const drainQueue = () => {
+      if (queue.inFlight || !queue.pending) return;
+      const next = queue.pending;
+      queue.pending = null;
+      const isCurrent = () => accountRequestedForRef.current === next.userId
+        && accountRequestEpochRef.current === next.requestEpoch;
+      if (!isCurrent() || accountReadyForRef.current !== next.userId
+        || accountDesiredKeyRef.current !== next.key) return;
+      queue.inFlight = next;
+      accountPushKeyRef.current = next.key;
+      saveAccountPreferences(next.payload).then(() => {
+        if (!isCurrent()) return;
+        accountConfirmedKeyRef.current = next.key;
+        if (accountDesiredKeyRef.current === next.key) {
           // Repeating the same reset while its request is in flight has the
           // same intended payload and is acknowledged by this success too.
           setAccountPreferenceOrigins(current => current.resetPending
             ? { ...current, resetPending: false } : current);
         }
       }).catch((error) => {
-        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
+        if (!isCurrent()) return;
         if (error?.code === 'preferences_unavailable') {
-          setAccountSync({ userId, status: 'unavailable' });
-        } else if (accountPushKeyRef.current === key) {
+          accountReadyForRef.current = null;
+          setAccountSync({ userId: next.userId, status: 'unavailable' });
+        } else if (accountPushKeyRef.current === next.key) {
           // Let the next change try again.
           accountPushKeyRef.current = null;
         }
+      }).finally(() => {
+        queue.inFlight = null;
+        drainQueue();
       });
+    };
+    const timer = setTimeout(() => {
+      if (key === accountPushKeyRef.current) return;
+      queue.pending = { payload, key, userId, requestEpoch };
+      drainQueue();
     }, 700);
     return () => clearTimeout(timer);
   }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId, accountSync, personalization, personalizationExplicitFields, onboardingComplete, accountPreferenceOrigins]);

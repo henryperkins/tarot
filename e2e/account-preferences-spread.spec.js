@@ -16,6 +16,32 @@ const snapshot = page => page.evaluate(() => {
   return saved && { spread: saved.spreadKey, cards: saved.reading.length, dealt: saved.isSpreadDealt };
 });
 
+test('restoring a table preserves a separate spread draft until the reader chooses again', async ({ page }) => {
+  const fixture = await createNarrativeFixture(page, { accountPreferences: {
+    ...REMOTE, personalization: {}, explicitFields: []
+  } });
+  try {
+    await page.addInitScript(() => localStorage.setItem('tarot-onboarding-complete', 'true'));
+    await page.goto('/');
+    await page.getByRole('radio', { name: 'Five-Card Clarity', exact: true }).click();
+    await page.getByRole('button', { name: 'Draw cards', exact: true }).click();
+    await page.getByRole('button', { name: 'Deal spread', exact: true }).click();
+    await expect.poll(() => snapshot(page)).toEqual({ spread: 'fiveCard', cards: 5, dealt: true });
+    // A prior paid choice can differ from a table drawn using a plan fallback.
+    await page.evaluate(() => sessionStorage.setItem('tarot-spread-draft', JSON.stringify({ spreadKey: 'celtic' })));
+    await page.reload();
+    await expect(page.locator('#reading-table-title')).toHaveText('Five-Card Clarity');
+    const draft = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('tarot-spread-draft')).spreadKey);
+    expect(await draft()).toBe('celtic');
+    await page.getByRole('button', { name: /^Step 1: Spread/ }).first().click();
+    await page.getByRole('radio', { name: 'Five-Card Clarity', exact: true }).click();
+    await expect.poll(draft).toBe('fiveCard');
+    await expect.poll(() => snapshot(page)).toEqual({ spread: 'fiveCard', cards: 5, dealt: true });
+  } finally {
+    await fixture.close();
+  }
+});
+
 for (const platform of ['desktop', 'phone @mobile']) {
   test.describe(`Late account preferences during a reading — ${platform}`, () => {
     if (platform.includes('@mobile')) test.use({ viewport: { width: 390, height: 844 } });

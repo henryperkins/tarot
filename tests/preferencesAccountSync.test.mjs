@@ -72,3 +72,111 @@ test('an old owner PUT failure cannot change the new owner account status', asyn
   assert.equal(state.accountPreferencesStatus, 'ready');
   assert.deepEqual(harness.origins('owner-b').inheritedFields, ['displayName']);
 });
+
+test('Replay tutorial requested during account loading survives the older completed-account response', async () => {
+  const harness = await preferencesAccountHarness();
+  let state = harness.render();
+  state.resetOnboarding();
+  assert.equal(harness.render().onboardingComplete, false);
+  harness.reads[0].resolve(record({ displayName: 'Henry' }));
+  state = await harness.settle();
+  assert.equal(state.onboardingComplete, false);
+  assert.equal(harness.values.get('tarot-onboarding-complete'), 'false');
+  assert.equal(state.personalization.displayName, 'Henry', 'unrelated account fields still hydrate');
+});
+
+test('account saves wait for the previous PUT and coalesce edits to the newest choice', async () => {
+  const harness = await preferencesAccountHarness();
+  harness.render();
+  harness.reads[0].resolve(record({ displayName: 'Henry' }));
+  let state = await harness.settle();
+  state.setDisplayName('Ann');
+  harness.render();
+  harness.flushPush();
+  state = harness.render();
+  state.setDisplayName('Beth');
+  harness.render();
+  harness.flushPush();
+  state = harness.render();
+  state.setDisplayName('Cara');
+  harness.render();
+  harness.flushPush();
+  assert.equal(harness.writes.length, 1, 'no simultaneous PUT can overwrite a newer choice');
+  harness.writes[0].resolve(record({ displayName: 'Ann' }));
+  await harness.settle();
+  assert.equal(harness.writes.length, 2);
+  assert.equal(harness.writes[1].payload.personalization.displayName, 'Cara');
+  harness.writes[1].resolve(record({ displayName: 'Cara' }));
+  state = await harness.settle();
+  assert.equal(state.personalization.displayName, 'Cara');
+});
+
+test('a failed PUT releases the queue for the latest pending choice', async () => {
+  const harness = await preferencesAccountHarness();
+  harness.render();
+  harness.reads[0].resolve(record({ displayName: 'Henry' }));
+  let state = await harness.settle();
+  state.setDisplayName('Ann');
+  harness.render();
+  harness.flushPush();
+  state = harness.render();
+  state.setDisplayName('Beth');
+  harness.render();
+  harness.flushPush();
+  assert.equal(harness.writes.length, 1);
+  harness.writes[0].reject(new Error('Temporary failure'));
+  await harness.settle();
+  assert.equal(harness.writes.length, 2);
+  assert.equal(harness.writes[1].payload.personalization.displayName, 'Beth');
+});
+
+test('queued saves from a previous account are discarded before the new account saves', async () => {
+  const harness = await preferencesAccountHarness();
+  harness.render();
+  harness.reads[0].resolve(record({ displayName: 'Henry' }));
+  let state = await harness.settle();
+  state.setDisplayName('Ann');
+  harness.render();
+  harness.flushPush();
+  state = harness.render();
+  state.setDisplayName('Beth');
+  harness.render();
+  harness.flushPush();
+  harness.setOwner('owner-b');
+  harness.reads[1].resolve(record({ displayName: 'Mira' }));
+  state = await harness.settle();
+  state.setDisplayName('Nora');
+  harness.render();
+  harness.flushPush();
+  assert.equal(harness.writes.length, 1);
+  harness.writes[0].resolve(record({ displayName: 'Ann' }));
+  await harness.settle();
+  assert.equal(harness.writes.length, 2);
+  assert.equal(harness.writes[1].owner, 'owner-b');
+  assert.equal(harness.writes[1].payload.personalization.displayName, 'Nora');
+});
+
+test('a queued reset is sent after a failed PUT even when it matches the earlier confirmed account copy', async () => {
+  const harness = await preferencesAccountHarness();
+  harness.render();
+  harness.reads[0].resolve(record({}));
+  let state = await harness.settle();
+  state.setDisplayName('Ann');
+  harness.render();
+  harness.flushPush();
+  state = harness.render();
+  state.resetPersonalization();
+  harness.render();
+  harness.flushPush();
+  assert.equal(harness.writes.length, 1);
+  // A failed response does not prove that the server rejected Ann's write.
+  // Reassert the queued reset instead of trusting the pre-request empty copy.
+  harness.writes[0].reject(new Error('Response lost'));
+  await harness.settle();
+  assert.equal(harness.writes.length, 2);
+  assert.deepEqual(harness.writes[1].payload.personalization, {});
+  assert.equal(harness.origins().resetPending, true);
+  harness.writes[1].resolve(record({}));
+  await harness.settle();
+  assert.equal(harness.origins().resetPending, false);
+});

@@ -41,9 +41,10 @@ export function useTarotState(speak) {
     initialSnapshot?.spreadKey || initialSpreadDraft || DEFAULT_SPREAD_KEY
   ));
   const [hasUserSelectedSpread, setHasUserSelectedSpread] = useState(() => Boolean(initialSnapshot || initialSpreadDraft));
-  // False while a plan fallback stands in for the spread: that substitute is
-  // not the reader's choice and must not replace a saved one.
-  const [spreadChoiceIsReaders, setSpreadChoiceIsReaders] = useState(true);
+  // A restored table does not establish which spread was the reader's saved
+  // choice. Neither restoration nor a plan fallback may replace that draft;
+  // an explicit choice in the selector can still do so.
+  const [spreadChoiceIsReaders, setSpreadChoiceIsReaders] = useState(() => !initialSnapshot);
   const autoSelectedSpread = (!hasUserSelectedSpread && personalization?.preferredSpreadDepth)
     ? getSpreadFromDepth(personalization.preferredSpreadDepth)
     : null;

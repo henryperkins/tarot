@@ -147,6 +147,8 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
   }, [activeIndex, edges, scrollToIndex]);
 
   const onItemKeyDown = (event, key) => {
+    // Modified keys belong to browser navigation and assistive shortcuts.
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onChooseRef.current?.(key);
