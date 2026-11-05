@@ -55,7 +55,7 @@ export function ReadingInputUsageSection({ personalReading, sourceUsage, provide
         {usage.summary.attention > 0 && (
           <p id={warningId} className="mt-2 text-sm text-warning">
             <WarningCircle className="inline h-4 w-4 align-middle" aria-hidden="true" />{' '}
-            Some of your input was shortened or left out. {isExpanded ? 'See the details below.' : 'Expand for details.'}
+            {usage.warningText} {isExpanded ? 'See the details below.' : 'Expand for details.'}
           </p>
         )}
         <div id={contentId} hidden={!isExpanded}>

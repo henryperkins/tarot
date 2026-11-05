@@ -213,3 +213,34 @@ test('retained detected patterns are a separate source through reload and journa
     expect(fixture.requests.journal[0].sourceUsage.patterns.patternsUsedInPrompt).toBe(1);
   } finally { await fixture.close(); }
 });
+
+// Traditional wisdom is additional context, so its failure must not read as lost personal input.
+for (const theme of ['light', 'dark']) {
+  test(`a reference retrieval error is shown as missing context, not lost input (${theme})`, async ({ page }, testInfo) => {
+    await page.addInitScript(value => localStorage.setItem('tarot-theme', value), theme);
+    const fixture = await createNarrativeFixture(page, { sourceUsage: {
+      ...SOURCE_USAGE.reference,
+      graphRAG: { requested: true, used: false, mode: 'none', skippedReason: 'retrieval_error', passagesProvided: 0, passagesUsedInPrompt: 0, passageIndices: [] }
+    } });
+    try {
+      await startReading(page, fixture);
+      await openReadingSupport(page);
+      const region = page.getByRole('region', { name: panelName });
+      const trigger = region.getByRole('button', { name: panelName, exact: true });
+      const warning = /Some additional context could not be included\./;
+      // Visible and announced while collapsed.
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      await expect(region).toContainText(warning);
+      await expect(trigger).toHaveAccessibleDescription(warning);
+      await expect(region).not.toContainText('Some of your input');
+      await trigger.press('Enter');
+      const row = region.getByRole('listitem').filter({ has: page.getByText('Traditional wisdom', { exact: true }) });
+      await expect(row.locator('span:has(> svg)')).toHaveText(/^\s*Not included\s*$/);
+      await expect(row).toContainText('Reference passages could not be loaded for this reading.');
+      expect((await badgeContrast(row.locator('span:has(> svg)'))).ratio, `${theme} Not included`).toBeGreaterThanOrEqual(4.5);
+      await region.screenshot({ path: testInfo.outputPath(`retrieval-error-${theme}-expanded.png`) });
+    } finally {
+      await fixture.close();
+    }
+  });
+}

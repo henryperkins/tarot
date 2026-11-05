@@ -14,6 +14,8 @@ const INPUT_LABELS = {
   tone: 'tone', frame: 'interpretive approach', depth: 'reading depth'
 };
 const BADGE_TEXT = { used: 'Included', partial: 'Partly included', omitted: 'Not included', neutral: 'Not needed' };
+// Failures get a Traditional wisdom row; other omissions, such as no patterns, do not.
+const GRAPH_RAG_FAILURES = ['reference_integrity_failed', 'retrieval_error'];
 const list = values => values.length < 2 ? (values[0] || '')
   : `${values.slice(0, -1).join(', ')}${values.length > 2 ? ',' : ''} and ${values.at(-1)}`;
 const reasonCopy = reason => USAGE_REASON_COPY[reason] || USAGE_REASON_COPY.not_used;
@@ -125,7 +127,7 @@ export function formatUsageSummary(rawUsage) {
       ? 'Card patterns and their traditional meanings.'
       : `${count} reference passage${count === 1 ? '' : 's'} on the cards and their patterns.`;
     addRow('Traditional wisdom', 'used', detail, 'sources', 'traditional wisdom');
-  } else if (graph?.skippedReason === 'reference_integrity_failed') {
+  } else if (GRAPH_RAG_FAILURES.includes(graph?.skippedReason)) {
     addRow('Traditional wisdom', 'omitted', reasonCopy(graph.skippedReason), 'sources', 'traditional wisdom');
   }
   if (sourceUsage?.patterns?.used) {
@@ -139,12 +141,17 @@ export function formatUsageSummary(rawUsage) {
   if (sourceUsage?.forecast?.used) addRow('Timing outlook', 'used', 'Upcoming lunar and planetary events.', 'sources', 'a timing outlook');
 
   const summaryParts = included.length > 3 ? [...included.slice(0, 2), `${included.length - 2} other sources`] : included;
+  const attentionRows = rows.filter(row => row.state === 'partial' || row.state === 'omitted');
   return {
     rows,
     summaryText: included.length ? `Prepared with ${list(summaryParts)}.` : 'Details about the inputs provided for this reading.',
+    // Additional context is not the reader's own input, so it has its own warning.
+    warningText: !attentionRows.length ? null
+      : attentionRows.some(row => row.group === 'you') ? 'Some of your input was shortened or left out.'
+        : 'Some additional context could not be included.',
     summary: {
       used: included.length,
-      attention: rows.filter(row => row.state === 'partial' || row.state === 'omitted').length
+      attention: attentionRows.length
     }
   };
 }

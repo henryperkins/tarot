@@ -158,13 +158,21 @@ export function buildSpreadAnalysisPayload(analysis) {
 // GraphRAG Placeholder Builder
 // ============================================================================
 
+// Source-usage reason reported for each placeholder reason.
+const PLACEHOLDER_SKIPPED_REASONS = {
+  'graphrag-disabled-env': 'disabled_by_env',
+  'missing-graph-keys': 'no_patterns_detected',
+  'retrieval-error': 'retrieval_error'
+};
+
 /**
  * Build a placeholder GraphRAG payload when retrieval is disabled or fails.
  *
  * @param {Object} graphKeys - Graph pattern keys from theme analysis
  * @param {boolean} requestedSemanticScoring - Whether semantic scoring was requested
  * @param {boolean} enableSemanticScoring - Whether semantic scoring is available
- * @param {string} reason - Reason for placeholder (e.g., 'graphrag-disabled-env')
+ * @param {string} reason - 'graphrag-disabled-env', 'missing-graph-keys' (no patterns
+ *   detected) or 'retrieval-error' (pattern detection or its passage preview failed)
  * @returns {Object} Placeholder GraphRAG payload
  */
 function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSemanticScoring, reason) {
@@ -204,11 +212,7 @@ function buildGraphRAGPlaceholder(graphKeys, requestedSemanticScoring, enableSem
       semanticScoringAttempted: false,
       qualityMetrics,
       reason,
-      skippedReason: reason === 'graphrag-disabled-env'
-        ? 'disabled_by_env'
-        : reason === 'missing-graph-keys'
-          ? 'no_patterns_detected'
-          : 'retrieval_failed_or_empty'
+      skippedReason: PLACEHOLDER_SKIPPED_REASONS[reason] || 'retrieval_failed_or_empty'
     },
     maxPassages: 0,
     initialPassageCount: 0,
@@ -317,6 +321,8 @@ async function performSpreadAnalysisInner(
   // Step 1: Theme Analysis (suits, elements, majors, reversals)
   // =========================================================================
   let themes;
+  // A failed analysis leaves no graph keys; report that as an error, not as "no patterns".
+  let graphContextFailed = false;
   try {
     console.log(`[${requestId}] Analyzing spread themes...`);
     themes = await analyzeSpreadThemes(cardsInfo, {
@@ -324,7 +330,8 @@ async function performSpreadAnalysisInner(
       deckStyle: options.deckStyle,
       userQuestion: options.userQuestion,
       contextSelection: selection,
-      env: options.env
+      env: options.env,
+      onKnowledgeGraphError: () => { graphContextFailed = true; }
     });
     console.log(`[${requestId}] Theme analysis complete:`, {
       suitCounts: themes.suitCounts,
@@ -342,6 +349,7 @@ async function performSpreadAnalysisInner(
   } catch (err) {
     console.error(`[${requestId}] performSpreadAnalysis: analyzeSpreadThemes failed, using minimal fallback themes.`, err);
     themes = { ...FALLBACK_THEMES };
+    graphContextFailed = true;
   }
 
   // =========================================================================
@@ -393,7 +401,8 @@ async function performSpreadAnalysisInner(
   // =========================================================================
   try {
     const graphKeys = themes?.knowledgeGraph?.graphKeys;
-    if (graphKeys) {
+    // Every nonempty spread has graph keys; retrieve only when they hold a pattern.
+    if (graphRAG.hasMeaningfulGraphKeys(graphKeys)) {
       const questionContext = selection.graphRAGContext;
       const graphQuery = selection.retrievalQuery;
       const semanticAvailable = graphRAG.isSemanticScoringAvailable(options.env);
@@ -492,17 +501,20 @@ async function performSpreadAnalysisInner(
         };
       }
     } else {
-      // No patterns detected but includeGraphRAG was expected; attach placeholder telemetry
+      // GraphRAG is disabled, no patterns were detected, or analysis failed; attach placeholder telemetry
       const requestedSemanticScoring = options.enableSemanticScoring === true;
+      const reason = !graphRAG.isGraphRAGEnabled(options.env)
+        ? 'graphrag-disabled-env'
+        : graphContextFailed ? 'retrieval-error' : 'missing-graph-keys';
       graphRAGPayload = buildGraphRAGPlaceholder(
         null,
         requestedSemanticScoring,
         Boolean(options.enableSemanticScoring),
-        graphRAG.isGraphRAGEnabled(options.env) ? 'missing-graph-keys' : 'graphrag-disabled-env'
+        reason
       );
       themes.knowledgeGraph = themes.knowledgeGraph || { graphKeys: null };
       themes.knowledgeGraph.graphRAGPayload = graphRAGPayload;
-      console.warn(`[${requestId}] GraphRAG skipped: no graph patterns detected for this spread.`);
+      console.warn(`[${requestId}] GraphRAG skipped: ${reason === 'missing-graph-keys' ? 'no graph patterns detected for this spread' : reason}.`);
     }
     if (graphRAGPayload?.retrievalSummary) Object.assign(graphRAGPayload.retrievalSummary, { contextSelection: sanitizeContextSelection(selection), queryCoverage: sanitizeQueryCoverage(selection.queryCoverage), questionContext: selection.graphRAGContext, contextSource: selection.source, contextClarifiedBy: selection.clarifiedBy });
   } catch (err) {

@@ -192,7 +192,41 @@ test('integrity omission has reader copy without exposing internal diagnostics o
   assert.equal(result.rows[0].detail, 'Reference passages could not be included.');
   assert.equal(result.summary.used, 0);
   assert.equal(result.summary.attention, 1);
+  assert.equal(result.warningText, 'Some additional context could not be included.');
   assert.doesNotMatch(JSON.stringify(result), /missing_card_guardrail|reference_integrity_failed|integrityRemovedBlocks/);
+});
+
+test('a reference retrieval error is a visible omission; no patterns or no matches stay hidden', () => {
+  const failed = formatUsageSummary({ graphRAG: {
+    requested: true, used: false, mode: 'none', skippedReason: 'retrieval_error', passagesProvided: 0, passagesUsedInPrompt: 0
+  } });
+  assert.deepEqual(failed.rows.map(row => [row.label, row.state, row.badgeText, row.detail, row.group]), [
+    ['Traditional wisdom', 'omitted', 'Not included', 'Reference passages could not be loaded for this reading.', 'sources']
+  ]);
+  assert.equal(failed.summary.attention, 1);
+  // Traditional wisdom is additional context, not the reader's own input.
+  assert.equal(failed.warningText, 'Some additional context could not be included.');
+  assert.doesNotMatch(JSON.stringify(failed), /retrieval_error|your input/);
+
+  for (const skippedReason of ['no_patterns_detected', 'retrieval_failed_or_empty', 'disabled_by_env']) {
+    const hidden = formatUsageSummary({ graphRAG: { requested: true, used: false, mode: 'none', skippedReason } });
+    assert.deepEqual(hidden.rows, [], skippedReason);
+    assert.equal(hidden.summary.attention, 0, skippedReason);
+    assert.equal(hidden.warningText, null, skippedReason);
+  }
+
+  const mixed = formatUsageSummary({
+    graphRAG: { requested: true, used: false, skippedReason: 'retrieval_error' },
+    memories: { requested: true, used: false, candidatesProvided: 2, memoriesSelected: 1, memoriesUsedInPrompt: 0, skippedReason: 'removed_for_budget' }
+  });
+  assert.equal(mixed.summary.attention, 2);
+  assert.equal(mixed.warningText, 'Some of your input was shortened or left out.');
+});
+
+test('the retrieval error reason survives journal and telemetry sanitization', () => {
+  const input = { requested: true, used: false, mode: 'none', skippedReason: 'retrieval_error' };
+  assert.equal(sanitizeSourceUsage({ graphRAG: input }).graphRAG.skippedReason, 'retrieval_error');
+  assert.equal(buildGraphRAGTelemetry(input).skippedReason, 'retrieval_error');
 });
 
 test('integrity diagnostics stay bounded and preserve measured false without inventing historical measurements', () => {

@@ -16,13 +16,19 @@ import {
   isGraphRAGEnabled,
   isSemanticScoringAvailable,
   getKnowledgeBaseInfo,
-  getPassageCountForSpread
+  getPassageCountForSpread,
+  hasMeaningfulGraphKeys
 } from '../functions/lib/graphRAG.js';
 import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from '../functions/lib/knowledgeBase.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
+import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
 import { ARCHETYPAL_DYADS } from '../src/data/knowledgeGraphData.js';
+import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
 test('retrieval preserves the origin of imagery instead of implying the selected deck', () => {
   const passages = retrievePassages({ completeTriadIds: ['death-temperance-star'], thothSuits: ['Cups'], marseilleRanks: [3] }, { maxPassages: 10 });
@@ -463,6 +469,47 @@ describe('GraphRAG Utilities', () => {
 
     assert.strictEqual(summary.graphKeysProvided, false);
     assert.strictEqual(summary.passagesRetrieved, 0);
+  });
+
+  const graphKeysFor = (names, deckStyle = 'rws-1909') => buildGraphContext(
+    resolveReadingCards(names.map(card => ({ card, position: 'Theme', orientation: 'Upright' })), deckStyle),
+    { deckStyle }
+  ).graphKeys;
+
+  test('hasMeaningfulGraphKeys: keys from a spread without patterns are empty', () => {
+    for (const keys of [null, undefined, {}, graphKeysFor(['Eight of Cups']), graphKeysFor(['Nine of Cups', 'Two of Cups', 'Knight of Swords'])]) {
+      assert.strictEqual(hasMeaningfulGraphKeys(keys), false, JSON.stringify(keys));
+    }
+    // The Fool is Major 0: its count, not its number, carries the signal.
+    for (const names of [['The Fool'], ['Death', 'Temperance', 'The Star'], ['Ace of Wands', 'Two of Wands', 'Three of Wands']]) {
+      assert.strictEqual(hasMeaningfulGraphKeys(graphKeysFor(names)), true, names.join(', '));
+    }
+  });
+
+  test('hasMeaningfulGraphKeys: rejected keys never have a passage candidate, so skipping retrieval drops none', () => {
+    const singles = [...MAJOR_ARCANA, ...MINOR_ARCANA].map(card => [card.name]);
+    const minors = MINOR_ARCANA.map(card => card.name);
+    const pairs = minors.flatMap((first, index) => minors.slice(index + 1).map(second => [first, second]));
+    const candidateCounts = new Map();
+    for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
+      let rejected = 0;
+      for (const names of [...singles, ...pairs]) {
+        let keys;
+        try {
+          keys = graphKeysFor(names, deckStyle);
+        } catch (err) {
+          // Two RWS court names can resolve to one Thoth court; that is not a valid draw.
+          if (err.code === 'duplicate_card_identity') continue;
+          throw err;
+        }
+        if (hasMeaningfulGraphKeys(keys)) continue;
+        rejected += 1;
+        const shape = `${deckStyle}:${JSON.stringify(keys)}`;
+        if (!candidateCounts.has(shape)) candidateCounts.set(shape, collectPassageCandidates(keys, { deckStyle }).length);
+        assert.strictEqual(candidateCounts.get(shape), 0, `${deckStyle}: ${names.join(', ')}`);
+      }
+      assert.ok(rejected > 100, `${deckStyle}: scenario precondition, many draws have no pattern`);
+    }
   });
 
   test('isGraphRAGEnabled: returns boolean', () => {

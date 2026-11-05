@@ -346,6 +346,8 @@ export function analyzeElementalDignity(card1, card2) {
  * @param {string} [options.reversalFrameworkOverride] - Force specific reversal framework
  * @param {boolean} [options.enableKnowledgeGraph=true] - Enable knowledge graph pattern detection
  * @param {Object} [options.env] - Environment object for Workers (used for feature flags)
+ * @param {Function} [options.onKnowledgeGraphError] - Called with the error when pattern
+ *   detection or the passage preview fails; the result then has no knowledge graph
  * @returns {Promise<Object>} Theme analysis results
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
@@ -516,6 +518,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
       console.error('Knowledge graph detection failed:', err);
       // Graceful degradation: continue without patterns
       themes.knowledgeGraph = null;
+      options.onKnowledgeGraphError?.(err);
     }
   }
 
