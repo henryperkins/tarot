@@ -13,23 +13,30 @@ Run every command example in this file from the repository root. Use `python3` i
 - Narrative and vision changes require `npm run ci:narrative-check` and/or
   `npm run ci:vision-check`. They write under `data/evaluations`; use a detached
   verification worktree and record the candidate SHA, backend, and flagged samples.
-- Narrative-generation gates default to the owner's Claude subscription through
-  the existing CLI login (Opus 5.5, `xhigh`). Do not export paid API credentials
-  or select paid backends for gates. Local runs need no gateway configuration;
-  hosted runners use a private subscription gateway. Missing access fails the
-  gate without paid API fallback. Workers AI integrations stay as configured.
+- `ci:release-check` grades readings from the production primary provider. With
+  `openai-native` first, it generates samples through the paid OpenAI Responses API
+  (owner-authorized on 2026-11-06). It reads `OPENAI_API_KEY` or
+  `NARRATIVE_EVAL_OPENAI_API_KEY` and passes the key only to `ci:narrative-check`,
+  as `NARRATIVE_EVAL_OPENAI_API_KEY`; the unit suites and the prompt verifier stay
+  credential-free. A missing key fails the gate without provider fallback.
+- `ci:narrative-check` alone defaults to the owner's Claude subscription through
+  the existing CLI login (Opus 5.5, `xhigh`); `NARRATIVE_EVAL_BACKEND=openai-native`
+  with `NARRATIVE_EVAL_OPENAI_API_KEY` grades OpenAI instead. Do not select other
+  paid backends for gates. Local runs need no gateway configuration; hosted runners
+  use a private subscription gateway. Missing access fails the gate without paid
+  API fallback. Workers AI integrations stay as configured.
 - Use `NARRATIVE_EVAL_BACKEND=local-composer` for local proof when a live provider
   has not been authorized. Preserve thresholds; report unsupported samples and
   failed gates explicitly. A build or focused test is not a full QA gate.
 - The checked-in release path is `package.json` → `scripts/deploy.js`.
-  `npm run deploy` first runs `ci:release-check` (code checks and live Claude subscription generation required; vision qualification is optional), checks and applies pending remote D1 migrations, then builds
+  `npm run deploy` first runs `ci:release-check` (code checks and live generation from the production primary provider required, which is paid OpenAI while `openai-native` leads; vision qualification is optional), checks and applies pending remote D1 migrations, then builds
   the frontend and runs Wrangler deploy. `npm run deploy:skip-migrations` builds
   and deploys only after the same fresh QA, so apply migrations separately. `npm run deploy:dry-run`
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
 - GitHub Actions billing is permanently unavailable. The normal release path is
-  local `npm run deploy` on the subscription-authenticated host, with the same
+  local `npm run deploy` on this host with `OPENAI_API_KEY` exported, with the same
   fresh QA before remote changes. Do not make GitHub checks or billing recovery
   a prerequisite. Preserve local evaluation evidence and verify the active
   Worker version and live asset bytes after deployment.
@@ -49,8 +56,8 @@ Run every command example in this file from the repository root. Use `python3` i
   build command is plain `npx wrangler deploy`, it bypasses `scripts/deploy.js`
   and its migration step. Confirm the external trigger and build command, apply
   migrations separately, and verify the built commit and active production
-  version before the next release. Hosted live QA requires a private subscription
-  gateway; the local CLI login is unavailable to an ephemeral build container.
+  version before the next release. Hosted live QA needs the OpenAI evaluation key
+  as a build secret while `openai-native` leads.
 - Use explicit staging allowlists in isolated worktrees. Keep unrelated dirty
   files, stashes, historical evidence, and local settings intact.
 

@@ -106,7 +106,7 @@ The `codex/reading-gestures-react-bridge` worktree also contains uncommitted Cod
 
 ### Narrative and release QA
 
-`npm run ci:narrative-check` and `npm run ci:release-check` generate narratives with the owner's Claude subscription. Local runs use the existing verified Claude Code login; hosted runs use a private subscription gateway. Missing access fails without paid API fallback. Model/effort pins and the production Claude prompt are preserved; `local-composer` is a diagnostic option rather than release qualification.
+`npm run ci:release-check` grades readings from the production primary provider: while `openai-native` leads, it generates samples through the paid OpenAI Responses API with the production prompt, model and effort, and passes the key only to the narrative check. `npm run ci:narrative-check` alone generates with the owner's Claude subscription by default; local runs use the existing verified Claude Code login and hosted runs use a private subscription gateway. Missing access fails without provider fallback. `local-composer` is a diagnostic option rather than release qualification.
 
 Evaluation scripts layer exported environment variables over Wrangler defaults and do not load `.dev.vars`. These checks have their own provider policy and do not establish the public runtime fallback chain or production availability. See [subscription evals](claude-subscription.md#run-narrative-evals), [subscriptionNarrative.js](../scripts/evaluation/lib/subscriptionNarrative.js) and [runReleaseChecks.js](../scripts/evaluation/runReleaseChecks.js).
 

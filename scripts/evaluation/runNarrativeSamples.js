@@ -20,7 +20,13 @@ import {
   NARRATIVE_BACKENDS,
   runNarrativeBackend
 } from '../../functions/lib/narrativeBackends.js';
-import { resolveNarrativeEvalBackend, runSubscriptionNarrative, describeSubscriptionNarrativeConfig } from './lib/subscriptionNarrative.js';
+import {
+  applyOpenAIEvalCredentials,
+  describeOpenAINarrativeConfig,
+  describeSubscriptionNarrativeConfig,
+  resolveNarrativeEvalBackend,
+  runSubscriptionNarrative
+} from './lib/subscriptionNarrative.js';
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
 import { resolveSemanticScoring } from '../../functions/lib/readingTelemetry.js';
 import { buildGraphRAGTelemetry } from '../../functions/lib/telemetrySchema.js';
@@ -192,7 +198,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--fixtures file.json] [--sample sample-id] [--backend auto|claude-code|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--fixtures file.json] [--sample sample-id] [--backend auto|claude-code|openai-native|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -271,6 +277,9 @@ async function loadEvalEnv(envProfile) {
 function describeBackendConfig(backendId, env) {
   if (backendId === 'claude-code') {
     return describeSubscriptionNarrativeConfig(env);
+  }
+  if (backendId === 'openai-native') {
+    return describeOpenAINarrativeConfig(env);
   }
   return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }
@@ -396,8 +405,10 @@ export async function generateSampleImpl(sample, { env, backendId, referenceTime
 
 export async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const env = await loadEvalEnv(options.envProfile);
-  const backendId = resolveBackendId(options.backend, env);
+  const loadedEnv = await loadEvalEnv(options.envProfile);
+  const backendId = resolveBackendId(options.backend, loadedEnv);
+  // Paid OpenAI generation receives its key here, in this process only.
+  const env = backendId === 'openai-native' ? applyOpenAIEvalCredentials(loadedEnv) : loadedEnv;
   const referenceTime = resolveReferenceTime(options.referenceTime);
 
   // Initialize Weave tracing if enabled

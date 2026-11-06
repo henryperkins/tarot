@@ -1,16 +1,53 @@
-import { generateWithClaudeApi, CLAUDE_API_READING_MAX_TOKENS } from '../../../functions/lib/narrativeBackends.js';
+import { generateWithClaudeApi, CLAUDE_API_READING_MAX_TOKENS, NARRATIVE_BACKEND_ORDER } from '../../../functions/lib/narrativeBackends.js';
 import { resolveAnthropicSettings } from '../../../functions/lib/anthropicMessages.js';
+import { OPENAI_DEFAULT_MODEL, getReasoningEffort, getTextVerbosity } from '../../../functions/lib/openaiResponses.js';
 import { callClaudeCode, ensureClaudeCodeConfig } from '../../../functions/lib/claudeCode.js';
 import { runClaudeCode, verifySubscriptionLogin } from '../../../services/claude-code/runner.mjs';
+
+// The owner authorized paid OpenAI generation to grade OpenAI readings. Its key
+// travels under this name so OPENAI_API_KEY never reaches the unit suites or the
+// offline prompt verifier, which refuse provider credentials.
+export const OPENAI_EVAL_KEY_VARIABLE = 'NARRATIVE_EVAL_OPENAI_API_KEY';
 
 export function resolveNarrativeEvalBackend(value, { requireLive = false } = {}) {
   const backend = String(value || 'claude-code').trim().toLowerCase();
   if (['', 'auto', 'claude-code'].includes(backend)) return 'claude-code';
+  if (backend === 'openai-native') return 'openai-native';
   if (['local', 'local-composer'].includes(backend) && !requireLive) return 'local-composer';
-  if (!['local', 'local-composer', 'claude-api', 'modal-qwen', 'openai-native'].includes(backend)) {
+  if (!['local', 'local-composer', 'claude-api', 'modal-qwen'].includes(backend)) {
     throw new Error(`Unknown backend "${value}"`);
   }
-  throw new Error('Narrative qualification requires the Claude subscription (claude-code); paid API backends are disabled and local-composer is diagnostic only.');
+  throw new Error('Narrative qualification uses the Claude subscription (claude-code) or the explicitly selected production OpenAI backend (openai-native); other paid API backends are disabled and local-composer is diagnostic only.');
+}
+
+// The release gate grades readings from the production primary provider. The
+// subscription stands in for claude-api; openai-native is called directly.
+export function resolveReleaseNarrativeBackend(value, order = NARRATIVE_BACKEND_ORDER) {
+  const primary = order[0];
+  const expected = { 'openai-native': 'openai-native', 'claude-api': 'claude-code' }[primary];
+  if (!expected) throw new Error(`No release narrative gate is defined for the primary provider ${primary}.`);
+  const requested = String(value || '').trim().toLowerCase();
+  if (['', 'auto'].includes(requested)) return expected;
+  const backend = resolveNarrativeEvalBackend(requested, { requireLive: true });
+  if (backend !== expected) {
+    throw new Error(`The release gate grades readings from the production primary provider (${primary}); NARRATIVE_EVAL_BACKEND=${requested} would not qualify it.`);
+  }
+  return backend;
+}
+
+// Generation alone receives the key, as the production variable, in this process.
+export function applyOpenAIEvalCredentials(env) {
+  const { [OPENAI_EVAL_KEY_VARIABLE]: rawKey, ...rest } = env;
+  const key = String(rawKey || '').trim();
+  if (!key) throw new Error(`Grading OpenAI readings needs ${OPENAI_EVAL_KEY_VARIABLE}; the gate never falls back to another provider.`);
+  return { ...rest, OPENAI_API_KEY: key, TEXT_PROVIDER: 'legacy' };
+}
+
+export function describeOpenAINarrativeConfig(env) {
+  const model = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
+  return { provider: 'openai-native', model, authentication: 'api-key', transport: 'openai-responses',
+    parityWith: 'openai-native', reasoningEffort: getReasoningEffort(env, model) ?? null,
+    verbosity: getTextVerbosity(env, model) ?? null };
 }
 
 function usesGateway(env) {
