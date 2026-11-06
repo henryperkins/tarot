@@ -464,6 +464,58 @@ test('narrative gate accepts ordinary negated certainty including copular contra
   await verifyGate(metrics);
 });
 
+test('narrative gate accepts "set in stone" in a "before" clause that leaves the window open', async () => {
+  const guidance = [
+    'If you do have a peer, editor or early reader whose judgment you trust, this card suggests showing them the plans before the work is set in stone.',
+    'Before anything is set in stone, try the idea with one trusted reader.',
+    "Share a draft before it's set in stone.",
+    'Share a draft before it’s set in stone.',
+    'Ask for feedback before the tone and timing are set in stone.',
+    // Only a future form ending in "'ll" keeps the flag, not any word ending in "ll".
+    'Review the draft before the final bill is set in stone.',
+    'BEFORE THE WORK IS SET IN STONE, SHARE IT.'
+  ];
+  const metrics = await computeMetrics(guidance.map((text, index) => sampleWithGuidance(`open-window-${index}`, text)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.deterministicLanguage, false, guidance[index]);
+    assert.deepEqual(result.issueFlags, [], guidance[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative metrics still flag "set in stone" outside an open "before" clause', async () => {
+  const claims = [
+    ['Your path is set in stone.', ['set in stone']],
+    ['Everything is set in stone before you begin.', ['set in stone']],
+    ["It won't be long before your path is set in stone.", ['set in stone']],
+    ['It’s only a matter of time before the outcome is set in stone.', ['set in stone']],
+    ['The path before you is set in stone.', ['set in stone']],
+    ['Before the launch, the outcome is set in stone.', ['set in stone']],
+    // A future form puts the idiom in the main clause, not in the "before" clause.
+    ['Before Friday it will be set in stone.', ['set in stone']],
+    ["Before long it'll be set in stone.", ['set in stone']],
+    ['Before long they’ll be set in stone.', ['set in stone']],
+    ['Well before spring the outcome shall be set in stone.', ['set in stone']],
+    // Only the idiom is removed; the rest of the clause is still checked.
+    ['Share the plans before the guaranteed launch is set in stone.', ['guaranteed']]
+  ];
+  const metrics = await computeMetrics(claims.map(([claim], index) => sampleWithGuidance(`fixed-${index}`, claim)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    const [claim, matches] = claims[index];
+    assert.deepEqual(result.deterministicLanguageMatches, matches, claim);
+    assert.deepEqual(result.issueFlags, ['deterministic-language'], claim);
+  }
+  assert.equal(metrics.deterministicLanguageCount, claims.length);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Deterministic language issues/);
+    return true;
+  });
+});
+
 test('narrative metrics do not treat agency-preserving never and always phrasing as harsh', async () => {
   const metrics = await computeMetrics([
     {

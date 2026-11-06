@@ -35,6 +35,17 @@ const NEGATED_DETERMINISTIC_PATTERNS = [
 // Exceptions such as "nothing but success" assert a positive guarantee.
 const NEGATION_EXCEPTION_PATTERN = /\b(?:but|except|save|other\s+than|apart\s+from)\b/iu;
 
+// A temporal "before" clause marks a window that is still open: "show them the
+// plans before the work is set in stone". Only the idiom is removed, so the rest
+// of the clause is still checked. The idiom stays flagged after "long before" and
+// "time before" ("it won't be long before…", "only a matter of time before…"),
+// which predict the fixing, and in a spatial "before you" ("the path before you
+// is set in stone"). It also stays flagged when "will", "shall" or "'ll" comes
+// between them: a "before" clause takes the present tense for the future, so a
+// future form puts the idiom in the main clause ("before Friday it will be set
+// in stone").
+const OPEN_WINDOW_SET_IN_STONE_PATTERN = /(?<!\b(?:long|time)\s+)(\bbefore(?!\s+(?:you|me|us|them|him|her)\b)(?:\s+(?!(?:will|shall)\b|[\p{L}'’-]*['’]ll\b)[\p{L}'’-]+){1,5}\s+)set in stone\b/giu;
+
 const AGENCY_PATTERNS = [
   /\bfree will\b/i,
   /\bchoices?\b/i,
@@ -167,7 +178,7 @@ function findDeterministicLanguage(text) {
       NEGATION_EXCEPTION_PATTERN.test(claim) ? claim : ''
     )),
     text
-  );
+  ).replace(OPEN_WINDOW_SET_IN_STONE_PATTERN, '$1');
   return DETERMINISTIC_PATTERNS.flatMap(pattern => {
     const match = withoutNegatedClaims.match(pattern);
     return match ? [match[0]] : [];
