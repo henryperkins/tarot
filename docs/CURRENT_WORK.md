@@ -4,9 +4,11 @@ This is the current index for master. Earlier reports keep their dated observati
 
 ## Production
 
-Production runs Worker version `5ac954d1-1f3b-4783-89ce-c77fb56db5ac`, released from master `3d236ab1` on November 5 at 23:55 UTC and serving all traffic. It carries PRs #136–#138 and narrative prompt 1.6.14. The [release record](READING_PANELS_RELEASE_2026-11-05.md) lists its checks, live verification and limits. The rollback target is the previous version, `35b897e5-7962-411a-abd7-4cc40090a874`.
+Production runs Worker version `9ac98049-7d94-4cc8-9b30-7db2626fdee5`, released from master `42ee4362` and serving all traffic since November 6 at 04:11 UTC. Readings use the OpenAI Responses API first, with `gpt-6-astra` at `high` reasoning effort. The [release record](OPENAI_READINGS_RELEASE_2026-11-06.md) lists its checks, the production variable override, live verification and limits.
 
-Since the November 1 integration below, Wrangler lists four production deployments, each taking all traffic. `db4fb586` was deployed on November 3 at 06:57 UTC; `146f4a51`, `35b897e5` and `5ac954d1` followed on November 5 at 11:58, 16:50 and 23:55. The [reading audio plan](superpowers/plans/2026-11-05-reading-audio-cancellation.md) records the `35b897e5` release. This repository has no release record for the first two.
+Rollback: `3a00b28c-1380-4b96-884b-942737c0ff14` keeps this code with `gpt-5.6-sol` at `xhigh`. `5ac954d1-1f3b-4783-89ce-c77fb56db5ac` returns to the [November 5 release](READING_PANELS_RELEASE_2026-11-05.md) of PRs #136–#138.
+
+Since the November 1 integration below, Wrangler lists six production deployments, each taking all traffic. `db4fb586` was deployed on November 3 at 06:57 UTC; `146f4a51`, `35b897e5` and `5ac954d1` followed on November 5 at 11:58, 16:50 and 23:55; `3a00b28c` and `9ac98049` on November 6 at 03:05 and 04:11. The [reading audio plan](superpowers/plans/2026-11-05-reading-audio-cancellation.md) records the `35b897e5` release. This repository has no release record for the first two.
 
 ## Local master — November 1
 
