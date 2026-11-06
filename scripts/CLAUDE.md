@@ -35,6 +35,12 @@ Run every command example in this file from the repository root. Use `python3` i
   previews the script; production changes require `npm run deploy` or
   `npm run migrations:apply`, while local migrations use
   `npm run migrations:apply:local`. Keep publication and cleanup separate.
+- `npm run deploy` keeps existing production variables: `wrangler.jsonc` values only
+  seed variables that don't exist yet. To change an existing variable such as
+  `OPENAI_MODEL`, use the Cloudflare dashboard, or upload a version with the variable
+  set explicitly (`wrangler versions upload`), compare its bindings with the live
+  version, then `wrangler versions deploy` it. Keep `wrangler.jsonc` equal to
+  production, because the release gate reads model settings from it.
 - GitHub Actions billing is permanently unavailable. The normal release path is
   local `npm run deploy` on this host with `OPENAI_API_KEY` exported, with the same
   fresh QA before remote changes. Do not make GitHub checks or billing recovery
