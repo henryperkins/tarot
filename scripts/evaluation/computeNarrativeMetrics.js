@@ -32,11 +32,12 @@ const NEGATED_DETERMINISTIC_PATTERNS = [
   /\b(?:without|no)\s+(?:(?:a|any)\s+)?guaranteed\b/giu,
   // A negator up to four words earlier in the same clause also negates it: "doesn't
   // put relief on a guaranteed schedule", "can't be rushed or guaranteed", "not
-  // forcing a guaranteed result". It does not when the next word reinforces the
+  // forcing a guaranteed result". A contrast does too: "direction rather than a
+  // guaranteed outcome", "far from guaranteed". It does not when the next word reinforces the
   // claim: an idiom ("no doubt", "without question", "no matter", "don't worry"), a
   // "more than" frame ("not just a guaranteed success") or a negated preventer
   // ("does not stop success being guaranteed").
-  /\b(?:not|never|no|without|cannot|\p{L}+n['’]t)\b(?!\s+(?:doubt|question|matter|wonder|worry|fear|just|merely|simply|only|stop|stops|prevent|prevents|change|changes)\b)(?:\s+[\p{L}'’-]+){0,4}?\s+guaranteed\b/giu
+  /\b(?:not|never|no|without|cannot|rather\s+than|instead\s+of|as\s+opposed\s+to|far\s+from|\p{L}+n['’]t)\b(?!\s+(?:doubt|question|matter|wonder|worry|fear|just|merely|simply|only|stop|stops|prevent|prevents|change|changes)\b)(?:\s+[\p{L}'’-]+){0,4}?\s+guaranteed\b/giu
 ];
 
 // Exceptions such as "nothing but success" assert a positive guarantee.
