@@ -49,12 +49,65 @@
   gap: 20px;
 }
 
+/* Step tabs: numbered circles joined by hairline rules. Each step is a fixed
+   column with its circle centered, so a rule's negative margins (the gap
+   between a circle and its column's edge) run it from circle edge to circle
+   edge at any width. Geometry stays in pixels so the rules keep meeting the
+   circles when text is enlarged. The circles' colors and type come from
+   utilities: this file is unlayered, so it sets only what no utility on those
+   elements sets. The rules are borders, not fills, so they survive forced
+   colors; rules up to the current step take the accent. */
 .coach-step-nav {
+  --coach-step-column: 72px;
+  --coach-step-dot: 30px;
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  /* 12px under the suggestions' rule and 16px over the step, inside the
+     body's 20px rhythm. */
+  margin-block: -8px -4px;
+}
+
+.coach-step-nav:first-child {
+  margin-block-start: 0;
+}
+
+.coach-step {
+  flex: 0 0 var(--coach-step-column);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 2px;
+  border-radius: 8px;
+}
+
+.coach-step__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--coach-step-dot);
+  height: var(--coach-step-dot);
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 999px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-step-rule {
+  flex: 1 1 0;
+  margin-block-start: calc(var(--coach-step-dot) / 2 - 0.5px);
+  margin-inline: calc((var(--coach-step-column) - var(--coach-step-dot)) / -2);
+  border-top: 1px solid rgb(var(--brand-secondary-rgb));
+  pointer-events: none;
+}
+
+.coach-step-rule--passed {
+  border-top-color: rgb(var(--brand-accent-rgb));
+}
+
+/* By day the secondary brown sits too close to the accent to show progress. */
+:root.light .coach-step-rule:not(.coach-step-rule--passed) {
+  border-top-color: rgb(var(--brand-secondary-rgb) / 0.45);
 }
 
 .coach-review {

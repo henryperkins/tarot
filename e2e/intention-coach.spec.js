@@ -27,7 +27,6 @@ const PLUS_USER = {
   subscription_status: 'active',
   subscription_provider: 'stripe'
 };
-const STAYS_AS_WRITTEN = 'Your existing wording stays as written until you ask for a new version.';
 // Every Decision template weighs the paths; no generic template names one.
 const DECISION_SHAPED = /\bpaths?\b/;
 
@@ -101,9 +100,9 @@ async function selectSpread(page, name) {
   await expect(spread).toHaveAttribute('aria-checked', 'true');
 }
 
-// The topic step's note on how the spread shapes the question.
+// The topic step names the selected spread in one line.
 function spreadNote(coach) {
-  return coach.getByText(/^Shaped for your spread:/).locator('..');
+  return coach.getByRole('tabpanel', { name: 'Topic' }).getByText(/^Spread: /);
 }
 
 function reviewQuestion(coach) {
@@ -1054,18 +1053,15 @@ test.describe('Guided intention coach keyboard and layers', () => {
 });
 
 test.describe('Guided intention coach and the selected spread', () => {
-  test('the Decision spread shapes the note and generated review question', async ({ page }) => {
+  test('the Decision spread is named on the topic step and shapes the review question', async ({ page }) => {
     await seedApp(page, { user: PLUS_USER });
     await gotoReading(page);
     await selectSpread(page, /Decision \/ Two-Path/);
     const coach = await openCoachWithShortcut(page);
 
-    // The note explains the spread's shape; it suggests no topic.
-    const note = spreadNote(coach);
-    await expect(note).toBeVisible();
-    await expect(note).toContainText('Decision.');
-    await expect(note).toContainText('Two paths are read side by side');
-    await expect(note.getByRole('button')).toHaveCount(0);
+    // The note names the spread and nothing more: no description, no topic.
+    await expect(spreadNote(coach)).toHaveText('Spread: Decision');
+    await expect(coach.getByText('Two paths are read side by side')).toHaveCount(0);
     await expect(coach.getByText(/we suggest exploring/i)).toHaveCount(0);
 
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -1074,7 +1070,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach.getByRole('button', { name: /^Spread:/ })).toHaveCount(0);
   });
 
-  test('interests pick the topic while the spread note describes only the spread', async ({ page }) => {
+  test('interests pick the topic while the spread note names only the spread', async ({ page }) => {
     await seedApp(page, { focusAreas: ['career'] });
     await gotoReading(page);
     await selectSpread(page, /Five-Card Clarity/);
@@ -1085,10 +1081,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(career).toHaveAttribute('aria-checked', 'true');
     await expect(career).toContainText('Based on your interests');
     // The old box said this spread suggested Wellbeing while Career was checked.
-    const note = spreadNote(coach);
-    await expect(note).toContainText('Five-Card Clarity.');
-    await expect(note).toContainText('Five cards circle the core of the matter');
-    await expect(note).not.toContainText(/wellbeing|suggest/i);
+    await expect(spreadNote(coach)).toHaveText('Spread: Five-Card Clarity');
   });
 
   test('a generated draft keeps its words after the spread changes until Remix', async ({ page }) => {
@@ -1106,7 +1099,7 @@ test.describe('Guided intention coach and the selected spread', () => {
 
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('tab', { name: 'Review' }).click();
     await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
     await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
@@ -1123,7 +1116,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
       .getByRole('radio', { name: /^Career & Purpose/ }).click();
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -1153,7 +1146,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('tab', { name: 'Review' }).click();
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     expect(generations).toBe(1);
@@ -1176,7 +1169,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -1192,7 +1185,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await gotoReading(page);
     await selectSpread(page, /Three-Card Story/);
     const coach = await openCoachWithShortcut(page);
-    await expect(spreadNote(coach)).toContainText('Three-Card Story.');
+    await expect(spreadNote(coach)).toHaveText('Spread: Three-Card Story');
     const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
     await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
     await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');

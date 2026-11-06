@@ -321,8 +321,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const renderStep = id => {
     if (id === 'topic') return (
       <div className="space-y-4">
-        <p id={topicPromptId} className="text-base text-main">What area do you want to explore?</p>
-        {spreadQuestionContext && <p className="text-sm text-secondary"><span className="font-medium text-main">Shaped for your spread: {spreadQuestionContext.shortName}.</span> {spreadQuestionContext.hint} Your existing wording stays as written until you ask for a new version.</p>}
+        <div>
+          <p id={topicPromptId} className="text-base text-main">What area do you want to explore?</p>
+          {spreadQuestionContext && <p className="text-xs text-muted">Spread: {spreadQuestionContext.shortName}</p>}
+        </div>
         {renderOptions(INTENTION_TOPIC_OPTIONS, topic, setTopic, topicPromptId, 'md:grid-cols-2')}
       </div>
     );
@@ -385,21 +387,37 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
             </div>
             <div className="coach-dialog__body">
               {suggestions}
-              <div ref={stepNavRef} className="coach-step-nav">
-                <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Coach wizard steps">
-                  {STEPS.map((entry, index) => (
+              {/* Numbered steps joined by rules; the rules up to the current
+                  step take the accent so progress reads at a glance. */}
+              <div ref={stepNavRef} className="coach-step-nav" role="tablist" aria-label="Coach wizard steps">
+                {STEPS.map((entry, index) => {
+                  const isCurrent = index === step;
+                  const isPassed = index < step;
+                  return (
                     <Fragment key={entry.id}>
+                      {index > 0 && <span className={`coach-step-rule ${index <= step ? 'coach-step-rule--passed' : ''}`} aria-hidden="true" />}
                       <button
                         ref={element => { stepButtonRefs.current[index] = element; }} type="button"
-                        id={`step-tab-${entry.id}`} role="tab" aria-selected={index === step}
-                        aria-controls={`step-panel-${entry.id}`} tabIndex={index === step ? 0 : -1}
-                        className={`coach-step min-h-touch rounded-lg px-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${index === step ? 'bg-accent text-surface forced-colors:underline' : 'text-secondary hover:bg-secondary/10'}`}
+                        id={`step-tab-${entry.id}`} role="tab" aria-selected={isCurrent}
+                        aria-controls={`step-panel-${entry.id}`} tabIndex={isCurrent ? 0 : -1}
+                        className="coach-step group"
                         onClick={() => selectStep(index)} onKeyDown={event => handleStepKeyDown(event, index)}
-                      >{entry.label}</button>
+                      >
+                        <span
+                          className={`coach-step__dot text-sm transition-colors ${isCurrent
+                            ? 'border-accent bg-accent font-bold text-surface'
+                            : isPassed
+                              ? 'border-accent bg-accent/15 font-semibold text-main'
+                              : 'border-accent/80 font-semibold text-accent group-hover:border-accent'}`}
+                          aria-hidden="true"
+                        >{index + 1}</span>
+                        <span className={`whitespace-nowrap text-xs-plus transition-colors ${isCurrent ? 'font-bold text-main forced-colors:underline' : 'font-medium text-muted group-hover:text-main'}`}>
+                          {entry.label}
+                        </span>
+                      </button>
                     </Fragment>
-                  ))}
-                </div>
-                <p className="text-xs text-secondary">Step {step + 1} of {STEPS.length}</p>
+                  );
+                })}
               </div>
               {STEPS.map((entry, index) => (
                 <div key={entry.id} id={`step-panel-${entry.id}`} role="tabpanel" aria-labelledby={`step-tab-${entry.id}`} hidden={step !== index} tabIndex={step === index ? 0 : -1} className="coach-step-panel">
