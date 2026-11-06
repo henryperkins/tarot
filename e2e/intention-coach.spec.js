@@ -110,6 +110,19 @@ function reviewQuestion(coach) {
   return coach.getByRole('textbox', { name: 'Your Question', exact: true, includeHidden: true });
 }
 
+// A handset shows the lead suggestion alone; the alternatives open from
+// "N more ideas". Reveal a named suggestion wherever it sits.
+async function suggestionCard(page, coach, name) {
+  const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+  const card = suggestions.getByRole('button', { name, exact: true });
+  if (!(await card.isVisible())) {
+    const more = suggestions.getByRole('button', { name: /^\d+ more ideas?$/ });
+    if (await more.isVisible()) await more.click();
+  }
+  await expect(card).toBeVisible();
+  return card;
+}
+
 for (const platform of ['desktop', 'handset @mobile']) {
   test.describe(`Guided intention coach question editing — ${platform}`, () => {
     test('long questions stay fully expanded while editing and rewrapping', async ({ page }) => {
@@ -212,12 +225,11 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       let coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
 
       // The two focus-area cards that used to regenerate on selection.
       let preview = '';
       for (const label of ['Love & relationships', 'Healing & growth']) {
-        const card = suggestions.getByRole('button', { name: label, exact: true });
+        const card = await suggestionCard(page, coach, label);
         preview = await card.evaluate(element => {
           const ids = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
           return (document.getElementById(ids[ids.length - 1])?.textContent || '').trim();
@@ -274,8 +286,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
-      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await (await suggestionCard(page, coach, 'Love & relationships')).click();
       await expect(reviewQuestion(coach)).toBeFocused();
       await expect(reviewQuestion(coach)).toBeInViewport();
     });
@@ -301,8 +312,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'], templates: [TEMPLATE] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
-      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await (await suggestionCard(page, coach, 'Love & relationships')).click();
       await expect(reviewQuestion(coach)).toBeFocused();
 
       const opener = coach.getByRole('button', { name: 'Save as template', exact: true });
@@ -438,8 +448,8 @@ for (const platform of ['desktop', 'handset @mobile']) {
         const coach = await openCoachWithShortcut(page);
         const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
         // Eight pool entries (five journal, three focus areas), three visible:
-        // "New ideas" cycles to a new lead, the one card carrying the CTA.
-        const lead = suggestions.getByRole('button').filter({ hasText: 'Start with this question' });
+        // "New ideas" cycles to a new lead.
+        const lead = suggestions.locator('[data-suggestion="lead"]');
         const leadText = async () => (await lead.textContent() || '').trim();
         const firstLead = await leadText();
         await suggestions.getByRole('button', { name: 'New ideas', exact: true }).click();

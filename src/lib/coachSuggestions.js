@@ -231,11 +231,12 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
   normalizedFocusAreas.slice(0, 3).forEach((area, idx) => {
     const suggestion = FOCUS_AREA_SUGGESTIONS[area];
     if (!suggestion) return;
+    // No helper: the panel's summary line already says these come from the
+    // reader's focus areas, and the label names which one.
     push({
       id: `focus-${area}-${idx}`,
       source: 'focus',
       label: suggestion.label,
-      helper: 'Based on your focus areas',
       topic: suggestion.topic,
       timeframe: suggestion.timeframe,
       depth: suggestion.depth,
