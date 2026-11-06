@@ -6,7 +6,6 @@ export const STEPS = [
 ];
 
 export const COACH_PREFS_KEY = 'tarot-coach-preferences';
-export const SUGGESTIONS_PER_PAGE = 5;
 
 // The detail is woven into a generated question, which must stay well inside
 // the server's question limit; template names are labels, not prose.

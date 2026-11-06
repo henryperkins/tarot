@@ -212,7 +212,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       let coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
 
@@ -253,7 +253,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['love'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
       await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
@@ -278,7 +278,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
       await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
@@ -307,7 +307,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'], templates: [TEMPLATE] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
       await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
@@ -371,7 +371,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       const show = suggestions.getByRole('button', { name: 'Show', exact: true });
       if (await show.count()) await show.click();
 
@@ -427,7 +427,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       expect(calls).toBe(1);
     });
 
-    test('a changed suggestion source resets a later page when the source shrinks', async ({ page }) => {
+    test('cycling suggestions and a changed source replaces the batch when the source shrinks', async ({ page }) => {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await page.addInitScript(() => {
         localStorage.setItem('tarot_coach_stats_snapshot_anon', JSON.stringify({ stats: {
@@ -446,23 +446,33 @@ for (const platform of ['desktop', 'handset @mobile']) {
       try {
         await gotoReading(page);
         const coach = await openCoachWithShortcut(page);
-        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-        const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-        if (await show.count()) await show.click();
-        await suggestions.getByRole('button', { name: 'Next suggestions', exact: true }).click();
-        await expect(suggestions.getByText('Page 2 of 2', { exact: true })).toBeAttached();
+        const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+        // Five pool entries, three visible: "New ideas" cycles to a new lead.
+        const leadText = async () => (await suggestions.locator('button').nth(1).textContent() || '').trim();
+        const firstLead = await leadText();
+        await suggestions.getByRole('button', { name: 'New ideas', exact: true }).click();
+        await expect.poll(leadText).not.toBe(firstLead);
         settleAuth();
         await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toHaveCount(0);
-        await expect.poll(async () => (
-          await suggestions.getByText('Healing & growth', { exact: true }).isVisible()
-          || await suggestions.getByText('1 suggestion ready. Tap to peek.', { exact: true }).isVisible()
-        )).toBe(true);
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        if (await show.count()) await show.click();
-        await expect(suggestions.getByRole('button', { name: 'Next suggestions', exact: true })).toHaveCount(0);
         await expect(suggestions.getByText('Healing & growth', { exact: true })).toBeVisible();
+        await expect(suggestions.getByRole('button', { name: 'New ideas', exact: true })).toHaveCount(0);
         await expect(suggestions.getByText('Career & money', { exact: true })).toHaveCount(0);
       } finally { settleAuth(); }
+    });
+
+    test('picking a suggestion keeps hand-typed wording one tap away', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['love'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Review' }).click();
+      const field = reviewQuestion(coach);
+      const mine = 'What do I want to ask about my sister this week?';
+      await field.fill(mine);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(field).not.toHaveValue(mine);
+      await coach.getByRole('button', { name: 'Restore my wording', exact: true }).click();
+      await expect(field).toHaveValue(mine);
     });
 
     test('a suggestion cancels pending AI generation and keeps its preview after the late response', async ({ page }) => {
@@ -492,7 +502,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
         await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
         await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
         await requestStarted;
-        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+        const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
         const show = suggestions.getByRole('button', { name: 'Show', exact: true });
         if (await show.count()) await show.click();
         const card = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
@@ -851,7 +861,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
-    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+    const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
     const show = suggestions.getByRole('button', { name: 'Show', exact: true });
     if (await show.count()) await show.click();
     await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
@@ -1094,7 +1104,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await selectSpread(page, /Three-Card Story/);
     const coach = await openCoachWithShortcut(page);
     await expect(spreadNote(coach)).toContainText('Three-Card Story.');
-    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
+    const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
     const show = suggestions.getByRole('button', { name: 'Show', exact: true });
     if (await show.count()) await show.click();
     await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();

@@ -188,6 +188,45 @@ export function loadCoachStatsSnapshot(userId = null) {
  * @param {Object} meta - Metadata
  * @param {string|null} userId - User ID for scoping (null for anonymous)
  */
+/**
+ * Choose which stored stats the coach may trust. The Journey snapshot is
+ * scoped to whatever the Journey was showing (and only rewritten when the
+ * Journey renders), while the insights cache is refreshed on every journal
+ * save; a filtered snapshot is never used, and otherwise the fresher
+ * payload wins. Ties go to the snapshot, which carries the richer meta.
+ *
+ * @param {Object|null} snapshot - loadCoachStatsSnapshot() result
+ * @param {Object|null} insights - loadStoredJournalInsights() result
+ * @returns {{ stats: Object, meta: Object|null, updatedAt: number, source: 'snapshot'|'insights' }|null}
+ */
+export function selectCoachStatsSource(snapshot, insights) {
+  const timestamp = value => (Number.isFinite(value) ? value : 0);
+  const snapshotCandidate = snapshot?.stats && !snapshot.meta?.filtersActive
+    ? {
+      stats: snapshot.stats,
+      meta: snapshot.meta || null,
+      updatedAt: timestamp(snapshot.updatedAt),
+      source: 'snapshot'
+    }
+    : null;
+  const insightsCandidate = insights?.stats
+    ? {
+      stats: insights.stats,
+      meta: {
+        filterLabel: null,
+        entryCount: typeof insights.stats.totalReadings === 'number' ? insights.stats.totalReadings : null
+      },
+      updatedAt: timestamp(insights.updatedAt),
+      source: 'insights'
+    }
+    : null;
+
+  if (snapshotCandidate && insightsCandidate) {
+    return insightsCandidate.updatedAt > snapshotCandidate.updatedAt ? insightsCandidate : snapshotCandidate;
+  }
+  return snapshotCandidate || insightsCandidate || null;
+}
+
 export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
   if (!safeStorage.isAvailable || !canPersistJournalDerivation(userId ? `user:${encodeURIComponent(userId)}` : 'anon', meta.sourceEntryIds)) return;
   try {

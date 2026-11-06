@@ -19,7 +19,8 @@ import {
   buildSourceDetailFromSignals,
   loadCoachRecommendation,
   loadStoredJournalInsights,
-  loadCoachStatsSnapshot
+  loadCoachStatsSnapshot,
+  selectCoachStatsSource
 } from '../lib/journalInsights';
 import {
   loadCoachTemplates,
@@ -30,7 +31,12 @@ import {
   runCoachTemplateMutation,
   undoCoachTemplateSave
 } from '../lib/coachStorage';
-import { buildPersonalizedSuggestions, describePrefillSource } from '../lib/coachSuggestions';
+import {
+  buildPersonalizedSuggestions,
+  dedupeSuggestions,
+  describePrefillSource,
+  rotateSuggestionWindow
+} from '../lib/coachSuggestions';
 import {
   clearCoachDraft,
   isUnchangedCoachSession,
@@ -41,7 +47,6 @@ import {
   COACH_PREFS_KEY,
   FOCUS_AREA_TO_TOPIC,
   STEPS,
-  SUGGESTIONS_PER_PAGE,
   SPREAD_TO_TOPIC_MAP,
   TIMING
 } from '../lib/coachConstants';
@@ -150,12 +155,16 @@ function CoachSession({
   const [storageSnapshot] = useState(() => {
     const snapshot = loadCoachStatsSnapshot(userId);
     const insights = loadStoredJournalInsights(userId);
+    const statsSource = selectCoachStatsSource(snapshot, insights);
     return {
       recommendation: prefillRecommendation?.question ? prefillRecommendation : loadCoachRecommendation(userId),
       templates: loadCoachTemplates(userId),
       history: loadCoachHistory(undefined, userId),
-      stats: snapshot?.stats || insights?.stats || null,
-      meta: snapshot?.stats ? snapshot.meta || null : null
+      stats: statsSource?.stats || null,
+      meta: statsSource?.meta || null,
+      // The Journey's ranked suggestion rides in the snapshot meta; it is
+      // only as fresh as the snapshot that carried it.
+      journeySuggestion: statsSource?.source === 'snapshot' ? snapshot?.meta?.coachSuggestion || null : null
     };
   });
   const [templates, setTemplates] = useState(storageSnapshot.templates);
@@ -165,23 +174,40 @@ function CoachSession({
   const [questionHistory, setQuestionHistory] = useState(storageSnapshot.history);
   const coachStats = storageSnapshot.stats;
   const coachStatsMeta = storageSnapshot.meta;
+  // The lead suggestion rotates by day so a returning reader is not met by
+  // the same card every open; "New ideas" advances the same rotation.
+  const [dayOffset] = useState(() => Math.floor(Date.now() / 86400000));
   const personalizedSuggestions = useMemo(
     () => {
-      const suggestions = buildPersonalizedSuggestions(coachStats, questionHistory, personalization?.focusAreas);
+      const suggestions = buildPersonalizedSuggestions(
+        coachStats, questionHistory, personalization?.focusAreas, { angleOffset: dayOffset }
+      );
+      const leads = [];
       const recommendation = storageSnapshot.recommendation;
-      return recommendation?.question ? [{ ...recommendation, id: 'journal-recommendation', source: 'journal',
-        label: recommendation.label || 'From your journal', topic: recommendation.topicValue,
-        timeframe: recommendation.timeframeValue, depth: recommendation.depthValue }, ...suggestions] : suggestions;
+      if (recommendation?.question) {
+        leads.push({ ...recommendation, id: 'journal-recommendation', source: 'journal',
+          label: recommendation.label || 'From your journal', topic: recommendation.topicValue,
+          timeframe: recommendation.timeframeValue, depth: recommendation.depthValue });
+      }
+      const journeySuggestion = storageSnapshot.journeySuggestion;
+      const journeyQuestion = journeySuggestion?.question || journeySuggestion?.text;
+      if (journeyQuestion) {
+        leads.push({
+          id: 'journey-suggestion',
+          source: 'journal',
+          label: journeySuggestion.sourceLabel || 'From your journal',
+          helper: journeySuggestion.sourceDetail || 'Your latest journal pattern',
+          question: journeyQuestion
+        });
+      }
+      return dedupeSuggestions([...leads, ...suggestions]);
     },
-    [coachStats, questionHistory, personalization?.focusAreas, storageSnapshot.recommendation]
+    [coachStats, questionHistory, personalization?.focusAreas, storageSnapshot.recommendation, storageSnapshot.journeySuggestion, dayOffset]
   );
-  const [pageSelection, setPageSelection] = useState(null);
-  const suggestionsPage = pageSelection?.source === personalizedSuggestions
-    ? Math.min(pageSelection.page, Math.max(0, Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE) - 1)) : 0;
-  const setSuggestionsPage = useCallback(value => {
-    setPageSelection({ source: personalizedSuggestions, page: typeof value === 'function' ? value(suggestionsPage) : value });
-  }, [personalizedSuggestions, suggestionsPage]);
-  const [isSuggestionsExpanded, setSuggestionsExpanded] = useState(false);
+  const [suggestionCycle, setSuggestionCycle] = useState(0);
+  const cycleSuggestions = useCallback(() => {
+    setSuggestionCycle(cycle => cycle + 1);
+  }, []);
   const [isTemplatePanelOpen, setTemplatePanelOpen] = useState(false);
   const [templatePanelIntent, setTemplatePanelIntent] = useState('browse');
   const [remixCount, setRemixCount] = useState(openingState?.remixCount ?? 0);
@@ -329,16 +355,10 @@ function CoachSession({
     return chips;
   }, [summary.topicLabel, summary.timeframeLabel, summary.depthLabel, spreadQuestionContext, customFocus, isManualQuestion]);
 
-  const suggestionPageCount = useMemo(() => {
-    if (personalizedSuggestions.length === 0) return 0;
-    return Math.ceil(personalizedSuggestions.length / SUGGESTIONS_PER_PAGE);
-  }, [personalizedSuggestions.length]);
-
-  const visibleSuggestions = useMemo(() => {
-    if (personalizedSuggestions.length === 0) return [];
-    const start = suggestionsPage * SUGGESTIONS_PER_PAGE;
-    return personalizedSuggestions.slice(start, start + SUGGESTIONS_PER_PAGE);
-  }, [personalizedSuggestions, suggestionsPage]);
+  const visibleSuggestions = useMemo(
+    () => rotateSuggestionWindow(personalizedSuggestions, dayOffset + suggestionCycle * 3, 3),
+    [personalizedSuggestions, dayOffset, suggestionCycle]
+  );
 
   const handleSaveTemplate = useCallback(async () => {
     const label = newTemplateLabel.trim();
@@ -481,6 +501,11 @@ function CoachSession({
     // asking the generator for a different variant.
     const exactQuestion = suggestion.question || resolvedQuestion;
     if (exactQuestion) {
+      // Replacing hand-written wording is recoverable: keep it one tap away
+      // behind "Restore my wording", like remix and start-fresh do.
+      if (currentQuestion.trim() && currentQuestion.trim() !== exactQuestion.trim()) {
+        setPreviousQuestion(currentQuestion);
+      }
       if (!originalQuestion) setOriginalQuestion(exactQuestion);
       setQuestionText(exactQuestion);
       setAutoQuestionEnabled(false);
@@ -497,6 +522,7 @@ function CoachSession({
     timeframe,
     depth,
     originalQuestion,
+    currentQuestion,
     releasePrefill,
     clearAstroForecast
   ]);
@@ -767,8 +793,7 @@ function CoachSession({
     coachStats,
     coachStatsMeta,
     personalizedSuggestions,
-    suggestionsPage,
-    isSuggestionsExpanded,
+    cycleSuggestions,
     isTemplatePanelOpen,
     templatePanelIntent,
     remixCount,
@@ -789,7 +814,6 @@ function CoachSession({
     footerSummary,
     footerSummaryCompact,
     questionContextChips,
-    suggestionPageCount,
     visibleSuggestions,
     setTimeframe,
     setTopic,
@@ -803,8 +827,6 @@ function CoachSession({
     setNewTemplateLabel,
     setTemplateStatus,
     setQuestionHistory,
-    setSuggestionsPage,
-    setSuggestionsExpanded,
     setTemplatePanelOpen,
     setRemixCount,
     releasePrefill,

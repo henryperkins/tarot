@@ -35,13 +35,13 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     useCreative, currentQuestion, isManualQuestion, questionLoading, questionError, announcement,
     prefillSource, prefillSourceDescription, templates, newTemplateLabel,
     setNewTemplateLabel, templateStatus, templateUndo, handleUndoTemplateSave,
-    questionHistory, personalizedSuggestions, suggestionsPage, isSuggestionsExpanded,
+    questionHistory, personalizedSuggestions, cycleSuggestions,
     isTemplatePanelOpen, templatePanelIntent, astroHighlights, astroWindowDays,
     coachSnapshotLabel, coachSnapshotDetail, focusAreaSuggestedTopic,
     originalQuestion, previousQuestion, framingSuggestions = [], startFresh,
-    restoreOriginalQuestion, restorePreviousQuestion, suggestionPageCount,
+    restoreOriginalQuestion, restorePreviousQuestion,
     visibleSuggestions, setTimeframe, setTopic, setDepth, setCustomFocus,
-    setSuggestionsPage, setSuggestionsExpanded, editQuestion, remixQuestion,
+    editQuestion, remixQuestion,
     setCreativeMode, openTemplatePanel, closeTemplatePanel, releasePrefill,
     handleSaveTemplate, handleApplyTemplate, handleDeleteTemplate,
     handleSuggestionPick, handleApplyHistoryQuestion, canGoNext, goNext, goBack,
@@ -96,12 +96,18 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     const last = previousReviewRef.current;
     const requestChanged = last.request !== reviewFocusRequest;
     const enteredReview = step === REVIEW_STEP && (last.step !== REVIEW_STEP || requestChanged);
+    if (!enteredReview) {
+      previousReviewRef.current = { step, request: reviewFocusRequest };
+      return undefined;
+    }
     const fromStepTab = document.activeElement?.getAttribute('role') === 'tab';
-    previousReviewRef.current = { step, request: reviewFocusRequest };
-    if (!enteredReview) return undefined;
     // Let a closing template layer restore its opener before moving to the
     // chosen question. Only step entry/picks move focus, never editor updates.
+    // The handled marker is written inside the timer: an effect remount
+    // (StrictMode included) clears the pending timer, and the next run must
+    // still see the entry as unhandled and reschedule the scroll.
     const timer = setTimeout(() => {
+      previousReviewRef.current = { step, request: reviewFocusRequest };
       // Arrow navigation keeps the active tab focused. Footer entry, initial
       // entry and explicit suggestion/template picks land in the editor.
       if (!fromStepTab || requestChanged) questionInputRef.current?.focus({ preventScroll: true });
@@ -131,10 +137,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const { handlers: swipeDismissHandlers, style: swipeDismissStyle } = useSwipeDismiss({
     onDismiss: onClose, threshold: 120, resistance: 0.5
   });
-
-  useEffect(() => {
-    if (isOpen) setSuggestionsExpanded(!isSmallScreen);
-  }, [isOpen, isSmallScreen, setSuggestionsExpanded]);
 
   const buildSuggestionPreview = useCallback(suggestion => {
     if (!suggestion) return '';
@@ -308,12 +310,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const closesFromFooter = isSmallScreen && step === 0;
   const suggestions = (
     <CoachSuggestionsPanel
-      personalizedSuggestions={personalizedSuggestions} isSuggestionsExpanded={isSuggestionsExpanded}
-      setSuggestionsExpanded={setSuggestionsExpanded} suggestionPageCount={suggestionPageCount}
-      suggestionsPage={suggestionsPage} setSuggestionsPage={setSuggestionsPage}
-      visibleSuggestions={visibleSuggestions} buildSuggestionPreview={buildSuggestionPreview}
-      handleSuggestionPick={handleSuggestionPick} getTopicLabel={getTopicLabel}
-      getTimeframeLabel={getTimeframeLabel} getDepthLabel={getDepthLabel}
+      personalizedSuggestions={personalizedSuggestions}
+      visibleSuggestions={visibleSuggestions} cycleSuggestions={cycleSuggestions}
+      buildSuggestionPreview={buildSuggestionPreview}
+      handleSuggestionPick={handleSuggestionPick}
       coachSnapshotLabel={coachSnapshotLabel} coachSnapshotDetail={coachSnapshotDetail}
     />
   );
@@ -346,6 +346,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
               </div>
             </div>
             <div className="coach-dialog__body">
+              {suggestions}
               <div className="coach-step-nav">
                 <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Coach wizard steps">
                   {STEPS.map((entry, index) => (
@@ -370,7 +371,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
               <div className="coach-library-tools">
                 <button type="button" onClick={() => openTemplatePanel('browse')} aria-haspopup="dialog" className={quietButton}><BookmarkSimple className="h-4 w-4" aria-hidden="true" />Templates</button>
               </div>
-              {suggestions}
               <p className="mt-4 text-xs text-secondary">Unfinished wording stays available while this page is open. Reloading starts a new coach session.</p>
             </div>
             <footer ref={footerRef} className={`coach-dialog__footer ${footerInFlow ? 'coach-dialog__footer--flow' : ''}`}>
