@@ -114,6 +114,7 @@ import {
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
 import { getReadingPromptVersion } from '../lib/promptVersioning.js';
+import { STREAMING_QUALITY_NOTICE_REASON } from '../lib/mcp/readingOutcome.js';
 
 function parseBooleanLike(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
@@ -1560,10 +1561,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             streamReason = 'quality_rejected';
             backendErrors.push(buildPublicBackendError(streamProvider, qualityError));
             streamingFallback = true;
-            streamingGateNotice = {
-              blocked: true,
-              reason: qualityMetrics.undrawnCardAssertions.length > 0 ? 'undrawn_card_assertion' : 'quality_gate_streaming'
-            };
+            // A buffered provider replaces the draft, and its reading must pass its
+            // own checks, so this is a notice and never a withholding reason. The
+            // draft's specific issues stay in backendErrors.
+            streamingGateNotice = { blocked: true, reason: STREAMING_QUALITY_NOTICE_REASON };
           }
 
           if (streamingFallback) {

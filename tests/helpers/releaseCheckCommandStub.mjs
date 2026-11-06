@@ -23,7 +23,8 @@ childProcess.spawn = (_command, args) => {
 // validation execute normally; no live inference, nested suite or deploy runs.
 childProcess.spawnSync = (_command, args, options) => {
   const script = args[args.indexOf('run') + 1];
-  process.stdout.write(`CHECK:${JSON.stringify({ script, backend: options.env.NARRATIVE_EVAL_BACKEND, textProvider: options.env.TEXT_PROVIDER })}\n`);
+  process.stdout.write(`CHECK:${JSON.stringify({ script, backend: options.env.NARRATIVE_EVAL_BACKEND, textProvider: options.env.TEXT_PROVIDER,
+    openaiKey: Object.hasOwn(options.env, 'OPENAI_API_KEY'), evalOpenaiKey: Boolean(options.env.NARRATIVE_EVAL_OPENAI_API_KEY) })}\n`);
   return { status: script === process.env.TEST_RELEASE_CHECK_FAIL ? 7 : 0, stdout: '', stderr: '' };
 };
 syncBuiltinESMExports();

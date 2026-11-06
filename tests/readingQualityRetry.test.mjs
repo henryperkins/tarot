@@ -6,7 +6,6 @@ import { onRequestPost } from '../functions/api/tarot-reading.js';
 import { summarizeRejectedNarrative } from '../functions/lib/readingQuality.js';
 
 const MODAL_URL = 'https://example.modal.direct/v1/chat/completions';
-const OPENAI_URL = 'https://api.openai.example/v1/responses';
 const PAYLOAD = {
   spreadInfo: { name: 'One-Card Insight' },
   cardsInfo: [{ position: 'One-Card Insight', card: 'The Fool', orientation: 'Upright', meaning: 'New beginnings' }],
@@ -34,9 +33,10 @@ const UNDRAWN_CARDS_READING = [
   '### Closing', '',
   'Trust the slow work.'
 ].join('\n');
+// The Responses API leads the provider order, so it stays unconfigured: Modal is
+// tried first and the local composer is the provider after it.
 const ENV = {
   MODAL_PROXY_TOKEN: 'wk-test.ws-test', MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-  OPENAI_API_KEY: 'fixture-key', OPENAI_BASE_URL: 'https://api.openai.example', OPENAI_MODEL: 'gpt-5-test',
   EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false'
 };
 
@@ -49,10 +49,14 @@ function mockProviders(t, modalReadings) {
       assert.ok(next, 'unexpected Modal call');
       return modalSseResponse(next);
     }
-    if (String(url) === OPENAI_URL) return Response.json({ output_text: VALID_READING });
     throw new Error(`Unexpected URL: ${url}`);
   });
   return calls;
+}
+
+function assertNotTheRejectedReading(reading) {
+  assert.match(reading, /The Fool/);
+  assert.doesNotMatch(reading, /Private wording|King of Cups|The Hermit|Eight of Pentacles/);
 }
 
 function captureWarnings(t) {
@@ -84,9 +88,10 @@ test('a second rejected Modal reading falls through to the next provider without
   const calls = mockProviders(t, [UNDRAWN_CARDS_READING, UNDRAWN_CARDS_READING]);
   const response = await onRequestPost({ request: readingRequest(), env: ENV });
   const body = await response.json();
-  assert.equal(body.provider, 'openai-native');
-  assert.equal(body.reading, VALID_READING);
-  assert.deepEqual(calls, [MODAL_URL, MODAL_URL, OPENAI_URL]);
+  assert.equal(body.provider, 'local-composer');
+  assertNotTheRejectedReading(body.reading);
+  assert.deepEqual(calls, [MODAL_URL, MODAL_URL]);
+  assert.deepEqual(body.backendErrors.map((entry) => entry.backend), ['modal-qwen', 'modal-qwen']);
 });
 
 test('Modal is not retried when the task budget cannot fit another attempt', async (t) => {
@@ -94,8 +99,8 @@ test('Modal is not retried when the task budget cannot fit another attempt', asy
   const calls = mockProviders(t, [UNDRAWN_CARDS_READING]);
   const response = await onRequestPost({ request: readingRequest(), env: { ...ENV, READING_TASK_TIMEOUT_MS: '60000' } });
   const body = await response.json();
-  assert.equal(body.provider, 'openai-native');
-  assert.deepEqual(calls, [MODAL_URL, OPENAI_URL]);
+  assert.equal(body.provider, 'local-composer');
+  assert.deepEqual(calls, [MODAL_URL]);
 });
 
 test('a rejected answer is logged as a summary without its text', async (t) => {

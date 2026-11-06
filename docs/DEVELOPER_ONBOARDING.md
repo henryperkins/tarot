@@ -15,7 +15,7 @@ This guide is the current starting point for engineers working in the Tableu rep
 Common local variables include:
 
 - `ANTHROPIC_API_KEY` — enables the public `claude-api` backend, which is tried first for readings, follow-up answers and journal summaries. Narrative QA gates use the owner's subscription instead. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
-- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
+- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after OpenAI and Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the `openai-native` Responses backend
 - `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
@@ -66,7 +66,7 @@ See the [provider inventory and reference](provider-reference.md) for all implem
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
 
-Public narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `openai-native` (OpenAI Responses when `OPENAI_API_KEY` is set) → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
+Public narrative backends are attempted in this order: `openai-native` (OpenAI Responses when `OPENAI_API_KEY` is set) → `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
 
 Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry and daily media-usage counters, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 

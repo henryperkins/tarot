@@ -104,8 +104,12 @@ Error responses omit upstream prompts, account details and credentials.
 
 ## Run narrative evals
 
-Narrative generation and release qualification always use the Claude subscription.
-With the existing Claude Code subscription login on this host, run directly:
+`npm run ci:narrative-check` uses the Claude subscription by default. Release
+qualification grades the production primary provider instead: while `openai-native`
+leads, `npm run ci:release-check` generates its samples through the paid OpenAI
+Responses API (owner-authorized on 2026-11-06) with `OPENAI_API_KEY` or
+`NARRATIVE_EVAL_OPENAI_API_KEY`, and needs no subscription login. With the existing
+Claude Code subscription login on this host, run directly:
 
 ```bash
 npm run ci:narrative-check
@@ -115,12 +119,13 @@ npm run ci:release-check
 No gateway, API key, `TEXT_PROVIDER` export or additional login is needed when the
 host is already authenticated. The runner verifies subscription authentication,
 uses the production `claude-api` reading prompt and request builder, and defaults
-to Opus 5.5 at `xhigh`. Release checks verify local login before starting code
-checks; configured gateways validate their configuration and verify subscription
+to Opus 5.5 at `xhigh`. A subscription-graded release verifies local login before
+starting code checks; configured gateways validate their configuration and verify subscription
 login on the service host when generating.
 Missing login, usage limits and timeouts fail without paid API fallback. Explicit
-paid backend overrides are rejected even if their keys exist or the Worker uses
-`TEXT_PROVIDER=legacy`.
+`claude-api` and `modal-qwen` overrides are rejected even if their keys exist;
+`openai-native` runs only when selected, or for a release it leads, and needs
+`NARRATIVE_EVAL_OPENAI_API_KEY`.
 
 The eval runner layers exported variables over Wrangler variables; it does not
 read `.dev.vars` or the service's `.env.local`. Qualification pins each request to

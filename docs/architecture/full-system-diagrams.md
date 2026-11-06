@@ -534,7 +534,7 @@ sequenceDiagram
     Memory-->>ReadingAPI: Lower-precedence personalization context
     ReadingAPI->>GraphRAG: Retrieve eligible pattern passages
     GraphRAG-->>ReadingAPI: Optional passages and GraphRAG metadata
-    ReadingAPI->>Provider: Try claude-api → modal-qwen → openai-native → local-composer
+    ReadingAPI->>Provider: Try openai-native → claude-api → modal-qwen → local-composer
     Provider-->>ReadingAPI: Accepted narrative and provider metadata
     ReadingAPI->>Gate: Check coverage, hallucinations, spine, high-weight positions
     Gate-->>ReadingAPI: Pass or retry/fallback

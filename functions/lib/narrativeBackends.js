@@ -95,9 +95,11 @@ function finalizeCanonicalScenes(result, payload) {
 
 /**
  * Ordered list of backend IDs to try (first available wins).
+ * The OpenAI Responses API leads; the Claude API, Modal and the local composer
+ * keep their relative order as fallbacks.
  * Frozen to prevent accidental mutation.
  */
-export const NARRATIVE_BACKEND_ORDER = Object.freeze(['claude-api', 'modal-qwen', 'openai-native', 'local-composer']);
+export const NARRATIVE_BACKEND_ORDER = Object.freeze(['openai-native', 'claude-api', 'modal-qwen', 'local-composer']);
 export const LOCAL_COMPOSER_UNSUPPORTED_LANGUAGE_CODE = 'local_composer_unsupported_language';
 
 // Thinking counts toward max_tokens, so a reading needs room for both.

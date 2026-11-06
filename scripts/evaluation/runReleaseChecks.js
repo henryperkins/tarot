@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
-import { resolveNarrativeEvalBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
+import { OPENAI_EVAL_KEY_VARIABLE, resolveReleaseNarrativeBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -17,17 +17,32 @@ export async function main() {
   } else {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
-  const backend = resolveNarrativeEvalBackend(process.env.NARRATIVE_EVAL_BACKEND, { requireLive: true });
-  await verifyNarrativeSubscription(process.env);
-  const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: 'claude-code' };
+  // The narrative gate grades readings from the production primary provider.
+  const backend = resolveReleaseNarrativeBackend(process.env.NARRATIVE_EVAL_BACKEND);
+  // OpenAI keys never reach the unit suites or the offline prompt verifier; the
+  // narrative check alone receives one, under its evaluation-only name.
+  const { OPENAI_API_KEY: shellOpenAIKey, [OPENAI_EVAL_KEY_VARIABLE]: evalOpenAIKey, ...hostEnv } = process.env;
+  let narrativeCredentials = {};
+  if (backend === 'openai-native') {
+    const key = String(evalOpenAIKey || shellOpenAIKey || '').trim();
+    if (!key) {
+      throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider.`);
+    }
+    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key };
+    console.log('Release narrative gate: grading openai-native readings through the paid OpenAI Responses API.');
+  } else {
+    await verifyNarrativeSubscription(process.env);
+  }
+  const env = { ...hostEnv, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: backend === 'claude-code' ? 'claude-code' : 'legacy' };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];
   if (directory) checks.push('ci:vision-check');
   checks.push('ci:narrative-check');
   for (const script of checks) {
     const args = ['run', script];
+    const scriptEnv = script === 'ci:narrative-check' ? { ...env, ...narrativeCredentials } : env;
     const result = process.platform === 'win32'
-      ? spawnSync(process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', 'npm', ...args], { stdio: 'inherit', env })
-      : spawnSync('npm', args, { stdio: 'inherit', env });
+      ? spawnSync(process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', 'npm', ...args], { stdio: 'inherit', env: scriptEnv })
+      : spawnSync('npm', args, { stdio: 'inherit', env: scriptEnv });
     if (result.status !== 0) throw new Error(`Release check ${script} failed or could not run.`);
   }
 }

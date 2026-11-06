@@ -55,7 +55,7 @@ The default `TEXT_PROVIDER=legacy` selects the public provider policies below. C
 
 | Capability | Provider order | Local behavior / source |
 | --- | --- | --- |
-| Full reading | `claude-api` → `modal-qwen` → `openai-native` → `local-composer` | Deterministic English narrative fallback; recognized non-English questions require an AI backend. A `modal-qwen` answer rejected by the structural quality gate gets one fresh attempt when at least 120 seconds of the reading budget remain. Rejected answers are logged as a text-free summary (length, characters per answer token, scripts, headings, card names). [Registry](../functions/lib/narrativeBackends.js), [reading route](../functions/api/tarot-reading.js) |
+| Full reading | `openai-native` → `claude-api` → `modal-qwen` → `local-composer` | Deterministic English narrative fallback; recognized non-English questions require an AI backend. A `modal-qwen` answer rejected by the structural quality gate gets one fresh attempt when at least 120 seconds of the reading budget remain. Rejected answers are logged as a text-free summary (length, characters per answer token, scripts, headings, card names). [Registry](../functions/lib/narrativeBackends.js), [reading route](../functions/api/tarot-reading.js) |
 | Reading follow-up | `claude-api` → Responses → `modal-qwen` | Provider failures ultimately return a retry error. Repairs use the provider that produced the answer. [reading-followup.js](../functions/api/reading-followup.js) |
 | Journal summary | `claude-api` → Responses → local heuristic | No Modal summary backend. [journal-summary.js](../functions/api/journal-summary.js) |
 | Suggested intention question | Workers AI → local template | Free access uses `local-template` directly; eligible AI failures use `local-fallback`. Independent of `TEXT_PROVIDER`. [generate-question.js](../functions/api/generate-question.js) |
@@ -106,7 +106,7 @@ The `codex/reading-gestures-react-bridge` worktree also contains uncommitted Cod
 
 ### Narrative and release QA
 
-`npm run ci:narrative-check` and `npm run ci:release-check` generate narratives with the owner's Claude subscription. Local runs use the existing verified Claude Code login; hosted runs use a private subscription gateway. Missing access fails without paid API fallback. Model/effort pins and the production Claude prompt are preserved; `local-composer` is a diagnostic option rather than release qualification.
+`npm run ci:release-check` grades readings from the production primary provider: while `openai-native` leads, it generates samples through the paid OpenAI Responses API with the production prompt, model and effort, and passes the key only to the narrative check. `npm run ci:narrative-check` alone generates with the owner's Claude subscription by default; local runs use the existing verified Claude Code login and hosted runs use a private subscription gateway. Missing access fails without provider fallback. `local-composer` is a diagnostic option rather than release qualification.
 
 Evaluation scripts layer exported environment variables over Wrangler defaults and do not load `.dev.vars`. These checks have their own provider policy and do not establish the public runtime fallback chain or production availability. See [subscription evals](claude-subscription.md#run-narrative-evals), [subscriptionNarrative.js](../scripts/evaluation/lib/subscriptionNarrative.js) and [runReleaseChecks.js](../scripts/evaluation/runReleaseChecks.js).
 
