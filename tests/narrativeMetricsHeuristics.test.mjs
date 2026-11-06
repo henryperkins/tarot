@@ -522,7 +522,11 @@ test('narrative gate accepts "guaranteed" negated earlier in its clause', async 
     'The Moon and The Sun suggest clearing, though that readiness can’t be rushed or guaranteed.',
     'The waxing Moon supports refining one plan and releasing one distraction—not forcing a guaranteed result.',
     "This doesn't mean the outcome is guaranteed.",
-    'You are never handed a guaranteed answer.'
+    'You are never handed a guaranteed answer.',
+    'As a prospective Future lens, this card offers hope, renewal, and direction rather than a guaranteed outcome.',
+    'Treat it as a direction to cultivate instead of a guaranteed result.',
+    'It is a practice, as opposed to a guaranteed path.',
+    'Agreement is far from guaranteed.'
   ];
   const metrics = await computeMetrics(guidance.map((text, index) => sampleWithGuidance(`negated-guarantee-${index}`, text)));
 
@@ -545,7 +549,9 @@ test('narrative metrics still flag guarantees that idioms or exceptions reinforc
     // "but" turns the negation into an assertion.
     'It is not only possible but guaranteed.',
     // Punctuation ends the negated clause.
-    'You will not fail: success is guaranteed.'
+    'You will not fail: success is guaranteed.',
+    // A contrast after the claim does not negate it.
+    'Success is guaranteed rather than merely hoped for.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`reinforced-guarantee-${index}`, claim)));
 
