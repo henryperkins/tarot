@@ -20,7 +20,6 @@ import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { LazyLoadBoundary } from './components/LazyLoadBoundary';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import './styles/tarot.css';
 
 // Hooks & Contexts
 import { useAuth } from './contexts/AuthContext';

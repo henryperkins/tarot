@@ -9,8 +9,8 @@
 /* Handset stability mode drops the drawer's blur, and its 92% surface then
    shows the reading page through the coach's questions. The coach is a
    writing surface, so its sheet stays opaque in both themes. tarot.css is
-   also loaded unlayered (TarotReading.jsx imports it directly), so this must
-   outrank `:root.light .mobile-stable-mode .mobile-drawer` on specificity. */
+   unlayered (see tailwind.css), so this must outrank
+   `:root.light .mobile-stable-mode .mobile-drawer` on specificity. */
 :root .mobile-stable-mode .coach-dialog.mobile-drawer,
 :root.light .mobile-stable-mode .coach-dialog.mobile-drawer {
   background: var(--bg-surface);
