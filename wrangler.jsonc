@@ -97,12 +97,12 @@
     // ---------------------------------------------------------------------
     // OpenAI native Responses API (requires OPENAI_API_KEY)
     // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
-    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.6-sol").
+    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-6-astra").
     // OPENAI_REASONING_EFFORT overrides the model's default reasoning depth.
     // OPENAI_VERBOSITY optionally overrides text verbosity on the native path.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
-    "OPENAI_MODEL": "gpt-5.6-sol",
+    "OPENAI_MODEL": "gpt-6-astra",
     "OPENAI_REASONING_EFFORT": "xhigh",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",

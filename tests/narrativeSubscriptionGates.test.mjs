@@ -55,11 +55,11 @@ test('the release gate grades the production primary provider', () => {
 test('OpenAI grading maps only the evaluation key onto the production variable', () => {
   assert.throws(() => applyOpenAIEvalCredentials({ OPENAI_API_KEY: 'shell-key' }),
     /needs NARRATIVE_EVAL_OPENAI_API_KEY; the gate never falls back/);
-  const env = applyOpenAIEvalCredentials({ NARRATIVE_EVAL_OPENAI_API_KEY: ' eval-key ', TEXT_PROVIDER: 'claude-code', OPENAI_MODEL: 'gpt-5.6-sol' });
+  const env = applyOpenAIEvalCredentials({ NARRATIVE_EVAL_OPENAI_API_KEY: ' eval-key ', TEXT_PROVIDER: 'claude-code', OPENAI_MODEL: 'gpt-6-astra' });
   assert.equal(env.OPENAI_API_KEY, 'eval-key');
   assert.equal(env.TEXT_PROVIDER, 'legacy');
   assert.equal(Object.hasOwn(env, 'NARRATIVE_EVAL_OPENAI_API_KEY'), false);
-  assert.equal(env.OPENAI_MODEL, 'gpt-5.6-sol');
+  assert.equal(env.OPENAI_MODEL, 'gpt-6-astra');
 });
 
 async function openAIFixture(t, env) {
@@ -77,7 +77,7 @@ globalThis.fetch = async (url, options = {}) => {
   writeFileSync(${JSON.stringify(capture)}, JSON.stringify(requests));
   if (target !== 'https://api.openai.com/v1/responses') throw new Error('UNEXPECTED_NETWORK ' + target);
   const text = '### Opening\\n\\nThe Star invites renewal in this new role.\\n\\n### Closing\\n\\nYou choose the pace.';
-  return new Response(JSON.stringify({ id: 'resp_offline', object: 'response', status: 'completed', model: 'gpt-5.6-sol',
+  return new Response(JSON.stringify({ id: 'resp_offline', object: 'response', status: 'completed', model: 'gpt-6-astra',
     output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] }],
     usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } }), { status: 200, headers: { 'content-type': 'application/json' } });
 };
@@ -96,13 +96,13 @@ test('the narrative CLI grades OpenAI readings through the production Responses 
   assert.equal(result.requests.length, 1);
   const [request] = result.requests;
   assert.equal(request.authorization, 'Bearer eval-test-key');
-  assert.equal(request.body.model, 'gpt-5.6-sol');
+  assert.equal(request.body.model, 'gpt-6-astra');
   assert.equal(request.body.reasoning?.effort, 'xhigh');
   const payload = JSON.parse(await readFile(result.output, 'utf8'));
   assert.equal(payload.model, 'openai-native');
   assert.equal(payload.config.backend, 'openai-native');
   assert.equal(payload.config.provider, 'openai-native');
-  assert.equal(payload.config.model, 'gpt-5.6-sol');
+  assert.equal(payload.config.model, 'gpt-6-astra');
   assert.equal(payload.config.reasoningEffort, 'xhigh');
   assert.equal(payload.config.parityWith, 'openai-native');
   assert.equal(payload.config.servingPath, 'direct-backend');
