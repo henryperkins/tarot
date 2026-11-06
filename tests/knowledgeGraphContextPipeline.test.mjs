@@ -200,6 +200,67 @@ async function assertNoAcceptedReferencesOrReceipts(db, metadata, receipts) {
   assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
 }
 
+// Production flags stream every Responses draft, and every job requests a stream.
+// When that draft fails the quality gate, the buffered provider that replaces it
+// passes its own checks, so the response carries only a notice: MCP presents the
+// reading and the job stamps the memories its accepted prompt used.
+for (const [label, rejectedDraft] of [
+  ['missing card coverage', 'No card coverage.'],
+  ['an undrawn card', 'The Sun invites reflection. The Moon appears in your spread. Your choices shape outcomes.']
+]) {
+  test(`a fallback after a rejected Responses stream draft with ${label} is delivered with a notice and stamps its memories`, async t => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+    const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+    const { classifyReadingResult, READING_OUTCOME, STREAMING_QUALITY_NOTICE_REASON } = await import('../functions/lib/mcp/readingOutcome.js');
+    const db = await pipelineOwnerDatabase();
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const acceptedReading = 'The Sun invites career exploration. Reflect on the skills you enjoy using and choose one small action. Your choices shape outcomes.';
+    const requests = [];
+    t.mock.method(globalThis, 'fetch', async (url, request) => {
+      const body = JSON.parse(request.body);
+      if (String(url).startsWith('https://modal.test/')) {
+        requests.push({ provider: 'modal', memories: [...parseMemoryBlocks(body.messages.at(-1).content).keys()] });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: acceptedReading } }] });
+      }
+      assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
+      requests.push({ provider: 'openai', stream: body.stream === true });
+      const completed = { type: 'response.completed', response: { status: 'completed', model: 'test-openai', output: [{ type: 'message', content: [{ type: 'output_text', text: rejectedDraft }] }] } };
+      return new Response(`event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: rejectedDraft })}\n\nevent: response.completed\ndata: ${JSON.stringify(completed)}\n\n`, { headers: { 'content-type': 'text/event-stream' } });
+    });
+    const input = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+      userQuestion: 'How can I approach a career change?', reflectionsText: ''
+    };
+    const routeEnv = {
+      DB: db, OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai',
+      OPENAI_STREAMING_ENABLED: 'true', ALLOW_STREAMING_WITH_EVAL_GATE: 'true', STREAMING_QUALITY_GATE_ENABLED: 'false', STREAMING_SAFETY_SCAN_ENABLED: 'false',
+      MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_MODEL: 'test', MODAL_STREAM: 'false',
+      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', READING_TASK_TIMEOUT_MS: '60000'
+    };
+    const jobs = createFakeReadingJobs({ env: routeEnv, runReading: context => onRequestPost(context) });
+    t.after(() => { for (const entry of jobs.instances.values()) entry.object.closeSubscribers(); });
+    const started = await startReadingJob({ env: { ...routeEnv, READING_JOBS: jobs.namespace }, payload: input, principal: { userId: 'pipeline-owner' } });
+    assert.equal(started.ok, true, JSON.stringify(started));
+    await jobs.settle();
+    const job = jobs.instances.get(started.jobId).object.job;
+    assert.equal(job.status, 'complete', job.error);
+    assert.deepEqual(requests, [{ provider: 'openai', stream: true }, { provider: 'modal', memories: ['memory-0'] }]);
+    assert.equal(job.result.provider, 'modal-qwen');
+    assert.match(job.result.reading, /The Sun invites career exploration/);
+    assert.doesNotMatch(job.result.reading, /No card coverage|The Moon appears/);
+    assert.equal(job.result.gateBlocked, true);
+    assert.equal(job.result.gateReason, STREAMING_QUALITY_NOTICE_REASON);
+    assert.equal(classifyReadingResult(job.result), READING_OUTCOME.READING);
+    const rejection = job.meta.backendErrors.find(entry => entry.backend === 'openai-native');
+    assert.equal(rejection?.code, 'quality_gate_failed');
+    if (label === 'an undrawn card') assert.ok(rejection.qualityIssues.includes('undrawn_card_assertion'), JSON.stringify(rejection));
+    assert.equal(job.meta.sourceUsage.memories.memoriesUsedInPrompt, 1);
+    assert.notEqual((await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first()).last_accessed_at, null,
+      'the accepted fallback stamps the memory its prompt used');
+  });
+}
+
 // OpenAI's capped prompt runs first and drops the references and memory for
 // budget; the uncapped Modal prompt after it keeps them. Both attempts share
 // the same route loop in every delivery mode; a job adds durable completion

@@ -3,6 +3,7 @@ import { onRequestPost as tarotReadingPost } from '../../functions/api/tarot-rea
 import { formatSSEEvent } from '../../functions/lib/readingStream.js';
 import { jsonResponse } from '../../functions/lib/utils.js';
 import { observeDeliveredReading } from '../../functions/lib/visualCueObserver.js';
+import { isWithheldByGate } from '../../functions/lib/mcp/readingOutcome.js';
 
 const STREAM_HEADERS = {
   'Content-Type': 'text/event-stream',
@@ -45,7 +46,7 @@ function receiptMatches(receipt, stored) {
     && receipt.jobId === job?.jobId && receipt.runId === stored.runId
     && receipt.attemptId === stored.acceptedAttemptId
     && job.status === 'complete' && typeof job.result?.reading === 'string' && job.result.reading.length > 0
-    && !job.result.gateBlocked && !['safe-fallback', 'safety-gate'].includes(job.result.provider)
+    && !isWithheldByGate(job.result) && !['safe-fallback', 'safety-gate'].includes(job.result.provider)
     && receipt.requestId === job.result.requestId
     && Number.isFinite(job.expiresAt) && job.expiresAt > 0
     && (!job.principalUserId || receipt.userId === job.principalUserId)

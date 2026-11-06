@@ -10,7 +10,20 @@
  * the response keeps gateBlocked with this reason; that reading passed its
  * own checks.
  */
-const NOTICE_ONLY_GATE_REASONS = new Set(['quality_gate_streaming']);
+export const STREAMING_QUALITY_NOTICE_REASON = 'quality_gate_streaming';
+const NOTICE_ONLY_GATE_REASONS = new Set([STREAMING_QUALITY_NOTICE_REASON]);
+
+/**
+ * Whether a gate block withholds the reading. A notice-only reason records a
+ * replaced draft, so its reading is delivered; any other gate block, including
+ * an unknown or missing reason, withholds it.
+ *
+ * @param {object|null|undefined} result - { gateBlocked, gateReason }
+ * @returns {boolean}
+ */
+export function isWithheldByGate(result) {
+  return Boolean(result?.gateBlocked) && !NOTICE_ONLY_GATE_REASONS.has(result?.gateReason);
+}
 
 export const READING_OUTCOME = Object.freeze({
   /** A narrative to present and, on request, save. */
@@ -38,8 +51,6 @@ export function classifyReadingResult(result) {
     return READING_OUTCOME.EMPTY;
   }
   if (result.provider === 'safe-fallback') return READING_OUTCOME.WITHHELD;
-  if (result.gateBlocked && !NOTICE_ONLY_GATE_REASONS.has(result.gateReason)) {
-    return READING_OUTCOME.WITHHELD;
-  }
+  if (isWithheldByGate(result)) return READING_OUTCOME.WITHHELD;
   return READING_OUTCOME.READING;
 }
