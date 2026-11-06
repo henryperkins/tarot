@@ -1,8 +1,16 @@
-# Current local work — November 1, 2026
+# Current work — November 6, 2026
 
-This is the current index for local master. Earlier reports keep their dated observations. Generated readings in this work were owner-authorized calls to the owner's Claude subscription only. Master was pushed to origin on November 1. Nothing was deployed: production still runs Worker version `10d052d3`, deployed at 02:48 UTC, which predates prompts 1.6.12/1.6.13 and F3b.
+This is the current index for master. Earlier reports keep their dated observations.
 
-## Local master
+## Production
+
+Production runs Worker version `5ac954d1-1f3b-4783-89ce-c77fb56db5ac`, released from master `3d236ab1` on November 5 at 23:55 UTC and serving all traffic. It carries PRs #136–#138 and narrative prompt 1.6.14. The [release record](READING_PANELS_RELEASE_2026-11-05.md) lists its checks, live verification and limits. The rollback target is the previous version, `35b897e5-7962-411a-abd7-4cc40090a874`.
+
+Since the November 1 integration below, Wrangler lists four production deployments, each taking all traffic. `db4fb586` was deployed on November 3 at 06:57 UTC; `146f4a51`, `35b897e5` and `5ac954d1` followed on November 5 at 11:58, 16:50 and 23:55. The [reading audio plan](superpowers/plans/2026-11-05-reading-audio-cancellation.md) records the `35b897e5` release. This repository has no release record for the first two.
+
+## Local master — November 1
+
+Generated readings in this work were owner-authorized calls to the owner's Claude subscription only. Master was pushed to origin on November 1. Nothing was deployed that day: production then ran Worker version `10d052d3`, deployed at 02:48 UTC, which predates prompts 1.6.12/1.6.13 and F3b.
 
 Local master builds on the qualified integration baseline `99238712` and the index commit `307896e7`, which was pushed to origin on November 1 at 06:46 UTC. Two merges follow, pushed with this index:
 
@@ -33,6 +41,7 @@ Combined verification: **6,238 root tests pass, 0 fail, 2 skipped; 19/19 journal
 ## Remaining dispositions and known failures
 
 - The D02 unfinished-plan narrative failure (see above) remains open.
+- Two prose repetitions noted in [#138](https://github.com/henryperkins/tarot/pull/138) remain. The local composer's You & Them section names the shared element twice, and amplified Celtic Cross cross-checks restate the shared element.
 - [PR #121](knowledge-graph/PR121_DISPOSITION_2026-11-01.md): superseded disposition prepared; historical source retained. No GitHub closure performed.
 - [Spacefast / PR #109](SPACEFAST_PARKED_2026-11-01.md): parked with its runtime/preview blockers; no new port or remote probe.
 - [Dependency deferrals](DEPENDENCY_RECONCILIATION_2026-11-01.md): axe 4.14, Sentry 11, Vite React plugin 6 and tsParticles 4 remain deferred under the recorded failures or compatibility requirements. No assertion was weakened to accept them.
@@ -43,4 +52,4 @@ Combined verification: **6,238 root tests pass, 0 fail, 2 skipped; 19/19 journal
 
 The [completed cleanup record](REPOSITORY_RECONCILIATION_2026-11-01.md) and its verified recovery root remain the baseline; they were not redone. The earlier integration evidence is in `/home/ubuntu/.local/state/tarot/integration-grounding-20261101T051522Z`. Its restored Git mirror uses the previous verified recovery mirror as an explicit alternate; retain that recovery chain together.
 
-The next decision is release: `npm run deploy`, which runs fresh QA first, from an install that matches the lockfile. It is a separate owner decision.
+Each release is a separate owner decision. `npm run deploy` runs fresh QA first and should run from an install that matches the lockfile.
