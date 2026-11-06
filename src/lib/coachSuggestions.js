@@ -13,14 +13,49 @@ const CARD_QUESTION_ANGLES = [
   name => `How can I work with the energy of ${name} instead of against it?`
 ];
 
+// Theme labels are noun phrases of either number ("Archetypal themes",
+// "Emotions and relationships"), so they only ever appear in object position;
+// a subject frame ("What is {label}...") cannot agree with every label.
 const THEME_QUESTION_ANGLES = [
   label => buildThemeQuestion(label),
-  label => ensureQuestionMark(`What is ${label} beginning to teach me`),
-  label => ensureQuestionMark(`Where is ${label} already stirring, and what does it need from me next`)
+  label => ensureQuestionMark(`What can I learn from ${label} right now`),
+  label => ensureQuestionMark(`Where am I meeting ${label} in my life, and how do I want to respond`)
 ];
 
 function normalizeQuestionText(question) {
   return typeof question === 'string' ? question.trim().toLowerCase() : '';
+}
+
+/**
+ * Index of the reader's local calendar day, so "today" turns over at their
+ * midnight rather than at UTC midnight.
+ *
+ * @param {Date} [date]
+ * @returns {number}
+ */
+export function localDayIndex(date = new Date()) {
+  return Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
+}
+
+/**
+ * Turn the Journey's stored coach suggestion into a pool entry. The Journey
+ * always appends a generic fallback prompt (source "default"); that carries no
+ * journal signal, so it must not be presented as one.
+ *
+ * @param {Object|null} journeySuggestion - snapshot meta.coachSuggestion
+ * @returns {Object|null}
+ */
+export function buildJourneyLead(journeySuggestion) {
+  if (!journeySuggestion || journeySuggestion.source === 'default') return null;
+  const question = journeySuggestion.question || journeySuggestion.text;
+  if (typeof question !== 'string' || !question.trim()) return null;
+  return {
+    id: 'journey-suggestion',
+    source: 'journal',
+    label: journeySuggestion.sourceLabel || 'From your journal',
+    ...(journeySuggestion.sourceDetail ? { helper: journeySuggestion.sourceDetail } : {}),
+    question
+  };
 }
 
 /**

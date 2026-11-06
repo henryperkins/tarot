@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  buildJourneyLead,
   buildPersonalizedSuggestions,
   dedupeSuggestions,
   describeSuggestionSources,
+  localDayIndex,
   rotateSuggestionWindow
 } from '../src/lib/coachSuggestions.js';
 import { selectCoachStatsSource } from '../src/lib/journalInsights.js';
@@ -134,5 +136,90 @@ describe('selectCoachStatsSource', () => {
   it('returns null when only a filtered snapshot exists', () => {
     assert.equal(selectCoachStatsSource(snapshot(300, { filtersActive: true }), null), null);
     assert.equal(selectCoachStatsSource(null, null), null);
+  });
+
+  it('lets a fresher, smaller cache win so readings deleted elsewhere drop out', () => {
+    // useJournal only writes insights from a whole journal, so a smaller
+    // fresher cache means the journal shrank, not that the cache is partial.
+    const shrunk = { stats: { totalReadings: 24 }, sourceEntryIds: [], updatedAt: 500 };
+    const chosen = selectCoachStatsSource(snapshot(100, { totalEntries: 30 }), shrunk);
+
+    assert.equal(chosen.source, 'insights');
+  });
+});
+
+describe('theme question angles', () => {
+  // Real labels from normalizeThemeLabel: plural and compound noun phrases.
+  const rawThemes = ['3 Cups cards', 'Archetypal energies dominate this spread'];
+
+  it('never puts a theme label in subject position, at any angle', () => {
+    const seen = new Set();
+    for (let angleOffset = 0; angleOffset < 3; angleOffset += 1) {
+      const questions = buildPersonalizedSuggestions({ recentThemes: rawThemes }, [], [], { angleOffset })
+        .map(suggestion => suggestion.question);
+
+      assert.equal(questions.length, 2);
+      for (const question of questions) {
+        assert.doesNotMatch(question, /\b(?:is|are) (?:Emotions and relationships|Archetypal themes)\b/);
+        assert.match(question, /(?:Emotions and relationships|Archetypal themes)/);
+        assert.match(question, /\?$/);
+        seen.add(question);
+      }
+    }
+    assert.equal(seen.size, 6, 'each label still rotates through three wordings');
+  });
+});
+
+describe('localDayIndex', () => {
+  // Pin the offset so the test means the same thing on a UTC CI host, where
+  // local and UTC midnight coincide and a UTC day index would also pass.
+  const at = (iso, offsetMinutes) => Object.assign(new Date(iso), { getTimezoneOffset: () => offsetMinutes });
+
+  it('turns over at the reader\'s midnight, not at UTC midnight', () => {
+    // UTC-6 (offset 360): 05:59Z on 7 November is still 6 November locally.
+    const lateEvening = localDayIndex(at('2026-11-07T05:59:00Z', 360));
+    const earlyMorning = localDayIndex(at('2026-11-06T06:01:00Z', 360));
+    const nextMorning = localDayIndex(at('2026-11-07T06:01:00Z', 360));
+
+    assert.equal(earlyMorning, lateEvening);
+    assert.equal(nextMorning, lateEvening + 1);
+  });
+
+  it('turns over at local midnight east of UTC too', () => {
+    // UTC+10 (offset -600): 13:59Z on 6 November is 23:59 locally.
+    assert.equal(
+      localDayIndex(at('2026-11-06T14:01:00Z', -600)),
+      localDayIndex(at('2026-11-06T13:59:00Z', -600)) + 1
+    );
+  });
+});
+
+describe('buildJourneyLead', () => {
+  it('drops the Journey fallback prompt, which carries no journal signal', () => {
+    assert.equal(buildJourneyLead({ source: 'default', text: 'What do I most need to understand right now?' }), null);
+    assert.equal(buildJourneyLead(null), null);
+    assert.equal(buildJourneyLead({ source: 'card', text: '   ' }), null);
+  });
+
+  it('keeps a ranked suggestion with its own label and detail, without inventing one', () => {
+    const lead = buildJourneyLead({
+      source: 'card',
+      sourceLabel: 'Recurring card',
+      sourceDetail: 'The Tower (3)',
+      text: 'What is The Tower clearing away?',
+      question: null
+    });
+
+    assert.deepEqual(lead, {
+      id: 'journey-suggestion',
+      source: 'journal',
+      label: 'Recurring card',
+      helper: 'The Tower (3)',
+      question: 'What is The Tower clearing away?'
+    });
+    assert.equal(
+      'helper' in buildJourneyLead({ source: 'theme', question: 'How can I explore rest more deeply?' }),
+      false
+    );
   });
 });

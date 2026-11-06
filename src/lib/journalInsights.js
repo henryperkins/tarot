@@ -183,17 +183,13 @@ export function loadCoachStatsSnapshot(userId = null) {
 }
 
 /**
- * Persist coach stats snapshot for a user
- * @param {Object} stats - Stats to persist
- * @param {Object} meta - Metadata
- * @param {string|null} userId - User ID for scoping (null for anonymous)
- */
-/**
  * Choose which stored stats the coach may trust. The Journey snapshot is
- * scoped to whatever the Journey was showing (and only rewritten when the
- * Journey renders), while the insights cache is refreshed on every journal
- * save; a filtered snapshot is never used, and otherwise the fresher
- * payload wins. Ties go to the snapshot, which carries the richer meta.
+ * scoped to whatever the Journey was showing and is only rewritten when the
+ * Journey renders. The insights cache is rewritten whenever a journal hook
+ * that holds the whole journal loads or saves; useJournal never writes it
+ * from a partial history (see holdsFullJournalRef). A filtered snapshot is
+ * never used; otherwise the fresher payload wins, and ties go to the
+ * snapshot, which carries the richer meta.
  *
  * @param {Object|null} snapshot - loadCoachStatsSnapshot() result
  * @param {Object|null} insights - loadStoredJournalInsights() result
@@ -227,6 +223,12 @@ export function selectCoachStatsSource(snapshot, insights) {
   return snapshotCandidate || insightsCandidate || null;
 }
 
+/**
+ * Persist coach stats snapshot for a user
+ * @param {Object} stats - Stats to persist
+ * @param {Object} meta - Metadata
+ * @param {string|null} userId - User ID for scoping (null for anonymous)
+ */
 export function persistCoachStatsSnapshot(stats, meta = {}, userId = null) {
   if (!safeStorage.isAvailable || !canPersistJournalDerivation(userId ? `user:${encodeURIComponent(userId)}` : 'anon', meta.sourceEntryIds)) return;
   try {

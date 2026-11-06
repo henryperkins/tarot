@@ -32,9 +32,11 @@ import {
   undoCoachTemplateSave
 } from '../lib/coachStorage';
 import {
+  buildJourneyLead,
   buildPersonalizedSuggestions,
   dedupeSuggestions,
   describePrefillSource,
+  localDayIndex,
   rotateSuggestionWindow
 } from '../lib/coachSuggestions';
 import {
@@ -176,7 +178,7 @@ function CoachSession({
   const coachStatsMeta = storageSnapshot.meta;
   // The lead suggestion rotates by day so a returning reader is not met by
   // the same card every open; "New ideas" advances the same rotation.
-  const [dayOffset] = useState(() => Math.floor(Date.now() / 86400000));
+  const [dayOffset] = useState(() => localDayIndex());
   const personalizedSuggestions = useMemo(
     () => {
       const suggestions = buildPersonalizedSuggestions(
@@ -189,17 +191,8 @@ function CoachSession({
           label: recommendation.label || 'From your journal', topic: recommendation.topicValue,
           timeframe: recommendation.timeframeValue, depth: recommendation.depthValue });
       }
-      const journeySuggestion = storageSnapshot.journeySuggestion;
-      const journeyQuestion = journeySuggestion?.question || journeySuggestion?.text;
-      if (journeyQuestion) {
-        leads.push({
-          id: 'journey-suggestion',
-          source: 'journal',
-          label: journeySuggestion.sourceLabel || 'From your journal',
-          helper: journeySuggestion.sourceDetail || 'Your latest journal pattern',
-          question: journeyQuestion
-        });
-      }
+      const journeyLead = buildJourneyLead(storageSnapshot.journeySuggestion);
+      if (journeyLead) leads.push(journeyLead);
       return dedupeSuggestions([...leads, ...suggestions]);
     },
     [coachStats, questionHistory, personalization?.focusAreas, storageSnapshot.recommendation, storageSnapshot.journeySuggestion, dayOffset]
@@ -501,9 +494,17 @@ function CoachSession({
     // asking the generator for a different variant.
     const exactQuestion = suggestion.question || resolvedQuestion;
     if (exactQuestion) {
-      // Replacing hand-written wording is recoverable: keep it one tap away
-      // behind "Restore my wording", like remix and start-fresh do.
-      if (currentQuestion.trim() && currentQuestion.trim() !== exactQuestion.trim()) {
+      // Replacing the reader's own wording is recoverable: keep it one tap
+      // away behind "Restore my wording". Only their wording qualifies: the
+      // wizard's auto-composed text (possibly never shown, e.g. after Start
+      // fresh) or an earlier pick must not displace what they wrote. The one
+      // auto-composed text that is partly theirs carries a detail they typed;
+      // keep it when nothing of theirs is held yet.
+      const readerWording = !autoQuestionEnabled && prefillSource?.source !== 'suggestion';
+      const readerDetail = autoQuestionEnabled && typeof customFocus === 'string'
+        && Boolean(customFocus.trim()) && !previousQuestion;
+      if ((readerWording || readerDetail)
+        && currentQuestion.trim() && currentQuestion.trim() !== exactQuestion.trim()) {
         setPreviousQuestion(currentQuestion);
       }
       if (!originalQuestion) setOriginalQuestion(exactQuestion);
@@ -523,6 +524,10 @@ function CoachSession({
     depth,
     originalQuestion,
     currentQuestion,
+    autoQuestionEnabled,
+    prefillSource,
+    customFocus,
+    previousQuestion,
     releasePrefill,
     clearAstroForecast
   ]);

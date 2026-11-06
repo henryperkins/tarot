@@ -16,6 +16,14 @@
   scroll-padding-block: 16px;
 }
 
+/* Focused content must scroll clear of the sticky footer (its height is
+   measured into the variable by the view). The inset lives on body content,
+   not on the scroller, so focusing the footer's own buttons never scrolls the
+   content behind them. */
+.coach-dialog__body * {
+  scroll-margin-block-end: var(--coach-footer-overlap, 0px);
+}
+
 .coach-dialog__header,
 .coach-dialog__body {
   padding: 16px;

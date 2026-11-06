@@ -60,6 +60,8 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const reviewHeadingRef = useRef(null);
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
+  const stepNavRef = useRef(null);
+  const footerStepTargetRef = useRef(null);
   const previousReviewRef = useRef({ step: null, request: -1 });
   const [footerInFlow, setFooterInFlow] = useState(false);
   const titleId = useId();
@@ -121,7 +123,11 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     const measure = () => {
       const available = modalRef.current?.clientHeight || 0;
       const footer = footerRef.current?.getBoundingClientRect().height || 0;
-      if (available && footer) setFooterInFlow(footer > available * 0.25);
+      if (!available || !footer) return;
+      const inFlow = footer > available * 0.25;
+      setFooterInFlow(inFlow);
+      // Focus scrolling must clear the sticky footer, not stop beneath it.
+      scrollRef.current?.style.setProperty('--coach-footer-overlap', inFlow ? '0px' : `${Math.ceil(footer)}px`);
     };
     const observer = new ResizeObserver(measure);
     if (modalRef.current) observer.observe(modalRef.current);
@@ -152,9 +158,41 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     });
   }, [topic, timeframe, depth, selectedSpread]);
 
+  // The suggestions panel sits above the wizard, so "show this step" means
+  // bringing the step tabs to the top of the scroller, not scrolling to 0.
+  const revealStepNav = useCallback(() => {
+    const container = scrollRef.current;
+    const nav = stepNavRef.current;
+    if (!container || !nav) return;
+    const top = nav.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    container.scrollTo({ top: Math.max(0, top - 16), behavior: 'instant' });
+  }, []);
+
+  // Footer Back/Next change the step without touching the tabs; follow them
+  // to the step they moved to. Only a sticky footer stays put while the
+  // content scrolls, so an in-flow footer keeps its place. Other step changes
+  // (Start fresh, picks, restores) keep the reader where they are, and review
+  // has its own scroll and focus handling.
+  useEffect(() => {
+    const target = footerStepTargetRef.current;
+    footerStepTargetRef.current = null;
+    if (target !== step || step === REVIEW_STEP || footerInFlow) return;
+    revealStepNav();
+  }, [step, footerInFlow, revealStepNav]);
+
+  const footerBack = () => {
+    footerStepTargetRef.current = step - 1;
+    goBack();
+  };
+
+  const footerNext = () => {
+    footerStepTargetRef.current = step + 1;
+    goNext();
+  };
+
   const selectStep = index => {
     setStep(index);
-    if (index !== REVIEW_STEP) scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    if (index !== REVIEW_STEP) revealStepNav();
   };
 
   const handleStepKeyDown = (event, index) => {
@@ -347,7 +385,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
             </div>
             <div className="coach-dialog__body">
               {suggestions}
-              <div className="coach-step-nav">
+              <div ref={stepNavRef} className="coach-step-nav">
                 <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Coach wizard steps">
                   {STEPS.map((entry, index) => (
                     <Fragment key={entry.id}>
@@ -375,10 +413,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
             </div>
             <footer ref={footerRef} className={`coach-dialog__footer ${footerInFlow ? 'coach-dialog__footer--flow' : ''}`}>
               <div className="coach-footer-actions">
-                <button type="button" onClick={closesFromFooter ? onClose : goBack} aria-disabled={(step === 0 && !closesFromFooter) || undefined} className={`${footerButton} border border-secondary/40 bg-surface-muted text-secondary aria-disabled:opacity-40`}>
+                <button type="button" onClick={closesFromFooter ? onClose : footerBack} aria-disabled={(step === 0 && !closesFromFooter) || undefined} className={`${footerButton} border border-secondary/40 bg-surface-muted text-secondary aria-disabled:opacity-40`}>
                   {closesFromFooter ? <X className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}{closesFromFooter ? 'Close' : 'Back'}
                 </button>
-                {step < REVIEW_STEP ? <button type="button" onClick={goNext} disabled={!canGoNext()} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{step === 2 ? 'Review question' : 'Next'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></button>
+                {step < REVIEW_STEP ? <button type="button" onClick={footerNext} disabled={!canGoNext()} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{step === 2 ? 'Review question' : 'Next'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></button>
                   : <button type="button" onClick={handleApply} disabled={!currentQuestion.trim() || questionLoading} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{questionLoading ? 'Refining…' : 'Use this question'}</span><Sparkle className="h-4 w-4 shrink-0" aria-hidden="true" /></button>}
               </div>
             </footer>

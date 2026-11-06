@@ -133,6 +133,11 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
   const historyRequestRef = useRef(0);
   const pageFlightRef = useRef(null);
   const historyCompleteRef = useRef(true);
+  // The insights cache describes the whole journal, and the coach trusts the
+  // fresher of it and the Journey snapshot. A hook that never loaded every
+  // entry (the reading page's autoLoad:false save hook, a first-page load, a
+  // single fetched entry) holds only part of it and must not overwrite it.
+  const holdsFullJournalRef = useRef(false);
   const historyVisualCacheRef = useRef(new Map());
   const reflectionAttemptsRef = useRef(new Map());
 
@@ -248,6 +253,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
   const persistInsights = useCallback((entriesToPersist) => {
     if (isDeletedAccount(user?.id)) return { payload: null, error: null };
     if (progressiveHistory && !historyCompleteRef.current) return { payload: null, error: null };
+    if (!holdsFullJournalRef.current) return { payload: null, error: null };
     const result = persistJournalInsights(filterDeletedJournalEntries(namespace, entriesToPersist), isAuthenticated ? user?.id : null);
     if (result?.error) {
       console.warn('Unable to persist journal insights cache:', result.error);
@@ -262,6 +268,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
 
     if (prevUserId !== currentUserId) {
       // Clear in-memory entries immediately to avoid showing prior account data.
+      holdsFullJournalRef.current = false;
       setEntries([]);
       setError(null);
 
@@ -334,6 +341,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
           const apiEntries = filterDeletedJournalEntries(namespace, dedupeEntries(data.entries || []))
             .map(item => mergeCachedJournalVisuals(projectJournalEntryVisuals(item), cachedById.get(item.id)));
           historyCompleteRef.current = !data?.pagination?.hasMore;
+          holdsFullJournalRef.current = !data?.pagination?.hasMore;
           if (historyCompleteRef.current) historyVisualCacheRef.current.clear();
           setEntries(previous => isCurrent() ? apiEntries : previous);
           loadedEntries = apiEntries;
@@ -363,6 +371,9 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
             if (cached) {
               const parsedCache = filterDeletedJournalEntries(namespace, dedupeEntries(JSON.parse(cached))).map(projectJournalEntryVisuals);
               historyCompleteRef.current = true;
+              // The offline cache may be a first page, so it is never proof
+              // of the whole journal.
+              holdsFullJournalRef.current = false;
               historyVisualCacheRef.current.clear();
               setEntries(parsedCache);
               loadedEntries = parsedCache;
@@ -387,6 +398,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
         setSyncSource('local');
         if (typeof localStorage === 'undefined') {
           setEntries([]);
+          holdsFullJournalRef.current = true;
           if (typeof window !== 'undefined') {
             persistInsights([]);
           }
@@ -399,6 +411,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
               const safeEntries = filterDeletedJournalEntries(namespace, dedupeEntries(parsed)).map(projectJournalEntryVisuals);
               setEntries(safeEntries);
               loadedEntries = safeEntries;
+              holdsFullJournalRef.current = true;
               if (typeof window !== 'undefined') {
                 persistInsights(safeEntries);
               }
@@ -413,6 +426,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
             }
           } else {
             setEntries([]);
+            holdsFullJournalRef.current = true;
             if (typeof window !== 'undefined') {
               persistInsights([]);
             }
@@ -481,6 +495,8 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
         const newEntries = filterDeletedJournalEntries(namespace, data?.entries)
           .map(item => mergeCachedJournalVisuals(projectJournalEntryVisuals(item), historyVisualCacheRef.current.get(item.id)));
         historyCompleteRef.current = !hasMore;
+        // Pages accumulate onto a hook that already held the first page.
+        holdsFullJournalRef.current = !hasMore;
         if (!hasMore) historyVisualCacheRef.current.clear();
         if (!hasMore) setLastSyncAt(Date.now());
         setEntries((prev) => {
@@ -722,6 +738,9 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
           setEntries(persisted.entries);
           setPagination({ hasMore: false, nextCursor: null, total: persisted.entries.length });
           setLastLocalSaveAt(savedAt);
+          // The write merged with the whole stored bucket, so this hook now
+          // holds the full local journal even if it never loaded.
+          holdsFullJournalRef.current = true;
           persistInsights(persisted.entries);
 
           return { success: true, entry: savedEntry, ...(savedEntry.id !== newEntry.id ? { deduplicated: true } : {}) };
@@ -1001,6 +1020,7 @@ export function useJournal({ autoLoad = true, completeHistory = false, progressi
           guestSourceRemoved = true;
         }
         setEntries(persisted.entries);
+        holdsFullJournalRef.current = true;
         if (typeof window !== 'undefined') persistInsights(persisted.entries);
         const imported = Math.max(0, persisted.entries.length - persisted.previousEntries.length);
         return { success: true, imported, skipped: Math.max(0, legacyEntries.length - imported) };

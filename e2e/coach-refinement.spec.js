@@ -190,8 +190,6 @@ test.describe('Coach saved wording and recovery', () => {
     await setup(page, { focusAreas: ['career', 'love', 'healing'] });
     const coach = await openCoach(page);
     const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
-    const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-    if (await show.count()) await show.click();
     const card = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
     const preview = await card.evaluate(element => {
       const ids = element.getAttribute('aria-describedby').split(/\s+/);

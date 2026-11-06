@@ -18,7 +18,12 @@ export function CoachSuggestionsPanel({
   if (!visibleSuggestions || visibleSuggestions.length === 0) return null;
 
   const [lead, ...alternatives] = visibleSuggestions;
-  const sourceSummary = describeSuggestionSources(personalizedSuggestions);
+  // Describe the cards on screen; cycling can show a different mix of sources.
+  const sourceSummary = describeSuggestionSources(visibleSuggestions);
+  // The journal scope and its "Why am I seeing these?" signals explain journal
+  // cards, so they appear only while one is on screen.
+  const showJournalScope = Boolean(coachSnapshotLabel)
+    && visibleSuggestions.some(suggestion => suggestion?.source === 'journal');
   const canCycle = personalizedSuggestions.length > visibleSuggestions.length;
 
   const renderSuggestion = (suggestion, index, variant) => {
@@ -39,7 +44,7 @@ export function CoachSuggestionsPanel({
         aria-labelledby={labelId}
         aria-describedby={describedBy}
         className={isLead
-          ? 'block w-full rounded-2xl border border-primary/30 bg-surface/60 p-4 text-left transition hover:border-primary/60 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:p-5'
+          ? 'block w-full rounded-2xl border border-primary/30 bg-surface/60 p-4 text-left transition hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:p-5'
           : 'flex w-full items-center justify-between gap-3 px-1 py-2.5 text-left transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface'}
       >
         <span className="min-w-0">
@@ -62,7 +67,7 @@ export function CoachSuggestionsPanel({
           )}
           {isLead && (
             <span className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-accent">
-              Use this question
+              Start with this question
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </span>
           )}
@@ -91,7 +96,7 @@ export function CoachSuggestionsPanel({
           <button
             type="button"
             onClick={cycleSuggestions}
-            className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full border border-primary/40 px-3 py-2 text-xs font-medium text-accent transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full border border-primary/40 px-3 py-2 text-xs font-medium text-accent transition hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           >
             <ArrowsClockwise className="h-3.5 w-3.5" aria-hidden="true" />
             New ideas
@@ -114,7 +119,7 @@ export function CoachSuggestionsPanel({
         </div>
       )}
 
-      {coachSnapshotLabel && (
+      {showJournalScope && (
         <div className="mt-3 flex items-center gap-2 text-2xs text-muted">
           <span>{coachSnapshotLabel}</span>
           {coachSnapshotDetail && (
