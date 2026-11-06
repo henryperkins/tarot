@@ -516,6 +516,51 @@ test('narrative metrics still flag "set in stone" outside an open "before" claus
   });
 });
 
+test('narrative gate accepts "guaranteed" negated earlier in its clause', async () => {
+  const guidance = [
+    "That improves the odds of relief, but it doesn't put relief on a guaranteed schedule.",
+    'The Moon and The Sun suggest clearing, though that readiness can’t be rushed or guaranteed.',
+    'The waxing Moon supports refining one plan and releasing one distraction—not forcing a guaranteed result.',
+    "This doesn't mean the outcome is guaranteed.",
+    'You are never handed a guaranteed answer.'
+  ];
+  const metrics = await computeMetrics(guidance.map((text, index) => sampleWithGuidance(`negated-guarantee-${index}`, text)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.deterministicLanguage, false, guidance[index]);
+    assert.deepEqual(result.issueFlags, [], guidance[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative metrics still flag guarantees that idioms or exceptions reinforce', async () => {
+  const claims = [
+    'Your success is guaranteed.',
+    'There is no doubt it is guaranteed.',
+    'No matter what you choose success is guaranteed.',
+    "Don't worry your success is guaranteed.",
+    'Never doubt that it is guaranteed.',
+    'Without question it is guaranteed.',
+    // "but" turns the negation into an assertion.
+    'It is not only possible but guaranteed.',
+    // Punctuation ends the negated clause.
+    'You will not fail: success is guaranteed.'
+  ];
+  const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`reinforced-guarantee-${index}`, claim)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.deepEqual(result.deterministicLanguageMatches, ['guaranteed'], claims[index]);
+    assert.deepEqual(result.issueFlags, ['deterministic-language'], claims[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, claims.length);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Deterministic language issues/);
+    return true;
+  });
+});
+
 test('narrative metrics do not treat agency-preserving never and always phrasing as harsh', async () => {
   const metrics = await computeMetrics([
     {
