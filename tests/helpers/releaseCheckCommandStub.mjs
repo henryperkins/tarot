@@ -2,6 +2,7 @@ import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
+import { UNIT_SUITE_CREDENTIAL_ENV_KEYS } from '../../scripts/evaluation/lib/subscriptionNarrative.js';
 
 // Exercise the real preflight and subscription validation without a host login.
 childProcess.spawn = (_command, args) => {
@@ -24,7 +25,8 @@ childProcess.spawn = (_command, args) => {
 childProcess.spawnSync = (_command, args, options) => {
   const script = args[args.indexOf('run') + 1];
   process.stdout.write(`CHECK:${JSON.stringify({ script, backend: options.env.NARRATIVE_EVAL_BACKEND, textProvider: options.env.TEXT_PROVIDER,
-    openaiKey: Object.hasOwn(options.env, 'OPENAI_API_KEY'), evalOpenaiKey: Boolean(options.env.NARRATIVE_EVAL_OPENAI_API_KEY) })}\n`);
+    openaiKey: Object.hasOwn(options.env, 'OPENAI_API_KEY'), evalOpenaiKey: Boolean(options.env.NARRATIVE_EVAL_OPENAI_API_KEY),
+    credentialKeys: UNIT_SUITE_CREDENTIAL_ENV_KEYS.filter(name => Object.hasOwn(options.env, name)) })}\n`);
   return { status: script === process.env.TEST_RELEASE_CHECK_FAIL ? 7 : 0, stdout: '', stderr: '' };
 };
 syncBuiltinESMExports();

@@ -13,6 +13,8 @@ function release(env = {}) {
     encoding: 'utf8',
     env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '',
       TEST_RELEASE_LOGIN_FAIL: '', CLAUDE_CODE_GATEWAY_URL: '', CLAUDE_CODE_GATEWAY_TOKEN: '', ANTHROPIC_API_KEY: 'offline-test-key',
+      ANTHROPIC_AUTH_TOKEN: 'offline-test-token', MODAL_PROXY_TOKEN: 'offline-test-token', WANDB_API_KEY: 'offline-test-key',
+      AZURE_OPENAI_API_KEY: 'offline-test-key',
       OPENAI_API_KEY: 'offline-openai-test-key', NARRATIVE_EVAL_OPENAI_API_KEY: '', ...env }
   });
   const checks = result.stdout.split('\n').filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
@@ -46,6 +48,7 @@ it('runs required release checks without a photo corpus and reports vision as un
   assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
   assert.match(result.stdout, /vision qualification not run/i);
   assert.ok(result.checks.every(check => check.backend === 'openai-native' && check.textProvider === 'legacy'));
+  assert.ok(result.checks.every(check => check.credentialKeys.length === 0), 'no check receives provider credentials');
 });
 
 it('grades production OpenAI readings with the key passed only to the narrative check', () => {
@@ -56,6 +59,7 @@ it('grades production OpenAI readings with the key passed only to the narrative 
   for (const check of result.checks) {
     assert.equal(check.openaiKey, false, `${check.script} must not receive OPENAI_API_KEY`);
     assert.equal(check.evalOpenaiKey, check.script === 'ci:narrative-check', `${check.script} evaluation key`);
+    assert.deepEqual(check.credentialKeys, [], `${check.script} must not receive provider credentials`);
   }
 });
 

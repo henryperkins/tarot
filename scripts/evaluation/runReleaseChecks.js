@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
-import { OPENAI_EVAL_KEY_VARIABLE, resolveReleaseNarrativeBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
+import { OPENAI_EVAL_KEY_VARIABLE, UNIT_SUITE_CREDENTIAL_ENV_KEYS, resolveReleaseNarrativeBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -19,9 +19,12 @@ export async function main() {
   }
   // The narrative gate grades readings from the production primary provider.
   const backend = resolveReleaseNarrativeBackend(process.env.NARRATIVE_EVAL_BACKEND);
-  // OpenAI keys never reach the unit suites or the offline prompt verifier; the
-  // narrative check alone receives one, under its evaluation-only name.
-  const { OPENAI_API_KEY: shellOpenAIKey, [OPENAI_EVAL_KEY_VARIABLE]: evalOpenAIKey, ...hostEnv } = process.env;
+  // Provider credentials never reach the unit suites or the offline prompt
+  // verifier, which refuses to run while any of them is present; the narrative
+  // check alone receives the OpenAI key, under its evaluation-only name.
+  const { [OPENAI_EVAL_KEY_VARIABLE]: evalOpenAIKey, ...hostEnv } = process.env;
+  const shellOpenAIKey = hostEnv.OPENAI_API_KEY;
+  for (const name of UNIT_SUITE_CREDENTIAL_ENV_KEYS) delete hostEnv[name];
   let narrativeCredentials = {};
   if (backend === 'openai-native') {
     const key = String(evalOpenAIKey || shellOpenAIKey || '').trim();

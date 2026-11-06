@@ -9,6 +9,15 @@ import { runClaudeCode, verifySubscriptionLogin } from '../../../services/claude
 // offline prompt verifier, which refuse provider credentials.
 export const OPENAI_EVAL_KEY_VARIABLE = 'NARRATIVE_EVAL_OPENAI_API_KEY';
 
+// Provider credentials that must never reach the unit suites or the offline
+// prompt verifier. The deterministic qualification gate refuses to run while
+// any of these is present, so release QA strips the full set (not only the
+// OpenAI keys) from every check except the narrative generation that uses one.
+export const UNIT_SUITE_CREDENTIAL_ENV_KEYS = Object.freeze([
+  'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
+  'MODAL_PROXY_TOKEN', 'WANDB_API_KEY', 'AZURE_OPENAI_API_KEY'
+]);
+
 export function resolveNarrativeEvalBackend(value, { requireLive = false } = {}) {
   const backend = String(value || 'claude-code').trim().toLowerCase();
   if (['', 'auto', 'claude-code'].includes(backend)) return 'claude-code';
