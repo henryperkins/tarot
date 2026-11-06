@@ -18,7 +18,7 @@ Common local variables include:
 - `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after OpenAI and Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the `openai-native` Responses backend
-- `OPENAI_MODEL` (set to `gpt-6-astra` in `wrangler.jsonc`, with `OPENAI_REASONING_EFFORT` `xhigh`) and `OPENAI_STREAMING_ENABLED`
+- `OPENAI_MODEL` (set to `gpt-6-astra` in `wrangler.jsonc`, with `OPENAI_REASONING_EFFORT` `high`) and `OPENAI_STREAMING_ENABLED`
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
 - `ELEVENLABS_API_KEY` — enables the ElevenLabs narration option through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. The separate Deepgram option uses Workers AI Aura-2 with Cora through the `AI` binding and needs no provider API key. Users choose an engine in Audio settings or the reading audio controls; both use the same monthly narration allowance. See [narration safeguards](narration-safeguards.md).
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`

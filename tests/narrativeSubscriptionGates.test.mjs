@@ -97,13 +97,13 @@ test('the narrative CLI grades OpenAI readings through the production Responses 
   const [request] = result.requests;
   assert.equal(request.authorization, 'Bearer eval-test-key');
   assert.equal(request.body.model, 'gpt-6-astra');
-  assert.equal(request.body.reasoning?.effort, 'xhigh');
+  assert.equal(request.body.reasoning?.effort, 'high');
   const payload = JSON.parse(await readFile(result.output, 'utf8'));
   assert.equal(payload.model, 'openai-native');
   assert.equal(payload.config.backend, 'openai-native');
   assert.equal(payload.config.provider, 'openai-native');
   assert.equal(payload.config.model, 'gpt-6-astra');
-  assert.equal(payload.config.reasoningEffort, 'xhigh');
+  assert.equal(payload.config.reasoningEffort, 'high');
   assert.equal(payload.config.parityWith, 'openai-native');
   assert.equal(payload.config.servingPath, 'direct-backend');
   assert.match(payload.samples[0].reading, /The Star invites renewal/);
