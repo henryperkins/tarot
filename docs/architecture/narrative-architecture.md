@@ -72,7 +72,7 @@ Jobs atomically write terminal state and a separate private `readingMemoryReceip
                      │              BACKEND SELECTION              │
                      │  • availability and per-attempt A/B assignment      │
                      │  NARRATIVE_BACKEND_ORDER:                    │
-                     │  claude-api → modal-qwen → openai-native →      │
+                     │  openai-native → claude-api → modal-qwen →      │
                      │  local-composer                               │
                      │  openai-native = native OpenAI Responses      │
                      │  requires OPENAI_API_KEY                       │
@@ -293,7 +293,7 @@ No cross-request bleed in production.
 3. **Crisis check** performed (1-2ms)
 4. **Spread analysis** computed (50-100ms)
 5. **Reasoning chain** built from the actual spread and question
-6. **Backend selected** in order: `claude-api` → `modal-qwen` → `openai-native` → `local-composer`
+6. **Backend selected** in order: `openai-native` → `claude-api` → `modal-qwen` → `local-composer`
 7. **Prompt or local composition** constructed (10-20ms):
    - Token budgeting and GraphRAG retrieval for LLM paths
    - Spread-specific sections and reasoning-aware synthesis

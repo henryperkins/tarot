@@ -432,7 +432,7 @@ test('a blocked evaluation substitutes safe fallback and stamps no retained note
   assert.equal(db.calls.filter(call => call.write && call.sql.includes('UPDATE user_memories')).length, 0);
 });
 
-test('provider fallback recomputes retention for the accepted final capped prompt', async t => {
+test('provider fallback recomputes retention for the accepted final full prompt after a rejected capped attempt', async t => {
   const { onRequestPost } = await import('../functions/api/tarot-reading.js');
   const db = routeDatabase(); insert(db, 'relevant', { text: 'Navigating career uncertainty' });
   t.mock.method(console, 'log', () => {}); t.mock.method(console, 'warn', () => {}); t.mock.method(console, 'error', () => {});
@@ -441,8 +441,8 @@ test('provider fallback recomputes retention for the accepted final capped promp
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     const payload = JSON.parse(init.body);
     requests.push({ url: String(url), payload });
-    if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(payload, 'No card coverage.') } }] });
-    return Response.json({ id: 'accepted', model: 'test-openai', output_text: modelReadingForRequest(payload, acceptedReading), usage: { input_tokens: 10, output_tokens: 10 } });
+    if (String(url).includes('modal.test')) return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(payload, acceptedReading) } }] });
+    return Response.json({ id: 'rejected', model: 'test-openai', output_text: modelReadingForRequest(payload, 'No card coverage.'), usage: { input_tokens: 10, output_tokens: 10 } });
   });
   // Ordinary readings now reject repeated identities. Keep this cap/fallback
   // regression on the complete distinct catalog rather than 78 repeated Suns.
@@ -451,19 +451,21 @@ test('provider fallback recomputes retention for the accepted final capped promp
   const response = await onRequestPost({ request: new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) }), env: { DB: db, MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'test-token', MODAL_MODEL: 'test', OPENAI_API_KEY: 'synthetic-test-key', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai', GRAPHRAG_ENABLED: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' }, principal: { userId: 'owner' }, waitUntil: promise => tasks.push(promise) });
   const body = await response.json();
   assert.equal(response.status, 200, JSON.stringify(body));
-  assert.equal(body.provider, 'openai-native');
-  // A rejected Modal answer gets one fresh attempt before the next provider.
-  assert.deepEqual(requests.map(request => (request.url.includes('modal.test') ? 'modal' : 'openai')), ['modal', 'modal', 'openai']);
-  const firstBlocks = memory.parseMemoryBlocks(requests[0].payload.messages.at(-1).content);
-  const finalBlocks = memory.parseMemoryBlocks(requests.at(-1).payload.input);
-  assert.deepEqual([...firstBlocks.keys()], ['memory-0']);
-  assert.deepEqual([...finalBlocks.keys()], []);
+  assert.equal(body.provider, 'modal-qwen');
+  // OpenAI's capped prompt runs first; its rejected answer is not retried.
+  assert.deepEqual(requests.map(request => (request.url.includes('modal.test') ? 'modal' : 'openai')), ['openai', 'modal']);
+  const firstBlocks = memory.parseMemoryBlocks(requests[0].payload.input);
+  const finalBlocks = memory.parseMemoryBlocks(requests.at(-1).payload.messages.at(-1).content);
+  assert.deepEqual([...firstBlocks.keys()], []);
+  assert.deepEqual([...finalBlocks.keys()], ['memory-0']);
   const firstNotes = [...firstBlocks.values()].map(block => block.text);
   const finalNotes = [...finalBlocks.values()].map(block => block.text);
-  assert.deepEqual(firstNotes, ['Navigating career uncertainty']);
-  assert.deepEqual(finalNotes, []);
+  assert.deepEqual(firstNotes, []);
+  assert.deepEqual(finalNotes, ['Navigating career uncertainty']);
+  assert.equal(body.sourceUsage.memories.memoriesUsedInPrompt, 1);
   await Promise.all(tasks);
-  assert.equal(db.calls.filter(call => call.write && call.sql.includes('UPDATE user_memories')).length, 0);
+  assert.equal(db.calls.filter(call => call.write && call.sql.includes('UPDATE user_memories')).length, 1);
+  assert.deepEqual(db.sqlite.prepare('SELECT id FROM user_memories WHERE last_accessed_at IS NOT NULL').all().map(row => row.id), ['relevant']);
 });
 
 test('ordinary access cannot rewind a newer successful-use timestamp', async () => {

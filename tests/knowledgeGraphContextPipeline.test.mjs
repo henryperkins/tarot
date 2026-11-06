@@ -200,10 +200,12 @@ async function assertNoAcceptedReferencesOrReceipts(db, metadata, receipts) {
   assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
 }
 
-// The rejected attempt and the accepted capped attempt share the same route
-// loop in every delivery mode; a job adds durable completion and receipts.
+// OpenAI's capped prompt runs first and drops the references and memory for
+// budget; the uncapped Modal prompt after it keeps them. Both attempts share
+// the same route loop in every delivery mode; a job adds durable completion
+// and receipts.
 for (const delivery of ['json', 'stream', 'job']) {
-  test(`accepted capped provider reports only its own references and memory receipts after a rejected full-reference attempt (${delivery})`, async t => {
+  test(`accepted full-reference provider reports only its own references and memory receipts after a rejected capped attempt (${delivery})`, async t => {
     const { onRequestPost } = await import('../functions/api/tarot-reading.js');
     const { startReadingJob } = await import('../functions/lib/readingJobs.js');
     const db = await pipelineOwnerDatabase();
@@ -215,11 +217,11 @@ for (const delivery of ['json', 'stream', 'job']) {
       const body = JSON.parse(request.body);
       if (String(url).startsWith('https://modal.test/')) {
         requests.push({ provider: 'modal', user: body.messages.at(-1).content });
-        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, 'No card coverage.') } }] });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, acceptedReading) } }] });
       }
       assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
       requests.push({ provider: 'openai', user: body.input });
-      return Response.json({ id: 'accepted', model: 'test-openai', output_text: modelReadingForRequest(body, acceptedReading), usage: { input_tokens: 10, output_tokens: 10 } });
+      return Response.json({ id: 'rejected', model: 'test-openai', output_text: modelReadingForRequest(body, 'No card coverage.'), usage: { input_tokens: 10, output_tokens: 10 } });
     });
     const input = {
       spreadInfo: { name: 'Custom Spread', key: 'custom' },
@@ -252,18 +254,45 @@ for (const delivery of ['json', 'stream', 'job']) {
       metadata = delivery === 'stream' ? streamMeta(await response.text()) : await response.json();
     }
     await Promise.all(pending);
-    assert.equal(metadata.provider, 'openai-native');
-    assert.deepEqual(requests.map(request => request.provider), ['modal', 'openai']);
-    assert.equal(parseGraphRAGReferenceBlock(requests[0].user).status, 'complete');
-    assert.deepEqual([...parseMemoryBlocks(requests[0].user).keys()], ['memory-0']);
-    assert.equal(parseGraphRAGReferenceBlock(requests[1].user).status, 'absent');
-    assert.deepEqual([...parseMemoryBlocks(requests[1].user).keys()], []);
+    assert.equal(metadata.provider, 'modal-qwen');
+    assert.deepEqual(requests.map(request => request.provider), ['openai', 'modal']);
+    const [rejected, accepted] = requests.map(request => request.user);
+    assert.equal(parseGraphRAGReferenceBlock(rejected).status, 'absent');
+    assert.deepEqual([...parseMemoryBlocks(rejected).keys()], []);
+    const acceptedReferences = parseGraphRAGReferenceBlock(accepted);
+    assert.equal(acceptedReferences.status, 'complete');
+    assert.equal(acceptedReferences.guardrailsComplete, true);
+    const acceptedMemories = parseMemoryBlocks(accepted);
+    assert.deepEqual([...acceptedMemories.keys()], ['memory-0']);
+    assert.equal(acceptedMemories.get('memory-0').text, 'Navigating career uncertainty');
     const graph = metadata.sourceUsage.graphRAG;
-    assert.equal(graph.referenceGuardrailsComplete, false);
-    assert.equal(graph.integrityRemovedBlocks, 0, 'Budget omission is not an integrity rejection');
-    assert.equal(graph.skippedReason, 'removed_for_budget');
-    assert.equal(metadata.sourceUsage.memories.memoriesSelected, 1);
-    await assertNoAcceptedReferencesOrReceipts(db, metadata, receipts);
+    assert.equal(graph.used, true);
+    assert.equal(graph.mode, 'full');
+    assert.equal(graph.referenceGuardrailsComplete, acceptedReferences.guardrailsComplete);
+    assert.equal(graph.integrityRemovedBlocks, 0);
+    assert.equal(graph.skippedReason, null, 'The rejected capped prompt\'s budget omission must not describe the accepted prompt');
+    assert.equal(graph.passagesUsedInPrompt, acceptedReferences.passageCount);
+    assert.equal(graph.passageIndices.length, graph.passagesUsedInPrompt);
+    const passages = metadata.themes.knowledgeGraph.graphRAGPayload.passages;
+    for (const index of graph.passageIndices) {
+      assert.ok(accepted.includes(passages[index].promptText));
+      assert.equal(rejected.includes(passages[index].promptText), false);
+    }
+    const visible = getTraditionalPassages(metadata.themes, { provider: metadata.provider, sourceUsage: metadata.sourceUsage });
+    assert.ok(visible.length > 0);
+    for (const passage of visible) assert.ok(accepted.includes(passage.text));
+    const memories = metadata.sourceUsage.memories;
+    assert.equal(memories.used, true);
+    assert.equal(memories.memoriesSelected, 1);
+    assert.equal(memories.memoriesUsedInPrompt, 1);
+    assert.equal(receipts.length, 1);
+    assert.deepEqual(receipts[0].ids, ['private-pipeline-note']);
+    assert.equal(receipts[0].requestId, metadata.requestId);
+    // A job commits its own receipt; direct callers that pass a receipt
+    // handler own persistence, so the route writes nothing itself.
+    const { last_accessed_at: accessedAt } = await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first();
+    assert.equal(accessedAt, delivery === 'job' ? Math.floor(receipts[0].completedAt / 1000) : null);
+    assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
   });
 }
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { modalSseResponse } from './helpers/modalSse.mjs';
-import { CLAUDE_API_URL_PREFIX, claudeSseResponse } from './helpers/claudeSse.mjs';
+import { CLAUDE_API_URL_PREFIX, claudeErrorResponse, claudeSseResponse } from './helpers/claudeSse.mjs';
 
 import { onRequestGet, onRequestPost } from '../functions/api/tarot-reading.js';
 
@@ -214,11 +214,77 @@ describe('streaming gate metadata', () => {
     });
   }
 
-  it('uses the Claude API ahead of Responses token streaming', async (t) => {
+  // With OpenAI, Claude and Modal all configured, a failed Responses stream
+  // continues down the remaining order without a second Responses attempt.
+  for (const claudeFails of [false, true]) {
+    it(`continues from a failed Responses stream to ${claudeFails ? 'Modal after the Claude API fails' : 'the Claude API'}`, async (t) => {
+      const requestedUrls = [];
+      const quota = new Map();
+      t.mock.method(globalThis, 'fetch', async (url) => {
+        requestedUrls.push(String(url));
+        if (String(url).startsWith('https://openai.example')) {
+          return new Response(
+            `event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: 'Partial Responses text' })}\n\n` +
+            'event: error\ndata: {"type":"error","error":{"message":"private upstream details"}}\n\n'
+          );
+        }
+        if (String(url).startsWith(CLAUDE_API_URL_PREFIX)) {
+          return claudeFails ? claudeErrorResponse(400) : claudeSseResponse(VALID_MODAL_READING);
+        }
+        if (String(url).endsWith('/v1/chat/completions')) return modalSseResponse(VALID_MODAL_READING);
+        throw new Error(`unexpected fetch: ${url}`);
+      });
+      const response = await onRequestPost({
+        request: makeRequest(BASE_PAYLOAD),
+        env: {
+          OPENAI_API_KEY: 'test-key',
+          OPENAI_BASE_URL: 'https://openai.example',
+          OPENAI_MODEL: 'gpt-5',
+          OPENAI_STREAMING_ENABLED: 'true',
+          ALLOW_STREAMING_WITH_EVAL_GATE: 'true',
+          ANTHROPIC_API_KEY: 'test-key',
+          MODAL_PROXY_TOKEN: 'wk-test.ws-test',
+          MODAL_ENDPOINT_URL: 'https://example.modal.direct',
+          EVAL_ENABLED: 'false',
+          EVAL_GATE_ENABLED: 'false',
+          STREAMING_SAFETY_SCAN_ENABLED: 'false',
+          STREAMING_QUALITY_GATE_ENABLED: 'false',
+          GRAPHRAG_ENABLED: 'false',
+          RATELIMIT: {
+            get: async (key) => quota.get(key) || null,
+            put: async (key, value) => { quota.set(key, value); }
+          }
+        }
+      });
+      assert.equal(response.status, 200);
+      const events = await collectSSEEvents(response);
+      const meta = events.find((event) => event.event === 'meta')?.data;
+      const done = events.find((event) => event.event === 'done')?.data;
+      assert.equal(done?.provider, claudeFails ? 'modal-qwen' : 'claude-api');
+      assert.equal(done.fullText, VALID_MODAL_READING);
+      assert.deepEqual(meta.backendErrors, (claudeFails ? ['openai-native', 'claude-api'] : ['openai-native'])
+        .map((backend) => ({ backend, error: 'Narrative provider request failed.', code: 'provider_request_failed' })));
+      assert.ok(!JSON.stringify(events).includes('private upstream details'));
+      assert.ok(!JSON.stringify(events).includes('Partial Responses text'));
+      assert.deepEqual(requestedUrls.map((url) => new URL(url).host), claudeFails
+        ? ['openai.example', 'api.anthropic.com', 'example.modal.direct']
+        : ['openai.example', 'api.anthropic.com']);
+      assert.deepEqual([...quota.entries()].filter(([key]) => key.startsWith('readings-monthly:')).map(([, value]) => value), ['1']);
+    });
+  }
+
+  it('uses Responses token streaming ahead of the Claude API', async (t) => {
     const requestedUrls = [];
+    const openaiRequestBodies = [];
     const quota = new Map();
-    t.mock.method(globalThis, 'fetch', async (url) => {
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
       requestedUrls.push(String(url));
+      if (String(url).startsWith('https://openai.example')) {
+        openaiRequestBodies.push(JSON.parse(init.body));
+        return new Response(createOpenAIStream([VALID_MODAL_READING]), {
+          headers: { 'content-type': 'text/event-stream' }
+        });
+      }
       if (String(url).startsWith(CLAUDE_API_URL_PREFIX)) return claudeSseResponse(VALID_MODAL_READING);
       throw new Error(`unexpected fetch: ${url}`);
     });
@@ -243,10 +309,11 @@ describe('streaming gate metadata', () => {
     assert.equal(response.status, 200);
     const events = await collectSSEEvents(response);
     const done = events.find((event) => event.event === 'done')?.data;
-    assert.equal(done?.provider, 'claude-api');
+    assert.equal(done?.provider, 'openai-native');
     assert.equal(done.fullText, VALID_MODAL_READING);
-    assert.equal(requestedUrls.filter((url) => url.includes('openai.example')).length, 0);
+    assert.equal(requestedUrls.filter((url) => url.startsWith(CLAUDE_API_URL_PREFIX)).length, 0);
     assert.equal(requestedUrls.length, 1);
+    assert.equal(openaiRequestBodies[0]?.stream, true);
   });
 
   it('refunds the reservation when OpenAI fails and no fallback supports the question language', async (t) => {
@@ -292,7 +359,9 @@ describe('streaming gate metadata', () => {
     assert.equal((await localResponse.json()).provider, 'local');
   });
 
-  it('keeps Modal primary when a streaming client and a Responses fallback are both configured', async () => {
+  // Only the Responses API streams tokens, and only as the primary provider.
+  // Without its key, Modal leads and a streaming client gets buffered output.
+  it('keeps Modal primary for a streaming client when token streaming is enabled without a Responses API key', async () => {
     const originalFetch = globalThis.fetch;
     const requestedUrls = [];
     globalThis.fetch = async (url) => {
@@ -312,7 +381,6 @@ describe('streaming gate metadata', () => {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
       MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
-      OPENAI_API_KEY: 'openai-test-key',
       OPENAI_BASE_URL: 'https://api.openai.example',
       OPENAI_MODEL: 'gpt-5-test',
       OPENAI_STREAMING_ENABLED: 'true',
@@ -338,6 +406,7 @@ describe('streaming gate metadata', () => {
       assert.equal(events.filter((event) => event.event === 'delta').map((event) => event.data.text).join(''), VALID_MODAL_READING);
       assert.ok(!JSON.stringify(events).includes('Private provider reasoning'));
       assert.deepEqual(requestedUrls, ['https://example.modal.direct/v1/chat/completions']);
+      assert.deepEqual(meta?.data.backendErrors || [], []);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -422,7 +491,8 @@ describe('streaming gate metadata', () => {
     assert.equal(events.find((event) => event.event === 'done')?.data.fullText, VALID_MODAL_READING);
   });
 
-  it('redacts Modal upstream failure details when a Responses fallback succeeds', async () => {
+  // The local composer is the only provider after Modal.
+  it('redacts Modal upstream failure details when the local composer answers', async () => {
     const originalFetch = globalThis.fetch;
     const requestedUrls = [];
     globalThis.fetch = async (url) => {
@@ -435,13 +505,6 @@ describe('streaming gate metadata', () => {
         });
       }
 
-      if (String(url).endsWith('/v1/responses')) {
-        return new Response(JSON.stringify({ output_text: VALID_MODAL_READING }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' }
-        });
-      }
-
       throw new Error(`Unexpected URL: ${url}`);
     };
 
@@ -449,7 +512,6 @@ describe('streaming gate metadata', () => {
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
       MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
-      OPENAI_API_KEY: 'openai-test-key',
       OPENAI_BASE_URL: 'https://api.openai.example',
       OPENAI_MODEL: 'gpt-5-test',
       OPENAI_STREAMING_ENABLED: 'true',
@@ -466,7 +528,7 @@ describe('streaming gate metadata', () => {
       const events = await collectSSEEvents(response);
       const meta = events.find((event) => event.event === 'meta');
 
-      assert.equal(meta?.data.provider, 'openai-native');
+      assert.equal(meta?.data.provider, 'local-composer');
       assert.deepEqual(meta?.data.backendErrors, [
         {
           backend: 'modal-qwen',
@@ -476,8 +538,7 @@ describe('streaming gate metadata', () => {
       ]);
       assert.ok(!JSON.stringify(meta?.data.backendErrors).includes('internal-router-node'));
       assert.deepEqual(requestedUrls, [
-        'https://example.modal.direct/v1/chat/completions',
-        'https://api.openai.example/v1/responses'
+        'https://example.modal.direct/v1/chat/completions'
       ]);
     } finally {
       globalThis.fetch = originalFetch;
@@ -507,19 +568,14 @@ describe('streaming gate metadata', () => {
             }]
           }), { headers: { 'content-type': 'application/json' } });
         }
-        if (String(url).endsWith('/v1/responses')) {
-          return new Response(JSON.stringify({ output_text: VALID_MODAL_READING }), {
-            headers: { 'content-type': 'application/json' }
-          });
-        }
         throw new Error(`Unexpected URL: ${url}`);
       });
 
+      // The local composer is the only provider after Modal.
       const env = {
         MODAL_PROXY_TOKEN: 'wk-test.ws-test',
         MODAL_ENDPOINT_URL: 'https://example.modal.direct',
         MODAL_MODEL: 'Qwen/Qwen3.8-Max-VL-Thinking',
-        OPENAI_API_KEY: 'openai-test-key',
         OPENAI_BASE_URL: 'https://api.openai.example',
         OPENAI_MODEL: 'gpt-5-test',
         OPENAI_STREAMING_ENABLED: 'true',
@@ -541,25 +597,24 @@ describe('streaming gate metadata', () => {
         const events = await collectSSEEvents(response);
         const done = events.find((event) => event.event === 'done');
         metadata = events.find((event) => event.event === 'meta')?.data;
-        assert.equal(done?.data.provider, 'openai-native');
-        assert.equal(done?.data.fullText, VALID_MODAL_READING);
-        assert.equal(events.filter((event) => event.event === 'delta').map((event) => event.data.text).join(''), VALID_MODAL_READING);
+        assert.equal(done?.data.provider, 'local-composer');
+        assert.ok(done?.data.fullText.trim().length > 0);
+        assert.equal(events.filter((event) => event.event === 'delta').map((event) => event.data.text).join(''), done.data.fullText);
         assert.ok(!JSON.stringify(events).includes('A truncated closing'));
       } else {
         metadata = await response.json();
-        assert.equal(metadata.reading, VALID_MODAL_READING);
+        assert.ok(metadata.reading.trim().length > 0);
         assert.ok(!JSON.stringify(metadata).includes('A truncated closing'));
       }
 
-      assert.equal(metadata?.provider, 'openai-native');
+      assert.equal(metadata?.provider, 'local-composer');
       assert.deepEqual(metadata?.backendErrors, [{
         backend: 'modal-qwen',
         error: 'Narrative provider request failed.',
         code: 'provider_request_failed'
       }]);
       assert.deepEqual(requestedUrls, [
-        'https://example.modal.direct/v1/chat/completions',
-        'https://api.openai.example/v1/responses'
+        'https://example.modal.direct/v1/chat/completions'
       ]);
     });
   }
@@ -567,12 +622,14 @@ describe('streaming gate metadata', () => {
   for (const stream of [false, true]) {
     it(`withholds an incorrect suit count before returning ${stream ? 'SSE' : 'JSON'}`, async (t) => {
       const incorrect = `${VALID_MODAL_READING}\n\nFour Cups cards dominate this spread.`;
-      t.mock.method(globalThis, 'fetch', async (url) => String(url).endsWith('/v1/chat/completions')
-        ? modalSseResponse(incorrect)
-        : Response.json({ output_text: VALID_MODAL_READING }));
+      t.mock.method(globalThis, 'fetch', async (url) => {
+        if (String(url).endsWith('/v1/chat/completions')) return modalSseResponse(incorrect);
+        throw new Error(`Unexpected URL: ${url}`);
+      });
+      // Without the Responses API key, Modal leads and the local composer follows it.
       const env = {
         MODAL_PROXY_TOKEN: 'wk-test.ws-test', MODAL_ENDPOINT_URL: 'https://example.modal.direct',
-        OPENAI_API_KEY: 'fixture-key', OPENAI_BASE_URL: 'https://api.openai.example', OPENAI_MODEL: 'gpt-5-test',
+        OPENAI_BASE_URL: 'https://api.openai.example', OPENAI_MODEL: 'gpt-5-test',
         EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', GRAPHRAG_ENABLED: 'false'
       };
       const request = stream ? makeRequest(BASE_PAYLOAD) : new Request('http://localhost/api/tarot-reading', {
@@ -580,17 +637,22 @@ describe('streaming gate metadata', () => {
       });
       const response = await onRequestPost({ request, env });
       assert.equal(response.status, 200);
+      let result;
       if (stream) {
         const events = await collectSSEEvents(response);
-        assert.equal(events.find((event) => event.event === 'done')?.data.provider, 'openai-native');
-        assert.equal(events.find((event) => event.event === 'done')?.data.fullText, VALID_MODAL_READING);
+        const done = events.find((event) => event.event === 'done')?.data;
+        result = events.find((event) => event.event === 'meta')?.data;
+        assert.equal(done?.provider, 'local-composer');
+        assert.ok(done?.fullText.trim().length > 0);
         assert.ok(!JSON.stringify(events).includes('Four Cups cards'));
       } else {
-        const result = await response.json();
-        assert.equal(result.provider, 'openai-native');
-        assert.equal(result.reading, VALID_MODAL_READING);
+        result = await response.json();
+        assert.equal(result.provider, 'local-composer');
+        assert.ok(result.reading.trim().length > 0);
         assert.ok(!JSON.stringify(result).includes('Four Cups cards'));
       }
+      assert.ok(result.backendErrors.some((error) => error.backend === 'modal-qwen'
+        && error.qualityIssues?.some((issue) => /^incorrect cups count/i.test(issue))));
     });
   }
 
