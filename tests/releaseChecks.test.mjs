@@ -59,6 +59,7 @@ it('grades production OpenAI readings with the key passed only to the narrative 
   for (const check of result.checks) {
     assert.equal(check.openaiKey, false, `${check.script} must not receive OPENAI_API_KEY`);
     assert.equal(check.evalOpenaiKey, check.script === 'ci:narrative-check', `${check.script} evaluation key`);
+    assert.equal(check.openaiTimeoutMs, check.script === 'ci:narrative-check' ? '600000' : null, `${check.script} OpenAI deadline`);
     assert.deepEqual(check.credentialKeys, [], `${check.script} must not receive provider credentials`);
   }
 });

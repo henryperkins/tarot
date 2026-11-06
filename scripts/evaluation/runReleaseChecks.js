@@ -31,7 +31,10 @@ export async function main() {
     if (!key) {
       throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider.`);
     }
-    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key };
+    // Batch qualification samples are non-streaming with unlimited output; the
+    // per-request production deadline (120s) is too short for the largest
+    // spreads, so the gate gets the bounded maximum unless the shell set one.
+    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key, OPENAI_TIMEOUT_MS: process.env.OPENAI_TIMEOUT_MS || '600000' };
     console.log('Release narrative gate: grading openai-native readings through the paid OpenAI Responses API.');
   } else {
     await verifyNarrativeSubscription(process.env);

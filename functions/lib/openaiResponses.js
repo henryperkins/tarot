@@ -4,6 +4,17 @@ import { observeInferenceAttempt } from './inferenceAttempts.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
 
+const OPENAI_DEFAULT_TIMEOUT_MS = 120000;
+const OPENAI_MAX_TIMEOUT_MS = 600000;
+
+/** Bounded OpenAI request deadline; OPENAI_TIMEOUT_MS mirrors ANTHROPIC_TIMEOUT_MS. */
+export function resolveOpenAITimeoutMs(env) {
+  const timeout = Number.parseInt(env?.OPENAI_TIMEOUT_MS, 10);
+  return Number.isFinite(timeout)
+    ? Math.min(OPENAI_MAX_TIMEOUT_MS, Math.max(1000, timeout))
+    : OPENAI_DEFAULT_TIMEOUT_MS;
+}
+
 /**
  * Validate and normalize native OpenAI Responses API configuration.
  *
@@ -174,9 +185,10 @@ async function callOpenAIResponsesImpl(env, {
   returnFullResponse = false,
   requestId = 'unknown',
   signal,
-  timeoutMs = 120000
+  timeoutMs = null
 }) {
   const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : resolveOpenAITimeoutMs(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   // Build request body
@@ -227,7 +239,7 @@ async function callOpenAIResponsesImpl(env, {
   });
 
   // Use retry logic with exponential backoff
-  const deadline = createDeadline({ signal, timeoutMs });
+  const deadline = createDeadline({ signal, timeoutMs: effectiveTimeoutMs });
   let data;
   try {
     data = await deadline.run(() => fetchWithRetry(
@@ -246,7 +258,7 @@ async function callOpenAIResponsesImpl(env, {
       {
         maxRetries: 3,
         baseDelayMs: 1000,
-        timeoutMs,
+        timeoutMs: effectiveTimeoutMs,
         includeResponseBodyInError: false,
         consumeResponse: (response) => response.json()
       }
