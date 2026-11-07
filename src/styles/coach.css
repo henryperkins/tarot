@@ -110,6 +110,22 @@
   border-top-color: rgb(var(--brand-secondary-rgb) / 0.45);
 }
 
+/* On short viewports the expanded alternatives (~320px with the header and
+   sticky footer) left only a sliver for Step 1 and clipped the first Topic
+   cards behind the footer. Below 900px the alternatives collapse behind
+   "N more ideas" at every width, as they already do on handsets; taller
+   viewports keep them expanded. This file is unlayered, so these rules
+   outrank the toggle's `sm:hidden` utility inside the media query. */
+@media (max-height: 900px) {
+  .coach-suggestions__toggle {
+    display: inline-flex;
+  }
+
+  .coach-suggestions__alternatives:not([data-expanded='true']) {
+    display: none;
+  }
+}
+
 .coach-review {
   display: flex;
   flex-direction: column;

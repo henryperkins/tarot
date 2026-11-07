@@ -129,7 +129,7 @@ export function CoachSuggestionsPanel({
             aria-expanded={showAlternatives}
             aria-controls={alternativesId}
             onClick={() => setShowAlternatives(shown => !shown)}
-            className={`${ACTION_CLASS} -ml-2 text-muted hover:text-main sm:hidden landscape:inline-flex`}
+            className={`${ACTION_CLASS} coach-suggestions__toggle -ml-2 text-muted hover:text-main sm:hidden landscape:inline-flex`}
           >
             <CaretDown
               className={`h-4 w-4 motion-safe:transition-transform ${showAlternatives ? 'rotate-180' : ''}`}
@@ -143,7 +143,8 @@ export function CoachSuggestionsPanel({
               bleed past the text column for their hover and focus area. */}
           <div
             id={alternativesId}
-            className={`divide-y divide-(--border-warm-light) border-t border-(--border-warm-light) ${showAlternatives ? '' : 'max-sm:hidden landscape:hidden'}`}
+            data-expanded={showAlternatives}
+            className={`coach-suggestions__alternatives divide-y divide-(--border-warm-light) border-t border-(--border-warm-light) ${showAlternatives ? '' : 'max-sm:hidden landscape:hidden'}`}
           >
             {alternatives.map((suggestion, index) => (
               <div key={suggestion.id || suggestion.label}>

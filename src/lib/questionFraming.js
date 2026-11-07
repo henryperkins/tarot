@@ -1,6 +1,8 @@
 // These are narrow English phrasing checks, not language detection or a
-// judgment of the question's meaning. Unknown words (including names) make
-// us abstain rather than attach English advice to uncertain/mixed language.
+// judgment of the question's meaning. A clearly English opening plus a
+// mostly-known vocabulary lets an everyday content noun or verb through;
+// several unknown words still make us abstain rather than attach English
+// advice to uncertain/mixed language.
 const ENGLISH_WORDS = new Set(`
   a an the i me my mine myself we us our ourselves you your yourself he him his
   she her hers they them their themselves it its this that these those
@@ -28,6 +30,46 @@ const ENGLISH_WORDS = new Set(`
   let go outcome outcomes guarantee guarantees guaranteed certainty certain
   sure promise promises promised destined fated inevitable meant feel feeling
   ready readying bring brings become becoming strongest best start end
+  promotion promotions succeed succeeds succeeded succeeding success successful
+  interview interviews interviewing apartment apartments conversation conversations
+  creative launch launches launched launching potential studio studios
+  manager managers colleague colleagues coworker coworkers office offices salary
+  raise raises rent rents landlord lease mortgage budget savings debt loan loans
+  bills income expense expenses application applications resume hiring hire hired
+  offer offers deadline deadlines meeting meetings presentation client clients
+  customer customers boss team leader leadership negotiate negotiating able
+  prepare preparing prepared plan planning plans decide decided deciding accept
+  ask asks asking tell tells telling say says saying listen listening hear hears
+  think thinks thinking believe believes hoping wish wishes try trying keep keeps
+  meet meets meeting ask question questions answer answers call calls calling
+  text texts message messages visit visits travel trip trips flight home house
+  room rooms place places city town move moved moving stay staying leave leaving
+  boyfriend girlfriend husband wife spouse dating date dates married marriage
+  divorce crush friend friendship friendships family families child children
+  parent parents mother father sister brother partner partners
+  doctor doctors therapy therapist sleep sleeping tired anxious anxiety stress
+  stressed rest resting exercise health healthy heal heals healing hurt hurts
+  pain pains feel feels feeling feelings afraid fear fears unsure uncertain
+  stuck overwhelmed confident confidence doubt doubts self-doubt
+  exam exams class classes teacher teachers student students degree degrees
+  school schools study studying learn learns learning book books write writes
+  writing art arts music song songs publish publishing project projects
+  able really just even yet already often sometimes usually recently currently
+  finally because while although though important possible difficult hard easy
+  happy happier happiness sad sadness glad proud brave strong stronger weak
+  better best worse worst early earlier late later soon sooner
+  landlord neighbor neighbors neighborhood licence license degree
+  negotiate approval approve approves approved transfer transfers promotion
+  salary wages wage bonus bonuses contract contracts agreement agreements
+  landlord tenant tenants rent rented renting lease leases mortgage
+  creative creativity artist artists writer writers audience audiences
+  launch launched launching release releases releasing publish published
+  conversation conversations discussion discussions talk talks talking
+  potential possible possibly opportunity opportunities chance chances
+  succeed success successful successfully failure failures fail fails
+  interview interviews interviewed job jobs work works working career
+  apartment apartments studio studios flat flats house houses home homes
+  improving improvement improvements grow grows growing grown develop develops
 `.trim().split(/\s+/));
 
 const OPEN_GRAMMAR = /^(?:how|what|where|why|which|who|when)\s+(?:can|could|do|does|did|should|would|will|am|are|is|was|were|has|have|might|must|needs?|support|help|guidance|insight|choices?|steps?)\b/i;
@@ -38,13 +80,21 @@ const ACCEPTING_UNCERTAINTY = /\b(?:not guaranteed|nothing is guaranteed)\b|\b(?
 
 function hasConfidentEnglishPhrasing(text) {
   if (typeof text !== 'string') return false;
-  // Latin letters alone are insufficient; even one unknown letter/word is
-  // enough to skip assessment. This deliberately misses some English text.
+  // Latin letters alone are insufficient, and a letter outside a-z (an
+  // accent or another script) still makes us abstain.
   if (/[^a-z]/i.test((text.match(/\p{L}/gu) || []).join(''))) return false;
   const words = text.toLowerCase().match(/[a-z]+(?:-[a-z]+)?/g) || [];
-  return words.length >= 3
-    && words.every(word => ENGLISH_WORDS.has(word))
-    && (OPEN_GRAMMAR.test(text) || CLOSED_GRAMMAR.test(text));
+  if (words.length < 3) return false;
+  // The opening must be recognisable English question grammar ("Will I …",
+  // "How can I …"), as in questionQuality's open/closed openers. Content
+  // words after that opening may be unfamiliar — a promotion, a studio, an
+  // interview — without discarding the whole question, but more than a
+  // stray unknown (two in a long question) reads as mixed/uncertain
+  // language and still abstains.
+  if (!OPEN_GRAMMAR.test(text) && !CLOSED_GRAMMAR.test(text)) return false;
+  const unknownCount = words.filter(word => !ENGLISH_WORDS.has(word)).length;
+  const unknownLimit = words.length >= 10 ? 2 : 1;
+  return unknownCount <= unknownLimit && unknownCount / words.length <= 0.25;
 }
 
 /** At most two optional phrasing suggestions; never a grade or a time requirement. */

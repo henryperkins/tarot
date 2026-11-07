@@ -39,7 +39,10 @@ export const FOCUS_AREA_TO_TOPIC = {
   self_worth: 'growth',
   healing: 'wellbeing',
   creativity: 'career',
-  spirituality: 'growth'
+  spirituality: 'growth',
+  // Trimmed onboarding pills (SpreadStep): Growth / Decision.
+  growth: 'growth',
+  decision: 'decision'
 };
 
 export const CONTEXT_HINTS = {
@@ -129,5 +132,20 @@ export const FOCUS_AREA_SUGGESTIONS = {
     timeframe: 'season',
     depth: 'deep',
     customFocus: 'my spiritual path'
+  },
+  // Trimmed onboarding pills (SpreadStep): Growth / Decision.
+  growth: {
+    label: 'Personal growth',
+    topic: 'growth',
+    timeframe: 'month',
+    depth: 'lesson',
+    customFocus: 'my personal growth and spiritual practice'
+  },
+  decision: {
+    label: 'Choices & crossroads',
+    topic: 'decision',
+    timeframe: 'week',
+    depth: 'guided',
+    customFocus: 'the decision currently on my mind'
   }
 };

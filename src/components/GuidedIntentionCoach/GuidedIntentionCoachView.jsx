@@ -57,7 +57,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const scrollRef = useRef(null);
   const footerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const reviewHeadingRef = useRef(null);
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
   const stepNavRef = useRef(null);
@@ -93,6 +92,18 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     backGuardId: 'intentionCoach'
   });
 
+  // The suggestions panel sits above the wizard, so "show this step" means
+  // bringing the step tabs to the top of the scroller, not scrolling to 0.
+  // Land exactly on the nav: any offset above it leaves a sliver of the
+  // suggestions (or, on Review, slices the step labels) in view.
+  const revealStepNav = useCallback(() => {
+    const container = scrollRef.current;
+    const nav = stepNavRef.current;
+    if (!container || !nav) return;
+    const top = nav.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    container.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
+  }, []);
+
   useEffect(() => {
     if (!isOpen || isTemplatePanelOpen) return undefined;
     const last = previousReviewRef.current;
@@ -113,10 +124,13 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
       // Arrow navigation keeps the active tab focused. Footer entry, initial
       // entry and explicit suggestion/template picks land in the editor.
       if (!fromStepTab || requestChanged) questionInputRef.current?.focus({ preventScroll: true });
-      reviewHeadingRef.current?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+      // Keep the step tabs whole at the top of the scroller. Scrolling the
+      // heading below them to the top pushed the numbered circles and
+      // labels above the viewport and sliced them in half.
+      revealStepNav();
     }, 0);
     return () => clearTimeout(timer);
-  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, questionInputRef, prefersReducedMotion]);
+  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, questionInputRef, revealStepNav]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -157,16 +171,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
       seed: ['suggestion', suggestion.id || suggestion.label || 'preview', nextTopic, nextTimeframe, nextDepth, nextFocus].join('|')
     });
   }, [topic, timeframe, depth, selectedSpread]);
-
-  // The suggestions panel sits above the wizard, so "show this step" means
-  // bringing the step tabs to the top of the scroller, not scrolling to 0.
-  const revealStepNav = useCallback(() => {
-    const container = scrollRef.current;
-    const nav = stepNavRef.current;
-    if (!container || !nav) return;
-    const top = nav.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-    container.scrollTo({ top: Math.max(0, top - 16), behavior: 'instant' });
-  }, []);
 
   // Footer Back/Next change the step without touching the tabs; follow them
   // to the step they moved to. Only a sticky footer stays put while the
@@ -257,7 +261,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
 
   const renderReview = () => (
     <section className="coach-review" aria-labelledby={reviewHeadingId}>
-      <h3 ref={reviewHeadingRef} id={reviewHeadingId} className="font-serif text-xl sm:text-2xl text-main">Review your question</h3>
+      <h3 id={reviewHeadingId} className="font-serif text-xl sm:text-2xl text-main">Review your question</h3>
       <div className="space-y-2" aria-busy={questionLoading}>
         <label htmlFor={questionId} className="block text-sm font-medium text-main">Your Question</label>
         <textarea

@@ -366,9 +366,11 @@ function CoachSession({
     }
     const payload = {
       label,
-      topic,
-      timeframe,
-      depth,
+      // A manually edited question is not described by the wizard settings
+      // behind it, so do not persist those settings as its summary.
+      ...(isManualQuestion
+        ? { isManualQuestion: true }
+        : { topic, timeframe, depth }),
       customFocus,
       useCreative,
       savedQuestion: trimmedQuestion
@@ -390,6 +392,7 @@ function CoachSession({
   }, [
     newTemplateLabel,
     currentQuestion,
+    isManualQuestion,
     topic,
     timeframe,
     depth,
@@ -414,14 +417,17 @@ function CoachSession({
     setGenerationRequest(null);
     setQuestionOrigin('reader');
     if (!originalQuestion && template.savedQuestion) setOriginalQuestion(template.savedQuestion);
-    if (template.topic && template.topic !== topic) {
+    // Manual templates carry no settings that describe their wording, and
+    // legacy ones may carry stale settings; never let either overwrite
+    // the reader's current settings on apply.
+    if (!template.isManualQuestion && template.topic && template.topic !== topic) {
       releasePrefill();
       setTopic(template.topic);
     }
-    if (template.timeframe && template.timeframe !== timeframe) {
+    if (!template.isManualQuestion && template.timeframe && template.timeframe !== timeframe) {
       setTimeframe(template.timeframe);
     }
-    if (template.depth && template.depth !== depth) {
+    if (!template.isManualQuestion && template.depth && template.depth !== depth) {
       setDepth(template.depth);
     }
     setCustomFocus(template.customFocus || '');
