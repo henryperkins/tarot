@@ -417,9 +417,9 @@ function CoachSession({
     setGenerationRequest(null);
     setQuestionOrigin('reader');
     if (!originalQuestion && template.savedQuestion) setOriginalQuestion(template.savedQuestion);
-    // Manual templates carry no settings that describe their wording, and
-    // legacy ones may carry stale settings; never let either overwrite
-    // the reader's current settings on apply.
+    // A manual template's settings never described its wording, so applying
+    // it keeps the reader's current settings. Templates saved before the
+    // flag existed cannot be told apart and still apply theirs.
     if (!template.isManualQuestion && template.topic && template.topic !== topic) {
       releasePrefill();
       setTopic(template.topic);
