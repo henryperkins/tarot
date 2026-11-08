@@ -1,4 +1,4 @@
-import { Sparkle, ArrowRight, Trash, Info, Fire } from '@phosphor-icons/react';
+import { Sparkle, ArrowRight, Trash, Info, Fire, Lightbulb } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import {
     FOCUS_RING_ACCENT_50,
@@ -257,7 +257,10 @@ export function CoachSuggestion({
         return (
             <div className={`${classes.container} ${className}`.trim()}>
                 {headlineText && (
-                    <p className={classes.headline}>💡 {headlineText}</p>
+                    <p className={classes.headline}>
+                        <Lightbulb className="mr-1.5 inline-block h-4 w-4 align-[-0.2em]" aria-hidden="true" />
+                        {headlineText}
+                    </p>
                 )}
                 {filtersActive && scopeLabel && (
                     <p className={classes.scope}>

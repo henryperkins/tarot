@@ -169,6 +169,35 @@ test('the owner deletes a link and it stops opening; other accounts cannot', asy
   assert.equal(opened.status, 404);
 });
 
+test('an opened link shows the shared reading, never the owner’s private notes, narrative or seed', async (t) => {
+  const { db, env, create } = await fixture(t);
+  await seedEntry(db, {
+    id: 'entry-private',
+    userId: 'owner',
+    deckId: 'thoth-a1',
+    narrative: 'Owner-only narrative that names their saved memories.',
+    reflections: { 0: 'A private note on the first card.', Overall: 'A private note on the whole reading.' },
+    sessionSeed: 'seed-private-1'
+  });
+  const { token } = await create({ scope: 'entry', entryIds: ['entry-private'] });
+
+  const opened = await openShare({ request: request(`/api/share/${token}`, { session: null }), env, params: { token } });
+  assert.equal(opened.status, 200);
+  const body = await opened.json();
+  assert.equal(body.entries.length, 1);
+  const [entry] = body.entries;
+  assert.deepEqual(Object.keys(entry).sort(), ['cards', 'deckId', 'id', 'question', 'spread', 'spreadKey', 'ts']);
+  assert.equal(entry.deckId, 'thoth-a1');
+  assert.equal(entry.cards.length, 3);
+  const raw = JSON.stringify(body);
+  for (const secret of ['A private note', 'Owner-only narrative', 'seed-private-1']) {
+    assert.ok(!raw.includes(secret), `public share response must not contain "${secret}"`);
+  }
+  // Server-side aggregates still see the whole entry.
+  assert.equal(body.stats.totalReadings, 1);
+  assert.equal(body.meta.entryCount, 1);
+});
+
 test('share titles are one line of at most 80 characters, never splitting a character', () => {
   assert.equal(normalizeShareTitle('  a\n\tb  '), 'a b');
   assert.equal(normalizeShareTitle('   '), null);

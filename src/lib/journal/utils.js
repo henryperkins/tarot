@@ -29,6 +29,7 @@ export function buildJournalMonthSections(entries, { consecutive = false } = {})
       section = {
         key,
         label: dated ? getMonthHeader(timestamp) : 'Undated',
+        shortLabel: dated ? date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Undated',
         anchorId: `month-${key}${byMonth.has(key) ? `-${index}` : ''}`,
         firstIndex: index,
         items: [],
@@ -51,14 +52,6 @@ export function formatSummaryDate(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'No entries yet';
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-/**
- * Get the top context from stats breakdown
- */
-export function getTopContext(stats) {
-  if (!stats?.contextBreakdown?.length) return null;
-  return stats.contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
 }
 
 /**
@@ -168,4 +161,19 @@ export function getLatestEntryTimestamp(entries) {
     if (!latest || ts > latest) return ts;
     return latest;
   }, null);
+}
+
+/**
+ * One sentence for the saved-readings list: what shows, what matches, and out
+ * of how many. `searched` is the number of readings a filter looked through.
+ */
+export function describeHistoryResults({ pending = false, visible = 0, matched = 0, searched = 0, filtersActive = false } = {}) {
+  const readings = (count) => `${count} ${count === 1 ? 'reading' : 'readings'}`;
+  if (pending) return `Showing ${visible} loaded ${visible === 1 ? 'reading' : 'readings'}`;
+  if (!filtersActive) {
+    return visible < matched ? `Showing ${visible} of ${readings(matched)}` : readings(matched);
+  }
+  if (matched === 0) return 'No readings match';
+  const match = `${matched} of ${readings(searched)} ${matched === 1 ? 'matches' : 'match'}`;
+  return visible < matched ? `${match} · showing ${visible}` : match;
 }

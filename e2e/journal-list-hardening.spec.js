@@ -62,7 +62,7 @@ test('month navigation includes the complete filtered history and reveals its de
   const search = page.getByRole('searchbox', { name: 'Search journal entries' });
   await search.fill('Reflection 2-');
   await expect(page.locator('#history article')).toHaveCount(10);
-  await expect(page.getByText('Showing 10 of 10 readings', { exact: true })).toBeVisible();
+  await expect(page.getByText('10 of 35 readings match', { exact: true })).toBeVisible();
   await expect(search).toBeFocused();
 });
 
@@ -96,6 +96,9 @@ test('row actions identify their reading and articles expose the reading heading
   await openList(page);
   const first = page.getByRole('article', { name: FIRST_QUESTION, exact: true });
   await expect(first).toBeVisible();
+  // A collapsed row is one target; its actions appear once the reading is open.
+  await expect(first.getByRole('button', { name: /^(Copy summary|Open entry actions) for / })).toHaveCount(0);
+  await toggle(first).click();
   await expect(first.getByRole('button', { name: `Copy summary for ${FIRST_QUESTION}`, exact: true })).toBeVisible();
   await first.getByRole('button', { name: `Open entry actions for ${FIRST_QUESTION}`, exact: true }).press('Enter');
   await expect(page.getByRole('menu')).toBeVisible();
@@ -131,7 +134,9 @@ for (const theme of ['dark', 'light']) {
   test(`existing-share controls keep 44px targets at 320px in ${theme} mode`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 740 });
     await openList(page, { owner: true, theme });
-    await page.locator('#history article').first().getByRole('button', { name: /^Open entry actions/ }).click();
+    const first = page.locator('#history article').first();
+    await toggle(first).click();
+    await first.getByRole('button', { name: /^Open entry actions/ }).click();
     const menu = page.getByRole('menu');
     await expect(menu.getByRole('group', { name: 'A saved reflection', exact: true })).toBeVisible();
     for (const name of ['Copy link', 'Delete']) {

@@ -58,7 +58,8 @@ test('first readings work while bounded pages load; full-text search waits for c
   await expect.poll(() => Boolean(state.release)).toBe(true);
   state.release();
   await expect(search).toBeEnabled();
-  await expect(page.getByText('Loaded: 300 of 300', { exact: true })).toBeVisible();
+  // One results sentence; a fully loaded journal needs no coverage note.
+  await expect(page.getByText('Showing 10 of 300 readings', { exact: true })).toBeVisible();
   expect(state.requests).toHaveLength(4);
   expect(state.requests.every(query => Number(new URLSearchParams(query).get('limit')) <= 100)).toBe(true);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_journal_cache_optimized-owner')).length)).toBe(300);
@@ -73,19 +74,17 @@ test('completed history reconciles both count labels when server rows include a 
   const state = await openPaged(page, { entries: values.slice(0, 12), total: 13, hold: true });
   const search = page.getByRole('searchbox', { name: 'Search journal entries' });
   await expect(search).toBeDisabled();
-  await expect(page.getByText('Loaded: 10 of 13', { exact: true })).toBeVisible();
-  await expect(page.getByText('Loaded 10 of 13 entries', { exact: true })).toBeVisible();
+  await expect(page.getByText('Showing 10 loaded readings · Loaded 10 of 13 entries', { exact: true })).toBeVisible();
   await expect.poll(() => Boolean(state.release)).toBe(true);
   state.release();
 
   await expect(search).toBeEnabled();
-  await expect(page.getByText('Loaded: 12 of 12', { exact: true })).toBeVisible();
   await expect(page.getByText('Showing 10 of 12 readings', { exact: true })).toBeVisible();
   await expect(page.getByText(/^Loaded [0-9]+ of [0-9]+ entries$/)).toHaveCount(0);
   await search.fill('A personal note 11');
   await expect(page.locator('#history article')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Saved question 11', exact: true })).toBeVisible();
-  await expect(page.getByText('Loaded: 12 of 12', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 of 12 readings matches', { exact: true })).toBeVisible();
 });
 
 test('an interrupted background page pauses automatically and explicit retry restores full-history tools', async ({ page }) => {
@@ -99,7 +98,8 @@ test('an interrupted background page pauses automatically and explicit retry res
   expect(state.requests.length).toBe(requestCount);
   await retry.press('Enter');
   await expect(page.getByRole('searchbox', { name: 'Search journal entries' })).toBeEnabled();
-  await expect(page.getByText('Loaded: 300 of 300', { exact: true })).toBeVisible();
+  // Retry also shows the next batch; with all 300 loaded the sentence carries no coverage note.
+  await expect(page.getByText('Showing 20 of 300 readings', { exact: true })).toBeVisible();
   await expect(retry).toHaveCount(0);
 });
 
@@ -110,6 +110,8 @@ test('retry stays reachable when the loaded readings are deleted before older hi
   await page.route('**/api/journal/optimized-0', route => route.fulfill({ json: {
     success: true, retiredReadingResultIds: ['optimized-result-0']
   } }));
+  // Entry actions belong to the open reading.
+  await page.locator('#history article [data-journal-entry-toggle]').click();
   await page.locator('#history article').getByRole('button', { name: /^Open entry actions for / }).click();
   await page.getByRole('menuitem', { name: 'Delete entry', exact: true }).click();
   await page.getByRole('dialog', { name: 'Delete Journal Entry' }).getByRole('button', { name: 'Delete', exact: true }).click();

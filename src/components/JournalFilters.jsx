@@ -3,10 +3,12 @@ import {
   CaretDown,
   Check,
   ListBullets,
-  SquaresFour
+  SquaresFour,
+  X
 } from '@phosphor-icons/react';
-import { JournalBookmarkIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
+import { JournalBookmarkIcon, JournalRefreshIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
+import { PRESSED_FORCED_COLORS_CLASS } from '../styles/buttonClasses';
 import { ConfirmModal } from './ConfirmModal';
 import { readSavedViews, writeSavedViews, importLegacySavedViews, hasLegacySavedViews } from '../lib/journal/savedViews.js';
 import { DEFAULT_FILTERS } from '../lib/journal/constants';
@@ -131,6 +133,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
     const selectedOption = options.find(o => o.value === value);
     if (selectedOption) displayLabel = selectedOption.label;
   }
+  // The name carries the filter and its current choice, and contains the visible text.
+  const accessibleName = multiple
+    ? (activeCount > 0 ? `${label}, ${activeCount} selected` : label)
+    : (displayLabel !== label ? `${label}: ${displayLabel}` : label);
 
   return (
     <div className="relative" ref={containerRef}>
@@ -143,8 +149,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
-        aria-label={label}
-        aria-pressed={activeCount > 0}
+        aria-label={accessibleName}
       >
         {multiple && <span>{label}</span>}
         {!multiple && <span className={value !== 'all' ? 'text-(--brand-primary)' : ''}>{displayLabel}</span>}
@@ -194,8 +199,9 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
 
 export function JournalFilters({
   filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full',
-  viewMode = 'comfortable', onViewModeChange, resultCount, totalCount,
-  searchCoverageLabel, searchScopeLabel, onSearchRef, ownerId = null, storageReady = true
+  viewMode = 'comfortable', onViewModeChange, resultsLabel,
+  searchCoverageLabel, searchScopeLabel, onSearchRef, ownerId = null, storageReady = true,
+  activeFilterChips = [], onRemoveFilter
 }) {
   const isCompact = variant === 'compact';
   const loadViews = () => ({ ownerId, ready: storageReady,
@@ -207,19 +213,24 @@ export function JournalFilters({
   const current = viewState.ownerId === ownerId && viewState.ready === storageReady ? viewState : loadViews();
   const updateViews = patch => setViewState(previous => previous.ownerId === ownerId && previous.ready === storageReady
     ? { ...previous, ...patch } : previous);
+  // The filter controls open on request; the reader's last choice is remembered.
   const [filtersOpen, setFiltersOpen] = useState(() => {
-    try {
-      const stored = localStorage.getItem('journal_filters_advanced_v1');
-      return stored === 'true' || (stored !== 'false' && !isCompact);
-    } catch { return !isCompact; }
+    try { return localStorage.getItem('journal_filters_advanced_v1') === 'true'; } catch { return false; }
   });
+  const filtersPanelId = useId();
   const searchInputRef = useRef(null);
+  const filtersToggleRef = useRef(null);
   const saveNameInputRef = useRef(null);
+  const chipButtonRefs = useRef(new Map());
+  const pendingFocusRef = useRef(null);
   const savedFilters = current.views;
   const snapshot = () => ({ ...DEFAULT_FILTERS, ...filters,
     contexts: [...(filters.contexts || [])], spreads: [...(filters.spreads || [])], decks: [...(filters.decks || [])] });
   const activeFilters = Boolean(filters.query?.trim() || filters.contexts?.length || filters.spreads?.length
     || filters.decks?.length || filters.timeframe !== 'all' || filters.onlyReversals || filters.journeyFilter);
+  // The search box shows its own words, so the chips name everything else.
+  const filterChips = (Array.isArray(activeFilterChips) ? activeFilterChips : []).filter(chip => chip.key !== 'query');
+  const chipSignature = filterChips.map(chip => chip.key).join('|');
   const legacyAvailable = storageReady && typeof localStorage !== 'undefined' && hasLegacySavedViews(localStorage, ownerId);
 
   useEffect(() => {
@@ -229,6 +240,13 @@ export function JournalFilters({
   useEffect(() => {
     if (current.saveOpen) saveNameInputRef.current?.focus();
   }, [current.saveOpen]);
+  // A control that removes itself hands focus on: the next filter chip, else search.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    pendingFocusRef.current = null;
+    (chipButtonRefs.current.get(target) || searchInputRef.current)?.focus();
+  }, [chipSignature, activeFilters]);
 
   const persistSavedFilters = next => {
     if (!storageReady || typeof localStorage === 'undefined') return;
@@ -243,83 +261,123 @@ export function JournalFilters({
     persistSavedFilters(existing ? savedFilters.map(item => item.id === existing.id ? view : item) : [view, ...savedFilters]);
   };
   const clearFilters = () => {
+    pendingFocusRef.current = 'search';
     updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS });
   };
+  const removeChip = (key) => {
+    const index = filterChips.findIndex(chip => chip.key === key);
+    const remaining = filterChips.filter(chip => chip.key !== key);
+    pendingFocusRef.current = remaining[index]?.key || remaining[index - 1]?.key || 'search';
+    onRemoveFilter?.(key);
+  };
+  const toggleFilters = () => {
+    const open = !filtersOpen;
+    setFiltersOpen(open);
+    try { localStorage.setItem('journal_filters_advanced_v1', String(open)); } catch { /* Optional presentation preference. */ }
+  };
+
+  const viewModeSwitch = onViewModeChange ? (
+    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-(--border-warm-light) p-1" role="group" aria-label="List view mode">
+      {/* One name at every width; forced colors mark the chosen view with Highlight. */}
+      {[['comfortable', SquaresFour, 'Comfortable'], ['compact', ListBullets, 'Compact']].map(([mode, Icon, label]) => (
+        <button key={mode} type="button" onClick={() => onViewModeChange(mode)} aria-pressed={viewMode === mode}
+          title={mode === 'compact' ? 'Compact view - shows more entries' : 'Comfortable view - shows more details'}
+          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus text-main ${viewMode === mode ? 'bg-(--ui-selected-bg)' : ''} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
+          <Icon className="h-4 w-4" aria-hidden="true" />{label}
+        </button>
+      ))}
+    </div>
+  ) : null;
 
   return (
-    <section aria-label="Journal filters" className="relative rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-3 sm:p-4 space-y-3">
+    <section aria-label="Journal filters" className="relative space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-[1_1_14rem]">
+        <div className="relative min-w-0 flex-[1_1_11rem]">
           <JournalSearchIcon className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" aria-hidden="true" />
           <input ref={searchInputRef} type="search" value={filters.query}
             onChange={event => onChange({ ...filters, query: event.target.value })}
             placeholder="Search readings..." aria-label="Search journal entries"
             className={`w-full min-h-touch rounded-xl border border-(--border-warm) bg-(--bg-main) pl-9 pr-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`} />
         </div>
-        {activeFilters && <button type="button" onClick={clearFilters}
-          className={`inline-flex min-h-touch items-center gap-2 rounded-xl border border-(--border-warm) px-3 py-2 text-xs-plus font-semibold text-main ${FOCUS_RING_DEFAULT} disabled:opacity-50 disabled:cursor-not-allowed`}>
-          <JournalRefreshIcon className="h-4 w-4" aria-hidden="true" />Reset view
-        </button>}
+        <button ref={filtersToggleRef} type="button" onClick={toggleFilters}
+          aria-expanded={filtersOpen} aria-controls={filtersPanelId}
+          aria-label={filterChips.length > 0 ? `Filters, ${filterChips.length} active` : 'Filters'}
+          className={`${OUTLINE_FILTER_BASE} ${filterChips.length > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>
+          <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
+          <span>Filters</span>
+          {filterChips.length > 0 && (
+            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs tabular-nums">
+              {filterChips.length}
+            </span>
+          )}
+          <CaretDown className={`h-3 w-3 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+        {/* Phones keep search and Filters on one row; the view switch waits in the panel. */}
+        {!isCompact && viewModeSwitch}
       </div>
-      <div className="flex flex-wrap items-start gap-2">
-        <details open={filtersOpen} className={`min-w-0 ${filtersOpen ? 'basis-full sm:flex-[1_1_10rem]' : 'flex-[1_1_4rem]'}`} onToggle={event => {
-          const open = event.currentTarget.open; setFiltersOpen(open);
-          try { localStorage.setItem('journal_filters_advanced_v1', String(open)); } catch { /* Optional presentation preference. */ }
-        }}>
-          <summary className={`min-h-touch content-center cursor-pointer rounded-xl px-2.5 text-sm font-medium text-main ${FOCUS_RING_DEFAULT}`}>Filters</summary>
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-        <FilterDropdown label="Timeframe" options={TIMEFRAME_OPTIONS} value={filters.timeframe} onChange={value => onChange({ ...filters, timeframe: value })} />
-        {contexts.length > 0 && <FilterDropdown label="Context" options={contexts} value={filters.contexts} multiple onChange={value => onChange({ ...filters, contexts: value })} />}
-        {spreads.length > 0 && <FilterDropdown label="Spread" options={spreads} value={filters.spreads} multiple onChange={value => onChange({ ...filters, spreads: value })} />}
-        {decks.length > 0 && <FilterDropdown label="Deck" options={decks} value={filters.decks} multiple onChange={value => onChange({ ...filters, decks: value })} />}
-        <button type="button" aria-pressed={filters.onlyReversals} onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
-          className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>Reversals</button>
-          </div>
-          <details className="mt-2 text-xs text-muted">
+
+      {filtersOpen && (
+        <div id={filtersPanelId} role="group" aria-label="Filter saved readings" className="flex flex-wrap items-center gap-2">
+          <FilterDropdown label="Timeframe" options={TIMEFRAME_OPTIONS} value={filters.timeframe} onChange={value => onChange({ ...filters, timeframe: value })} />
+          {contexts.length > 0 && <FilterDropdown label="Context" options={contexts} value={filters.contexts} multiple onChange={value => onChange({ ...filters, contexts: value })} />}
+          {spreads.length > 0 && <FilterDropdown label="Spread" options={spreads} value={filters.spreads} multiple onChange={value => onChange({ ...filters, spreads: value })} />}
+          {decks.length > 0 && <FilterDropdown label="Deck" options={decks} value={filters.decks} multiple onChange={value => onChange({ ...filters, decks: value })} />}
+          <button type="button" aria-pressed={filters.onlyReversals} onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
+            className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>Reversals</button>
+          {isCompact && viewModeSwitch}
+          <details className="basis-full text-xs text-muted">
             <summary className={`min-h-touch content-center cursor-pointer rounded-lg ${FOCUS_RING_DEFAULT}`}>What fields are searched?</summary>
             <p className="pt-1 leading-relaxed">Search your questions, card names and positions, reading narratives, reflections, spreads, and contexts.</p>
           </details>
-        </details>
-        {onViewModeChange && (
-          <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-(--border-warm-light) p-1" role="group" aria-label="List view mode">
-            {[['comfortable', SquaresFour, isCompact ? 'Cards' : 'Comfortable'], ['compact', ListBullets, isCompact ? 'List' : 'Compact']].map(([mode, Icon, label]) => (
-              <button key={mode} type="button" onClick={() => onViewModeChange(mode)} aria-pressed={viewMode === mode}
-                title={mode === 'compact' ? 'Compact view - shows more entries' : 'Comfortable view - shows more details'}
-                className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus text-main ${viewMode === mode ? 'bg-(--ui-selected-bg)' : ''} ${FOCUS_RING_DEFAULT}`}>
-                <Icon className="h-4 w-4" aria-hidden="true" />{label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {filters.query?.trim() && typeof resultCount === 'number' && (
-        <p className="text-sm text-muted" role="status">Found {resultCount} in {totalCount} readings{resultCount === 0 ? ' — try different keywords.' : '.'}</p>
+        </div>
       )}
-      {(searchCoverageLabel || searchScopeLabel) && <p className="text-xs text-muted">{[searchCoverageLabel, searchScopeLabel].filter(Boolean).join(' · ')}</p>}
-      {(savedFilters.length > 0 || activeFilters) && (
-        <div className="space-y-2 border-t border-(--border-warm-light) pt-3">
-          {savedFilters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Saved views">
-              {savedFilters.map(saved => (
-                <div key={saved.id} className="inline-flex max-w-full items-center rounded-xl border border-(--border-warm-light)">
-                  <button type="button" onClick={() => { updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS, ...saved.values }); }}
-                    className={`min-h-touch min-w-0 px-3 py-2 text-left text-sm text-main wrap-anywhere ${FOCUS_RING_DEFAULT}`}>{saved.name}</button>
-                  <button type="button" aria-label={`Delete saved filter ${saved.name}`} onClick={() => persistSavedFilters(savedFilters.filter(item => item.id !== saved.id))}
-                    className={`min-h-touch min-w-touch rounded-xl text-muted hover:text-error ${FOCUS_RING_DEFAULT}`}><span aria-hidden="true">×</span></button>
-                </div>
-              ))}
-            </div>
-          )}
-          {activeFilters && (!current.saveOpen ? (
+
+      {activeFilters && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Active filters">
+          {filterChips.map(chip => (
+            <button key={chip.key} type="button"
+              ref={node => { if (node) chipButtonRefs.current.set(chip.key, node); else chipButtonRefs.current.delete(chip.key); }}
+              onClick={() => removeChip(chip.key)} aria-label={`Remove ${chip.label} filter`}
+              className={`inline-flex min-h-touch max-w-full items-center gap-1.5 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-1.5 text-xs font-semibold text-main hover:border-(--border-warm) ${FOCUS_RING_DEFAULT}`}>
+              <span className="min-w-0 wrap-anywhere">{chip.label}</span>
+              <X className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
+            </button>
+          ))}
+          <button type="button" onClick={clearFilters}
+            className={`inline-flex min-h-touch items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-accent underline-offset-4 hover:underline ${FOCUS_RING_DEFAULT}`}>
+            <JournalRefreshIcon className="h-3.5 w-3.5" aria-hidden="true" />Reset view
+          </button>
+          {!current.saveOpen ? (
             <button type="button" disabled={!storageReady} onClick={() => updateViews({ saveOpen: true })}
-              className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}><JournalBookmarkIcon className="h-4 w-4" aria-hidden="true" />Save this view</button>
+              className={`inline-flex min-h-touch items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-main hover:text-accent disabled:opacity-50 ${FOCUS_RING_DEFAULT}`}>
+              <JournalBookmarkIcon className="h-3.5 w-3.5" aria-hidden="true" />Save this view
+            </button>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex basis-full flex-wrap items-center gap-2">
               <input ref={saveNameInputRef} value={current.name} onChange={event => updateViews({ name: event.target.value })}
                 placeholder="Name this view" aria-label="Name for saved filter view"
                 className={`min-h-touch min-w-0 flex-[1_1_12rem] rounded-xl border border-(--border-warm) bg-(--bg-main) px-3 py-2 text-sm-mobile text-main ${FOCUS_RING_DEFAULT}`} />
               <button type="button" disabled={!current.name.trim()} onClick={handleSaveCurrent} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE} disabled:opacity-50`}>Save current</button>
               <button type="button" onClick={() => updateViews({ name: '', saveOpen: false })} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}>Cancel</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(resultsLabel || searchCoverageLabel || searchScopeLabel) && (
+        <p className="text-sm text-muted">
+          {[resultsLabel, searchCoverageLabel, searchScopeLabel].filter(Boolean).join(' · ')}
+        </p>
+      )}
+
+      {savedFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Saved views">
+          {savedFilters.map(saved => (
+            <div key={saved.id} className="inline-flex max-w-full items-center rounded-xl border border-(--border-warm-light)">
+              <button type="button" onClick={() => { updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS, ...saved.values }); }}
+                className={`min-h-touch min-w-0 px-3 py-2 text-left text-sm text-main wrap-anywhere ${FOCUS_RING_DEFAULT}`}>{saved.name}</button>
+              <button type="button" aria-label={`Delete saved filter ${saved.name}`} onClick={() => persistSavedFilters(savedFilters.filter(item => item.id !== saved.id))}
+                className={`min-h-touch min-w-touch rounded-xl text-muted hover:text-error ${FOCUS_RING_DEFAULT}`}><span aria-hidden="true">×</span></button>
             </div>
           ))}
         </div>

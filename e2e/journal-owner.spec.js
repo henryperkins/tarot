@@ -97,7 +97,9 @@ for (const [width, deckStyle] of [[1440, 'rws-1909'], [390, 'rws-1909'], [320, '
         await expect(cardButton(card.card, card.orientation)).toBeVisible();
       }
       if (deckStyle === 'thoth-a1') {
-        await expect(cardButton('Knight of Cups', 'Reversed').locator('img')).toHaveAttribute('src', '/images/cards/RWS1909_-_Cups_14.jpeg');
+        // The Thoth label resolves to its canonical card (the RWS King of Cups, 14) and is
+        // shown in the reading's own deck: the Thoth Knight of Cups art.
+        await expect(cardButton('Knight of Cups', 'Reversed').locator('img')).toHaveAttribute('src', '/images/cards/thoth/thoth_cups_14_knight-cups.png');
         await renderedCards.scrollIntoViewIfNeeded();
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         await page.screenshot({ path: testInfo.outputPath('journal-thoth-cards.png'), fullPage: false });

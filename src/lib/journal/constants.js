@@ -40,10 +40,11 @@ export const SCOPE_OPTIONS = [
   { value: 'custom', label: 'Custom' }
 ];
 
+// Chips name a timeframe the way the Timeframe filter does.
 export const TIMEFRAME_LABELS = {
-  '30d': 'Last 30d',
-  '90d': 'Last 90d',
-  ytd: 'Year to date'
+  '30d': 'Last 30 days',
+  '90d': 'Last 90 days',
+  ytd: 'This year'
 };
 
 // Card metadata
@@ -77,19 +78,22 @@ export const VISIBLE_ENTRY_BATCH = 10;
 // Layout breakpoints
 export const MOBILE_LAYOUT_MAX = 1023;
 
-// Constellation card positions for summary band
+// Constellation card positions for the summary band (percent of the 340px stage).
+// One row in reading order (entries, reversal, context, last entry): the 160px
+// hero and three 140px cards keep about 10px apart at the stage's 40em minimum,
+// and the tallest card (256px) stays inside the stage height.
 export const CARD_NODE_POSITIONS = {
-  entries: { x: 50, y: 50 },
-  reversal: { x: 78, y: 38 },
-  context: { x: 24, y: 36 },
-  'last-entry': { x: 52, y: 74 }
+  entries: { x: 14.8, y: 48 },
+  reversal: { x: 39.7, y: 52 },
+  context: { x: 63.2, y: 48 },
+  'last-entry': { x: 86.6, y: 52 }
 };
 
 export const CARD_NODE_FALLBACK = [
-  { x: 24, y: 36 },
-  { x: 78, y: 38 },
-  { x: 50, y: 50 },
-  { x: 52, y: 74 }
+  { x: 14.8, y: 48 },
+  { x: 39.7, y: 52 },
+  { x: 63.2, y: 48 },
+  { x: 86.6, y: 52 }
 ];
 
 export const CARD_CONNECTORS = [

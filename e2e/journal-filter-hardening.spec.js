@@ -27,7 +27,9 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const fixture = await openFilters(page);
     try {
-      const trigger = page.getByRole('button', { name: 'Timeframe', exact: true });
+      // The trigger's name carries its choice ("Timeframe: 30 days") and contains the visible text.
+      const trigger = page.getByRole('button', { name: /^Timeframe(: .+)?$/ });
+      await expect(trigger).toHaveAccessibleName('Timeframe');
       await trigger.press('Enter');
       const listbox = page.getByRole('listbox', { name: 'Timeframe', exact: true });
       await expect(listbox).toBeVisible();
@@ -43,6 +45,8 @@ for (const width of [320, 1440]) {
       await expect(listbox).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await expect(trigger).toContainText('30 days');
+      await expect(trigger).toHaveAccessibleName('Timeframe: 30 days');
+      await expect(trigger).not.toHaveAttribute('aria-pressed');
       await trigger.press('ArrowUp');
       await expect(listbox.getByRole('option', { name: '30 days', exact: true })).toBeFocused();
       await page.keyboard.press('Escape');

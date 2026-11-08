@@ -6,6 +6,10 @@
  * show them about 80–110 CSS px wide. `public/images/cards/w360/*.webp` holds a
  * 360 px WebP of each (~55 KB), enough for a 3x phone screen;
  * `getCardThumbnailSrcSet` in src/lib/cardLookup.js offers it through srcset.
+ * `public/images/cards/w120/` holds a 120 px WebP of every card in all three
+ * decks (RWS scans, `thoth/*.png`, `marseille/*.jpg`; ~4–10 KB each) for art
+ * shown about 30–40 CSS px wide, such as the journal's collapsed rows
+ * (`getCardTinyImage` in src/lib/cardLookup.js).
  * Also writes `public/images/cards/card-back.jpeg`, the neutral image shown
  * when a card image cannot load (FALLBACK_IMAGE and the service worker).
  *
@@ -22,6 +26,14 @@ const THUMB_DIR = path.join(CARDS_DIR, 'w360');
 const CARD_BACK_SOURCE = path.join(ROOT, 'public/images/card-back.png');
 const CARD_BACK_OUTPUT = path.join(CARDS_DIR, 'card-back.jpeg');
 const THUMB_WIDTH = 360;
+const TINY_DIR = path.join(CARDS_DIR, 'w120');
+const TINY_WIDTH = 120;
+// Source folder (relative to public/images/cards) and file pattern per deck.
+const TINY_SOURCES = [
+  { dir: '', pattern: /^RWS1909_-_.+\.jpe?g$/i },
+  { dir: 'thoth', pattern: /\.png$/i },
+  { dir: 'marseille', pattern: /\.jpe?g$/i }
+];
 const force = process.argv.includes('--force');
 
 let sharp;
@@ -53,9 +65,25 @@ for (const name of scans) {
   written += 1;
 }
 
+let tinyChecked = 0;
+for (const { dir, pattern } of TINY_SOURCES) {
+  const sourceDir = path.join(CARDS_DIR, dir);
+  const outputDir = path.join(TINY_DIR, dir);
+  await mkdir(outputDir, { recursive: true });
+  const images = (await readdir(sourceDir)).filter(name => pattern.test(name)).sort();
+  for (const name of images) {
+    const source = path.join(sourceDir, name);
+    const output = path.join(outputDir, name.replace(/\.(png|jpe?g)$/i, '.webp'));
+    tinyChecked += 1;
+    if (await isFresh(output, source)) continue;
+    await sharp(source).resize({ width: TINY_WIDTH, withoutEnlargement: true }).webp({ quality: 72 }).toFile(output);
+    written += 1;
+  }
+}
+
 if (!(await isFresh(CARD_BACK_OUTPUT, CARD_BACK_SOURCE))) {
   await sharp(CARD_BACK_SOURCE).resize({ width: 420 }).flatten({ background: '#f3ead8' }).jpeg({ quality: 80, mozjpeg: true }).toFile(CARD_BACK_OUTPUT);
   written += 1;
 }
 
-console.log(`${scans.length} scans checked, ${written} file(s) written.`);
+console.log(`${scans.length} scans and ${tinyChecked} small renditions checked, ${written} file(s) written.`);

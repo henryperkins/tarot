@@ -323,18 +323,20 @@ async function journeyHook(archetypeData) {
 
 test('retained server aggregates cannot restore deleted prose or persist a stale narrative', async t => {
   const owner = 'entry-retained-aggregate'; const { storage } = storageFixture(t);
-  const removed = { ...entry('aggregate-moon'), ts: Date.now(), cards: [{ name: 'The Moon', position: 'Present' }] };
-  const keep = { ...entry('aggregate-star'), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] };
-  seed(storage, owner, [removed, keep]);
-  const aggregate = { topCards: [{ card_name: 'The Moon', count: 1 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
-  const hook = await journeyHook(aggregate); const props = { entries: [removed, keep], filteredEntries: [removed, keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
+  // The summary names only cards that repeat, so each card comes up twice.
+  const removed = ['aggregate-moon', 'aggregate-moon-2'].map(id => ({ ...entry(id), ts: Date.now(), cards: [{ name: 'The Moon', position: 'Present' }] }));
+  const keep = ['aggregate-star', 'aggregate-star-2'].map(id => ({ ...entry(id), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] }));
+  seed(storage, owner, [...removed, ...keep]);
+  const aggregate = { topCards: [{ card_name: 'The Moon', count: 2 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
+  const hook = await journeyHook(aggregate); const props = { entries: [...removed, ...keep], filteredEntries: [...removed, ...keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
   assert.match(hook(props).seasonNarrative, /Moon/);
-  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
-  const current = hook({ ...props, entries: [keep], filteredEntries: [keep] });
+  const h = await helpers();
+  for (const deleted of removed) purge(h, { namespace: visualStorageNamespace(owner), entryId: deleted.id, entries: [...removed, ...keep], storage });
+  const current = hook({ ...props, entries: keep, filteredEntries: keep });
   assert.match(current.seasonNarrative, /Star/);
   assert.doesNotMatch(current.seasonNarrative, /Moon/);
   aggregate.isDisabled = true;
-  assert.match(hook({ ...props, entries: [keep], filteredEntries: [keep] }).seasonNarrative, /Star/);
+  assert.match(hook({ ...props, entries: keep, filteredEntries: keep }).seasonNarrative, /Star/);
   assert.equal(Object.keys(read(storage, 'journey_narrative_cache')).some(key => key.startsWith(`${owner}:`)), false,
     'template summaries must not persist stale journal derivations');
 });

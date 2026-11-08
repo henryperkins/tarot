@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { SPREADS } from '../../data/spreads';
 import { MAJOR_ARCANA } from '../../data/majorArcana';
 import { MINOR_ARCANA } from '../../data/minorArcana';
+import { toDeckCards } from '../../lib/journal/deckCards';
 
 // A neutral card back, never another card's art.
 const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
@@ -161,6 +162,8 @@ function NoteAvatars({ notes }) {
 
 export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelectPosition }) {
   const positions = useMemo(() => deriveSpreadPositions(entry), [entry]);
+  // The reading's own deck: its art and card names, meanings by canonical name.
+  const deckCards = useMemo(() => toDeckCards(entry?.cards, entry?.deckId), [entry]);
   const noteMap = useMemo(() => mapNotes(notes), [notes]);
   // Track which images have failed to prevent infinite error loops
   const failedImagesRef = useRef(new Set());
@@ -198,7 +201,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
   return (
     <div className="space-y-6">
       <ul className={`${gridClass} gap-4`} role="list" aria-label="Cards in this spread">
-        {entry.cards?.map((card, index) => {
+        {deckCards.map((card, index) => {
           const positionLabel = card.position || positions[index] || `Card ${index + 1}`;
           const positionKey = normalizePosition(positionLabel);
           const positionNotes = noteMap[positionKey] || [];

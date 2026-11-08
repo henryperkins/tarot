@@ -6,7 +6,7 @@ import { FOCUS_RING_DEFAULT } from '../../styles/focusClasses';
 
 export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastSyncAt, lastLocalSaveAt,
   syncSource, journalError, loading, historyPending = false, historyError = null, localStoragePresence, localEntryCount = 0,
-  onMigrate, migrating, onImportLegacy, importingLegacy, onReload, onShowAuthModal }) {
+  onMigrate, migrating, onImportLegacy, importingLegacy, onReload, onShowAuthModal, errorShownBelow = false }) {
   const navigate = useNavigate();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -21,14 +21,16 @@ export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastS
   const timeLabel = elapsed === null ? '' : elapsed < 1 ? ' · just now' : elapsed < 60 ? ` · ${elapsed} min ago` : ` · ${Math.round(elapsed / 60)}h ago`;
   const label = journalError ? 'Journal needs attention' : loading && cloud ? 'Syncing cloud journal'
     : cloud && historyPending ? (historyError ? 'Cloud history partly loaded' : 'Loading cloud history')
-    : cached ? 'Saved copy · this device' : local ? 'Local only · this browser' : `Synced · cloud${timeLabel}`;
+    : cached ? 'Saved copy · this device' : local ? 'Local only · this browser' : 'Synced · cloud';
+  const showsTime = !journalError && (local || label === 'Synced · cloud');
   const hasLegacy = Boolean(localStoragePresence?.hasLegacy);
   const canMigrate = cloud && (hasLegacy || localStoragePresence?.hasScoped);
 
   return (
     <div className="mb-4 space-y-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="text-xs text-muted-high" role="status">{label}{local && !journalError ? timeLabel : ''}</p>
+        {/* Only the journal's state is announced; its age ticks every minute and stays silent. */}
+        <p className="text-xs text-muted-high"><span role="status">{label}</span>{showsTime ? timeLabel : ''}</p>
         {local && (
           <details className="relative text-xs text-muted">
             <summary className={`min-h-touch content-center cursor-pointer rounded-lg px-2 ${FOCUS_RING_DEFAULT}`}>Storage and sync</summary>
@@ -46,7 +48,8 @@ export function JournalStatusBanner({ isAuthenticated, canUseCloudJournal, lastS
         <p>Cloud journal could not load. Showing a saved copy from this device.</p>
         <button type="button" onClick={onReload} disabled={loading} className={`${OUTLINE_BUTTON_CLASS} mt-2`}>Reload journal</button>
       </div>}
-      {journalError && <p role="alert" className="rounded-xl border border-error/30 bg-(--bg-surface) p-3 text-sm text-error">{journalError}</p>}
+      {/* When the page shows its "Journal unavailable" recovery panel, that panel is the one message. */}
+      {journalError && !errorShownBelow && <p role="alert" className="rounded-xl border border-error/30 bg-(--bg-surface) p-3 text-sm text-error">{journalError}</p>}
       {isAuthenticated && !cloud && hasLegacy && (
         <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-sm text-muted-high space-y-2">
           <p>Readings saved before sign-in are kept separate on shared browsers. Import them only if they belong to you.</p>
