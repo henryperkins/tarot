@@ -1,5 +1,13 @@
-/** Refuse partial Responses streams, including a connection ending without completion. */
-export function validateResponsesStream(source, { onComplete, onError } = {}) {
+import { describeOpenAIFailure, publicOpenAIFailureDetail } from './openaiResponses.js';
+
+const FAILURE_EVENTS = new Set(['response.incomplete', 'response.failed', 'response.error', 'error']);
+
+/**
+ * Refuse partial Responses streams, including a connection ending without completion.
+ * `onFailure(details, eventType)` receives OpenAI's account of a failure event
+ * (see describeOpenAIFailure) before the stream errors, so callers can log it.
+ */
+export function validateResponsesStream(source, { onComplete, onError, onFailure } = {}) {
   const reader = source.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -26,8 +34,17 @@ export function validateResponsesStream(source, { onComplete, onError } = {}) {
     catch { throw new Error('Responses API returned malformed stream data.'); }
     type = parsed.type || type;
     if (parsed.response) responseMeta = parsed.response;
-    if (['response.incomplete', 'response.failed', 'response.error', 'error'].includes(type)) {
-      const error = new Error(`Responses API returned ${type}; a complete answer is required.`);
+    if (FAILURE_EVENTS.has(type)) {
+      // OpenAI's code and message say why; keep identifiers in the error, which
+      // can reach clients, and hand the sanitized message to the caller's log.
+      const details = describeOpenAIFailure(parsed);
+      try {
+        onFailure?.(details, type);
+      } catch {
+        // Logging must not change how the stream fails.
+      }
+      const detail = publicOpenAIFailureDetail(details);
+      const error = new Error(`Responses API returned ${type}${detail ? ` (${detail})` : ''}; a complete answer is required.`);
       error.code = 'response_incomplete';
       error.model = parsed.response?.model || null;
       error.usage = parsed.response?.usage || null;

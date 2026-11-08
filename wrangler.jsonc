@@ -100,7 +100,11 @@
     // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-6.1-sol").
     // OPENAI_REASONING_EFFORT overrides the model's default reasoning depth.
     // OPENAI_VERBOSITY optionally overrides text verbosity on the native path.
-    // OPENAI_TIMEOUT_MS optionally overrides the 120s request deadline (bounded 1s-600s).
+    // OPENAI_TIMEOUT_MS optionally overrides the 120s deadline of each OpenAI request,
+    // streamed or buffered (bounded 1s-600s). Readings also stay inside the reading
+    // task budget (READING_TASK_TIMEOUT_MS, 240s) and, when buffered, the 90s attempt
+    // cap. The release gate gives every sample this same deadline, so set it here and
+    // on the live Worker together.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
     "OPENAI_MODEL": "gpt-6.1-sol",

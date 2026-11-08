@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
+import { resolveProductionOpenAIReadingDeadlineMs } from '../scripts/evaluation/runReleaseChecks.js';
 
 function release(env = {}) {
   const result = spawnSync(process.execPath, ['--import', './tests/helpers/releaseCheckCommandStub.mjs', 'scripts/evaluation/runReleaseChecks.js'], {
@@ -59,9 +60,25 @@ it('grades production OpenAI readings with the key passed only to the narrative 
   for (const check of result.checks) {
     assert.equal(check.openaiKey, false, `${check.script} must not receive OPENAI_API_KEY`);
     assert.equal(check.evalOpenaiKey, check.script === 'ci:narrative-check', `${check.script} evaluation key`);
-    assert.equal(check.openaiTimeoutMs, check.script === 'ci:narrative-check' ? '600000' : null, `${check.script} OpenAI deadline`);
+    assert.equal(check.openaiTimeoutMs, check.script === 'ci:narrative-check' ? '120000' : null, `${check.script} OpenAI deadline`);
     assert.deepEqual(check.credentialKeys, [], `${check.script} must not receive provider credentials`);
   }
+  assert.match(result.stdout, /production's 120 s deadline/);
+});
+
+it('gives gate samples the production reading deadline, which a shell value cannot loosen', () => {
+  const result = release({ OPENAI_TIMEOUT_MS: '600000', READING_TASK_TIMEOUT_MS: '600000' });
+  assert.equal(result.status, 0, result.stderr);
+  const narrative = result.checks.find(check => check.script === 'ci:narrative-check');
+  assert.equal(narrative.openaiTimeoutMs, '120000');
+});
+
+it('derives the production OpenAI reading deadline from the Worker variables', () => {
+  assert.equal(resolveProductionOpenAIReadingDeadlineMs({ OPENAI_STREAMING_ENABLED: 'true' }), 120000, 'request deadline default');
+  assert.equal(resolveProductionOpenAIReadingDeadlineMs({ OPENAI_STREAMING_ENABLED: 'true', OPENAI_TIMEOUT_MS: '600000' }), 240000, 'reading task budget');
+  assert.equal(resolveProductionOpenAIReadingDeadlineMs({ OPENAI_STREAMING_ENABLED: 'true', OPENAI_TIMEOUT_MS: '600000', READING_TASK_TIMEOUT_MS: '300000' }), 300000);
+  assert.equal(resolveProductionOpenAIReadingDeadlineMs({ OPENAI_STREAMING_ENABLED: 'false', OPENAI_TIMEOUT_MS: '600000' }), 90000, 'buffered attempt cap');
+  assert.equal(resolveProductionOpenAIReadingDeadlineMs({ OPENAI_TIMEOUT_MS: '60000' }), 60000);
 });
 
 it('accepts an explicit evaluation key without OPENAI_API_KEY', () => {

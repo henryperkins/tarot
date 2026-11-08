@@ -15,6 +15,7 @@
  * @property {number} timeoutMs - Request timeout in milliseconds (default: 60000)
  * @property {number[]} retryableStatuses - HTTP status codes that trigger retry (default: [429, 500, 502, 503, 504])
  * @property {boolean} includeResponseBodyInError - Include a truncated upstream response body in thrown errors (default: true)
+ * @property {(response: Response, bodyText: string) => void} [onErrorResponse] - Sees each non-OK response and its body, e.g. to log a sanitized upstream error; it cannot change the failure
  * @property {boolean} enableCircuitBreaker - Enable circuit breaker pattern (default: true)
  * @property {number} circuitBreakerThreshold - Failures before opening circuit (default: 5)
  * @property {number} circuitBreakerResetMs - Time before attempting reset (default: 60000)
@@ -294,6 +295,11 @@ export async function fetchWithRetry(url, options, endpoint, requestId, retryCon
         // Throw for non-OK responses to trigger retry
         if (!response.ok) {
           const errText = await response.text().catch(() => '');
+          try {
+            retryConfig.onErrorResponse?.(response, errText);
+          } catch {
+            // Logging the upstream error must not change how the request fails.
+          }
           const publicDetail = retryConfig.includeResponseBodyInError === false
             ? ''
             : errText.slice(0, 200);

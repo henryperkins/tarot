@@ -1,9 +1,31 @@
 #!/usr/bin/env node
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { parseJsoncConfig } from '../deploy.js';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
 import { OPENAI_EVAL_KEY_VARIABLE, UNIT_SUITE_CREDENTIAL_ENV_KEYS, resolveReleaseNarrativeBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
+import { resolveOpenAITimeoutMs } from '../../functions/lib/openaiResponses.js';
+import { READING_BUFFERED_ATTEMPT_MAX_MS, getTaskTimeoutMs } from '../../functions/lib/requestDeadline.js';
+import { isOpenAITokenStreamingEnabled } from '../../functions/lib/readingTelemetry.js';
+
+/**
+ * How long production lets one OpenAI reading run: the OpenAI request deadline
+ * (OPENAI_TIMEOUT_MS) inside the reading task budget, and inside the buffered
+ * attempt cap when token streaming is off. Readings run as reading jobs, which
+ * always request the stream.
+ */
+export function resolveProductionOpenAIReadingDeadlineMs(vars = {}) {
+  const deadlines = [resolveOpenAITimeoutMs(vars), getTaskTimeoutMs(vars, 'reading')];
+  if (!isOpenAITokenStreamingEnabled(vars)) deadlines.push(READING_BUFFERED_ATTEMPT_MAX_MS);
+  return Math.min(...deadlines);
+}
+
+async function readProductionVars() {
+  const config = parseJsoncConfig(await fs.readFile(path.resolve(process.cwd(), 'wrangler.jsonc'), 'utf-8'));
+  return config.vars || {};
+}
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -31,11 +53,13 @@ export async function main() {
     if (!key) {
       throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider.`);
     }
-    // Batch qualification samples are non-streaming with unlimited output; the
-    // per-request production deadline (120s) is too short for the largest
-    // spreads, so the gate gets the bounded maximum unless the shell set one.
-    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key, OPENAI_TIMEOUT_MS: process.env.OPENAI_TIMEOUT_MS || '600000' };
-    console.log('Release narrative gate: grading openai-native readings through the paid OpenAI Responses API.');
+    // Samples are buffered, but each gets the deadline a production reading
+    // gets, so the gate cannot pass a reading that production would cut off.
+    // A shell OPENAI_TIMEOUT_MS cannot loosen it; change wrangler.jsonc and the
+    // live variable together instead.
+    const deadlineMs = resolveProductionOpenAIReadingDeadlineMs(await readProductionVars());
+    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key, OPENAI_TIMEOUT_MS: String(deadlineMs) };
+    console.log(`Release narrative gate: grading openai-native readings through the paid OpenAI Responses API, with production's ${deadlineMs / 1000} s deadline for each.`);
   } else {
     await verifyNarrativeSubscription(process.env);
   }
