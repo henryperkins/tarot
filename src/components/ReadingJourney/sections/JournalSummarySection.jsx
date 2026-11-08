@@ -105,7 +105,7 @@ function SummaryDisplay({ summary, meta, scopeNote, onClear }) {
       {/* Header with provider badge */}
       <div className="flex items-center justify-between gap-2">
         <ProviderBadge provider={meta?.provider} />
-        <span className="text-2xs text-muted/70">
+        <span className="text-2xs text-muted">
           {meta?.totalEntries} {meta?.totalEntries === 1 ? 'entry' : 'entries'} analyzed
         </span>
       </div>
@@ -259,13 +259,13 @@ function JournalSummarySection({ isAuthenticated, allEntries = [], filteredEntri
     <div className="space-y-3">
       {notice && <p role="status" className="text-xs text-muted-high">{notice}</p>}
       {/* Info text - positioned before selector for better screen reader flow */}
-      <p id="summary-info" className="text-xs sm:text-2xs text-muted/70">
+      <p id="summary-info" className="text-xs sm:text-2xs text-muted">
         AI analyzes your readings to surface patterns, themes, and guidance.
       </p>
 
       {filtersApplied && (
         <div className="space-y-2">
-          <p className="text-xs sm:text-2xs text-muted/70">Summary scope</p>
+          <p className="text-xs sm:text-2xs text-muted">Summary scope</p>
           <div className="inline-flex rounded-full border border-secondary/20 bg-surface-muted/40 p-1">
             <button
               type="button"

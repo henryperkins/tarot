@@ -28,6 +28,7 @@ import {
 } from '../lib/journalInsights';
 import { buildThemeQuestion } from '../lib/themeText';
 import { filterEntriesToWindow, getAllTimeWindow, getCurrentMonthWindow } from '../lib/journal/utils';
+import { findLeaders, findSoleLeader, joinNames } from '../lib/journal/leaders';
 import { computeCardTrendSeries } from '../../shared/journal/trends.js';
 
 // Empty stats fallback (computeJournalStats returns null for empty entries)
@@ -63,10 +64,16 @@ const EMPTY_ARCHETYPE = {
  * Generate narrative text for the season summary.
  * Uses the effective season window, not current date.
  *
+ * It reports only what the readings show: a card or context leads when it
+ * repeated and no other matched it; tied leaders are named together, and a
+ * theme is called recurring only when more than one reading carried it.
+ *
  * @param {Object} options
- * @param {Object} options.topCard - Top card { name, count }
- * @param {Object} options.topContext - Top context { name, count }
+ * @param {Array} options.cardLeaders - Cards tied for the top count ({ name, count }); [] when none repeated
+ * @param {boolean} options.severalCardsTie - More cards share the top count than are listed
+ * @param {Array} options.contextLeaders - Contexts tied for the top count; [] when none repeated
  * @param {string} options.topTheme - Top theme string
+ * @param {number} options.topThemeCount - Readings that carried the top theme
  * @param {number} options.totalReadings - Readings in this scope
  * @param {Object} options.seasonWindow - { start: Date, end: Date }
  * @param {string} options.locale - Locale for date formatting (e.g., 'en-US', 'fr-FR')
@@ -74,9 +81,11 @@ const EMPTY_ARCHETYPE = {
  * @returns {string} Narrative text
  */
 function generateSeasonNarrative({
-  topCard,
-  topContext,
+  cardLeaders = [],
+  severalCardsTie = false,
+  contextLeaders = [],
   topTheme,
+  topThemeCount,
   totalReadings,
   seasonWindow,
   locale = 'en-US',
@@ -117,10 +126,24 @@ function generateSeasonNarrative({
   };
 
   const period = formatPeriod(seasonWindow);
-  const parts = [`In your ${period} readings, ${topCard.name} appeared ${topCard.count}x.`];
-  if (topTheme) parts.push(`${totalReadings > 1 ? 'Recurring theme' : 'Theme'}: ${topTheme}.`);
-  if (topContext) {
-    parts.push(`${formatContextName(topContext.name)} was the focus of ${topContext.count} reading${topContext.count === 1 ? '' : 's'}.`);
+  const parts = [];
+  if (cardLeaders.length === 1) {
+    parts.push(`In your ${period} readings, ${cardLeaders[0].name} appeared ${cardLeaders[0].count}x.`);
+  } else if (cardLeaders.length > 1) {
+    const names = severalCardsTie ? 'several cards' : joinNames(cardLeaders.map((card) => card.name));
+    parts.push(`In your ${period} readings, ${names} each appeared ${cardLeaders[0].count}x.`);
+  } else {
+    parts.push(`No card has repeated in your ${period} readings yet.`);
+  }
+  if (topTheme) {
+    if (totalReadings <= 1) parts.push(`Theme: ${topTheme}.`);
+    else if (Number(topThemeCount) >= 2) parts.push(`Recurring theme: ${topTheme}.`);
+  }
+  if (contextLeaders.length === 1) {
+    parts.push(`${formatContextName(contextLeaders[0].name)} was the focus of ${contextLeaders[0].count} readings.`);
+  } else if (contextLeaders.length > 1 && contextLeaders.length <= 3) {
+    const names = joinNames(contextLeaders.map((context) => formatContextName(context.name)));
+    parts.push(`${names} were each the focus of ${contextLeaders[0].count} readings.`);
   }
   return parts.join(' ');
 }
@@ -278,8 +301,8 @@ function computeEnhancedCoachSuggestions({
   }
 
   if (Array.isArray(majorArcanaMap) && majorArcanaMap.length > 0) {
-    const topMajor = [...majorArcanaMap].sort((a, b) => b.count - a.count)[0];
-    if (topMajor?.name && topMajor.count >= 2 && topMajor.name !== topCard?.name) {
+    const topMajor = findSoleLeader(majorArcanaMap);
+    if (topMajor?.name && topMajor.name !== topCard?.name) {
       const question = `What is ${topMajor.name} asking me to notice?`;
       suggestions.push(buildSuggestion({
         source: 'majorArcana',
@@ -481,28 +504,35 @@ export function useJourneyData({
   }), [insightsStats.frequentCards, sortedBadges, cardTrends]);
   const cadence = insightsStats.monthlyCadence || [];
 
-  const topContext = useMemo(() => {
-    if (!insightsStats.contextBreakdown?.length) return undefined;
-    // Clone before sorting to avoid mutating the memoized array
-    return [...insightsStats.contextBreakdown].sort((a, b) => b.count - a.count)[0];
-  }, [insightsStats.contextBreakdown]);
+  // A top card or context is named only when it repeated and leads alone;
+  // ties are described whole (lib/journal/leaders). cardFrequency lists the
+  // top four, so four tied leaders may stand for more.
+  const cardLeaders = useMemo(() => findLeaders(cardFrequency), [cardFrequency]);
+  const contextLeaders = useMemo(
+    () => findLeaders(insightsStats.contextBreakdown),
+    [insightsStats.contextBreakdown]
+  );
+  const topCard = cardLeaders.length === 1 ? cardLeaders[0] : null;
+  const topContext = contextLeaders.length === 1 ? contextLeaders[0] : undefined;
 
   // This is a cheap deterministic template. Derive it from current inputs;
   // persistent, date-only caching can outlive saves, edits and account changes.
   const seasonNarrative = useMemo(() => {
-    const topCard = cardFrequency[0];
-    if (!topCard) return null;
+    if (!cardFrequency.length) return null;
+    const topThemeSignal = insightsStats.themeSignals?.[0];
     return generateSeasonNarrative({
-      topCard,
-      topContext,
+      cardLeaders,
+      severalCardsTie: cardLeaders.length >= 4 && cardLeaders.length === cardFrequency.length,
+      contextLeaders,
       topTheme: insightsStats.topTheme,
+      topThemeCount: topThemeSignal?.label === insightsStats.topTheme ? topThemeSignal.count : undefined,
       totalReadings: insightsStats.totalReadings,
       seasonWindow: effectiveSeasonWindow,
       locale,
       timezone: seasonTimezone,
     });
-  }, [cardFrequency, topContext, insightsStats.topTheme, insightsStats.totalReadings,
-    effectiveSeasonWindow, locale, seasonTimezone]);
+  }, [cardFrequency, cardLeaders, contextLeaders, insightsStats.themeSignals, insightsStats.topTheme,
+    insightsStats.totalReadings, effectiveSeasonWindow, locale, seasonTimezone]);
 
   // Journey story prose - returns null when insufficient data
   // Uses scopedEntries to match the time window of other stats
@@ -519,7 +549,6 @@ export function useJourneyData({
   }, [scopedEntries]);
 
   const enhancedCoachSuggestions = useMemo(() => {
-    const topCard = cardFrequency[0];
     const topThemeSignal = insightsStats.themeSignals?.[0] || null;
     const topTheme = topThemeSignal?.label || insightsStats.topTheme || insightsStats.recentThemes?.[0];
 
@@ -535,7 +564,7 @@ export function useJourneyData({
       totalReadings: insightsStats.totalReadings,
     });
   }, [
-    cardFrequency,
+    topCard,
     topContext,
     insightsStats.themeSignals,
     insightsStats.topTheme,

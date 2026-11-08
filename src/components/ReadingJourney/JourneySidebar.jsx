@@ -38,6 +38,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import { recordCoachQuestion } from '../../lib/coachStorage';
 import { getCoachSuggestionJournalState } from '../../lib/coachSuggestionUtils';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
+import { filterRepeated, findSoleLeader } from '../../lib/journal/leaders';
 
 /**
  * CollapsibleSection - Expandable section wrapper.
@@ -140,7 +141,8 @@ export default function JourneySidebar({
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
+    // Negative margins keep the 44px target from pushing "streak" below the other stat labels.
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -mx-2 -my-3.5';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -433,11 +435,11 @@ export default function JourneySidebar({
           narrative={seasonNarrative}
           hasHistory={!isEmpty}
           onScopeSelect={onScopeSelect}
-          topCard={cardFrequency[0]}
+          topCard={findSoleLeader(cardFrequency)}
           cardFrequencyReliable={cardFrequencyReliable}
           currentStreak={currentStreak}
           totalReadings={totalReadings}
-          topContext={[...contextBreakdown].sort((a, b) => b.count - a.count)[0]}
+          topContext={findSoleLeader(contextBreakdown)}
           contextBreakdown={contextBreakdown}
           preferenceDrift={preferenceDrift}
           coachSuggestion={activeCoachSuggestion}
@@ -508,7 +510,7 @@ export default function JourneySidebar({
             onToggle={() => toggleSection('cards')}
             icon={TrendUp}
             label="Cards Calling You"
-            badge={cardFrequency.length > 0 ? cardFrequency.length : null}
+            badge={filterRepeated(cardFrequency).length || null}
           >
             <div className="space-y-4">
               <CardsCallingYou

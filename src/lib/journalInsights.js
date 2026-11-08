@@ -6,6 +6,7 @@ import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
 import { filterDeletedJournalEntries, canPersistJournalDerivation } from './deletedJournalEntryStorage.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { findSoleLeader } from './journal/leaders.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
@@ -1952,11 +1953,9 @@ export function generateJourneyStory(entries, options = {}) {
   const stats = options.precomputedStats || computeJournalStats(entries);
   if (!stats) return null;
 
-  const topCard = stats.frequentCards?.[0];
-  // Clone before sorting to avoid mutating shared stats
-  const topContext = stats.contextBreakdown
-    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
-    : undefined;
+  // Only a card or context that repeated and leads alone is called significant.
+  const topCard = findSoleLeader(stats.frequentCards);
+  const topContext = findSoleLeader(stats.contextBreakdown);
   const themes = stats.recentThemes || [];
 
   if (!topCard && !topContext && themes.length === 0) {
@@ -1971,7 +1970,7 @@ export function generateJourneyStory(entries, options = {}) {
   }
 
   if (topCard) {
-    parts.push(`${topCard.name} has appeared ${topCard.count} time${topCard.count > 1 ? 's' : ''}, suggesting it holds particular significance for you right now.`);
+    parts.push(`${topCard.name} has appeared ${topCard.count} times, suggesting it holds particular significance for you right now.`);
   }
 
   if (topContext) {

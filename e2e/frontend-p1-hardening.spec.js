@@ -158,6 +158,8 @@ for (const width of [320, 390, 1280]) {
       const journeyDisclosure = page.locator('summary').filter({ hasText: /Your reading journey/i });
       if (width < 1024) await journeyDisclosure.click();
       await expect(page.getByRole('heading', { name: /^Your (Reading )?Journey/ }).filter({ visible: true }).first()).toBeVisible();
+      // Entry actions belong to the open reading.
+      await page.getByTitle('Expand entry', { exact: true }).first().click();
       const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
       await trigger.scrollIntoViewIfNeeded();
       await trigger.focus();
@@ -186,12 +188,14 @@ for (const width of [320, 390, 1280]) {
       await page.keyboard.press('Shift+Tab');
       await expect(page.getByRole('menu')).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => document.activeElement === window.__beforeEntryActions)).toBe(true);
-      const expand = page.getByTitle('Expand entry', { exact: true }).first();
-      await expand.click();
-      const collapse = page.getByTitle('Collapse entry', { exact: true }).first();
-      await expect(collapse).toBeFocused();
-      await collapse.click();
-      await expect(expand).toBeFocused();
+      // Toggling keeps focus on the reading's own toggle, closed and open.
+      const toggle = page.locator('#history article').first().locator('[data-journal-entry-toggle]');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('title', 'Expand entry');
+      await expect(toggle).toBeFocused();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('title', 'Collapse entry');
+      await expect(toggle).toBeFocused();
     });
   });
 }
@@ -257,6 +261,7 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
     await route.fulfill({ json: { ok: true } });
   });
   await page.goto('/journal');
+  await page.getByTitle('Expand entry', { exact: true }).first().click();
   const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
   await trigger.click();
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();

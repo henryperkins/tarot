@@ -1136,12 +1136,21 @@ body {
   pointer-events: none;
 }
 
+/* Candlelight at the top of an insight panel, over the theme's own panel surface.
+   The glows are sized in rem, not to the panel's corners, so a taller panel never
+   spreads brass under its lower text; daylight uses a softer wash. */
 .gradient-ambient,
 .bg-gradient-ambient {
+  --ambient-glow-strength: 0.16;
   background:
-    radial-gradient(circle at 20% 18%, rgba(212, 184, 150, 0.35) 0%, transparent 52%),
-    radial-gradient(circle at 80% 0%, rgba(212, 184, 150, 0.24) 0%, transparent 50%),
-    linear-gradient(165deg, rgba(255, 255, 255, 0.04), transparent);
+    radial-gradient(26rem 16rem at 16% 0%, rgb(var(--brand-primary-rgb) / var(--ambient-glow-strength)), transparent 72%),
+    radial-gradient(18rem 12rem at 90% 0%, rgb(var(--brand-primary-rgb) / calc(var(--ambient-glow-strength) / 2)), transparent 70%),
+    linear-gradient(135deg, var(--panel-dark-1), var(--panel-dark-2) 55%, var(--panel-dark-3));
+}
+
+:root.light .gradient-ambient,
+:root.light .bg-gradient-ambient {
+  --ambient-glow-strength: 0.1;
 }
 
 /* Spread selector - extends .panel-mystic */

@@ -97,6 +97,8 @@ for (const width of [390, 1440]) {
 
 test('a guest can delete one local entry with confirmation and keep the deletion on reload', async ({ page }) => {
   await openJournal(page);
+  // Entry actions belong to the open reading.
+  await page.getByTitle('Expand entry', { exact: true }).first().click();
   await page.getByTitle('Entry actions', { exact: true }).first().click();
   await page.getByRole('menuitem', { name: 'Delete entry', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Delete Journal Entry' });
@@ -140,8 +142,10 @@ test('saved follow-up answers match chat size and the upgrade link keeps a 44px 
 
 test('a signed-in Free local entry copies a summary without requesting a cloud share', async ({ page }) => {
   const state = await openJournal(page, { owner: 'owner-a' });
+  await page.getByTitle('Expand entry', { exact: true }).first().click();
   await page.getByTitle('Copy summary', { exact: true }).first().click();
   await expect(page.getByTitle('Create share link', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Share this reading' })).toHaveCount(0);
   expect(state.mutations).not.toContain('/api/share');
 });
 
@@ -334,7 +338,8 @@ test('mobile practice snapshot and Journey reflow at 200% text without clipping'
   await expect(scopeChip).toBeVisible();
   await expectUnclipped(scopeChip, 'mobile Journey scope');
 
-  const latestCard = practice.getByRole('button', { name: /The Hermit, Upright.*Tap for insight/ }).filter({ visible: true }).first();
+  // The phone's latest-card toggle is named by its own text (its insight sits outside it).
+  const latestCard = practice.getByRole('button', { name: /^Latest card The Hermit Upright/ }).filter({ visible: true }).first();
   await expect(latestCard).toBeVisible();
   await expectUnclipped(latestCard.locator('p').filter({ hasText: /^The Hermit$/ }), 'latest card name');
 

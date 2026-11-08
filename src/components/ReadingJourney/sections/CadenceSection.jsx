@@ -40,7 +40,7 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
         <CadenceChart data={data} height={chartHeight} />
       </Suspense>
 
-      <p className="mt-2 text-2xs text-muted/70">
+      <p className="mt-2 text-2xs text-muted">
         {total} readings over {data.length} months ({avg}/month avg)
       </p>
     </div>
