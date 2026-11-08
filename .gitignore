@@ -92,6 +92,10 @@ lerna-debug.log*
 # Testing
 coverage/
 /data/evaluations/runs/
+# Narrative sample checkpoints (and their temp files) keep a failed paid batch's
+# qualified samples for the next run; they are working state, never commits.
+*.json.checkpoint
+*.json.checkpoint.*.tmp
 
 # Local fetched sources, review queue, and enrichment provenance
 /data/enrichment/
