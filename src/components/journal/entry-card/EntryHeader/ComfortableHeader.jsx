@@ -44,6 +44,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 }) {
   const isCompactView = compact && !isExpanded;
   const sublineId = useId();
+  const secondaryId = useId();
   const cardsSummaryId = useId();
 
   const {
@@ -78,17 +79,30 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     ? <time dateTime={timestampIso} title={relativeTimeLabel || undefined}>{formattedTimestamp}</time>
     : formattedTimestamp;
 
-  // Collapsed: spread (when the question is the title), the exact date and time,
-  // context, a deck other than the default, and whether the reader wrote notes.
+  // Collapsed: primary line is spread + exact date and time; secondary line
+  // is context, a deck other than the default, and whether notes exist.
+  // Two tiers keep the scannable facts (spread/date) at full strength while
+  // the whisper facts sit one step smaller and quieter.
   const noteCount = reflections?.length || 0;
-  const sublineParts = [
+  const primaryParts = [
     questionTitle ? spreadShortName : null,
-    formattedTimestamp ? fullTimestamp : null,
+    formattedTimestamp ? fullTimestamp : null
+  ].filter(Boolean);
+  const secondaryParts = [
     contextLabel,
     showsDeckLabel ? deckLabel : null,
     noteCount > 0 ? `${noteCount} ${noteCount === 1 ? 'note' : 'notes'}` : null
   ].filter(Boolean);
   const extraCards = cards.length - cardPreview.length;
+  const collapsedDescribedBy = isExpanded
+    ? undefined
+    : [
+        primaryParts.length > 0 ? sublineId : null,
+        secondaryParts.length > 0 ? secondaryId : null,
+        cardsSummaryId
+      ]
+        .filter(Boolean)
+        .join(' ');
 
   const headerPadding = isCompactView
     ? 'px-[min(0.875rem,4vw)] py-3 sm:px-4 sm:py-3.5'
@@ -132,14 +146,14 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             </div>
           )}
 
-          <h3 id={entryHeadingId} className={cn('min-w-0 wrap-break-word text-(--brand-primary)', titleClass)}>
+          <h3 id={entryHeadingId} className={cn('min-w-0 wrap-break-word text-balance text-(--text-main)', titleClass)}>
             {/* Stretched over the whole header; the open header's actions sit above it. */}
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={isExpanded}
               aria-controls={entryContentId}
-              aria-describedby={isExpanded ? undefined : `${sublineId} ${cardsSummaryId}`}
+              aria-describedby={collapsedDescribedBy}
               data-journal-entry-toggle
               title={isExpanded ? 'Collapse entry' : 'Expand entry'}
               className="block w-full min-w-0 text-left focus-visible:outline-hidden after:absolute after:inset-1 after:rounded-[20px] after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-(--focus-ring-color)"
@@ -152,24 +166,51 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             questionTitle && <p className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">{spreadTitle}</p>
           ) : (
             <>
-              <p id={sublineId} className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">
-                {sublineParts.map((part, index) => (
-                  <Fragment key={index}>
-                    {index > 0 && <span aria-hidden="true"> · </span>}
-                    {index > 0 && <span className="sr-only">, </span>}
-                    {part}
-                  </Fragment>
-                ))}
-              </p>
+              {primaryParts.length > 0 && (
+                <p
+                  id={sublineId}
+                  className={cn(
+                    'mt-1 text-pretty',
+                    isCompactView
+                      ? 'truncate text-xs font-medium text-(--text-muted-high)'
+                      : 'text-sm text-(--text-muted-high) wrap-anywhere'
+                  )}
+                >
+                  {primaryParts.map((part, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <span aria-hidden="true"> · </span>}
+                      {index > 0 && <span className="sr-only">, </span>}
+                      {part}
+                    </Fragment>
+                  ))}
+                </p>
+              )}
+              {secondaryParts.length > 0 && (
+                <p
+                  id={secondaryId}
+                  className={cn(
+                    'text-(--text-muted)',
+                    isCompactView ? 'mt-0.5 truncate text-xs' : 'mt-0.5 text-xs wrap-anywhere'
+                  )}
+                >
+                  {secondaryParts.map((part, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <span aria-hidden="true"> · </span>}
+                      {index > 0 && <span className="sr-only">, </span>}
+                      {part}
+                    </Fragment>
+                  ))}
+                </p>
+              )}
               {cardPreview.length > 0 && (
-                <p className="mt-0.5 text-xs text-(--text-muted) wrap-anywhere">
+                <p className={cn('text-xs text-(--text-muted)', isCompactView ? 'mt-0.5 truncate' : 'mt-0.5 wrap-anywhere')}>
                   {cardPreview.map((card, index) => {
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
                     return (
                       <Fragment key={`${card?.canonicalName || card?.name || 'card'}-${index}`}>
                         {index > 0 && <span aria-hidden="true"> · </span>}
                         {index > 0 && <span className="sr-only">, </span>}
-                        <span className="text-(--text-main)">{card?.displayName || card?.name || 'Card'}</span>
+                        <span className="font-medium text-(--text-main)">{card?.displayName || card?.name || 'Card'}</span>
                         {reversed && <span>, reversed</span>}
                       </Fragment>
                     );
