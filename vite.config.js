@@ -47,18 +47,21 @@ export default defineConfig({
         ? dependencies.filter(dependency => !dependency.startsWith('assets/app-') && !dependency.startsWith('assets/readingSchema-'))
         : dependencies
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: [
         /^node:/  // Exclude all Node.js built-in modules
       ],
       output: {
         entryFileNames: 'assets/app-[hash].js',
-        manualChunks(id) {
-          // Assign the whole runtime, including CommonJS and JSX entrypoints,
-          // before optional features can absorb its dependencies.
-          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react';
-          if (id.includes('/node_modules/@xenova/transformers/')) return 'vision';
-          if (/\/node_modules\/(react-markdown|remark-gfm)\//.test(id)) return 'markdown';
+        codeSplitting: {
+          // Shared helpers must not pull optional Markdown into the journal's
+          // initial graph. Group only the explicitly matched vendor modules.
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: 'react', test: /\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\// },
+            { name: 'vision', test: /\/node_modules\/@xenova\/transformers\// },
+            { name: 'markdown', test: /\/node_modules\/(react-markdown|remark-gfm)\// }
+          ]
         }
       }
     },
