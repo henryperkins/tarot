@@ -731,9 +731,10 @@ export default function TarotReading() {
       return;
     }
     const toTable = stepId === 'ritual' || stepId === 'reading';
+    const isQuickIntentionStep = isHandset && stepId === 'intention';
     const refs = {
       spread: spreadSectionRef,
-      intention: prepareSectionRef,
+      intention: isHandset ? quickIntentionCardRef : prepareSectionRef,
       reading: readingSectionRef
     };
     const scrollToStep = () => {
@@ -751,21 +752,11 @@ export default function TarotReading() {
       // button after an instant scroll.
       target.focus?.({ preventScroll: true });
       target.scrollIntoView({
-        behavior,
+        behavior: isQuickIntentionStep ? 'instant' : behavior,
         block: deckFace ? 'center' : 'start'
       });
+      if (isQuickIntentionStep) promptQuickIntention();
     };
-
-    // On handsets the question is written on the page in the quick card.
-    if (isHandset && stepId === 'intention') {
-      if (shouldFocusCinematicFlow && !showSetupInFocusMode) {
-        setShowSetupInFocusMode(true);
-        window.setTimeout(promptQuickIntention, prefersReducedMotion ? 0 : 30);
-      } else {
-        promptQuickIntention();
-      }
-      return;
-    }
 
     if (shouldFocusCinematicFlow && !toTable && !showSetupInFocusMode) {
       setShowSetupInFocusMode(true);
@@ -1147,10 +1138,34 @@ export default function TarotReading() {
         {/* Step 1–3: Spread + Prepare */}
         {showSetupSection && (
           <section aria-label="Reading setup" className={isLandscape ? 'mb-3' : 'mb-6 xl:mb-4'}>
-            {/* On phones the question comes first: the default spread is already
-                chosen, and the question field would otherwise start below the fold. */}
+            {/* Phones show the current step above the spread picker. Wider screens
+                show it beside Draw cards (ReadingStart). */}
             {isHandset && (
-              <div className={isLandscape ? 'mb-3' : 'mb-6'}>
+              <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
+                <p className="text-xs-plus sm:text-sm uppercase tracking-widest text-accent">{stepIndicatorLabel}</p>
+                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
+                {/* Shown only while short or enlarged views release Draw cards into
+                    the page, which can leave it below every spread. */}
+                <button type="button" className="setup-actions-jump" onClick={handleSetupActionsJump}>
+                  Go to Draw cards
+                </button>
+              </div>
+            )}
+
+            <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
+              {/* Step navigation targets this wrapper. The panel inside carries
+                  the heading and the named radio group. */}
+              <div ref={spreadSectionRef} id="step-spread" tabIndex={-1}>
+                <SpreadSelector
+                  selectedSpread={selectedSpread}
+                  onSelectSpread={handleSpreadSelection}
+                  onSpreadConfirm={onSpreadConfirm}
+                  showHeader={!isHandset}
+                  prioritizeChosenArt={isHandset}
+                />
+              </div>
+
+              {isHandset ? (
                 <QuickIntentionCard
                   ref={quickIntentionCardRef}
                   variant={isLandscape ? 'compact' : 'full'}
@@ -1166,27 +1181,7 @@ export default function TarotReading() {
                   selectedSpread={selectedSpread}
                   onDeckChange={() => setIsMobileSettingsOpen(true)}
                 />
-              </div>
-            )}
-            {/* Phones introduce the spreads with the reading step; wider screens
-                carry it beside Draw cards (ReadingStart). */}
-            {isHandset && (
-              <div className={isLandscape ? 'mb-2' : 'mb-4 sm:mb-5'}>
-                <p className="text-xs-plus sm:text-sm uppercase tracking-widest text-accent">{stepIndicatorLabel}</p>
-                {!isLandscape && <p className="mt-1 text-muted-high text-xs sm:text-sm">{stepIndicatorHint}</p>}
-                {/* Shown only while short or enlarged views release Draw cards into
-                    the page, which can leave it below every spread. */}
-                <button type="button" className="setup-actions-jump" onClick={handleSetupActionsJump}>
-                  Go to Draw cards
-                </button>
-              </div>
-            )}
-
-            <div className={`max-w-5xl mx-auto ${isLandscape ? 'space-y-3' : 'space-y-6'}`}>
-              {/* Wider screens read in the order a reading is made, as phones
-                  do: the question first, then the spread, then the deck just
-                  before Draw cards. The ritual waits at the table. */}
-              {!isHandset && (
+              ) : (
                 <ReadingPreparation
                   part="question"
                   sectionRef={prepareSectionRef}
@@ -1197,18 +1192,6 @@ export default function TarotReading() {
                   onLaunchCoach={openIntentionCoach}
                 />
               )}
-
-              {/* Step navigation target; the panel inside carries the heading
-                  and the named radio group. */}
-              <div ref={spreadSectionRef} id="step-spread" tabIndex={-1}>
-                <SpreadSelector
-                  selectedSpread={selectedSpread}
-                  onSelectSpread={handleSpreadSelection}
-                  onSpreadConfirm={onSpreadConfirm}
-                  showHeader={!isHandset}
-                  prioritizeChosenArt={isHandset}
-                />
-              </div>
 
               {isHandset && savedMemoriesOption}
 
