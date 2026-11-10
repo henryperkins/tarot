@@ -34,6 +34,7 @@
     "test:deploy": "node --test tests/deployScript.test.mjs tests/deploySettings.test.mjs tests/deployQualityGate.test.mjs tests/releaseChecks.test.mjs tests/ciVisionPolicy.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:reflection": "playwright test --config playwright.reading-reflection.config.js",
     "test:e2e:install": "playwright test --config playwright.install.config.js",
     "test:e2e:journal": "playwright test --config playwright.journal.config.js",
     "test:e2e:modals": "playwright test --config playwright.modals.config.js",

@@ -66,11 +66,18 @@ The final diff review also covered the onboarding/account labels, Gallery WebP r
 
 With `VITE_READING_ALIGNER_ENABLED=true` and `VITE_READING_MODEL_ANNOTATIONS=true`, the live reflection case still fails its companion `data-held` assertion; the duplicate-card journal restoration case passes. `GesturePhrase` deliberately routes a single-card cue to the full-card dialog when card inspection is available. The original failure trace and a fresh run both show that dialog, rather than a held companion cue. Default flags separately prevent the visual subscription that the test waits for.
 
-A controlled Chromium continuation at 1280×720 with mocked Pro authentication verified the note in the reading request and accepted cue, the correct card dialog and quoted cue phrase, focus restoration on Escape, and the exact note in both **Your notes** and **Your question and notes**. This investigation made no product behavior change. The existing live test needs an explicit visual-enabled runner and assertions for the current dialog interaction. Its failure log, trace, probe script, and successful probe result are in `/tmp/opencode/reading-followup-KZ794j/`.
+A controlled Chromium continuation at 1280×720 with mocked Pro authentication verified the note in the reading request and accepted cue, the correct card dialog and quoted cue phrase, focus restoration on Escape, and the exact note in both **Your notes** and **Your question and notes**. This investigation made no product behavior change. It identified the runner/assertion maintenance completed below. Its failure log, trace, probe script, and successful probe result are in `/tmp/opencode/reading-followup-KZ794j/`.
+
+## Reflection E2E maintenance — November 10
+
+`npm run test:e2e:reflection` now owns both reflection regressions through the [visual-enabled runner](../playwright.reading-reflection.config.js). It explicitly sets `VITE_READING_ALIGNER_ENABLED=true` and `VITE_READING_MODEL_ANNOTATIONS=true`, with an isolated Vite dependency cache. The default frontend and integration runners direct this spec to that command.
+
+The live case checks the exact note in the reading request and accepted cue, the target card and quoted phrase in the full-card dialog, and focus return on Escape. **Your notes** retains the note on desktop and handset; desktop also checks **Your question and notes**, while handset checks the inline question. The duplicate-card restoration case expands the saved narrative when needed and checks the second occurrence's note in the desktop companion or mobile **Card detail** dialog, including dismissal and focus return.
+
+Verification: **4/4 browser cases pass**, covering Chromium at 1280×720 and WebKit with the iPhone 13 descriptor at 390×844, both with reduced motion. Live authentication is mocked Pro/active; restoration uses a guest fixture with local saved data. Reading and visual streams are controlled fixtures. The successful run started with both visual flags set to `false` in the invoking shell, verifying the runner's explicit opt-ins. The two focused runner checks, frontend/integration collection checks, lint, documentation links and diff checks pass. Evidence is in `/tmp/opencode/reading-reflection-CgFo7I/`, with the passing browser run in `verified-browser.log` and `verified-results.json`.
 
 ## Remaining dispositions and known failures
 
-- The live reflection-gesture E2E case remains open for the runner/assertion maintenance described above.
 - The D02 unfinished-plan narrative failure (see above) remains open.
 - Two prose repetitions noted in [#138](https://github.com/henryperkins/tarot/pull/138) remain. The local composer's You & Them section names the shared element twice, and amplified Celtic Cross cross-checks restate the shared element.
 - [PR #121](knowledge-graph/PR121_DISPOSITION_2026-11-01.md): superseded disposition prepared; historical source retained. No GitHub closure performed.

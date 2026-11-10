@@ -4,7 +4,8 @@ import base from '../../playwright.config.js';
 export default {
   ...base,
   testDir: '../../e2e',
-  testMatch: ['reading-gestures-live.spec.js', 'reading-reflection-gestures.spec.js', 'reading-gestures-geometry.spec.js'],
+  // Reflection regressions own an explicit visual-enabled runner: test:e2e:reflection.
+  testMatch: ['reading-gestures-live.spec.js', 'reading-gestures-geometry.spec.js'],
   workers: 1,
   reporter: 'list',
   use: { ...base.use, baseURL: 'http://localhost:5186', serviceWorkers: 'block' },
