@@ -6,7 +6,9 @@ import { createHash } from 'node:crypto';
 const heavy = /(?:NarrativeCardFocus\.jsx|narrativePassageAligner\.js|narrativeCardLinks\.js|cardTouchPoints\.js|cardGestureArtwork\.js|SpreadCompanion\.jsx|GesturePhrase\.jsx)$/;
 const entries = ['src/components/MarkdownRenderer.jsx', 'src/components/StreamingNarrative.jsx',
   'src/components/NarrativePanel.jsx', 'src/hooks/useNarrativeReadingController.js',
-  'src/components/journal/entry-card/EntrySections/NarrativeSection.jsx'];
+  'src/components/journal/entry-card/EntrySections/NarrativeSection.jsx',
+  'src/components/journal/entry-card/SavedVisualRecovery.jsx'];
+const journalHeavy = /(?:\/node_modules\/(?:react-markdown|remark-gfm|remark-breaks)\/|StreamingNarrative\.jsx$|JournalMarkdown\.jsx$|RestoredReadingGestures\.jsx$)/;
 
 test('optimized production reading entries do not eagerly download the gesture graph', async () => {
   const { metafile } = await build({ entryPoints: entries, bundle: true, splitting: true, format: 'esm',
@@ -25,6 +27,9 @@ test('optimized production reading entries do not eagerly download the gesture g
     assert.ok(output, `optimized entry exists: ${entry}`);
     const loaded = [...visit(output)].flatMap(key => Object.keys(outputs[key].inputs));
     assert.deepEqual(loaded.filter(input => heavy.test(input)), [], `${entry} static download graph contains gesture implementation`);
+    if (entry.includes('/journal/')) {
+      assert.deepEqual(loaded.filter(input => journalHeavy.test(input)), [], `${entry} defers rich saved-reading rendering`);
+    }
   }
   // The optimizer must retain the real gated implementation, not drop the feature.
   assert.ok(Object.values(outputs).some(output => Object.keys(output.inputs).some(input => /narrativePassageAligner\.js$/.test(input))));
@@ -43,12 +48,16 @@ test('Vite production app route and modulepreload closures exclude the gesture r
     for (const imported of chunk.imports) if (byFile.has(imported)) closure(byFile.get(imported), seen);
     return seen;
   };
-  const productionRoots = outputs.filter(chunk => chunk.isEntry || Object.keys(chunk.modules).some(id => entries.some(entry => id.endsWith('/' + entry))));
+  const productionEntries = [...entries, 'src/components/Journal.jsx'];
+  const productionRoots = outputs.filter(chunk => chunk.isEntry || Object.keys(chunk.modules).some(id => productionEntries.some(entry => id.endsWith('/' + entry))));
   assert.ok(productionRoots.length >= 3, 'actual app includes ordinary reading, Markdown and journal outputs');
   for (const chunk of productionRoots) {
     const modules = [...closure(chunk)].flatMap(file => Object.keys(byFile.get(file).modules));
     assert.deepEqual(modules.filter(id => heavy.test(id)), [], `${chunk.fileName} production import/preload closure`);
     assert.deepEqual(modules.filter(id => id.includes('/node_modules/zod/')), [], `${chunk.fileName} keeps optional schemas out of startup`);
+    if (Object.keys(chunk.modules).some(id => id.endsWith('/src/components/Journal.jsx') || id.endsWith('/SavedVisualRecovery.jsx'))) {
+      assert.deepEqual(modules.filter(id => journalHeavy.test(id)), [], `${chunk.fileName} journal import/preload closure defers narrative dependencies`);
+    }
     if (chunk.isEntry) {
       assert.deepEqual(modules.filter(id => id.endsWith('/shared/symbols/symbolAnnotations.js')), [],
         `${chunk.fileName} defers symbol annotations until cards are drawn`);

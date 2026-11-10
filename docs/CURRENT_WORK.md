@@ -1,4 +1,4 @@
-# Current work — November 6, 2026
+# Current work — November 10, 2026
 
 This is the current index for master. Earlier reports keep their dated observations.
 
@@ -40,13 +40,42 @@ The qualified integration baseline is `992387127f3fa21f4baba43c86d1f3231667a6bf`
 
 Combined verification: **6,238 root tests pass, 0 fail, 2 skipped; 19/19 journal Chromium tests; 2/2 affected reading-render tests; 45 ephemeris and 43 symbolism tests plus their manual scripts; build, image round-trip and documentation checks pass.** The 1,000-entry journal test retains its original read-count and rendering-time thresholds. Full root suites ran serially. No active production version was queried or changed.
 
+## Local lint and accessibility follow-up
+
+The ignore-only comparison ran both ESLint configs on the same starting checkout, using `eslint.config.js` from `f78880953ecc95609fd01979171bba3853a19752` as the baseline. ESLint listed 1,426 paths before the edit (1,414 owned and 12 artifacts) and 1,414 after (all owned). The sorted relative owned paths matched exactly. `beforeMinusAfter = []`, `afterMinusBefore = []`, and `exactSortedArrayMatch = true`. The two path lists and the comparison are in `~/.local/state/tarot/reading-labels-Xa9Wjy86/`.
+
+The targeted `label-content-name-mismatch` findings are resolved locally with `@axe-core/playwright` and `axe-core` 4.14.0. The setup tests cover current, upcoming, completed, and skipped steps, canvas and responsive layouts, and the quiet and reading-view presentations. The table tests follow setup through empty slots, a face-down deal, a partial reveal, and fully revealed upright and reversed cards. Empty slots include their number and position label in the accessible name. Dealt cards include their position number alongside their state or card details. **Reveal remaining** has the accessible name **Reveal remaining cards**.
+
+The four new cases reproduced the axe violations before the table fix. The local accessibility runs passed 19 Chromium 151.0.7922.34 cases at 1280×720, with handset viewport checks at 320×568 and 390×844, and 3 WebKit 26.5 cases at 390×844 using the iPhone 13 descriptor. The setup-to-table flow ran at 1280×720 and 390×844 in Chromium and 390×844 in WebKit. A separate mounted Chromium fixture exercised the reveal-disabled card branch. See the [accessibility testing guide](../tests/accessibility/README.md).
+
+Diff review reproduced an integration-only failure in the step-navigation regression: the presentation fixture fetched Vite source modules from the Worker's compiled assets and tried to import an undefined URL. The route flow and presentation fixture now run as separate tests. The fixture verifies its mounted navigation/buttons and explicitly skips integration projects. Focused verification passed both Vite tests; integration passed the route flow and reported the expected fixture skip. Evidence is in `/tmp/opencode/reading-label-diff-review/` and `/tmp/opencode/reading-label-fixture-fix/`.
+
+The coupled browser run passed 57 of 58 cases. The reflection test confirmed the card note in the reading request and then timed out waiting for the visual-cue stream with the default flags. Enabling the fixture's visual-cue flags reached the cue-hold assertion, which failed on both the starting and updated checkouts. The root suite passed 6,474 cases with 2 skipped. Lint, documentation links, static accessibility checks, and the local production build passed. The guest smoke passed against that build at 1280×900 and 390×844 in local Chromium.
+
+## Audit regression follow-up — November 10
+
+The four follow-up regressions are fixed locally. Card Collection uses a neutral loading region until both sources settle, then places either the empty notice or populated grid at the same content origin. SavedVisualRecovery owns original subscriptions as well as replay subscriptions, including terminal capability retirement. DeferredReadingContent keeps selected fallback text mounted until selection clears. The audit browser suite recognizes Vite source modules and hashed production chunks and blocks service workers so fault-injection routes cannot be bypassed.
+
+Verification: **6,488 root tests pass, 0 fail, 2 skipped; 79 focused browser checks pass** (25 frontend Chromium, 25 compiled integration Chromium, 19 compiled WebKit, and 5 saved-visual restoration cases per engine). Lint, production build, documentation links and static accessibility checks pass. Browser coverage includes empty/populated collections at 320px, 390px and 1440px in both themes, staggered journal/frequency responses, local-stat fallback, forwards/backwards selection, and failed rendering. The optimized root harness also covers selections spanning the fallback, successful original completion, and original capability responses of 401/403/410 with the gesture chunk blocked. At 390px, content movement is 0px; measured CLS is 0 for empty data and 0.0000062 for populated data.
+
+Rendered review used Chromium 151.0.7922.34: real signed-out API state with synthetic local readings at 390×844/dark, and real local password login verified as Pro/active at 1440×900/light. The reviewer account's actual D1 journal and collection were empty; an additional mocked cloud journal response exercised failed formatting under that real Pro session. Other automated data/authentication and saved-visual backend cases use fixtures. Reviewer sessions were logged out afterward. Screenshots and the coverage record are in `/tmp/opencode/audit-regressions/`.
+
+The final diff review also covered the onboarding/account labels, Gallery WebP renditions, deferred Journal modules, coupled locators, and validation allowlist. The combined candidate passed a fresh root suite with **6,488 passed, 2 skipped, 0 failed**, plus lint, production build, documentation links, static accessibility, and diff checks. Root/build logs and the reviewed patch are in `/tmp/opencode/reading-followup-KZ794j/`.
+
+## Reflection-gesture investigation — November 10
+
+With `VITE_READING_ALIGNER_ENABLED=true` and `VITE_READING_MODEL_ANNOTATIONS=true`, the live reflection case still fails its companion `data-held` assertion; the duplicate-card journal restoration case passes. `GesturePhrase` deliberately routes a single-card cue to the full-card dialog when card inspection is available. The original failure trace and a fresh run both show that dialog, rather than a held companion cue. Default flags separately prevent the visual subscription that the test waits for.
+
+A controlled Chromium continuation at 1280×720 with mocked Pro authentication verified the note in the reading request and accepted cue, the correct card dialog and quoted cue phrase, focus restoration on Escape, and the exact note in both **Your notes** and **Your question and notes**. This investigation made no product behavior change. The existing live test needs an explicit visual-enabled runner and assertions for the current dialog interaction. Its failure log, trace, probe script, and successful probe result are in `/tmp/opencode/reading-followup-KZ794j/`.
+
 ## Remaining dispositions and known failures
 
+- The live reflection-gesture E2E case remains open for the runner/assertion maintenance described above.
 - The D02 unfinished-plan narrative failure (see above) remains open.
 - Two prose repetitions noted in [#138](https://github.com/henryperkins/tarot/pull/138) remain. The local composer's You & Them section names the shared element twice, and amplified Celtic Cross cross-checks restate the shared element.
 - [PR #121](knowledge-graph/PR121_DISPOSITION_2026-11-01.md): superseded disposition prepared; historical source retained. No GitHub closure performed.
 - [Spacefast / PR #109](SPACEFAST_PARKED_2026-11-01.md): parked with its runtime/preview blockers; no new port or remote probe.
-- [Dependency deferrals](DEPENDENCY_RECONCILIATION_2026-11-01.md): axe 4.14, Sentry 11, Vite React plugin 6 and tsParticles 4 remain deferred under the recorded failures or compatibility requirements. No assertion was weakened to accept them.
+- Sentry 11, Vite React plugin 6, and tsParticles 4 remain deferred under their recorded compatibility requirements. See the [dependency reconciliation](DEPENDENCY_RECONCILIATION_2026-11-01.md).
 - The legacy `functions/__tests__/telemetry.test.js`, outside the established Worker lane, has four failures reproduced on the unchanged integration baseline: unknown-context diagnostics, two reflection-retention assertions and conflicting deck metadata. They remain open and are not included in passing counts.
 - Historical narrative/F3b failed outputs, the stash, recovery refs and parked feature branches remain preserved.
 
