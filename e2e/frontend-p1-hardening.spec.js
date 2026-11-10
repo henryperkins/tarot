@@ -88,7 +88,7 @@ for (const width of [320, 390, 1280]) {
           await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
           await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-          await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+          await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().click();
           await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
           await expect(page.locator('[data-scene="interlude"]')).toBeVisible();

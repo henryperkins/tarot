@@ -85,7 +85,7 @@ for (const width of [1440, 390]) {
         await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
         await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
         await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-        await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
         await expect(page.getByRole('button', { name: /Cinematic|Generate.*video|Watch.*video/i })).toHaveCount(0);
         const details = page.getByRole('button', { name: /Click to view details\./ }).filter({ visible: true }).first();
         await details.press('Enter');

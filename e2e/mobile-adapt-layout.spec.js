@@ -87,7 +87,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await drawWithQuestion(page, LONG_QUESTION);
         await expectClampedQuestion(page.locator('.reading-table'));
         await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-        await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
         await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
         await expectClampedQuestion(page.locator('.reading-screen--preparing'));
         await fixture.completeReading();

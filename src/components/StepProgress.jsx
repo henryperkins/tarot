@@ -15,7 +15,7 @@ const STEP_SHORT_LABELS = {
   'spread': 'Spread',
   'intention': 'Intent',
   'ritual': 'Ritual',
-  'reading': 'Read'
+  'reading': 'Reading'
 };
 
 // Steps that are optional (shown with indicator)
@@ -173,7 +173,7 @@ export function StepProgress({ steps = [], activeStep, onSelect, condensed = fal
                 >
                   <span className="step-progress-canvas__label">{isCompleted
                     ? <Check className="step-progress-canvas__check" aria-hidden="true" />
-                    : <span className="step-progress-canvas__number" aria-hidden="true">{index + 1}</span>}
+                    : <span className="step-progress-canvas__number" aria-hidden="true">{index + 1}</span>}{' '}
                   <span>{shortLabel}</span></span>
                   {isSkipped && <span className="step-progress-canvas__skipped">(skipped)</span>}
                 </button>

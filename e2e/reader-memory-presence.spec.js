@@ -63,7 +63,7 @@ for (const platform of ['desktop', 'phone @mobile']) {
         } else {
           await page.getByRole('button', { name: /^Step 4: Reading/ }).click();
           await page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true }).click();
-          await page.getByRole('button', { name: 'Reveal all cards', exact: true }).filter({ visible: true }).click();
+          await page.getByRole('button', { name: 'Reveal remaining cards', exact: true }).filter({ visible: true }).click();
           await page.getByRole('button', { name: 'Interpret cards', exact: true }).filter({ visible: true }).click();
         }
         await expect.poll(() => fixture.requests.reading.length).toBe(1);

@@ -68,7 +68,7 @@ test.describe('signed-in iOS installation choices', () => {
     test(`${choice} persists after a pointer choice in the account menu${engine}`, async ({ page }) => {
       await prepareNavigation(page, { pro: true, completed: true });
       await page.goto('/'); await settleNavigation(page);
-      const account = page.getByRole('button', { name: 'User menu for Avery', exact: true });
+      const account = page.getByRole('button', { name: 'Account menu for Avery', exact: true });
       await account.click();
       await page.getByRole('menu').getByRole('button', { name: 'Add to Home Screen', exact: true }).click();
       const guide = page.getByRole('dialog', { name: 'Add Tableu to your Home Screen', exact: true });
@@ -103,7 +103,7 @@ test('completed reading revisits show the selected step without losing completio
 test('reading settings isolates chrome and returns focus when handset layout ends', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await prepareNavigation(page);
   await page.goto('/'); await settleNavigation(page);
-  await page.locator('[data-app-bottom-region]').getByRole('button', { name: 'Open reading preparation', exact: true }).click();
+  await page.locator('[data-app-bottom-region]').getByRole('button', { name: 'Prepare reading', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.locator('[data-app-header]')).toHaveAttribute('inert', '');
   await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('inert', '');
@@ -172,7 +172,7 @@ for (const width of [1440, 390]) for (const theme of ['dark', 'light']) for (con
       const errors = []; page.on('pageerror', error => errors.push(error.message));
       await page.goto(state.startsWith('journal') ? '/journal' : state === 'account' ? '/account' : '/');
       await settleNavigation(page);
-      if (pro) await expect(page.getByRole('button', { name: 'User menu for Avery', exact: true })).toBeVisible();
+      if (pro) await expect(page.getByRole('button', { name: 'Account menu for Avery', exact: true })).toBeVisible();
       if (state === 'completed') await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
       if (state === 'journal-populated') {
         await expect(page.getByRole('article').first()).toBeAttached();

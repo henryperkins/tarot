@@ -55,7 +55,7 @@ for (const mode of ['automatic', 'manual', 'auto-off']) {
       expect(calls.map(call => call.context)).toEqual(['card-reveal']);
       await interpret(page, fixture);
       if (mode === 'auto-off') {
-        await page.locator('[data-app-header]').getByRole('button', { name: /^User menu for/ }).click();
+        await page.locator('[data-app-header]').getByRole('button', { name: /^Account menu for/ }).click();
         await page.getByRole('link', { name: 'Account & Settings', exact: true }).click();
         await page.getByRole('switch', { name: 'Toggle Auto-Narrate', exact: true }).click();
         await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();

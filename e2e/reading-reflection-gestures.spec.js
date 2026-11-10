@@ -41,7 +41,7 @@ test('normal reading retains the card note supplied before generation', async ({
     await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: /^Reveal next:/ }).filter({ visible: true }).first().click();
     await page.getByRole('region', { name: 'Selected card meaning' }).getByLabel('What resonates for you?').fill(note);
-    await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
     await fixture.completeReading();
     const requestCards = fixture.requests.reading[0].cardsInfo;

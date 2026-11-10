@@ -179,7 +179,7 @@ test('larger text and light theme keep the last section above the dock and contr
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
     await expectNoHorizontalOverflow(page, '.reading-screen');
-    const accessibility = await new AxeBuilder({ page }).include('.reading-screen').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    const accessibility = await new AxeBuilder({ page }).include('.reading-screen').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(accessibility.violations).toEqual([]);
   } finally {
     await fixture.close();
