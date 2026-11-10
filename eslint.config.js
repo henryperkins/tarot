@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import { fixupPluginRules } from '@eslint/compat';
 import globals from 'globals';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -52,6 +53,9 @@ export default [
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+      // Newly recommended in ESLint 10; introduce these as advisory checks.
+      'no-useless-assignment': 'warn',
+      'preserve-caught-error': 'warn',
       'no-console': 'off', // Allow console for debugging
       'prefer-const': 'warn',
       'no-var': 'error',
@@ -68,7 +72,8 @@ export default [
   {
     files: ['src/**/*.{js,jsx}'],
     plugins: {
-      react,
+      // React's legacy rules still use context APIs removed in ESLint 10.
+      react: fixupPluginRules(react),
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
     },
