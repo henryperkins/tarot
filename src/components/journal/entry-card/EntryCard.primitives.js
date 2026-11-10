@@ -132,22 +132,15 @@ export const styles = {
   // Cards
   // No `group` here: hover inside an open entry must not restyle its parts.
   cardBase:
-    'relative overflow-hidden text-(--text-main) transition-[translate,border-color] duration-(--duration-medium) ease-(--ease-out) animate-fade-in ' +
-    'before:absolute before:inset-0 before:bg-[linear-gradient(120deg,var(--border-warm-subtle),transparent_45%)] ' +
-    'before:opacity-70 before:pointer-events-none before:content-[""]',
+    'relative overflow-hidden text-(--text-main) transition-colors duration-(--duration-fast) ease-(--ease-out) animate-fade-in',
 
-  // Collapsed entries only: a small lift and a warmer edge mark them as openable.
+  // Collapsed Comfortable entries only: a warmer edge and subtle surface shift mark them as openable.
   cardHover:
-    'hover:border-(--border-warm) motion-safe:hover:-translate-y-0.5',
+    'hover:border-(--border-warm) hover:bg-[color-mix(in_srgb,var(--bg-surface)_88%,var(--bg-surface-muted))]',
 
+  // Collapsed Compact ledger rows sit directly on the archive surface between hairlines.
   cardCompact:
-    'rounded-2xl border border-(--border-warm-light) bg-[linear-gradient(160deg,var(--bg-surface),var(--bg-main))] ' +
-    'shadow-[0_14px_32px_-20px_rgba(0,0,0,0.7)] hover:bg-(--border-warm-subtle)',
-
-  // Accent bar
-  accentBar: 'absolute left-0 w-1 rounded-full opacity-80',
-  accentBarDefault: 'top-3 bottom-3',
-  accentBarCompact: 'top-2 bottom-2 w-[3px]',
+    'relative rounded-lg text-(--text-main) transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-(--border-warm-subtle)',
 
   // Menu
   menu:

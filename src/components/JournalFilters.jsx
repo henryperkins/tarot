@@ -3,7 +3,7 @@ import {
   CaretDown,
   Check,
   ListBullets,
-  SquaresFour,
+  Rows,
   X
 } from '@phosphor-icons/react';
 import { JournalBookmarkIcon, JournalRefreshIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
@@ -279,10 +279,10 @@ export function JournalFilters({
   const viewModeSwitch = onViewModeChange ? (
     <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-(--border-warm-light) p-1" role="group" aria-label="List view mode">
       {/* One name at every width; forced colors mark the chosen view with Highlight. */}
-      {[['comfortable', SquaresFour, 'Comfortable'], ['compact', ListBullets, 'Compact']].map(([mode, Icon, label]) => (
+      {[['comfortable', Rows, 'Comfortable'], ['compact', ListBullets, 'Compact']].map(([mode, Icon, label]) => (
         <button key={mode} type="button" onClick={() => onViewModeChange(mode)} aria-pressed={viewMode === mode}
           title={mode === 'compact' ? 'Compact view - shows more entries' : 'Comfortable view - shows more details'}
-          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus font-semibold text-main ${viewMode === mode ? 'bg-(--ui-selected-bg)' : ''} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
+          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus font-semibold text-main transition-colors ${viewMode === mode ? 'bg-(--ui-selected-bg) ring-1 ring-inset ring-(--brand-primary)/45' : 'hover:bg-(--border-warm-subtle)'} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
           <Icon className="h-4 w-4" aria-hidden="true" />{label}
         </button>
       ))}

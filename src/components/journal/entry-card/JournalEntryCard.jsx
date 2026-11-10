@@ -74,8 +74,7 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     hasReflections,
     hasHiddenFollowUps,
     followUpLimit,
-    followUpTurnsUsed,
-    accentColor
+    followUpTurnsUsed
   } = metadata;
 
   const canAskFollowUp = isAuthenticated && followUpTurnsUsed < followUpLimit;
@@ -167,14 +166,15 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   // Determine styling
   const useCompactStyle = compact && !isExpanded;
   const baseCardClass = cardClass || (isSmallScreen ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS);
-  
-  const fullCardClass = useCompactStyle
-    ? cn(styles.cardCompact, 'relative overflow-hidden animate-fade-in text-(--text-main)')
-    : cn(baseCardClass, styles.cardBase, !isExpanded && styles.cardHover, 'text-(--text-main)');
 
-  const accentBarClass = useCompactStyle
-    ? cn(styles.accentBar, styles.accentBarCompact)
-    : cn(styles.accentBar, styles.accentBarDefault);
+  const fullCardClass = useCompactStyle
+    ? cn(styles.cardCompact, 'animate-fade-in')
+    : cn(
+        baseCardClass,
+        styles.cardBase,
+        isExpanded ? 'border-(--border-warm)' : styles.cardHover,
+        compact && isExpanded && 'my-2'
+      );
 
   const contentPadding = 'px-[min(1rem,4vw)] py-4 sm:p-5';
 
@@ -230,13 +230,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
   return (
     <article tabIndex={-1} aria-labelledby={entryHeadingId} className={cn(fullCardClass, actionMenu.isOpen ? 'z-50' : 'z-0')}>
-      {/* Accent bar */}
-      <span
-        aria-hidden="true"
-        className={accentBarClass}
-        style={{ backgroundColor: accentColor }}
-      />
-
       {/* Header */}
       <ComfortableHeader {...headerProps} isExpanded={isExpanded} />
 

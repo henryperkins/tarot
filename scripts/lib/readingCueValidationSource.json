@@ -1091,6 +1091,7 @@
     "src/lib/intentionCoach.js",
     "src/lib/journal/constants.js",
     "src/lib/journal/deckCards.js",
+    "src/lib/journal/entryExcerpt.js",
     "src/lib/journal/fetchEntryById.js",
     "src/lib/journal/leaders.js",
     "src/lib/journal/localJournalStorage.js",

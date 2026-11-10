@@ -15,7 +15,7 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
-import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
+import { LABEL_CLASS } from '../styles/labelClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
@@ -178,6 +178,7 @@ export default function Journal() {
   const [highlightStatus, setHighlightStatus] = useState(null);
   const [entryVisibility, setEntryVisibility] = useState({ filterSignature, count: VISIBLE_ENTRY_BATCH });
   const [monthJump, setMonthJump] = useState('');
+  const [monthHeaderScrolled, setMonthHeaderScrolled] = useState(false);
   const [historyNavigation, setHistoryNavigation] = useState(null);
   const [historyAnnouncement, setHistoryAnnouncement] = useState(null);
   const [journeyReady, setJourneyReady] = useState(false);
@@ -419,6 +420,16 @@ export default function Journal() {
     }
     setHistoryNavigation(null);
   }, [historyNavigation, filterSignature, visibleEntries, prefersReducedMotion]);
+
+  useEffect(() => {
+    const updateScrolled = () => {
+      const scrolled = window.scrollY > 140;
+      setMonthHeaderScrolled((previous) => (previous === scrolled ? previous : scrolled));
+    };
+    updateScrolled();
+    window.addEventListener('scroll', updateScrolled, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrolled);
+  }, []);
 
   useEffect(() => {
     hasMoreServerEntriesRef.current = hasMoreServerEntries;
@@ -805,7 +816,10 @@ export default function Journal() {
     </div>
   ) : null;
   const hasRailContent = !loading && hasEntries && !historyPending && journeyReady;
-  const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
+  const monthStackSpacingClass = compactList ? 'space-y-6' : 'space-y-7';
+  const entryStackSpacingClass = compactList
+    ? 'mt-1 divide-y divide-(--border-warm-light)'
+    : 'mt-3 space-y-3.5 sm:space-y-4';
   const monthSections = useMemo(() => buildJournalMonthSections(filteredEntries), [filteredEntries]);
   const visibleMonthSections = useMemo(() => buildJournalMonthSections(visibleEntries, { consecutive: true }), [visibleEntries]);
   const visibleMonthTotals = useMemo(() => new Map(buildJournalMonthSections(visibleEntries).map(section => [section.key, section.count])), [visibleEntries]);
@@ -824,11 +838,15 @@ export default function Journal() {
   };
 
   const renderedHistoryEntries = visibleMonthSections.map((section) => (
-    <div key={section.anchorId} id={section.anchorId} className="space-y-4 scroll-mt-24">
-      <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
-          <span className={`${LABEL_CLASS} text-muted`}>{section.label}</span>
-          <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
+    <div key={section.anchorId} id={section.anchorId} className="scroll-mt-24">
+      <div
+        data-app-secondary="2"
+        data-chrome-group="journal-months"
+        className={`sticky top-24 z-20 -mx-1 px-1 py-1.5 ${monthHeaderScrolled ? 'rounded-t-lg bg-(--surface-92) backdrop-blur-md' : ''}`}
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-(--border-warm-light) pb-1.5">
+          <span className={`${LABEL_CLASS} text-(--text-muted-high)`}>{section.label}</span>
+          <span className="text-xs font-medium tabular-nums text-(--text-muted)">
             {visibleMonthTotals.get(section.key) < monthTotals.get(section.key) ? `${visibleMonthTotals.get(section.key)} of ${monthTotals.get(section.key)}` : monthTotals.get(section.key)} {monthTotals.get(section.key) === 1 ? 'reading' : 'readings'}
           </span>
         </div>
@@ -844,7 +862,7 @@ export default function Journal() {
               id={anchorId}
               data-journal-entry-index={index}
               key={key}
-              className={`space-y-2 scroll-mt-40 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
+              className={`scroll-mt-40 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
             >
               <JournalEntryCard
                 entry={entry}
@@ -973,29 +991,46 @@ export default function Journal() {
           />
 
           {loading ? (
-            // Placeholders take the shape of a collapsed reading: its small card
-            // stack, the question, then the spread-and-date and cards lines.
-            <div className="space-y-5 py-6" aria-live="polite">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="animate-pulse motion-reduce:animate-none rounded-[24px] border border-(--border-warm-subtle) bg-surface-muted/40 px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4"
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="relative mt-0.5 hidden h-[51px] w-[64px] shrink-0 sm:block" aria-hidden="true">
-                      <div className="absolute left-0 top-0 h-full w-[34px] rounded-md bg-(--border-warm-light)" />
-                      <div className="absolute left-[15px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
-                      <div className="absolute left-[30px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-2.5 pt-1">
-                      <div className="h-[1.125rem] w-3/4 rounded-full bg-(--border-warm-light)" />
-                      <div className="h-3.5 w-1/2 rounded-full bg-(--border-warm-light)" />
-                      <div className="h-3 w-1/3 rounded-full bg-(--border-warm-subtle)" />
+            // Placeholders match the reader's active density so loading never jumps shape.
+            compactList ? (
+              <div className="divide-y divide-(--border-warm-light) border-y border-(--border-warm-light) py-2" aria-live="polite">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="animate-pulse motion-reduce:animate-none flex items-center justify-between gap-4 px-2 py-3 sm:px-3"
+                  >
+                    <div className="h-4 w-3/5 rounded-full bg-(--border-warm-light)" />
+                    <div className="h-3 w-1/4 rounded-full bg-(--border-warm-subtle)" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4 py-6" aria-live="polite">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="animate-pulse motion-reduce:animate-none rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5"
+                  >
+                    <div className="flex items-start gap-3.5 sm:gap-4">
+                      <div className="relative mt-0.5 hidden h-[72px] w-[96px] shrink-0 sm:block" aria-hidden="true">
+                        <div className="absolute left-0 top-[3px] h-[66px] w-[44px] -rotate-3 rounded-md bg-(--border-warm-light)" />
+                        <div className="absolute left-[26px] top-[3px] h-[66px] w-[44px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                        <div className="absolute left-[52px] top-[3px] h-[66px] w-[44px] rotate-3 rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-2.5">
+                        <div className="h-[1.125rem] w-3/4 rounded-full bg-(--border-warm-light)" />
+                        <div className="h-3.5 w-1/2 rounded-full bg-(--border-warm-subtle)" />
+                        <div className="h-3.5 w-5/6 rounded-full bg-(--border-warm-subtle)" />
+                        <div className="flex gap-1.5 pt-1">
+                          <div className="h-5 w-24 rounded-md bg-(--border-warm-subtle)" />
+                          <div className="h-5 w-28 rounded-md bg-(--border-warm-subtle)" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           ) : (
             <div className={hasEntries && hasRailContent ? 'lg:flex lg:flex-wrap lg:gap-6 xl:gap-8' : ''}>
               {/* Let the rail move below history when enlarged text needs more room. */}
@@ -1111,7 +1146,7 @@ export default function Journal() {
                               contexts={CONTEXT_FILTERS}
                               spreads={SPREAD_FILTERS}
                               decks={DECK_FILTERS}
-                              variant={isMobileLayout ? 'compact' : 'full'}
+                              variant={isSmallSummary ? 'compact' : 'full'}
                               viewMode={compactList ? 'compact' : 'comfortable'}
                               onViewModeChange={handleViewModeChange}
                               resultsLabel={historyResultsLabel}
@@ -1199,7 +1234,7 @@ export default function Journal() {
                         </div>
                       ) : (
                         <>
-                          <div ref={historyListRef} className={entryStackSpacingClass}>
+                          <div ref={historyListRef} className={monthStackSpacingClass}>
                             {renderedHistoryEntries}
                           </div>
                           {showLoadMoreButton && (
@@ -1232,6 +1267,7 @@ export default function Journal() {
                           onScrollToFilters={scrollToHistoryFilters}
                           onStartReading={handleStartReading}
                           isMobileLayout={isMobileLayout}
+                          showFiltersShortcut={visibleEntries.length >= 4 || filtersActive}
                         />
                     </div>
                   </section>

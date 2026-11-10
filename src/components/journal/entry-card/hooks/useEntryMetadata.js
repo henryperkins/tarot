@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { normalizeTimestamp, getTimestamp } from '../../../../../shared/journal/utils.js';
 import { buildReflectionEntries } from '../../../../../shared/journal/reflectionLabels.js';
 import { formatContextName } from '../../../../lib/journalInsights';
+import { buildEntryExcerpt, shortSpreadName } from '../../../../lib/journal/entryExcerpt.js';
 import { hasOwnDeckArt, toDeckCards } from '../../../../lib/journal/deckCards';
 import { DECK_OPTIONS } from '../../../deckOptions';
 import {
@@ -72,12 +73,7 @@ function formatEntryTimestamp(timestamp) {
   });
 }
 
-/** "Three-Card Story (Past · Present · Future)" → "Three-Card Story". */
-export function shortSpreadName(name) {
-  if (typeof name !== 'string') return '';
-  const short = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  return short || name.trim();
-}
+export { buildEntryExcerpt, shortSpreadName };
 
 /**
  * Format relative time from now
@@ -143,7 +139,9 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     [timestamp]
   );
 
-  const cardPreview = useMemo(() => cards.slice(0, 2), [cards]);
+  // Comfortable view names up to three cards so 1-card and 3-card spreads never
+  // hide their final card behind "+1 more".
+  const cardPreview = useMemo(() => cards.slice(0, 3), [cards]);
 
   const narrativeText = useMemo(
     () => entry?.personalReading || entry?.reading || entry?.narrative || '',
@@ -153,6 +151,11 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
   const reflections = useMemo(
     () => buildReflectionEntries(entry?.reflections, cards),
     [entry?.reflections, cards]
+  );
+
+  const entryExcerpt = useMemo(
+    () => buildEntryExcerpt(reflections, narrativeText, entry?.question),
+    [reflections, narrativeText, entry?.question]
   );
 
   const followUps = useMemo(
@@ -210,10 +213,11 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     narrativeText,
     contextLabel,
 
-    // Derived arrays
+    // Derived arrays & previews
     insights,
     reflections,
     cardPreview,
+    entryExcerpt,
     followUpPreview,
 
     // Counts and flags
