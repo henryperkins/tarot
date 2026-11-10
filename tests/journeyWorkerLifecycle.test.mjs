@@ -31,13 +31,20 @@ for (const sampleRatio of ['1', '0']) {
     });
     try {
       const call = (path, method = 'POST', body) => fixture.fetch(`https://example.test/api/${path}`, {
-        method, headers: { Cookie: 'session=session-owner', 'Content-Type': 'application/json' },
+        method, headers: {
+          Cookie: 'session=session-owner; theme=compatibility-private-cookie',
+          'Content-Type': 'application/json',
+          'X-Forwarded-For': '198.51.100.42',
+          'X-User-Id': 'compatibility-private-user',
+          'X-Compatibility-Probe': 'compatibility-public-header'
+        },
         ...(body === undefined ? {} : { body: JSON.stringify(body) })
       });
       // D1 bindings survive requests in a warm isolate. Instrumentation must not
       // stack new mutating wrappers every time that binding is accessed.
       for (let i = 0; i < 110; i++) {
-        const response = await call('archetype-journey/preferences', 'GET');
+        const query = i === 0 ? '?view=compatibility-public-query&x-user=compatibility-private-query' : '';
+        const response = await call(`archetype-journey/preferences${query}`, 'GET');
         assert.equal(response.status, 200, await response.clone().text());
         await response.arrayBuffer();
       }
@@ -64,10 +71,26 @@ for (const sampleRatio of ['1', '0']) {
           .flatMap(resource => resource.scopeSpans || []).flatMap(scope => scope.spans || []);
         assert.ok(spans.some(span => span.name === 'DB batch'), 'database batch tracing must remain enabled');
         assert.ok(spans.some(span => span.name.startsWith('api POST ')), 'request tracing must remain enabled');
-        assert.ok(sentryExports.some(body => body.includes('"op":"db.query"')), 'Sentry database tracing must remain enabled');
         assert.ok(!telemetryTraceFlags.includes('1'),
           'deferred OTLP exports must not create Sentry spans in another request context');
       }
+      // v11 streams v2 span batches; attributes carry typed values on the wire.
+      const sentrySpans = sentryExports.flatMap(body => body.trim().split('\n').map(line => JSON.parse(line)))
+        .filter(payload => payload.version === 2 && Array.isArray(payload.items)).flatMap(payload => payload.items);
+      const attribute = (span, name) => span.attributes?.[name]?.value;
+      const databaseSpan = sentrySpans.find(span => attribute(span, 'sentry.op') === 'db.query');
+      assert.ok(databaseSpan, 'Sentry database tracing must remain enabled independently of OTEL sampling');
+      assert.ok(sentrySpans.some(span => attribute(span, 'sentry.op') === 'http.server' && span.is_segment),
+        'Sentry request tracing must remain enabled independently of OTEL sampling');
+      assert.ok(sentrySpans.some(span => span.trace_id === databaseSpan.trace_id && span.span_id === databaseSpan.parent_span_id),
+        'database spans must retain their request parent');
+      const sentryPayload = sentryExports.join('\n');
+      for (const value of ['session-owner', 'compatibility-private-cookie', 'compatibility-private-user',
+        '198.51.100.42', 'compatibility-private-query', SAVED_READING.question, 'owner@example.test']) {
+        assert.ok(!sentryPayload.includes(value), `Sentry must not collect private fixture value: ${value}`);
+      }
+      assert.ok(sentryPayload.includes('compatibility-public-header'), 'non-sensitive request headers remain available');
+      assert.ok(sentryPayload.includes('compatibility-public-query'), 'non-sensitive query parameters remain available');
     } finally { await fixture.close(); }
   });
 }
