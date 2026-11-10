@@ -436,10 +436,24 @@ const sentryHandler = Sentry.withSentry(
   (env) => ({
     dsn: 'https://dc6b77e884387701e50a12632de8e0dc@o4508070823395328.ingest.us.sentry.io/4510814880661504',
     tracesSampleRate: 1.0,
-    enableLogs: true,
-    sendDefaultPii: false,
+    // v11 collects these categories by default; retain the v10 PII baseline.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: {
+        request: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+        response: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] }
+      },
+      httpBodies: [],
+      urlQueryParams: { deny: ['forwarded', '-ip', 'remote-', 'via', '-user'] },
+      genAI: { inputs: false, outputs: false },
+      databaseQueryData: false,
+      queues: false,
+      graphQL: { document: false, variables: false },
+      frameContextLines: 7
+    },
     // OTEL owns the global provider; Sentry retains its native request/DB spans.
-    skipOpenTelemetrySetup: true,
+    enableOpenTelemetrySetup: false,
     // Use Cloudflare version metadata for release tracking
     release: env.CF_VERSION_METADATA?.id,
   }),
