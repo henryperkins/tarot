@@ -62,6 +62,7 @@ test('a failed load does not block a later scene and a detached completion is de
   let destroyed = 0;
   const element = { isConnected: true };
   const session = createParticleSession(async () => ({
+    items: [],
     async load() {
       if (++calls === 1) throw new Error('particle asset unavailable');
       element.isConnected = false;
@@ -82,7 +83,6 @@ test('a container registered before load rejection is cleaned up without touchin
   const foreign = { id: Symbol('other-view'), destroy: () => events.push('destroy:foreign') };
   const engine = {
     items: [foreign],
-    dom() { return this.items; },
     async load({ id }) {
       const container = {
         id: Symbol(id),
