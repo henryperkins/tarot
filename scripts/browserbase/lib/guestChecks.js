@@ -83,7 +83,7 @@ export async function checkGuestUi(context, run, { targetUrl, guard, signal, log
         .fill('What should I reflect on today?');
       await page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true }).first().click();
       await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-      await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+      await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
       await expect(page.getByRole('status').filter({ hasText: '3 of 3 cards revealed' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first()).toBeVisible();
       const size = await page.evaluate(() => ({ width: globalThis.innerWidth, content: globalThis.document.documentElement.scrollWidth }));

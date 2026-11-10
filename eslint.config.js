@@ -10,6 +10,7 @@ export default [
     ignores: [
       'dist/**',
       'node_modules/**',
+      '.agents/**',
       '.vscode-server/**',
       '.vscode-server-insiders/**',
       '.wrangler/**',
@@ -17,6 +18,8 @@ export default [
       '.superpowers/**',
       '.worktrees/**',
       'output/**', // Saved browser evidence and historical source snapshots
+      'playwright-report/**',
+      'test-results/**',
       'public/**',
       'data/**',
       'venv/**',

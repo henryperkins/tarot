@@ -44,6 +44,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 }) {
   const isCompactView = compact && !isExpanded;
   const sublineId = useId();
+  const secondaryId = useId();
   const cardsSummaryId = useId();
 
   const {
@@ -78,17 +79,33 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     ? <time dateTime={timestampIso} title={relativeTimeLabel || undefined}>{formattedTimestamp}</time>
     : formattedTimestamp;
 
-  // Collapsed: spread (when the question is the title), the exact date and time,
-  // context, a deck other than the default, and whether the reader wrote notes.
+  // Collapsed: primary line is spread + exact date and time; secondary line
+  // is context, a deck other than the default, and whether notes exist.
+  // Tiers separate by size, colour and weight together: the primary line is
+  // 14px at full strength, the secondary 12px medium one colour step down,
+  // and the card names sit in the quietest colour with the names lifted out.
+  // No line truncates: Compact wraps the primary and clamps the rest to two
+  // lines, so every fact stays on the row at any width or text size.
   const noteCount = reflections?.length || 0;
-  const sublineParts = [
+  const primaryParts = [
     questionTitle ? spreadShortName : null,
-    formattedTimestamp ? fullTimestamp : null,
+    formattedTimestamp ? fullTimestamp : null
+  ].filter(Boolean);
+  const secondaryParts = [
     contextLabel,
     showsDeckLabel ? deckLabel : null,
     noteCount > 0 ? `${noteCount} ${noteCount === 1 ? 'note' : 'notes'}` : null
   ].filter(Boolean);
   const extraCards = cards.length - cardPreview.length;
+  const collapsedDescribedBy = isExpanded
+    ? undefined
+    : [
+        primaryParts.length > 0 ? sublineId : null,
+        secondaryParts.length > 0 ? secondaryId : null,
+        cardsSummaryId
+      ]
+        .filter(Boolean)
+        .join(' ');
 
   const headerPadding = isCompactView
     ? 'px-[min(0.875rem,4vw)] py-3 sm:px-4 sm:py-3.5'
@@ -96,10 +113,13 @@ export const ComfortableHeader = memo(function ComfortableHeader({
       ? 'px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5'
       : 'px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4';
 
+  // The question carries the DESIGN Title role (serif semibold), so it reads
+  // as the entry's heading below "Saved readings" (Headline). Compact keeps
+  // the weight and steps the size down one notch instead.
   // Source Serif keeps normal leading: tighter clips its glyphs at large text sizes.
   const titleClass = isCompactView
-    ? 'font-serif text-base leading-normal'
-    : 'font-serif text-lg sm:text-xl leading-normal';
+    ? 'font-serif text-base font-semibold leading-normal'
+    : 'font-serif text-lg font-semibold leading-normal';
 
   const Caret = isExpanded ? CaretUp : CaretDown;
 
@@ -108,8 +128,12 @@ export const ComfortableHeader = memo(function ComfortableHeader({
       {/* Open, the title keeps at least 14rem beside the actions: on phones, and
           with enlarged text, the actions wrap under it instead of squeezing it. */}
       <div className={cn('flex items-start gap-3 sm:gap-4', isExpanded && 'flex-wrap')}>
-        {!isExpanded && !isCompactView && (
-          <EntryArtStrip cards={cards} cardWidth={isSmallScreen ? 28 : 34} className="mt-0.5" />
+        {/* The art stack is decorative (the lines below name the cards), so on
+            phones it steps aside: the question keeps the full row width
+            instead of wrapping in a column a third of the screen wide. The
+            Compact list drops the art at every width for the same reason. */}
+        {!isExpanded && !isCompactView && !isSmallScreen && (
+          <EntryArtStrip cards={cards} cardWidth={34} className="mt-0.5" />
         )}
 
         <div className={cn('min-w-0', isExpanded ? 'flex-[1_1_14rem]' : 'flex-1')}>
@@ -132,14 +156,14 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             </div>
           )}
 
-          <h3 id={entryHeadingId} className={cn('min-w-0 wrap-break-word text-(--brand-primary)', titleClass)}>
+          <h3 id={entryHeadingId} className={cn('min-w-0 wrap-break-word text-balance text-(--text-main)', titleClass)}>
             {/* Stretched over the whole header; the open header's actions sit above it. */}
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={isExpanded}
               aria-controls={entryContentId}
-              aria-describedby={isExpanded ? undefined : `${sublineId} ${cardsSummaryId}`}
+              aria-describedby={collapsedDescribedBy}
               data-journal-entry-toggle
               title={isExpanded ? 'Collapse entry' : 'Expand entry'}
               className="block w-full min-w-0 text-left focus-visible:outline-hidden after:absolute after:inset-1 after:rounded-[20px] after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-(--focus-ring-color)"
@@ -152,24 +176,51 @@ export const ComfortableHeader = memo(function ComfortableHeader({
             questionTitle && <p className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">{spreadTitle}</p>
           ) : (
             <>
-              <p id={sublineId} className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">
-                {sublineParts.map((part, index) => (
-                  <Fragment key={index}>
-                    {index > 0 && <span aria-hidden="true"> · </span>}
-                    {index > 0 && <span className="sr-only">, </span>}
-                    {part}
-                  </Fragment>
-                ))}
-              </p>
+              {primaryParts.length > 0 && (
+                <p
+                  id={sublineId}
+                  className={cn(
+                    'mt-1 text-pretty',
+                    isCompactView
+                      ? 'text-sm font-medium text-(--text-muted-high) wrap-anywhere'
+                      : 'text-sm text-(--text-muted-high) wrap-anywhere'
+                  )}
+                >
+                  {primaryParts.map((part, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <span aria-hidden="true"> · </span>}
+                      {index > 0 && <span className="sr-only">, </span>}
+                      {part}
+                    </Fragment>
+                  ))}
+                </p>
+              )}
+              {secondaryParts.length > 0 && (
+                <p
+                  id={secondaryId}
+                  className={cn(
+                    'font-medium leading-normal text-(--text-muted-high)',
+                    isCompactView ? 'mt-0.5 line-clamp-2 text-xs' : 'mt-0.5 text-xs wrap-anywhere'
+                  )}
+                >
+                  {secondaryParts.map((part, index) => (
+                    <Fragment key={index}>
+                      {index > 0 && <span aria-hidden="true"> · </span>}
+                      {index > 0 && <span className="sr-only">, </span>}
+                      {part}
+                    </Fragment>
+                  ))}
+                </p>
+              )}
               {cardPreview.length > 0 && (
-                <p className="mt-0.5 text-xs text-(--text-muted) wrap-anywhere">
+                <p className={cn('text-xs leading-normal text-(--text-muted)', isCompactView ? 'mt-0.5 line-clamp-2' : 'mt-0.5 wrap-anywhere')}>
                   {cardPreview.map((card, index) => {
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
                     return (
                       <Fragment key={`${card?.canonicalName || card?.name || 'card'}-${index}`}>
                         {index > 0 && <span aria-hidden="true"> · </span>}
                         {index > 0 && <span className="sr-only">, </span>}
-                        <span className="text-(--text-main)">{card?.displayName || card?.name || 'Card'}</span>
+                        <span className="font-medium text-(--text-main)">{card?.displayName || card?.name || 'Card'}</span>
                         {reversed && <span>, reversed</span>}
                       </Fragment>
                     );
@@ -178,7 +229,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     <>
                       <span aria-hidden="true"> · </span>
                       <span className="sr-only">, </span>
-                      <span>+{extraCards} more</span>
+                      <span className="font-medium tabular-nums">+{extraCards} more</span>
                     </>
                   )}
                 </p>

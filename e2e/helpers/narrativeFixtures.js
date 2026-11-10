@@ -296,7 +296,7 @@ export async function startReading(page, fixture, { complete = true, setup = tru
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(question || fixture.question || QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-  await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
   if (reflection !== null) await page.getByPlaceholder('Your reflection (optional)').fill(reflection);
   await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
   if (complete) await fixture.completeReading();

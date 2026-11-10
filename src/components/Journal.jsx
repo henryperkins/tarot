@@ -15,7 +15,7 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
-import { BADGE_LABEL_CLASS } from '../styles/labelClasses';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
@@ -827,7 +827,7 @@ export default function Journal() {
     <div key={section.anchorId} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
-          <span className="text-2xs uppercase tracking-label-wide text-muted">{section.label}</span>
+          <span className={`${LABEL_CLASS} text-muted`}>{section.label}</span>
           <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
             {visibleMonthTotals.get(section.key) < monthTotals.get(section.key) ? `${visibleMonthTotals.get(section.key)} of ${monthTotals.get(section.key)}` : monthTotals.get(section.key)} {monthTotals.get(section.key) === 1 ? 'reading' : 'readings'}
           </span>
@@ -982,15 +982,15 @@ export default function Journal() {
                   className="animate-pulse motion-reduce:animate-none rounded-[24px] border border-(--border-warm-subtle) bg-surface-muted/40 px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4"
                 >
                   <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="relative mt-0.5 h-[51px] w-[64px] shrink-0" aria-hidden="true">
+                    <div className="relative mt-0.5 hidden h-[51px] w-[64px] shrink-0 sm:block" aria-hidden="true">
                       <div className="absolute left-0 top-0 h-full w-[34px] rounded-md bg-(--border-warm-light)" />
                       <div className="absolute left-[15px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
                       <div className="absolute left-[30px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
                     </div>
                     <div className="min-w-0 flex-1 space-y-2.5 pt-1">
-                      <div className="h-4 w-3/4 rounded-full bg-(--border-warm-light)" />
-                      <div className="h-3 w-1/2 rounded-full bg-(--border-warm-light)" />
-                      <div className="h-2.5 w-1/3 rounded-full bg-(--border-warm-subtle)" />
+                      <div className="h-[1.125rem] w-3/4 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3.5 w-1/2 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3 w-1/3 rounded-full bg-(--border-warm-subtle)" />
                     </div>
                   </div>
                 </div>
@@ -1010,7 +1010,7 @@ export default function Journal() {
                       {/* One row at a stable 44px: the month picker can come and go
                           with a search without moving the search field under it. */}
                       <div className="flex min-h-touch flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-xl font-serif text-main">Saved readings</h2>
+                        <h2 className="text-2xl font-serif text-main">Saved readings</h2>
                         {monthSections.length > 1 && (
                           <div className="flex min-w-0 max-w-full items-center">
                             {/* Visible as the picker's first option ("Month" on phones). */}
@@ -1023,7 +1023,7 @@ export default function Journal() {
                               onChange={handleMonthJump}
                               disabled={historyPending}
                               aria-describedby={historyPending ? 'journal-history-progress' : undefined}
-                              className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                              className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                             >
                               {/* Short on phones so the picker shares the heading's row;
                                   its label keeps the full name for assistive tech. */}
@@ -1064,7 +1064,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore || !hasMoreEntries}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Load older entries
@@ -1075,7 +1075,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Try again

@@ -191,7 +191,7 @@ test.describe('landscape chrome measurement', () => {
     const actions = page.locator('[data-app-bottom-actions]');
     const draw = actions.getByRole('button', { name: 'Draw cards', exact: true });
     await draw.locator('span').evaluate(element => { element.textContent = 'Draw cards for your daily reflection'; });
-    await actions.getByRole('button', { name: 'Open reading preparation', exact: true }).locator('span')
+    await actions.getByRole('button', { name: 'Prepare reading', exact: true }).locator('span')
       .evaluate(element => { element.textContent = 'Reading preparation and ritual options'; });
     await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('data-actions-in-flow', 'true');
     await settleNavigation(page); await draw.focus(); await settleNavigation(page);
@@ -339,7 +339,7 @@ test('shared-reading contextual links hand keyboard focus over in both responsiv
 for (const completed of [false, true]) test(`a ${completed ? 'completed' : 'setup'} reading action without a desktop copy hands focus to the canvas`, async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1000 }); await prepareNavigation(page, { completed, pro: true });
   await page.goto('/'); await settleNavigation(page);
-  const settings = page.locator('[data-app-bottom-actions]').getByRole('button', { name: completed ? 'Ask about this reading' : 'Open reading preparation', exact: true });
+  const settings = page.locator('[data-app-bottom-actions]').getByRole('button', { name: completed ? 'Ask about this reading' : 'Prepare reading', exact: true });
   await settings.focus(); await expect(settings).toBeFocused();
   await page.setViewportSize({ width: 769, height: 1000 });
   await expect.poll(() => page.evaluate(() => {

@@ -115,7 +115,7 @@ export function ReadingTableScene({ sceneModels = {} }) {
           ) : null}
           <div className="reading-table__secondary-actions">
             {isSpreadDealt && revealedCards.size < visibleCount ? (
-              <button type="button" className="reading-table__quiet" onClick={handleRevealAllWithScroll} aria-label="Reveal all cards">Reveal remaining</button>
+              <button type="button" className="reading-table__quiet" onClick={handleRevealAllWithScroll} aria-label="Reveal remaining cards">Reveal remaining</button>
             ) : null}
             {revealedCards.size > 0 ? (
               <button type="button" className="reading-table__quiet" onClick={handleResetReveals}>Reset reveals</button>

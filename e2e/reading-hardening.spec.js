@@ -77,7 +77,7 @@ async function prepareNarrative(page) {
   await question.fill('How can I find balance? 🌿 ما الذي يدعمني؟ 自分を大切にする');
   await page.getByRole('button', { name: /^Draw cards$/ }).click();
   await page.getByRole('button', { name: /^Deal spread/ }).click();
-  await page.getByRole('button', { name: /^Reveal all cards/ }).click();
+  await page.getByRole('button', { name: /^Reveal remaining cards/ }).click();
   await expect(page.getByRole('button', { name: /^Interpret cards/ })).toBeEnabled();
 }
 

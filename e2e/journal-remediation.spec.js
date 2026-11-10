@@ -128,7 +128,8 @@ test('saved follow-up answers match chat size and the upgrade link keeps a 44px 
   const article = page.getByRole('article').first();
   const answer = article.locator('.journal-narrative-prose p', { hasText: 'Protect ten quiet minutes today.' });
   await expect(answer).toBeVisible();
-  expect(await answer.evaluate(element => getComputedStyle(element).fontSize)).toBe('16px');
+  // Suspense can replace the readable fallback between locating and measuring it.
+  await expect.poll(() => answer.evaluate(element => getComputedStyle(element).fontSize)).toBe('16px');
   const upgrade = article.getByRole('link', { name: 'Upgrade to Plus for 3 follow-ups', exact: true });
   await expect(upgrade).toBeVisible();
   const box = await upgrade.boundingBox();

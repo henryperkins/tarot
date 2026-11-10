@@ -58,7 +58,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await expect.poll(() => pending.evaluate(element => element.contains(document.activeElement))).toBe(true);
           await expectTarget(pending.getByRole('button', { name: 'Close', exact: true }));
           const accessibility = await new AxeBuilder({ page }).include('[role="dialog"]')
-            .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
           expect(accessibility.violations).toEqual([]);
           await pending.screenshot({ path: testInfo.outputPath('loading-dialog.png') });
           await page.keyboard.press('Tab');
@@ -160,7 +160,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await card.getByRole('radio').press('Space');
           await expect(card.getByRole('radio')).toHaveAttribute('aria-checked', 'true');
           const result = await new AxeBuilder({ page }).include('.deck-selector-panel')
-            .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+            .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
           expect(result.violations).toEqual([]);
         }
         await decks.screenshot({ path: testInfo.outputPath(`decks-${theme}.png`) });

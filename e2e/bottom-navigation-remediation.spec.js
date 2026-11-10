@@ -52,7 +52,7 @@ test.describe('bottom navigation remediation', () => {
     await page.goto('/'); await settleNavigation(page);
     const bottom = page.locator('[data-app-bottom-actions]');
     await expect(bottom.getByRole('button', { name: /coach/i })).toHaveCount(0);
-    const prepare = bottom.getByRole('button', { name: 'Open reading preparation', exact: true });
+    const prepare = bottom.getByRole('button', { name: 'Prepare reading', exact: true });
     await expect(prepare).toContainText('Prepare');
     await expect(page.getByRole('region', { name: 'Reading setup', exact: true })
       .getByRole('button', { name: 'Open guided intention coach', exact: true })).toBeVisible();

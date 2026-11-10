@@ -12,6 +12,12 @@ const DEFAULT_STEP_LABELS = [
   'Begin',
 ];
 
+function buildStepAccessibleName(step, label, currentStep) {
+  const name = label ? `${step} ${label}` : `Step ${step}`;
+  const state = step === currentStep ? ' (current)' : step < currentStep ? ' (completed)' : '';
+  return `${name}${state}`;
+}
+
 /**
  * OnboardingProgress - Progress indicator for onboarding wizard
  *
@@ -61,13 +67,11 @@ export function OnboardingProgress({
               } ${isAccessible && !isCurrent ? 'hover:bg-accent/30' : ''} ${
                 !isAccessible ? 'cursor-not-allowed opacity-50' : ''
               }`}
-              aria-label={`Step ${step}: ${stepLabels[i] || `Step ${step}`}${
-                isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''
-              }`}
+              aria-label={buildStepAccessibleName(step, stepLabels[i], currentStep)}
               aria-current={isCurrent ? 'step' : undefined}
             >
               {isCompleted ? (
-                <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" />
+                <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" aria-hidden="true" />
               ) : (
                 <span className="text-2xs xxs:text-2xs xs:text-2xs font-semibold">{step}</span>
               )}
@@ -101,9 +105,7 @@ export function OnboardingProgress({
                     ? 'bg-accent/10 text-accent hover:bg-accent/20'
                     : 'text-muted'
                 } ${!isAccessible ? 'cursor-not-allowed opacity-50' : ''}`}
-                aria-label={`${stepLabels[i] || `Step ${step}`}${
-                  isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''
-                }`}
+                aria-label={buildStepAccessibleName(step, stepLabels[i], currentStep)}
                 aria-current={isCurrent ? 'step' : undefined}
               >
                 <span
@@ -116,11 +118,12 @@ export function OnboardingProgress({
                   }`}
                 >
                   {isCompleted ? (
-                    <Check className="w-3 h-3" weight="bold" />
+                    <Check className="w-3 h-3" weight="bold" aria-hidden="true" />
                   ) : (
                     step
                   )}
                 </span>
+                {' '}
                 <span className="text-2xs sm:text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
               </button>
 

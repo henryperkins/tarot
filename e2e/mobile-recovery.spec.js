@@ -73,7 +73,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('closing a sheet leaves no extra Back press behind', async ({ page }) => {
       await openSetup(page);
       await page.goto('/?from=back-test');
-      const opener = page.getByRole('button', { name: 'Open reading preparation', exact: true });
+      const opener = page.getByRole('button', { name: 'Prepare reading', exact: true });
       const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
 
       await opener.click();

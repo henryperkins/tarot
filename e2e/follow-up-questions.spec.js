@@ -910,7 +910,7 @@ test.describe('Follow-up recovery @mobile', () => {
     await page.getByRole('button', { name: 'Close follow-up chat', exact: true }).click();
     await page.route('**/api/auth/logout', route => route.fulfill({ json: { success: true } }));
     await page.route('**/api/auth/me', route => route.fulfill({ status: 401, json: { user: null } }));
-    await page.getByRole('button', { name: /^User menu for/ }).click();
+    await page.getByRole('button', { name: /^Account menu for/ }).click();
     await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
     await expect.poll(() => page.evaluate(() => sessionStorage.getItem('tarot:reading-snapshot'))).toBeNull();
     await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true })).toHaveCount(0);

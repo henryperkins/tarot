@@ -230,12 +230,14 @@ async function openEntry(page, id, { centerEntryToggle = false } = {}) {
     }
     await clickForeground(toggle);
   }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const narrative = card.getByRole('button', { name: 'Reading narrative' });
   await expect(narrative).toBeVisible();
   if (await narrative.getAttribute('aria-expanded') === 'false') {
     await narrative.scrollIntoViewIfNeeded();
     await clickForeground(narrative);
   }
+  await expect(narrative).toHaveAttribute('aria-expanded', 'true');
   return card;
 }
 
@@ -247,7 +249,9 @@ async function motionReport(page, testInfo, label) {
   expect(report.automaticAdoptions).toEqual([]);
 }
 
-const focusCards = restored => restored.locator('[data-gesture-window] .gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
+// The phone portals the held artwork out of the entry and into its dialog.
+const activeInspection = page => page.locator('[data-gesture-window]').filter({ visible: true });
+const focusCards = inspection => inspection.locator('.gesture-focus-layer:not(.gesture-focus-layer--departing) [data-focus-card]');
 // Zero running animations while held; a failure names each one for diagnosis.
 // The app's global reduced-motion rule (src/styles/tarot.css) clamps every
 // transition to 0.01ms; WebKit reports those instantaneous style changes as
@@ -266,16 +270,18 @@ const runningAnimations = restored => restored.evaluate(root => root.getAnimatio
 async function inspectRecovered(page, card) {
   const restored = card.getByTestId('restored-reading-gestures');
   const stage = restored.locator('[data-gesture-window]');
+  const inspection = activeInspection(page);
   await expect(restored).toBeVisible();
   await expect(stage).not.toHaveAttribute('data-phase', /active|settling/);
   // Literal, then the grounded same-card pair, each held and released by keyboard.
   for (const [quote, details] of [['one pitcher into a pool', ['pool-pour']], ['Neither pitcher gets dropped.', ['land-pour', 'pool-pour']]]) {
     const phrase = restored.locator('[data-gesture-id]').filter({ hasText: quote }).first();
     await clickForeground(phrase);
-    await expect(stage).toHaveAttribute('data-held', 'true');
-    await expect(stage).toHaveAttribute('data-phase', 'held');
-    await expect.poll(async () => (await focusCards(restored).first().getAttribute('data-details') || '').split(' ').filter(Boolean).sort()).toEqual(details);
-    expect(await runningAnimations(restored)).toEqual([]);
+    await expect(inspection).toHaveCount(1);
+    await expect(inspection).toHaveAttribute('data-held', 'true');
+    await expect(inspection).toHaveAttribute('data-phase', /^(held|static)$/);
+    await expect.poll(async () => (await focusCards(inspection).first().getAttribute('data-details') || '').split(' ').filter(Boolean).sort()).toEqual(details);
+    expect(await runningAnimations(inspection)).toEqual([]);
     await page.keyboard.press('Escape');
     await expect(stage).not.toHaveAttribute('data-held', 'true');
   }
@@ -288,8 +294,9 @@ async function inspectRecovered(page, card) {
     block: 'center', inline: 'nearest', behavior: 'instant'
   }));
   await clickForeground(shelfCard);
-  await expect(stage).toHaveAttribute('data-held', 'true');
-  await expect(focusCards(restored).first()).toHaveAttribute('data-details', '');
+  await expect(inspection).toHaveCount(1);
+  await expect(inspection).toHaveAttribute('data-held', 'true');
+  await expect(focusCards(inspection).first()).toHaveAttribute('data-details', '');
   await page.keyboard.press('Escape');
   await expect(stage).not.toHaveAttribute('data-held', 'true');
   await expect(restored.locator('.narrative-stream__text')).toHaveText(RECOVERY_STAR.excerpt);
@@ -309,7 +316,7 @@ async function expectNoPrivateExposure(page, values, journalKey) {
 }
 // The journal shows its user chip only below the sm breakpoint; cross it if needed.
 async function signOut(page) {
-  const visibleMenu = () => page.locator('button[aria-label^="User menu for"]').filter({ visible: true }).first();
+  const visibleMenu = () => page.locator('button[aria-label^="Account menu for"]').filter({ visible: true }).first();
   let restore = null;
   if (!await visibleMenu().count()) {
     restore = page.viewportSize();
@@ -319,7 +326,7 @@ async function signOut(page) {
   const item = page.getByRole('menuitem', { name: 'Sign Out' });
   await expect(item).toBeVisible();
   await clickForeground(item);
-  await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
+  await expect(page.locator('button[aria-label^="Account menu for"]')).toHaveCount(0);
   if (restore) await page.setViewportSize(restore);
 }
 const ownerLeftovers = (page, userId) => page.evaluate(id => Object.keys(localStorage)
@@ -544,7 +551,8 @@ test('a rejected successor keeps the cached cues and the exhausted status surviv
     await expect(retryOf(card)).toHaveCount(0);
     const restored = card.getByTestId('restored-reading-gestures');
     await restored.locator('[data-gesture-id]').filter({ hasText: 'one pitcher into a pool' }).click();
-    await expect(focusCards(restored).first()).toHaveAttribute('data-details', 'pool-pour');
+    await expect(activeInspection(page)).toHaveCount(1);
+    await expect(focusCards(activeInspection(page)).first()).toHaveAttribute('data-details', 'pool-pour');
     await page.keyboard.press('Escape');
     expect(backend.retryPosts()).toHaveLength(1);
     expect(backend.providerCalls()).toBe(1);
@@ -669,7 +677,7 @@ test('leaving the journal and signing out while a retry response is pending leav
     await expect(page.getByRole('region', { name: 'Reading setup', exact: true })).toBeVisible();
     await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
     await signOut(page);
-    await expect(page.locator('button[aria-label^="User menu for"]')).toHaveCount(0);
+    await expect(page.locator('button[aria-label^="Account menu for"]')).toHaveCount(0);
     gate.release();
     backend.releaseProvider();
     await backend.settle();

@@ -26,7 +26,11 @@ export default defineConfig({
   // owner spec runs its own handlers and server (test:e2e:journal), and the auth
   // route harness imports Vite development modules unavailable from Workers.
   testMatch: ['**/*.spec.js'],
-  testIgnore: ['**/journal-owner.spec.js', '**/auth-route-recheck.spec.js'],
+  testIgnore: [
+    '**/journal-owner.spec.js',
+    '**/auth-route-recheck.spec.js',
+    '**/reading-reflection-gestures.spec.js' // Explicit visual flags and Vite fixture: test:e2e:reflection
+  ],
 
   fullyParallel: false, // Sequential for full-stack tests to avoid port conflicts
   forbidOnly: !!process.env.CI,

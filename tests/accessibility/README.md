@@ -2,7 +2,7 @@
 
 This directory contains automated and manual testing tools to support WCAG 2.1 A/AA review of the Tableu Tarot application. The scripts are not a complete conformance audit: the contrast checker and error-level static findings are enforced, while several browser observations and manual checks are diagnostic.
 
-The current CI/toolchain uses Node 24; the lockfile currently resolves Playwright 1.62.1, `@axe-core/playwright` 4.12.1, and the `motion` package 12.43.0. The accessibility spec selects WCAG 2.0/2.1 A/AA axe tags; it does not claim WCAG 2.2 coverage.
+The current CI/toolchain uses Node 24; the lockfile currently resolves Playwright 1.62.1, `@axe-core/playwright` 4.14.0 (`axe-core` 4.14.0), and the `motion` package 12.43.0. The accessibility spec selects WCAG 2.0/2.1 A/AA axe tags (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, which includes `label-content-name-mismatch` under axe 4.14.0); it does not claim WCAG 2.2 coverage.
 
 ## Automated Tests
 
@@ -66,26 +66,37 @@ Runtime accessibility testing using axe-core on rendered pages. It catches issue
 npm run test:a11y:e2e
 # or with UI
 npm run test:a11y:e2e:ui
+# or run the @mobile suite via the main Playwright config (WebKit iPhone 13 descriptor)
+npx playwright test e2e/accessibility.spec.js --project=mobile
 ```
 
-The `playwright.a11y.config.js` profile currently runs the desktop Chromium project and excludes `@mobile` tests. It also sets `reducedMotion: 'reduce'` for stability, so this suite is not a normal-motion behavior test. The main Playwright configuration is separate.
+The `playwright.a11y.config.js` profile currently runs the desktop Chromium project (`Desktop Chrome` `1280x720`, plus explicit `320x568` and `390x844` handset viewport checks inside the interactive component suite) and excludes `@mobile`-tagged tests via `grepInvert: /@mobile/`. To execute the `@mobile`-tagged suite in WebKit with `devices['iPhone 13']` (`390x844`), run `npx playwright test e2e/accessibility.spec.js --project=mobile` using the main `playwright.config.js`. Both profiles set `reducedMotion: 'reduce'` for stability, so this suite is not a normal-motion behavior test.
 
-**Enforced failures:**
-- Critical and serious axe violations for the selected WCAG tags
+The step-navigation route-flow regression also runs under `playwright.integration.config.js`. The separate `StepProgress` presentation and reveal-disabled card fixtures require Vite development modules and explicitly skip integration projects, which serve compiled assets.
+
+**Enforced failures**
+
+- Critical and serious axe violations for the selected WCAG tags (including `label-content-name-mismatch` in axe 4.14.0)
+- Step-navigation (`StepProgress.jsx`) and mobile preparation (`MobileActionBar.jsx`) `label-content-name-mismatch` checks across reachable `current`, `upcoming`, `completed`, and `skipped` step states, `canvas`/`readingView`/`quiet`/responsive presentations, and `320x568`, `390x844`, and `1280x720` viewports
+- Full-page `label-content-name-mismatch` scans from setup through a three-card reading table with empty slots, face-down cards, a partial reveal with **Reveal remaining** available, and fully revealed upright and reversed cards. The flow runs in Chromium at `1280x720` and `390x844` and in WebKit at `390x844`. A mounted Chromium fixture checks the reveal-disabled face-down branch separately.
 - Explicit assertions such as desktop tab-order tolerance and the reduced-motion element count
 
-**Diagnostic observations:**
+The setup and reading-table findings are resolved locally. The new table cases reproduced the original axe failures before the name changes and passed afterward. See the [current work record](../../docs/CURRENT_WORK.md#local-lint-and-accessibility-follow-up).
+
+**Diagnostic observations**
+
 - Button-name, focus-indicator, heading-skip, and error-association findings are logged for review
 - Lower-impact axe violations are reported but are not all turned into test failures
 - A reduced-motion run checks that fewer than ten elements exceed 300ms; it does not prove every animation is disabled
-- The `@mobile` suite is excluded from this profile, so it produces no automated touch-target or mobile horizontal-scroll result here
 
-**Test suites:**
-- Core Pages - Home page, spread selector, question input
-- Interactive Components - Buttons, focus indicators, contrast
+**Test suites**
+
+- Core Pages - Home page, spread selector, question input, design system page (dark and light)
+- Interactive Components - Buttons, step navigation and mobile preparation (`label-content-name-mismatch` across states, presentations, and viewports), focus indicators, contrast
+- Reading Table - Setup-to-reveal label-in-name scans and a reveal-disabled card fixture
 - Keyboard Navigation - Desktop tab order, arrow key navigation, escape key
 - Live Regions - Landmarks, heading hierarchy
-- Mobile - Defined but excluded; manual or separately configured mobile testing is required for touch targets and horizontal scroll
+- Mobile (`@mobile`) - Excluded from `playwright.a11y.config.js`, runnable via `npx playwright test e2e/accessibility.spec.js --project=mobile` (WebKit `devices['iPhone 13']`)
 - Reduced Motion - Animation duration checks
 - Forms - Labels, error associations
 

@@ -22,7 +22,7 @@ for (const width of [320, 1440]) for (const theme of ['dark', 'light']) {
       await reading.focus(); await expect(reading).toBeFocused();
       await expect(reading).toHaveCSS('outline-style', 'solid');
       await expect(reading).toBeInViewport({ ratio: 1 });
-      const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+      const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
         .include('[data-app-header]').include('[data-app-bottom-region]').analyze();
       expect(violations.map(({ id, nodes }) => ({ id, nodes: nodes.map(node => node.failureSummary) }))).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`${theme}-${path.slice(1) || 'reading'}.png`), animations: 'disabled' });

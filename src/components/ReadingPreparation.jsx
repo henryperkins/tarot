@@ -67,9 +67,6 @@ export function ReadingPreparation({
         );
     }
 
-    // Desktop reads in the order a reading is made: the question leads the page
-    // ('question'), the spreads follow, and the deck and reading options gather
-    // after them, just before Draw cards ('details').
     if (part === 'question') {
         return (
             <section

@@ -58,6 +58,13 @@ export function getCardThumbnailSrcSet(src) {
   return `/images/cards/w360/${match[1]}.webp 360w, ${src} 825w`;
 }
 
+/** Gallery tiles use WebP renditions only; the original stays in card details. */
+export function getCardGallerySrcSet(src) {
+  const match = typeof src === 'string' ? RWS_SCAN.exec(src) : null;
+  if (!match) return undefined;
+  return `/images/cards/w360/${match[1]}.webp 360w, /images/cards/w720/${match[1]}.webp 720w`;
+}
+
 // 120 px WebP renditions of all three decks (scripts/assets/generate-card-thumbnails.mjs).
 const TINY_IMAGES = [
   [/^\/images\/cards\/(RWS1909_-_[^/]+)\.jpe?g$/i, '/images/cards/w120/$1.webp'],

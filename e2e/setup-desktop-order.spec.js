@@ -1,9 +1,8 @@
 import { test, expect } from './helpers/frontendTest.js';
 
-// Wider screens read in the order a reading is made: the question first, then
-// the spread, then the deck. Draw cards, with the step and what will be drawn,
-// stays pinned to the bottom edge until the setup ends. The ritual waits at the
-// reading table (table-ritual.spec.js).
+// Wider screens show the spreads, then the optional question and deck. Draw
+// cards stays pinned to the bottom edge until the setup ends. The ritual waits
+// at the reading table (table-ritual.spec.js).
 test.use({ serviceWorkers: 'block', viewport: { width: 1280, height: 720 } });
 
 const SPREAD_GROUP = '[role="radiogroup"][aria-label="Spread selection"]';
@@ -17,15 +16,18 @@ async function openSetup(page) {
 const pageTop = locator => locator.evaluate(element => element.getBoundingClientRect().top + window.scrollY);
 
 test.describe('Setup order on wider screens @desktop', () => {
-  test('the question leads, the deck follows the spreads, and Draw cards stays in reach', async ({ page }) => {
+  test('the spreads lead, the question and deck follow, and Draw cards stays in reach', async ({ page }) => {
     await openSetup(page);
-    const question = page.getByRole('textbox', { name: /What would you like to understand/ });
-    const spreads = page.locator(SPREAD_GROUP);
+    const spreads = page.locator('#step-spread');
+    const preparation = page.getByRole('region', { name: 'Prepare your reading' });
+    const question = preparation.getByRole('textbox', { name: /What would you like to understand/ });
     const deckRow = page.getByRole('button', { name: /^Deck\b/ });
 
-    await expect(question).toBeInViewport();
-    expect(await pageTop(question)).toBeLessThan(await pageTop(spreads));
-    expect(await pageTop(spreads)).toBeLessThan(await pageTop(deckRow));
+    await expect(spreads).toBeInViewport();
+    await expect(preparation.getByText('Add an optional question and settle into your reading.')).toBeVisible();
+    await expect(preparation.getByRole('button', { name: /Open guided coach/ })).toBeVisible();
+    expect(await pageTop(spreads)).toBeLessThan(await pageTop(preparation));
+    expect(await pageTop(preparation)).toBeLessThan(await pageTop(deckRow));
     await expect(page.getByRole('button', { name: /^Ritual/ })).toHaveCount(0);
 
     const draw = page.getByRole('button', { name: 'Draw cards', exact: true });
