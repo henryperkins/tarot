@@ -17,7 +17,7 @@ export function createParticleSession(loadEngine) {
         } catch (error) {
           // The engine registers its container before asynchronous startup.
           // Even a rejected load can own an observer on this session's canvas.
-          const failed = (engine.dom?.() || []).filter(item => item.id.description === parameters.id);
+          const failed = engine.items.filter(item => item.id.description === parameters.id);
           failed.forEach(item => item.destroy());
           throw error;
         }

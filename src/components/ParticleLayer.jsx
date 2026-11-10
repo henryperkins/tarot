@@ -31,15 +31,11 @@ let particlesEnginePromise;
 function getParticlesEngine() {
   if (!particlesEnginePromise) {
     particlesEnginePromise = Promise.all([
-      import('@tsparticles/react'),
+      import('@tsparticles/engine'),
       import('@tsparticles/slim')
-    ]).then(async ([{ initParticlesEngine }, { loadSlim }]) => {
-      let initializedEngine;
-      await initParticlesEngine(async (engine) => {
-        await loadSlim(engine);
-        initializedEngine = engine;
-      });
-      return initializedEngine;
+    ]).then(async ([{ tsParticles }, { loadSlim }]) => {
+      await loadSlim(tsParticles);
+      return tsParticles;
     }).catch((error) => {
       particlesEnginePromise = null;
       throw error;
