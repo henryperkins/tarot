@@ -222,6 +222,155 @@ test.describe('Accessibility - Interactive Components', () => {
     expectNoViolations(violations, 'buttons');
   });
 
+  test('step navigation and mobile preparation satisfy label-content-name-mismatch across states and viewports', async ({ page }) => {
+    const checkProgressAndDock = async (includeBottomDock = false) => {
+      let builder = new AxeBuilder({ page })
+        .include('nav[aria-label="Tarot reading progress"]')
+        .withRules(['label-content-name-mismatch']);
+      if (includeBottomDock) {
+        builder = builder.include('[data-app-bottom-region]');
+      }
+      const results = await builder.analyze();
+      expect(results.violations).toEqual([]);
+    };
+
+    // 1. Narrowest supported handset (320x568) and mobile (390x844) setup + drawer interaction
+    for (const viewport of [
+      { width: 320, height: 568 },
+      { width: 390, height: 844 }
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await waitForAppReady(page);
+
+      const prepareBtn = page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Prepare reading', exact: true });
+      await expect(prepareBtn).toBeVisible();
+      await expect(prepareBtn).toContainText('Prepare');
+      await expect(prepareBtn).toHaveAttribute('aria-expanded', 'false');
+
+      await checkProgressAndDock(true);
+
+      // Verify narrowest layout (320px) fits 'Reading' without clipping or horizontal overflow
+      const layoutCheck = await page.evaluate(() => {
+        const nav = document.querySelector('nav[aria-label="Tarot reading progress"]');
+        const buttons = [...nav.querySelectorAll('.step-progress-canvas__button')];
+        const clipped = buttons.filter(btn => {
+          const btnRect = btn.getBoundingClientRect();
+          const spans = [...btn.querySelectorAll('.step-progress-canvas__label, .step-progress-canvas__label > span')];
+          return spans.some(span => {
+            const r = span.getBoundingClientRect();
+            return r.left < btnRect.left - 1 || r.right > btnRect.right + 1 || btn.scrollWidth > btn.clientWidth + 1;
+          });
+        });
+        return {
+          hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          clippedCount: clipped.length
+        };
+      });
+      expect(layoutCheck).toEqual({ hasHorizontalOverflow: false, clippedCount: 0 });
+
+      // Verify drawer open, aria-controls/aria-expanded, and focus restoration
+      await expect(prepareBtn).toHaveAttribute('aria-controls', 'mobile-settings-drawer');
+      await prepareBtn.click();
+      const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
+      await expect(drawer).toBeVisible();
+      await expect(page.locator('[data-app-bottom-actions] button[aria-controls="mobile-settings-drawer"]')).toHaveAttribute('aria-expanded', 'true');
+      await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await expect(drawer).toBeHidden();
+      await expect(prepareBtn).toHaveAttribute('aria-expanded', 'false');
+      await expect(prepareBtn).toBeFocused();
+    }
+
+    // 2. Desktop (1280x720) reachable navigation state progression: current, upcoming, completed, skipped
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/');
+    await waitForAppReady(page);
+    const progress = page.getByRole('navigation', { name: 'Tarot reading progress' });
+
+    // State A: Step 1 current, Steps 2-4 upcoming
+    await expect(progress.getByRole('button', { name: 'Step 1: Spread', exact: true })).toHaveAttribute('aria-current', 'step');
+    await checkProgressAndDock(false);
+
+    // State B: Step 1 completed, Step 2 current, Steps 3-4 upcoming
+    const questionInput = page.locator('#question-input, #quick-intention').filter({ visible: true }).first();
+    await questionInput.fill('What should I focus on today?');
+    await expect(progress.getByRole('button', { name: 'Step 1: Spread, completed', exact: true })).toBeVisible();
+    await expect(progress.getByRole('button', { name: 'Step 2: Intent (question)', exact: true })).toHaveAttribute('aria-current', 'step');
+    await checkProgressAndDock(false);
+
+    // State C: Steps 1-2 completed, Step 3 (Ritual) current, Step 4 (Reading) upcoming
+    await page.getByRole('button', { name: 'Draw cards', exact: true }).click();
+    await expect(progress.getByRole('button', { name: 'Step 2: Intent (question), completed', exact: true })).toBeVisible();
+    await expect(progress.getByRole('button', { name: 'Step 3: Ritual (optional)', exact: true })).toHaveAttribute('aria-current', 'step');
+    await checkProgressAndDock(false);
+
+    // State D: Steps 1-2 completed, Step 3 skipped, Step 4 (Reading) current
+    await page.getByRole('button', { name: 'Deal spread', exact: true }).first().click();
+    await expect(progress.getByRole('button', { name: 'Step 3: Ritual (optional), skipped', exact: true })).toBeVisible();
+    await expect(progress.getByRole('button', { name: 'Step 4: Reading', exact: true })).toHaveAttribute('aria-current', 'step');
+    await expect(progress.getByRole('button', { name: 'Step 4: Reading', exact: true })).toContainText('Reading');
+    await checkProgressAndDock(false);
+  });
+
+  test('step progress presentations satisfy label-content-name-mismatch across viewports', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('integration'), 'The component fixture requires Vite development modules.');
+    await page.goto('/');
+    await waitForAppReady(page);
+
+    // Verify quiet/readingView and responsive (< lg and >= lg) StepProgress presentations
+    await page.evaluate(async () => {
+      const mainSource = await (await fetch('/src/main.jsx')).text();
+      const reactUrl = mainSource.match(/from\s+["']([^"']*\/react\.js[^"']*)["']/)?.[1];
+      const reactDomUrl = mainSource.match(/from\s+["']([^"']*\/react-dom_client\.js[^"']*)["']/)?.[1];
+      const ReactMod = await import(reactUrl);
+      const React = ReactMod.default || ReactMod;
+      const ReactDOMMod = await import(reactDomUrl);
+      const createRoot = ReactDOMMod.createRoot || ReactDOMMod.default?.createRoot;
+      const { StepProgress } = await import('/src/components/StepProgress.jsx');
+      const steps = [
+        { id: 'spread', label: 'Spread' },
+        { id: 'intention', label: 'Intent (question)' },
+        { id: 'ritual', label: 'Ritual (optional)' },
+        { id: 'reading', label: 'Reading' }
+      ];
+      let host = document.getElementById('step-progress-presentation-harness');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'step-progress-presentation-harness';
+        document.body.appendChild(host);
+      }
+      const root = createRoot(host);
+      root.render(
+        React.createElement('div', null,
+          React.createElement(StepProgress, { steps, activeStep: 'reading', readingView: true }),
+          React.createElement(StepProgress, { steps, activeStep: 'reading', quiet: true }),
+          React.createElement(StepProgress, { steps, activeStep: 'reading', condensed: false }),
+          React.createElement(StepProgress, { steps, activeStep: 'reading', condensed: true }),
+          React.createElement(StepProgress, {
+            steps,
+            activeStep: 'spread',
+            canvas: true,
+            completedIds: ['spread', 'intention', 'ritual', 'reading']
+          })
+        )
+      );
+    });
+
+    const presentations = page.locator('#step-progress-presentation-harness')
+      .getByRole('navigation', { name: 'Tarot reading progress', exact: true });
+    await expect(presentations).toHaveCount(5);
+    await expect(presentations.getByRole('button')).toHaveCount(20);
+
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 720 });
+      const harnessResults = await new AxeBuilder({ page })
+        .include('#step-progress-presentation-harness')
+        .withRules(['label-content-name-mismatch'])
+        .analyze();
+      expect(harnessResults.violations).toEqual([]);
+    }
+  });
+
   test('focus indicators are visible', async ({ page }) => {
     await page.goto('/');
     await waitForAppReady(page);
@@ -289,6 +438,83 @@ test.describe('Accessibility - Interactive Components', () => {
     // Filter to critical/serious only for failure
     const serious = results.violations.filter(v => v.impact === 'critical' || v.impact === 'serious');
     expectNoViolations(serious, 'color contrast');
+  });
+});
+
+test.describe('Accessibility - Reading Table', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(getTestSetupScript());
+  });
+
+  async function checkLabelInName(page, state) {
+    const { violations } = await new AxeBuilder({ page })
+      .withRules(['label-content-name-mismatch'])
+      .analyze();
+    expect.soft(violations.flatMap(rule => rule.nodes.map(node => node.html)), state).toEqual([]);
+  }
+
+  for (const { width, height, tag } of [
+    { width: 1280, height: 720, tag: '' },
+    { width: 390, height: 844, tag: '' },
+    { width: 390, height: 844, tag: ' @mobile' }
+  ]) {
+    test(`setup and reading-table names include their visible labels at ${width}x${height}${tag}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      // With the question below, this draw includes both upright and reversed cards.
+      await page.clock.setFixedTime(1790500149291);
+      await page.goto('/');
+      await waitForAppReady(page);
+      await checkLabelInName(page, 'setup');
+
+      await page.getByRole('radio', { name: /Three-Card Story/ }).click();
+      await page.locator('#question-input, #quick-intention').filter({ visible: true }).first()
+        .fill('What should I focus on today?');
+      await page.getByRole('button', { name: 'Draw cards', exact: true }).click();
+
+      const scene = page.getByRole('region', { name: 'Three-Card Story', exact: true });
+      const table = scene.getByRole('region', { name: /layout$/ });
+      const empty = table.getByRole('button', { name: /empty position$/ });
+      const faceDown = table.getByRole('button', { name: /Click to reveal\.$/ });
+      const revealed = table.getByRole('button', { name: /Click to view details\.$/ });
+      const revealRemaining = scene.getByText('Reveal remaining', { exact: true });
+
+      await expect(empty).toHaveCount(3);
+      await checkLabelInName(page, 'empty slots');
+
+      await page.getByRole('button', { name: 'Deal spread', exact: true }).click();
+      await expect(faceDown).toHaveCount(3);
+      await expect(revealRemaining).toBeVisible();
+      await checkLabelInName(page, 'face-down cards and reveal action');
+
+      await page.getByRole('button', { name: 'Reveal next: Past', exact: true }).click();
+      await expect(revealed).toHaveCount(1);
+      await expect(faceDown).toHaveCount(2);
+      await checkLabelInName(page, 'partially revealed spread');
+
+      await revealRemaining.click();
+      await expect(revealed).toHaveCount(3);
+      const reversed = table.getByRole('button', { name: /, reversed, in .*Click to view details\.$/ });
+      await expect(reversed.first()).toBeVisible();
+      expect(await reversed.count()).toBeLessThan(3);
+      await expect(revealRemaining).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
+      await checkLabelInName(page, 'revealed upright and reversed cards');
+    });
+  }
+
+  test('reveal-disabled table cards include their visible position number', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('integration'), 'The component fixture requires Vite development modules.');
+    await page.goto('/');
+    await waitForAppReady(page);
+    await page.evaluate(async () => {
+      const { mountDisabledReadingTable } = await import('/e2e/helpers/readingTableA11yHarness.js');
+      mountDisabledReadingTable();
+    });
+
+    const card = page.getByRole('button', { name: /Draw from the deck to reveal\.$/ });
+    await expect(card).toBeVisible();
+    await expect(card).toBeDisabled();
+    await checkLabelInName(page, 'reveal-disabled face-down card');
   });
 });
 
@@ -513,6 +739,10 @@ test.describe('Accessibility - Mobile @mobile', () => {
     // Run mobile-specific axe analysis
     const violations = await analyzeAccessibility(page);
     expectNoViolations(violations, 'mobile');
+
+    const prepareBtn = page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Prepare reading', exact: true });
+    await expect(prepareBtn).toBeVisible();
+    await expect(prepareBtn).toContainText('Prepare');
   });
 
   test('no horizontal scroll on mobile', async ({ page }) => {

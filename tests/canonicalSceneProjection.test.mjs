@@ -17,7 +17,7 @@ test('the reviewed Hierophant symbol projection keeps keys at the feet', () => {
 test('a custom role for another card keeps its existing prose instead of acquiring unrelated symbol context', () => {
   const text = buildPositionCardText({ card: 'The Sun', number: 19, orientation: 'Upright', meaning: 'Clarity.' }, 'Custom focus', { includeSymbols: true, deckStyle: 'rws-1909' });
   assert.match(text, /Custom focus: The Sun Upright/);
-  assert.doesNotMatch(text, /Archetype:|Key symbols:/);
+  assert.doesNotMatch(text, /Archetype:|Key symbols:|May symbolize:/);
 });
 
 for (const position of ['Present', 'Bond', 'Other — Future Ltd.']) {

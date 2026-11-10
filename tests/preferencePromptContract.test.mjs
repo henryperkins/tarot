@@ -51,7 +51,7 @@ describe('final narrative preference contract', () => {
         }
         assert.match(userPrompt, /Use invitational language/);
         assert.match(userPrompt, /querent's choices shaping outcomes/);
-        assert.match(userPrompt, /never treat card-implied events as completed/);
+        assert.match(userPrompt, /Never treat card-implied habits or events as done or missing/);
         assert.match(userPrompt, /CARD NAME CONTRACT/);
         assert.match(systemPrompt, /same language as the user's question/);
       });

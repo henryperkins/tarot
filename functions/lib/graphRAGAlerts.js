@@ -12,7 +12,9 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
         no_patterns_detected: 'GraphRAG: no patterns detected',
         projection_rejected: 'GraphRAG: deck projection rejected reference candidates',
         unverified_reference_provenance: 'GraphRAG: unverified reference provenance',
-        retrieval_failed_or_empty: 'GraphRAG: retrieval failed or empty',
+        // Exceptions report retrieval_error; this code now means nothing was available.
+        retrieval_failed_or_empty: 'GraphRAG: no reference passages available',
+        retrieval_error: 'GraphRAG: retrieval error',
         removed_for_budget: 'GraphRAG: references removed for budget'
     };
     if (Object.hasOwn(reasonAlerts, graphMeta.skippedReason)) alerts.push(reasonAlerts[graphMeta.skippedReason]);

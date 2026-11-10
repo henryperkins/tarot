@@ -34,6 +34,7 @@
     "test:deploy": "node --test tests/deployScript.test.mjs tests/deploySettings.test.mjs tests/deployQualityGate.test.mjs tests/releaseChecks.test.mjs tests/ciVisionPolicy.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:reflection": "playwright test --config playwright.reading-reflection.config.js",
     "test:e2e:install": "playwright test --config playwright.install.config.js",
     "test:e2e:journal": "playwright test --config playwright.journal.config.js",
     "test:e2e:modals": "playwright test --config playwright.modals.config.js",
@@ -120,7 +121,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
-    "zod": "^4.1.12"
+    "zod": "^4.6.6"
   },
   "overrides": {
     "fast-xml-parser": "^5.3.4",
@@ -130,7 +131,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
-    "@axe-core/playwright": "^4.11.0",
+    "@axe-core/playwright": "^4.14.0",
     "@babel/parser": "^7.29.8",
     "@browserbasehq/sdk": "^2.22.0",
     "@browserbasehq/stagehand": "^4.3.0",
@@ -155,7 +156,7 @@
     "sharp": "0.35.5",
     "sql.js": "^1.14.2",
     "tailwindcss": "^4.3.3",
-    "vite": "^7.2.4",
+    "vite": "^7.3.7",
     "vitest": "^5.0.3",
     "weave": "^0.11.0",
     "wrangler": "^4.142.0"

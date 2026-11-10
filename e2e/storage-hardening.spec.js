@@ -57,7 +57,7 @@ for (const fault of ['getItem-denied', 'setItem-full', 'localStorage-getter-deni
     await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(question);
     await page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-    await page.getByRole('button', { name: 'Reveal all cards', exact: true }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: 'Reveal remaining cards', exact: true }).filter({ visible: true }).first().click();
     await expect(page.locator('.reading-table__meaning')).toBeVisible();
     await expect(page.locator('.reading-table__question')).toHaveText(question);
     await expect(page.locator('html')).toHaveClass(/\blight\b/);
@@ -105,7 +105,7 @@ test('quota-failed personalization survives same-owner auth refresh and reloads 
   };
   const returnToAccount = async () => {
     await page.getByRole('button', { name: 'Skip onboarding', exact: true }).click();
-    await page.getByRole('button', { name: `User menu for ${owner}`, exact: true }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: `Account menu for ${owner}`, exact: true }).filter({ visible: true }).first().click();
     await page.getByRole('link', { name: 'Account & Settings', exact: true }).click();
     await expect(page.locator('#profile')).toBeVisible();
   };

@@ -144,13 +144,15 @@ export function CoachTemplatePanel({
               <ul className="space-y-3">
                 {templates.map((template, index) => {
                   const summaryId = `${idPrefix}-template-${index}-summary`;
-                  const summary = [
-                    getTopicLabel(template.topic),
-                    getTimeframeLabel(template.timeframe),
-                    getDepthLabel(template.depth)
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'Custom mix';
+                  const summary = template.isManualQuestion
+                    ? 'Custom question'
+                    : [
+                      getTopicLabel(template.topic),
+                      getTimeframeLabel(template.timeframe),
+                      getDepthLabel(template.depth)
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'Custom mix';
                   return (
                     <li
                       key={template.id}

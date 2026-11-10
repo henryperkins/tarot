@@ -6,6 +6,7 @@ import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
 import { filterDeletedJournalEntries, canPersistJournalDerivation } from './deletedJournalEntryStorage.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { findSoleLeader } from './journal/leaders.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
@@ -180,6 +181,47 @@ export function loadCoachStatsSnapshot(userId = null) {
     console.warn('Unable to load coach stats snapshot:', error);
     return null;
   }
+}
+
+/**
+ * Choose which stored stats the coach may trust. The Journey snapshot is
+ * scoped to whatever the Journey was showing and is only rewritten when the
+ * Journey renders. The insights cache is rewritten whenever a journal hook
+ * that holds the whole journal loads or saves; useJournal never writes it
+ * from a partial history (see holdsFullJournalRef). A filtered snapshot is
+ * never used; otherwise the fresher payload wins, and ties go to the
+ * snapshot, which carries the richer meta.
+ *
+ * @param {Object|null} snapshot - loadCoachStatsSnapshot() result
+ * @param {Object|null} insights - loadStoredJournalInsights() result
+ * @returns {{ stats: Object, meta: Object|null, updatedAt: number, source: 'snapshot'|'insights' }|null}
+ */
+export function selectCoachStatsSource(snapshot, insights) {
+  const timestamp = value => (Number.isFinite(value) ? value : 0);
+  const snapshotCandidate = snapshot?.stats && !snapshot.meta?.filtersActive
+    ? {
+      stats: snapshot.stats,
+      meta: snapshot.meta || null,
+      updatedAt: timestamp(snapshot.updatedAt),
+      source: 'snapshot'
+    }
+    : null;
+  const insightsCandidate = insights?.stats
+    ? {
+      stats: insights.stats,
+      meta: {
+        filterLabel: null,
+        entryCount: typeof insights.stats.totalReadings === 'number' ? insights.stats.totalReadings : null
+      },
+      updatedAt: timestamp(insights.updatedAt),
+      source: 'insights'
+    }
+    : null;
+
+  if (snapshotCandidate && insightsCandidate) {
+    return insightsCandidate.updatedAt > snapshotCandidate.updatedAt ? insightsCandidate : snapshotCandidate;
+  }
+  return snapshotCandidate || insightsCandidate || null;
 }
 
 /**
@@ -1911,11 +1953,9 @@ export function generateJourneyStory(entries, options = {}) {
   const stats = options.precomputedStats || computeJournalStats(entries);
   if (!stats) return null;
 
-  const topCard = stats.frequentCards?.[0];
-  // Clone before sorting to avoid mutating shared stats
-  const topContext = stats.contextBreakdown
-    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
-    : undefined;
+  // Only a card or context that repeated and leads alone is called significant.
+  const topCard = findSoleLeader(stats.frequentCards);
+  const topContext = findSoleLeader(stats.contextBreakdown);
   const themes = stats.recentThemes || [];
 
   if (!topCard && !topContext && themes.length === 0) {
@@ -1930,7 +1970,7 @@ export function generateJourneyStory(entries, options = {}) {
   }
 
   if (topCard) {
-    parts.push(`${topCard.name} has appeared ${topCard.count} time${topCard.count > 1 ? 's' : ''}, suggesting it holds particular significance for you right now.`);
+    parts.push(`${topCard.name} has appeared ${topCard.count} times, suggesting it holds particular significance for you right now.`);
   }
 
   if (topContext) {

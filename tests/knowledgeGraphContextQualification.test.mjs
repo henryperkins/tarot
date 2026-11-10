@@ -4,6 +4,34 @@ import * as samples from '../scripts/evaluation/runNarrativeSamples.js';
 import { readFileSync } from 'node:fs';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
 
+// The deterministic qualification gate refuses provider credentials in its
+// environment. Scrub them for its in-process and spawned runs (restoring the
+// shell's values afterward) so `npm test` passes in a credentialled shell;
+// release QA strips them upstream as well.
+async function credentialEnvKeys() {
+  return (await import('../scripts/evaluation/verifyNarrativePromptAssembly.js')).UNIT_SUITE_CREDENTIAL_ENV_KEYS;
+}
+
+async function withoutCredentials(run) {
+  const keys = await credentialEnvKeys();
+  const saved = keys.map(name => [name, process.env[name]]);
+  for (const [name] of saved) delete process.env[name];
+  try {
+    return await run();
+  } finally {
+    for (const [name, value] of saved) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+async function credentialFreeEnv() {
+  const env = { ...process.env };
+  for (const name of await credentialEnvKeys()) delete env[name];
+  return env;
+}
+
 const sample = {
   id: 'synthetic-memory-path-plumbing', referenceTime: '2026-10-22T16:00:00.000Z', spreadKey: 'decision',
   userQuestion: 'Which path deserves attention?', reflectionsText: '',
@@ -17,7 +45,7 @@ test('remediation v1 qualification checks every final mode and all eight registr
   assert.equal(typeof gate.verifyGraphRAGRemediationFixtures, 'function');
   const fixtures = JSON.parse(readFileSync(new URL('./fixtures/graph-rag-remediation-v1-cases.json', import.meta.url), 'utf8'));
   const report = await gate.verifyGraphRAGRemediationFixtures({ fixtures });
-  assert.equal(report.readingPromptVersion, '1.6.11');
+  assert.equal(report.readingPromptVersion, '1.6.14');
   assert.equal(report.casesChecked, 23);
   assert.equal(report.providerBuildsChecked, 69);
   assert.deepEqual(report.executedCaseIds, fixtures.cases.map(row => row.id));
@@ -58,7 +86,7 @@ test('v3 manifest preserves previous bytes and executes bounded probes plus curr
   assert.equal(manifest.v3.v2RawHash, manifest.v2.rawHash);
   assert.equal(manifest.v3.candidateSourceIdentity, null);
   const ids = [...v3.cases, ...v3.groundingProbes].map(row => row.id);
-  const result = await runDeterministicQualification({ developmentFixtureIds: ids });
+  const result = await withoutCredentials(() => runDeterministicQualification({ developmentFixtureIds: ids }));
   assert.deepEqual(result.executedCaseIds, ids);
   assert.equal(result.groundingProbesChecked, v3.groundingProbes.length);
   assert.equal(result.admissionCasesChecked, 1);
@@ -100,7 +128,7 @@ test('sample plumbing supports valid custom spreads without changing accepted in
 
 test('deterministic assembly gate exercises the frozen corpus and actual provider/fallback boundaries', async () => {
   const { spawnSync } = await import('node:child_process');
-  const execution = spawnSync(process.execPath, ['scripts/evaluation/verifyNarrativePromptAssembly.js', '--json'], { cwd: new URL('..', import.meta.url), encoding: 'utf8', timeout: 180000 });
+  const execution = spawnSync(process.execPath, ['scripts/evaluation/verifyNarrativePromptAssembly.js', '--json'], { cwd: new URL('..', import.meta.url), encoding: 'utf8', timeout: 180000, env: await credentialFreeEnv() });
   assert.equal(execution.status, 0, execution.stderr || execution.stdout);
   const result = JSON.parse(execution.stdout);
   assert.equal(result.partialPairsChecked, 30);
@@ -142,7 +170,7 @@ test('deterministic assembly gate exercises the frozen corpus and actual provide
   assert.equal(result.boundaries['beyond-old-shortlist'].patternId, '13-17');
   assert.equal(result.graphRAGRemediation.casesChecked, 23);
   assert.equal(result.graphRAGRemediation.providerBuildsChecked, 69);
-  assert.equal(result.graphRAGRemediation.readingPromptVersion, '1.6.11');
+  assert.equal(result.graphRAGRemediation.readingPromptVersion, '1.6.14');
   assert.equal(result.graphRAGRemediation.fixtureHash, manifest.graphRAGRemediation.rawHash);
 });
 
@@ -151,7 +179,7 @@ test('qualification rejects an incorrect authored expectation instead of accepti
   const { runDeterministicQualification } = await import('../scripts/evaluation/verifyNarrativePromptAssembly.js');
   const corpus = JSON.parse(readFileSync(new URL('./fixtures/knowledge-graph-context-cases.json', import.meta.url), 'utf8'));
   corpus.cases[0].expected.partialNarrative = 'An unsupported invented narrative';
-  await assert.rejects(runDeterministicQualification({ corpus }), /partial-death-temperance-star-13-14/);
+  await assert.rejects(withoutCredentials(() => runDeterministicQualification({ corpus })), /partial-death-temperance-star-13-14/);
 });
 
 test('sample adapter preserves authoritative selection, explicit memory opt-out and caller interpretation', async () => {

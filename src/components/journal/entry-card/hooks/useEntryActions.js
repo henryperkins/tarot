@@ -11,6 +11,7 @@ import {
   copyJournalEntriesToClipboard
 } from '../../../../lib/journalInsights';
 import { findReusableShareLink } from '../../../../lib/journal/shareLinkSelection';
+import { describeShareLinkExpiry } from '../../../../lib/journal/shareLinkExpiry';
 
 function shareUrlFor(token) {
   return `${window.location.origin}/share/${encodeURIComponent(token)}`;
@@ -158,12 +159,50 @@ export function useEntryActions(entry, {
     [entry, runAction, showStatus]
   );
 
+  // Signed-in cloud journals publish only after the share composer confirms
+  // what a link shows and how long it stays open; a live link is just copied.
+  // Checked at click time: the journal can stay open past a link's expiry.
+  const getShareMode = useCallback(() => {
+    if (!(isAuthenticated && onCreateShareLink)) return 'summary';
+    return findReusableShareLink(shareLinks, entry.id) ? 'existing' : 'compose';
+  }, [isAuthenticated, onCreateShareLink, shareLinks, entry.id]);
+
+  // Resolves to { created }: a created link stays created even when the share
+  // sheet is dismissed or copying is blocked (its status says where to find it).
+  const handleCreateShareLink = useCallback(
+    (expiresInHours = null) =>
+      runAction('share', async () => {
+        if (!(isAuthenticated && onCreateShareLink) || typeof window === 'undefined') return { created: false };
+        let data;
+        try {
+          data = await onCreateShareLink({
+            scope: 'entry',
+            entryId: entry.id,
+            ...(expiresInHours ? { expiresInHours } : {})
+          });
+        } catch (error) {
+          showStatus?.({ tone: 'error', message: describeShareFailure(error, 'Unable to create a share link right now.') });
+          return { created: false };
+        }
+        if (!data?.url) {
+          showStatus?.({ tone: 'error', message: 'The share link was created, but its address is missing. Find it in Export & Share.' });
+          return { created: true };
+        }
+        const lifetime = describeShareLinkExpiry(expiresInHours);
+        await deliverShareLink(`${window.location.origin}${data.url}`, {
+          copiedMessage: `Share link copied. ${lifetime}`,
+          sharedMessage: `Share link shared. ${lifetime}`
+        });
+        return { created: true };
+      }),
+    [deliverShareLink, entry.id, isAuthenticated, onCreateShareLink, runAction, showStatus]
+  );
+
   const handleShare = useCallback(
     () =>
       runAction('share', async () => {
         if (isAuthenticated && onCreateShareLink) {
           if (typeof window === 'undefined') return false;
-          // The journal can stay open past a link's expiry without new props.
           const liveShareLink = findReusableShareLink(shareLinks, entry.id);
           if (liveShareLink) {
             return deliverShareLink(shareUrlFor(liveShareLink.token), {
@@ -171,20 +210,8 @@ export function useEntryActions(entry, {
               sharedMessage: 'Shared your existing link (single reading).'
             });
           }
-          try {
-            const data = await onCreateShareLink({ scope: 'entry', entryId: entry.id });
-            if (!data?.url) {
-              showStatus?.({ tone: 'error', message: 'The share link was created, but its address is missing. Find it in Export & Share.' });
-              return false;
-            }
-            return deliverShareLink(`${window.location.origin}${data.url}`, {
-              copiedMessage: 'Share link copied (single reading).',
-              sharedMessage: 'Share link shared (single reading).'
-            });
-          } catch (error) {
-            showStatus?.({ tone: 'error', message: describeShareFailure(error, 'Unable to create a share link right now.') });
-            return false;
-          }
+          // New links are created only through the share composer.
+          return false;
         }
 
         // Signed out or local journal: copy a plain summary instead.
@@ -289,6 +316,8 @@ export function useEntryActions(entry, {
     handleExportMarkdown,
     handleCopyCsv,
     handleShare,
+    getShareMode,
+    handleCreateShareLink,
     handleCopyShareLink,
     handleDeleteShareLink,
     handleDelete,

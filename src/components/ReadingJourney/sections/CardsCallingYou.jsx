@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { useSmallScreen } from '../../../hooks/useSmallScreen';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
 import { getSuitIcon } from '../../illustrations/suitIconUtils';
+import { filterRepeated } from '../../../lib/journal/leaders';
 
 const TrendSparkline = lazy(() => import('../../charts/TrendSparkline'));
 
@@ -34,10 +35,14 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
   // Sparklines appear from the `sm` breakpoint. Below it they are not mounted,
   // so phones never load or measure charts they would hide.
   const showSparklines = !useSmallScreen(639);
-  if (!cards.length) {
+  // "Keep appearing" holds only for cards drawn more than once.
+  const repeated = filterRepeated(cards);
+  if (!repeated.length) {
     return (
       <p className="text-sm text-muted">
-        Draw more cards to see which ones keep appearing.
+        {cards.length
+          ? 'No card has repeated yet. Cards that return across your readings will gather here.'
+          : 'Draw more cards to see which ones keep appearing.'}
       </p>
     );
   }
@@ -53,7 +58,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         {subtitle}
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
-        {(showSparklines ? cards : cards.map(({ trendData: _trendData, ...card }) => card)).slice(0, 5).map((card, index) => {
+        {(showSparklines ? repeated : repeated.map(({ trendData: _trendData, ...card }) => card)).slice(0, 5).map((card, index) => {
           const hasBadge = card.hasBadge || badges.some(b => b.card_name === card.name);
           const SuitIcon = getSuitIcon(card.name);
           const suitName = card.suit || (card.name?.includes(' of ') ? card.name.split(' of ')[1] : 'Major');
@@ -108,12 +113,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                   <span className="sr-only">appeared {card.count} {card.count === 1 ? 'time' : 'times'}</span>
                 </span>
                 {card.reversedCount > 0 && (
-                  <span
-                    className="text-xs text-muted/70"
-                  >
-                    <span aria-hidden="true">({card.reversedCount}↺)</span>
-                    <span className="sr-only">{card.reversedCount} reversed</span>
-                  </span>
+                  <span className="text-xs text-muted">{card.reversedCount} reversed</span>
                 )}
               </div>
             </li>
@@ -122,20 +122,19 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
       </ul>
       
       <div className="mt-3 pt-2 border-t border-secondary/20 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm sm:text-xs">
-        <span className="text-muted/70">
-          {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
+        <span className="text-muted">
+          {repeated.length > 5 ? `+${repeated.length - 5} more` : 'Explore deck'}
         </span>
         <Link 
           to="/journal/gallery" 
           className="flex items-center gap-1 min-h-touch py-2 px-2 -m-2 text-accent hover:text-main transition-colors touch-manipulation"
-          aria-label="View your card collection"
         >
           View Collection
-          <ArrowRight className="w-3 h-3" />
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
       {isEmerging && (
-        <p className="mt-2 text-2xs text-muted/70">
+        <p className="mt-2 text-2xs text-muted">
           Keep logging to confirm which cards stay in focus.
         </p>
       )}

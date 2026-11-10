@@ -279,7 +279,7 @@ test('single-card preparation handles long questions, enlarged text and reduced 
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
     await expect.poll(() => preparation.evaluate(element => element.getAnimations({ subtree: true })
       .filter(animation => animation.playState === 'running').map(animation => animation.animationName || 'transition'))).toEqual([]);
-    const accessibility = await new AxeBuilder({ page }).include('.reading-screen--preparing').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    const accessibility = await new AxeBuilder({ page }).include('.reading-screen--preparing').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(accessibility.violations).toEqual([]);
   } finally {
     await fixture.close();

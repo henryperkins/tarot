@@ -10,7 +10,8 @@
   "account_id": "a77e479f6736120eadd99973dbeb705e",
   "compatibility_date": "2025-11-24",
   "compatibility_flags": [
-    "nodejs_compat"
+    "nodejs_compat",
+    "enable_request_signal"
   ],
   // Sentry source map uploads
   "upload_source_maps": true,
@@ -71,16 +72,17 @@
     // Codex uses matching CODEX_SUBSCRIPTION_* keys; see docs/codex-subscription.md.
     // Workers AI inference is independent of this text-provider setting.
     "TEXT_PROVIDER": "legacy",
-    // Claude through the Anthropic API is the first provider for readings,
-    // follow-up answers and journal summaries whenever the ANTHROPIC_API_KEY
-    // secret is set; without it those paths skip Claude.
+    // The OpenAI Responses API (OPENAI_MODEL below) is the first reading provider
+    // whenever OPENAI_API_KEY is set. Claude through the Anthropic API comes next
+    // for readings and first for follow-up answers and journal summaries whenever
+    // the ANTHROPIC_API_KEY secret is set; without it those paths skip Claude.
     // ANTHROPIC_EFFORT sets reading effort (low, medium, high, xhigh, max);
     // shorter tasks use fixed lower efforts in code.
     "ANTHROPIC_MODEL": "claude-opus-5-5",
     "ANTHROPIC_EFFORT": "xhigh",
     "ANTHROPIC_TIMEOUT_MS": "300000",
     "ENABLE_SEMANTIC_SCORING": "true",
-    // Modal is the reading fallback after the Claude API.
+    // Modal is the reading fallback after the Responses API and the Claude API.
     // Store MODAL_PROXY_TOKEN_ID and MODAL_PROXY_TOKEN_SECRET separately as secrets.
     // Legacy MODAL_PROXY_TOKEN remains supported when both pair fields are absent.
     "MODAL_ENDPOINT_URL": "https://henryperkins--ep-qwen3-8-max-vl-thinking-server.us-west.modal.direct/v1",
@@ -95,13 +97,18 @@
     // ---------------------------------------------------------------------
     // OpenAI native Responses API (requires OPENAI_API_KEY)
     // OPENAI_BASE_URL defaults to https://api.openai.com if empty.
-    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-5.6-sol").
+    // OPENAI_MODEL is the model id sent in the request body (e.g. "gpt-6.1-sol").
     // OPENAI_REASONING_EFFORT overrides the model's default reasoning depth.
     // OPENAI_VERBOSITY optionally overrides text verbosity on the native path.
+    // OPENAI_TIMEOUT_MS optionally overrides the 120s deadline of each OpenAI request,
+    // streamed or buffered (bounded 1s-600s). Readings also stay inside the reading
+    // task budget (READING_TASK_TIMEOUT_MS, 240s) and, when buffered, the 90s attempt
+    // cap. The release gate gives every sample this same deadline, so set it here and
+    // on the live Worker together.
     // ---------------------------------------------------------------------
     "OPENAI_BASE_URL": "https://api.openai.com",
-    "OPENAI_MODEL": "gpt-5.6-sol",
-    "OPENAI_REASONING_EFFORT": "xhigh",
+    "OPENAI_MODEL": "gpt-6.1-sol",
+    "OPENAI_REASONING_EFFORT": "high",
     "ALLOW_STREAMING_WITH_EVAL_GATE": "true",
     "STREAMING_QUALITY_GATE_ENABLED": "false",
     "STREAMING_SAFETY_SCAN_ENABLED": "false",
@@ -343,7 +350,7 @@
   // Claude Messages API (first narrative and text provider when set)
   // wrangler secret put ANTHROPIC_API_KEY
   //
-  // Modal Chat Completions (reading fallback after the Claude API)
+  // Modal Chat Completions (reading fallback after the Responses API and the Claude API)
   // wrangler secret put MODAL_PROXY_TOKEN_ID
   // wrangler secret put MODAL_PROXY_TOKEN_SECRET
   // Legacy alternative, only when both token-pair fields are absent:

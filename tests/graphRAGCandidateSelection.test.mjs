@@ -392,6 +392,109 @@ test('supplemental Majors need shared question terms to count as relevant, unlik
   assert.deepEqual(priorityOnly.map(row => row.patternId), ['fools-journey:initiation', 'major-arcana:6']);
 });
 
+test('canonical Major topic descriptors come from the hand-written general passage only', () => {
+  assert.equal(candidatesModule.getMajorTopicDescriptor(1), 'Will & Manifestation. manifestation, skill, agency, focus');
+  assert.equal(candidatesModule.getMajorTopicDescriptor(14), 'Balance & Integration. balance, patience, integration, healing');
+  assert.equal(candidatesModule.getMajorTopicDescriptor(22), null);
+  assert.equal(candidatesModule.getMajorTopicDescriptor('x'), null);
+  assert.equal(candidatesModule.getMajorTopicDescriptor(null), null);
+  assert.equal(candidatesModule.getMajorTopicDescriptor(''), null);
+});
+
+test('topic corroboration admits only a pivotal strongest semantic-only supplemental Major', () => {
+  const major = (id, relevanceScore, topicScore) => ({
+    candidateId: `major-arcana:${id}:general`, patternKey: `major-arcana:${id}`, patternId: `major-arcana:${id}`,
+    type: 'major-arcana', priority: candidatesModule.SUPPLEMENTAL_MAJOR_PRIORITY, context: 'general',
+    promptText: `major ${id} text`, relevance: 0, relevanceScore,
+    _semanticScore: relevanceScore / 0.7, _semanticScoringSucceeded: true,
+    ...(topicScore === undefined ? {} : { _supplementalMajorTopicScore: topicScore })
+  });
+  const other = (id, relevanceScore) => ({
+    candidateId: `${id}:general`, patternKey: id, patternId: id, type: 'fools-journey', priority: 2,
+    context: 'general', promptText: `${id} text`, relevance: 0, relevanceScore,
+    _semanticScore: relevanceScore / 0.7, _semanticScoringSucceeded: true
+  });
+
+  // Strongest drawn Major, corroborated, nothing else qualifies: admitted strong.
+  const rescued = candidatesModule.selectPassageCandidates([major(1, 0.4034, 0.3444), major(18, 0.3962, 0.3409)], { maxPassages: 2 });
+  assert.deepEqual(rescued.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['major-arcana:1', false]]);
+
+  // FRESH15 shape: the Major outranks the one qualified pattern, so both stay strong.
+  const pivotal = candidatesModule.selectPassageCandidates([other('fools-journey:integration', 0.3059), major(11, 0.3425, 0.3034)], { maxPassages: 2 });
+  assert.deepEqual(pivotal.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['major-arcana:11', false], ['fools-journey:integration', false]]);
+
+  // A qualified non-Major outranks the Major: no corroboration, Major stays out.
+  const dominated = candidatesModule.selectPassageCandidates([other('fools-journey:integration', 0.42), major(11, 0.3425, 0.3034)], { maxPassages: 2 });
+  assert.deepEqual(dominated.map(row => row.patternId), ['fools-journey:integration']);
+
+  // REL04 shape with a failing descriptor score: the lexical safeguard stands.
+  const vetoed = candidatesModule.selectPassageCandidates([other('fools-journey:initiation', 0.3048), major(6, 0.3276, 0.29), major(7, 0.2805, 0.31)], { maxPassages: 2 });
+  assert.deepEqual(vetoed.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['fools-journey:initiation', false]]);
+
+  // A descriptor score exactly at the threshold does not corroborate (strict >).
+  const boundary = candidatesModule.selectPassageCandidates([major(1, 0.4034, 0.3)], { maxPassages: 1 });
+  assert.deepEqual(boundary.map(row => row.belowRelevanceThreshold), [true]);
+
+  // Missing descriptor evidence or keyword fallback never corroborates.
+  const noEvidence = candidatesModule.selectPassageCandidates([major(1, 0.4034)], { maxPassages: 1 });
+  assert.deepEqual(noEvidence.map(row => row.belowRelevanceThreshold), [true]);
+  const keywordOnly = candidatesModule.selectPassageCandidates([{ ...major(1, 0.4034, 0.3444), _semanticScoringSucceeded: false }], { maxPassages: 1 });
+  assert.deepEqual(keywordOnly.map(row => row.belowRelevanceThreshold), [true]);
+});
+
+test('runtime embeds the canonical descriptor only for a pivotal semantic-only Major', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const graphKeys = { totalMajors: 2, majorNumbers: [1, 18] };
+  const candidates = candidatesModule.collectPassageCandidates(graphKeys, { includeMetadata: true });
+  const magician = candidates.find(row => row.type === 'major-arcana' && row.patternId === '1' && (row.context || 'general') === 'general');
+  const descriptor = candidatesModule.getMajorTopicDescriptor(1);
+  const query = '¿Cómo puedo aprovechar lo que ya sé y lo que tengo a mano para probar una de mis ideas?';
+  const run = (descriptorVector) => retrievePassagesWithQuality(graphKeys, {
+    maxPassages: 2, userQuery: query,
+    env: { AI: { run: async (_model, { text }) => ({ data: text.map(input => {
+      if (input === query || input === magician.promptText) return [1, 0];
+      if (input === descriptor) return descriptorVector;
+      return [0, 1];
+    }) }) } }
+  });
+  const admitted = await run([1, 0]);
+  assert.deepEqual(admitted.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['1', false]]);
+  assert.equal(admitted.retrievalStats.majorTopicCorroborationAttempted, true);
+  assert.equal(admitted.retrievalStats.majorTopicCorroborationUsed, true);
+  assert.equal(admitted.retrievalStats.majorTopicCorroborationFallbackReason, null);
+  clearEmbeddingCache();
+  const vetoed = await run([0, 1]);
+  assert.deepEqual(vetoed.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['1', true]]);
+  assert.equal(vetoed.retrievalStats.majorTopicCorroborationUsed, true);
+  clearEmbeddingCache();
+  const malformed = await run([1, 0, 0]);
+  assert.deepEqual(malformed.map(row => [row.patternId, row.belowRelevanceThreshold === true]), [['1', true]]);
+  assert.equal(malformed.retrievalStats.majorTopicCorroborationAttempted, true);
+  assert.equal(malformed.retrievalStats.majorTopicCorroborationUsed, false);
+  assert.ok(malformed.retrievalStats.majorTopicCorroborationFallbackReason);
+});
+
+test('runtime never embeds a descriptor when a qualified pattern outranks the Major', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const graphKeys = { completeTriadIds: ['death-temperance-star'], totalMajors: 2, majorNumbers: [13, 14] };
+  const candidates = candidatesModule.collectPassageCandidates(graphKeys, { includeMetadata: true });
+  const triad = candidates.find(row => row.type === 'triad' && (row.context || 'general') === 'general');
+  const death = candidates.find(row => row.type === 'major-arcana' && row.patternId === '13' && (row.context || 'general') === 'general');
+  const requested = [];
+  const result = await retrievePassagesWithQuality(graphKeys, {
+    maxPassages: 2, userQuery: 'zzz quorbit',
+    env: { AI: { run: async (_model, { text }) => { requested.push(...text); return { data: text.map(input => {
+      if (input === 'zzz quorbit' || input === triad.promptText) return [1, 0];
+      if (input === death.promptText) return [0.8, 0.6];
+      return [0, 1];
+    }) }; } } }
+  });
+  assert.ok(!requested.includes(candidatesModule.getMajorTopicDescriptor(13)));
+  assert.ok(!requested.includes(candidatesModule.getMajorTopicDescriptor(14)));
+  assert.equal(result.retrievalStats.majorTopicCorroborationAttempted, false);
+  assert.ok(result.every(row => row.type !== 'major-arcana' || row.belowRelevanceThreshold === true));
+});
+
 test('multi-Major spreads enumerate every distinct valid Major at priority 7 while preserving single-Major priority 2 and legacy fallback', async (t) => {
   clearEmbeddingCache(); t.after(clearEmbeddingCache);
   const singleCandidates = candidatesModule.collectPassageCandidates({ totalMajors: 1, majorNumbers: [17], singleMajorNumber: 17, singleMajorName: 'The Star', foolsJourneyStageKey: 'integration' }, { includeMetadata: true });

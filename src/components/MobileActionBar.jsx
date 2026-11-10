@@ -295,7 +295,7 @@ function renderActions(mode, options) {
             <ActionButton
               variant="secondary"
               onClick={onOpenSettings}
-              ariaLabel="Open reading preparation"
+              ariaLabel="Prepare reading"
               ariaControls={settingsDialogId}
               ariaExpanded={isSettingsOpen}
               icon={Gear}

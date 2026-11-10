@@ -51,3 +51,11 @@ export const JOURNEY_TEXT_BUTTON_CLASS = [
   'text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation',
   'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)',
 ].join(' ');
+
+// Forced colors drop background fills, so a pressed toggle (aria-pressed) is
+// drawn in the system Highlight colors to keep its state visible.
+export const PRESSED_FORCED_COLORS_CLASS = [
+  'forced-colors:aria-pressed:forced-color-adjust-none',
+  'forced-colors:aria-pressed:bg-[color:Highlight]',
+  'forced-colors:aria-pressed:text-[color:HighlightText]',
+].join(' ');

@@ -395,7 +395,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           if (exit === 'home link') await page.getByRole('link', { name: 'Tableu home', exact: true }).click();
           if (exit === 'back link') await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
           if (exit.startsWith('menu')) {
-            await page.getByRole('button', { name: 'User menu for Reader', exact: true }).click();
+            await page.getByRole('button', { name: 'Account menu for Reader', exact: true }).click();
             const menu = page.getByRole('menu', { name: 'User menu', exact: true });
             if (exit === 'menu plan link') await menu.getByRole('link', { name: 'View Plans', exact: true }).click();
             if (exit === 'menu sign out') await menu.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();

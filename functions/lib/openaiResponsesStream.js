@@ -15,13 +15,26 @@
  * - response.error
  */
 
-import { ensureOpenAIConfig, resolveResponsesUser, extractOpenAIResponseContent } from './openaiResponses.js';
+import {
+  describeOpenAIFailure,
+  ensureOpenAIConfig,
+  extractOpenAIResponseContent,
+  logOpenAIFailure,
+  parseJsonObject,
+  publicOpenAIFailureDetail,
+  readOpenAIRequestId,
+  resolveOpenAITimeoutMs,
+  resolveResponsesUser
+} from './openaiResponses.js';
 import { createDeadline, streamWithDeadline } from './requestDeadline.js';
 import { validateResponsesStream } from './responsesCompletion.js';
 import { recordInferenceAttempt, inferAttemptReason } from './inferenceAttempts.js';
 
-async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, telemetry } = {}) {
+const MAX_ERROR_BODY_CHARS = 65536;
+
+async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, telemetry, requestId = null } = {}) {
   const startedAtMs = Date.now();
+  const logRequestId = requestId || telemetry?.requestId || 'unknown';
   let recorded = false;
   const record = async (error, response) => {
     if (!telemetry || recorded) return;
@@ -33,13 +46,19 @@ async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, 
   const deadline = createDeadline({ signal, timeoutMs });
   try {
     const response = await deadline.run(() => fetch(url, { ...init, signal: deadline.signal }));
+    const upstreamRequestId = readOpenAIRequestId(response);
     if (!response.ok) {
-      response.body?.cancel().catch(() => {});
-      throw new Error(`Responses API error HTTP ${response.status}.`);
+      // OpenAI explains a rejected request in a small JSON body; log it sanitized.
+      const bodyText = await deadline.run(() => response.text()).catch(() => '');
+      const details = describeOpenAIFailure(bodyText.length <= MAX_ERROR_BODY_CHARS ? parseJsonObject(bodyText) : null);
+      logOpenAIFailure(logRequestId, 'Request failed', details, { status: response.status, upstreamRequestId });
+      const detail = publicOpenAIFailureDetail(details);
+      throw new Error(`Responses API error HTTP ${response.status}${detail ? ` (${detail})` : ''}.`);
     }
     if (!response.body) throw new Error('Responses API returned no body for streaming.');
     return validateResponsesStream(streamWithDeadline(response.body, deadline), {
-      onComplete: (response) => record(null, response), onError: record
+      onComplete: (response) => record(null, response), onError: record,
+      onFailure: (details, eventType) => logOpenAIFailure(logRequestId, `Stream returned ${eventType}`, details, { upstreamRequestId })
     });
   } catch (error) {
     deadline.dispose();
@@ -62,6 +81,8 @@ async function fetchResponsesBody(url, init, { signal, timeoutMs = 120000, env, 
  * @param {string} options.verbosity - Text verbosity level (default: 'medium')
  * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
  * @param {Array} options.tools - Optional array of tool definitions
+ * @param {number|null} options.timeoutMs - Deadline for the whole stream (null = OPENAI_TIMEOUT_MS, default 120s)
+ * @param {string|null} options.requestId - Request ID for failure logs (default: telemetry.requestId)
  * @returns {ReadableStream} SSE event stream
  */
 export async function callOpenAIResponsesStream(env, {
@@ -74,11 +95,13 @@ export async function callOpenAIResponsesStream(env, {
   user = null,
   tools = null,
   signal,
-  timeoutMs = 120000,
+  timeoutMs = null,
+  requestId = null,
   telemetry
 }) {
   const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : resolveOpenAITimeoutMs(env);
 
   const body = {
     model,
@@ -120,6 +143,7 @@ export async function callOpenAIResponsesStream(env, {
     reasoningEffort: reasoningEffort ?? 'omitted',
     reasoningSummary: reasoningSummary ?? 'omitted',
     verbosity,
+    timeoutMs: effectiveTimeoutMs,
     userProvided: Boolean(resolvedUser)
   });
 
@@ -130,7 +154,7 @@ export async function callOpenAIResponsesStream(env, {
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
-  }, { signal, timeoutMs, env, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
+  }, { signal, timeoutMs: effectiveTimeoutMs, env, requestId, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
 }
 
 /**
@@ -755,6 +779,8 @@ export function transformOpenAIStreamWithTools(openaiStream, { onToolCall = null
  * @param {number|null} options.maxTokens - Max output tokens
  * @param {string} options.verbosity - Text verbosity level
  * @param {string|null} options.user - Optional end-user identifier for abuse monitoring
+ * @param {number|null} options.timeoutMs - Deadline for the whole stream (null = OPENAI_TIMEOUT_MS, default 120s)
+ * @param {string|null} options.requestId - Request ID for failure logs (default: telemetry.requestId)
  * @returns {ReadableStream} SSE event stream
  */
 export async function callOpenAIResponsesStreamWithConversation(env, {
@@ -764,11 +790,13 @@ export async function callOpenAIResponsesStreamWithConversation(env, {
   verbosity = 'medium',
   user = null,
   signal,
-  timeoutMs = 120000,
+  timeoutMs = null,
+  requestId = null,
   telemetry
 }) {
   const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
   const resolvedUser = resolveResponsesUser(env, user);
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : resolveOpenAITimeoutMs(env);
 
   const body = {
     model,
@@ -794,6 +822,7 @@ export async function callOpenAIResponsesStreamWithConversation(env, {
     conversationLength: conversation.length,
     maxTokens: maxTokens ?? 'unlimited',
     verbosity,
+    timeoutMs: effectiveTimeoutMs,
     userProvided: Boolean(resolvedUser)
   });
 
@@ -804,7 +833,7 @@ export async function callOpenAIResponsesStreamWithConversation(env, {
       'content-type': 'application/json'
     },
     body: JSON.stringify(body)
-  }, { signal, timeoutMs, env, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
+  }, { signal, timeoutMs: effectiveTimeoutMs, env, requestId, telemetry: telemetry ? { ...telemetry, provider, requestedModel: model } : null });
 }
 
 /**

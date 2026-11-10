@@ -231,3 +231,39 @@ test('queued narration retains each segment narrator until its own network reque
   players.at(-1).dispatchEvent(new Event('ended'));
   await waitFor(() => getCurrentTTSState().status === 'completed');
 });
+
+for (const [header, expected] of [['5', 5], ['1', 1], [undefined, 2], ['0', 2], ['-1', 2], ['1.5', 2], ['3seconds', 2], ['Infinity', 2], ['9007199254740992', 2]]) {
+  test(`busy narration preserves a validated retry interval (${header ?? 'missing'}) and resolves without retry`, async t => {
+    browser(t);
+    t.mock.method(console, 'error', () => {});
+    let requests = 0;
+    t.mock.method(globalThis, 'fetch', async () => {
+      requests++;
+      return Response.json({ errorCode: 'NARRATION_BUSY', retryable: true }, { status: 409, headers: header === undefined ? {} : { 'Retry-After': header } });
+    });
+    await speakText({ text: 'Busy fixture.', enabled: true, context: 'full-reading', stream: true });
+    const state = getCurrentTTSState();
+    assert.equal(state.status, 'error');
+    assert.equal(state.message, 'Another narration is finishing. Please wait a moment, then try again.');
+    assert.equal(state.errorCode, 'NARRATION_BUSY');
+    assert.equal(state.errorDetails.retryAfterSeconds, expected);
+    assert.equal(requests, 1);
+  });
+}
+for (const [status, data, code, message] of [
+  [409, { errorCode: 'OTHER_CONFLICT' }, 'OTHER_CONFLICT', 'Unable to generate audio right now.'],
+  [429, { errorCode: 'TIER_LIMIT', tierLimited: true, used: 3, limit: 3 }, 'TIER_LIMIT', 'Monthly limit reached (3/3). Upgrade for more.'],
+  [429, {}, 'RATE_LIMIT', 'Too many requests. Please wait a moment.'],
+  [503, { errorCode: 'NARRATION_BUSY' }, 'NARRATION_BUSY', 'Voice service temporarily unavailable. Try again shortly.']
+]) {
+  test(`HTTP ${status} ${code} retains its distinct classification`, async t => {
+    browser(t);
+    t.mock.method(console, 'error', () => {});
+    t.mock.method(globalThis, 'fetch', async () => Response.json(data, { status, headers: { 'Retry-After': '5' } }));
+    await speakText({ text: 'Classification fixture.', enabled: true });
+    const state = getCurrentTTSState();
+    assert.equal(state.errorCode, code);
+    assert.equal(state.message, message);
+    assert.equal(state.errorDetails.retryAfterSeconds, undefined);
+  });
+}

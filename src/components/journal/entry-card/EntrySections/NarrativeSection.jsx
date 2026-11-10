@@ -2,15 +2,17 @@
  * NarrativeSection.jsx
  * Collapsible section displaying the full reading narrative (markdown).
  */
-import { memo, useReducer, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import { lazy, memo, useReducer, useState } from 'react';
 import { CaretUp, CaretDown } from '@phosphor-icons/react';
 import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
-import { RestoredReadingGestures, SavedVisualRecovery } from '../RestoredReadingGestures';
+import { SavedVisualRecovery } from '../SavedVisualRecovery';
+import { DeferredReadingContent } from '../DeferredReadingContent';
 import { readingVisualRequestsEnabled } from '../../../../lib/readingGestureSettings';
+
+const JournalMarkdown = lazy(() => import('../JournalMarkdown'));
+const RestoredReadingGestures = lazy(() => import('../RestoredReadingGestures')
+  .then(module => ({ default: module.RestoredReadingGestures })));
 
 function getNarrativePreviewText(text, maxChars = 260) {
   if (!text || typeof text !== 'string') return '';
@@ -35,87 +37,6 @@ function getNarrativePreviewText(text, maxChars = 260) {
   return truncated;
 }
 
-// Both saved-reading paths nest sections beneath the journal entry's H3.
-// Walk parsed headings so fenced code and setext syntax keep their meaning.
-function remarkJournalHeadings() {
-  return (tree) => {
-    const headings = [];
-    const collect = (node) => {
-      if (node.type === 'heading') headings.push(node);
-      node.children?.forEach(collect);
-    };
-    collect(tree);
-    const sourceBase = Math.min(6, ...headings.map(heading => heading.depth));
-    headings.forEach(heading => { heading.depth = Math.min(6, 4 + heading.depth - sourceBase); });
-  };
-}
-
-const MARKDOWN_COMPONENTS = {
-  a: ({ node: _node, ...props }) => (
-    <a
-      {...props}
-      className="text-(--brand-primary) underline decoration-dotted underline-offset-4 hover:text-(--text-main) wrap-anywhere"
-      target="_blank"
-      rel="noopener noreferrer"
-    />
-  ),
-  pre: ({ node: _node, ...props }) => (
-    <pre
-      {...props}
-      className="overflow-x-auto rounded-xl border border-(--border-warm-light) bg-(--bg-surface-muted) p-3 text-sm leading-relaxed"
-    />
-  ),
-  code: ({ node: _node, inline, className, children, ...props }) => {
-    if (inline) {
-      return (
-        <code
-          {...props}
-          className="rounded bg-(--border-warm-subtle) px-1.5 py-0.5 font-mono text-[0.85em] text-(--text-main) wrap-break-word"
-        >
-          {children}
-        </code>
-      );
-    }
-
-    return (
-      <code
-        {...props}
-        className={cn('font-mono whitespace-pre-wrap wrap-break-word', className)}
-      >
-        {children}
-      </code>
-    );
-  },
-  table: ({ node: _node, ...props }) => (
-    <div
-      className="my-4 -mx-1 overflow-x-auto px-1"
-      role="region"
-      aria-label="Reading table"
-      tabIndex={0}
-    >
-      <table
-        {...props}
-        className="w-full border-collapse text-sm text-main"
-      />
-    </div>
-  ),
-  thead: ({ node: _node, ...props }) => (
-    <thead {...props} className="bg-(--border-warm-subtle)" />
-  ),
-  th: ({ node: _node, ...props }) => (
-    <th
-      {...props}
-      className="border border-(--border-warm-light) px-2 py-2 text-left text-xs font-semibold text-main"
-    />
-  ),
-  td: ({ node: _node, ...props }) => (
-    <td
-      {...props}
-      className="border border-(--border-warm-subtle) px-2 py-2 align-top text-xs text-muted"
-    />
-  )
-};
-
 export const NarrativeSection = memo(function NarrativeSection({
   narrativeText,
   narrativeId,
@@ -138,12 +59,19 @@ export const NarrativeSection = memo(function NarrativeSection({
     <SavedVisualRecovery entry={entry} onRetry={readingVisualRequestsEnabled() ? onRetryVisuals : null}
       handleRevision={handleRevision} onHandlesChanged={handlesChanged} />
   ) : null;
-  const reading = hasGestures ? <RestoredReadingGestures entry={entry} onHandlesChanged={handlesChanged} /> : (
+  const plainText = (
     <div className="journal-narrative-prose journal-reading prose prose-base text-(--text-main) wrap-anywhere">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks, remarkJournalHeadings]} skipHtml components={MARKDOWN_COMPONENTS}>
-        {narrativeText}
-      </ReactMarkdown>
+      <p className="whitespace-pre-wrap">{narrativeText}</p>
     </div>
+  );
+  const reading = (
+    <DeferredReadingContent key={hasGestures ? 'gestures' : 'markdown'} fallback={plainText}>
+      {hasGestures ? <RestoredReadingGestures entry={entry} /> : (
+        <div className="journal-narrative-prose journal-reading prose prose-base text-(--text-main) wrap-anywhere">
+          <JournalMarkdown journalHeadings>{narrativeText}</JournalMarkdown>
+        </div>
+      )}
+    </DeferredReadingContent>
   );
 
   return (

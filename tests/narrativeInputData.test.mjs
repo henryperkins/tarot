@@ -63,7 +63,7 @@ describe('Plus/Pro key symbols', () => {
     ];
     for (const [name, expected, templated] of expectations) {
       const text = buildPositionCardText(cardInfo(name, position), position, { includeSymbols: true, deckStyle: 'rws-1909' });
-      assert.match(text, /Key symbols:/, name);
+      assert.match(text, /May symbolize:/, name);
       assert.match(text, expected, name);
       assert.doesNotMatch(text, templated, name);
     }
@@ -72,11 +72,11 @@ describe('Plus/Pro key symbols', () => {
   it('omit Rider–Waite scenes for decks with different artwork', () => {
     for (const deckStyle of ['thoth-a1', 'marseille-classic']) {
       const minor = buildPositionCardText(cardInfo('Nine of Swords', position), position, { includeSymbols: true, deckStyle });
-      assert.doesNotMatch(minor, /Key symbols:|Picture /, deckStyle);
+      assert.doesNotMatch(minor, /Key symbols:|May symbolize:|Picture /, deckStyle);
       assert.match(minor, /Archetype: Anxious Mind/, deckStyle);
 
       const major = buildPositionCardText(cardInfo('The Hierophant', position), position, { includeSymbols: true, deckStyle });
-      assert.doesNotMatch(major, /Key symbols:|blessing hand|keys/i, deckStyle);
+      assert.doesNotMatch(major, /Key symbols:|May symbolize:|blessing hand|keys/i, deckStyle);
     }
   });
 });

@@ -319,7 +319,7 @@ export function buildNarrativePanelModel({
   manualInspectionStatus = null
 }) {
   const hasNarrativeContext = Boolean(personalReading && !isPersonalReadingError);
-  const narrationState = ttsState?.status || 'idle';
+  const narrationState = ttsState?.context === 'full-reading' ? ttsState.status || 'idle' : 'idle';
   const isNarrationLoading = narrationState === 'loading';
   const isNarrationPlaying = narrationState === 'playing';
   const isNarrationPaused = narrationState === 'paused';
@@ -375,7 +375,7 @@ export function buildNarrativePanelModel({
       isSaving
     },
     statusModel: {
-      showNarrationStatus: hasNarrativeContext && narrationState !== 'idle' && narrationState !== 'completed',
+      showNarrationStatus: hasNarrativeContext && Boolean(ttsState?.status) && ttsState.status !== 'idle' && ttsState.status !== 'completed',
       showNarrationProgress: hasNarrativeContext && isServerNarrationProvider(ttsProvider) && (isNarrationPlaying || isNarrationPaused),
       showNarrationTierLimit: ttsState?.status === 'error' && ttsState?.errorCode === 'TIER_LIMIT',
       showVoicePrompt: Boolean(showVoicePrompt),

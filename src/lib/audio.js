@@ -384,6 +384,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = D
           // Not JSON, use status text
         }
 
+        errorData = withBusyRetryAfter(response, errorData);
         const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
         const userMessage = getErrorMessage(response.status, errorData);
 
@@ -718,6 +719,7 @@ async function playTtsStreamSegment(segment, requestId) {
     } catch {
       errorData = {};
     }
+    errorData = withBusyRetryAfter(response, errorData);
     const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
     const userMessage = getErrorMessage(response.status, errorData);
     emitTTSState({
@@ -1322,7 +1324,17 @@ function getPauseMessage(provider, context) {
 /**
  * Get user-friendly error message based on status and error data.
  */
+function withBusyRetryAfter(response, errorData) {
+  if (response.status !== 409 || errorData?.errorCode !== 'NARRATION_BUSY') return errorData;
+  const header = response.headers.get('retry-after')?.trim() || '';
+  const seconds = /^\d+$/.test(header) ? Number(header) : NaN;
+  return { ...errorData, retryAfterSeconds: Number.isSafeInteger(seconds) && seconds > 0 ? seconds : 2 };
+}
+
 function getErrorMessage(status, errorData) {
+  if (status === 409 && errorData.errorCode === 'NARRATION_BUSY') {
+    return 'Another narration is finishing. Please wait a moment, then try again.';
+  }
   if (status === 429) {
     if (errorData.tierLimited) {
       const used = errorData.used ?? '?';

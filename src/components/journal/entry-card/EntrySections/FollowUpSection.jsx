@@ -2,14 +2,14 @@
  * FollowUpSection.jsx
  * Displays follow-up chat turns and provides action buttons for continuing.
  */
-import { memo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import { lazy, memo } from 'react';
 import { Lightning } from '@phosphor-icons/react';
 import { normalizeTimestamp } from '../../../../../shared/journal/utils.js';
 import { requestSignIn } from '../../../../lib/openSignIn.js';
 import { styles, cn } from '../EntryCard.primitives';
+import { DeferredReadingContent } from '../DeferredReadingContent';
+
+const JournalMarkdown = lazy(() => import('../JournalMarkdown'));
 
 function formatFollowUpTimestamp(value) {
   const ts = normalizeTimestamp(value);
@@ -50,9 +50,9 @@ const FollowUpTurn = memo(function FollowUpTurn({ turn, fallbackTurnNumber }) {
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-label text-muted">Reader</p>
           <div className="journal-narrative-prose prose prose-base max-w-none wrap-anywhere text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} skipHtml>
-            {turn.answer || ''}
-          </ReactMarkdown>
+            <DeferredReadingContent fallback={<p className="whitespace-pre-wrap">{turn.answer || ''}</p>}>
+              <JournalMarkdown>{turn.answer || ''}</JournalMarkdown>
+            </DeferredReadingContent>
           </div>
         </div>
       </div>

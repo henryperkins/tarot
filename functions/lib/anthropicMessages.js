@@ -7,6 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { observeInferenceAttempt } from './inferenceAttempts.js';
+import { sanitizeProviderErrorMessage } from './providerErrorDetails.js';
 
 export const CLAUDE_API_PROVIDER = 'claude-api';
 export const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-5-5';
@@ -21,31 +22,11 @@ const REFUSAL_FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 export class ClaudeApiError extends Error {}
 
-const SAFE_QUOTED_VALUE = /^[A-Za-z0-9_.:/-]{1,64}$/;
-const MAX_LOGGED_MESSAGE_LENGTH = 200;
-
 /**
  * Anthropic's error message explains a rejection ("Unexpected value(s) `x` for
- * the `anthropic-beta` header."). Quoted values that are not plain identifiers,
- * email addresses and long opaque tokens are masked, and the text is capped, so
- * request content and credentials stay out of logs.
+ * the `anthropic-beta` header."); see providerErrorDetails.js for what is masked.
  */
-export function sanitizeAnthropicErrorMessage(message) {
-  if (typeof message !== 'string') return null;
-  const keepIdentifier = (match, open, value, close) => (SAFE_QUOTED_VALUE.test(value) ? match : `${open}[redacted]${close}`);
-  const text = message
-    .replace(/\p{Cc}+/gu, ' ')
-    .replace(/(`)([^`]{0,500})(`)/g, keepIdentifier)
-    .replace(/(["“])([^"“”]{0,500})(["”])/g, keepIdentifier)
-    // A single quote opens a value only outside a word, so "doesn't" survives.
-    .replace(/(?<!\w)(['‘])([^'‘’]{1,500})(['’])(?!\w)/g, keepIdentifier)
-    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '[redacted]')
-    .replace(/[A-Za-z0-9]{24,}/g, '[redacted]')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!text) return null;
-  return text.length > MAX_LOGGED_MESSAGE_LENGTH ? `${text.slice(0, MAX_LOGGED_MESSAGE_LENGTH - 1)}…` : text;
-}
+export const sanitizeAnthropicErrorMessage = sanitizeProviderErrorMessage;
 
 /** Status, error type, request ID and sanitized message of an Anthropic SDK error. */
 function describeAnthropicError(error) {

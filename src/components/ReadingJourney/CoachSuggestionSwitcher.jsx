@@ -13,8 +13,8 @@ function CoachSuggestionSwitcher({
 
   const styles = tone === 'amber'
     ? {
-      label: `${META_LABEL_CLASS} text-muted/70`,
-      buttonBase: `${META_LABEL_CLASS} min-h-touch rounded-full border border-primary/25 px-2.5 py-1 text-accent/80 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
+      label: `${META_LABEL_CLASS} text-muted`,
+      buttonBase: `${META_LABEL_CLASS} min-h-touch rounded-full border border-primary/25 px-2.5 py-1 text-accent transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
       buttonActive: 'bg-primary/20 text-main border-primary/40',
       buttonInactive: 'hover:border-primary/40 hover:text-main',
     }

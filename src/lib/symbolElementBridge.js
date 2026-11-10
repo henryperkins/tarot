@@ -50,6 +50,7 @@ function collectSymbols(reading = []) {
       if (!symbol?.object) return;
       symbols.push({
         object: symbol.object,
+        meaning: typeof symbol.meaning === 'string' ? symbol.meaning.trim() : '',
         family: getSymbolFamily(symbol.object)
       });
     });
@@ -57,15 +58,9 @@ function collectSymbols(reading = []) {
   return symbols;
 }
 
-function uniqueList(items = []) {
-  const seen = new Set();
-  const output = [];
-  items.forEach((item) => {
-    if (!item || seen.has(item)) return;
-    seen.add(item);
-    output.push(item);
-  });
-  return output;
+function formatList(items) {
+  if (items.length < 3) return items.join(' and ');
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
 }
 
 export function buildSymbolElementCue({ reading, themes, maxSymbols = 3, deckStyleId = themes?.deckStyle || 'rws-1909' } = {}) {
@@ -90,22 +85,27 @@ export function buildSymbolElementCue({ reading, themes, maxSymbols = 3, deckSty
   const symbols = collectSymbols(reading);
   if (symbols.length === 0) return null;
 
-  const matched = symbols
-    .filter((symbol) => targetFamilies.includes(symbol.family))
-    .map((symbol) => symbol.object);
-
-  const uniqueMatches = uniqueList(matched).slice(0, maxSymbols);
-  if (uniqueMatches.length === 0) return null;
+  // Keep each object's first annotation, in reading order.
+  const matches = new Map();
+  symbols.forEach((symbol) => {
+    if (targetFamilies.includes(symbol.family) && !matches.has(symbol.object)) {
+      matches.set(symbol.object, symbol.meaning);
+    }
+  });
+  const selected = [...matches].slice(0, maxSymbols);
+  if (selected.length === 0) return null;
 
   const focusParts = [];
   if (dominantElement) focusParts.push(`${dominantElement.key} energy`);
   if (dominantSuit) focusParts.push(`${dominantSuit.key}`);
   const focusText = focusParts.join(' and ');
 
+  // Suit Focus and Elemental Balance already name the theme; add only the imagery.
+  const imagery = formatList(selected.map(([object, meaning]) => (meaning ? `${object} (${meaning})` : object)));
   return {
     focusText,
-    symbols: uniqueMatches,
-    text: `Your reading leans ${focusText}. Symbols echoing this: ${uniqueMatches.join(', ')}.`
+    symbols: selected.map(([object]) => object),
+    text: `${imagery.charAt(0).toUpperCase()}${imagery.slice(1)}.`
   };
 }
 

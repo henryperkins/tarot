@@ -9,6 +9,7 @@ import {
   ensureOpenAIConfig,
   getReasoningEffort,
   getTextVerbosity,
+  resolveOpenAITimeoutMs,
   resolveResponsesUser
 } from '../functions/lib/openaiResponses.js';
 
@@ -95,6 +96,14 @@ describe('ensureOpenAIConfig', () => {
       assert.equal(config.model, 'custom-model');
     });
   }
+
+  test('resolves the bounded OpenAI request deadline', () => {
+    assert.equal(resolveOpenAITimeoutMs({}), 120000);
+    assert.equal(resolveOpenAITimeoutMs({ OPENAI_TIMEOUT_MS: '600000' }), 600000);
+    assert.equal(resolveOpenAITimeoutMs({ OPENAI_TIMEOUT_MS: '99999999' }), 600000, 'clamped to the maximum');
+    assert.equal(resolveOpenAITimeoutMs({ OPENAI_TIMEOUT_MS: '5' }), 1000, 'clamped to the minimum');
+    assert.equal(resolveOpenAITimeoutMs({ OPENAI_TIMEOUT_MS: 'not-a-number' }), 120000);
+  });
 
   test('rejects missing and blank native credentials', () => {
     for (const env of [undefined, {}, { OPENAI_API_KEY: '' }, { OPENAI_API_KEY: '   ' }]) {

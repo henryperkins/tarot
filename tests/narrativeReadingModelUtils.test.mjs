@@ -105,7 +105,7 @@ describe('narration controls for server voices', () => {
           personalReading: { raw: 'Finished reading.' },
           fullReadingText: 'Finished reading.',
           ttsProvider,
-          ttsState: { status },
+          ttsState: { status, context: 'full-reading' },
           narrativePhase: 'complete'
         });
         assert.equal(model.statusModel.showNarrationProgress, true);
@@ -120,7 +120,7 @@ describe('narration controls for server voices', () => {
         personalReading: { raw: 'Finished reading.' },
         fullReadingText: 'Finished reading.',
         ttsProvider: 'elevenlabs',
-        ttsState: { status }
+        ttsState: { status, context: 'full-reading' }
       });
       assert.equal(model.statusModel.showNarrationProgress, false);
     }
@@ -403,4 +403,20 @@ test('legacy previews reconstruct from explicit saved deck and canonical cards w
   for (const meta of [{ provider: 'safe-fallback' }, { sourceUsage: { graphRAG: { used: false } } }]) {
     assert.deepEqual(getTraditionalPassagePreview(themes, meta, 'thoth-a1', recovery), []);
   }
+});
+
+for (const status of ['loading', 'playing', 'paused']) {
+  test(`card ${status} leaves full-reading Play available without card progress`, () => {
+    const model = buildNarrativePanelModel({ personalReading: { raw: 'Complete.' }, fullReadingText: 'Complete.', ttsProvider: 'deepgram', ttsState: { status, context: 'card-reveal' } });
+    assert.equal(model.controlsModel.canNarrate, true);
+    assert.equal(model.controlsModel.narrationLabel, 'Read this aloud');
+    assert.equal(model.statusModel.showNarrationProgress, false);
+  });
+}
+
+test('a card busy failure remains visible beside full-reading Play', () => {
+  const model = buildNarrativePanelModel({ personalReading: { raw: 'Complete.' }, fullReadingText: 'Complete.', ttsProvider: 'deepgram', ttsState: { status: 'error', context: 'card-reveal', errorCode: 'NARRATION_BUSY' } });
+  assert.equal(model.statusModel.showNarrationStatus, true);
+  assert.equal(model.controlsModel.canNarrate, true);
+  assert.equal(model.statusModel.showNarrationTierLimit, false);
 });

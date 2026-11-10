@@ -98,7 +98,7 @@ function SettingsToggle({ id, label, description, enabled, loading, onChange, er
             {locked && <Lock className="h-3.5 w-3.5 text-muted" weight="duotone" aria-hidden="true" />}
           </span>
           {description && (
-            <span id={descriptionId} className="block text-xs text-muted leading-tight mt-0.5">
+            <span id={descriptionId} className="block text-xs text-muted leading-normal mt-0.5">
               {description}
             </span>
           )}

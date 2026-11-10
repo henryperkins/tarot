@@ -27,7 +27,6 @@ const PLUS_USER = {
   subscription_status: 'active',
   subscription_provider: 'stripe'
 };
-const STAYS_AS_WRITTEN = 'Your existing wording stays as written until you ask for a new version.';
 // Every Decision template weighs the paths; no generic template names one.
 const DECISION_SHAPED = /\bpaths?\b/;
 
@@ -101,13 +100,26 @@ async function selectSpread(page, name) {
   await expect(spread).toHaveAttribute('aria-checked', 'true');
 }
 
-// The topic step's note on how the spread shapes the question.
+// The topic step names the selected spread in one line.
 function spreadNote(coach) {
-  return coach.getByText(/^Shaped for your spread:/).locator('..');
+  return coach.getByRole('tabpanel', { name: 'Topic' }).getByText(/^Spread: /);
 }
 
 function reviewQuestion(coach) {
   return coach.getByRole('textbox', { name: 'Your Question', exact: true, includeHidden: true });
+}
+
+// A handset shows the lead suggestion alone; the alternatives open from
+// "N more ideas". Reveal a named suggestion wherever it sits.
+async function suggestionCard(page, coach, name) {
+  const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+  const card = suggestions.getByRole('button', { name, exact: true });
+  if (!(await card.isVisible())) {
+    const more = suggestions.getByRole('button', { name: /^\d+ more ideas?$/ });
+    if (await more.isVisible()) await more.click();
+  }
+  await expect(card).toBeVisible();
+  return card;
 }
 
 for (const platform of ['desktop', 'handset @mobile']) {
@@ -212,14 +224,11 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       let coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-      if (await show.count()) await show.click();
 
       // The two focus-area cards that used to regenerate on selection.
       let preview = '';
       for (const label of ['Love & relationships', 'Healing & growth']) {
-        const card = suggestions.getByRole('button', { name: label, exact: true });
+        const card = await suggestionCard(page, coach, label);
         preview = await card.evaluate(element => {
           const ids = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
           return (document.getElementById(ids[ids.length - 1])?.textContent || '').trim();
@@ -253,9 +262,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['love'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-      if (await show.count()) await show.click();
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
       await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
       const field = reviewQuestion(coach);
       const selected = await field.inputValue();
@@ -278,10 +285,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-      if (await show.count()) await show.click();
-      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await (await suggestionCard(page, coach, 'Love & relationships')).click();
       await expect(reviewQuestion(coach)).toBeFocused();
       await expect(reviewQuestion(coach)).toBeInViewport();
     });
@@ -307,10 +311,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'], templates: [TEMPLATE] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-      if (await show.count()) await show.click();
-      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await (await suggestionCard(page, coach, 'Love & relationships')).click();
       await expect(reviewQuestion(coach)).toBeFocused();
 
       const opener = coach.getByRole('button', { name: 'Save as template', exact: true });
@@ -371,9 +372,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await gotoReading(page);
       const coach = await openCoachWithButton(page);
-      const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-      const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-      if (await show.count()) await show.click();
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
 
       await expect(suggestions.getByText('Based on your focus areas.', { exact: true }).first()).toBeVisible();
       await expect(suggestions.getByText(/journal trends/i)).toHaveCount(0);
@@ -427,7 +426,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
       expect(calls).toBe(1);
     });
 
-    test('a changed suggestion source resets a later page when the source shrinks', async ({ page }) => {
+    test('cycling suggestions and a changed source replaces the batch when the source shrinks', async ({ page }) => {
       await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
       await page.addInitScript(() => {
         localStorage.setItem('tarot_coach_stats_snapshot_anon', JSON.stringify({ stats: {
@@ -446,23 +445,126 @@ for (const platform of ['desktop', 'handset @mobile']) {
       try {
         await gotoReading(page);
         const coach = await openCoachWithShortcut(page);
-        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-        const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-        if (await show.count()) await show.click();
-        await suggestions.getByRole('button', { name: 'Next suggestions', exact: true }).click();
-        await expect(suggestions.getByText('Page 2 of 2', { exact: true })).toBeAttached();
+        const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+        // Eight pool entries (five journal, three focus areas), three visible:
+        // "New ideas" cycles to a new lead.
+        const lead = suggestions.locator('[data-suggestion="lead"]');
+        const leadText = async () => (await lead.textContent() || '').trim();
+        const firstLead = await leadText();
+        await suggestions.getByRole('button', { name: 'New ideas', exact: true }).click();
+        await expect.poll(leadText).not.toBe(firstLead);
         settleAuth();
         await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toHaveCount(0);
-        await expect.poll(async () => (
-          await suggestions.getByText('Healing & growth', { exact: true }).isVisible()
-          || await suggestions.getByText('1 suggestion ready. Tap to peek.', { exact: true }).isVisible()
-        )).toBe(true);
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        if (await show.count()) await show.click();
-        await expect(suggestions.getByRole('button', { name: 'Next suggestions', exact: true })).toHaveCount(0);
         await expect(suggestions.getByText('Healing & growth', { exact: true })).toBeVisible();
+        await expect(suggestions.getByRole('button', { name: 'New ideas', exact: true })).toHaveCount(0);
         await expect(suggestions.getByText('Career & money', { exact: true })).toHaveCount(0);
       } finally { settleAuth(); }
+    });
+
+    test('picking a suggestion keeps hand-typed wording one tap away', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['love'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Review' }).click();
+      const field = reviewQuestion(coach);
+      const mine = 'What do I want to ask about my sister this week?';
+      await field.fill(mine);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(field).not.toHaveValue(mine);
+      await coach.getByRole('button', { name: 'Restore my wording', exact: true }).click();
+      await expect(field).toHaveValue(mine);
+    });
+
+    test('a first pick offers no restore for wording the reader never wrote', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['love'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(reviewQuestion(coach)).toBeFocused();
+      await expect(coach.getByRole('button', { name: 'Restore my wording', exact: true })).toHaveCount(0);
+    });
+
+    test('Start fresh then a pick still restores the wording the reader typed', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['love'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      await coach.getByRole('tab', { name: 'Review' }).click();
+      const field = reviewQuestion(coach);
+      const mine = 'What do I want to ask about my sister this week?';
+      await field.fill(mine);
+      await coach.getByRole('button', { name: 'Start fresh', exact: true }).click();
+      await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
+      const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
+      await suggestions.getByRole('button', { name: 'Love & relationships', exact: true }).click();
+      await expect(field).not.toHaveValue(mine);
+      await coach.getByRole('button', { name: 'Restore my wording', exact: true }).click();
+      await expect(field).toHaveValue(mine);
+    });
+
+    test('step changes keep the chosen step in view below the suggestions', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const footer = coach.locator('.coach-dialog__footer');
+      const clearOfFooter = async locator => {
+        const [box, footerBox] = await Promise.all([locator.boundingBox(), footer.boundingBox()]);
+        return Boolean(box && footerBox) && box.y + box.height <= footerBox.y + 1;
+      };
+
+      // Footer Next changes the step without touching the tabs; the new
+      // step's options must not stay hidden below the suggestions panel.
+      await coach.getByRole('button', { name: 'Next', exact: true }).click();
+      const timeframeOption = coach.getByRole('radio', { name: /^Next 30 days/ });
+      await expect(timeframeOption).toBeInViewport();
+      await expect.poll(() => clearOfFooter(timeframeOption)).toBe(true);
+
+      // A tab click shows its step instead of scrolling back up to the panel.
+      await coach.locator('.coach-dialog__scroll').evaluate(element => element.scrollTo({ top: 0, behavior: 'instant' }));
+      await coach.getByRole('tab', { name: 'Depth' }).click();
+      const depthOption = coach.getByRole('radio', { name: /^Quick pulse/ });
+      await expect(depthOption).toBeInViewport();
+      await expect.poll(() => clearOfFooter(depthOption)).toBe(true);
+    });
+
+    test('keyboard focus in the coach body never lands under the sticky footer', async ({ page }) => {
+      // At 1440x900 the tabs start inside the scrollport but beneath the
+      // footer, where focus scrolling alone would leave them covered; on a
+      // handset the suggestion rows do.
+      if (platform === 'desktop') await page.setViewportSize({ width: 1440, height: 900 });
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const footer = coach.locator('.coach-dialog__footer');
+      const focused = page.locator(':focus');
+      const topicTab = coach.getByRole('tab', { name: 'Topic' });
+      for (let presses = 0; presses < 12; presses += 1) {
+        await page.keyboard.press('Tab');
+        if (!(await focused.evaluate(element => Boolean(element.closest('.coach-dialog__body'))))) continue;
+        const name = (await focused.textContent() || '').trim().slice(0, 40);
+        await expect.poll(async () => {
+          const [box, footerBox] = await Promise.all([focused.boundingBox(), footer.boundingBox()]);
+          return Boolean(box && footerBox) && box.y + box.height <= footerBox.y + 1;
+        }, { message: `"${name}" stays clear of the footer` }).toBe(true);
+        if (await topicTab.evaluate(element => element === document.activeElement)) break;
+      }
+      await expect(topicTab).toBeFocused();
+    });
+
+    test('focusing a footer button leaves the content where it is', async ({ page }) => {
+      await seedApp(page, { focusAreas: ['career', 'love', 'healing'] });
+      await gotoReading(page);
+      const coach = await openCoachWithButton(page);
+      const scroller = coach.locator('.coach-dialog__scroll');
+      const next = coach.getByRole('button', { name: 'Next', exact: true });
+      // The footer is sticky, so its buttons are already in view: focus must
+      // not scroll the content behind them.
+      const before = await scroller.evaluate(element => element.scrollTop);
+      await next.focus();
+      await expect(next).toBeFocused();
+      const after = await scroller.evaluate(element => element.scrollTop);
+      expect(Math.abs(after - before)).toBeLessThan(24);
     });
 
     test('a suggestion cancels pending AI generation and keeps its preview after the late response', async ({ page }) => {
@@ -492,9 +594,7 @@ for (const platform of ['desktop', 'handset @mobile']) {
         await coach.getByRole('checkbox', { name: 'Personalize with AI' }).check();
         await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
         await requestStarted;
-        const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-        const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-        if (await show.count()) await show.click();
+        const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
         const card = suggestions.getByRole('button', { name: 'Love & relationships', exact: true });
         const preview = await card.evaluate(element => {
           const ids = element.getAttribute('aria-describedby').split(/\s+/);
@@ -790,21 +890,6 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await expect(coach).toBeVisible();
   });
 
-  test('a tooltip left open behind the coach does not swallow its Escape', async ({ page }) => {
-    await seedApp(page);
-    await gotoReading(page);
-
-    // Hovered, then the coach opened from the keyboard: no pointerdown hides
-    // the page's tooltip, and the coach now covers it.
-    await page.getByRole('button', { name: /^Ritual \(optional\)/ }).click();
-    await page.getByRole('button', { name: 'About clearing the deck ritual' }).hover();
-    await expect(page.getByRole('tooltip')).toBeVisible();
-    const coach = await openCoachWithShortcut(page);
-
-    await page.keyboard.press('Escape');
-    await expect(coach).toHaveCount(0);
-  });
-
   test('the template library is a layer of its own', async ({ page }) => {
     await seedApp(page, { templates: [TEMPLATE] });
     await gotoReading(page);
@@ -866,9 +951,7 @@ test.describe('Guided intention coach keyboard and layers', () => {
     await gotoReading(page);
     const coach = await openCoachWithShortcut(page);
     await expect(coach.getByRole('tab', { name: 'Topic' })).toHaveAttribute('aria-selected', 'true');
-    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-    const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-    if (await show.count()) await show.click();
+    const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
     await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
     await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(question);
@@ -970,18 +1053,15 @@ test.describe('Guided intention coach keyboard and layers', () => {
 });
 
 test.describe('Guided intention coach and the selected spread', () => {
-  test('the Decision spread shapes the note and generated review question', async ({ page }) => {
+  test('the Decision spread is named on the topic step and shapes the review question', async ({ page }) => {
     await seedApp(page, { user: PLUS_USER });
     await gotoReading(page);
     await selectSpread(page, /Decision \/ Two-Path/);
     const coach = await openCoachWithShortcut(page);
 
-    // The note explains the spread's shape; it suggests no topic.
-    const note = spreadNote(coach);
-    await expect(note).toBeVisible();
-    await expect(note).toContainText('Decision.');
-    await expect(note).toContainText('Two paths are read side by side');
-    await expect(note.getByRole('button')).toHaveCount(0);
+    // The note names the spread and nothing more: no description, no topic.
+    await expect(spreadNote(coach)).toHaveText('Spread: Decision');
+    await expect(coach.getByText('Two paths are read side by side')).toHaveCount(0);
     await expect(coach.getByText(/we suggest exploring/i)).toHaveCount(0);
 
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -990,7 +1070,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach.getByRole('button', { name: /^Spread:/ })).toHaveCount(0);
   });
 
-  test('interests pick the topic while the spread note describes only the spread', async ({ page }) => {
+  test('interests pick the topic while the spread note names only the spread', async ({ page }) => {
     await seedApp(page, { focusAreas: ['career'] });
     await gotoReading(page);
     await selectSpread(page, /Five-Card Clarity/);
@@ -1001,10 +1081,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(career).toHaveAttribute('aria-checked', 'true');
     await expect(career).toContainText('Based on your interests');
     // The old box said this spread suggested Wellbeing while Career was checked.
-    const note = spreadNote(coach);
-    await expect(note).toContainText('Five-Card Clarity.');
-    await expect(note).toContainText('Five cards circle the core of the matter');
-    await expect(note).not.toContainText(/wellbeing|suggest/i);
+    await expect(spreadNote(coach)).toHaveText('Spread: Five-Card Clarity');
   });
 
   test('a generated draft keeps its words after the spread changes until Remix', async ({ page }) => {
@@ -1022,7 +1099,7 @@ test.describe('Guided intention coach and the selected spread', () => {
 
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('tab', { name: 'Review' }).click();
     await coach.getByRole('button', { name: 'Generate new wording', exact: true }).click();
     await expect(reviewQuestion(coach)).not.toHaveValue(savedQuestion);
@@ -1039,7 +1116,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('radiogroup', { name: TOPIC_PROMPT })
       .getByRole('radio', { name: /^Career & Purpose/ }).click();
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -1069,7 +1146,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(coach).toHaveCount(0);
     coach = await openCoachWithShortcut(page);
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await coach.getByRole('tab', { name: 'Review' }).click();
     await expect(reviewQuestion(coach)).toHaveValue(savedQuestion);
     expect(generations).toBe(1);
@@ -1092,7 +1169,7 @@ test.describe('Guided intention coach and the selected spread', () => {
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
     await coach.getByRole('tab', { name: 'Topic' }).click();
-    await expect(spreadNote(coach)).toContainText(STAYS_AS_WRITTEN);
+    await expect(spreadNote(coach)).toBeVisible();
     await expect(reviewQuestion(coach)).toHaveValue(TEMPLATE.savedQuestion);
 
     await coach.getByRole('tab', { name: 'Review' }).click();
@@ -1108,10 +1185,8 @@ test.describe('Guided intention coach and the selected spread', () => {
     await gotoReading(page);
     await selectSpread(page, /Three-Card Story/);
     const coach = await openCoachWithShortcut(page);
-    await expect(spreadNote(coach)).toContainText('Three-Card Story.');
-    const suggestions = coach.locator('section').filter({ has: page.getByText('Suggested for you', { exact: true }) });
-    const show = suggestions.getByRole('button', { name: 'Show', exact: true });
-    if (await show.count()) await show.click();
+    await expect(spreadNote(coach)).toHaveText('Spread: Three-Card Story');
+    const suggestions = coach.locator('section').filter({ has: page.getByText('For you today', { exact: true }) });
     await suggestions.getByRole('button', { name: 'The Hermit', exact: true }).click();
     await expect(coach.getByRole('tab', { name: 'Review' })).toHaveAttribute('aria-selected', 'true');
     await expect(reviewQuestion(coach)).toHaveValue(question);

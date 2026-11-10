@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { normalizeTimestamp, getTimestamp } from '../../../../../shared/journal/utils.js';
 import { buildReflectionEntries } from '../../../../../shared/journal/reflectionLabels.js';
 import { formatContextName } from '../../../../lib/journalInsights';
+import { hasOwnDeckArt, toDeckCards } from '../../../../lib/journal/deckCards';
 import { DECK_OPTIONS } from '../../../deckOptions';
 import {
   TIMING_SUMMARIES,
@@ -71,6 +72,13 @@ function formatEntryTimestamp(timestamp) {
   });
 }
 
+/** "Three-Card Story (Past · Present · Future)" → "Three-Card Story". */
+export function shortSpreadName(name) {
+  if (typeof name !== 'string') return '';
+  const short = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return short || name.trim();
+}
+
 /**
  * Format relative time from now
  */
@@ -103,8 +111,10 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
 
   const accentColor = useMemo(() => getEntryAccentColor(entry), [entry]);
 
+  // Saved cards keep their canonical identity; show them in the reading's own
+  // deck (its art and names), as the reading screen did.
   const cards = useMemo(
-    () => (Array.isArray(entry?.cards) ? entry.cards : []),
+    () => toDeckCards(entry?.cards, entry?.deckId),
     [entry]
   );
 
@@ -177,6 +187,13 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     [entry]
   );
 
+  // A collapsed entry names its spread without the position list; the open
+  // header keeps the full name.
+  const spreadShortName = useMemo(
+    () => shortSpreadName(entry?.spread || entry?.spreadName),
+    [entry]
+  );
+
   return {
     // Raw data
     timestamp,
@@ -185,6 +202,8 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
 
     // Computed strings
     deckLabel,
+    showsDeckLabel: Boolean(deckLabel) && hasOwnDeckArt(entry?.deckId),
+    spreadShortName,
     formattedTimestamp,
     timestampIso,
     relativeTimeLabel,

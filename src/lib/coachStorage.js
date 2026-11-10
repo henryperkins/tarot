@@ -116,6 +116,10 @@ export function saveCoachTemplate(template, userId = null) {
     depth: template.depth,
     customFocus: template.customFocus || '',
     useCreative: Boolean(template.useCreative),
+    // Manual wording does not describe the wizard settings saved beside
+    // it; the flag lets the library label it "Custom question" instead of
+    // presenting those settings as if they produced the text.
+    isManualQuestion: Boolean(template.isManualQuestion),
     savedQuestion: template.savedQuestion || '',
     updatedAt: Date.now()
   };

@@ -156,7 +156,7 @@ async function drawCards(page) {
 async function waitForCardsDealt(page) {
   // Wait for the deal to finish before revealing. A forced card click can land
   // while the deal disables it, leaving the reading waiting for a reveal.
-  const revealAll = page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first();
+  const revealAll = page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first();
   await expect(revealAll).toBeVisible({ timeout: 15000 });
   await revealAll.click();
 }

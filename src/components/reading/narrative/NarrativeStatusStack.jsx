@@ -69,7 +69,7 @@ export function NarrativeStatusStack({
   return (
     <>
       {section === 'audio' && showNarrationStatus ? (
-        <NarrationStatus ttsState={ttsState} showLabel showMessage={ttsState?.status === 'error'} />
+        <NarrationStatus ttsState={ttsState} showLabel showMessage={ttsState?.status === 'error' || ttsState?.reason === 'waiting-for-card'} />
       ) : null}
 
       {controls}

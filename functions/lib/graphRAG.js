@@ -1,6 +1,7 @@
-import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms, resolveRetrievalMode } from './graphRAGCandidates.js';
+import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms, resolveRetrievalMode, getMajorTopicDescriptor, SUPPLEMENTAL_MAJOR_PRIORITY, MAJOR_TOPIC_CORROBORATION_POLICY_ID } from './graphRAGCandidates.js';
 export { resolveRetrievalMode } from './graphRAGCandidates.js';
 import { composeRelevanceScore } from './graphRAGScoring.js';
+import { getPassageRankingScore } from './graphRAGRanking.js';
 export { composeRelevanceScore } from './graphRAGScoring.js';
 import { summarizeProjectedPatterns } from './graphRAGPatternSummary.js';
 import { projectPassageForDeck } from './graphRAGProjection.js';
@@ -283,6 +284,30 @@ export function buildRetrievalSummary(graphKeys, passages) {
   return summary;
 }
 
+function hasMeaningfulGraphData(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value === true;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
+  }
+  return false;
+}
+
+/**
+ * Whether graph keys contain a detected pattern or Major Arcana card.
+ * buildGraphContext() returns keys for every nonempty spread, so keys that
+ * are all empty mean no patterns were found and there is nothing to retrieve.
+ *
+ * @param {Object|null|undefined} graphKeys - Graph keys from buildGraphContext()
+ * @returns {boolean}
+ */
+export function hasMeaningfulGraphKeys(graphKeys) {
+  return hasMeaningfulGraphData(graphKeys);
+}
+
 /**
  * Check if GraphRAG is enabled via environment
  *
@@ -531,7 +556,7 @@ export function describeScoringMethod(passages) {
 
 function getPrimaryScore(passage, scoreField) {
   if (scoreField === 'relevanceScore') {
-    return typeof passage.relevanceScore === 'number' ? passage.relevanceScore : 0;
+    return getPassageRankingScore(passage);
   }
   if (scoreField === 'relevance') {
     return typeof passage.relevance === 'number' ? passage.relevance : 0;
@@ -547,6 +572,12 @@ function comparePassagesForPrompt(a, b, scoreField) {
   const scoreB = getPrimaryScore(b, scoreField);
   if (scoreA !== scoreB) {
     return scoreB - scoreA;
+  }
+
+  // Selection breaks equal pattern affinities by the actual passage's score
+  // before context and priority. Budget fitting must make the same choice.
+  if (scoreField === 'relevanceScore' && a.relevanceScore !== b.relevanceScore) {
+    return (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
   }
 
   const contextA = a._contextMatch || 0;
@@ -659,16 +690,59 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
       _semanticScoringEnabled: Boolean(semanticRequested),
       _semanticScoringAttempted: attempted,
       _semanticScoringSucceeded: Boolean(valid),
+      _semanticScore: semanticScore,
       _contextMatch: passageContextMatch(passage, questionContext),
       _priorityOnly: scoringMethod === 'priority' || disabled
     };
   });
+  // Corroborate a pivotal semantic-only supplemental Major against its
+  // canonical topic descriptor. This runs only when the strongest drawn
+  // Major lacks shared question terms, clears the threshold, and outranks
+  // every qualified non-Major pattern (or none qualifies); the descriptor
+  // embedding shares the retrieval deadline, and any failure leaves the
+  // lexical safeguard in force. Selection re-checks every condition.
+  const topicCorroboration = { attempted: false, used: false, fallbackReason: null };
+  if (valid) {
+    const isMajor = entry => entry.type === 'major-arcana' && entry.priority === SUPPLEMENTAL_MAJOR_PRIORITY;
+    const topMajor = scored.filter(isMajor).sort((a, b) =>
+      (Number.isFinite(b.relevanceScore) ? b.relevanceScore : -Infinity) - (Number.isFinite(a.relevanceScore) ? a.relevanceScore : -Infinity)
+      || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0))[0];
+    const qualifiedOthers = scored.filter(entry => !isMajor(entry) && Number.isFinite(entry.relevanceScore) && entry.relevanceScore >= minRelevanceScore);
+    if (topMajor && !(topMajor.relevance > 0) && Number.isFinite(topMajor.relevanceScore)
+      && topMajor.relevanceScore >= minRelevanceScore
+      && qualifiedOthers.every(entry => topMajor.relevanceScore > entry.relevanceScore)) {
+      const descriptor = getMajorTopicDescriptor(topMajor.patternId);
+      if (descriptor) {
+        topicCorroboration.attempted = true;
+        const descriptorStats = {};
+        const [descriptorResult] = await embedTextsWithMetadata([descriptor], { env, stats: descriptorStats, deadline: startedAt + 3000, signal: options.signal });
+        for (const key of ['inputCount', 'inputCharacters', 'batchCount', 'cacheHits']) {
+          embeddingStats[key] = (embeddingStats[key] || 0) + (descriptorStats[key] || 0);
+        }
+        embeddingStats.peakConcurrency = Math.max(embeddingStats.peakConcurrency || 0, descriptorStats.peakConcurrency || 0);
+        if (Number.isFinite(descriptorStats.cacheSizeAfter)) embeddingStats.cacheSizeAfter = descriptorStats.cacheSizeAfter;
+        if (isValidSemanticVector(descriptorResult, embeddings[0].embedding.length)) {
+          topicCorroboration.used = true;
+          const topicScore = composeRelevanceScore({ keywordScore: 0, semanticScore: cosineSimilarity(embeddings[0].embedding, descriptorResult.embedding) });
+          for (const entry of scored) {
+            if (isMajor(entry) && entry.patternId === topMajor.patternId) entry._supplementalMajorTopicScore = topicScore;
+          }
+        } else {
+          topicCorroboration.fallbackReason = descriptorStats.failureReason || 'embeddings-invalid-vector';
+        }
+      }
+    }
+  }
   Object.defineProperty(scored, 'retrievalStats', { value: {
     ...candidates.retrievalStats,
     candidatesScored: ['semantic', 'keyword'].includes(scoringMethod) ? scored.length : 0,
     retrievalMode: mode, scoringMethod,
     semanticScoringAttempted: attempted, semanticScoringUsed: Boolean(valid),
     semanticScoringFallbackReason: fallback,
+    majorTopicCorroborationPolicy: MAJOR_TOPIC_CORROBORATION_POLICY_ID,
+    majorTopicCorroborationAttempted: topicCorroboration.attempted,
+    majorTopicCorroborationUsed: topicCorroboration.used,
+    majorTopicCorroborationFallbackReason: topicCorroboration.fallbackReason,
     embeddingBatchCount: embeddingStats.batchCount || 0,
     embeddingCacheHits: embeddingStats.cacheHits || 0,
     embeddingInputCount: embeddingStats.inputCount || 0,

@@ -8,12 +8,14 @@ import { ResponsiveSpreadArt } from './ResponsiveSpreadArt';
  * @param {object} preview - Optional preview artwork { src, width, height, alt }
  * @param {string} spreadName - Name used for accessible alt text
  * @param {boolean} priority - Load the artwork eagerly at high priority (first view)
+ * @param {boolean} decorative - The artwork sits inside a control already named by
+ *   the spread title (a spread radio), so it gets empty alt text
  */
-export function SpreadPatternThumbnail({ spreadKey, className = '', preview = null, spreadName = '', priority = false }) {
+export function SpreadPatternThumbnail({ spreadKey, className = '', preview = null, spreadName = '', priority = false, decorative = false }) {
   // If we have custom artwork, prefer that over the vector fallback
   if (preview?.src) {
     const aspectRatio = preview.aspectRatio || (preview.width && preview.height ? `${preview.width} / ${preview.height}` : '2 / 1');
-    const altText = preview.alt || `${spreadName || spreadKey} spread layout`;
+    const altText = decorative ? '' : (preview.alt || `${spreadName || spreadKey} spread layout`);
     const sizes = preview.sizes || '(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px';
     const responsiveSources = preview.sources
       ? Object.entries(preview.sources).map(([format, entries]) => {
@@ -36,6 +38,7 @@ export function SpreadPatternThumbnail({ spreadKey, className = '', preview = nu
         {responsiveSources.length > 0 ? (
           <ResponsiveSpreadArt
             alt={altText}
+            decorative={decorative}
             aspectRatio={aspectRatio}
             sources={responsiveSources}
             fallbackSrc={preview.src}

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToPipeableStream, renderToStaticMarkup } from 'react-dom/server';
+import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -62,6 +63,24 @@ function render(Component, props = {}) {
   return renderToStaticMarkup(createElement(Component, props));
 }
 
+// Production saved-reading renderers now load on expansion. Wait for Suspense
+// before asserting their final semantics rather than inspecting its fallback.
+function renderDeferred(element) {
+  return new Promise((resolve, reject) => {
+    const output = new PassThrough();
+    let markup = '';
+    output.setEncoding('utf8');
+    output.on('data', chunk => { markup += chunk; });
+    output.on('end', () => resolve(markup));
+    output.on('error', reject);
+    const stream = renderToPipeableStream(element, {
+      onAllReady() { stream.pipe(output); },
+      onShellError: reject,
+      onError: reject
+    });
+  });
+}
+
 test('readings without a request ID omit the entire feedback section', () => {
   for (const readingMeta of [undefined, {}, { requestId: null }]) {
     assert.equal(render(ReadingFeedbackSection, { personalReading: { raw: 'Restored reading.' }, readingMeta }), '');
@@ -89,10 +108,12 @@ function headings(markup) {
 
 const ALL_HEADINGS = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six';
 
-test('plain saved journal headings nest under the entry, preserving parsed Markdown and both expansion modes', () => {
+test('plain saved journal headings nest under the entry, preserving parsed Markdown and both expansion modes', async () => {
   const narrativeText = '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail';
   for (const collapsible of [true, false]) {
-    const markup = render(NarrativeSection, { narrativeText, narrativeId: 'saved-reading', collapsible, defaultExpanded: true });
+    const markup = await renderDeferred(createElement(NarrativeSection, {
+      narrativeText, narrativeId: 'saved-reading', collapsible, defaultExpanded: true
+    }));
     assert.deepEqual(headings(markup), [
       { level: 4, text: 'Opening' },
       { level: 5, text: 'Reflection' },
@@ -104,12 +125,12 @@ test('plain saved journal headings nest under the entry, preserving parsed Markd
 });
 
 for (const gestureStudyEnabled of [false, true]) {
-  test(`saved journal card nests narrative headings below its title (restored cues: ${gestureStudyEnabled})`, () => {
+  test(`saved journal card nests narrative headings below its title (restored cues: ${gestureStudyEnabled})`, async () => {
     const entry = { id: 'heading-card', ts: 0, spread: 'Journal entry', question: 'A reflection',
       cards: [{ name: 'The Fool', position: 'Present', orientation: 'Upright' }],
       personalReading: '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail' };
     const card = createElement(JournalEntryCard, { entry, defaultExpanded: true, gestureStudyEnabled });
-    const markup = renderToStaticMarkup(createElement(MemoryRouter, null,
+    const markup = await renderDeferred(createElement(MemoryRouter, null,
       createElement(AuthProvider, null, createElement(SubscriptionProvider, null, card))));
     assert.deepEqual(headings(markup), [
       { level: 3, text: 'A reflection' },

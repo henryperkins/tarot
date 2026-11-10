@@ -6,6 +6,7 @@ import { saveMemory } from '../functions/lib/userMemory.js';
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession } from './helpers/journalFixtures.mjs';
 import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
+import { modalSseResponse } from './helpers/modalSse.mjs';
 import { ReadingJob } from '../src/worker/readingJob.js';
 
 const EVAL_MODEL = '@cf/zai-org/glm-5.3';
@@ -42,7 +43,9 @@ async function runStorageScenario(t, { lateCandidate = false, optOut = false, su
   const providerInputs = [];
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     providerInputs.push(JSON.parse(init.body));
-    if (String(url).includes('modal.test')) throw new Error('synthetic primary failure');
+    // The Responses API is the primary provider; Modal is the fallback after it.
+    if (fallback && String(url).includes('provider.test')) throw new Error('synthetic primary failure');
+    if (String(url).includes('modal.test')) return modalSseResponse(READING);
     if (subscriptionJob) {
       return new Response(`event: delta\ndata: ${JSON.stringify({ text: READING })}\n\nevent: done\ndata: ${JSON.stringify({ text: READING, structured: null, provider: 'codex-subscription', model: 'synthetic', modelSource: 'configured', usage: {} })}\n\n`, { headers: { 'content-type': 'text/event-stream' } });
     }

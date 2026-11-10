@@ -39,7 +39,7 @@ test('default frontend collection keeps ordinary specs and leaves owned reading-
   for (const file of ['account-plan-hardening.spec.js', 'reading-gestures-deck.spec.js', 'reading-cue-pro-streaming.spec.js']) {
     assert.ok(files.has(file), `ordinary frontend spec must remain discoverable: ${file}`);
   }
-  for (const file of ['reading-cue-qualification.spec.js', 'reading-cue-runtime-lane.spec.js', 'reading-cue-artwork-performance.spec.js']) {
+  for (const file of ['reading-cue-qualification.spec.js', 'reading-cue-runtime-lane.spec.js', 'reading-cue-artwork-performance.spec.js', 'reading-reflection-gestures.spec.js']) {
     assert.ok(!files.has(file), `owned reading-cue spec requires its explicit lane: ${file}`);
   }
 

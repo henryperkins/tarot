@@ -33,7 +33,9 @@ export const USAGE_REASON_COPY = Object.freeze({
   not_used_by_backend: 'This reading method did not include this input.',
   disabled_by_request: 'You chose not to use saved memories in this reading.',
   disabled_by_env: 'This additional source was unavailable.',
+  // Historical rows used this code for errors too; new readings report retrieval_error.
   retrieval_failed_or_empty: 'No additional reference passages were available.',
+  retrieval_error: 'Reference passages could not be loaded for this reading.',
   no_patterns_detected: 'No additional reference passages were needed.',
   not_relevant: 'Not needed for this reading.',
   unavailable: 'This source was unavailable.',

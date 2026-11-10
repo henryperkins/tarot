@@ -12,6 +12,7 @@ export default defineConfig({
     '**/reading-cue-qualification.spec.js',
     '**/reading-cue-runtime-lane.spec.js',
     '**/reading-cue-artwork-performance.spec.js',
+    '**/reading-reflection-gestures.spec.js', // Explicit visual flags: test:e2e:reflection
     '**/navigation-gate1.spec.js', // Isolated prototype gate: playwright.navigation.config.js
   ],
   fullyParallel: true,

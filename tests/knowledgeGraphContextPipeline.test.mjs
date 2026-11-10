@@ -94,7 +94,7 @@ test('remediation fixture preservation reaches each serialized provider request'
             });
             result = await (target === 'modal' ? generateWithModalQwen : generateWithOpenAIResponses)(providerEnv, payload, row.id);
           }
-          assert.equal(result.promptMeta.readingPromptVersion, '1.6.11');
+          assert.equal(result.promptMeta.readingPromptVersion, '1.6.14');
           gate.verifyGraphRAGRemediationPrompt(row, target, payload, {
             systemPrompt: system, userPrompt: user, promptMeta: result.promptMeta, memoryRetention: payload.memoryRetention
           });
@@ -200,10 +200,73 @@ async function assertNoAcceptedReferencesOrReceipts(db, metadata, receipts) {
   assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
 }
 
-// The rejected attempt and the accepted capped attempt share the same route
-// loop in every delivery mode; a job adds durable completion and receipts.
+// Production flags stream every Responses draft, and every job requests a stream.
+// When that draft fails the quality gate, the buffered provider that replaces it
+// passes its own checks, so the response carries only a notice: MCP presents the
+// reading and the job stamps the memories its accepted prompt used.
+for (const [label, rejectedDraft] of [
+  ['missing card coverage', 'No card coverage.'],
+  ['an undrawn card', 'The Sun invites reflection. The Moon appears in your spread. Your choices shape outcomes.']
+]) {
+  test(`a fallback after a rejected Responses stream draft with ${label} is delivered with a notice and stamps its memories`, async t => {
+    const { onRequestPost } = await import('../functions/api/tarot-reading.js');
+    const { startReadingJob } = await import('../functions/lib/readingJobs.js');
+    const { classifyReadingResult, READING_OUTCOME, STREAMING_QUALITY_NOTICE_REASON } = await import('../functions/lib/mcp/readingOutcome.js');
+    const db = await pipelineOwnerDatabase();
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const acceptedReading = 'The Sun invites career exploration. Reflect on the skills you enjoy using and choose one small action. Your choices shape outcomes.';
+    const requests = [];
+    t.mock.method(globalThis, 'fetch', async (url, request) => {
+      const body = JSON.parse(request.body);
+      if (String(url).startsWith('https://modal.test/')) {
+        requests.push({ provider: 'modal', memories: [...parseMemoryBlocks(body.messages.at(-1).content).keys()] });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: acceptedReading } }] });
+      }
+      assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
+      requests.push({ provider: 'openai', stream: body.stream === true });
+      const completed = { type: 'response.completed', response: { status: 'completed', model: 'test-openai', output: [{ type: 'message', content: [{ type: 'output_text', text: rejectedDraft }] }] } };
+      return new Response(`event: response.output_text.delta\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: rejectedDraft })}\n\nevent: response.completed\ndata: ${JSON.stringify(completed)}\n\n`, { headers: { 'content-type': 'text/event-stream' } });
+    });
+    const input = {
+      spreadInfo: { name: 'One-Card Insight', key: 'single' },
+      cardsInfo: [{ card: 'The Sun', number: 19, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+      userQuestion: 'How can I approach a career change?', reflectionsText: ''
+    };
+    const routeEnv = {
+      DB: db, OPENAI_API_KEY: 'synthetic', OPENAI_BASE_URL: 'https://openai.test', OPENAI_MODEL: 'test-openai',
+      OPENAI_STREAMING_ENABLED: 'true', ALLOW_STREAMING_WITH_EVAL_GATE: 'true', STREAMING_QUALITY_GATE_ENABLED: 'false', STREAMING_SAFETY_SCAN_ENABLED: 'false',
+      MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_MODEL: 'test', MODAL_STREAM: 'false',
+      GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', READING_TASK_TIMEOUT_MS: '60000'
+    };
+    const jobs = createFakeReadingJobs({ env: routeEnv, runReading: context => onRequestPost(context) });
+    t.after(() => { for (const entry of jobs.instances.values()) entry.object.closeSubscribers(); });
+    const started = await startReadingJob({ env: { ...routeEnv, READING_JOBS: jobs.namespace }, payload: input, principal: { userId: 'pipeline-owner' } });
+    assert.equal(started.ok, true, JSON.stringify(started));
+    await jobs.settle();
+    const job = jobs.instances.get(started.jobId).object.job;
+    assert.equal(job.status, 'complete', job.error);
+    assert.deepEqual(requests, [{ provider: 'openai', stream: true }, { provider: 'modal', memories: ['memory-0'] }]);
+    assert.equal(job.result.provider, 'modal-qwen');
+    assert.match(job.result.reading, /The Sun invites career exploration/);
+    assert.doesNotMatch(job.result.reading, /No card coverage|The Moon appears/);
+    assert.equal(job.result.gateBlocked, true);
+    assert.equal(job.result.gateReason, STREAMING_QUALITY_NOTICE_REASON);
+    assert.equal(classifyReadingResult(job.result), READING_OUTCOME.READING);
+    const rejection = job.meta.backendErrors.find(entry => entry.backend === 'openai-native');
+    assert.equal(rejection?.code, 'quality_gate_failed');
+    if (label === 'an undrawn card') assert.ok(rejection.qualityIssues.includes('undrawn_card_assertion'), JSON.stringify(rejection));
+    assert.equal(job.meta.sourceUsage.memories.memoriesUsedInPrompt, 1);
+    assert.notEqual((await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first()).last_accessed_at, null,
+      'the accepted fallback stamps the memory its prompt used');
+  });
+}
+
+// OpenAI's capped prompt runs first and drops the references and memory for
+// budget; the uncapped Modal prompt after it keeps them. Both attempts share
+// the same route loop in every delivery mode; a job adds durable completion
+// and receipts.
 for (const delivery of ['json', 'stream', 'job']) {
-  test(`accepted capped provider reports only its own references and memory receipts after a rejected full-reference attempt (${delivery})`, async t => {
+  test(`accepted full-reference provider reports only its own references and memory receipts after a rejected capped attempt (${delivery})`, async t => {
     const { onRequestPost } = await import('../functions/api/tarot-reading.js');
     const { startReadingJob } = await import('../functions/lib/readingJobs.js');
     const db = await pipelineOwnerDatabase();
@@ -215,11 +278,11 @@ for (const delivery of ['json', 'stream', 'job']) {
       const body = JSON.parse(request.body);
       if (String(url).startsWith('https://modal.test/')) {
         requests.push({ provider: 'modal', user: body.messages.at(-1).content });
-        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, 'No card coverage.') } }] });
+        return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, acceptedReading) } }] });
       }
       assert.ok(String(url).startsWith('https://openai.test/'), `Unexpected external transport: ${url}`);
       requests.push({ provider: 'openai', user: body.input });
-      return Response.json({ id: 'accepted', model: 'test-openai', output_text: modelReadingForRequest(body, acceptedReading), usage: { input_tokens: 10, output_tokens: 10 } });
+      return Response.json({ id: 'rejected', model: 'test-openai', output_text: modelReadingForRequest(body, 'No card coverage.'), usage: { input_tokens: 10, output_tokens: 10 } });
     });
     const input = {
       spreadInfo: { name: 'Custom Spread', key: 'custom' },
@@ -252,18 +315,45 @@ for (const delivery of ['json', 'stream', 'job']) {
       metadata = delivery === 'stream' ? streamMeta(await response.text()) : await response.json();
     }
     await Promise.all(pending);
-    assert.equal(metadata.provider, 'openai-native');
-    assert.deepEqual(requests.map(request => request.provider), ['modal', 'openai']);
-    assert.equal(parseGraphRAGReferenceBlock(requests[0].user).status, 'complete');
-    assert.deepEqual([...parseMemoryBlocks(requests[0].user).keys()], ['memory-0']);
-    assert.equal(parseGraphRAGReferenceBlock(requests[1].user).status, 'absent');
-    assert.deepEqual([...parseMemoryBlocks(requests[1].user).keys()], []);
+    assert.equal(metadata.provider, 'modal-qwen');
+    assert.deepEqual(requests.map(request => request.provider), ['openai', 'modal']);
+    const [rejected, accepted] = requests.map(request => request.user);
+    assert.equal(parseGraphRAGReferenceBlock(rejected).status, 'absent');
+    assert.deepEqual([...parseMemoryBlocks(rejected).keys()], []);
+    const acceptedReferences = parseGraphRAGReferenceBlock(accepted);
+    assert.equal(acceptedReferences.status, 'complete');
+    assert.equal(acceptedReferences.guardrailsComplete, true);
+    const acceptedMemories = parseMemoryBlocks(accepted);
+    assert.deepEqual([...acceptedMemories.keys()], ['memory-0']);
+    assert.equal(acceptedMemories.get('memory-0').text, 'Navigating career uncertainty');
     const graph = metadata.sourceUsage.graphRAG;
-    assert.equal(graph.referenceGuardrailsComplete, false);
-    assert.equal(graph.integrityRemovedBlocks, 0, 'Budget omission is not an integrity rejection');
-    assert.equal(graph.skippedReason, 'removed_for_budget');
-    assert.equal(metadata.sourceUsage.memories.memoriesSelected, 1);
-    await assertNoAcceptedReferencesOrReceipts(db, metadata, receipts);
+    assert.equal(graph.used, true);
+    assert.equal(graph.mode, 'full');
+    assert.equal(graph.referenceGuardrailsComplete, acceptedReferences.guardrailsComplete);
+    assert.equal(graph.integrityRemovedBlocks, 0);
+    assert.equal(graph.skippedReason, null, 'The rejected capped prompt\'s budget omission must not describe the accepted prompt');
+    assert.equal(graph.passagesUsedInPrompt, acceptedReferences.passageCount);
+    assert.equal(graph.passageIndices.length, graph.passagesUsedInPrompt);
+    const passages = metadata.themes.knowledgeGraph.graphRAGPayload.passages;
+    for (const index of graph.passageIndices) {
+      assert.ok(accepted.includes(passages[index].promptText));
+      assert.equal(rejected.includes(passages[index].promptText), false);
+    }
+    const visible = getTraditionalPassages(metadata.themes, { provider: metadata.provider, sourceUsage: metadata.sourceUsage });
+    assert.ok(visible.length > 0);
+    for (const passage of visible) assert.ok(accepted.includes(passage.text));
+    const memories = metadata.sourceUsage.memories;
+    assert.equal(memories.used, true);
+    assert.equal(memories.memoriesSelected, 1);
+    assert.equal(memories.memoriesUsedInPrompt, 1);
+    assert.equal(receipts.length, 1);
+    assert.deepEqual(receipts[0].ids, ['private-pipeline-note']);
+    assert.equal(receipts[0].requestId, metadata.requestId);
+    // A job commits its own receipt; direct callers that pass a receipt
+    // handler own persistence, so the route writes nothing itself.
+    const { last_accessed_at: accessedAt } = await db.prepare("SELECT last_accessed_at FROM user_memories WHERE id = 'private-pipeline-note'").first();
+    assert.equal(accessedAt, delivery === 'job' ? Math.floor(receipts[0].completedAt / 1000) : null);
+    assert.doesNotMatch(JSON.stringify(metadata.sourceUsage), /private-pipeline-note|memoryRetention|attemptId/);
   });
 }
 

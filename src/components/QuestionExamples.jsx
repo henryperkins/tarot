@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowsClockwise, Lightbulb } from '@phosphor-icons/react';
+import { ArrowsClockwise, ClockCounterClockwise, Lightbulb } from '@phosphor-icons/react';
 import { EXAMPLE_QUESTIONS } from '../data/exampleQuestions';
 import { isExampleQuestion } from './questionField';
 
@@ -9,8 +9,12 @@ import { isExampleQuestion } from './questionField';
  * Only offered while the field is empty or still holds an untouched example,
  * so it never replaces words the person wrote. Once inserted, the example can
  * be edited, swapped for another, or cleared.
+ *
+ * A reader with saved intentions can first return to their latest one, in
+ * their own words, while the field is empty. `onIntentionUsed` moves focus to
+ * the field, since the choice disappears once the field holds text.
  */
-export function QuestionExamples({ value, onChange }) {
+export function QuestionExamples({ value, onChange, lastIntention = null, onIntentionUsed }) {
   const [nextIndex, setNextIndex] = useState(0);
   const [announcement, setAnnouncement] = useState('');
   const primaryRef = useRef(null);
@@ -38,9 +42,26 @@ export function QuestionExamples({ value, onChange }) {
   };
 
   const ExampleIcon = holdsExample ? ArrowsClockwise : Lightbulb;
+  const returnTo = !trimmed && typeof lastIntention === 'string' && lastIntention.trim() ? lastIntention.trim() : null;
+
+  const insertLastIntention = () => {
+    onChange(returnTo);
+    onIntentionUsed?.();
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {returnTo && (
+        <button
+          type="button"
+          onClick={insertLastIntention}
+          title={returnTo}
+          className="inline-flex min-h-touch max-w-full min-w-0 items-center gap-2 rounded-full border border-secondary/35 px-3 py-1.5 text-xs font-semibold text-secondary hover:text-main hover:border-secondary/50 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <ClockCounterClockwise className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 truncate">Return to “{returnTo}”</span>
+        </button>
+      )}
       <button
         ref={primaryRef}
         type="button"

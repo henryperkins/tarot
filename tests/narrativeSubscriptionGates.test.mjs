@@ -7,7 +7,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
-import { runSubscriptionNarrative } from '../scripts/evaluation/lib/subscriptionNarrative.js';
+import {
+  applyOpenAIEvalCredentials,
+  resolveReleaseNarrativeBackend,
+  runSubscriptionNarrative
+} from '../scripts/evaluation/lib/subscriptionNarrative.js';
 import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
 import { buildOpenAIResponsesPrompts } from '../functions/lib/narrativeBackends.js';
 import { createClaudeCodeServer } from '../services/claude-code/server.mjs';
@@ -25,13 +29,92 @@ test('automatic narrative evaluation chooses the subscription even with every pa
   }
 });
 
-test('narrative evaluation rejects paid provider overrides and retains local diagnostics', () => {
-  for (const requested of ['claude-api', 'openai-native', 'modal-qwen']) {
+test('narrative evaluation accepts only the explicit production OpenAI backend among paid providers', () => {
+  assert.equal(resolveBackendId('openai-native', apiSettings), 'openai-native');
+  for (const requested of ['claude-api', 'modal-qwen']) {
     assert.throws(() => resolveBackendId(requested, apiSettings), /paid API backends are disabled/i);
   }
   assert.equal(resolveBackendId('local', {}), 'local-composer');
   assert.equal(resolveBackendId('local-composer', {}), 'local-composer');
   assert.throws(() => resolveBackendId('unknown', {}), /Unknown backend/);
+});
+
+test('the release gate grades the production primary provider', () => {
+  for (const requested of [undefined, '', 'auto', 'openai-native']) {
+    assert.equal(resolveReleaseNarrativeBackend(requested), 'openai-native');
+  }
+  assert.throws(() => resolveReleaseNarrativeBackend('claude-code'), /production primary provider \(openai-native\).*would not qualify it/);
+  assert.throws(() => resolveReleaseNarrativeBackend('claude-api'), /paid API backends are disabled/);
+  assert.throws(() => resolveReleaseNarrativeBackend('local-composer'), /local-composer is diagnostic only/);
+  const claudeFirst = ['claude-api', 'modal-qwen', 'openai-native', 'local-composer'];
+  assert.equal(resolveReleaseNarrativeBackend('', claudeFirst), 'claude-code');
+  assert.throws(() => resolveReleaseNarrativeBackend('openai-native', claudeFirst), /would not qualify it/);
+  assert.throws(() => resolveReleaseNarrativeBackend('', ['modal-qwen', 'local-composer']), /No release narrative gate/);
+});
+
+test('OpenAI grading maps only the evaluation key onto the production variable', () => {
+  assert.throws(() => applyOpenAIEvalCredentials({ OPENAI_API_KEY: 'shell-key' }),
+    /needs NARRATIVE_EVAL_OPENAI_API_KEY; the gate never falls back/);
+  const env = applyOpenAIEvalCredentials({ NARRATIVE_EVAL_OPENAI_API_KEY: ' eval-key ', TEXT_PROVIDER: 'claude-code', OPENAI_MODEL: 'gpt-6-astra' });
+  assert.equal(env.OPENAI_API_KEY, 'eval-key');
+  assert.equal(env.TEXT_PROVIDER, 'legacy');
+  assert.equal(Object.hasOwn(env, 'NARRATIVE_EVAL_OPENAI_API_KEY'), false);
+  assert.equal(env.OPENAI_MODEL, 'gpt-6-astra');
+});
+
+async function openAIFixture(t, env) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'openai-gate-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const guard = path.join(directory, 'guard.mjs');
+  const capture = path.join(directory, 'requests.json');
+  const output = path.join(directory, 'samples.json');
+  await writeFile(guard, `import { writeFileSync } from 'node:fs';
+const requests = [];
+globalThis.fetch = async (url, options = {}) => {
+  const target = String(url);
+  requests.push({ url: target, authorization: new Headers(options.headers || {}).get('authorization'),
+    body: typeof options.body === 'string' ? JSON.parse(options.body) : null });
+  writeFileSync(${JSON.stringify(capture)}, JSON.stringify(requests));
+  if (target !== 'https://api.openai.com/v1/responses') throw new Error('UNEXPECTED_NETWORK ' + target);
+  const text = '### Opening\\n\\nThe Star invites renewal in this new role.\\n\\n### Closing\\n\\nYou choose the pace.';
+  return new Response(JSON.stringify({ id: 'resp_offline', object: 'response', status: 'completed', model: 'gpt-6-astra',
+    output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] }],
+    usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+};
+`);
+  const result = spawnSync(process.execPath, [
+    '--import', guard, 'scripts/evaluation/runNarrativeSamples.js',
+    '--backend', 'openai-native', '--env-profile', 'production', '--sample', 'single-new-role', '--out', output
+  ], { encoding: 'utf8', timeout: 60000, env: { HOME: directory, PATH: process.env.PATH, ...env } });
+  const requests = await readFile(capture, 'utf8').then(JSON.parse, () => []);
+  return { ...result, output, requests };
+}
+
+test('the narrative CLI grades OpenAI readings through the production Responses request', async t => {
+  const result = await openAIFixture(t, { NARRATIVE_EVAL_OPENAI_API_KEY: 'eval-test-key' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.requests.length, 1);
+  const [request] = result.requests;
+  assert.equal(request.authorization, 'Bearer eval-test-key');
+  assert.equal(request.body.model, 'gpt-6.1-sol');
+  assert.equal(request.body.reasoning?.effort, 'high');
+  const payload = JSON.parse(await readFile(result.output, 'utf8'));
+  assert.equal(payload.model, 'openai-native');
+  assert.equal(payload.config.backend, 'openai-native');
+  assert.equal(payload.config.provider, 'openai-native');
+  assert.equal(payload.config.model, 'gpt-6.1-sol');
+  assert.equal(payload.config.reasoningEffort, 'high');
+  assert.equal(payload.config.parityWith, 'openai-native');
+  assert.equal(payload.config.servingPath, 'direct-backend');
+  assert.match(payload.samples[0].reading, /The Star invites renewal/);
+  assert.doesNotMatch(JSON.stringify(payload), /eval-test-key/, 'the key is never written to evidence');
+});
+
+test('the narrative CLI refuses OpenAI grading without the evaluation key, even with OPENAI_API_KEY', async t => {
+  const result = await openAIFixture(t, { OPENAI_API_KEY: 'shell-test-key' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /needs NARRATIVE_EVAL_OPENAI_API_KEY/);
+  assert.deepEqual(result.requests, []);
 });
 
 async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', failGeneration = false, block = false, returnedModel = 'claude-opus-5-5', mixedModels = false } = {}) {

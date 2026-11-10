@@ -44,6 +44,8 @@ import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
+import { JournalCardIcon } from '../JournalIcons';
+import { findLeaders, joinNames } from '../../lib/journal/leaders';
 
 const TABS = [
   { key: 'cards', label: 'Cards', icon: TrendUp },
@@ -149,7 +151,8 @@ export default function JourneyMobileSheet({
 
   const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
+    // Negative margins keep the 44px target from pushing "streak" below the other stat labels.
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -mx-2 -my-3.5';
   const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
     ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
     : '';
@@ -467,7 +470,10 @@ export default function JourneyMobileSheet({
     );
   }
 
-  const topCard = cardFrequency[0];
+  // Name the card that leads alone, or every card tied with it; a card seen once is not a pattern.
+  const cardLeaders = findLeaders(cardFrequency);
+  const severalCardsTie = cardLeaders.length >= 4 && cardLeaders.length === cardFrequency.length;
+  const topCard = cardLeaders.length === 1 ? cardLeaders[0] : null;
   const topCardScopeLabel = filtersActive
     ? 'in filtered view'
     : (analyticsScope === 'month' ? 'this month' : 'in this scope');
@@ -539,14 +545,20 @@ export default function JourneyMobileSheet({
 
           {/* Top Card Feature: an opaque local surface keeps text off ambient glows. */}
           {totalReadings === 0 && <EmptyScopeNotice onScopeSelect={onScopeSelect} />}
-          {topCard && (
+          {totalReadings > 0 && cardLeaders.length === 0 && cardFrequency.length > 0 && (
+            // Said plainly, as the desktop summary does, rather than left out.
+            <p className="text-center text-sm text-muted-high">No card has repeated {topCardScopeLabel} yet.</p>
+          )}
+          {cardLeaders.length > 0 && (
             <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-center">
-              <div className="text-2xl mb-1">🃏</div>
-              <p className="text-lg font-serif text-main">{topCard.name}</p>
-              <p className="text-xs text-muted-high">
-                appeared {topCard.count}x {topCardScopeLabel}
+              <JournalCardIcon className="mx-auto mb-1 h-6 w-6 text-(--text-accent)" aria-hidden="true" />
+              <p className="text-lg font-serif text-main text-balance">
+                {severalCardsTie ? 'Several cards' : joinNames(cardLeaders.map((card) => card.name))}
               </p>
-              {topCard.hasBadge && (
+              <p className="text-xs text-muted-high">
+                {cardLeaders.length === 1 ? 'appeared' : 'each appeared'} {cardLeaders[0].count}x {topCardScopeLabel}
+              </p>
+              {topCard?.hasBadge && (
                 <p className="mt-2 inline-flex items-center gap-1 text-xs text-(--text-accent)">
                   <Fire className="h-3 w-3 text-(--text-accent)" />
                   Streak badge earned

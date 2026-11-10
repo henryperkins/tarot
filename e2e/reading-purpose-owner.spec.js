@@ -15,7 +15,7 @@ for (const status of [200, 503]) {
       await page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true }).click();
       await expect.poll(() => fixture.requests.journal.length).toBe(1);
       await page.getByRole('button', { name: /^Step 2:/ }).click();
-      await page.getByRole('button', { name: 'User menu for fixture', exact: true }).click();
+      await page.getByRole('button', { name: 'Account menu for fixture', exact: true }).click();
       await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
       await openAccountOptions(page);
       await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();

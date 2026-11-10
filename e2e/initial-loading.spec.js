@@ -215,7 +215,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.getByRole('button', { name: /^Reveal next:/ }).click();
         await expect.poll(() => sounds.includes('/sounds/flip.mp3')).toBe(true);
         expect(sounds).not.toContain('/sounds/ambience.mp3');
-        await page.getByRole('button', { name: /^Reveal all cards/ }).click();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).click();
         await page.getByRole('button', { name: /^Interpret cards/ }).press('Enter');
         await fixture.completeReading();
         await expect.poll(() => page.locator('#step-reading canvas').count()).toBeGreaterThan(0);

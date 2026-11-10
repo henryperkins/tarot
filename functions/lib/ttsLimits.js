@@ -41,6 +41,7 @@ export async function reserveNarration({ env, request, user, limits = getTtsLimi
   const identity = await identityFor(request, user);
   const month = getMonthKeyUtc();
   const now = Date.now();
+  let attemptedReservation;
   try {
     const abuse = await consumeAbuseLimit(db, identity, 'narration', 30);
     if (!abuse.allowed) return abuse;
@@ -60,6 +61,7 @@ export async function reserveNarration({ env, request, user, limits = getTtsLimi
     }
     await db.prepare('INSERT OR IGNORE INTO narration_monthly_usage (identity, month, used) VALUES (?, ?, ?)').bind(identity, month, Math.max(0, seed)).run();
     const id = crypto.randomUUID();
+    attemptedReservation = { id };
     await db.prepare(`INSERT INTO narration_requests (id, identity, user_id, month, monthly_limit, state, expires_at, updated_at)
       VALUES (?, ?, ?, ?, ?, 'reserved', ?, ?)`).bind(id, identity, user?.id || null, month, Number.isFinite(limits.monthly) ? limits.monthly : -1, now + RESERVATION_LIFETIME_MS, now).run();
     return { allowed: true, reservation: { id } };
@@ -72,7 +74,7 @@ export async function reserveNarration({ env, request, user, limits = getTtsLimi
     if (message.includes('narration_requests.identity')) {
       return { allowed: false, status: 409, retryAfter: 2, payload: { error: 'A narration is already being prepared. Please wait a moment.', errorCode: 'NARRATION_BUSY', retryable: true } };
     }
-    return unavailable();
+    return { ...unavailable(), ...(attemptedReservation ? { reservation: attemptedReservation } : {}) };
   }
 }
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { generateWithClaudeApi } from '../functions/lib/narrativeBackends.js';
@@ -22,7 +22,7 @@ test('a rejected raw completion and all earlier outputs survive a stopped qualif
       deckStyle: 'rws-1909', userQuestion: 'What can a practice offer?'
     }, 'checkpoint-failure', { send: async () => ({ text: badRaw, model: 'claude-opus-5-5', usage: {} }) });
   }, outputPath), { code: 'invalid_card_fact_reference' });
-  const saved = JSON.parse(await readFile(outputPath, 'utf8'));
+  const saved = JSON.parse(await readFile(batch.checkpointPathFor(outputPath), 'utf8'));
   assert.equal(saved.status, 'failed');
   assert.deepEqual(saved.samples, [first]);
   assert.equal(saved.failedSample.id, 'two');
@@ -38,7 +38,7 @@ test('each successful checkpoint preserves the complete original output records'
   const expected = [{ id: 'one', reading: 'First.', rawReading: '{"original":"一"}' }, { id: 'two', reading: 'Second.', rawReading: 'Original two.' }];
   const generated = await batch.generateSamplesWithCheckpoint(expected, async sample => {
     if (sample.id === 'two') {
-      const previous = JSON.parse(await readFile(outputPath, 'utf8'));
+      const previous = JSON.parse(await readFile(batch.checkpointPathFor(outputPath), 'utf8'));
       assert.deepEqual(previous.samples, [expected[0]]);
     }
     return sample;
@@ -55,4 +55,21 @@ test('an authentication failure before any completion creates no usable sample o
     throw new Error('Subscription login unavailable');
   }, outputPath), /Subscription login unavailable/);
   await assert.rejects(readFile(outputPath), { code: 'ENOENT' });
+  await assert.rejects(readFile(batch.checkpointPathFor(outputPath)), { code: 'ENOENT' });
+});
+
+test('a failed batch leaves the previous complete corpus at the output path untouched', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'tarot-corpus-preserved-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const outputPath = path.join(directory, 'samples.json');
+  const corpus = JSON.stringify({ sampleCount: 11, samples: [{ id: 'qualified' }] });
+  await writeFile(outputPath, corpus);
+  await assert.rejects(batch.generateSamplesWithCheckpoint([{ id: 'one' }, { id: 'two' }], async sample => {
+    if (sample.id === 'two') throw new Error('Request timed out.');
+    return { id: sample.id, reading: 'Paid completion.' };
+  }, outputPath), /Request timed out/);
+  assert.equal(await readFile(outputPath, 'utf8'), corpus, 'partial samples must not replace the qualified corpus');
+  const checkpoint = JSON.parse(await readFile(batch.checkpointPathFor(outputPath), 'utf8'));
+  assert.equal(checkpoint.status, 'failed');
+  assert.deepEqual(checkpoint.samples.map(sample => sample.id), ['one'], 'the paid completion survives in the sidecar');
 });

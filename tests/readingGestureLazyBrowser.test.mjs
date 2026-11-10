@@ -79,6 +79,7 @@ test('optimized browser preserves prose, selection and focus while loading gated
     await page.goto('http://127.0.0.1:4193/');
     await page.getByRole('link', { name: 'Keep focus' }).waitFor();
     assert.equal(await page.getByText('Read carefully.', { exact: true }).count(), 1);
+    await page.getByRole('link', { name: 'journal link' }).waitFor();
     assert.equal(await page.getByRole('link', { name: 'journal link' }).count(), 1);
     assert.deepEqual(requests.filter(file => heavyFiles.includes(file)), [], 'gate off downloads no gesture implementation');
     await page.getByRole('link', { name: 'Keep focus' }).focus();
