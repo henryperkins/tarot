@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Agent tooling (skill definitions and downloaded launcher binaries)
+.agents/
+
 # Python
 __pycache__/
 *.py[cod]
