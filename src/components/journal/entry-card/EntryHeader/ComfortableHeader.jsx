@@ -81,8 +81,11 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
   // Collapsed: primary line is spread + exact date and time; secondary line
   // is context, a deck other than the default, and whether notes exist.
-  // Two tiers keep the scannable facts (spread/date) at full strength while
-  // the whisper facts sit one step smaller and quieter.
+  // Tiers separate by size, colour and weight together: the primary line is
+  // 14px at full strength, the secondary 12px medium one colour step down,
+  // and the card names sit in the quietest colour with the names lifted out.
+  // No line truncates: Compact wraps the primary and clamps the rest to two
+  // lines, so every fact stays on the row at any width or text size.
   const noteCount = reflections?.length || 0;
   const primaryParts = [
     questionTitle ? spreadShortName : null,
@@ -110,10 +113,13 @@ export const ComfortableHeader = memo(function ComfortableHeader({
       ? 'px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5'
       : 'px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4';
 
+  // The question carries the DESIGN Title role (serif semibold), so it reads
+  // as the entry's heading below "Saved readings" (Headline). Compact keeps
+  // the weight and steps the size down one notch instead.
   // Source Serif keeps normal leading: tighter clips its glyphs at large text sizes.
   const titleClass = isCompactView
-    ? 'font-serif text-base leading-normal'
-    : 'font-serif text-lg sm:text-xl leading-normal';
+    ? 'font-serif text-base font-semibold leading-normal'
+    : 'font-serif text-lg font-semibold leading-normal';
 
   const Caret = isExpanded ? CaretUp : CaretDown;
 
@@ -122,8 +128,12 @@ export const ComfortableHeader = memo(function ComfortableHeader({
       {/* Open, the title keeps at least 14rem beside the actions: on phones, and
           with enlarged text, the actions wrap under it instead of squeezing it. */}
       <div className={cn('flex items-start gap-3 sm:gap-4', isExpanded && 'flex-wrap')}>
-        {!isExpanded && !isCompactView && (
-          <EntryArtStrip cards={cards} cardWidth={isSmallScreen ? 28 : 34} className="mt-0.5" />
+        {/* The art stack is decorative (the lines below name the cards), so on
+            phones it steps aside: the question keeps the full row width
+            instead of wrapping in a column a third of the screen wide. The
+            Compact list drops the art at every width for the same reason. */}
+        {!isExpanded && !isCompactView && !isSmallScreen && (
+          <EntryArtStrip cards={cards} cardWidth={34} className="mt-0.5" />
         )}
 
         <div className={cn('min-w-0', isExpanded ? 'flex-[1_1_14rem]' : 'flex-1')}>
@@ -172,7 +182,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                   className={cn(
                     'mt-1 text-pretty',
                     isCompactView
-                      ? 'truncate text-xs font-medium text-(--text-muted-high)'
+                      ? 'text-sm font-medium text-(--text-muted-high) wrap-anywhere'
                       : 'text-sm text-(--text-muted-high) wrap-anywhere'
                   )}
                 >
@@ -189,8 +199,8 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                 <p
                   id={secondaryId}
                   className={cn(
-                    'text-(--text-muted)',
-                    isCompactView ? 'mt-0.5 truncate text-xs' : 'mt-0.5 text-xs wrap-anywhere'
+                    'font-medium leading-normal text-(--text-muted-high)',
+                    isCompactView ? 'mt-0.5 line-clamp-2 text-xs' : 'mt-0.5 text-xs wrap-anywhere'
                   )}
                 >
                   {secondaryParts.map((part, index) => (
@@ -203,7 +213,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                 </p>
               )}
               {cardPreview.length > 0 && (
-                <p className={cn('text-xs text-(--text-muted)', isCompactView ? 'mt-0.5 truncate' : 'mt-0.5 wrap-anywhere')}>
+                <p className={cn('text-xs leading-normal text-(--text-muted)', isCompactView ? 'mt-0.5 line-clamp-2' : 'mt-0.5 wrap-anywhere')}>
                   {cardPreview.map((card, index) => {
                     const reversed = REVERSED_PATTERN.test(card?.orientation || '') || card?.isReversed;
                     return (
@@ -219,7 +229,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
                     <>
                       <span aria-hidden="true"> · </span>
                       <span className="sr-only">, </span>
-                      <span>+{extraCards} more</span>
+                      <span className="font-medium tabular-nums">+{extraCards} more</span>
                     </>
                   )}
                 </p>

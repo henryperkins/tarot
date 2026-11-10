@@ -20,7 +20,7 @@ const TIMEFRAME_OPTIONS = [
   { value: 'ytd', label: 'This year' }
 ];
 
-const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-medium transition-all ${FOCUS_RING_DEFAULT}`;
+const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-semibold transition-all ${FOCUS_RING_DEFAULT}`;
 const OUTLINE_FILTER_IDLE = 'border-(--border-warm-light) text-muted hover:border-(--border-warm) hover:text-main';
 const OUTLINE_FILTER_ACTIVE = 'border-(--brand-primary) bg-(--ui-selected-bg) text-main shadow-(--ui-selected-shadow-strong)';
 
@@ -282,7 +282,7 @@ export function JournalFilters({
       {[['comfortable', SquaresFour, 'Comfortable'], ['compact', ListBullets, 'Compact']].map(([mode, Icon, label]) => (
         <button key={mode} type="button" onClick={() => onViewModeChange(mode)} aria-pressed={viewMode === mode}
           title={mode === 'compact' ? 'Compact view - shows more entries' : 'Comfortable view - shows more details'}
-          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus text-main ${viewMode === mode ? 'bg-(--ui-selected-bg)' : ''} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
+          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus font-semibold text-main ${viewMode === mode ? 'bg-(--ui-selected-bg)' : ''} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
           <Icon className="h-4 w-4" aria-hidden="true" />{label}
         </button>
       ))}
