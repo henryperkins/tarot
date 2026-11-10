@@ -262,7 +262,7 @@ describe('personal history and symbolic pacing at the provider boundary', () => 
     assert.match(systemPrompt, /questions and metaphors|metaphors and questions/i);
     assert.match(systemPrompt, /(?:retain|repeat)[^\n]*condition/i);
     const footer = userPrompt.slice(userPrompt.indexOf(USER_PROMPT_INSTRUCTION_HEADER));
-    assert.match(footer, /Close[^\n]*(?:supplied facts|next actions)[^\n]*(?:completed|implied)/i);
+    assert.match(footer, /Close[^\n]*next steps[^\n]*card-implied[^\n]*done or missing/i);
   });
 
   it('keeps recovery reflection separate from treatment and monitoring schedules', () => {

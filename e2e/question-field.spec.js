@@ -235,25 +235,36 @@ test.describe('Question card hardening @mobile', () => {
       .toBe('How can I prepare for the interview this week?');
   });
 
-  test('More opens deck and ritual settings, not a second question field', async ({ page }) => {
+  test('More opens the deck, not a second question field or a ritual', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
 
     await page.getByRole('button', { name: 'More reading settings' }).click();
     const drawer = page.getByRole('dialog', { name: 'Prepare your reading' });
     await expect(drawer).toBeVisible();
-    const tabs = drawer.getByRole('tablist', { name: 'Preparation settings' }).getByRole('tab');
-    await expect(tabs).toHaveText(['Deck', 'Ritual']);
-    await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
+    // The ritual waits at the reading table, so the drawer needs no tabs.
+    await expect(drawer.getByRole('tab')).toHaveCount(0);
+    await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
+    await expect(drawer.getByRole('slider')).toHaveCount(0);
     await expect(drawer.getByRole('textbox', { name: PROMPT })).toHaveCount(0);
   });
 
-  test('the Question step brings the card into view instead of a drawer', async ({ page }) => {
+  test('the Question step brings the card below the spreads into view', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
 
+    const field = page.getByRole('textbox', { name: PROMPT });
+    const coach = page.getByRole('button', { name: 'Open guided intention coach' });
+    const spreadBottom = await page.locator('#step-spread').evaluate(element =>
+      element.getBoundingClientRect().bottom + window.scrollY);
+    for (const control of [field, coach]) {
+      const controlTop = await control.evaluate(element => element.getBoundingClientRect().top + window.scrollY);
+      expect(controlTop).toBeGreaterThan(spreadBottom);
+    }
+
     await page.getByRole('button', { name: 'Step 2: Intent (question)' }).click();
-    await expect(page.locator('#quick-intention')).toBeInViewport();
+    await expect(page.locator('[data-coach-fallback-focus]').filter({ has: field })).toBeFocused();
+    await expect(field).toBeInViewport();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
@@ -265,8 +276,7 @@ test.describe('Question card hardening @mobile', () => {
     await page.evaluate(() => document.fonts.ready);
 
     const field = page.getByRole('textbox', { name: PROMPT });
-    // Phones show the question first, so return to it from further down the
-    // page, where the compact navigation remains available.
+    // Return to the question from the bottom of the page using the compact navigation.
     await page.evaluate(() => window.scrollTo(0, document.scrollingElement.scrollHeight));
     await expect(page.locator('.header-sticky')).toBeInViewport({ ratio: 1 });
     await page.getByRole('button', { name: 'Step 2: Intent (question)', exact: true }).click();
@@ -298,7 +308,10 @@ test.describe('Question card hardening @mobile', () => {
     await seedApp(page);
     await gotoReading(page);
 
-    await page.getByRole('button', { name: 'Add a question' }).click();
+    const addQuestion = page.getByRole('button', { name: 'Add a question' });
+    await page.getByRole('button', { name: 'Step 2: Intent (question)' }).click();
+    await expect(addQuestion).toBeInViewport();
+    await addQuestion.click();
     const field = page.getByRole('textbox', { name: PROMPT });
     await expect(field).toBeFocused();
     await field.fill('What is asking for my attention in my friendships?');

@@ -20,7 +20,7 @@ import { useEntryMetadata, useActionMenu, useEntryActions } from './hooks';
 
 // Components
 import { ComfortableHeader } from './EntryHeader';
-import { ActionMenu } from './EntryActions';
+import { ActionMenu, ShareLinkComposer } from './EntryActions';
 import {
   CardsDrawnSection,
   ReflectionsSection,
@@ -103,6 +103,11 @@ export const JournalEntryCard = memo(function JournalEntryCard({
   const cardsId = `${entryIdPrefix}-cards`;
   const actionMenuId = `${entryIdPrefix}-actions-menu`;
 
+  const shareComposerId = `${entryIdPrefix}-share`;
+  const shareButtonRef = useRef(null);
+  const [shareComposerOpen, setShareComposerOpen] = useState(false);
+  const [shareFocusReturn, setShareFocusReturn] = useState(0);
+
   const wasExpandedRef = useRef(isExpanded);
   // Explicit saved-visual retry for this entry only (the journal hook's action).
   const retryVisuals = useCallback(() => onRetryVisuals(entry.id), [onRetryVisuals, entry.id]);
@@ -111,13 +116,48 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     [onSaveReflection, entry.id]
   );
 
-  // Close the menu when a user collapses an expanded card.
+  // Close the menu, the share composer and any action status when a user
+  // collapses an expanded card: they belong to the open reading.
   useEffect(() => {
     if (wasExpandedRef.current && !isExpanded) {
       actionMenu.close();
+      setShareComposerOpen(false);
+      clearStatus();
     }
     wasExpandedRef.current = isExpanded;
-  }, [isExpanded, actionMenu]);
+  }, [isExpanded, actionMenu, clearStatus]);
+
+  // Closing the composer returns focus to the share button that opened it.
+  useEffect(() => {
+    if (shareFocusReturn) shareButtonRef.current?.focus();
+  }, [shareFocusReturn]);
+
+  const closeShareComposer = useCallback(() => {
+    setShareComposerOpen(false);
+    setShareFocusReturn((count) => count + 1);
+  }, []);
+
+  const { getShareMode, handleShare, handleCreateShareLink } = actions;
+  const handleShareClick = useCallback(() => {
+    if (getShareMode() === 'compose') {
+      if (shareComposerOpen) closeShareComposer();
+      else setShareComposerOpen(true);
+      return;
+    }
+    handleShare();
+  }, [getShareMode, handleShare, shareComposerOpen, closeShareComposer]);
+
+  // Cancelling also clears a failed attempt's error: the reader has moved on.
+  const handleCancelShare = useCallback(() => {
+    clearStatus();
+    closeShareComposer();
+  }, [clearStatus, closeShareComposer]);
+
+  const handleComposeShare = useCallback(async (expiresInHours) => {
+    const result = await handleCreateShareLink(expiresInHours);
+    // A failed request keeps the composer open to try again; its status explains.
+    if (result?.created) closeShareComposer();
+  }, [handleCreateShareLink, closeShareComposer]);
 
   // Handle toggle - compact cards expand to comfortable view
   const handleToggle = () => {
@@ -180,7 +220,12 @@ export const JournalEntryCard = memo(function JournalEntryCard({
     },
     actionMenuId,
     renderActionMenu,
-    compact
+    compact,
+    isSmallScreen,
+    shareComposerOpen,
+    shareComposerId,
+    onShareClick: handleShareClick,
+    shareButtonRef
   };
 
   return (
@@ -194,6 +239,24 @@ export const JournalEntryCard = memo(function JournalEntryCard({
 
       {/* Header */}
       <ComfortableHeader {...headerProps} isExpanded={isExpanded} />
+
+      {/* Inline status sits under the header, beside the actions that report to it,
+          so it shows even when a long open reading runs past the screen. The live
+          region stays mounted, but takes no space until it speaks. */}
+      {(inlineStatus.message || !useCompactStyle) && (
+        <div className={inlineStatus.message ? (useCompactStyle ? 'relative z-10 px-3 pb-2' : 'relative z-10 px-[min(1rem,4vw)] pb-1 pt-3 sm:px-5') : undefined} aria-live="polite">
+          <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
+        </div>
+      )}
+
+      {isExpanded && shareComposerOpen && (
+        <ShareLinkComposer
+          id={shareComposerId}
+          pending={actions.pendingAction === 'share'}
+          onCreate={handleComposeShare}
+          onCancel={handleCancelShare}
+        />
+      )}
 
       {/* Collapsible content. The header's title already carries the question. */}
       {isExpanded && (
@@ -250,13 +313,6 @@ export const JournalEntryCard = memo(function JournalEntryCard({
             effectiveTier={effectiveTier}
             onOpenFollowUp={actions.handleOpenFollowUp}
           />
-        </div>
-      )}
-
-      {/* Inline status: the live region stays mounted, but takes no space until it speaks. */}
-      {(inlineStatus.message || !useCompactStyle) && (
-        <div className={inlineStatus.message ? (useCompactStyle ? 'px-3 pb-2' : 'px-4 pb-3 pt-2') : undefined} aria-live="polite">
-          <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
         </div>
       )}
     </article>

@@ -7,13 +7,13 @@ import { useLocalCalendarDate } from './useLocalCalendarDate';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { getCardImage } from '../lib/cardLookup';
+import { toDeckCards } from '../lib/journal/deckCards';
 import {
   EMPTY_STATS,
   CARD_NODE_POSITIONS,
   CARD_NODE_FALLBACK
 } from '../lib/journal/constants';
 import {
-  getTopContext,
   getCurrentMonthWindow,
   parseDateInput,
   filterEntriesToWindow,
@@ -22,6 +22,7 @@ import {
   getLatestEntryTimestamp,
   formatSummaryDate
 } from '../lib/journal/utils';
+import { findLeaders } from '../lib/journal/leaders';
 
 export function useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary = false, timeframeWindow = null } = {}) {
   const calendarDate = useLocalCalendarDate();
@@ -126,7 +127,9 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   );
 
   // Derived values
-  const topContextScope = useMemo(() => getTopContext(scopeStats), [scopeStats]);
+  // A context is the top one only when it repeated and leads alone; ties are shown together.
+  const contextLeaders = useMemo(() => findLeaders(scopeStats?.contextBreakdown), [scopeStats]);
+  const topContextScope = contextLeaders.length === 1 ? contextLeaders[0] : null;
   const latestScopeEntryTs = useMemo(
     () => getLatestEntryTimestamp(scopedStatsEntries),
     [scopedStatsEntries]
@@ -176,11 +179,13 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   const heroCardLimit = isSmallSummary ? 1 : 3;
   const heroCards = useMemo(() => {
     if (!heroEntry || !Array.isArray(heroEntry.cards)) return [];
-    return heroEntry.cards.slice(0, heroCardLimit).map((card, index) => ({
-      id: `${card.name || 'card'}-${index}`,
-      name: card.name || 'Card',
-      position: card.position || `Card ${index + 1}`,
-      orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright'),
+    // Shown in the reading's own deck; meanings still resolve by canonical name.
+    return toDeckCards(heroEntry.cards.slice(0, heroCardLimit), heroEntry.deckId).map((card, index) => ({
+      id: `${card?.canonicalName || card?.name || 'card'}-${index}`,
+      name: card?.name || 'Card',
+      canonicalName: card?.canonicalName || card?.name || null,
+      position: card?.position || `Card ${index + 1}`,
+      orientation: card?.orientation || (card?.isReversed ? 'Reversed' : 'Upright'),
       image: getCardImage(card)
     }));
   }, [heroEntry, heroCardLimit]);
@@ -198,18 +203,27 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     ? `Journal avg ${baselineStats?.reversalRate ?? 0}%`
     : 'Log cards to see insights';
 
+  const contextTie = contextLeaders.length > 1;
   const topContextLabel = topContextScope
     ? formatContextName(topContextScope.name)
-    : scopeEntryCount > 0
-      ? 'No context yet'
-      : filtersActive
-        ? 'No match'
-        : 'No entries';
+    : contextTie
+      ? (contextLeaders.length <= 3
+        ? contextLeaders.map((context) => formatContextName(context.name)).join(' · ')
+        : 'Several contexts')
+      : scopeEntryCount > 0
+        ? 'Not yet clear'
+        : filtersActive
+          ? 'No match'
+          : 'No entries';
   const topContextSecondary = topContextScope
     ? scopeLabel
-    : entries.length > 0
-      ? `${overallTotalEntries} entries`
-      : 'Log a reading';
+    : contextTie
+      ? `Tied · ${contextLeaders[0].count} readings each`
+      : scopeEntryCount > 0
+        ? 'No context has repeated yet'
+        : entries.length > 0
+          ? `${overallTotalEntries} entries`
+          : 'Log a reading';
 
   const summaryLastEntryLabel = isFilteredEmpty
     ? 'No matches'

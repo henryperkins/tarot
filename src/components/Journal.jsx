@@ -15,7 +15,7 @@ import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
-import { BADGE_LABEL_CLASS } from '../styles/labelClasses';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
@@ -44,10 +44,11 @@ import {
   AMBER_SHELL_MOBILE_CLASS,
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
-import { buildJournalMonthSections } from '../lib/journal/utils';
+import { buildJournalMonthSections, describeHistoryResults } from '../lib/journal/utils';
 import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
 
-
+// Comfortable or Compact, remembered on this device.
+const LIST_DENSITY_KEY = 'journal_list_density_v1';
 
 export default function Journal() {
   // Context hooks
@@ -161,7 +162,14 @@ export default function Journal() {
   const [importingLegacy, setImportingLegacy] = useState(false);
   const [localStorageRevision, setLocalStorageRevision] = useState(0);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
-  const [compactList, setCompactList] = useState(false);
+  // The reader's list density is remembered on this device.
+  const [compactList, setCompactList] = useState(() => {
+    try { return localStorage.getItem(LIST_DENSITY_KEY) === 'compact'; } catch { return false; }
+  });
+  const handleViewModeChange = useCallback((mode) => {
+    setCompactList(mode === 'compact');
+    try { localStorage.setItem(LIST_DENSITY_KEY, mode === 'compact' ? 'compact' : 'comfortable'); } catch { /* Optional preference. */ }
+  }, []);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSavedIntentionsModal, setShowSavedIntentionsModal] = useState(false);
   const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
@@ -245,6 +253,16 @@ export default function Journal() {
   const semanticSearchActive = Boolean(serverSearchState?.semanticActive);
   const semanticSearchAvailable = Boolean(serverSearchState?.semanticAvailable);
 
+  // One results sentence under search replaces separate count chips. A server
+  // search looks through the whole journal; local filters, the loaded entries.
+  const historyResultsLabel = describeHistoryResults({
+    pending: historyPending,
+    visible: visibleEntries.length,
+    matched: filteredEntries.length,
+    searched: serverSearchEnabled && hasTotalEntries ? totalEntryCount : entries.length,
+    filtersActive
+  });
+
   const searchCoverageLabel = semanticSearchActive
     ? (serverSearchLoading
         ? 'Finding readings with a similar meaning'
@@ -257,10 +275,11 @@ export default function Journal() {
         : serverSearchErrored
           ? 'Full-history search unavailable'
           : 'Search spans your full journal history')
+    // Only a partly loaded journal needs a coverage note beside its results.
     : filtersActive
     ? (hasTotalEntries
-        ? `Searching latest ${entries.length} of ${totalEntryCount} entries`
-        : `Searching latest ${entries.length} entries`)
+        ? (totalEntryCount > entries.length ? `Searching latest ${entries.length} of ${totalEntryCount} entries` : null)
+        : (hasMoreServerEntries ? `Searching latest ${entries.length} entries` : null))
     : (hasTotalEntries && totalEntryCount > entries.length
         ? `Loaded ${entries.length} of ${totalEntryCount} entries`
         : null);
@@ -808,7 +827,7 @@ export default function Journal() {
     <div key={section.anchorId} id={section.anchorId} className="space-y-4 scroll-mt-24">
       <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
-          <span className="text-2xs uppercase tracking-label-wide text-muted">{section.label}</span>
+          <span className={`${LABEL_CLASS} text-muted`}>{section.label}</span>
           <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
             {visibleMonthTotals.get(section.key) < monthTotals.get(section.key) ? `${visibleMonthTotals.get(section.key)} of ${monthTotals.get(section.key)}` : monthTotals.get(section.key)} {monthTotals.get(section.key) === 1 ? 'reading' : 'readings'}
           </span>
@@ -950,24 +969,29 @@ export default function Journal() {
             onDismissNudge={dismissAccountNudge}
             onShowAuthModal={() => setShowAuthModal(true)}
             cardClass={cardClass}
+            errorShownBelow={!loading && !hasEntries && !historyPending && Boolean(journalError)}
           />
 
           {loading ? (
-            <div className="space-y-4 py-6" aria-live="polite">
+            // Placeholders take the shape of a collapsed reading: its small card
+            // stack, the question, then the spread-and-date and cards lines.
+            <div className="space-y-5 py-6" aria-live="polite">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="animate-pulse rounded-2xl border border-secondary/20 bg-surface-muted/40 ring-1 ring-primary/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
+                  className="animate-pulse motion-reduce:animate-none rounded-[24px] border border-(--border-warm-subtle) bg-surface-muted/40 px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="h-4 w-28 rounded-full bg-(--border-warm-light)" />
-                    <div className="h-9 w-9 rounded-full bg-(--border-warm-light)" />
-                  </div>
-                  <div className="mt-3 h-3 w-3/4 rounded-full bg-(--border-warm-light)" />
-                  <div className="mt-2 h-3 w-5/6 rounded-full bg-(--border-warm-light)" />
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
-                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="relative mt-0.5 hidden h-[51px] w-[64px] shrink-0 sm:block" aria-hidden="true">
+                      <div className="absolute left-0 top-0 h-full w-[34px] rounded-md bg-(--border-warm-light)" />
+                      <div className="absolute left-[15px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                      <div className="absolute left-[30px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2.5 pt-1">
+                      <div className="h-[1.125rem] w-3/4 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3.5 w-1/2 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3 w-1/3 rounded-full bg-(--border-warm-subtle)" />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -983,42 +1007,35 @@ export default function Journal() {
                       <AmberStarfield />
                     </div>
                     <div className="relative z-10 space-y-5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-serif text-main">Saved readings</h2>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
-                              {historyCountLabel}
-                            </span>
-                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
-                              Loaded: {entries.length}{hasTotalEntries ? ` of ${totalEntryCount}` : hasMoreEntries ? '+' : ''}
-                            </span>
+                      {/* One row at a stable 44px: the month picker can come and go
+                          with a search without moving the search field under it. */}
+                      <div className="flex min-h-touch flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-2xl font-serif text-main">Saved readings</h2>
+                        {monthSections.length > 1 && (
+                          <div className="flex min-w-0 max-w-full items-center">
+                            {/* Visible as the picker's first option ("Month" on phones). */}
+                            <label htmlFor="jump-to-month" className="sr-only">
+                              Jump to month
+                            </label>
+                            <select
+                              id="jump-to-month"
+                              value={monthJumpValue}
+                              onChange={handleMonthJump}
+                              disabled={historyPending}
+                              aria-describedby={historyPending ? 'journal-history-progress' : undefined}
+                              className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                            >
+                              {/* Short on phones so the picker shares the heading's row;
+                                  its label keeps the full name for assistive tech. */}
+                              <option value="">{isMobileLayout ? 'Month' : 'Jump to month'}</option>
+                              {monthSections.map((section) => (
+                                <option key={section.key} value={section.key}>
+                                  {isMobileLayout ? section.shortLabel : section.label} ({section.count})
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                          {monthSections.length > 1 && (
-                            <div className="flex items-center gap-2">
-                              <label htmlFor="jump-to-month" className="sr-only sm:not-sr-only sm:text-2xs sm:uppercase sm:tracking-label sm:text-muted/80">
-                                Jump to month
-                              </label>
-                              <select
-                                id="jump-to-month"
-                                value={monthJumpValue}
-                                onChange={handleMonthJump}
-                                disabled={historyPending}
-                                aria-describedby={historyPending ? 'journal-history-progress' : undefined}
-                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
-                              >
-                                <option value="">Jump to month</option>
-                                {monthSections.map((section) => (
-                                  <option key={section.key} value={section.key}>
-                                    {section.label} ({section.count})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
 
                       {showHighlightBanner && (
@@ -1047,7 +1064,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore || !hasMoreEntries}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Load older entries
@@ -1058,7 +1075,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Try again
@@ -1096,11 +1113,12 @@ export default function Journal() {
                               decks={DECK_FILTERS}
                               variant={isMobileLayout ? 'compact' : 'full'}
                               viewMode={compactList ? 'compact' : 'comfortable'}
-                              onViewModeChange={(mode) => setCompactList(mode === 'compact')}
-                              resultCount={filteredEntries.length}
-                              totalCount={entries.length}
+                              onViewModeChange={handleViewModeChange}
+                              resultsLabel={historyResultsLabel}
                               searchCoverageLabel={searchCoverageLabel}
                               searchScopeLabel={searchScopeLabel}
+                              activeFilterChips={activeFilterChips}
+                              onRemoveFilter={handleRemoveFilter}
                               onSearchRef={registerSearchInput}
                             />
                           </fieldset>
@@ -1196,11 +1214,15 @@ export default function Journal() {
                               </button>
                             </div>
                           )}
-                          <p role="status" aria-atomic="true" className="sr-only">
-                            {historyAnnouncement === filterSignature ? `${historyCountLabel}.` : ''}
-                          </p>
                         </>
                       )}
+                      {/* Mounted with the history, so filter results (including none)
+                          and loaded batches are announced once, politely. */}
+                      <p role="status" aria-atomic="true" className="sr-only">
+                        {historyAnnouncement === filterSignature
+                          ? `${historyCountLabel}.`
+                          : filtersActive && !serverSearchLoading ? `${historyResultsLabel}.` : ''}
+                      </p>
                         <JournalFloatingControls
                           hasEntries={hasEntries}
                           filtersActive={filtersActive}

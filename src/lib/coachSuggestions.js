@@ -1,4 +1,4 @@
-import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
+import { buildThemeQuestion, ensureQuestionMark, normalizeThemeLabel } from './themeText.js';
 import { CONTEXT_HINTS, FOCUS_AREA_SUGGESTIONS } from './coachConstants.js';
 
 const SUGGESTION_SOURCE_LABELS = {
@@ -6,6 +6,57 @@ const SUGGESTION_SOURCE_LABELS = {
   focus: 'focus areas',
   history: 'recent questions'
 };
+
+const CARD_QUESTION_ANGLES = [
+  name => `What is ${name} inviting me to embody next?`,
+  name => `What is ${name} asking me to notice that I have been overlooking?`,
+  name => `How can I work with the energy of ${name} instead of against it?`
+];
+
+// Theme labels are noun phrases of either number ("Archetypal themes",
+// "Emotions and relationships"), so they only ever appear in object position;
+// a subject frame ("What is {label}...") cannot agree with every label.
+const THEME_QUESTION_ANGLES = [
+  label => buildThemeQuestion(label),
+  label => ensureQuestionMark(`What can I learn from ${label} right now`),
+  label => ensureQuestionMark(`Where am I meeting ${label} in my life, and how do I want to respond`)
+];
+
+function normalizeQuestionText(question) {
+  return typeof question === 'string' ? question.trim().toLowerCase() : '';
+}
+
+/**
+ * Index of the reader's local calendar day, so "today" turns over at their
+ * midnight rather than at UTC midnight.
+ *
+ * @param {Date} [date]
+ * @returns {number}
+ */
+export function localDayIndex(date = new Date()) {
+  return Math.floor((date.getTime() - date.getTimezoneOffset() * 60000) / 86400000);
+}
+
+/**
+ * Turn the Journey's stored coach suggestion into a pool entry. The Journey
+ * always appends a generic fallback prompt (source "default"); that carries no
+ * journal signal, so it must not be presented as one.
+ *
+ * @param {Object|null} journeySuggestion - snapshot meta.coachSuggestion
+ * @returns {Object|null}
+ */
+export function buildJourneyLead(journeySuggestion) {
+  if (!journeySuggestion || journeySuggestion.source === 'default') return null;
+  const question = journeySuggestion.question || journeySuggestion.text;
+  if (typeof question !== 'string' || !question.trim()) return null;
+  return {
+    id: 'journey-suggestion',
+    source: 'journal',
+    label: journeySuggestion.sourceLabel || 'From your journal',
+    ...(journeySuggestion.sourceDetail ? { helper: journeySuggestion.sourceDetail } : {}),
+    question
+  };
+}
 
 /**
  * Explain why the suggestion panel is populated from the sources its cards
@@ -62,13 +113,56 @@ export function describePrefillSource(source) {
   return 'your journal insights';
 }
 
-export function buildPersonalizedSuggestions(stats, history = [], focusAreas = []) {
+/**
+ * Drop later suggestions that repeat an earlier suggestion's question (or,
+ * for question-less suggestions, its focus and topic pairing).
+ */
+export function dedupeSuggestions(suggestions = []) {
+  const seen = new Set();
+  const result = [];
+  for (const suggestion of Array.isArray(suggestions) ? suggestions : []) {
+    if (!suggestion) continue;
+    const questionKey = normalizeQuestionText(suggestion.question);
+    const focusKey = !questionKey && typeof suggestion.customFocus === 'string' && suggestion.customFocus.trim()
+      ? `focus:${suggestion.customFocus.trim().toLowerCase()}|${suggestion.topic || ''}`
+      : '';
+    const key = questionKey ? `q:${questionKey}` : focusKey;
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    result.push(suggestion);
+  }
+  return result;
+}
+
+/**
+ * The visible window of suggestions: `size` entries starting at `start`,
+ * wrapping around the pool so cycling never lands on an empty page.
+ */
+export function rotateSuggestionWindow(suggestions = [], start = 0, size = 3) {
+  const pool = Array.isArray(suggestions) ? suggestions : [];
+  if (pool.length === 0) return [];
+  const offset = ((Math.trunc(start) % pool.length) + pool.length) % pool.length;
+  return Array.from({ length: Math.min(size, pool.length) }, (_, index) => pool[(offset + index) % pool.length]);
+}
+
+export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [], { angleOffset = 0 } = {}) {
   const suggestions = [];
-  const hasJournalSignals = Boolean(
-    (Array.isArray(stats?.frequentCards) && stats.frequentCards.length > 0)
-    || (Array.isArray(stats?.recentThemes) && stats.recentThemes.length > 0)
-    || (Array.isArray(stats?.contextBreakdown) && stats.contextBreakdown.length > 0)
+  // Questions the reader has already asked through the coach are not
+  // suggestions; they are the anti-repeat filter. The old "Revisit your
+  // last question" card re-offered history[0] verbatim, which is a large
+  // part of why this list felt stale.
+  const askedQuestions = new Set(
+    (Array.isArray(history) ? history : [])
+      .map(entry => normalizeQuestionText(entry?.question))
+      .filter(Boolean)
   );
+  const angle = Number.isFinite(angleOffset) ? Math.trunc(angleOffset) : 0;
+
+  const push = suggestion => {
+    const questionKey = normalizeQuestionText(suggestion.question);
+    if (questionKey && askedQuestions.has(questionKey)) return;
+    suggestions.push(suggestion);
+  };
 
   if (stats?.frequentCards?.length) {
     stats.frequentCards.slice(0, 2).forEach((card, idx) => {
@@ -77,12 +171,13 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
         : (Number.isFinite(card.reversedCount) ? card.reversedCount : 0);
       const label =
         idx === 0 ? `Recurring card: ${card.name}` : `${card.name} keeps showing up`;
-      suggestions.push({
+      const angleFn = CARD_QUESTION_ANGLES[(((idx + angle) % CARD_QUESTION_ANGLES.length) + CARD_QUESTION_ANGLES.length) % CARD_QUESTION_ANGLES.length];
+      push({
         id: `card-${card.name}-${idx}`,
         source: 'journal',
         label,
         helper: `${card.count} pulls logged${reversedCount ? ` (${reversedCount} reversed)` : ''}`,
-        question: `What is ${card.name} inviting me to embody next?`,
+        question: angleFn(card.name),
         topic: 'growth',
         timeframe: 'open',
         depth: 'lesson',
@@ -95,13 +190,13 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
     stats.recentThemes.slice(0, 2).forEach((theme, idx) => {
       const label = normalizeThemeLabel(theme);
       if (!label) return;
-      const themeQuestion = buildThemeQuestion(label);
-      suggestions.push({
+      const angleFn = THEME_QUESTION_ANGLES[(((idx + angle) % THEME_QUESTION_ANGLES.length) + THEME_QUESTION_ANGLES.length) % THEME_QUESTION_ANGLES.length];
+      push({
         id: `theme-${idx}`,
         source: 'journal',
         label: `Lean into: ${label}`,
         helper: 'Recent journal theme',
-        question: themeQuestion,
+        question: angleFn(label),
         topic: 'growth',
         timeframe: 'open',
         depth: 'lesson',
@@ -114,7 +209,7 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
     const primary = stats.contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
     const hint = CONTEXT_HINTS[primary.name];
     if (hint) {
-      suggestions.push({
+      push({
         id: `context-${primary.name}`,
         source: 'journal',
         label: hint.label,
@@ -127,36 +222,27 @@ export function buildPersonalizedSuggestions(stats, history = [], focusAreas = [
     }
   }
 
-  if (!hasJournalSignals) {
-    const normalizedFocusAreas = Array.isArray(focusAreas)
-      ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
-      : [];
+  // Focus areas are the reader's stated intent, so they stay in the pool
+  // even when journal signals exist; dedupe below keeps one voice per theme.
+  const normalizedFocusAreas = Array.isArray(focusAreas)
+    ? focusAreas.map(area => (typeof area === 'string' ? area.trim() : '')).filter(Boolean)
+    : [];
 
-    normalizedFocusAreas.slice(0, 3).forEach((area, idx) => {
-      const suggestion = FOCUS_AREA_SUGGESTIONS[area];
-      if (!suggestion) return;
-      suggestions.push({
-        id: `focus-${area}-${idx}`,
-        source: 'focus',
-        label: suggestion.label,
-        helper: 'Based on your focus areas',
-        topic: suggestion.topic,
-        timeframe: suggestion.timeframe,
-        depth: suggestion.depth,
-        customFocus: suggestion.customFocus
-      });
+  normalizedFocusAreas.slice(0, 3).forEach((area, idx) => {
+    const suggestion = FOCUS_AREA_SUGGESTIONS[area];
+    if (!suggestion) return;
+    // No helper: the panel's summary line already says these come from the
+    // reader's focus areas, and the label names which one.
+    push({
+      id: `focus-${area}-${idx}`,
+      source: 'focus',
+      label: suggestion.label,
+      topic: suggestion.topic,
+      timeframe: suggestion.timeframe,
+      depth: suggestion.depth,
+      customFocus: suggestion.customFocus
     });
-  }
+  });
 
-  if (Array.isArray(history) && history.length > 0) {
-    const last = history[0];
-    suggestions.push({
-      id: `history-${last.id}`,
-      source: 'history',
-      label: 'Revisit your last question',
-      question: last.question
-    });
-  }
-
-  return suggestions;
+  return dedupeSuggestions(suggestions);
 }

@@ -3,7 +3,7 @@ import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
 import { persistReadingMemoryAccess } from '../lib/userMemory.js';
 import { decisionPathRoleCards, resolveDecisionPathContext } from '../lib/decisionPathContext.js';
 import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
-import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
+import { READING_BUFFERED_ATTEMPT_MAX_MS, createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
  * Cloudflare Pages Function for generating a personalized tarot reading.
  *
@@ -114,6 +114,7 @@ import {
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
 import { getReadingPromptVersion } from '../lib/promptVersioning.js';
+import { STREAMING_QUALITY_NOTICE_REASON } from '../lib/mcp/readingOutcome.js';
 
 function parseBooleanLike(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
@@ -1518,6 +1519,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           instructions: systemPrompt,
           input: userPrompt,
           maxTokens: null,
+          requestId,
           signal: taskSignal,
           reasoningEffort,
           reasoningSummary: 'auto',
@@ -1560,10 +1562,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             streamReason = 'quality_rejected';
             backendErrors.push(buildPublicBackendError(streamProvider, qualityError));
             streamingFallback = true;
-            streamingGateNotice = {
-              blocked: true,
-              reason: qualityMetrics.undrawnCardAssertions.length > 0 ? 'undrawn_card_assertion' : 'quality_gate_streaming'
-            };
+            // A buffered provider replaces the draft, and its reading must pass its
+            // own checks, so this is a notice and never a withholding reason. The
+            // draft's specific issues stay in backendErrors.
+            streamingGateNotice = { blocked: true, reason: STREAMING_QUALITY_NOTICE_REASON };
           }
 
           if (streamingFallback) {
@@ -1788,7 +1790,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
       const attemptDeadline = createDeadline({
         signal: taskSignal,
-        timeoutMs: Math.min(90000, taskDeadline.remainingMs() || 1)
+        timeoutMs: Math.min(READING_BUFFERED_ATTEMPT_MAX_MS, taskDeadline.remainingMs() || 1)
       });
       narrativePayload.signal = attemptDeadline.signal;
       let backendResult = null;

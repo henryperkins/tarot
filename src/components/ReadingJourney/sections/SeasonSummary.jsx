@@ -8,6 +8,7 @@ import { CoachSuggestion } from '../../CoachSuggestion';
 import CoachSuggestionSwitcher from '../CoachSuggestionSwitcher';
 import EmptyScopeNotice from './EmptyScopeNotice';
 import { META_LABEL_CLASS } from '../../../styles/labelClasses';
+import { JournalCardIcon } from '../../JournalIcons';
 
 function SeasonSummary({
   narrative,
@@ -109,7 +110,7 @@ function SeasonSummary({
         <div className="flex flex-wrap gap-2">
           {topCard && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main">
-              <span className="text-accent/80">🃏</span>
+              <JournalCardIcon className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
               {topCard.name}: {topCard.count}x
               {cardFrequencyReliable === false && (
                 <span className={`${META_LABEL_CLASS} ml-1 text-accent`}>
@@ -132,7 +133,7 @@ function SeasonSummary({
           )}
           {topContext?.name && (
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs text-secondary">
-              {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
+              Focus: {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
             </span>
           )}
         </div>

@@ -141,6 +141,46 @@ test('saved memory attribution distinguishes selection from final inclusion with
   assert.doesNotMatch(included.rows[0].detail, /influenced|followed|proved/);
 });
 
+test('saved memories that did not apply are not needed and raise no warning', () => {
+  // Question fully included; four saved memories checked and none selected.
+  const live = {
+    spreadCards: { requested: true, used: true, skippedReason: null },
+    userContext: {
+      requested: true, used: true, questionProvided: true, questionUsed: true, providedInputs: ['question'], usedInputs: ['question'],
+      fields: { question: { originalLength: 124, sanitizedLength: 124, eligibleLength: 124, includedLength: 124, representedLength: 124 } }
+    },
+    memories: { requested: true, used: false, candidatesProvided: 4, memoriesSelected: 0, memoriesUsedInPrompt: 0, skippedReason: 'not_relevant' }
+  };
+  const result = formatUsageSummary(live);
+  const row = result.rows.find(entry => entry.label === 'Saved memories');
+  assert.equal(row.state, 'neutral');
+  assert.equal(row.badgeText, 'Not needed');
+  assert.equal(row.detail, 'Checked 4 saved memories; none applied to this question.');
+  assert.equal(result.summary.attention, 0);
+  assert.equal(result.summaryText, 'Prepared with your cards and your question.');
+  for (const [candidatesProvided, detail] of [
+    [1, 'Checked 1 saved memory; it did not apply to this question.'],
+    [undefined, 'None of your saved memories applied to this question.']
+  ]) {
+    const counted = formatUsageSummary({ memories: { ...live.memories, candidatesProvided } });
+    assert.equal(counted.rows[0].state, 'neutral');
+    assert.equal(counted.rows[0].detail, detail);
+    assert.equal(counted.summary.attention, 0);
+  }
+});
+
+test('selected memories that were left out still raise the warning', () => {
+  // A selected memory that is missing from the reading is real omission, whatever the reason code says.
+  for (const skippedReason of ['removed_for_budget', 'not_used_by_backend', 'not_relevant']) {
+    const result = formatUsageSummary({ memories: {
+      requested: true, used: false, candidatesProvided: 4, memoriesSelected: 1, memoriesUsedInPrompt: 0, skippedReason
+    } });
+    assert.equal(result.rows[0].state, 'omitted', skippedReason);
+    assert.equal(result.rows[0].badgeText, 'Not included', skippedReason);
+    assert.equal(result.summary.attention, 1, skippedReason);
+  }
+});
+
 test('integrity omission has reader copy without exposing internal diagnostics or suggesting references were used', () => {
   const result = formatUsageSummary({ graphRAG: {
     requested: true, used: false, mode: 'none', skippedReason: 'reference_integrity_failed',
@@ -152,7 +192,41 @@ test('integrity omission has reader copy without exposing internal diagnostics o
   assert.equal(result.rows[0].detail, 'Reference passages could not be included.');
   assert.equal(result.summary.used, 0);
   assert.equal(result.summary.attention, 1);
+  assert.equal(result.warningText, 'Some additional context could not be included.');
   assert.doesNotMatch(JSON.stringify(result), /missing_card_guardrail|reference_integrity_failed|integrityRemovedBlocks/);
+});
+
+test('a reference retrieval error is a visible omission; no patterns or no matches stay hidden', () => {
+  const failed = formatUsageSummary({ graphRAG: {
+    requested: true, used: false, mode: 'none', skippedReason: 'retrieval_error', passagesProvided: 0, passagesUsedInPrompt: 0
+  } });
+  assert.deepEqual(failed.rows.map(row => [row.label, row.state, row.badgeText, row.detail, row.group]), [
+    ['Traditional wisdom', 'omitted', 'Not included', 'Reference passages could not be loaded for this reading.', 'sources']
+  ]);
+  assert.equal(failed.summary.attention, 1);
+  // Traditional wisdom is additional context, not the reader's own input.
+  assert.equal(failed.warningText, 'Some additional context could not be included.');
+  assert.doesNotMatch(JSON.stringify(failed), /retrieval_error|your input/);
+
+  for (const skippedReason of ['no_patterns_detected', 'retrieval_failed_or_empty', 'disabled_by_env']) {
+    const hidden = formatUsageSummary({ graphRAG: { requested: true, used: false, mode: 'none', skippedReason } });
+    assert.deepEqual(hidden.rows, [], skippedReason);
+    assert.equal(hidden.summary.attention, 0, skippedReason);
+    assert.equal(hidden.warningText, null, skippedReason);
+  }
+
+  const mixed = formatUsageSummary({
+    graphRAG: { requested: true, used: false, skippedReason: 'retrieval_error' },
+    memories: { requested: true, used: false, candidatesProvided: 2, memoriesSelected: 1, memoriesUsedInPrompt: 0, skippedReason: 'removed_for_budget' }
+  });
+  assert.equal(mixed.summary.attention, 2);
+  assert.equal(mixed.warningText, 'Some of your input was shortened or left out.');
+});
+
+test('the retrieval error reason survives journal and telemetry sanitization', () => {
+  const input = { requested: true, used: false, mode: 'none', skippedReason: 'retrieval_error' };
+  assert.equal(sanitizeSourceUsage({ graphRAG: input }).graphRAG.skippedReason, 'retrieval_error');
+  assert.equal(buildGraphRAGTelemetry(input).skippedReason, 'retrieval_error');
 });
 
 test('integrity diagnostics stay bounded and preserve measured false without inventing historical measurements', () => {

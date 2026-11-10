@@ -155,6 +155,16 @@ describe('GraphRAG stub telemetry', () => {
         );
     });
 
+    it('separates a retrieval error from a retrieval that found nothing', () => {
+        const alertsFor = (skippedReason) => collectGraphRAGAlerts({
+            graphRAG: { includedInPrompt: false, disabledByEnv: false, passagesProvided: 0, passagesUsedInPrompt: 0, skippedReason }
+        });
+
+        assert.deepEqual(alertsFor('retrieval_error'), ['GraphRAG: retrieval error']);
+        assert.deepEqual(alertsFor('retrieval_failed_or_empty'), ['GraphRAG: no reference passages available']);
+        assert.deepEqual(alertsFor('no_patterns_detected'), ['GraphRAG: no patterns detected']);
+    });
+
     it('does not warn about omission when GraphRAG passages are visible in debug output', () => {
         const alerts = collectGraphRAGAlerts({
             graphRAG: {

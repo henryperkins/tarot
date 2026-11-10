@@ -35,7 +35,28 @@ export function hydrateJournalEntry(row) {
     reflections: safeJsonParse(row.reflections_json, {}),
     context: row.context,
     provider: row.provider,
-    sessionSeed: row.session_seed
+    sessionSeed: row.session_seed,
+    deckId: row.deck_id || null
+  };
+}
+
+/**
+ * The part of a journal entry that anyone holding a share link may read.
+ * A link shares what the shared page shows: the question, spread, cards in
+ * their deck, and when the reading happened. The narrative, reflections,
+ * themes, context, provider and seed stay with the owner; journal stats and
+ * link metadata are computed from the full entry on the server instead.
+ */
+export function toPublicShareEntry(entry) {
+  if (!entry) return null;
+  return {
+    id: entry.id,
+    ts: entry.ts,
+    spread: entry.spread,
+    spreadKey: entry.spreadKey,
+    question: entry.question,
+    cards: Array.isArray(entry.cards) ? entry.cards : [],
+    deckId: entry.deckId || null
   };
 }
 

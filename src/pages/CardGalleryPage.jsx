@@ -9,12 +9,17 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
-import { getCanonicalCard } from '../lib/cardLookup';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { getCanonicalCard, getCardGallerySrcSet, getCardPreviewImage } from '../lib/cardLookup';
 import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
 import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
 import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+const CARD_GRID_CLASS = 'gallery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6';
+const CARD_TILE_GEOMETRY_CLASS = "relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border overflow-hidden";
+// Match the grid's columns, gutters and 80rem content cap, including text scaling.
+const CARD_IMAGE_SIZES = '(min-width: 64rem) calc((min(100vw, 80rem) - 10.5rem) / 6), (min-width: 48rem) calc((100vw - 7.5rem) / 4), (min-width: 40rem) calc((100vw - 6rem) / 3), calc((100vw - 3rem) / 2)';
 
 function normalizeCardName(name) {
   if (!name || typeof name !== 'string') return null;
@@ -101,7 +106,7 @@ function buildLocalCardStats(entries) {
   return map;
 }
 
-function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
+function CardItem({ card, stats, onSelect, onViewInJournal, index = 0, reducedMotion = false }) {
   const isFound = !!stats;
   const count = stats?.total_count || 0;
 
@@ -115,10 +120,13 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
       {/* Card Image */}
       <div className="absolute inset-0">
         <img
-          src={card.image}
+          src={getCardPreviewImage(card)}
+          srcSet={getCardGallerySrcSet(card.image)}
+          sizes={CARD_IMAGE_SIZES}
           alt={card.name}
           className={`h-full w-full object-cover transition-opacity duration-(--duration-slow) ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--bg-main)_82%,transparent),transparent,color-mix(in_srgb,var(--bg-main)_40%,transparent))]" />
       </div>
@@ -168,9 +176,9 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   if (isFound) {
     return (
       <div
-        className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) overflow-hidden text-left hover:-translate-y-1 hover:border-(--border-warm) hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
+        className={`${CARD_TILE_GEOMETRY_CLASS} group border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) text-left hover:-translate-y-1 hover:border-(--border-warm) hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]`}
         aria-label={`Card ${card.name}`}
-        style={{
+        style={reducedMotion ? undefined : {
           animation: `fadeInUp 320ms ease-out ${Math.min(index * 30, 500)}ms both`
         }}
       >
@@ -187,9 +195,9 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
   return (
     <div
-      className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-subtle) bg-(--bg-surface) transition-[opacity,border-color] duration-(--duration-normal) ease-(--ease-out) overflow-hidden opacity-60 grayscale hover:opacity-80"
+      className={`${CARD_TILE_GEOMETRY_CLASS} group border-(--border-warm-subtle) bg-(--bg-surface) transition-[opacity,border-color] duration-(--duration-normal) ease-(--ease-out) opacity-60 grayscale hover:opacity-80`}
       aria-label={`${card.name} (not yet discovered)`}
-      style={{
+      style={reducedMotion ? undefined : {
         animation: `fadeInUp 280ms ease-out ${index * 24}ms both`
       }}
     >
@@ -200,6 +208,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
 export default function CardGalleryPage() {
   const { isAuthenticated, user } = useAuth();
+  const reducedMotion = useReducedMotion();
   const navigate = useNavigate();
   const {
     entries,
@@ -309,6 +318,7 @@ export default function CardGalleryPage() {
   const deckSize = ALL_CARDS.length;
   const totalFound = ALL_CARDS.reduce((sum, card) => sum + (stats[card.name] ? 1 : 0), 0);
   const progressPercent = deckSize ? Math.round((totalFound / deckSize) * 100) : 0;
+  const collectionPending = loading || journalLoading;
 
   const filteredCards = useMemo(() => {
     let result = [...ALL_CARDS];
@@ -468,22 +478,6 @@ export default function CardGalleryPage() {
           </div>
         </div>
 
-        {!loading && entries.length === 0 && (
-          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <h2 className="text-lg font-serif text-main mb-2 wrap-anywhere">Your collection starts with a saved reading</h2>
-            <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className={`${LABEL_CLASS} inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
-              >
-                <span className="min-w-0 wrap-anywhere">Start a reading</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Toolbar */}
         <div data-app-secondary="1" data-chrome-min-width="1024" data-chrome-min-height="700" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
@@ -547,77 +541,93 @@ export default function CardGalleryPage() {
           </div>
         </div>
 
-        {showPartialStatsBanner && (
-          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span>{statsScopeLabel}</span>
+        {/* Empty and populated results have different layouts. Keep one stable
+            content origin without predicting an empty notice above a tile grid. */}
+        <div className="gallery-content">
+          {!analyticsDisabled && collectionPending && (
+            <div role="status" aria-label="Loading card collection" aria-busy="true"
+              className="min-h-screen py-20 text-center text-sm text-muted">
+              Loading your card collection…
+            </div>
+          )}
+
+          {!analyticsDisabled && !collectionPending && entries.length === 0 && totalFound === 0 && (
+            <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+              <h2 className="text-lg font-serif text-main mb-2 wrap-anywhere">Your collection starts with a saved reading</h2>
+              <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/', { state: { focusSpread: true } })}
+                  className={`${LABEL_CLASS} inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
+                >
+                  <span className="min-w-0 wrap-anywhere">Start a reading</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!collectionPending && showPartialStatsBanner && (
+            <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span>{statsScopeLabel}</span>
+                <button
+                  type="button"
+                  onClick={handleLoadFullHistory}
+                  disabled={loadingFullHistory || loadingMore}
+                  className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
+                    loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
+                  }`}
+                >
+                  {loadingFullHistory ? 'Loading full history...' : 'Load full history'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Grid */}
+          {analyticsDisabled ? (
+            <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-6 text-center">
+              <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
+              <p className="text-sm text-muted-high mb-4">
+                Enable Journey analytics in your account settings to track your card collection.
+              </p>
               <button
                 type="button"
-                onClick={handleLoadFullHistory}
-                disabled={loadingFullHistory || loadingMore}
-                className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
-                  loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
-                }`}
+                onClick={() => navigate('/account#analytics')}
+                className="px-4 py-2 rounded-full border border-(--border-warm-light) text-main hover:bg-(--border-warm-subtle)"
               >
-                {loadingFullHistory ? 'Loading full history...' : 'Load full history'}
+                Go to Settings
               </button>
             </div>
-          </div>
-        )}
+          ) : !collectionPending && (
+            <div className={CARD_GRID_CLASS}>
+              {filteredCards.map((card, index) => (
+                <CardItem
+                  key={card.name}
+                  card={card}
+                  stats={stats[card.name]}
+                  onSelect={handleSelectCard}
+                  onViewInJournal={(selectedCard) => handleViewAllInJournal(selectedCard?.name)}
+                  index={index}
+                  reducedMotion={reducedMotion}
+                />
+              ))}
+            </div>
+          )}
 
-        {/* Grid */}
-        {analyticsDisabled ? (
-          <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-6 text-center">
-            <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
-            <p className="text-sm text-muted-high mb-4">
-              Enable Journey analytics in your account settings to track your card collection.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/account#analytics')}
-              className="px-4 py-2 rounded-full border border-(--border-warm-light) text-main hover:bg-(--border-warm-subtle)"
-            >
-              Go to Settings
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(12)].map((_, i) => (
-              <div
-                key={i}
-                className="aspect-2/3 rounded-xl bg-(--border-warm-subtle) animate-pulse"
-                style={{
-                  animationDelay: `${i * 80}ms`
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-            {filteredCards.map((card, index) => (
-              <CardItem
-                key={card.name}
-                card={card}
-                stats={stats[card.name]}
-                onSelect={handleSelectCard}
-                onViewInJournal={(selectedCard) => handleViewAllInJournal(selectedCard?.name)}
-                index={index}
-              />
-            ))}
-          </div>
-        )}
-
-        {!loading && filteredCards.length === 0 && (
-          <div className="text-center py-20 short:py-12 text-muted">
-            <p>No cards match your filters.</p>
-            <button
-              onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}
-              className="mt-4 text-accent hover:underline text-sm"
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
+          {!collectionPending && filteredCards.length === 0 && (
+            <div className="text-center py-20 short:py-12 text-muted">
+              <p>No cards match your filters.</p>
+              <button
+                onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}
+                className="mt-4 text-accent hover:underline text-sm"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
         <InstallFooter />
       </main>
 

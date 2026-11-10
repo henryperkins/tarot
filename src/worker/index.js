@@ -51,6 +51,7 @@ import * as usage from '../../functions/api/usage.js';
 import * as subscription from '../../functions/api/subscription.js';
 import * as subscriptionRestore from '../../functions/api/subscription/restore.js';
 import * as accountProfile from '../../functions/api/account/profile.js';
+import * as accountPreferences from '../../functions/api/account/preferences.js';
 import * as accountPassword from '../../functions/api/account/password.js';
 import * as accountDelete from '../../functions/api/account/delete.js';
 import * as accountExport from '../../functions/api/account/export.js';
@@ -238,6 +239,7 @@ const routes = [
   { pattern: /^\/api\/subscription$/, handlers: subscription },
   { pattern: /^\/api\/subscription\/restore$/, handlers: subscriptionRestore },
   { pattern: /^\/api\/account\/profile$/, handlers: accountProfile },
+  { pattern: /^\/api\/account\/preferences$/, handlers: accountPreferences },
   { pattern: /^\/api\/account\/password$/, handlers: accountPassword },
   { pattern: /^\/api\/account\/delete$/, handlers: accountDelete },
   { pattern: /^\/api\/account\/export$/, handlers: accountExport },
@@ -404,10 +406,10 @@ function addCorsHeaders(response, request) {
  * @property {string} MODAL_TEMPERATURE - Modal sampling temperature (default 0.3)
  * @property {string} MODAL_TOP_P - Modal nucleus sampling probability (default 0.95)
  * @property {string} MODAL_TIMEOUT_MS - Modal request timeout in milliseconds
- * @property {string} OPENAI_API_KEY - Native OpenAI Responses API key
+ * @property {string} OPENAI_API_KEY - Native OpenAI Responses API key; when set, the Responses API is the first reading provider
  * @property {string} OPENAI_BASE_URL - Optional native OpenAI API base URL
  * @property {string} OPENAI_MODEL - OpenAI Responses model id
- * @property {string} ANTHROPIC_API_KEY - Claude Messages API key; when set, Claude is the first text provider
+ * @property {string} ANTHROPIC_API_KEY - Claude Messages API key; when set, Claude is the first provider for follow-ups and journal summaries and the next reading provider after OpenAI
  * @property {string} ANTHROPIC_MODEL - Claude model id (default claude-opus-5-5)
  * @property {string} ANTHROPIC_EFFORT - Reading effort: low, medium, high, xhigh or max (default xhigh)
  * @property {string} ANTHROPIC_TIMEOUT_MS - Claude request timeout in milliseconds (default 300000)

@@ -5,8 +5,12 @@
 @layer theme, base, components, utilities;
 
 @import './theme.css' layer(base);
-/* App selectors and utilities share specificity/order, as in the v3 bundle. */
-@import './tarot.css' layer(utilities);
+/* The one load of the app stylesheet, unlayered on purpose: its selectors
+   outrank utilities and compete with component CSS on specificity, which is
+   how the reading route has always shipped it. TarotReading.jsx also used to
+   import it, so it shipped twice and the cascade depended on whether a
+   session had visited the reading route. Do not import it anywhere else. */
+@import './tarot.css';
 
 @import 'tailwindcss' source(none);
 

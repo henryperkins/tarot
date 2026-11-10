@@ -141,3 +141,40 @@ test('caller abort refunds even when the upstream cancellation never resolves', 
   assert.equal(await Promise.race([reading, Promise.resolve('still pending')]), 'failed');
   assert.deepEqual(used(DB), [{ used: 0, reserved: 0 }]);
 });
+
+test('request lifetime survives streamed headers until accounting and cleanup finish', async () => {
+  const DB = await createD1();
+  const lifetimes = [];
+  const caller = new AbortController();
+  const response = await narrate({ request: request('A reading.', true, caller.signal), env: { DB, AI: { run: async () => new ReadableStream() } }, waitUntil: p => lifetimes.push(p) });
+  let settled = false;
+  lifetimes[0]?.then(() => { settled = true; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(settled, false, 'header delivery does not end the lifecycle');
+  caller.abort();
+  await assert.rejects(response.arrayBuffer());
+  await lifetimes[0];
+  assert.equal(lifetimes.length, 1);
+  assert.deepEqual(used(DB), [{ used: 0, reserved: 0 }]);
+});
+
+test('abort stops awaiting an uncancellable AI call and cancels its late body without another piece', async () => {
+  const DB = await createD1();
+  const entered = Promise.withResolvers();
+  const pending = Promise.withResolvers();
+  const caller = new AbortController();
+  const lifetimes = [];
+  let calls = 0;
+  const response = narrate({ request: request('x'.repeat(2000), false, caller.signal), env: { DB, AI: { run() { calls++; entered.resolve(); return pending.promise; } } }, waitUntil: p => lifetimes.push(p) });
+  await entered.promise;
+  caller.abort();
+  assert.equal((await response).status, 503);
+  await Promise.all(lifetimes);
+  assert.equal(lifetimes.length, 1);
+  assert.deepEqual(used(DB), [{ used: 0, reserved: 0 }]);
+  let cancelled = false;
+  pending.resolve(new ReadableStream({ cancel() { cancelled = true; } }));
+  for (let i = 0; i < 5; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cancelled, true);
+  assert.equal(calls, 1);
+});

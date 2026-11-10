@@ -64,7 +64,7 @@ test('auth loading and a long identity preserve the desktop destination cluster'
     const cluster = page.locator('[data-destination-group="header"]');
     const before = await cluster.boundingBox();
     release();
-    await expect(page.getByRole('button', { name: /User menu for A very long reader/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Account menu for A very long reader/ })).toBeVisible();
     const after = await cluster.boundingBox();
     expect(after.x).toBe(before.x);
     expect(after.y).toBe(before.y);
@@ -99,7 +99,7 @@ for (const state of ['loading', 'error', 'ready']) {
       release?.();
       await page.route('**/api/auth/me', route => route.fulfill({ json: { user: DEMO_READER } }));
       await page.reload(); await settleNavigation(page);
-      await expect(page.getByRole('button', { name: 'User menu for Avery', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Account menu for Avery', exact: true })).toBeVisible();
       await expect(page.locator('[data-destination-nav]')).toHaveCount(0);
     } finally { release?.(); }
   });

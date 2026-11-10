@@ -131,11 +131,24 @@ test('share links: the entry menu and the journal panel list, rename and delete 
     }
   });
   try {
-    // A single-reading link made from the entry header.
+    // A single-reading link made from the open entry's header: the composer says
+    // what a link shows and how long it stays open before anything is created.
     const card = entryCard(page, 'What steadies me this week?');
-    await card.getByRole('button', { name: /^Create share link for / }).click();
-    await expect(card.getByText('Share link copied (single reading).')).toBeVisible();
+    await card.getByRole('button', { name: 'What steadies me this week?', exact: true }).click();
+    const share = card.getByRole('button', { name: /^Create share link for / });
+    await share.click();
+    const composer = card.getByRole('group', { name: 'Share this reading' });
+    await expect(composer).toContainText('your reflections stay private');
+    await expect(composer.getByRole('radio', { name: '7 days' })).toBeChecked();
+    await expect(composer.getByRole('radio', { name: '7 days' })).toBeFocused();
+    expect(fixture.requests.filter(request => request.method === 'POST' && request.path === '/api/share')).toHaveLength(0);
+    await composer.getByRole('button', { name: 'Create link', exact: true }).click();
+    await expect(card.getByText('Share link copied. It stops opening in 7 days.')).toBeVisible();
     await expect.poll(() => fixture.db.rows('SELECT scope FROM share_tokens')).toEqual([{ scope: 'entry' }]);
+    const [{ created_at: createdAt, expires_at: expiresAt }] = fixture.db.rows('SELECT created_at, expires_at FROM share_tokens');
+    expect(expiresAt - createdAt).toBe(7 * 24 * 3600);
+    await expect(composer).toHaveCount(0);
+    await expect(card.getByRole('button', { name: /^Copy share link for / })).toBeFocused();
 
     // The entry's own menu now finds it (it reported "No active links" before).
     await card.getByRole('button', { name: /^Open entry actions for / }).click();
@@ -437,7 +450,9 @@ test('share links update when a link expires while its manager stays open', asyn
     }
   });
   try {
-    const quickShare = entryCard(page, 'An expiring link').getByRole('button', { name: /^Copy share link for / });
+    const expiring = entryCard(page, 'An expiring link');
+    await expiring.getByRole('button', { name: 'An expiring link', exact: true }).click();
+    const quickShare = expiring.getByRole('button', { name: /^Copy share link for / });
     await expect(quickShare).toBeVisible();
     const panel = await openDesktopSection(page, 'Export & Share');
     const links = panel.getByRole('region', { name: /^Your share links/ });
@@ -447,8 +462,9 @@ test('share links update when a link expires while its manager stays open', asyn
     await expect(links.getByRole('button', { name: 'Copy link for Short-lived link', exact: true })).toHaveCount(0);
     await expect(links.getByRole('button', { name: 'Delete Short-lived link', exact: true })).toBeVisible();
     // The header's cached label can outlive the link; the click must recheck
-    // expiry and create a usable link rather than copying the expired token.
+    // expiry and offer a new link rather than copying the expired token.
     await quickShare.click();
+    await expiring.getByRole('group', { name: 'Share this reading' }).getByRole('button', { name: 'Create link', exact: true }).click();
     await expect.poll(() => fixture.requests.filter(request => request.method === 'POST' && request.path === '/api/share').length).toBe(1);
     await expect.poll(() => fixture.db.rows("SELECT token FROM share_tokens WHERE token != 'expires-soon'").length).toBe(1);
   } finally { await fixture.close(); }

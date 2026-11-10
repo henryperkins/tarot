@@ -105,7 +105,7 @@ test('a restored Thoth draw keeps its reveal artwork and request edition under a
     await page.locator('#question-input').fill(fixture.question);
     await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-    await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
     await expect(page.locator('.reading-table img[src*="/thoth/"]').first()).toBeVisible();
     await expect.poll(async () => (await snapshot(page))?.isSpreadDealt).toBe(true);
     await page.evaluate(() => localStorage.setItem('tarot-deck-style', 'rws-1909'));

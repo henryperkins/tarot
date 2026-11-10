@@ -115,17 +115,47 @@ async function readNarrationBody(request) {
   catch { throw Object.assign(new Error('Invalid JSON payload.'), { status: 400 }); }
 }
 
-export const onRequestPost = async ({ request, env }) => {
+export const onRequestPost = async ({ request, env, waitUntil }) => {
   let reservation;
   let paidAudioProduced = false;
   let finalization;
-  // Stream errors, caller aborts and buffered-response errors can overlap.
-  // Resolve their shared reservation once, retaining paid partial synthesis.
+  let providerId = null;
+  let streamOwnsLifetime = false;
+  let cancelled = Boolean(request.signal?.aborted);
+  const markCancelled = () => { cancelled = true; };
+  request.signal?.addEventListener('abort', markCancelled, { once: true });
+  let finishLifetime;
+  const lifetime = new Promise(resolve => { finishLifetime = resolve; });
+  // Register before admission can write, including a commit with a lost reply.
+  waitUntil?.(lifetime);
+  const cleanup = () => {
+    request.signal?.removeEventListener('abort', markCancelled);
+    finishLifetime();
+  };
+  // Only the producer/admission owner finalizes. Abort listeners merely stop
+  // work: an in-flight paid read must record bytes before choosing the outcome.
   const finalize = (completed = false) => {
     if (!reservation) return Promise.resolve();
-    finalization ??= completed || paidAudioProduced
-      ? settleNarration(env, reservation)
-      : releaseNarration(env, reservation);
+    if (!finalization) {
+      const settle = completed || paidAudioProduced;
+      finalization = (async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await (settle ? settleNarration(env, reservation) : releaseNarration(env, reservation));
+            return;
+          } catch (error) {
+            if (attempt === 2) {
+              console.error('[tts] Reservation finalization failed', {
+                reservationId: reservation.id, provider: providerId,
+                stage: settle ? 'settlement' : 'release'
+              });
+              throw error;
+            }
+            await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 100 : 300));
+          }
+        }
+      })();
+    }
     return finalization;
   };
   try {
@@ -140,6 +170,7 @@ export const onRequestPost = async ({ request, env }) => {
     }
     const provider = getNarrationProvider(env, body.provider);
     if (!provider) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
+    providerId = provider.id;
     const user = await getUserFromRequest(request, env);
     if (user?.auth_provider === 'api_key') {
       const apiLimit = await enforceApiCallLimit(env, user);
@@ -147,15 +178,19 @@ export const onRequestPost = async ({ request, env }) => {
     }
     const subscription = getSubscriptionContext(user);
     const accounting = await reserveNarration({ env, request, user, limits: getTtsLimits(subscription.effectiveTier) });
+    reservation = accounting.reservation;
     if (!accounting.allowed) {
+      await finalize().catch(() => {});
       return jsonResponse({ ...accounting.payload, currentTier: subscription.tier }, { status: accounting.status, headers: accounting.retryAfter ? { 'retry-after': String(accounting.retryAfter) } : {} });
     }
-    reservation = accounting.reservation;
+    if (cancelled) throw new Error('Narration cancelled');
     const audio = await createNarrationStream(request, text, provider, {
       onPaidAudio: () => { paidAudioProduced = true; },
-      finalize
+      finalize,
+      onFinished: cleanup
     });
     if (new URL(request.url).searchParams.get('stream') === 'true') {
+      streamOwnsLifetime = true;
       return new Response(audio, { headers: { 'content-type': 'audio/mpeg', 'cache-control': 'no-store', 'x-tts-provider': provider.id } });
     }
     const bytes = new Uint8Array(await new Response(audio).arrayBuffer());
@@ -165,6 +200,8 @@ export const onRequestPost = async ({ request, env }) => {
   } catch (error) {
     await finalize().catch(() => {});
     return jsonResponse({ error: error.status ? error.message : 'Narration could not finish. Please try again.', errorCode: error.status === 413 ? 'NARRATION_TOO_LONG' : 'NARRATION_UNAVAILABLE', retryable: !error.status }, { status: error.status || 503 });
+  } finally {
+    if (!streamOwnsLifetime) cleanup();
   }
 };
 
@@ -192,7 +229,7 @@ export function splitForSpeech(text) {
 }
 
 
-async function createNarrationStream(request, text, provider, { onPaidAudio, finalize }) {
+async function createNarrationStream(request, text, provider, { onPaidAudio, finalize, onFinished }) {
   const pieces = splitForSpeech(text);
   const upstream = new AbortController();
   let activeReader;
@@ -289,6 +326,7 @@ async function createNarrationStream(request, text, provider, { onPaidAudio, fin
         try { controller.error(error); } catch { /* Consumer already cancelled. */ }
       } finally {
         cleanup();
+        onFinished();
         finishConsumption();
       }
     },

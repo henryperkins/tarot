@@ -1,8 +1,85 @@
 import { fetchWithRetry } from './retryWithBackoff.js';
 import { createDeadline } from './requestDeadline.js';
 import { observeInferenceAttempt } from './inferenceAttempts.js';
+import { safeProviderIdentifier, sanitizeProviderErrorMessage } from './providerErrorDetails.js';
 
 export const OPENAI_DEFAULT_MODEL = 'gpt-5.6-sol';
+
+const OPENAI_DEFAULT_TIMEOUT_MS = 120000;
+const OPENAI_MAX_TIMEOUT_MS = 600000;
+
+/**
+ * Bounded deadline for one OpenAI request, streamed or buffered;
+ * OPENAI_TIMEOUT_MS mirrors ANTHROPIC_TIMEOUT_MS. A reading's task budget
+ * still applies on top of it.
+ */
+export function resolveOpenAITimeoutMs(env) {
+  const timeout = Number.parseInt(env?.OPENAI_TIMEOUT_MS, 10);
+  return Number.isFinite(timeout)
+    ? Math.min(OPENAI_MAX_TIMEOUT_MS, Math.max(1000, timeout))
+    : OPENAI_DEFAULT_TIMEOUT_MS;
+}
+
+const OPENAI_RESPONSE_ID = /^resp_[A-Za-z0-9]{1,128}$/;
+const OPENAI_REQUEST_ID = /^req_[A-Za-z0-9]{1,128}$/;
+const isObject = (value) => Boolean(value) && typeof value === 'object';
+
+export function parseJsonObject(text) {
+  try {
+    const value = JSON.parse(text);
+    return isObject(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * OpenAI's own account of a failure, reduced to what is safe to log: error
+ * type, code and parameter (plain identifiers only), the incomplete reason,
+ * the response ID and a sanitized message. Accepts an HTTP error body
+ * (`{ error }`), a stream `error` event, a `response.failed` or
+ * `response.incomplete` event, or a buffered response object.
+ */
+export function describeOpenAIFailure(payload) {
+  const response = isObject(payload?.response) ? payload.response : payload;
+  const failure = [payload?.error, response?.error].find(isObject) || (payload?.type === 'error' ? payload : null);
+  return {
+    type: failure && failure.type !== 'error' ? safeProviderIdentifier(failure.type) : null,
+    code: safeProviderIdentifier(failure?.code),
+    param: safeProviderIdentifier(failure?.param),
+    reason: safeProviderIdentifier(response?.incomplete_details?.reason),
+    responseId: OPENAI_RESPONSE_ID.test(response?.id || '') ? response.id : null,
+    message: sanitizeProviderErrorMessage(failure?.message)
+  };
+}
+
+/** Identifiers only, for error messages that can reach clients. */
+export function publicOpenAIFailureDetail(details) {
+  return [details?.type, details?.code, details?.reason].filter(Boolean).join(', ');
+}
+
+/** OpenAI's x-request-id response header, when it has the documented shape. */
+export function readOpenAIRequestId(response) {
+  const value = response?.headers?.get?.('x-request-id');
+  return OPENAI_REQUEST_ID.test(value || '') ? value : null;
+}
+
+/**
+ * One Worker log line with OpenAI's account of a failed request or stream, e.g.
+ * "[req] [openai-native] Stream returned error (server_error, request req_…): …".
+ * The sanitized upstream message goes to the log alone; thrown errors carry
+ * only the identifiers from publicOpenAIFailureDetail.
+ */
+export function logOpenAIFailure(requestId, summary, details, { status = null, upstreamRequestId = null } = {}) {
+  const detail = [
+    Number.isInteger(status) ? `HTTP ${status}` : null,
+    publicOpenAIFailureDetail(details) || null,
+    details?.param ? `param ${details.param}` : null,
+    details?.responseId ? `response ${details.responseId}` : null,
+    upstreamRequestId ? `request ${upstreamRequestId}` : null
+  ].filter(Boolean).join(', ');
+  console.warn(`[${requestId || 'unknown'}] [openai-native] ${summary}${detail ? ` (${detail})` : ''}${details?.message ? `: ${details.message}` : ''}`);
+}
 
 /**
  * Validate and normalize native OpenAI Responses API configuration.
@@ -174,9 +251,10 @@ async function callOpenAIResponsesImpl(env, {
   returnFullResponse = false,
   requestId = 'unknown',
   signal,
-  timeoutMs = 120000
+  timeoutMs = null
 }) {
   const { model, url, authHeaders, provider } = ensureOpenAIConfig(env);
+  const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : resolveOpenAITimeoutMs(env);
   const resolvedUser = resolveResponsesUser(env, user);
 
   // Build request body
@@ -227,7 +305,7 @@ async function callOpenAIResponsesImpl(env, {
   });
 
   // Use retry logic with exponential backoff
-  const deadline = createDeadline({ signal, timeoutMs });
+  const deadline = createDeadline({ signal, timeoutMs: effectiveTimeoutMs });
   let data;
   try {
     data = await deadline.run(() => fetchWithRetry(
@@ -246,23 +324,25 @@ async function callOpenAIResponsesImpl(env, {
       {
         maxRetries: 3,
         baseDelayMs: 1000,
-        timeoutMs,
+        timeoutMs: effectiveTimeoutMs,
         includeResponseBodyInError: false,
+        onErrorResponse: (response, bodyText) => logOpenAIFailure(requestId, 'Request failed',
+          describeOpenAIFailure(parseJsonObject(bodyText)), { status: response.status, upstreamRequestId: readOpenAIRequestId(response) }),
         consumeResponse: (response) => response.json()
       }
     ));
   } finally {
     deadline.dispose();
   }
-  if (data.status && data.status !== 'completed') {
-    const error = new Error(`Responses API returned ${data.status}; a complete answer is required.`);
-    error.code = 'response_incomplete';
-    error.model = data.model || null;
-    error.usage = data.usage || null;
-    throw error;
-  }
-  if (data.error || data.incomplete_details || (Array.isArray(data.output) && data.output.some((item) => item?.status === 'incomplete' || item?.status === 'failed'))) {
-    const error = new Error('Responses API returned an incomplete or failed answer.');
+  const unfinished = data.status && data.status !== 'completed';
+  if (unfinished || data.error || data.incomplete_details || (Array.isArray(data.output) && data.output.some((item) => item?.status === 'incomplete' || item?.status === 'failed'))) {
+    const details = describeOpenAIFailure(data);
+    const status = safeProviderIdentifier(data.status);
+    logOpenAIFailure(requestId, unfinished ? `Response ${status || 'unfinished'}` : 'Response incomplete or failed', details);
+    const detail = publicOpenAIFailureDetail(details);
+    const error = new Error(unfinished
+      ? `Responses API returned ${status || 'an unfinished status'}${detail ? ` (${detail})` : ''}; a complete answer is required.`
+      : `Responses API returned an incomplete or failed answer${detail ? ` (${detail})` : ''}.`);
     error.code = 'response_incomplete';
     error.model = data.model || null;
     error.usage = data.usage || null;

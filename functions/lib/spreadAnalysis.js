@@ -346,6 +346,8 @@ export function analyzeElementalDignity(card1, card2) {
  * @param {string} [options.reversalFrameworkOverride] - Force specific reversal framework
  * @param {boolean} [options.enableKnowledgeGraph=true] - Enable knowledge graph pattern detection
  * @param {Object} [options.env] - Environment object for Workers (used for feature flags)
+ * @param {Function} [options.onKnowledgeGraphError] - Called with the error when pattern
+ *   detection or the passage preview fails; the result then has no knowledge graph
  * @returns {Promise<Object>} Theme analysis results
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
@@ -516,6 +518,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
       console.error('Knowledge graph detection failed:', err);
       // Graceful degradation: continue without patterns
       themes.knowledgeGraph = null;
+      options.onKnowledgeGraphError?.(err);
     }
   }
 
@@ -742,6 +745,44 @@ function formatNameList(names) {
   if (names.length <= 1) return names.join('');
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+// Card meanings and dignity descriptions have no closing punctuation. End each
+// embedded fragment as a sentence so the text after it does not run on.
+function asSentence(text) {
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  if (!trimmed || /[.!?…]["'”’)\]]*$/.test(trimmed)) return trimmed;
+  const body = trimmed.replace(/[\s,;:]+$/, '');
+  return body ? `${body}.` : '';
+}
+
+// Dignity descriptions open with an element name or "Both". After a lead-in such
+// as "With your card," only "Both" is lowercased; element names stay capitalized.
+function continueSentence(description) {
+  return description.replace(/^Both\b/, 'both');
+}
+
+/**
+ * One sentence per elemental bridge to a shared card. When both bridges have the
+ * same description, because the two other cards share an element, a single
+ * sentence covers both instead of repeating it.
+ *
+ * @param {[string, Object|null]} first - Lead-in and dignity, e.g. ['With your card', youBridge]
+ * @param {[string, Object|null]} second - Lead-in and dignity for the other card
+ * @param {string} sharedLeadIn - Lead-in naming both, e.g. 'With your card and theirs alike'
+ * @returns {string[]} Zero to two sentences
+ */
+function describeBridges([firstLeadIn, firstBridge], [secondLeadIn, secondBridge], sharedLeadIn) {
+  const firstText = firstBridge?.description;
+  const secondText = secondBridge?.description;
+  if (firstText && firstText === secondText) {
+    // Matching amplified bridges mean all three cards share one element.
+    const text = firstBridge.relationship === 'amplified' ? firstText.replace(/^Both\b/, 'all three') : firstText;
+    return [`${sharedLeadIn}, ${text}.`];
+  }
+  return [[firstLeadIn, firstText], [secondLeadIn, secondText]]
+    .filter(([, text]) => text)
+    .map(([leadIn, text]) => `${leadIn}, ${continueSentence(text)}.`);
 }
 
 /**
@@ -1290,7 +1331,7 @@ function buildCrossCheckSummary(crossCheck) {
 
   // Add elemental description if available
   if (elementalRelationship?.description) {
-    summary += elementalRelationship.description + ' ';
+    summary += `${asSentence(elementalRelationship.description)} `;
   }
 
   // Add alignment-based insight
@@ -1491,7 +1532,7 @@ export function analyzeFiveCard(cardsInfo) {
         type: 'axis',
         axis: 'Core vs Challenge',
         summary:
-          coreVsChallenge.description ||
+          asSentence(coreVsChallenge.description) ||
           'Tension or harmony between core and challenge frames the heart of this spread.',
         positions: [0, 1],
         cards: [
@@ -1503,7 +1544,7 @@ export function analyzeFiveCard(cardsInfo) {
         type: 'axis',
         axis: 'Support vs Direction',
         summary:
-          supportVsDirection.description ||
+          asSentence(supportVsDirection.description) ||
           'Supportive energies shape how the likely direction can be navigated.',
         positions: [3, 4],
         cards: [
@@ -1559,9 +1600,8 @@ export function analyzeRelationship(cardsInfo) {
 
   const connectionSummaryParts = [
     `${connection.card} ${connection.orientation} anchors the shared lesson between you.`,
-    connection.meaning ? connection.meaning : null,
-    youBridge?.description ? `With your card, ${youBridge.description}.` : null,
-    themBridge?.description ? `With their card, ${themBridge.description}.` : null
+    asSentence(connection.meaning),
+    ...describeBridges(['With your card', youBridge], ['With their card', themBridge], 'With your card and theirs alike')
   ].filter(Boolean);
 
   const relationships = [];
@@ -1571,7 +1611,7 @@ export function analyzeRelationship(cardsInfo) {
     let summary = `${youLabel} (${you.card} ${you.orientation}) and ${themLabel} (${them.card} ${them.orientation}): `;
 
     if (youVsThem.elementalRelationship?.description) {
-      summary += youVsThem.elementalRelationship.description;
+      summary += asSentence(youVsThem.elementalRelationship.description);
     } else {
       switch (youVsThem.alignmentType) {
         case 'unified':
@@ -1616,8 +1656,8 @@ export function analyzeRelationship(cardsInfo) {
     const dynamicsBridge = analyzeElementalDignity(connection, dynamics);
     const summaryParts = [
       `${dynamics.card} ${dynamics.orientation} offers guidance on how to work with the dynamic in real time.`,
-      dynamics.meaning || null,
-      dynamicsBridge?.description ? `In relation to the shared lesson, ${dynamicsBridge.description}.` : null
+      asSentence(dynamics.meaning),
+      dynamicsBridge?.description ? `In relation to the shared lesson, ${continueSentence(dynamicsBridge.description)}.` : null
     ].filter(Boolean);
 
     relationships.push({
@@ -1638,9 +1678,12 @@ export function analyzeRelationship(cardsInfo) {
       : null;
     const summaryParts = [
       `${outcome.card} ${outcome.orientation} sketches a likely trajectory for what this connection can become if current patterns continue.`,
-      outcome.meaning || null,
-      connectionToOutcome?.description ? `Relative to the shared lesson, ${connectionToOutcome.description}.` : null,
-      dynamicsToOutcome?.description ? `Relative to current guidance, ${dynamicsToOutcome.description}.` : null
+      asSentence(outcome.meaning),
+      ...describeBridges(
+        ['Relative to the shared lesson', connectionToOutcome],
+        ['Relative to current guidance', dynamicsToOutcome],
+        'Relative to the shared lesson and current guidance alike'
+      )
     ].filter(Boolean);
 
     relationships.push({
@@ -1726,9 +1769,7 @@ export function analyzeSingleCard(cardsInfo) {
   const orientationGuidance = orientationLower === 'reversed'
     ? 'Treat this as inward-facing energy that benefits from reflection before action.'
     : 'Treat this as active energy you can translate into one grounded next step.';
-  const meaningText = card.meaning
-    ? `${card.meaning.trim()}`
-    : 'This card is the central lens for interpreting the current moment.';
+  const meaningText = asSentence(card.meaning) || 'This card is the central lens for interpreting the current moment.';
   const synthesis = `${card.card} ${orientationLabel} frames the reading through "${positionLabel}". ${meaningText} ${orientationGuidance}`;
 
   return {
@@ -1793,7 +1834,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathALabel} (${pathA.card} ${pathA.orientation}): `;
 
     if (heartVsA.elementalRelationship?.description) {
-      summary += heartVsA.elementalRelationship.description;
+      summary += asSentence(heartVsA.elementalRelationship.description);
     } else {
       switch (heartVsA.alignmentType) {
         case 'unified':
@@ -1826,7 +1867,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
 
     if (heartVsB.elementalRelationship?.description) {
-      summary += heartVsB.elementalRelationship.description;
+      summary += asSentence(heartVsB.elementalRelationship.description);
     } else {
       switch (heartVsB.alignmentType) {
         case 'unified':
@@ -1859,7 +1900,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${pathALabel} (${pathA.card} ${pathA.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
 
     if (pathAVsB.elementalRelationship?.description) {
-      summary += pathAVsB.elementalRelationship.description;
+      summary += asSentence(pathAVsB.elementalRelationship.description);
     } else {
       if (pathAVsB.alignmentType === 'unified') {
         summary += `These paths share similar energies.`;

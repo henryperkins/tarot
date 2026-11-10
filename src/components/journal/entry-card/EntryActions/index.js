@@ -4,3 +4,4 @@
  */
 export { ActionMenu } from './ActionMenu';
 export { ShareLinksPanel } from './ShareLinksPanel';
+export { ShareLinkComposer } from './ShareLinkComposer';

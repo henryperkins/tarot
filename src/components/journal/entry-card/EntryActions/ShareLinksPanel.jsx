@@ -126,7 +126,7 @@ export const ShareLinksPanel = memo(function ShareLinksPanel({
 
       {!shareLoading && !shareError && shareLinksPreview.length === 0 && (
         <p className="mt-2 text-xs text-muted">
-          No share links for this reading yet. The share button beside this menu creates one, and anyone with that link can open the reading.
+          No share links for this reading yet. The share button beside this menu creates one. Anyone with a link sees the question, spread and cards; your narrative and reflections stay private.
         </p>
       )}
 

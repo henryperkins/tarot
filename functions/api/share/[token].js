@@ -1,7 +1,7 @@
 import { computeJournalStats } from '../../../shared/journal/stats.js';
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { loadShareRecord, loadShareEntries, loadShareNotes } from '../../lib/shareData.js';
-import { buildShareMeta, normalizeShareTitle, defaultShareTitle } from '../../lib/shareUtils.js';
+import { buildShareMeta, normalizeShareTitle, defaultShareTitle, toPublicShareEntry } from '../../lib/shareUtils.js';
 
 export async function onRequestGet(context) {
   const { env, params } = context;
@@ -51,7 +51,8 @@ export async function onRequestGet(context) {
         viewCount: nextViewCount,
         meta: mergedMeta,
         stats,
-        entries,
+        // Anyone holding the link reads this response: send only the public fields.
+        entries: entries.map(toPublicShareEntry),
         notes,
         collaboration
       }),

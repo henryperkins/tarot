@@ -24,6 +24,9 @@ export function ConfirmModal({
   closeOnConfirm = true,
   renderInPortal = false,
   fallbackFocusSelector = null,
+  // The control that gets focus back on close, when the browser may not have
+  // focused the one that was clicked (WebKit focuses its focusable ancestor).
+  returnFocusRef = null,
   // A confirmation opened by its parent's own Back handler leaves Back to it.
   closeOnBack
 }) {
@@ -36,6 +39,7 @@ export function ConfirmModal({
     containerRef: modalRef,
     initialFocusRef: cancelButtonRef,
     isolateBackground: true,
+    returnFocusRef,
     fallbackFocusSelector,
     closeOnBack,
     backGuardId: 'confirm',

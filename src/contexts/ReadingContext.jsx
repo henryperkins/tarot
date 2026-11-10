@@ -398,6 +398,7 @@ export function ReadingProvider({ children }) {
     const narrationFallbackPendingRef = useRef(false);
     const narrationFallbackTextRef = useRef('');
     const narrationInterruptedByUserRef = useRef(false);
+    const previousAutoNarrateRef = useRef(autoNarrate);
     const handleNarrationStop = useCallback(() => {
         narrationInterruptedByUserRef.current = true;
         narrationSuppressedRef.current = true;
@@ -486,14 +487,14 @@ export function ReadingProvider({ children }) {
         safeSessionStorage.removeItem(readingJobStorageKey);
     }, []);
 
-    const cancelInFlightReading = useCallback(() => {
+    const cancelInFlightReading = useCallback((narrationOptions = {}) => {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         if (inFlightReadingRef.current?.controller) {
             inFlightReadingRef.current.controller.abort();
         }
         inFlightReadingRef.current = null;
-        resetNarrationStream();
+        resetNarrationStream(narrationOptions);
 
         const { jobId, jobToken } = readingJobRef.current || {};
         if (jobId && jobToken) {
@@ -531,7 +532,7 @@ export function ReadingProvider({ children }) {
         setNarrativePhase(current => keepGuestReading && current === 'complete' ? 'complete' : 'idle');
     }, [authLoading, visualNamespace, cancelInFlightReading]);
 
-    const resetStreamingNarration = useCallback(() => {
+    const resetStreamingNarration = useCallback((options = {}) => {
         narrationBufferRef.current = '';
         narrationSuppressedRef.current = false;
         narrationStartedRef.current = false;
@@ -540,7 +541,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         narrationInterruptedByUserRef.current = false;
-        resetNarrationStream();
+        resetNarrationStream(options);
     }, [resetNarrationStream]);
 
     // Reset analysis state when Shuffle is triggered
@@ -734,7 +735,7 @@ export function ReadingProvider({ children }) {
         setIsReadingStreamActive(true);
         setIsGenerating(true);
         if (!resume) {
-            resetStreamingNarration();
+            resetStreamingNarration({ preserveCardNarration: true });
         }
         const streamNarrationEnabled = autoNarrate && voiceOn && isServerNarrationProvider(ttsProvider);
         const isTtsBusy = isNarrationPlaybackBusy(ttsState?.status);
@@ -1043,6 +1044,8 @@ export function ReadingProvider({ children }) {
     ]);
 
     useEffect(() => {
+        const autoNarrationTurnedOff = previousAutoNarrateRef.current && !autoNarrate;
+        previousAutoNarrateRef.current = autoNarrate;
         const narrationDisabled = !voiceOn || !autoNarrate || !isServerNarrationProvider(ttsProvider);
         if (narrationDisabled) {
             const disabledByUserChoice = !voiceOn || !autoNarrate;
@@ -1055,7 +1058,9 @@ export function ReadingProvider({ children }) {
             // This effect disables automatic scheduling. Voice/provider changes
             // already stop playback in the audio controller; manual play stays
             // available when only auto narration is off.
-            resetNarrationStream({ preserveAudio: true });
+            if (autoNarrationTurnedOff || !voiceOn || !isServerNarrationProvider(ttsProvider)) {
+                resetNarrationStream({ preserveAudio: true });
+            }
             return;
         }
 
@@ -1082,7 +1087,7 @@ export function ReadingProvider({ children }) {
 
         const status = ttsState?.status;
         const isBusy = isNarrationPlaybackBusy(status);
-        if (isBusy) {
+        if (isBusy && ttsState?.context !== 'card-reveal') {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
             return;
@@ -1096,7 +1101,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         void speak(fallbackText, 'full-reading', narrationEmotionRef.current);
-    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, isNarrationStreamActive, speak, personalReading]);
+    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.context, isNarrationStreamActive, speak, personalReading]);
 
     useEffect(() => {
         // Re-renders must not replace a live cursor with an older batched
@@ -1236,8 +1241,8 @@ export function ReadingProvider({ children }) {
         }
         if (isGenerating) return;
 
-        cancelInFlightReading();
-        resetStreamingNarration();
+        cancelInFlightReading({ preserveCardNarration: true });
+        resetStreamingNarration({ preserveCardNarration: true });
         let runId = beginGestureSource();
         setVisualResume(null);
         const startController = new AbortController();

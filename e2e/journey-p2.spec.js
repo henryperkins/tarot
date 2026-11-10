@@ -117,7 +117,8 @@ for (const scenario of [
         question: 'new-year-reading', sessionSeed: 'new-year-reading', cards: [{ name: 'The Star' }], context: 'career',
       }));
       expect(saved.success).toBe(true);
-      await expect.poll(async () => (await state(page)).journey.seasonNarrative).toContain('The Star appeared 1x');
+      // One reading: its card has not repeated, so no card is named as a pattern.
+      await expect.poll(async () => (await state(page)).journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
       const current = await state(page);
       expect(current.journey.cadence).toEqual([{ label: 'Jan 2027', count: 1 }]);
       for (const scope of ['filters', 'scope']) {
@@ -156,7 +157,7 @@ for (const timeframe of ['30d', '90d']) {
       const current = await state(page);
       expect(current.journey.totalReadings).toBe(1);
       expect(current.journey.cadence.reduce((sum, month) => sum + month.count, 0)).toBe(1);
-      expect(current.journey.seasonNarrative).toContain('Strength appeared 1x');
+      expect(current.journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
       for (const scope of ['filters', 'scope']) {
         const csv = await downloadEntries(page, scope);
         expect(csv).toContain('recent-reading');
@@ -182,7 +183,7 @@ for (const [timeframe, event] of [['30d', 'focus'], ['90d', 'visibilitychange']]
     await page.clock.setSystemTime(new Date('2026-11-02T12:00:00Z'));
     await page.evaluate(event => (event === 'focus' ? window : document).dispatchEvent(new Event(event)), event);
     await expect.poll(async () => (await state(page)).filteredEntries.map(e => e.id)).toEqual(['recent-reading']);
-    expect((await state(page)).journey.seasonNarrative).toContain('Strength appeared 1x');
+    expect((await state(page)).journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
     const csv = await downloadEntries(page, 'scope');
     expect(csv).toContain('recent-reading');
     expect(csv).not.toContain('expired-while-asleep');
@@ -202,7 +203,7 @@ test('an active rolling window includes a later save and updates its summary aft
   await expect.poll(async () => (await state(page)).journey.seasonNarrative).toContain('Strength appeared 2x');
   expect(await downloadEntries(page, 'scope')).toContain('later-save');
   await page.evaluate(id => window.journeyP2.deleteEntry(id), saved.entry.id);
-  await expect.poll(async () => (await state(page)).journey.seasonNarrative).toContain('Strength appeared 1x');
+  await expect.poll(async () => (await state(page)).journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
   expect(await downloadEntries(page, 'scope')).not.toContain('later-save');
 });
 
@@ -222,7 +223,8 @@ test.describe('DST relative-filter exports', () => {
     // The lower endpoint crosses from February to March at 01:00 PDT, not midnight.
     await page.clock.fastForward(2000);
     await expect.poll(async () => (await state(page)).journey.cadence).toEqual([{ label: 'Mar 2026', count: 1 }]);
-    expect((await state(page)).journey.seasonNarrative).toContain('In your March readings');
+    // The single reading's card has not repeated; the summary still names the month.
+    expect((await state(page)).journey.seasonNarrative).toContain('your March readings');
     expect((await state(page)).filteredEntries.map(e => e.id)).toEqual(['march-reading']);
   });
 
@@ -430,7 +432,7 @@ test('Free saves and deletes update the summary through the real journal hook', 
   expect(saved.success).toBe(true);
   await expect.poll(async () => (await state(page)).journey.seasonNarrative).toContain('Strength appeared 2x');
   await page.evaluate(id => window.journeyP2.deleteEntry(id), saved.entry.id);
-  await expect.poll(async () => (await state(page)).journey.seasonNarrative).toContain('Strength appeared 1x');
+  await expect.poll(async () => (await state(page)).journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
 });
 
 test('obsolete persistent summary cache cannot override current readings', async ({ page }) => {
@@ -441,7 +443,7 @@ test('obsolete persistent summary cache cannot override current readings', async
     },
   })));
   await open(page);
-  expect((await state(page)).journey.seasonNarrative).toContain('Strength appeared 1x');
+  expect((await state(page)).journey.seasonNarrative).toMatch(/^No card has repeated in your .+ readings yet\./);
   expect((await state(page)).journey.seasonNarrative).not.toContain('99x');
 });
 
@@ -502,7 +504,8 @@ for (const mobile of [false, true]) {
     if (mobile) await openMobileJourney(page);
     await expect(page.getByRole('button', { name: 'View all time', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'View all time', exact: true }).click();
-    await expect(page.getByText(/Strength.*(?:1x|appeared)/).first()).toBeVisible();
+    // Desktop's summary and the phone's Journey both say no card has repeated yet.
+    await expect(page.getByText(/^No card has repeated/).first()).toBeVisible();
     await openPracticeSnapshot(page);
     await page.getByRole('button', { name: 'Custom', exact: true }).click();
     await expect(page.getByText('Select a valid start and end date for custom scope.').first()).toBeVisible();

@@ -8,7 +8,7 @@ const payload = { spreadInfo: { name: 'One-Card Insight', key: 'single' }, cards
 function request(body) { return new Request('https://tableau.test/api/tarot-reading', { method: 'POST', headers: { 'content-type': 'application/json', 'CF-Connecting-IP': '127.0.0.1' }, body: JSON.stringify(body) }); }
 function silence(t) { for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {}); }
 
-test('reading records a refused returned model, quality rejection usage, and accepted local fallback', async (t) => {
+test('reading records quality rejection usage, a refused returned model, and accepted local fallback', async (t) => {
   silence(t);
   const DB = await createD1();
   t.mock.method(globalThis, 'fetch', async (url) => String(url).includes('anthropic.com')
@@ -18,13 +18,16 @@ test('reading records a refused returned model, quality rejection usage, and acc
   assert.equal(response.status, 200);
   const rows = DB.rows('SELECT * FROM inference_attempts ORDER BY started_at');
   assert.equal(rows.length, 3);
-  assert.equal(rows[0].state, 'failed');
-  assert.equal(rows[0].reason, 'refusal');
-  assert.equal(rows[0].model, 'claude-returned-fallback');
-  assert.equal(rows[0].input_tokens, 100);
-  assert.equal(rows[1].state, 'rejected');
-  assert.equal(rows[1].model, 'gpt-returned');
-  assert.equal(rows[1].usage_status, 'known');
+  // The Responses API leads; Claude is the next provider after its rejected answer.
+  assert.equal(rows[0].provider, 'openai-native');
+  assert.equal(rows[0].state, 'rejected');
+  assert.equal(rows[0].model, 'gpt-returned');
+  assert.equal(rows[0].usage_status, 'known');
+  assert.equal(rows[1].provider, 'claude-api');
+  assert.equal(rows[1].state, 'failed');
+  assert.equal(rows[1].reason, 'refusal');
+  assert.equal(rows[1].model, 'claude-returned-fallback');
+  assert.equal(rows[1].input_tokens, 100);
   assert.equal(rows[2].provider, 'local-composer');
   assert.equal(rows[2].state, 'accepted');
   assert.equal(rows[2].usage_status, 'unknown');

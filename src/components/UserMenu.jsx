@@ -255,7 +255,7 @@ export function UserMenu({ condensed = false, installInMenu = false, compactGues
               `}
               aria-expanded={showDropdown}
               aria-haspopup="menu"
-              aria-label={`User menu for ${user?.username || 'account'}`}
+              aria-label={user?.username ? `Account menu for ${user.username}` : 'Account menu'}
             >
               <User className="w-4 h-4 shrink-0" aria-hidden="true" />
               {/* Mobile: show initial only, tablet+: show truncated username */}

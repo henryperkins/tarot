@@ -2,7 +2,7 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-10-23
+Last reviewed: 2026-11-05
 
 Apply migration 0034 before enabling server narration. Narration fails closed with
 503 if D1 accounting is unavailable. Users choose **ElevenLabs** or **Deepgram**
@@ -97,6 +97,65 @@ Audio queued in the response stream counts as produced audio; monthly accounting
 cannot prove that a browser listened to every byte or that a disconnected network
 received queued bytes. The client reports interrupted audio as an error and does
 not substitute a successful chime for failed narration.
+
+## Incoming cancellation and accounting cleanup
+
+The Worker keeps compatibility date `2025-11-24` and explicitly enables
+`enable_request_signal` alongside `nodejs_compat`. The TTS route registers one
+request lifecycle with the router's bound `waitUntil` before reservation writes.
+It stays pending through admission, streamed body processing, final accounting,
+and listener/timer cleanup. A reservation accepted after a disconnect is released
+before any provider dispatch. An INSERT whose acknowledgement fails retains its
+attempted ID internally; the handler releases only that guarded ID, including
+when the write never committed. Internal candidates never enter public errors.
+
+Abort signals stop local work; they do not finalize ahead of an in-flight paid
+read. One terminal operation selects settlement or release and retries only that
+same idempotent database operation, at most three attempts with 100 ms and 300 ms
+between them. Synthesis and reservation INSERTs are never automatically repeated.
+Permanent cleanup failure reports only the opaque reservation ID, provider, and
+stage. The 180-second crash lease remains recovery when cleanup cannot complete.
+`waitUntil` provides up to 30 seconds after disconnect; it does not guarantee
+120 seconds of background inference. Workers AI may finish remote inference
+after local cancellation; late bodies are cancelled and later pieces are blocked.
+
+## Card announcements and completed readings
+
+`useAudioController` coordinates the existing player. One buffered card request
+runs at a time, with at most one pending announcement containing the latest
+reveal. A completed, screened reading replaces that pending card and starts once
+the active card request succeeds. Interpretation startup preserves that active
+card work; explicit reset still cancels it. Automatic and manual requests for
+the same pending reading share one dispatch. While a full reading is pending,
+playing, or paused, cards cannot interrupt it or accumulate behind it. The
+full-reading Play button remains available during card narration; Pause/Resume
+and reading progress describe full-reading playback only.
+
+Stop, voice-off, provider change, reset, and unmount clear queued work and
+invalidate late completions. An active error also clears the queue and preserves
+its distinct recovery state. A fulfilled player promise may represent a reported
+error, so queue advancement also checks raw player state. Discarded automatic
+work is not silently resubmitted; a fresh manual Play action can retry. Turning
+auto-narration off discards pending automatic work while preserving ownership
+of an active card request, so manual Play still waits for that response. The player
+retains its streaming, autoplay-unlock, cache, and MediaSource backpressure rules.
+
+Queued feedback visibly says **“Finishing card narration before your reading…”**.
+Only HTTP 409 with `NARRATION_BUSY` maps to **“Another narration is finishing.
+Please wait a moment, then try again.”** Its manual Play hint uses a positive
+integer `Retry-After`, defaulting to two seconds. The interval is a minimum hint,
+not a countdown or a promise that another tab's narration has finished. Quota,
+rate-limit, provider, interrupted-body, and autoplay failures remain distinct;
+busy errors do not display an upgrade prompt.
+
+Local qualification uses fake providers and isolated databases. Socket tests
+connect directly to workerd and close both TCP directions before provider headers,
+after upstream bytes during buffered assembly, or after streamed bytes reach the
+client. They inspect real D1 triggers and require accounting cleanup within five
+seconds followed by admission of a same-identity request. Chromium and WebKit,
+including iPhone emulation, provide browser evidence; physical iPhone Safari
+unlocking, backgrounding, and interruptions remain a device check. Local
+reviewer authentication with mocked media does not establish live synthesis.
 
 ## Image and video availability
 

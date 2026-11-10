@@ -87,7 +87,7 @@ test.describe('State ownership through effects', () => {
       try {
         await page.goto('/journal');
         await expect(page.getByText('Cloud journal couldn’t load. Showing a saved copy from this device.', { exact: true })).toBeVisible();
-        await expect(page.getByText('Loaded: 200 of 200', { exact: true })).toBeVisible();
+        await expect(page.getByText(/^Showing 10 of 200 readings( · .+)?$/)).toBeVisible();
         const search = page.getByPlaceholder('Search readings...');
         await search.fill('alpha');
         await expect(page.locator('#journal-entry-old-search-answer')).toBeVisible();
@@ -124,7 +124,7 @@ test.describe('State ownership through effects', () => {
         return route.fulfill({ status: 500, json: { error: 'Complete history must be filtered locally.' } });
       });
       await page.goto('/journal');
-      await expect(page.getByText('Loaded: 200 of 200', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Showing 10 of 200 readings( · .+)?$/)).toBeVisible();
       const search = page.getByPlaceholder('Search readings...');
       await search.fill('alpha');
       await expect(page.getByText('Filtered: 26', { exact: true })).toBeVisible();

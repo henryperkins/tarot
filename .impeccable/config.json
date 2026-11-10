@@ -102,6 +102,15 @@
         ],
         "createdAt": "2026-10-21T02:34:56.824Z",
         "reason": "Codex triage: DESIGN.md intentionally specifies Inter Variable for body text. Support shares the established legal.css typography with Privacy."
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "src/components/DeckSelector.jsx"
+        ],
+        "createdAt": "2026-11-02T16:22:02.100Z",
+        "reason": "Claude triage, rendered check in the 2026-11-02 spread/deck audit: the <img> gets its src from a ref callback after <picture> has its sources (WebKit double-fetch guard), and the deck preview renders"
       }
     ]
   },

@@ -1,145 +1,158 @@
-import { useId } from 'react';
-import { ArrowLeft, ArrowRight, Info } from '@phosphor-icons/react';
+import { useId, useState } from 'react';
+import { ArrowRight, ArrowsClockwise, CaretDown, Info } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
 import { describeSuggestionSources } from '../../lib/coachSuggestions';
 
+// An open section, not a card: the questions carry the emphasis, and brass is
+// kept for the actions (row arrows and "New ideas"). Rows bleed into the
+// dialog padding so their text aligns with the heading while hover has room.
+// Focus uses the system's semantic outline (tarot.css), which survives forced
+// colors; the 8px bleed keeps its 3px offset inside the scroller.
+const ROW_CLASS = '-mx-2 flex w-[calc(100%+1rem)] items-start gap-3 rounded-xl px-2 text-left transition hover:bg-primary/5 active:bg-primary/10';
+const ACTION_CLASS = 'inline-flex min-h-touch shrink-0 items-center gap-2 rounded-lg px-2 text-sm font-medium transition hover:bg-primary/5 active:bg-primary/10';
+
 export function CoachSuggestionsPanel({
   personalizedSuggestions,
-  isSuggestionsExpanded,
-  setSuggestionsExpanded,
-  suggestionPageCount,
-  suggestionsPage,
-  setSuggestionsPage,
   visibleSuggestions,
+  cycleSuggestions,
   buildSuggestionPreview,
   handleSuggestionPick,
-  getTopicLabel,
-  getTimeframeLabel,
-  getDepthLabel,
   coachSnapshotLabel,
   coachSnapshotDetail
 }) {
   const idPrefix = useId();
+  const headingId = `${idPrefix}-heading`;
+  const alternativesId = `${idPrefix}-alternatives`;
+  // Handsets (narrow, or short in landscape) show the lead alone until asked,
+  // so the steps stay in view.
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
-  if (!personalizedSuggestions || personalizedSuggestions.length === 0) return null;
+  if (!visibleSuggestions || visibleSuggestions.length === 0) return null;
 
-  const suggestionCount = personalizedSuggestions.length;
-  const sourceSummary = describeSuggestionSources(personalizedSuggestions);
+  const [lead, ...alternatives] = visibleSuggestions;
+  // Describe the cards on screen; cycling can show a different mix of sources.
+  const sourceSummary = describeSuggestionSources(visibleSuggestions);
+  // The journal scope and its "Why am I seeing these?" signals explain journal
+  // cards, so they appear only while one is on screen.
+  const showJournalScope = Boolean(coachSnapshotLabel)
+    && visibleSuggestions.some(suggestion => suggestion?.source === 'journal');
+  const canCycle = personalizedSuggestions.length > visibleSuggestions.length;
+
+  const renderSuggestion = (suggestion, index, isLead) => {
+    const preview = buildSuggestionPreview(suggestion);
+    // Named by its label and described by its reason and question, so screen
+    // readers don't read the whole row as one run-on name.
+    const labelId = `${idPrefix}-${index}-label`;
+    const helperId = `${idPrefix}-${index}-helper`;
+    const previewId = `${idPrefix}-${index}-preview`;
+    const describedBy = [suggestion.helper && helperId, preview && previewId].filter(Boolean).join(' ') || undefined;
+
+    return (
+      <button
+        key={suggestion.id || suggestion.label}
+        type="button"
+        data-suggestion={isLead ? 'lead' : undefined}
+        onClick={() => handleSuggestionPick(suggestion, preview)}
+        aria-labelledby={labelId}
+        aria-describedby={describedBy}
+        className={`${ROW_CLASS} ${isLead ? 'py-3' : 'py-2.5'}`}
+      >
+        <span className="min-w-0 flex-1">
+          {preview && (
+            <span
+              id={previewId}
+              className={`block font-serif leading-snug text-main text-pretty wrap-break-word ${isLead ? 'text-lg sm:text-xl' : 'text-base'}`}
+            >
+              {preview}
+            </span>
+          )}
+          <span className={`block text-xs text-muted wrap-break-word ${preview ? 'mt-1' : ''}`}>
+            <span id={labelId} className="font-medium">{suggestion.label}</span>
+            {suggestion.helper && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span id={helperId}>{suggestion.helper}</span>
+              </>
+            )}
+          </span>
+        </span>
+        <ArrowRight className={`h-4 w-4 shrink-0 text-accent ${isLead ? 'mt-1.5' : 'mt-1'}`} aria-hidden="true" />
+      </button>
+    );
+  };
 
   return (
-    <section className="rounded-2xl border border-secondary/30 bg-surface-muted/40 p-4 space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <section aria-labelledby={headingId} className="border-b border-(--border-warm-light) pb-5">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-label-wide text-secondary">Suggested for you</p>
-          <p className="text-xs text-muted">
-            {isSuggestionsExpanded
-              ? sourceSummary
-              : `${suggestionCount} ${suggestionCount === 1 ? 'suggestion' : 'suggestions'} ready. Tap to peek.`}
+          <h3 id={headingId} className="font-serif text-lg leading-tight text-main">For you today</h3>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+            <span>{sourceSummary}</span>
+            {showJournalScope && (
+              <>
+                <span>{coachSnapshotLabel}</span>
+                {coachSnapshotDetail && (
+                  <Tooltip
+                    content={coachSnapshotDetail}
+                    position="top"
+                    ariaLabel="Why am I seeing these?"
+                    triggerClassName="-mx-3 -my-3.5 inline-flex min-h-touch min-w-touch items-center justify-center text-muted hover:text-main"
+                  >
+                    <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Tooltip>
+                )}
+              </>
+            )}
           </p>
-          {coachSnapshotLabel && (
-            <div className="mt-1 flex items-center gap-2 text-2xs text-secondary">
-              <span>{coachSnapshotLabel}</span>
-              {coachSnapshotDetail && (
-                <Tooltip
-                  content={coachSnapshotDetail}
-                  position="top"
-                  ariaLabel="Why am I seeing these?"
-                  triggerClassName="inline-flex min-h-touch min-w-touch items-center justify-center text-secondary hover:text-main"
-                >
-                  <Info className="h-3 w-3" aria-hidden="true" />
-                </Tooltip>
-              )}
-            </div>
-          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
-          {isSuggestionsExpanded && suggestionPageCount > 1 && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-secondary">
-              <button
-                type="button"
-                onClick={() => setSuggestionsPage(prev => (prev - 1 + suggestionPageCount) % suggestionPageCount)}
-                className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
-                aria-label="Previous suggestions"
-              >
-                <ArrowLeft className="h-3 w-3" aria-hidden="true" />
-              </button>
-              <span className="text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">
-                {suggestionsPage + 1}/{suggestionPageCount}
-              </span>
-              {/* Paging swaps the cards without moving focus; say where the reader is. */}
-              <span className="sr-only" aria-live="polite">
-                Page {suggestionsPage + 1} of {suggestionPageCount}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSuggestionsPage(prev => (prev + 1) % suggestionPageCount)}
-                className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full border border-secondary/40 px-2 py-1 hover:bg-secondary/10 transition"
-                aria-label="Next suggestions"
-              >
-                <ArrowRight className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </div>
-          )}
+        {canCycle && (
+          <button type="button" onClick={cycleSuggestions} className={`${ACTION_CLASS} -mr-2 text-accent`}>
+            <ArrowsClockwise className="h-4 w-4" aria-hidden="true" />
+            New ideas
+          </button>
+        )}
+      </div>
+
+      {/* Cycling swaps the lead without moving focus; say what is showing. */}
+      <span className="sr-only" aria-live="polite">
+        {lead?.label ? `Showing: ${lead.label}` : ''}
+      </span>
+
+      <div className="mt-2">
+        {renderSuggestion(lead, 0, true)}
+      </div>
+
+      {alternatives.length > 0 && (
+        <>
           <button
             type="button"
-            onClick={() => setSuggestionsExpanded(prev => !prev)}
-            aria-expanded={isSuggestionsExpanded}
-            aria-controls={isSuggestionsExpanded ? `${idPrefix}-list` : undefined}
-            className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-full border border-secondary/40 px-3 py-1 hover:bg-secondary/10 transition"
+            aria-expanded={showAlternatives}
+            aria-controls={alternativesId}
+            onClick={() => setShowAlternatives(shown => !shown)}
+            className={`${ACTION_CLASS} coach-suggestions__toggle -ml-2 text-muted hover:text-main sm:hidden landscape:inline-flex`}
           >
-            {isSuggestionsExpanded ? 'Hide' : 'Show'}
+            <CaretDown
+              className={`h-4 w-4 motion-safe:transition-transform ${showAlternatives ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
+            {showAlternatives
+              ? 'Fewer ideas'
+              : `${alternatives.length} more ${alternatives.length === 1 ? 'idea' : 'ideas'}`}
           </button>
-        </div>
-      </div>
-      {isSuggestionsExpanded && (
-        <div id={`${idPrefix}-list`} className="grid gap-3 sm:grid-cols-2 max-h-64 sm:max-h-80 overflow-y-auto pr-1 scrollbar-themed">
-          {visibleSuggestions.map((suggestion, index) => {
-            const preview = buildSuggestionPreview(suggestion);
-            const chips = [
-              getTopicLabel(suggestion.topic),
-              getTimeframeLabel(suggestion.timeframe),
-              getDepthLabel(suggestion.depth)
-            ].filter(Boolean);
-            // Name the card by its label and describe it by its question, so
-            // screen readers don't read the whole card as one run-on name.
-            const labelId = `${idPrefix}-${index}-label`;
-            const helperId = `${idPrefix}-${index}-helper`;
-            const previewId = `${idPrefix}-${index}-preview`;
-            const describedBy = [suggestion.helper && helperId, preview && previewId].filter(Boolean).join(' ') || undefined;
-            return (
-              <button
-                key={suggestion.id || suggestion.label}
-                type="button"
-                onClick={() => handleSuggestionPick(suggestion, preview)}
-                aria-labelledby={labelId}
-                aria-describedby={describedBy}
-                className="min-h-touch min-w-0 rounded-2xl border border-accent/20 bg-surface/70 p-3 text-left transition hover:border-secondary/60 hover:bg-surface-muted/60"
-              >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span id={labelId} className="block text-sm font-semibold text-main wrap-break-word">{suggestion.label}</span>
-                    {suggestion.helper && (
-                      <span id={helperId} className="mt-1 block text-xs text-secondary wrap-break-word">{suggestion.helper}</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">Use</span>
-                </span>
-                {preview && (
-                  <span id={previewId} className="mt-2 block text-sm text-main wrap-break-word">{preview}</span>
-                )}
-                {chips.length > 0 && (
-                  <span className="mt-2 flex flex-wrap gap-2 text-2xs uppercase tracking-label-wide text-secondary" aria-hidden="true">
-                    {chips.map(chip => (
-                      <span key={`${suggestion.id || suggestion.label}-${chip}`} className="rounded-full border border-secondary/30 px-2 py-1">
-                        {chip}
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+          {/* Hairlines sit on plain wrappers, not on the rounded rows, which
+              bleed past the text column for their hover and focus area. */}
+          <div
+            id={alternativesId}
+            data-expanded={showAlternatives}
+            className={`coach-suggestions__alternatives divide-y divide-(--border-warm-light) border-t border-(--border-warm-light) ${showAlternatives ? '' : 'max-sm:hidden landscape:hidden'}`}
+          >
+            {alternatives.map((suggestion, index) => (
+              <div key={suggestion.id || suggestion.label}>
+                {renderSuggestion(suggestion, index + 1, false)}
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

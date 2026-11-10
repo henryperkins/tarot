@@ -128,11 +128,11 @@ function AchievementsRow({ badges = [] }) {
       </div>
 
       {badges.length > 6 && (
-        <p className="text-2xs text-muted/70 mt-1">
+        <p className="text-2xs text-muted mt-1">
           +{badges.length - 6} more achievements
         </p>
       )}
-      <p className="text-2xs text-muted/70 mt-1">
+      <p className="text-2xs text-muted mt-1">
         Badge = card appeared 3+ times in this scope.
       </p>
     </div>

@@ -10,6 +10,7 @@ import { normalizeContext } from '../helpers.js';
 import {
   buildRetrievalSummary,
   getPassageCountForSpread,
+  hasMeaningfulGraphKeys,
   isGraphRAGEnabled,
   rankPassagesForPrompt,
   retrievePassages
@@ -141,22 +142,6 @@ function validateCardsInfoForPrompt(cardsInfo) {
       'Ensure each entry includes at least { card, position, orientation, meaning }.'
     );
   }
-}
-
-function hasMeaningfulGraphData(value) {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'boolean') return value === true;
-  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
-  if (typeof value === 'object') {
-    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
-  }
-  return false;
-}
-
-function hasMeaningfulGraphKeys(graphKeys) {
-  return hasMeaningfulGraphData(graphKeys);
 }
 
 function hasMeaningfulGraphRAGPayload(payload) {
@@ -470,6 +455,8 @@ export function buildEnhancedClaudePrompt({
     activeThemes?.knowledgeGraph?.graphRAGPayload ||
     null;
   let graphRAGInjectionDisabled = false;
+  // Separates a retrieval exception from a retrieval that matched nothing.
+  let graphRAGRetrievalFailed = false;
   if (!effectiveGraphRAGPayload && isGraphRAGEnabled(graphEnv) && hasMeaningfulGraphKeys(activeThemes?.knowledgeGraph?.graphKeys)) {
     const effectiveSpreadKey = spreadKey || 'general';
     const maxPassages = getPassageCountForSpread(effectiveSpreadKey, subscriptionTier);
@@ -530,6 +517,7 @@ export function buildEnhancedClaudePrompt({
         };
       } catch (err) {
         console.error('[GraphRAG] Pre-fetch failed:', err.message);
+        graphRAGRetrievalFailed = true;
         return null;
       }
     };
@@ -1174,6 +1162,8 @@ export function buildEnhancedClaudePrompt({
     if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
       if (!graphragEnabled) {
         retrievalSummary.skippedReason = 'disabled_by_env';
+      } else if (graphRAGRetrievalFailed) {
+        retrievalSummary.skippedReason = 'retrieval_error';
       } else if (graphRAGBudgetTrimmed) {
         retrievalSummary.skippedReason = 'removed_for_budget';
       } else {
@@ -1201,7 +1191,8 @@ export function buildEnhancedClaudePrompt({
       passagesUsedInPrompt: 0,
       retainedPassageCount: 0,
       skippedReason: !graphragEnabled ? 'disabled_by_env'
-        : graphRAGIntegrity.removedBlockCount > 0 ? 'reference_integrity_failed' : 'retrieval_failed_or_empty'
+        : graphRAGIntegrity.removedBlockCount > 0 ? 'reference_integrity_failed'
+          : graphRAGRetrievalFailed ? 'retrieval_error' : 'retrieval_failed_or_empty'
     };
   }
 

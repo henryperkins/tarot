@@ -9,6 +9,7 @@ import net from 'node:net';
 import tls from 'node:tls';
 import { syncBuiltinESMExports } from 'node:module';
 import { prepareNarrativeSamplePayload } from './runNarrativeSamples.js';
+import { UNIT_SUITE_CREDENTIAL_ENV_KEYS } from './lib/subscriptionNarrative.js';
 import { buildEnhancedClaudePrompt, parseGraphRAGReferenceBlock } from '../../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import { enforceGraphRAGPromptIntegrity, parseGraphRAGSummaryBlock, GRAPHRAG_PARTIAL_PATTERN_GUARDRAIL, GRAPHRAG_WEAK_MATCH_GUARDRAIL } from '../../functions/lib/narrative/prompts/graphRAGPromptIntegrity.js';
 import { GRAPHRAG_INTEGRITY_REMOVAL_REASONS } from '../../shared/graphRAGIntegrity.js';
@@ -34,6 +35,8 @@ import { getReadingPromptVersion } from '../../functions/lib/promptVersioning.js
 import { safeParseReadingRequest } from '../../shared/contracts/readingSchema.js';
 import { MAJOR_ARCANA } from '../../src/data/majorArcana.js';
 import { MINOR_ARCANA } from '../../src/data/minorArcana.js';
+
+export { UNIT_SUITE_CREDENTIAL_ENV_KEYS };
 
 const FIXTURES_URL = new URL('../../tests/fixtures/knowledge-graph-context-cases.json', import.meta.url);
 const V2_FIXTURES_URL = new URL('../../tests/fixtures/knowledge-graph-context-v2-cases.json', import.meta.url);
@@ -832,7 +835,7 @@ async function exerciseV2Fixture(fixture, summary) {
 export async function runDeterministicQualification({ corpus = JSON.parse(readFileSync(FIXTURES_URL, 'utf8')), quiet = true, developmentFixtureIds = null } = {}) {
   const originalLog = console.log;
   const originalWarn = console.warn;
-  const forbiddenSecretKeys = new Set(['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MODAL_PROXY_TOKEN', 'WANDB_API_KEY', 'AZURE_OPENAI_API_KEY']);
+  const forbiddenSecretKeys = new Set(UNIT_SUITE_CREDENTIAL_ENV_KEYS);
   assert.ok(!Object.keys(process.env).some(name => forbiddenSecretKeys.has(name)), 'Run deterministic qualification with a credential-free environment');
   const restoreNetwork = installOfflineNetworkGuard();
   if (quiet) { console.log = () => {}; console.warn = () => {}; }

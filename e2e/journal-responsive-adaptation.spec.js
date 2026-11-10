@@ -66,11 +66,17 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
           await page.evaluate(() => document.fonts.ready);
           await expectReadableTitle(article);
+          // The collapsed row names its first cards in text beside their art.
           for (const name of ['The Fool', 'The High Priestess']) {
             const chip = article.getByText(name, { exact: true });
             await expect(chip).toBeVisible();
             expect(await chip.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
           }
+          // Entry actions belong to the open reading; they fit it at 200% text.
+          const opener = article.getByRole('button', { name: entry.question, exact: true, expanded: false });
+          await opener.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+          await opener.click();
+          await expectReadableTitle(article);
           const actions = article.getByRole('button', { name: /^Open entry actions for / });
           await actions.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
           await actions.click();
@@ -81,8 +87,11 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           expect(menuBox.x + menuBox.width).toBeLessThanOrEqual(width);
           await page.keyboard.press('Escape');
           await expect(article.getByRole('button', { name: /^Open entry actions for / })).toBeFocused();
+          await article.getByRole('button', { name: entry.question, exact: true, expanded: true }).click();
 
+          // Phones keep the view switch in the Filters panel, beside the filter controls.
           const compact = page.getByTitle('Compact view - shows more entries', { exact: true });
+          if (!(await compact.isVisible())) await page.locator('#history').getByRole('button', { name: /^Filters/ }).click();
           await compact.press('Enter');
           await expect(compact).toHaveAttribute('aria-pressed', 'true');
           await expectReadableTitle(article);

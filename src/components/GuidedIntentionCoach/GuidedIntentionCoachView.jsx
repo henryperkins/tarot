@@ -35,13 +35,13 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     useCreative, currentQuestion, isManualQuestion, questionLoading, questionError, announcement,
     prefillSource, prefillSourceDescription, templates, newTemplateLabel,
     setNewTemplateLabel, templateStatus, templateUndo, handleUndoTemplateSave,
-    questionHistory, personalizedSuggestions, suggestionsPage, isSuggestionsExpanded,
+    questionHistory, personalizedSuggestions, cycleSuggestions,
     isTemplatePanelOpen, templatePanelIntent, astroHighlights, astroWindowDays,
     coachSnapshotLabel, coachSnapshotDetail, focusAreaSuggestedTopic,
     originalQuestion, previousQuestion, framingSuggestions = [], startFresh,
-    restoreOriginalQuestion, restorePreviousQuestion, suggestionPageCount,
+    restoreOriginalQuestion, restorePreviousQuestion,
     visibleSuggestions, setTimeframe, setTopic, setDepth, setCustomFocus,
-    setSuggestionsPage, setSuggestionsExpanded, editQuestion, remixQuestion,
+    editQuestion, remixQuestion,
     setCreativeMode, openTemplatePanel, closeTemplatePanel, releasePrefill,
     handleSaveTemplate, handleApplyTemplate, handleDeleteTemplate,
     handleSuggestionPick, handleApplyHistoryQuestion, canGoNext, goNext, goBack,
@@ -57,9 +57,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const scrollRef = useRef(null);
   const footerRef = useRef(null);
   const closeButtonRef = useRef(null);
-  const reviewHeadingRef = useRef(null);
   const customFocusRef = useRef(null);
   const stepButtonRefs = useRef([]);
+  const stepNavRef = useRef(null);
+  const footerStepTargetRef = useRef(null);
   const previousReviewRef = useRef({ step: null, request: -1 });
   const [footerInFlow, setFooterInFlow] = useState(false);
   const titleId = useId();
@@ -91,31 +92,56 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     backGuardId: 'intentionCoach'
   });
 
+  // The suggestions panel sits above the wizard, so "show this step" means
+  // bringing the step tabs to the top of the scroller, not scrolling to 0.
+  // Land exactly on the nav: any offset above it leaves a sliver of the
+  // suggestions (or, on Review, slices the step labels) in view.
+  const revealStepNav = useCallback(() => {
+    const container = scrollRef.current;
+    const nav = stepNavRef.current;
+    if (!container || !nav) return;
+    const top = nav.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+    container.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
+  }, []);
+
   useEffect(() => {
     if (!isOpen || isTemplatePanelOpen) return undefined;
     const last = previousReviewRef.current;
     const requestChanged = last.request !== reviewFocusRequest;
     const enteredReview = step === REVIEW_STEP && (last.step !== REVIEW_STEP || requestChanged);
+    if (!enteredReview) {
+      previousReviewRef.current = { step, request: reviewFocusRequest };
+      return undefined;
+    }
     const fromStepTab = document.activeElement?.getAttribute('role') === 'tab';
-    previousReviewRef.current = { step, request: reviewFocusRequest };
-    if (!enteredReview) return undefined;
     // Let a closing template layer restore its opener before moving to the
     // chosen question. Only step entry/picks move focus, never editor updates.
+    // The handled marker is written inside the timer: an effect remount
+    // (StrictMode included) clears the pending timer, and the next run must
+    // still see the entry as unhandled and reschedule the scroll.
     const timer = setTimeout(() => {
+      previousReviewRef.current = { step, request: reviewFocusRequest };
       // Arrow navigation keeps the active tab focused. Footer entry, initial
       // entry and explicit suggestion/template picks land in the editor.
       if (!fromStepTab || requestChanged) questionInputRef.current?.focus({ preventScroll: true });
-      reviewHeadingRef.current?.scrollIntoView({ block: 'start', behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+      // Keep the step tabs whole at the top of the scroller. Scrolling the
+      // heading below them to the top pushed the numbered circles and
+      // labels above the viewport and sliced them in half.
+      revealStepNav();
     }, 0);
     return () => clearTimeout(timer);
-  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, questionInputRef, prefersReducedMotion]);
+  }, [isOpen, step, reviewFocusRequest, isTemplatePanelOpen, questionInputRef, revealStepNav]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
     const measure = () => {
       const available = modalRef.current?.clientHeight || 0;
       const footer = footerRef.current?.getBoundingClientRect().height || 0;
-      if (available && footer) setFooterInFlow(footer > available * 0.25);
+      if (!available || !footer) return;
+      const inFlow = footer > available * 0.25;
+      setFooterInFlow(inFlow);
+      // Focus scrolling must clear the sticky footer, not stop beneath it.
+      scrollRef.current?.style.setProperty('--coach-footer-overlap', inFlow ? '0px' : `${Math.ceil(footer)}px`);
     };
     const observer = new ResizeObserver(measure);
     if (modalRef.current) observer.observe(modalRef.current);
@@ -132,10 +158,6 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     onDismiss: onClose, threshold: 120, resistance: 0.5
   });
 
-  useEffect(() => {
-    if (isOpen) setSuggestionsExpanded(!isSmallScreen);
-  }, [isOpen, isSmallScreen, setSuggestionsExpanded]);
-
   const buildSuggestionPreview = useCallback(suggestion => {
     if (!suggestion) return '';
     if (suggestion.question) return suggestion.question;
@@ -150,9 +172,31 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
     });
   }, [topic, timeframe, depth, selectedSpread]);
 
+  // Footer Back/Next change the step without touching the tabs; follow them
+  // to the step they moved to. Only a sticky footer stays put while the
+  // content scrolls, so an in-flow footer keeps its place. Other step changes
+  // (Start fresh, picks, restores) keep the reader where they are, and review
+  // has its own scroll and focus handling.
+  useEffect(() => {
+    const target = footerStepTargetRef.current;
+    footerStepTargetRef.current = null;
+    if (target !== step || step === REVIEW_STEP || footerInFlow) return;
+    revealStepNav();
+  }, [step, footerInFlow, revealStepNav]);
+
+  const footerBack = () => {
+    footerStepTargetRef.current = step - 1;
+    goBack();
+  };
+
+  const footerNext = () => {
+    footerStepTargetRef.current = step + 1;
+    goNext();
+  };
+
   const selectStep = index => {
     setStep(index);
-    if (index !== REVIEW_STEP) scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    if (index !== REVIEW_STEP) revealStepNav();
   };
 
   const handleStepKeyDown = (event, index) => {
@@ -217,7 +261,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
 
   const renderReview = () => (
     <section className="coach-review" aria-labelledby={reviewHeadingId}>
-      <h3 ref={reviewHeadingRef} id={reviewHeadingId} className="font-serif text-xl sm:text-2xl text-main">Review your question</h3>
+      <h3 id={reviewHeadingId} className="font-serif text-xl sm:text-2xl text-main">Review your question</h3>
       <div className="space-y-2" aria-busy={questionLoading}>
         <label htmlFor={questionId} className="block text-sm font-medium text-main">Your Question</label>
         <textarea
@@ -281,8 +325,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const renderStep = id => {
     if (id === 'topic') return (
       <div className="space-y-4">
-        <p id={topicPromptId} className="text-base text-main">What area do you want to explore?</p>
-        {spreadQuestionContext && <p className="text-sm text-secondary"><span className="font-medium text-main">Shaped for your spread: {spreadQuestionContext.shortName}.</span> {spreadQuestionContext.hint} Your existing wording stays as written until you ask for a new version.</p>}
+        <div>
+          <p id={topicPromptId} className="text-base text-main">What area do you want to explore?</p>
+          {spreadQuestionContext && <p className="text-xs text-muted">Spread: {spreadQuestionContext.shortName}</p>}
+        </div>
         {renderOptions(INTENTION_TOPIC_OPTIONS, topic, setTopic, topicPromptId, 'md:grid-cols-2')}
       </div>
     );
@@ -308,12 +354,10 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
   const closesFromFooter = isSmallScreen && step === 0;
   const suggestions = (
     <CoachSuggestionsPanel
-      personalizedSuggestions={personalizedSuggestions} isSuggestionsExpanded={isSuggestionsExpanded}
-      setSuggestionsExpanded={setSuggestionsExpanded} suggestionPageCount={suggestionPageCount}
-      suggestionsPage={suggestionsPage} setSuggestionsPage={setSuggestionsPage}
-      visibleSuggestions={visibleSuggestions} buildSuggestionPreview={buildSuggestionPreview}
-      handleSuggestionPick={handleSuggestionPick} getTopicLabel={getTopicLabel}
-      getTimeframeLabel={getTimeframeLabel} getDepthLabel={getDepthLabel}
+      personalizedSuggestions={personalizedSuggestions}
+      visibleSuggestions={visibleSuggestions} cycleSuggestions={cycleSuggestions}
+      buildSuggestionPreview={buildSuggestionPreview}
+      handleSuggestionPick={handleSuggestionPick}
       coachSnapshotLabel={coachSnapshotLabel} coachSnapshotDetail={coachSnapshotDetail}
     />
   );
@@ -346,21 +390,38 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
               </div>
             </div>
             <div className="coach-dialog__body">
-              <div className="coach-step-nav">
-                <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Coach wizard steps">
-                  {STEPS.map((entry, index) => (
+              {suggestions}
+              {/* Numbered steps joined by rules; the rules up to the current
+                  step take the accent so progress reads at a glance. */}
+              <div ref={stepNavRef} className="coach-step-nav" role="tablist" aria-label="Coach wizard steps">
+                {STEPS.map((entry, index) => {
+                  const isCurrent = index === step;
+                  const isPassed = index < step;
+                  return (
                     <Fragment key={entry.id}>
+                      {index > 0 && <span className={`coach-step-rule ${index <= step ? 'coach-step-rule--passed' : ''}`} aria-hidden="true" />}
                       <button
                         ref={element => { stepButtonRefs.current[index] = element; }} type="button"
-                        id={`step-tab-${entry.id}`} role="tab" aria-selected={index === step}
-                        aria-controls={`step-panel-${entry.id}`} tabIndex={index === step ? 0 : -1}
-                        className={`coach-step min-h-touch rounded-lg px-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent ${index === step ? 'bg-accent text-surface forced-colors:underline' : 'text-secondary hover:bg-secondary/10'}`}
+                        id={`step-tab-${entry.id}`} role="tab" aria-selected={isCurrent}
+                        aria-controls={`step-panel-${entry.id}`} tabIndex={isCurrent ? 0 : -1}
+                        className="coach-step group"
                         onClick={() => selectStep(index)} onKeyDown={event => handleStepKeyDown(event, index)}
-                      >{entry.label}</button>
+                      >
+                        <span
+                          className={`coach-step__dot text-sm transition-colors ${isCurrent
+                            ? 'border-accent bg-accent font-bold text-surface'
+                            : isPassed
+                              ? 'border-accent bg-accent/15 font-semibold text-main'
+                              : 'border-accent/80 font-semibold text-accent group-hover:border-accent'}`}
+                          aria-hidden="true"
+                        >{index + 1}</span>
+                        <span className={`whitespace-nowrap text-xs-plus transition-colors ${isCurrent ? 'font-bold text-main forced-colors:underline' : 'font-medium text-muted group-hover:text-main'}`}>
+                          {entry.label}
+                        </span>
+                      </button>
                     </Fragment>
-                  ))}
-                </div>
-                <p className="text-xs text-secondary">Step {step + 1} of {STEPS.length}</p>
+                  );
+                })}
               </div>
               {STEPS.map((entry, index) => (
                 <div key={entry.id} id={`step-panel-${entry.id}`} role="tabpanel" aria-labelledby={`step-tab-${entry.id}`} hidden={step !== index} tabIndex={step === index ? 0 : -1} className="coach-step-panel">
@@ -370,15 +431,14 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
               <div className="coach-library-tools">
                 <button type="button" onClick={() => openTemplatePanel('browse')} aria-haspopup="dialog" className={quietButton}><BookmarkSimple className="h-4 w-4" aria-hidden="true" />Templates</button>
               </div>
-              {suggestions}
               <p className="mt-4 text-xs text-secondary">Unfinished wording stays available while this page is open. Reloading starts a new coach session.</p>
             </div>
             <footer ref={footerRef} className={`coach-dialog__footer ${footerInFlow ? 'coach-dialog__footer--flow' : ''}`}>
               <div className="coach-footer-actions">
-                <button type="button" onClick={closesFromFooter ? onClose : goBack} aria-disabled={(step === 0 && !closesFromFooter) || undefined} className={`${footerButton} border border-secondary/40 bg-surface-muted text-secondary aria-disabled:opacity-40`}>
+                <button type="button" onClick={closesFromFooter ? onClose : footerBack} aria-disabled={(step === 0 && !closesFromFooter) || undefined} className={`${footerButton} border border-secondary/40 bg-surface-muted text-secondary aria-disabled:opacity-40`}>
                   {closesFromFooter ? <X className="h-4 w-4 shrink-0" aria-hidden="true" /> : <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />}{closesFromFooter ? 'Close' : 'Back'}
                 </button>
-                {step < REVIEW_STEP ? <button type="button" onClick={goNext} disabled={!canGoNext()} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{step === 2 ? 'Review question' : 'Next'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></button>
+                {step < REVIEW_STEP ? <button type="button" onClick={footerNext} disabled={!canGoNext()} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{step === 2 ? 'Review question' : 'Next'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /></button>
                   : <button type="button" onClick={handleApply} disabled={!currentQuestion.trim() || questionLoading} className={`${footerButton} bg-accent text-surface hover:bg-primary disabled:opacity-50`}><span>{questionLoading ? 'Refining…' : 'Use this question'}</span><Sparkle className="h-4 w-4 shrink-0" aria-hidden="true" /></button>}
               </div>
             </footer>

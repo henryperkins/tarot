@@ -900,6 +900,8 @@ export function SpreadTable({
 
       {/* Position placeholders */}
       {visibleLayout.map((pos, i) => {
+        const slotNumber = i + 1;
+        const cardLabelPrefix = readingTable ? `Position ${slotNumber}: ` : '';
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
@@ -922,7 +924,7 @@ export function SpreadTable({
             `}
             aria-hidden="true"
           >
-            {i + 1}
+            {slotNumber}
           </div>
         );
 
@@ -969,7 +971,7 @@ export function SpreadTable({
                   ...(cardSizeStyle || {})
                 }}
                 aria-label={
-                  readingTable ? `${positionLabel}: empty position` : isNext
+                  readingTable ? `${slotNumber}. ${positionLabel}: empty position` : isNext
                     ? MICROCOPY.revealPosition(shortLabel)
                     : i < nextDealIndex
                       ? `${positionLabel}: waiting for card`
@@ -991,6 +993,7 @@ export function SpreadTable({
                   scaleKeyframes={[1, 1, 1]}
                   reducedOpacity={0.5}
                 />
+                {' '}
                 <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs'} text-muted text-center px-1 leading-tight`}>
                   {isNext && !readingTable ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
@@ -1073,10 +1076,10 @@ export function SpreadTable({
               dealOrder={i}
               ariaLabel={card
                 ? isRevealed
-                  ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
+                  ? `${cardLabelPrefix}${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
                   : disableReveal
-                    ? `${positionLabel} position. Draw from the deck to reveal.`
-                    : `Card in ${positionLabel} position. Click to reveal.`
+                    ? `${cardLabelPrefix}${positionLabel} position. Draw from the deck to reveal.`
+                    : `${cardLabelPrefix}Card in ${positionLabel} position. Click to reveal.`
                 : undefined
               }
             >

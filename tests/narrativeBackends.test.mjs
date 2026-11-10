@@ -693,7 +693,7 @@ describe('Claude backend + dispatch coverage', () => {
     });
   }
 
-  it('puts the Claude API ahead of Modal, the Responses API and the local composer', () => {
+  it('puts the Responses API ahead of the Claude API, Modal and the local composer', () => {
     const backends = getAvailableNarrativeBackends({
       ANTHROPIC_API_KEY: 'anthropic-test-key',
       MODAL_PROXY_TOKEN_ID: 'test-id',
@@ -703,11 +703,11 @@ describe('Claude backend + dispatch coverage', () => {
     });
     assert.deepEqual(
       backends.map((backend) => backend.id),
-      ['claude-api', 'modal-qwen', 'openai-native', 'local-composer']
+      ['openai-native', 'claude-api', 'modal-qwen', 'local-composer']
     );
   });
 
-  it('prioritizes Modal while retaining the configured Responses and local fallbacks', () => {
+  it('keeps a legacy-token Modal backend behind the Responses API and ahead of the local composer', () => {
     const backends = getAvailableNarrativeBackends({
       MODAL_PROXY_TOKEN: 'wk-test.ws-test',
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
@@ -717,7 +717,7 @@ describe('Claude backend + dispatch coverage', () => {
 
     assert.deepEqual(
       backends.map((backend) => backend.id),
-      ['modal-qwen', 'openai-native', 'local-composer']
+      ['openai-native', 'modal-qwen', 'local-composer']
     );
   });
 
@@ -728,7 +728,7 @@ describe('Claude backend + dispatch coverage', () => {
       MODAL_ENDPOINT_URL: 'https://example.modal.direct',
       OPENAI_API_KEY: 'openai-test-key'
     });
-    assert.deepEqual(backends.map((backend) => backend.id), ['modal-qwen', 'openai-native', 'local-composer']);
+    assert.deepEqual(backends.map((backend) => backend.id), ['openai-native', 'modal-qwen', 'local-composer']);
   });
 
   it('excludes an incomplete Modal credential pair even when a legacy token exists', () => {

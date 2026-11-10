@@ -24,6 +24,18 @@ describe('coach question framing suggestions', () => {
     }
   });
 
+  it('knows everyday content words, so English closed questions about them still get guidance', () => {
+    for (const question of ['Will I get the promotion?', 'Should I accept the offer from the studio?', 'Will I get the apartment?']) {
+      assert.ok(getQuestionFramingSuggestions(question).some(text => /yes-or-no/i.test(text)), question);
+    }
+  });
+
+  it('abstains when one word after an English opening is unknown, as in mixed-language questions', () => {
+    for (const question of ['Will I find a trabajo?', 'Should I accept the oferta?', 'Will my entrevista go well?', 'How can I guarantee mon travail?']) {
+      assert.deepEqual(getQuestionFramingSuggestions(question), [], question);
+    }
+  });
+
   it('does not mistake unrelated without or let-go phrases for accepting uncertainty', () => {
     for (const question of [
       'How can I guarantee my partner comes back without change?',

@@ -134,7 +134,7 @@ for (const width of [390, 1280]) {
         await dialog.getByLabel('Password', { exact: true }).fill('Reflection123');
         await dialog.getByRole('button', { name: 'Sign In', exact: true }).click();
         await expect(dialog).toBeHidden();
-        await page.getByRole('button', { name: 'User menu for reader', exact: true }).filter({ visible: true }).first().click();
+        await page.getByRole('button', { name: 'Account menu for reader', exact: true }).filter({ visible: true }).first().click();
         await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click();
         await openAccountOptions(page);
         await opener.click();
@@ -258,7 +258,7 @@ for (const width of [320, 1280]) {
       await page.screenshot({ path: testInfo.outputPath('governance.png'), fullPage: true });
       const { violations } = await new AxeBuilder({ page })
         .include('.governance-critique-page')
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
       expect(violations.map(({ id, nodes }) => ({ id, targets: nodes.map(node => node.target) }))).toEqual([]);
     });
   }

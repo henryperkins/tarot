@@ -50,6 +50,9 @@ export async function checkGuestUi(context, run, { targetUrl, guard, signal, log
         await expect(page.getByRole('dialog', { name: 'Prepare your reading', exact: true })).toBeVisible();
       }
       const decks = page.getByRole('radiogroup', { name: 'Choose your deck style', exact: true });
+      if (!handset && !await decks.isVisible()) {
+        await page.getByRole('button', { name: /^Deck / }).click();
+      }
       const choices = decks.getByRole('radio');
       await expect(choices).toHaveCount(3);
       for (let i = 0; i < 3; i++) {
@@ -80,7 +83,7 @@ export async function checkGuestUi(context, run, { targetUrl, guard, signal, log
         .fill('What should I reflect on today?');
       await page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true }).first().click();
       await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-      await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+      await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
       await expect(page.getByRole('status').filter({ hasText: '3 of 3 cards revealed' })).toBeVisible();
       await expect(page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first()).toBeVisible();
       const size = await page.evaluate(() => ({ width: globalThis.innerWidth, content: globalThis.document.documentElement.scrollWidth }));

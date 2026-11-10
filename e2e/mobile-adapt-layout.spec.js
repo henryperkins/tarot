@@ -87,7 +87,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await drawWithQuestion(page, LONG_QUESTION);
         await expectClampedQuestion(page.locator('.reading-table'));
         await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-        await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
         await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
         await expectClampedQuestion(page.locator('.reading-screen--preparing'));
         await fixture.completeReading();
@@ -160,12 +160,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('phones introduce spreads with the step line alone; wide screens keep the panel heading', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await openSetup(page);
-      const panelHeading = page.locator('.spread-selector-panel').getByText('Spread Selection', { exact: true });
-      await expect(panelHeading).toHaveCount(0);
+      // Phones keep the panel heading for screen-reader navigation only.
+      const panelHeading = page.locator('.spread-selector-panel').getByRole('heading', { name: 'Spread Selection', exact: true });
+      await expect(panelHeading).toHaveClass(/(^|\s)sr-only(\s|$)/);
       await expect(page.getByText('Pick a spread', { exact: true })).toBeVisible();
       // Taller than the handset query's 960px, so touch devices leave handset layout too.
       await page.setViewportSize({ width: 1280, height: 1000 });
       await expect(panelHeading).toBeVisible();
+      await expect(panelHeading).not.toHaveClass(/(^|\s)sr-only(\s|$)/);
     });
 
     test('spread details wrap instead of clipping at 200% zoom', async ({ page }) => {

@@ -23,13 +23,12 @@ function getHeatColor(count, maxCount) {
   return 'rgb(var(--brand-primary-rgb) / 0.06)';
 }
 
-function handleRowKeyDown(event) {
-  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-  event.preventDefault();
-  const row = event.currentTarget;
-  const delta = event.key === 'ArrowRight' ? 64 : -64;
-  row.scrollLeft = Math.max(0, Math.min(row.scrollWidth - row.clientWidth, row.scrollLeft + delta));
-}
+// Each row fits its width: eleven tiles of at least 1.5rem share it (the row
+// stops growing at 25rem) and wrap only when enlarged text needs more room, so
+// no numeral hides behind a scroll. A flexible track keeps the column count
+// set by the 1.5rem minimum.
+const ROW_CLASS = 'grid max-w-[25rem] grid-cols-[repeat(auto-fit,minmax(1.5rem,1fr))] gap-0.5';
+const TILE_CLASS = 'h-6 xs:h-7 min-w-0 rounded flex items-center justify-center text-2xs font-medium transition-colors';
 
 function MajorArcanaMap({ data = [] }) {
   // Build a lookup map by name and number
@@ -63,31 +62,19 @@ function MajorArcanaMap({ data = [] }) {
         Major Arcana Focus
       </p>
 
-      {/* Grid layout - 11 columns for first row, 11 for second */}
-      {/* Responsive: smaller tiles on narrow screens to avoid overflow */}
+      {/* Two rows of eleven: 0-X, then XI-XXI. */}
       <div className="space-y-1">
-        {/* First row: 0-X (indices 0-10) */}
-        <div
-          role="group"
-          aria-label="Major Arcana 0 to 10"
-          tabIndex={0}
-          onKeyDown={handleRowKeyDown}
-          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)"
-        >
+        <div role="group" aria-label="Major Arcana 0 to 10" className={ROW_CLASS}>
           {ROMAN_NUMERALS.slice(0, 11).map((numeral, index) => {
             const count = countMap.get(index) || 0;
             return (
               <div
                 key={index}
                 role="img"
-                className={`
-                  shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
-                  text-2xs xs:text-2xs font-medium transition-colors
-                  ${count > 0 ? 'text-main' : 'text-muted'}
-                `}
+                className={`${TILE_CLASS} ${count > 0 ? 'text-main' : 'text-muted'}`}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
-                aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
+                aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} ${count === 1 ? 'time' : 'times'}`}
               >
                 {numeral}
               </div>
@@ -95,14 +82,7 @@ function MajorArcanaMap({ data = [] }) {
           })}
         </div>
 
-        {/* Second row: XI-XXI (indices 11-21) */}
-        <div
-          role="group"
-          aria-label="Major Arcana 11 to 21"
-          tabIndex={0}
-          onKeyDown={handleRowKeyDown}
-          className="flex gap-0.5 xs:gap-1 justify-start overflow-x-auto pb-1 scrollbar-none rounded focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring-color)"
-        >
+        <div role="group" aria-label="Major Arcana 11 to 21" className={ROW_CLASS}>
           {ROMAN_NUMERALS.slice(11).map((numeral, i) => {
             const index = i + 11;
             const count = countMap.get(index) || 0;
@@ -110,14 +90,10 @@ function MajorArcanaMap({ data = [] }) {
               <div
                 key={index}
                 role="img"
-                className={`
-                  shrink-0 w-6 h-6 xs:w-7 xs:h-7 rounded flex items-center justify-center
-                  text-2xs xs:text-2xs font-medium transition-colors
-                  ${count > 0 ? 'text-main' : 'text-muted'}
-                `}
+                className={`${TILE_CLASS} ${count > 0 ? 'text-main' : 'text-muted'}`}
                 style={{ backgroundColor: getHeatColor(count, maxCount) }}
                 title={`${MAJOR_ARCANA_NAMES[index]}: ${count}x`}
-                aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} times`}
+                aria-label={`${MAJOR_ARCANA_NAMES[index]}: appeared ${count} ${count === 1 ? 'time' : 'times'}`}
               >
                 {numeral}
               </div>

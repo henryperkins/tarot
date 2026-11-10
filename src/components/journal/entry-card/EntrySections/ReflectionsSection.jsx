@@ -43,11 +43,13 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
   const tooLong = draft.length > MAX_REFLECTION_LENGTH;
   const canSave = Boolean(draft.trim()) && !tooLong && !saving;
 
-  // Opening the editor moves focus to its first field, caret after the note.
+  // Opening the editor moves focus to the note itself, caret after its text, so
+  // typing writes the note (never a type-ahead pick in the "Reflect on" select,
+  // which stays one Shift+Tab before it).
   useEffect(() => {
-    const field = formRef.current?.querySelector('select, textarea');
+    const field = formRef.current?.querySelector('textarea');
     field?.focus();
-    if (field?.tagName === 'TEXTAREA') field.setSelectionRange(field.value.length, field.value.length);
+    field?.setSelectionRange(field.value.length, field.value.length);
   }, []);
 
   useEffect(() => {
