@@ -1,9 +1,31 @@
 #!/usr/bin/env node
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { parseJsoncConfig } from '../deploy.js';
 import { loadVisionDataset } from './lib/visionEvaluationDataset.js';
-import { resolveNarrativeEvalBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
+import { OPENAI_EVAL_KEY_VARIABLE, UNIT_SUITE_CREDENTIAL_ENV_KEYS, resolveReleaseNarrativeBackend, verifyNarrativeSubscription } from './lib/subscriptionNarrative.js';
+import { resolveOpenAITimeoutMs } from '../../functions/lib/openaiResponses.js';
+import { READING_BUFFERED_ATTEMPT_MAX_MS, getTaskTimeoutMs } from '../../functions/lib/requestDeadline.js';
+import { isOpenAITokenStreamingEnabled } from '../../functions/lib/readingTelemetry.js';
+
+/**
+ * How long production lets one OpenAI reading run: the OpenAI request deadline
+ * (OPENAI_TIMEOUT_MS) inside the reading task budget, and inside the buffered
+ * attempt cap when token streaming is off. Readings run as reading jobs, which
+ * always request the stream.
+ */
+export function resolveProductionOpenAIReadingDeadlineMs(vars = {}) {
+  const deadlines = [resolveOpenAITimeoutMs(vars), getTaskTimeoutMs(vars, 'reading')];
+  if (!isOpenAITokenStreamingEnabled(vars)) deadlines.push(READING_BUFFERED_ATTEMPT_MAX_MS);
+  return Math.min(...deadlines);
+}
+
+async function readProductionVars() {
+  const config = parseJsoncConfig(await fs.readFile(path.resolve(process.cwd(), 'wrangler.jsonc'), 'utf-8'));
+  return config.vars || {};
+}
 
 export async function main() {
   const directory = process.env.VISION_EVAL_MANIFEST_DIR;
@@ -17,17 +39,40 @@ export async function main() {
   } else {
     console.log('Vision qualification not run: VISION_EVAL_MANIFEST_DIR is unset. Photo recognition and symbol quality remain unverified.');
   }
-  const backend = resolveNarrativeEvalBackend(process.env.NARRATIVE_EVAL_BACKEND, { requireLive: true });
-  await verifyNarrativeSubscription(process.env);
-  const env = { ...process.env, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: 'claude-code' };
+  // The narrative gate grades readings from the production primary provider.
+  const backend = resolveReleaseNarrativeBackend(process.env.NARRATIVE_EVAL_BACKEND);
+  // Provider credentials never reach the unit suites or the offline prompt
+  // verifier, which refuses to run while any of them is present; the narrative
+  // check alone receives the OpenAI key, under its evaluation-only name.
+  const { [OPENAI_EVAL_KEY_VARIABLE]: evalOpenAIKey, ...hostEnv } = process.env;
+  const shellOpenAIKey = hostEnv.OPENAI_API_KEY;
+  for (const name of UNIT_SUITE_CREDENTIAL_ENV_KEYS) delete hostEnv[name];
+  let narrativeCredentials = {};
+  if (backend === 'openai-native') {
+    const key = String(evalOpenAIKey || shellOpenAIKey || '').trim();
+    if (!key) {
+      throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider.`);
+    }
+    // Samples are buffered, but each gets the deadline a production reading
+    // gets, so the gate cannot pass a reading that production would cut off.
+    // A shell OPENAI_TIMEOUT_MS cannot loosen it; change wrangler.jsonc and the
+    // live variable together instead.
+    const deadlineMs = resolveProductionOpenAIReadingDeadlineMs(await readProductionVars());
+    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key, OPENAI_TIMEOUT_MS: String(deadlineMs) };
+    console.log(`Release narrative gate: grading openai-native readings through the paid OpenAI Responses API, with production's ${deadlineMs / 1000} s deadline for each.`);
+  } else {
+    await verifyNarrativeSubscription(process.env);
+  }
+  const env = { ...hostEnv, NARRATIVE_EVAL_BACKEND: backend, TEXT_PROVIDER: backend === 'claude-code' ? 'claude-code' : 'legacy' };
   const checks = ['test', 'test:deploy', 'lint:cloudflare', 'docs:check'];
   if (directory) checks.push('ci:vision-check');
   checks.push('ci:narrative-check');
   for (const script of checks) {
     const args = ['run', script];
+    const scriptEnv = script === 'ci:narrative-check' ? { ...env, ...narrativeCredentials } : env;
     const result = process.platform === 'win32'
-      ? spawnSync(process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', 'npm', ...args], { stdio: 'inherit', env })
-      : spawnSync('npm', args, { stdio: 'inherit', env });
+      ? spawnSync(process.env.COMSPEC || 'cmd.exe', ['/d', '/s', '/c', 'npm', ...args], { stdio: 'inherit', env: scriptEnv })
+      : spawnSync('npm', args, { stdio: 'inherit', env: scriptEnv });
     if (result.status !== 0) throw new Error(`Release check ${script} failed or could not run.`);
   }
 }

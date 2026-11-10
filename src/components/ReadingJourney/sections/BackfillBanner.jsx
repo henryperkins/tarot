@@ -6,8 +6,9 @@
  * the benefit of running backfill (enhanced server-side analytics).
  */
 
-import { ArrowsClockwise, Info, X, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { ArrowsClockwise, Info, CheckCircle, XCircle } from '@phosphor-icons/react';
 import { useState } from 'react';
+import { CloseButton } from '../../CloseButton';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 import { COMPACT_SYNC_ACTION_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
@@ -80,7 +81,7 @@ export default function BackfillBanner({
         <button
           onClick={onBackfill}
           disabled={isBackfilling}
-          className="ml-auto min-h-touch inline-flex items-center text-(--status-error) hover:text-[color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
+          className="ml-auto min-h-touch min-w-touch shrink-0 px-2 inline-flex items-center justify-center text-(--status-error) hover:text-[color-mix(in_srgb,var(--status-error)_80%,transparent)] underline disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) rounded"
         >
           {isBackfilling ? 'Retrying...' : 'Retry'}
         </button>
@@ -113,13 +114,7 @@ export default function BackfillBanner({
           />
           {isBackfilling ? 'Analyzing...' : 'Analyze'}
         </button>
-        <button
-          onClick={handleDismiss}
-          className="min-h-touch min-w-touch flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
-          aria-label="Remind me in 7 days"
-        >
-          <X className="h-3 w-3" />
-        </button>
+        <CloseButton label="Remind me in 7 days" size="sm" onClick={handleDismiss} className="-m-2" />
       </div>
     );
   }
@@ -127,13 +122,12 @@ export default function BackfillBanner({
   // Default variant
   return (
     <div className="relative rounded-xl bg-gradient-ambient border border-(--border-warm-light) p-3">
-      <button
+      <CloseButton
+        label="Remind me in 7 days"
+        size="sm"
         onClick={handleDismiss}
-        className="absolute top-2 right-2 min-h-touch min-w-touch flex items-center justify-center -m-2 text-muted hover:text-main touch-manipulation"
-        aria-label="Remind me in 7 days"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
+        className="absolute top-2 right-2 -m-2"
+      />
       <div className="flex items-start gap-3 pr-4">
         <div className="rounded-full bg-(--accent-25) p-1.5">
           <ArrowsClockwise className="h-3.5 w-3.5 text-(--brand-primary)" aria-hidden="true" />

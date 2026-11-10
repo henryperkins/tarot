@@ -6,6 +6,9 @@ import { memo } from 'react';
 import { Fire } from '@phosphor-icons/react';
 import { CoachSuggestion } from '../../CoachSuggestion';
 import CoachSuggestionSwitcher from '../CoachSuggestionSwitcher';
+import EmptyScopeNotice from './EmptyScopeNotice';
+import { META_LABEL_CLASS } from '../../../styles/labelClasses';
+import { JournalCardIcon } from '../../JournalIcons';
 
 function SeasonSummary({
   narrative,
@@ -33,6 +36,8 @@ function SeasonSummary({
   timezone,
   filtersActive,
   scopeLabel,
+  hasHistory = false,
+  onScopeSelect,
 }) {
   // Format the season window for display
   const formatSeasonLabel = () => {
@@ -81,7 +86,7 @@ function SeasonSummary({
   };
 
   return (
-    <div className="rounded-xl bg-linear-to-br from-primary/10 via-primary/5 to-transparent p-4 border border-primary/10">
+    <div className="rounded-xl bg-(--bg-surface) p-4 border border-primary/20">
       {/* Season Label */}
       {seasonWindow && (
         <p className="text-sm sm:text-xs text-muted mb-2">{formatSeasonLabel()}</p>
@@ -92,9 +97,11 @@ function SeasonSummary({
         <p className="text-base sm:text-sm text-muted-high leading-relaxed mb-3">
           {narrative}
         </p>
+      ) : hasHistory && totalReadings === 0 ? (
+        <EmptyScopeNotice onScopeSelect={onScopeSelect} />
       ) : (
         <p className="text-base sm:text-sm text-muted mb-3">
-          Start tracking your journey with more readings.
+          {totalReadings > 0 ? 'No card data in this scope yet.' : 'Start tracking your journey with more readings.'}
         </p>
       )}
 
@@ -103,10 +110,10 @@ function SeasonSummary({
         <div className="flex flex-wrap gap-2">
           {topCard && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main">
-              <span className="text-accent/80">🃏</span>
+              <JournalCardIcon className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
               {topCard.name}: {topCard.count}x
               {cardFrequencyReliable === false && (
-                <span className="ml-1 text-2xs uppercase tracking-[0.14em] text-accent/70">
+                <span className={`${META_LABEL_CLASS} ml-1 text-accent`}>
                   emerging
                 </span>
               )}
@@ -118,7 +125,7 @@ function SeasonSummary({
           {currentStreak > 0 && (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs text-main"
-              title="Counts from yesterday if no reading today (grace period)."
+              title="Across your journal. Counts from yesterday if no reading today (grace period)."
             >
               <Fire className="h-3 w-3 text-accent" />
               {currentStreak}-day streak
@@ -126,13 +133,13 @@ function SeasonSummary({
           )}
           {topContext?.name && (
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2.5 py-1 text-xs text-secondary">
-              {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
+              Focus: {topContext.name.charAt(0).toUpperCase() + topContext.name.slice(1)}
             </span>
           )}
         </div>
         {currentStreak > 0 && (
-          <p className="text-2xs text-muted/70">
-            Counts from yesterday if no reading today (grace period).
+          <p className="text-xs text-muted">
+            Across your journal. Counts from yesterday if no reading today (grace period).
           </p>
         )}
       </div>

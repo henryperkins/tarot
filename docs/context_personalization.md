@@ -1,7 +1,29 @@
+# Tableu reading personalization
+
+Type: reference
+Status: active runtime contract with preserved background
+Last reviewed: 2026-10-23
+
+Tableu's implemented reading behavior is specified by the [reading input and source-use contract](reading-context-inputs.md), [runtime graph overview](knowledge-graph/README.md) and [narrative architecture](architecture/narrative-architecture.md). The imported OpenAI Agents SDK cookbook below is background; its travel-concierge examples and SDK memory lifecycle do not describe Tableu's runtime.
+
+Current question, general notes, card reflections and effective decision labels override saved interests and memories. Full accepted sources participate in classification before the separate bounded retrieval query. Mixed-topic sources contribute only relevant spans to retrieval. One server-private selection is shared through analysis, provider attempts and fallback; query inclusion is separate from final prompt or rendered inclusion.
+
+Initial readings load at most 100 candidates without retrieval stamps, conservatively select at most three compatible relevant memories, and freeze selection before budgeting. Unsupported factual, conflicting, wrong-subject and ambiguous claims are omitted. Saved focus cannot authorize private facts. The bounded subject/numeric/vocabulary checks are not a general health/language classifier or multilingual factual verifier. `useSavedMemories:false` bypasses loading, selection and access updates for this reading without changing storage or follow-up capture.
+
+Provider prompts retain complete `memory-0`…`memory-2` blocks atomically, apply current-input precedence and allow mention of at most one relevant remembered note; communication preferences can apply silently. Public counts describe complete blocks retained by the accepted backend, never model attention/reliance or usefulness. Normal reasoning local composition renders no memories. Public metadata contains no memory IDs or text.
+
+Initial-reading `last_accessed_at` now means successful server acceptance of final retained complete blocks. Direct persistence remains best effort and may be lost on process termination. Durable jobs atomically store accepted terminal state plus a separate private receipt, replay only its idempotent DB update with original completion time, and never regenerate a reading. Cancellation before the guarded acceptance write wins; overlapping cancellation after that guard cannot undo acceptance, while public success and DB dispatch wait for durable completion. Client observation is not the acceptance criterion. Other memory-list/follow-up access semantics remain unchanged; no D1 migration is introduced.
+
+Receipt-aware or drained compatible rollback is required for accounting continuity: an older envelope rewrite can drop run/attempt identities even if separate receipt bytes survive. Strict replay must reject unverifiable receipts. See the contract's release/rollback checklist and the [ledger](knowledge-graph/REMEDIATION_LEDGER.md) / [qualification status](knowledge-graph/QUALIFICATION_STATUS.md) for actual evidence and pending lanes.
+
+---
+
+## Preserved imported cookbook (background)
+
 # Context Engineering for Personalization - State Management with Long-Term Memory Notes using OpenAI Agents SDK
 
 Type: reference
-Status: active reference
+Status: imported background reference
 Last reviewed: 2026-04-23
 Source: `https://raw.githubusercontent.com/openai/openai-cookbook/refs/heads/main/examples/agents_sdk/context_personalization.ipynb`
 

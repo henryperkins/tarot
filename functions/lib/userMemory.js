@@ -14,6 +14,12 @@ const MAX_KEYWORDS = 5;
 const MAX_KEYWORD_LENGTH = 30;
 const MAX_MEMORIES_PER_USER = 100;
 const DEFAULT_MEMORY_LIMIT = 10;
+const candidateLoadStats = new WeakMap();
+
+/** Count-only load diagnostics stay private to the request-local candidate array. */
+export function getMemoryCandidateLoadStats(memories) {
+  return candidateLoadStats.get(memories) || null;
+}
 
 // Valid categories for tarot memory
 const VALID_CATEGORIES = ['theme', 'card_affinity', 'communication', 'life_context', 'general'];
@@ -150,7 +156,7 @@ function normalizeUnicodeForPatternMatch(text) {
 /**
  * Check if text contains PII or instruction-like content
  */
-function containsSensitiveContent(text) {
+export function containsSensitiveContent(text) {
   if (!text) return false;
 
   // Normalize Unicode to catch homoglyph attacks before pattern matching
@@ -324,7 +330,7 @@ export async function getMemories(db, userId, options = {}) {
 
   try {
     let query = `
-      SELECT id, text, keywords, category, scope, session_id, source, confidence, created_at
+      SELECT id, text, keywords, category, scope, session_id, source, confidence, created_at, expires_at
       FROM user_memories
       WHERE user_id = ?
         AND (expires_at IS NULL OR expires_at > ?)
@@ -370,33 +376,87 @@ export async function getMemories(db, userId, options = {}) {
     });
 
     if (skipped > 0) {
-      console.warn(`[getMemories] Skipped ${skipped} unsafe memories for user ${userId}`);
+      console.warn(`[getMemories] Skipped ${skipped} unsafe memories`);
     }
 
     // Update last_accessed_at for retrieved memories
     const memoryIds = safeResults.map(r => r.id);
-    if (memoryIds.length > 0) {
-      const updatePlaceholders = memoryIds.map(() => '?').join(', ');
-      await db.prepare(`
-        UPDATE user_memories SET last_accessed_at = ? WHERE id IN (${updatePlaceholders})
-      `).bind(nowSeconds, ...memoryIds).run();
+    if (options.markAccess !== false && memoryIds.length > 0) {
+      // D1 allows 100 bindings; timestamp and user ID leave room for 98 IDs.
+      const batchSize = 98;
+      for (let offset = 0; offset < memoryIds.length; offset += batchSize) {
+        const batch = memoryIds.slice(offset, offset + batchSize);
+        const updatePlaceholders = batch.map(() => '?').join(', ');
+        try {
+          const updateResult = await db.prepare(`
+            UPDATE user_memories SET last_accessed_at = MAX(COALESCE(last_accessed_at, 0), ?) WHERE id IN (${updatePlaceholders}) AND user_id = ?
+          `).bind(nowSeconds, ...batch, userId).run();
+          if (updateResult?.success === false) throw new Error('memory_access_failed');
+        } catch {
+          // Access metadata is best-effort and cannot invalidate loaded memories.
+          console.warn('[getMemories] Error marking memory access');
+        }
+      }
     }
 
-    return safeResults.map(row => ({
+    const memories = safeResults.map(row => ({
       id: row.id,
       text: row.text,
-      keywords: row.keywords ? row.keywords.split(',') : [],
+      keywords: typeof row.keywords === 'string' ? row.keywords.split(',') : [],
       category: row.category,
       scope: row.scope,
       sessionId: row.session_id,
       source: row.source || 'ai',
       confidence: row.confidence,
       createdAt: row.created_at ? row.created_at * 1000 : null,
+      expiresAt: row.expires_at == null ? null : row.expires_at * 1000,
     }));
+    candidateLoadStats.set(memories, { candidateCount: rawResults.length, unsafeCount: skipped });
+    return memories;
   } catch (error) {
     console.warn('[getMemories] Error fetching memories:', error?.message || error);
     return [];
   }
+}
+
+/** Stamp only accepted, retained global notes. accessedAt is a fixed epoch-ms completion time. */
+export async function markReadingMemoriesAccessed(db, userId, ids, accessedAt) {
+  if (!db?.prepare || !userId || !Array.isArray(ids) || !Number.isFinite(accessedAt) || accessedAt <= 0) return;
+  const uniqueIds = [...new Set(ids.filter(id => typeof id === 'string' && id))].slice(0, 100);
+  if (!uniqueIds.length) return;
+  // D1 permits at most 100 bound parameters per statement. Selection normally
+  // has at most three IDs; batching also keeps this helper safe for all callers.
+  for (let offset = 0; offset < uniqueIds.length; offset += 90) {
+    const batch = uniqueIds.slice(offset, offset + 90);
+    const placeholders = batch.map(() => '?').join(', ');
+    const result = await db.prepare(`
+      UPDATE user_memories
+      SET last_accessed_at = MAX(COALESCE(last_accessed_at, 0), ?)
+      WHERE user_id = ? AND scope = 'global'
+        AND (expires_at IS NULL OR expires_at > ?)
+        AND id IN (${placeholders})
+    `).bind(Math.floor(accessedAt / 1000), userId, Math.floor(Date.now() / 1000), ...batch).run();
+    if (result?.success === false) throw new Error('memory_access_failed');
+  }
+}
+
+/**
+ * Access persistence cannot invalidate a successful reading. Retries reuse
+ * completion time; the durable caller clears its receipt only after true.
+ * @returns {Promise<boolean>} Whether all scoped updates completed successfully.
+ */
+export async function persistReadingMemoryAccess(db, usage) {
+  if (!usage || !db?.prepare || !usage.userId || !Array.isArray(usage.ids) || !usage.ids.length
+    || !Number.isFinite(usage.completedAt) || usage.completedAt <= 0) return false;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await markReadingMemoriesAccessed(db, usage.userId, usage.ids, usage.completedAt);
+      return true;
+    } catch {
+      if (attempt === 1) console.warn('[reading-memory-access] persistence_failed');
+    }
+  }
+  return false;
 }
 
 /**
@@ -654,6 +714,36 @@ export function formatMemoriesForPrompt(memories) {
   }
 
   return lines.join('\n').trim();
+}
+
+/** Initial-reading blocks support whole-note budget retention. */
+export function formatReadingMemoriesForPrompt(memories) {
+  if (!Array.isArray(memories) || memories.length === 0) {
+    return '';
+  }
+
+  const labels = { theme: 'Recurring Themes', card_affinity: 'Card Affinities', communication: 'Communication Style', life_context: 'Life Context', general: 'Other Insights' };
+  return memories.map((memory, index) => {
+    const text = sanitizeMemoryTextForPrompt(memory?.text);
+    if (!text) return '';
+    const category = VALID_CATEGORIES.includes(memory.category) ? memory.category : 'general';
+    const data = JSON.stringify({ category, label: labels[category], text }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+    return `<reading_memory slot="memory-${index}">${data}</reading_memory>`;
+  }).filter(Boolean).join('\n');
+}
+
+/** Parse only complete, validated note boundaries. Slot IDs are request-local. */
+export function parseMemoryBlocks(prompt) {
+  const blocks = new Map();
+  if (typeof prompt !== 'string') return blocks;
+  for (const match of prompt.matchAll(/^<reading_memory slot="(memory-[0-2])">([^\n]*)<\/reading_memory>$/gm)) {
+    try {
+      const value = JSON.parse(match[2]);
+      if (!value || typeof value.text !== 'string' || !value.text || !VALID_CATEGORIES.includes(value.category) || blocks.has(match[1])) continue;
+      blocks.set(match[1], value);
+    } catch { /* Incomplete and malformed notes are never counted as retained. */ }
+  }
+  return blocks;
 }
 
 // Export constants for testing

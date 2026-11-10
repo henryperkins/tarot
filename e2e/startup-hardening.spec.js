@@ -7,51 +7,40 @@ const entry = {
   question: 'What can I learn from this week?', personalReading: 'Make room for a fresh perspective.'
 };
 
+// The mobile Journey mounts only after its native disclosure is opened.
+async function openMobileJourney(page) {
+  const summary = page.locator('summary', { hasText: 'Your reading journey' });
+  const details = summary.locator('xpath=ancestor::details[1]');
+  await summary.waitFor();
+  // getAttribute returns '' (falsy) for present boolean attributes; test for absence instead.
+  if ((await details.getAttribute('open')) === null) await summary.click();
+  await expect(details).toHaveAttribute('open');
+}
+
+// Arcana rows fit their width (wrapping only for enlarged text): no numeral may sit
+// outside its row or the viewport, and nothing scrolls sideways.
 async function checkArcanaBoundaries(page, row) {
   await row.evaluate(async element => {
     await document.fonts.ready;
     const dialog = element.closest('[role="dialog"]');
     await Promise.allSettled((dialog?.getAnimations() || []).map(animation => animation.finished));
     element.scrollIntoView({ block: 'center', behavior: 'instant' });
-    element.focus({ preventScroll: true });
-    await new Promise(resolve => {
-      let previous = '';
-      let stableFrames = 0;
-      const measure = () => {
-        const position = `${scrollX},${scrollY},${element.getBoundingClientRect().top}`;
-        stableFrames = position === previous ? stableFrames + 1 : 0;
-        previous = position;
-        if (stableFrames >= 12) resolve();
-        else requestAnimationFrame(measure);
-      };
-      requestAnimationFrame(measure);
-    });
   });
-  const maximum = await row.evaluate(element => element.scrollWidth - element.clientWidth);
-  for (let index = 0; index < Math.ceil(maximum / 64) + 1; index += 1) await page.keyboard.press('ArrowRight');
-  await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBe(maximum);
-  const documentScroll = await page.evaluate(() => [scrollX, scrollY]);
-  await page.keyboard.press('ArrowRight');
-  expect(await row.evaluate(element => element.scrollLeft)).toBe(maximum);
-  await expect(row).toBeFocused();
-  for (let index = 0; index < Math.ceil(maximum / 64) + 1; index += 1) await page.keyboard.press('ArrowLeft');
-  await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBe(0);
-  await page.keyboard.press('ArrowLeft');
-  expect(await row.evaluate(element => element.scrollLeft)).toBe(0);
-  expect(await page.evaluate(() => [scrollX, scrollY])).toEqual(documentScroll);
-  expect(await row.evaluate(element => element.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'ArrowDown', bubbles: true, cancelable: true
-  })))).toBe(true);
-  const style = await row.getAttribute('style');
-  try {
-    await row.evaluate(element => { element.style.width = `${element.scrollWidth + 10}px`; element.style.maxWidth = 'none'; });
-    expect(await row.evaluate(element => element.scrollWidth - element.clientWidth)).toBe(0);
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowLeft');
-    expect(await row.evaluate(element => element.scrollLeft)).toBe(0);
-    await expect(row).toBeFocused();
-  } finally {
-    await row.evaluate((element, value) => value === null ? element.removeAttribute('style') : element.setAttribute('style', value), style);
+  const layout = await row.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const tiles = [...element.querySelectorAll('[role="img"]')].map(tile => {
+      const rect = tile.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: rect.width, textOverflow: tile.scrollWidth - tile.clientWidth };
+    });
+    return { left: box.left, right: box.right, overflow: element.scrollWidth - element.clientWidth, tiles };
+  });
+  expect(layout.overflow).toBeLessThanOrEqual(0);
+  expect(layout.tiles).toHaveLength(11);
+  for (const tile of layout.tiles) {
+    expect(tile.width).toBeGreaterThan(0);
+    expect(tile.left).toBeGreaterThanOrEqual(layout.left - 0.5);
+    expect(tile.right).toBeLessThanOrEqual(layout.right + 0.5);
+    expect(tile.textOverflow).toBeLessThanOrEqual(0);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
 }
@@ -120,12 +109,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('the journey panel keeps controls and card names reachable at 200% text', async ({ page }) => {
       await page.setViewportSize({ width: 320, height: 900 });
       const fixture = await createNarrativeFixture(page, { signedOut: true });
+      // Cards Calling You lists cards that repeat, so The Fool comes up in two readings.
       await page.addInitScript(value => {
         localStorage.setItem('tarot-onboarding-complete', 'true');
-        localStorage.setItem('tarot_journal', JSON.stringify([value]));
+        localStorage.setItem('tarot_journal', JSON.stringify([value, { ...value, id: `${value.id}-again`, ts: value.ts - 60000 }]));
       }, entry);
       try {
         await page.goto('/journal');
+        await openMobileJourney(page);
         const opener = page.getByRole('button', { name: 'See Full Journey', exact: false });
         await opener.press('Enter');
         const panel = page.getByRole('dialog', { name: 'Your Reading Journey', exact: true });
@@ -138,12 +129,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           expect(box.width).toBeGreaterThanOrEqual(43.99);
           expect(box.height).toBeGreaterThanOrEqual(43.99);
         }
-        const card = panel.getByRole('list', { name: 'Your top most frequently appearing cards' }).locator('li').first().locator('span.text-main');
+        const card = panel.getByRole('list', { name: 'Your top most frequently appearing cards' }).locator('li').first()
+          .locator('span.text-main').filter({ hasText: entry.cards[0].name });
         expect(await card.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
-        const row = panel.getByRole('group', { name: 'Major Arcana 0 to 10', exact: true });
-        await row.focus();
-        await page.keyboard.press('ArrowRight');
-        await expect.poll(() => row.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
         for (const name of ['Major Arcana 0 to 10', 'Major Arcana 11 to 21']) await checkArcanaBoundaries(page, panel.getByRole('group', { name, exact: true }));
         for (const tab of await panel.getByRole('tab').all()) {
           await tab.focus();
@@ -177,6 +165,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.goto('/journal');
           let surface = page.locator('aside');
           if (width < 1024) {
+            await openMobileJourney(page);
             surface = page.getByRole('region', { name: 'Journal insights and journey', exact: true });
           }
           const trigger = surface.getByRole('button', { name: 'About streak grace period', exact: true });
@@ -196,7 +185,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
     }
 
-    test('the Arcana map exposes named rows and supports keyboard scrolling', async ({ page }) => {
+    test('the Arcana map shows all 22 numerals in its named rows without scrolling', async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       await page.addInitScript(value => {
@@ -208,24 +197,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         const first = page.getByRole('group', { name: 'Major Arcana 0 to 10', exact: true });
         const second = page.getByRole('group', { name: 'Major Arcana 11 to 21', exact: true });
         await expect(first).toBeVisible();
-        await first.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
-        await second.focus();
-        await page.keyboard.press('Shift+Tab');
-        await expect(first).toBeFocused();
-        expect(await first.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
-        await page.keyboard.press('ArrowRight');
-        await expect.poll(() => first.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
-        await expect(first).toBeFocused();
-        await page.keyboard.press('ArrowLeft');
-        await expect.poll(() => first.evaluate(element => element.scrollLeft)).toBe(0);
-        await page.keyboard.press('Tab');
-        await expect(second).toBeFocused();
-        await page.keyboard.press('ArrowRight');
-        await expect.poll(() => second.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
-        await expect(second).toBeFocused();
-        await page.keyboard.press('ArrowLeft');
-        await expect.poll(() => second.evaluate(element => element.scrollLeft)).toBe(0);
-        await expect(first.getByRole('img', { name: 'The Fool: appeared 1 times', exact: true })).toHaveCount(1);
+        await expect(second).toBeVisible();
+        // The rows are not scroll areas, so they take no Tab stop.
+        expect(await first.getAttribute('tabindex')).toBeNull();
+        expect(await second.getAttribute('tabindex')).toBeNull();
+        await expect(second.getByRole('img', { name: 'The World: appeared 0 times', exact: true })).toBeVisible();
+        await expect(first.getByRole('img', { name: 'The Fool: appeared 1 time', exact: true })).toHaveCount(1);
         expect(await first.getByRole('img').count() + await second.getByRole('img').count()).toBe(22);
         await checkArcanaBoundaries(page, first);
         await checkArcanaBoundaries(page, second);

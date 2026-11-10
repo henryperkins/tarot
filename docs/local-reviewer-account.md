@@ -1,5 +1,9 @@
 # Local reviewer account
 
+Type: runbook
+Status: active reference
+Last reviewed: 2026-10-23
+
 A reusable account is provisioned in this workspace's local Wrangler D1 database
 for agents performing authenticated UI review and coding tasks.
 

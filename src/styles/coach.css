@@ -1,0 +1,193 @@
+/* The dedicated handle belongs to sheet dragging. Prevent a second finger
+   there from starting browser zoom while the interrupted drag resets; zoom
+   remains available in the question and the rest of the dialog. */
+.coach-dialog > .mobile-drawer__handle {
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+/* Handset stability mode drops the drawer's blur, and its 92% surface then
+   shows the reading page through the coach's questions. The coach is a
+   writing surface, so its sheet stays opaque in both themes. tarot.css is
+   unlayered (see tailwind.css), so this must outrank
+   `:root.light .mobile-stable-mode .mobile-drawer` on specificity. */
+:root .mobile-stable-mode .coach-dialog.mobile-drawer,
+:root.light .mobile-stable-mode .coach-dialog.mobile-drawer {
+  background: var(--bg-surface);
+}
+
+/* The question keeps its width when text is enlarged. Insets here stay in
+   pixels so user-selected text size does not multiply nested padding. */
+.coach-dialog__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 16px;
+}
+
+/* Focused content must scroll clear of the sticky footer (its height is
+   measured into the variable by the view). The inset lives on body content,
+   not on the scroller, so focusing the footer's own buttons never scrolls the
+   content behind them. */
+.coach-dialog__body * {
+  scroll-margin-block-end: var(--coach-footer-overlap, 0px);
+}
+
+.coach-dialog__header,
+.coach-dialog__body {
+  padding: 16px;
+}
+
+.coach-dialog__header {
+  border-bottom: 1px solid var(--border-warm-light, rgba(212, 184, 150, 0.2));
+}
+
+.coach-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Step tabs: numbered circles joined by hairline rules. Each step is a fixed
+   column with its circle centered, so a rule's negative margins (the gap
+   between a circle and its column's edge) run it from circle edge to circle
+   edge at any width. Geometry stays in pixels so the rules keep meeting the
+   circles when text is enlarged. The circles' colors and type come from
+   utilities: this file is unlayered, so it sets only what no utility on those
+   elements sets. The rules are borders, not fills, so they survive forced
+   colors; rules up to the current step take the accent. */
+.coach-step-nav {
+  --coach-step-column: 72px;
+  --coach-step-dot: 30px;
+  display: flex;
+  align-items: flex-start;
+  /* 12px under the suggestions' rule and 16px over the step, inside the
+     body's 20px rhythm. */
+  margin-block: -8px -4px;
+}
+
+.coach-step-nav:first-child {
+  margin-block-start: 0;
+}
+
+.coach-step {
+  flex: 0 0 var(--coach-step-column);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-radius: 8px;
+}
+
+.coach-step__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--coach-step-dot);
+  height: var(--coach-step-dot);
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 999px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-step-rule {
+  flex: 1 1 0;
+  margin-block-start: calc(var(--coach-step-dot) / 2 - 0.5px);
+  margin-inline: calc((var(--coach-step-column) - var(--coach-step-dot)) / -2);
+  border-top: 1px solid rgb(var(--brand-secondary-rgb));
+  pointer-events: none;
+}
+
+.coach-step-rule--passed {
+  border-top-color: rgb(var(--brand-accent-rgb));
+}
+
+/* By day the secondary brown sits too close to the accent to show progress. */
+:root.light .coach-step-rule:not(.coach-step-rule--passed) {
+  border-top-color: rgb(var(--brand-secondary-rgb) / 0.45);
+}
+
+/* On short viewports the expanded alternatives (~320px with the header and
+   sticky footer) left only a sliver for Step 1 and clipped the first Topic
+   cards behind the footer. Below 900px the alternatives collapse behind
+   "N more ideas" at every width, as they already do on handsets; taller
+   viewports keep them expanded. This file is unlayered, so these rules
+   outrank the toggle's `sm:hidden` utility inside the media query. */
+@media (max-height: 900px) {
+  .coach-suggestions__toggle {
+    display: inline-flex;
+  }
+
+  .coach-suggestions__alternatives:not([data-expanded='true']) {
+    display: none;
+  }
+}
+
+.coach-review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.coach-review > h3 {
+  scroll-margin-block-start: 12px;
+}
+
+.coach-question {
+  box-sizing: border-box;
+  padding: 12px;
+  font-size: 1rem;
+}
+
+.coach-framing,
+.coach-adjustments {
+  padding-block-start: 16px;
+  border-top: 1px solid var(--border-warm-light, rgba(212, 184, 150, 0.2));
+}
+
+.coach-library-tools {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.coach-dialog__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 12px 16px max(12px, var(--safe-pad-bottom, 0px));
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-warm-light, rgba(212, 184, 150, 0.2));
+}
+
+.coach-dialog__footer--flow {
+  position: static;
+}
+
+.coach-footer-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .coach-dialog__header,
+  .coach-dialog__body {
+    padding: 24px 32px;
+  }
+
+  .coach-question {
+    font-size: 1.25rem;
+  }
+
+  .coach-dialog__footer {
+    padding-inline: 32px;
+  }
+
+  .coach-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+}

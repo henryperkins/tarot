@@ -1,3 +1,4 @@
+import { resolveDecisionPathContext, decisionPathRoleCards } from '../../decisionPathContext.js';
 import { enhanceSection, validateReadingNarrative } from '../../narrativeSpine.js';
 import { sortCardsByImportance } from '../../positionWeights.js';
 import { analyzeElementalDignity } from '../../spreadAnalysis.js';
@@ -25,6 +26,7 @@ import { buildSpreadFallback } from './base.js';
 
 export async function buildDecisionReading({
   cardsInfo,
+  decisionPaths,
   userQuestion,
   reflectionsText,
   themes,
@@ -97,7 +99,8 @@ export async function buildDecisionReading({
     sections.push('This spread illuminates the heart of your decision, two possible paths, clarifying insight, and a reminder of your agency.');
   }
 
-  const normalizedCards = cardsInfo;
+  const paths = resolveDecisionPathContext({ spreadKey: 'decision', cardsInfo, decisionPaths }).decisionPaths;
+  const normalizedCards = decisionPathRoleCards(cardsInfo);
   const prioritized = sortCardsByImportance(normalizedCards, 'decision');
   const [heart, pathA, pathB, clarifier, freeWill] = normalizedCards;
   const positionOptions = getPositionOptions(themes, context);
@@ -137,8 +140,8 @@ export async function buildDecisionReading({
   );
 
   // PATH A
-  let aSection = `### Path A\n\n`;
-  const pathAPosition = pathA?.position || 'Path A — energy & likely outcome';
+  let aSection = `### Path A — ${paths.a || 'unnamed'}\n\n`;
+  const pathAPosition = 'Path A — energy & likely outcome';
   if (pathA) {
     const pathAConnector = (reasoning && selectReasoningConnector(reasoning, 0, 1)) || getConnector(pathAPosition, 'toPrev');
     let pathAText = buildPositionCardText(pathA, pathAPosition, positionOptions);
@@ -164,8 +167,8 @@ export async function buildDecisionReading({
   );
 
   // PATH B
-  let bSection = `### Path B\n\n`;
-  const pathBPosition = pathB?.position || 'Path B — energy & likely outcome';
+  let bSection = `### Path B — ${paths.b || 'unnamed'}\n\n`;
+  const pathBPosition = 'Path B — energy & likely outcome';
   if (pathB) {
     const pathBConnector = (reasoning && selectReasoningConnector(reasoning, 1, 2)) || getConnector(pathBPosition, 'toPrev');
     let pathBText = buildPositionCardText(pathB, pathBPosition, positionOptions);
@@ -270,7 +273,7 @@ export async function buildDecisionReading({
   // Use reasoning synthesis if available, otherwise fall back to pattern synthesis
   const synthesisSection = reasoning
     ? buildReasoningSynthesis(normalizedCards, reasoning, themes, userQuestion, context)
-    : buildPatternSynthesis(themes);
+    : buildPatternSynthesis(themes, cardsInfo, spreadInfo?.deckStyle);
   if (synthesisSection) {
     sections.push(synthesisSection);
   }

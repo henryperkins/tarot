@@ -8,11 +8,14 @@ export const USAGE_BADGE_CLASSES = {
 };
 
 const INPUT_LABELS = {
-  question: 'question', reflections: 'reflections', cardReflections: 'card notes',
+  question: 'question', reflections: 'reflections', cardReflections: 'card notes', pathA: 'Path A label', pathB: 'Path B label',
+  callerInterpretations: 'your card interpretations',
   focusAreas: 'saved focus areas', displayName: 'name', experience: 'tarot experience',
   tone: 'tone', frame: 'interpretive approach', depth: 'reading depth'
 };
 const BADGE_TEXT = { used: 'Included', partial: 'Partly included', omitted: 'Not included', neutral: 'Not needed' };
+// Failures get a Traditional wisdom row; other omissions, such as no patterns, do not.
+const GRAPH_RAG_FAILURES = ['reference_integrity_failed', 'retrieval_error'];
 const list = values => values.length < 2 ? (values[0] || '')
   : `${values.slice(0, -1).join(', ')}${values.length > 2 ? ',' : ''} and ${values.at(-1)}`;
 const reasonCopy = reason => USAGE_REASON_COPY[reason] || USAGE_REASON_COPY.not_used;
@@ -21,7 +24,7 @@ function personalInputs(context) {
   if (!context) return [];
   return USER_INPUT_KEYS.flatMap(key => {
     const reason = context.skippedInputs?.[key];
-    const fields = Object.entries(context.fields || {}).filter(([name]) => key === 'cardReflections' ? name.startsWith('card-') : name === key)
+    const fields = Object.entries(context.fields || {}).filter(([name]) => key === 'cardReflections' ? name.startsWith('card-') : key === 'callerInterpretations' ? name.startsWith('interpretation-') : name === key)
       .map(([, field]) => field).filter(field => field.originalLength > 0);
     const provided = context[`${key}Provided`] === true || context.providedInputs?.includes(key)
       || context.usedInputs?.includes(key) || Boolean(reason) || fields.length > 0;
@@ -41,19 +44,38 @@ function personalInputs(context) {
   });
 }
 
+// Loaded memories that the selector found inapplicable are a deliberate
+// choice, not lost input. Memories selected and then dropped still need attention.
+function describeMemories(memories) {
+  if (memories.used) {
+    const count = memories.memoriesUsedInPrompt || 0;
+    return ['used', `${count} saved memor${count === 1 ? 'y' : 'ies'} included as reading context.`];
+  }
+  if (memories.skippedReason !== 'not_relevant' || memories.memoriesSelected > 0) {
+    return ['omitted', reasonCopy(memories.skippedReason)];
+  }
+  const checked = memories.candidatesProvided || 0;
+  if (checked > 1) return ['neutral', `Checked ${checked} saved memories; none applied to this question.`];
+  if (checked === 1) return ['neutral', 'Checked 1 saved memory; it did not apply to this question.'];
+  return ['neutral', 'None of your saved memories applied to this question.'];
+}
+
 export function formatUsageSummary(rawUsage) {
   const sourceUsage = sanitizeSourceUsage(rawUsage);
   const rows = [];
   const included = [];
-  if (sourceUsage?.spreadCards?.used) included.push('your cards');
   const addRow = (label, state, detail, group, summaryLabel) => {
     rows.push({ label, state, badgeText: BADGE_TEXT[state], detail, group });
     if (state === 'used' || state === 'partial') included.push(summaryLabel);
   };
 
+  if (sourceUsage?.spreadCards?.used) {
+    addRow('Your cards', 'used', 'The cards and their positions in your spread.', 'you', 'your cards');
+  }
+
   const inputs = personalInputs(sourceUsage?.userContext);
   for (const group of [
-    { keys: ['question', 'reflections', 'cardReflections'], label: 'Your question & notes', summary: 'your question and notes' },
+    { keys: ['question', 'reflections', 'cardReflections', 'callerInterpretations', 'pathA', 'pathB'], label: 'Your question & notes', summary: 'your question and notes' },
     { keys: ['focusAreas', 'displayName', 'experience', 'tone', 'frame', 'depth'], label: 'Your preferences', summary: 'reading preferences' }
   ]) {
     const members = inputs.filter(input => group.keys.includes(input.key));
@@ -92,6 +114,12 @@ export function formatUsageSummary(rawUsage) {
     addRow('Uploaded images', partial ? 'partial' : used ? 'used' : 'omitted', detail, 'you', 'uploaded images');
   }
 
+  const memories = sourceUsage?.memories;
+  if (memories?.requested || memories?.used) {
+    const [state, detail] = describeMemories(memories);
+    addRow('Saved memories', state, detail, 'you', 'saved memories');
+  }
+
   const graph = sourceUsage?.graphRAG;
   if (graph?.used) {
     const count = graph.passagesUsedInPrompt || 0;
@@ -99,21 +127,31 @@ export function formatUsageSummary(rawUsage) {
       ? 'Card patterns and their traditional meanings.'
       : `${count} reference passage${count === 1 ? '' : 's'} on the cards and their patterns.`;
     addRow('Traditional wisdom', 'used', detail, 'sources', 'traditional wisdom');
+  } else if (GRAPH_RAG_FAILURES.includes(graph?.skippedReason)) {
+    addRow('Traditional wisdom', 'omitted', reasonCopy(graph.skippedReason), 'sources', 'traditional wisdom');
   }
   if (sourceUsage?.patterns?.used) {
     const count = sourceUsage.patterns.patternsUsedInPrompt || 0;
-    addRow('Detected patterns', 'used', `${count} card pattern${count === 1 ? '' : 's'} supplied as reading context.`, 'sources', 'detected patterns');
+    const detail = count > 0
+      ? `${count} card pattern${count === 1 ? '' : 's'} supplied as reading context.`
+      : 'Card patterns supplied as reading context.';
+    addRow('Detected patterns', 'used', detail, 'sources', 'detected patterns');
   }
   if (sourceUsage?.ephemeris?.used) addRow('Astrological context', 'used', 'Lunar and planetary positions at the time of the reading.', 'sources', 'astrological context');
   if (sourceUsage?.forecast?.used) addRow('Timing outlook', 'used', 'Upcoming lunar and planetary events.', 'sources', 'a timing outlook');
 
   const summaryParts = included.length > 3 ? [...included.slice(0, 2), `${included.length - 2} other sources`] : included;
+  const attentionRows = rows.filter(row => row.state === 'partial' || row.state === 'omitted');
   return {
     rows,
     summaryText: included.length ? `Prepared with ${list(summaryParts)}.` : 'Details about the inputs provided for this reading.',
+    // Additional context is not the reader's own input, so it has its own warning.
+    warningText: !attentionRows.length ? null
+      : attentionRows.some(row => row.group === 'you') ? 'Some of your input was shortened or left out.'
+        : 'Some additional context could not be included.',
     summary: {
       used: included.length,
-      attention: rows.filter(row => row.state === 'partial' || row.state === 'omitted').length
+      attention: attentionRows.length
     }
   };
 }

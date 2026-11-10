@@ -81,7 +81,10 @@ export async function observeInferenceAttempt(env, metadata, operation) {
     await recordInferenceAttempt(env, { ...metadata, startedAtMs, finishedAtMs: Date.now(), state: 'accepted', model: result?.model ?? null, usage: result?.usage ?? null });
     return result;
   } catch (error) {
-    await recordInferenceAttempt(env, { ...metadata, startedAtMs, finishedAtMs: Date.now(), state: 'failed', reason: inferAttemptReason(error, metadata.signal), model: error?.model ?? null, usage: error?.usage ?? null });
+    // An opt-in caller can distinguish a consumed but unusable model answer
+    // from a provider failure. Other short-task accounting stays unchanged.
+    const state = metadata.rejectQualityFailures === true && error?.qualityIssues ? 'rejected' : 'failed';
+    await recordInferenceAttempt(env, { ...metadata, startedAtMs, finishedAtMs: Date.now(), state, reason: inferAttemptReason(error, metadata.signal), model: error?.model ?? null, usage: error?.usage ?? null });
     throw error;
   }
 }

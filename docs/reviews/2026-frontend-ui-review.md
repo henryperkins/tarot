@@ -1,3 +1,5 @@
+# Frontend UI review (2026)
+
 Type: review
 Status: historical snapshot
 Last reviewed: 2026-04-23

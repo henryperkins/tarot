@@ -20,12 +20,18 @@ import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
 import { buildGraphRAGTelemetry } from '../functions/lib/telemetrySchema.js';
+import { ARCHETYPAL_TRIADS } from '../src/data/knowledgeGraphData.js';
 import { TRIAD_PASSAGES } from '../functions/lib/knowledgeBase.js';
+
+const partialIdentity = id => {
+  const triad = ARCHETYPAL_TRIADS.find(row => row.id === id);
+  return { id, matchedCards: triad.cards.slice(0, 2), missingCards: triad.cards.slice(2) };
+};
 
 describe('GraphRAG court lineage retrieval', () => {
   test('retrievePassages: court lineage alliance (priority 5)', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Cups', significance: 'alliance' }]
+      courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5 });
@@ -41,7 +47,7 @@ describe('GraphRAG court lineage retrieval', () => {
 
   test('retrievePassages: court lineage council', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Swords', significance: 'council' }]
+      courtLineages: [{ suit: 'Swords', significance: 'council', matchedCardKeys: ['page of swords', 'queen of swords', 'king of swords'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5 });
@@ -53,7 +59,7 @@ describe('GraphRAG court lineage retrieval', () => {
 
   test('retrievePassages: includes court lineage metadata when requested', () => {
     const graphKeys = {
-      courtLineages: [{ suit: 'Wands', significance: 'alliance' }]
+      courtLineages: [{ suit: 'Wands', significance: 'alliance', matchedCardKeys: ['queen of wands', 'king of wands'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 5, includeMetadata: true });
@@ -80,7 +86,7 @@ describe('GraphRAG partial triad retrieval', () => {
     }));
 
     try {
-      const passages = retrievePassages({ triadIds: ['magician-chariot-world'] });
+      const passages = retrievePassages({ triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')] });
       assert.strictEqual(passages.length, 1);
       assert.strictEqual(passages[0].isPartialPattern, true);
     } finally {
@@ -91,6 +97,7 @@ describe('GraphRAG partial triad retrieval', () => {
   test('retrievePassages: partial triad (priority 6)', () => {
     const graphKeys = {
       triadIds: ['magician-chariot-world'],
+      partialTriads: [partialIdentity('magician-chariot-world')],
       completeTriadIds: []
     };
 
@@ -99,12 +106,13 @@ describe('GraphRAG partial triad retrieval', () => {
     assert.strictEqual(passages.length, 1, 'Should retrieve the partial triad passage');
     assert.strictEqual(passages[0].type, 'triad');
     assert.strictEqual(passages[0].patternId, 'magician-chariot-world');
-    assert.strictEqual(passages[0].priority, 6, 'Partial triads rank below every complete pattern');
+    assert.strictEqual(passages[0].priority, 6, 'Partial triads lose structural ties to complete patterns');
   });
 
   test('retrievePassages: partial triad metadata marks it incomplete', () => {
     const graphKeys = {
       triadIds: ['hermit-hangedman-moon'],
+      partialTriads: [partialIdentity('hermit-hangedman-moon')],
       completeTriadIds: []
     };
 
@@ -129,9 +137,10 @@ describe('GraphRAG partial triad retrieval', () => {
     assert.strictEqual(triads[0].priority, 1);
   });
 
-  test('retrievePassages: complete triads outrank partial triads', () => {
+  test('retrievePassages: complete triads outrank partial triads without content relevance', () => {
     const graphKeys = {
       triadIds: ['death-temperance-star', 'magician-chariot-world'],
+      partialTriads: [partialIdentity('magician-chariot-world')],
       completeTriadIds: ['death-temperance-star']
     };
 
@@ -182,7 +191,7 @@ describe('GraphRAG pattern coverage telemetry', () => {
         { cards: [13, 17], significance: 'high' }
       ],
       courtLineages: [
-        { suit: 'Cups', significance: 'alliance' },
+        { suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] },
         { suit: 'Wands', significance: 'council' }
       ]
     }, []);
@@ -192,7 +201,7 @@ describe('GraphRAG pattern coverage telemetry', () => {
   });
 
   test('summary-only prompts name newly retrieved pattern families', () => {
-    const block = buildGraphRAGReferenceBlock('celtic', {}, {
+    const block = buildGraphRAGReferenceBlock('celtic', { knowledgeGraph: { graphKeys: { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], dyadPairs: [{ cards: [8, 11], significance: 'medium' }, { cards: [13, 14], significance: 'medium' }], courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }] } } }, {
       env: { GRAPHRAG_ENABLED: 'true' },
       graphRAGSummaryOnly: true,
       graphRAGPayload: {
@@ -209,6 +218,57 @@ describe('GraphRAG pattern coverage telemetry', () => {
     assert.match(block, /1 partial triad\(s\)/);
     assert.match(block, /2 medium-significance dyad\(s\)/);
     assert.match(block, /1 court lineage\(s\)/);
+  });
+
+  test('buildRetrievalSummary and telemetry expose validated majorArcana, thothSuitPatterns, and marseilleNumerologyPatterns while deduplicating variants', () => {
+    const graphKeys = {
+      totalMajors: 2,
+      majorNumbers: [0, 17, 17, 99],
+      suitProgressions: [
+        { suit: 'Cups', stage: 'beginning', significance: 'emerging-progression', matchedCardKeys: ['ace of cups', 'two of cups'] }
+      ],
+      thothSuits: ['Wands', 'Cups', 'Wands', 'ForgedSuit'],
+      marseilleRanks: [3, 7, 3, 99]
+    };
+    const summary = buildRetrievalSummary(graphKeys, []);
+    assert.strictEqual(summary.patternsDetected.totalMajors, 2);
+    assert.strictEqual(summary.patternsDetected.majorArcana, 2);
+    assert.strictEqual(summary.patternsDetected.emergingSuitProgressions, 1);
+    assert.strictEqual(summary.patternsDetected.thothSuitPatterns, 2);
+    assert.strictEqual(summary.patternsDetected.marseilleNumerologyPatterns, 2);
+
+    const telemetry = buildGraphRAGTelemetry(summary);
+    assert.strictEqual(telemetry.patterns.majorArcana, 2);
+    assert.strictEqual(telemetry.patterns.emergingSuitProgressions, 1);
+    assert.strictEqual(telemetry.patterns.thothSuitPatterns, 2);
+    assert.strictEqual(telemetry.patterns.marseilleNumerologyPatterns, 2);
+
+    // Budget-driven full-to-summary reduction on Minor-only Thoth/Marseille spreads retains supported summaries without quoting passages.
+    const thothSummaryPrompt = buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'threeCard', name: 'Three-Card Story' },
+      cardsInfo: [
+        { card: 'Ace of Wands', suit: 'Wands', rank: 'Ace', rankValue: 1, position: 'Past', orientation: 'Upright' },
+        { card: 'Two of Wands', suit: 'Wands', rank: 'Two', rankValue: 2, position: 'Present', orientation: 'Upright' },
+        { card: 'Three of Wands', suit: 'Wands', rank: 'Three', rankValue: 3, position: 'Future', orientation: 'Upright' }
+      ],
+      deckStyle: 'thoth-a1',
+      themes: {
+        deckStyle: 'thoth-a1',
+        knowledgeGraph: {
+          graphKeys: { thothSuits: ['Wands'] },
+          graphRAGPayload: {
+            formattedBlock: 'Unverified external quote that must fall back to summary',
+            retrievalSummary: { patternsDetected: { completeTriads: 99 } }
+          }
+        }
+      },
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+    });
+    assert.match(thothSummaryPrompt.userPrompt, /1 Thoth suit pattern\(s\)/);
+    assert.doesNotMatch(thothSummaryPrompt.userPrompt, /Unverified external quote|99 complete triad/);
+    assert.strictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.mode, 'summary');
+    assert.strictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.retainedPassageCount, 0);
+    assert.deepStrictEqual(thothSummaryPrompt.promptMeta.sourceUsage.graphRAG.passageIndices, []);
   });
 });
 
@@ -313,7 +373,7 @@ describe('Traditional wisdom reaches the prompt for court-lineage-only spreads',
             completeTriadIds: [],
             dyadPairs: [],
             suitProgressions: [],
-            courtLineages: [{ suit: 'Cups', significance: 'alliance' }]
+            courtLineages: [{ suit: 'Cups', significance: 'alliance', matchedCardKeys: ['page of cups', 'queen of cups'] }]
           }
         }
       },
@@ -328,30 +388,8 @@ describe('Traditional wisdom reaches the prompt for court-lineage-only spreads',
 });
 
 describe('Partial-triad passages carry an explicit absent-card guardrail', () => {
-  const partialTriadPayload = {
-    passages: [
-      {
-        type: 'triad',
-        patternId: 'magician-chariot-world',
-        title: 'The Mastery Arc',
-        text: 'You have tools and agency (The Magician). Align competing impulses (The Chariot).',
-        source: 'Tableu Tarot Canon',
-        isPartialPattern: true
-      }
-    ]
-  };
-
-  const completePatternPayload = {
-    passages: [
-      {
-        type: 'court-lineage',
-        patternId: 'Cups:alliance',
-        title: 'Cups Court Alliance',
-        text: 'Multiple Cups courts suggest feelings are organizing into relationship.',
-        source: 'Tableu Tarot Canon'
-      }
-    ]
-  };
+  const partialTriadPayload = { passages: retrievePassages({ triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')] }) };
+  const completePatternPayload = { passages: retrievePassages({ courtLineages: [{ suit: 'Cups', significance: 'council', matchedCardKeys: ['page of cups', 'knight of cups', 'queen of cups', 'king of cups'] }] }) };
 
   test('warns that a partial arc names cards which may be absent', () => {
     const block = buildGraphRAGReferenceBlock('celtic', {}, {
@@ -377,7 +415,7 @@ describe('Partial-triad passages carry an explicit absent-card guardrail', () =>
 
   test('retrievePassages flags partial triads independently of includeMetadata', () => {
     const [passage] = retrievePassages(
-      { triadIds: ['magician-chariot-world'], completeTriadIds: [] },
+      { triadIds: ['magician-chariot-world'], partialTriads: [partialIdentity('magician-chariot-world')], completeTriadIds: [] },
       { maxPassages: 1 }
     );
 
@@ -390,6 +428,12 @@ describe('Partial-triad passages carry an explicit absent-card guardrail', () =>
       { maxPassages: 1 }
     );
 
-    assert.strictEqual(passage.isPartialPattern, undefined);
+    assert.strictEqual(passage.isPartialPattern, false);
   });
+});
+
+
+test('unverified partial keys and forged summary counts cannot supply graph evidence', () => {
+  assert.deepEqual(retrievePassages({ triadIds: ['magician-chariot-world'] }), []);
+  assert.equal(buildGraphRAGReferenceBlock('celtic', {}, { env: { GRAPHRAG_ENABLED: true }, graphRAGSummaryOnly: true, graphRAGPayload: { retrievalSummary: { patternsDetected: { partialTriads: 100 } } } }), '');
 });

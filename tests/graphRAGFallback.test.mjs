@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, beforeEach, afterEach } from 'node:test';
 
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
+import { MAJOR_ARCANA_PASSAGES } from '../functions/lib/knowledgeBase.js';
 import { clearEmbeddingCache } from '../functions/lib/embeddings.js';
 import {
   scorePassageRelevance,
@@ -94,6 +95,12 @@ describe('GraphRAG embedding failures', () => {
       assert.ok(Math.abs(score - 0.85) < 0.00001);
       assert.deepEqual(semanticStatus, { attempted: true, succeeded: true });
     }
+    const customWeighted = await scorePassageRelevance(passage, userQuery, {
+      ...options,
+      keywordWeight: 0.3,
+      semanticWeight: 0.7
+    });
+    assert.ok(Math.abs(customWeighted - 0.85) < 0.00001);
     assert.equal(run.mock.callCount(), 2, 'Fallbacks must not prevent recovery; genuine vectors are cached');
   });
 
@@ -189,13 +196,43 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG.semanticScoringFallback, true);
   });
 
+  it('reports a keyword retrieval exception as retrieval_error, apart from an empty result', (t) => {
+    for (const method of ['log', 'warn', 'error']) t.mock.method(console, method, () => {});
+    const build = ({ card, graphKeys, deckStyle }, enableSemanticScoring) => buildEnhancedClaudePrompt({
+      spreadInfo: { key: 'single', name: 'One-Card Insight' },
+      cardsInfo: [{ ...card, position: 'Theme', orientation: 'Upright', meaning: 'Warmth.' }],
+      deckStyle,
+      userQuestion: 'What supports me today?',
+      themes: { knowledgeGraph: { graphKeys } },
+      enableSemanticScoring,
+      promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' }
+    }).promptMeta;
+    // A Thoth epithet counts as a pattern but has no registry passage.
+    const epithetOnly = { card: { card: 'Two of Cups', suit: 'Cups' }, graphKeys: { thothEntries: ['Two of Cups'] }, deckStyle: 'thoth-a1' };
+    const sun = { card: { card: 'The Sun', number: 19 }, graphKeys: { totalMajors: 1, majorNumbers: [19], singleMajorNumber: 19 } };
+
+    for (const enableSemanticScoring of [false, true]) {
+      const meta = build(epithetOnly, enableSemanticScoring);
+      assert.equal(meta.sourceUsage.graphRAG.skippedReason, 'retrieval_failed_or_empty', `semantic=${enableSemanticScoring}`);
+    }
+
+    const entry = MAJOR_ARCANA_PASSAGES[19];
+    const descriptor = Object.getOwnPropertyDescriptor(entry, 'passages');
+    Object.defineProperty(entry, 'passages', { configurable: true, get() { throw new Error('Synthetic registry failure'); } });
+    t.after(() => Object.defineProperty(entry, 'passages', descriptor));
+    for (const enableSemanticScoring of [false, true]) {
+      const meta = build(sun, enableSemanticScoring);
+      assert.equal(meta.graphRAG.skippedReason, 'retrieval_error', `semantic=${enableSemanticScoring}`);
+      assert.deepEqual([meta.sourceUsage.graphRAG.used, meta.sourceUsage.graphRAG.skippedReason], [false, 'retrieval_error']);
+    }
+  });
+
   it('injects payload-driven GraphRAG even when themes.graphKeys are absent', () => {
     const graphRAGPayload = {
       passages: [
         {
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         }
       ],
       formattedBlock: [
@@ -229,7 +266,7 @@ describe('GraphRAG fallback behavior', () => {
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });
 
-  it('injects legacy formattedBlock-only payloads and preserves GraphRAG telemetry', () => {
+  it('omits legacy formattedBlock-only payloads with unverifiable provenance', () => {
     const graphRAGPayload = {
       formattedBlock: [
         '**Retrieved Wisdom from Tarot Tradition:**',
@@ -254,28 +291,25 @@ describe('GraphRAG fallback behavior', () => {
       graphRAGPayload
     });
 
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
-    assert.ok(userPrompt.includes('Integration comes through steady blending of opposites.'));
-    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
-    assert.equal(promptMeta.graphRAG?.injectionMode, 'full');
-    assert.equal(promptMeta.graphRAG?.parseStatus, 'complete');
-    assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
-    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
-    assert.equal(promptMeta.graphRAG?.skippedReason ?? null, null);
+    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(!userPrompt.includes('Integration comes through steady blending of opposites.'));
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, false);
+    assert.equal(promptMeta.graphRAG?.injectionMode, 'none');
+    assert.equal(promptMeta.graphRAG?.passagesProvided, 0);
+    assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 0);
+    assert.equal(promptMeta.graphRAG?.skippedReason, 'unverified_reference_provenance');
   });
 
   it('rebuilds GraphRAG from the effective capped passage list instead of stale formattedBlock text', () => {
     const graphRAGPayload = {
       passages: [
         {
-          title: 'Temperance',
-          source: 'Tableu Tarot Canon',
-          text: 'Integration comes through steady blending of opposites.'
+          ...MAJOR_ARCANA_PASSAGES[14].passages[0],
+          type: 'major-arcana', patternId: '14'
         },
         {
-          title: 'The Tower',
-          source: 'Tableu Tarot Canon',
-          text: 'Sudden upheaval breaks false structures apart.'
+          ...MAJOR_ARCANA_PASSAGES[16].passages[0],
+          type: 'major-arcana', patternId: '16'
         }
       ],
       formattedBlock: [
@@ -309,6 +343,7 @@ describe('GraphRAG fallback behavior', () => {
 
     assert.ok(userPrompt.includes('Temperance'));
     assert.ok(!userPrompt.includes('Sudden upheaval breaks false structures apart.'));
+    assert.ok(!userPrompt.includes(MAJOR_ARCANA_PASSAGES[16].passages[0].text));
     assert.equal(promptMeta.graphRAG?.passagesProvided, 2);
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
   });

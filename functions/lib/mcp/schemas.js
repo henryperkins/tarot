@@ -36,6 +36,8 @@ export const publicCardSchema = z.object({
   card: z.string(),
   orientation: orientationSchema,
   meaning: z.string().nullable(),
+  callerMeaning: z.string().max(1000).optional(),
+  userReflection: z.string().max(2000).optional(),
   number: z.number().int().nullable(),
   suit: z.string().nullable(),
   rank: z.string().nullable(),

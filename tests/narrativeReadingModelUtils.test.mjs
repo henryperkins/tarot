@@ -1,17 +1,33 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { validatePassageAssociationsPayload } from '../shared/contracts/readingPassageAssociations.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
 import { retrievePassages } from '../functions/lib/graphRAG.js';
 
 import {
   buildNarrativePanelModel,
+  buildNarrativeSurfaceModel,
   buildNarrativeText,
   buildSpreadCompanionCards,
   buildStoryArtCards,
   deriveNarrativeVisibility,
   getTraditionalPassages,
+  getTraditionalPassagePreview,
   selectCinematicCard
 } from '../src/hooks/narrativeReadingModelUtils.js';
+
+test('secondary content is present only when a studio, insights or safety notice can render', () => {
+  const completed = { personalReading: { raw: 'A completed reading.' } };
+  assert.equal(buildNarrativeSurfaceModel(completed).hasSecondaryContent, false);
+  assert.equal(buildNarrativeSurfaceModel({ isGenerating: true }).hasSecondaryContent, false);
+  for (const flag of ['shouldShowVisualCompanion', 'shouldShowSpreadInsights']) {
+    assert.equal(buildNarrativeSurfaceModel({ ...completed, [flag]: true }).hasSecondaryContent, true);
+  }
+  const beforeReading = buildNarrativeSurfaceModel({ isGenerating: false });
+  assert.equal(beforeReading.shouldShowSafetyNotice, true);
+  assert.equal(beforeReading.hasSecondaryContent, true);
+});
 
 describe('traditional passage display', () => {
   const passages = Object.freeze([
@@ -24,7 +40,8 @@ describe('traditional passage display', () => {
   for (const location of ['graphRAGPayload', 'retrievedPassages']) {
     test(`omits partial quotations from ${location} without changing the stored references`, () => {
       const knowledgeGraph = location === 'graphRAGPayload' ? { graphRAGPayload: { passages } } : { retrievedPassages: passages };
-      assert.deepEqual(getTraditionalPassages({ knowledgeGraph }).map(passage => passage.id), ['complete', 'ordinary']);
+      assert.deepEqual(getTraditionalPassages({ knowledgeGraph }), []);
+      assert.deepEqual(getTraditionalPassagePreview({ knowledgeGraph }, null, 'rws-1909').map(passage => passage.id), []);
       assert.equal(passages.length, 4);
       assert.equal(passages[1].text, 'An arc mentioning an undrawn card.');
     });
@@ -32,13 +49,15 @@ describe('traditional passage display', () => {
 
   test('hides the real partial Healing Arc quotation that names absent Temperance', () => {
     // Death and The Star match two cards; Temperance is not drawn.
-    const retrieved = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: [] });
+    const partialKeys = buildGraphContext([{ card: 'Death', number: 13 }, { card: 'The Star', number: 17 }]).graphKeys;
+    const retrieved = collectPassageCandidates(partialKeys).filter(passage => passage.type === 'triad' && passage.isPartialPattern);
     assert.equal(retrieved.length, 1);
-    assert.match(retrieved[0].text, /Temperance/);
+    assert.match(retrieved[0].authoredDisplayText, /Temperance/);
+    assert.doesNotMatch(retrieved[0].promptText, /Temperance/);
     assert.deepEqual(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: retrieved } } }), []);
 
     const complete = retrievePassages({ triadIds: ['death-temperance-star'], completeTriadIds: ['death-temperance-star'] });
-    assert.equal(getTraditionalPassages({ knowledgeGraph: { graphRAGPayload: { passages: complete } } }).length, 1);
+    assert.equal(getTraditionalPassagePreview({ knowledgeGraph: { graphRAGPayload: { passages: complete } } }, null, 'rws-1909').length, 1);
   });
 
   test('partial-only references do not create an empty panel or focus toggle', () => {
@@ -86,7 +105,7 @@ describe('narration controls for server voices', () => {
           personalReading: { raw: 'Finished reading.' },
           fullReadingText: 'Finished reading.',
           ttsProvider,
-          ttsState: { status },
+          ttsState: { status, context: 'full-reading' },
           narrativePhase: 'complete'
         });
         assert.equal(model.statusModel.showNarrationProgress, true);
@@ -101,7 +120,7 @@ describe('narration controls for server voices', () => {
         personalReading: { raw: 'Finished reading.' },
         fullReadingText: 'Finished reading.',
         ttsProvider: 'elevenlabs',
-        ttsState: { status }
+        ttsState: { status, context: 'full-reading' }
       });
       assert.equal(model.statusModel.showNarrationProgress, false);
     }
@@ -258,7 +277,7 @@ describe('buildSpreadCompanionCards', () => {
 });
 
 describe('deriveNarrativeVisibility', () => {
-  test('enables desktop insight controls and auto visuals for eligible completed readings', () => {
+  test('keeps eligible completed-reading visuals manual even with the legacy auto flag', () => {
     const state = deriveNarrativeVisibility({
       personalReading: { raw: 'Completed reading' },
       isPersonalReadingError: false,
@@ -289,7 +308,9 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.shouldShowSpreadInsights, true);
     assert.equal(state.canUseMediaGallery, true);
     assert.equal(state.shouldShowVisualCompanion, true);
-    assert.equal(state.visualCompanionModeLabel, 'Auto generation on');
+    assert.equal(state.autoGenerateVisuals, false);
+    assert.equal(state.visualCompanionModeLabel, 'Generate on demand');
+    assert.equal(state.visualCompanionMessage, 'Generate artwork that stays anchored to this reading.');
   });
 
   test('keeps insight controls available on handset layouts', () => {
@@ -321,7 +342,7 @@ describe('deriveNarrativeVisibility', () => {
     assert.equal(state.focusToggleAvailable, true);
   });
 
-  test('can restore insights after entering focus mode and narrowing the viewport', () => {
+  test('keeps insight content available while the completion container hides extra panels', () => {
     const state = deriveNarrativeVisibility({
       themes: { knowledgeGraph: { narrativeHighlights: [{ text: 'A pattern' }] } },
       visibleCount: 3,
@@ -329,7 +350,7 @@ describe('deriveNarrativeVisibility', () => {
       isNarrativeFocus: true,
       isHandset: true
     });
-    assert.equal(state.shouldShowSpreadInsights, false);
+    assert.equal(state.shouldShowSpreadInsights, true);
     assert.equal(state.focusToggleAvailable, true);
   });
 });
@@ -354,4 +375,48 @@ test('panel model retains exact source and defaults gesture study to disabled', 
   const fixture = buildNarrativePanelModel({ gestureSource: source, gestureStudyEnabled: true, gestureSidecar: sidecar, manualInspectionStatus: 'inspected' });
   assert.equal(fixture.gestureSidecar, sidecar);
   assert.equal(fixture.manualInspectionStatus, 'inspected');
+});
+
+test('preliminary previews require selected-deck projection identity and use projected prose', () => {
+  const reference = retrievePassages({ totalMajors: 1, singleMajorNumber: 8 }, { deckStyle: 'thoth-a1', maxPassages: 5, includeMetadata: true });
+  assert.ok(reference.length > 0);
+  const themes = { knowledgeGraph: { retrievedPassages: reference } };
+  const preview = getTraditionalPassagePreview(themes, null, 'thoth-a1');
+  assert.ok(preview.length > 0);
+  assert.ok(preview.every(p => p.projectedDeck === 'thoth-a1' && p.text === p.promptText));
+  assert.deepEqual(getTraditionalPassagePreview(themes, null, 'marseille-classic'), []);
+  const corrupt = { knowledgeGraph: { retrievedPassages: reference.map(p => ({ ...p, projectionId: 'unverified' })) } };
+  assert.deepEqual(getTraditionalPassagePreview(corrupt, null, 'thoth-a1'), []);
+});
+
+test('legacy previews reconstruct from explicit saved deck and canonical cards without mutating history', () => {
+  const themes = { deckStyle: 'thoth-a1', knowledgeGraph: { retrievedPassages: [{ text: 'Unverifiable old RWS prose' }] } };
+  const recovery = { savedDeckStyle: 'thoth-a1', cardsInfo: [{ name: 'Strength', number: 8, orientation: 'Reversed' }] };
+  const snapshot = JSON.stringify({ themes, recovery });
+  const preview = getTraditionalPassagePreview(themes, null, 'thoth-a1', recovery);
+  assert.ok(preview.length > 0);
+  assert.ok(preview.every(p => p.projectedDeck === 'thoth-a1' && p.previewOrigin === 'reconstructed'));
+  assert.doesNotMatch(preview.map(p => p.text).join(' '), /Unverifiable old RWS prose|lion/);
+  assert.equal(JSON.stringify({ themes, recovery }), snapshot);
+  assert.deepEqual(getTraditionalPassagePreview(themes, null, 'thoth-a1', { ...recovery, savedDeckStyle: undefined }), []);
+  assert.deepEqual(getTraditionalPassagePreview(themes, null, 'thoth-a1', { ...recovery, cardsInfo: [{ name: 'Unlisted card' }] }), []);
+  for (const meta of [{ provider: 'safe-fallback' }, { sourceUsage: { graphRAG: { used: false } } }]) {
+    assert.deepEqual(getTraditionalPassagePreview(themes, meta, 'thoth-a1', recovery), []);
+  }
+});
+
+for (const status of ['loading', 'playing', 'paused']) {
+  test(`card ${status} leaves full-reading Play available without card progress`, () => {
+    const model = buildNarrativePanelModel({ personalReading: { raw: 'Complete.' }, fullReadingText: 'Complete.', ttsProvider: 'deepgram', ttsState: { status, context: 'card-reveal' } });
+    assert.equal(model.controlsModel.canNarrate, true);
+    assert.equal(model.controlsModel.narrationLabel, 'Read this aloud');
+    assert.equal(model.statusModel.showNarrationProgress, false);
+  });
+}
+
+test('a card busy failure remains visible beside full-reading Play', () => {
+  const model = buildNarrativePanelModel({ personalReading: { raw: 'Complete.' }, fullReadingText: 'Complete.', ttsProvider: 'deepgram', ttsState: { status: 'error', context: 'card-reveal', errorCode: 'NARRATION_BUSY' } });
+  assert.equal(model.statusModel.showNarrationStatus, true);
+  assert.equal(model.controlsModel.canNarrate, true);
+  assert.equal(model.statusModel.showNarrationTierLimit, false);
 });

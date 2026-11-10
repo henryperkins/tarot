@@ -1,0 +1,53 @@
+{
+  "reviewer": "Codex main session",
+  "scope": "Manual inspection of fresh generated readings in this qualification batch; original automated scoring remains unchanged.",
+  "reviewed": [
+    {
+      "id": "single-new-role",
+      "notes": "Correct one-card leadership focus, grounded actionable advice and explicit agency."
+    },
+    {
+      "id": "three-card-transition",
+      "notes": "Covers all three cards and positions, distinguishes a possible future from promised events, addresses the hometown transition."
+    },
+    {
+      "id": "five-card-creative-project",
+      "notes": "Covers all five cards and the timing framework, keeps launch advice conditional and specific to the creative project."
+    },
+    {
+      "id": "relationship-checkin",
+      "notes": "Covers all three relationship positions, avoids claims to know Alex intentions and preserves both participants agency."
+    },
+    {
+      "id": "celtic-deep-shift",
+      "notes": "Covers ten cards and positions, uses compassionate boundaries and conditional outcome language without diagnosing health."
+    },
+    {
+      "id": "decision-crossroads-long-reflections",
+      "notes": "Does not invent a mapping from Path A/Path B to relocate/stay; addresses comparison and preparation with agency."
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "notes": "Uses the Thoth Priestess name with a canonical cross-reference, avoids unsupported artwork claims and keeps spiritual interpretations optional and grounded."
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "notes": "Uses Marseille pip structures and aliases without imported RWS pip scenes; advice remains conditional, avoids diagnosis or promised recovery and refers persistent symptoms to qualified care."
+    },
+    {
+      "id": "relationship-hypothetical-collaborators",
+      "notes": "Explicitly treats the participants as hypothetical roles, avoids inventing feelings or private history, uses deck-aware pip descriptions and practical communication choices."
+    },
+    {
+      "id": "celtic-general-focused-week",
+      "notes": "Covers all ten Thoth cards with canonical aliases; does not invent a private backstory for the general question, and keeps external events, emotional interpretations and the outcome conditional."
+    },
+    {
+      "id": "non-english-spanish",
+      "notes": "Responds in Spanish while retaining supplied canonical card names, covers each position and reversal, keeps the future conditional and affirms reader choices."
+    }
+  ],
+  "blockingFindings": [],
+  "status": "complete",
+  "completedAt": "2026-10-24T00:48:19.494Z"
+}

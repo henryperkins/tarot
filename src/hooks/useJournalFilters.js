@@ -7,6 +7,8 @@ import { isDeletedAccount, subscribeToDeletedAccounts } from '../lib/deletedAcco
 import { filterDeletedJournalEntries, subscribeToDeletedJournalEntries } from '../lib/deletedJournalEntryStorage.js';
 import { matchesJourneyFilter } from '../lib/coachSuggestionUtils';
 import { formatContextName } from '../lib/journalInsights';
+import { getTimestamp } from '../../shared/journal/utils.js';
+import { entryHasReversal, filterEntriesToWindow, getTimeframeWindow } from '../lib/journal/utils';
 import {
   CONTEXT_FILTERS,
   SPREAD_FILTERS,
@@ -29,8 +31,17 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const SERVER_SEARCH_LIMIT = 25;
   const SERVER_SEARCH_MIN_QUERY = 3;
 
-  const [filters, setFiltersInternal] = useState(() => ({ ...DEFAULT_FILTERS }));
-  const deferredQuery = useDeferredValue(filters.query);
+  const [filterState, setFilterState] = useState(() => ({ namespace, filters: { ...DEFAULT_FILTERS } }));
+  if (filterState.namespace !== namespace) setFilterState({ namespace, filters: { ...DEFAULT_FILTERS } });
+  const filters = filterState.namespace === namespace ? filterState.filters : DEFAULT_FILTERS;
+  const setFiltersInternal = useCallback(update => setFilterState(previous => {
+    if (namespaceRef.current !== namespace) return previous;
+    const current = previous.namespace === namespace ? previous.filters : { ...DEFAULT_FILTERS };
+    return { namespace, filters: typeof update === 'function' ? update(current) : update };
+  }), [namespace]);
+  const querySnapshot = useMemo(() => ({ namespace, query: filters.query }), [namespace, filters.query]);
+  const deferredSnapshot = useDeferredValue(querySnapshot);
+  const deferredQuery = deferredSnapshot.namespace === namespace ? deferredSnapshot.query : '';
   const [serverSearchResult, setServerSearchResult] = useState(IDLE_SERVER_SEARCH);
   const setServerSearch = useCallback(update => setServerSearchResult(previous => {
     if (namespaceRef.current !== namespace || isDeletedAccount(userId)) return previous;
@@ -53,13 +64,29 @@ export function useJournalFilters(sourceEntries, options = {}) {
   const refreshServerSearch = useCallback(() => {
     setServerSearchNonce((prev) => prev + 1);
   }, []);
+  const updateServerSearchEntry = useCallback((entryId, update) => {
+    setServerSearch(previous => ({
+      ...previous,
+      results: previous.results.map(entry => entry.id === entryId ? { ...entry, ...update } : entry)
+    }));
+  }, [setServerSearch]);
 
-  // Capture timestamp when filters change (in event handler context, not during render)
+  // Search by meaning runs only on request, for the exact query it was asked
+  // for; editing the query returns to literal matches.
+  const [semanticRequest, setSemanticRequest] = useState(() => ({ namespace, query: null }));
+  const semanticQuery = semanticRequest.namespace === namespace ? semanticRequest.query : null;
+  if (semanticQuery && filters.query.trim() !== semanticQuery) setSemanticRequest({ namespace, query: null });
+
+  // This clock owns both the filtered readings and the window used by analytics.
   const [filterTimestamp, setFilterTimestamp] = useState(Date.now);
   const setFilters = useCallback((update) => {
     setFilterTimestamp(Date.now());
     setFiltersInternal(update);
-  }, []);
+  }, [setFiltersInternal]);
+  const timeframeWindow = useMemo(
+    () => getTimeframeWindow(filters.timeframe, new Date(filterTimestamp)),
+    [filters.timeframe, filterTimestamp]
+  );
 
   // Label maps for display
   const contextLabelMap = useMemo(
@@ -87,9 +114,10 @@ export function useJournalFilters(sourceEntries, options = {}) {
         timeframe: filters.timeframe,
         onlyReversals: filters.onlyReversals,
         journeyFilter: filters.journeyFilter,
-        serverSearchEnabled: isAuthenticated && canUseCloudJournal && !completeHistory && entries?.length >= SERVER_SEARCH_THRESHOLD
+        serverSearchEnabled: isAuthenticated && canUseCloudJournal && !completeHistory && entries?.length >= SERVER_SEARCH_THRESHOLD,
+        semanticQuery
       }),
-    [filters, namespace, isAuthenticated, canUseCloudJournal, completeHistory, entries]
+    [filters, namespace, isAuthenticated, canUseCloudJournal, completeHistory, entries, semanticQuery]
   );
 
   const serverFilterSignature = useMemo(
@@ -99,32 +127,85 @@ export function useJournalFilters(sourceEntries, options = {}) {
         spreads: [...filters.spreads].sort(),
         decks: [...filters.decks].sort(),
         timeframe: filters.timeframe,
+        windowStart: timeframeWindow?.start.getTime(),
+        windowEnd: timeframeWindow?.end.getTime(),
         onlyReversals: filters.onlyReversals
       }),
-    [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals]
+    [filters.contexts, filters.spreads, filters.decks, filters.timeframe, timeframeWindow, filters.onlyReversals]
   );
 
   const trimmedDeferredQuery = deferredQuery.trim();
-  const shouldUseServerSearch = isAuthenticated
+  const canSearchServer = isAuthenticated
     && Boolean(userId) && !isDeletedAccount(userId)
     && canUseCloudJournal
+    && !filters.journeyFilter;
+  const semanticAvailable = canSearchServer && filters.query.trim().length >= SERVER_SEARCH_MIN_QUERY;
+  const semanticActive = canSearchServer && Boolean(semanticQuery) && trimmedDeferredQuery === semanticQuery;
+  const shouldUseServerSearch = semanticActive || (canSearchServer
     // Complete history can be filtered locally without truncating matches to
     // the server search page size. Paginated callers retain server search.
     && !completeHistory
-    && !filters.journeyFilter
     && trimmedDeferredQuery.length >= SERVER_SEARCH_MIN_QUERY
-    && entries?.length >= SERVER_SEARCH_THRESHOLD;
+    && entries?.length >= SERVER_SEARCH_THRESHOLD);
+  const requestedSearchMode = semanticActive ? 'semantic' : 'exact';
 
   const searchKey = shouldUseServerSearch
-    ? JSON.stringify([namespace, trimmedDeferredQuery, serverFilterSignature, serverSearchNonce]) : null;
+    ? JSON.stringify([namespace, trimmedDeferredQuery, requestedSearchMode, serverFilterSignature, serverSearchNonce]) : null;
   const serverSearch = !shouldUseServerSearch
     ? IDLE_SERVER_SEARCH
     : serverSearchResult.searchKey === searchKey
       ? { ...serverSearchResult, results: filterDeletedJournalEntries(namespace, serverSearchResult.results) }
-      : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: 'exact' };
+      : { searchKey, status: 'loading', results: [], error: null, query: trimmedDeferredQuery, mode: requestedSearchMode };
+
+  const requestSemanticSearch = useCallback(() => {
+    const query = filters.query.trim();
+    if (query.length < SERVER_SEARCH_MIN_QUERY) return;
+    setSemanticRequest({ namespace, query });
+  }, [filters.query, namespace]);
+  const clearSemanticSearch = useCallback(() => setSemanticRequest({ namespace, query: null }), [namespace]);
 
   // Returning to a previous query starts fresh, including after a cleared search.
-  if (serverSearchResult.searchKey !== searchKey) setServerSearch(serverSearch);
+  // Render resets must settle before the new owner's layout effect can run.
+  // Keep the namespace guard on asynchronous responses, not this local reset.
+  if (serverSearchResult.searchKey !== searchKey) setServerSearchResult(serverSearch);
+
+  // Wake when a reading enters/exits the window or either calendar endpoint
+  // changes day. This also catches midnight/year rollover without polling.
+  const nextTimeframeRefresh = useMemo(() => {
+    if (!timeframeWindow) return null;
+    const now = timeframeWindow.end;
+    let next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    const rolling = filters.timeframe === '30d' || filters.timeframe === '90d';
+    const duration = rolling ? filterTimestamp - timeframeWindow.start.getTime() : null;
+    if (rolling) {
+      const start = timeframeWindow.start;
+      const nextStartDay = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).getTime();
+      next = Math.min(next, nextStartDay + duration);
+    }
+    for (const entry of [...entries, ...serverSearch.results]) {
+      const ts = getTimestamp(entry);
+      if (ts === null) continue;
+      if (ts > filterTimestamp) next = Math.min(next, ts);
+      // The lower endpoint is inclusive, so expiry is one millisecond later.
+      if (rolling && ts + duration + 1 > filterTimestamp) {
+        next = Math.min(next, ts + duration + 1);
+      }
+    }
+    return next;
+  }, [entries, serverSearch.results, timeframeWindow, filters.timeframe, filterTimestamp]);
+
+  useEffect(() => {
+    if (nextTimeframeRefresh === null) return;
+    const refresh = () => setFilterTimestamp(Date.now());
+    const timer = setTimeout(refresh, Math.max(0, nextTimeframeRefresh - Date.now()));
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [nextTimeframeRefresh, filterTimestamp]);
 
   useEffect(() => {
     if (!shouldUseServerSearch) return;
@@ -139,6 +220,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     const urlParams = new URLSearchParams();
     urlParams.append('q', query);
     urlParams.append('limit', String(SERVER_SEARCH_LIMIT));
+    if (requestedSearchMode === 'semantic') urlParams.append('mode', 'semantic');
 
     // Add active filters to the search request
     if (filters.contexts.length > 0) {
@@ -152,6 +234,11 @@ export function useJournalFilters(sourceEntries, options = {}) {
     }
     if (filters.timeframe !== 'all') {
       urlParams.append('timeframe', filters.timeframe);
+    }
+    // The reader's local window; the server's own "ytd" boundary is UTC.
+    if (timeframeWindow) {
+      urlParams.append('windowStart', String(timeframeWindow.start.getTime()));
+      urlParams.append('windowEnd', String(timeframeWindow.end.getTime()));
     }
     if (filters.onlyReversals) {
       urlParams.append('onlyReversals', 'true');
@@ -180,7 +267,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
           results: normalizedResults,
           error: null,
           query,
-          mode: data?.mode || 'exact'
+          mode: data?.mode || requestedSearchMode
         });
       })
       .catch((error) => {
@@ -191,7 +278,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
           results: [],
           error: error?.message || 'Unable to search your full history.',
           query,
-          mode: 'exact'
+          mode: requestedSearchMode
         });
       });
 
@@ -201,12 +288,13 @@ export function useJournalFilters(sourceEntries, options = {}) {
         controller.abort();
       }
     };
-  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, namespace, userId, setServerSearch]);
+  }, [filters.contexts, filters.spreads, filters.decks, filters.timeframe, timeframeWindow, filters.onlyReversals, searchKey, shouldUseServerSearch, trimmedDeferredQuery, requestedSearchMode, namespace, userId, setServerSearch]);
 
   const filteredEntries = useMemo(() => {
     if (shouldUseServerSearch) {
       if (serverSearch.status === 'success') {
-        return serverSearch.results;
+        const windowed = filterEntriesToWindow(serverSearch.results, timeframeWindow);
+        return filters.onlyReversals ? windowed.filter(entryHasReversal) : windowed;
       }
       if (serverSearch.status === 'loading') {
         return [];
@@ -219,23 +307,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     const contextSet = new Set(filters.contexts);
     const spreadSet = new Set(filters.spreads);
     const deckSet = new Set(filters.decks);
-    const timeframeCutoff = (() => {
-      const now = filterTimestamp;
-      switch (filters.timeframe) {
-        case '30d':
-          return now - 30 * 24 * 60 * 60 * 1000;
-        case '90d':
-          return now - 90 * 24 * 60 * 60 * 1000;
-        case 'ytd': {
-          const yearStart = new Date(new Date(now).getFullYear(), 0, 1).getTime();
-          return yearStart;
-        }
-        default:
-          return null;
-      }
-    })();
-
-    return entries.filter((entry) => {
+    return filterEntriesToWindow(entries, timeframeWindow).filter((entry) => {
       if (!matchesJourneyFilter(entry, filters.journeyFilter)) return false;
       if (contextSet.size > 0 && !contextSet.has(entry?.context)) {
         return false;
@@ -246,15 +318,8 @@ export function useJournalFilters(sourceEntries, options = {}) {
       if (deckSet.size > 0 && !deckSet.has(entry?.deckId)) {
         return false;
       }
-      const entryTs = entry?.ts || (entry?.created_at ? entry.created_at * 1000 : null);
-      if (timeframeCutoff && entryTs && entryTs < timeframeCutoff) {
+      if (filters.onlyReversals && !entryHasReversal(entry)) {
         return false;
-      }
-      if (filters.onlyReversals) {
-        const hasReversal = (entry?.cards || []).some((card) => (card?.orientation || '').toLowerCase().includes('reversed'));
-        if (!hasReversal) {
-          return false;
-        }
       }
       if (query) {
         const reflections = entry?.reflections ? Object.values(entry.reflections).join(' ') : '';
@@ -278,7 +343,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
       }
       return true;
     });
-  }, [entries, filters.journeyFilter, filters.contexts, filters.spreads, filters.decks, filters.timeframe, filters.onlyReversals, filterTimestamp, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
+  }, [entries, filters.journeyFilter, filters.contexts, filters.spreads, filters.decks, filters.onlyReversals, timeframeWindow, serverSearch.results, serverSearch.status, shouldUseServerSearch, trimmedDeferredQuery]);
 
   // Check if any filters are active
   const filtersActive = Boolean(filters.query.trim()) ||
@@ -352,6 +417,7 @@ export function useJournalFilters(sourceEntries, options = {}) {
     setFilters,
     filterSignature,
     filteredEntries,
+    timeframeWindow,
     filtersActive,
     activeFilterChips,
     handleResetFilters,
@@ -362,9 +428,15 @@ export function useJournalFilters(sourceEntries, options = {}) {
       error: serverSearch.error,
       mode: serverSearch.mode,
       resultsCount: serverSearch.results.length,
-      query: serverSearch.query
+      query: serverSearch.query,
+      // An explicit search by meaning: offered for any cloud journal query.
+      semanticAvailable: semanticAvailable && !semanticActive,
+      semanticActive
     },
-    refreshServerSearch
+    refreshServerSearch,
+    updateServerSearchEntry,
+    requestSemanticSearch,
+    clearSemanticSearch
   };
 }
 

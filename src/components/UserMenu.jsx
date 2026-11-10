@@ -1,5 +1,6 @@
 import { InstallControl } from './InstallControl';
-import { lazy, useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
+import { GuestAccountMenu } from './GuestAccountMenu';
+import { lazy, useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SignIn, User, SignOut, BookOpen, Gear, Crown, Sparkle, Moon } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,11 +8,12 @@ import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionCon
 import { usePreferences } from '../contexts/PreferencesContext';
 import { ConfirmModal } from './ConfirmModal';
 import { DeferredDialog } from './DeferredDialog';
+import { OPEN_SIGN_IN_EVENT } from '../lib/openSignIn';
 
 const AuthModal = lazy(() => import('./AuthModal'));
 
-export function UserMenu({ condensed = false, installInMenu = false }) {
-  const { isAuthenticated, user, logout } = useAuth();
+export function UserMenu({ condensed = false, installInMenu = false, compactGuest = false, onRequestExit }) {
+  const { isAuthenticated, user, logout, loading } = useAuth();
   const { tier, isPaid } = useSubscription();
   const { resetOnboarding, onboardingComplete } = usePreferences();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -39,13 +41,21 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    closeDropdown();
+    const action = async () => {
+      await logout();
+      closeDropdown();
+    };
+    if (onRequestExit) onRequestExit(action);
+    else await action();
   };
 
   const handleReplayTutorial = () => {
-    closeDropdown();
-    setTutorialResetOpen(true);
+    const action = () => {
+      closeDropdown();
+      setTutorialResetOpen(true);
+    };
+    if (onRequestExit) onRequestExit(action);
+    else action();
   };
 
   const confirmReplayTutorial = useCallback(() => {
@@ -78,6 +88,16 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
       setJourneyLoading(false);
     }
   }, [isAuthenticated, journeyLoading, journeyEnabled]);
+
+  useEffect(() => {
+    const openSignIn = () => {
+      if (isAuthenticated) return;
+      closeDropdown();
+      setShowAuthModal(true);
+    };
+    window.addEventListener(OPEN_SIGN_IN_EVENT, openSignIn);
+    return () => window.removeEventListener(OPEN_SIGN_IN_EVENT, openSignIn);
+  }, [isAuthenticated, closeDropdown]);
 
   const handleRetryJourney = useCallback(() => {
     fetchJourneyPreference(true);
@@ -154,6 +174,63 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
   const nextTier = tier === 'free' ? 'plus' : tier === 'plus' ? 'pro' : null;
   const nextTierConfig = nextTier ? SUBSCRIPTION_TIERS[nextTier] : null;
 
+  const renderGuestActions = () => (
+    <div className="flex flex-nowrap items-center justify-end gap-2">
+      <Link
+        to="/account"
+        className="
+          guest-settings-link flex items-center justify-center min-h-touch min-w-touch
+          rounded-full border border-accent/30 text-accent
+          hover:bg-surface hover:border-accent/50 active:bg-surface-muted
+          transition touch-manipulation
+          focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
+          focus-visible:ring-offset-2 focus-visible:ring-offset-main
+        "
+        aria-label="Settings"
+      >
+        <Gear className="w-5 h-5" aria-hidden="true" />
+        <span className="sr-only">Settings</span>
+      </Link>
+      <button
+        type="button"
+        onClick={() => setShowAuthModal(true)}
+        className="
+          guest-signin-button flex items-center gap-1.5 px-3 sm:px-4 min-h-touch whitespace-nowrap
+          rounded-full bg-primary text-surface
+          hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
+          shadow-xs shadow-primary/20 transition
+          text-xs-plus font-semibold touch-manipulation
+          focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60
+          focus-visible:ring-offset-2 focus-visible:ring-offset-main
+        "
+      >
+        <SignIn className="w-4 h-4" aria-hidden="true" />
+        <span>Sign In</span>
+      </button>
+      {compactGuest && onboardingComplete && (
+        <button
+          type="button"
+          onClick={handleReplayTutorial}
+          className="
+            flex items-center justify-center min-w-touch min-h-touch
+            rounded-full bg-surface/50 border border-accent/20
+            text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
+            transition touch-manipulation
+            focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
+            focus-visible:ring-offset-2 focus-visible:ring-offset-main
+          "
+          aria-label="Replay tutorial"
+          title="Replay Tutorial"
+        >
+          <BookOpen className="w-4 h-4" aria-hidden="true" />
+          {compactGuest && <span>Replay tutorial</span>}
+        </button>
+      )}
+    </div>
+  );
+
+  if (loading) return <div className="account-loading-slot" role="status" aria-label="Loading account" />;
+
   return (
     <>
       <div className="relative z-sticky-elevated flex items-center gap-2">
@@ -166,7 +243,7 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
                 setShowDropdown(!showDropdown);
               }}
               className={`
-                flex items-center gap-1.5 sm:gap-2 min-h-touch
+                account-trigger flex items-center gap-1.5 sm:gap-2 min-h-touch
                 rounded-full border transition text-xs-plus font-semibold text-accent touch-manipulation
                 active:scale-[0.98]
                 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
@@ -178,261 +255,217 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
               `}
               aria-expanded={showDropdown}
               aria-haspopup="menu"
-              aria-label={`User menu for ${user?.username || 'account'}`}
+              aria-label={user?.username ? `Account menu for ${user.username}` : 'Account menu'}
             >
               <User className="w-4 h-4 shrink-0" aria-hidden="true" />
               {/* Mobile: show initial only, tablet+: show truncated username */}
               {!condensed && <span className="xs:hidden text-xs font-bold">{getInitial()}</span>}
-              <span className={`${condensed ? 'hidden sm:inline' : 'hidden xs:inline'} max-w-[60px] sm:max-w-[80px] md:max-w-[100px] truncate text-xs sm:text-xs-plus`}>
-                {getDisplayName()}
+              <span className={`${condensed ? 'account-trigger-label hidden sm:inline' : 'hidden xs:inline'} max-w-[60px] sm:max-w-[80px] md:max-w-[100px] truncate text-xs sm:text-xs-plus`}>
+                {condensed ? 'Account' : getDisplayName()}
               </span>
             </button>
 
+            {/* Backdrop for mobile */}
             {showDropdown && (
-              <>
-                {/* Backdrop for mobile */}
-                <div
-                  className="fixed inset-0 z-sticky-elevated bg-main/40 sm:bg-transparent"
-                  onClick={closeDropdown}
-                  aria-hidden="true"
-                />
-                <div
-                  ref={dropdownRef}
-                  role="menu"
-                  aria-label="User menu"
-                  className="
-                    absolute right-0 mt-2 w-56 sm:w-48 py-1
-                    bg-surface border border-accent/20 rounded-xl
-                    shadow-xl z-50 animate-fade-in
-                    max-h-[calc(100vh-120px)] overflow-y-auto
-                  "
-                >
-                  {/* User info header */}
-                  <div className="px-4 py-3 border-b border-accent/10">
-                    <p className="text-xs text-muted">Signed in as</p>
-                    <p className="text-sm font-semibold text-accent truncate">{user?.username}</p>
-                    {user?.email && (
-                      <p className="text-2xs text-muted/70 truncate mt-0.5">{user.email}</p>
-                    )}
-                    {/* Subscription tier badge */}
-                    <div className="mt-2 flex items-center gap-1.5">
-                      {tier === 'pro' && <Crown className="h-3.5 w-3.5 text-accent" weight="fill" />}
-                      {tier === 'plus' && <Sparkle className="h-3.5 w-3.5 text-accent" weight="fill" />}
-                      {tier === 'free' && <Moon className="h-3.5 w-3.5 text-muted" weight="fill" />}
-                      <span className={`text-2xs font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
-                        {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
-                      </span>
-                    </div>
-                  </div>
+              <div
+                className="fixed inset-0 z-sticky-elevated bg-main/40 sm:bg-transparent"
+                onClick={closeDropdown}
+                aria-hidden="true"
+              />
+            )}
+            {/* Keep the installation host alive when its body portal closes the menu. */}
+            <div
+              ref={dropdownRef}
+              hidden={!showDropdown}
+              inert={!showDropdown || undefined}
+              role="menu"
+              aria-label="User menu"
+              className="
+                absolute right-0 mt-2 w-56 sm:w-48 py-1
+                bg-surface border border-accent/20 rounded-xl
+                shadow-xl z-50 animate-fade-in
+                max-h-[calc(100vh-120px)] overflow-y-auto
+              "
+            >
+              {/* User info header */}
+              <div className="px-4 py-3 border-b border-accent/10">
+                <p className="text-xs text-muted">Signed in as</p>
+                <p className="text-sm font-semibold text-accent truncate">{user?.username}</p>
+                {user?.email && (
+                  <p className="text-2xs text-muted/70 truncate mt-0.5">{user.email}</p>
+                )}
+                {/* Subscription tier badge */}
+                <div className="mt-2 flex items-center gap-1.5">
+                  {tier === 'pro' && <Crown className="h-3.5 w-3.5 text-accent" weight="fill" />}
+                  {tier === 'plus' && <Sparkle className="h-3.5 w-3.5 text-accent" weight="fill" />}
+                  {tier === 'free' && <Moon className="h-3.5 w-3.5 text-muted" weight="fill" />}
+                  <span className={`text-2xs font-medium ${isPaid ? 'text-accent' : 'text-muted'}`}>
+                    {SUBSCRIPTION_TIERS[tier]?.name || 'Seeker'} Plan
+                  </span>
+                </div>
+              </div>
 
-                  {/* Archetype Journey toggle */}
-                  <div className="px-4 py-3 border-b border-accent/10">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-main">
-                          Archetype Journey <span className="text-2xs text-muted">(optional)</span>
-                        </p>
-                        <p className="text-2xs text-muted mt-0.5">
-                          Track recurring cards and patterns.
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-3">
-                          <Link
-                            to="/journal"
-                            onClick={closeDropdown}
-                            className="text-2xs text-accent hover:text-accent/80"
-                          >
-                            View Journey
-                          </Link>
-                          {journeyError && (
-                            <button
-                              type="button"
-                              onClick={handleRetryJourney}
-                              className="text-2xs text-muted hover:text-main"
-                            >
-                              Retry
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={journeyEnabled === true}
-                        aria-label="Toggle Archetype Journey"
-                        onClick={handleToggleJourney}
-                        disabled={journeyEnabled === null || journeyLoading}
-                        className={`
-                          min-h-touch min-w-touch flex items-center justify-center touch-manipulation
-                          ${journeyEnabled === null || journeyLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
-                        `}
+              {/* Archetype Journey toggle */}
+              <div className="px-4 py-3 border-b border-accent/10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-main">
+                      Archetype Journey <span className="text-2xs text-muted">(optional)</span>
+                    </p>
+                    <p className="text-2xs text-muted mt-0.5">
+                      Track recurring cards and patterns.
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-3">
+                      <Link
+                        to="/journal"
+                        onClick={closeDropdown}
+                        className="text-2xs text-accent hover:text-accent/80"
                       >
-                        <span
-                          className={`
-                            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-                            ${journeyEnabled ? 'bg-accent' : 'bg-secondary/30'}
-                          `}
+                        View Journey
+                      </Link>
+                      {journeyError && (
+                        <button
+                          type="button"
+                          onClick={handleRetryJourney}
+                          className="text-2xs text-muted hover:text-main"
                         >
-                          <span
-                            className={`
-                              inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform
-                              ${journeyEnabled ? 'translate-x-5' : 'translate-x-1'}
-                            `}
-                          />
-                        </span>
-                      </button>
+                          Retry
+                        </button>
+                      )}
                     </div>
-                    {journeyError && (
-                      <p className="text-2xs text-error mt-2">{journeyError}</p>
-                    )}
                   </div>
-
-                  {/* Upgrade CTA */}
-                  {nextTierConfig && (
-                    <Link
-                      to="/pricing"
-                      onClick={closeDropdown}
-                      className="
-                        w-full px-4 py-3 min-h-touch
-                        text-sm text-main hover:bg-accent/10 active:bg-accent/20
-                        flex items-center justify-between gap-3 touch-manipulation
-                        focus-visible:outline-hidden focus-visible:bg-accent/10
-                        border-b border-accent/10
-                      "
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={journeyEnabled === true}
+                    aria-label="Toggle Archetype Journey"
+                    onClick={handleToggleJourney}
+                    disabled={journeyEnabled === null || journeyLoading}
+                    className={`
+                      min-h-touch min-w-touch flex items-center justify-center touch-manipulation
+                      ${journeyEnabled === null || journeyLoading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                  >
+                    <span
+                      className={`
+                        relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+                        ${journeyEnabled ? 'bg-accent' : 'bg-secondary/30'}
+                      `}
                     >
-                      <div className="flex items-center gap-2">
-                        {nextTier === 'pro' ? (
-                          <Crown className="h-4 w-4 text-accent" weight="fill" />
-                        ) : (
-                          <Sparkle className="h-4 w-4 text-accent" weight="fill" />
-                        )}
-                        <div>
-                          <p className="text-sm font-semibold text-accent">
-                            Upgrade to {nextTierConfig.label}
-                          </p>
-                          <p className="text-2xs text-muted">
-                            ${nextTierConfig.price}/month
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted">View</span>
-                    </Link>
-                  )}
-
-                  {/* Account Settings Link */}
-                  <Link
-                    to="/account"
-                    onClick={closeDropdown}
-                    className="
-                      w-full text-left px-4 py-3 min-h-touch
-                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
-                      flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-hidden focus-visible:bg-accent/5
-                      border-b border-accent/10
-                    "
-                  >
-                    <Gear className="w-4 h-4" aria-hidden="true" />
-                    Account & Settings
-                  </Link>
-                  <Link
-                    to={isPaid ? '/account#subscription' : '/pricing'}
-                    onClick={closeDropdown}
-                    className="
-                      w-full text-left px-4 py-3 min-h-touch
-                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
-                      flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-hidden focus-visible:bg-accent/5
-                      border-b border-accent/10
-                    "
-                  >
-                    {isPaid ? 'Manage Subscription' : 'View Plans'}
-                  </Link>
-
-                  {/* Replay Tutorial */}
-                  <button
-                    role="menuitem"
-                    onClick={handleReplayTutorial}
-                    className="
-                      w-full text-left px-4 py-3 min-h-touch
-                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
-                      flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-hidden focus-visible:bg-accent/5
-                      border-b border-accent/10
-                    "
-                  >
-                    <BookOpen className="w-4 h-4" aria-hidden="true" />
-                    Replay Tutorial
-                  </button>
-
-                  {/* Sign out */}
-                  <button
-                    role="menuitem"
-                    onClick={handleLogout}
-                    className="
-                      w-full text-left px-4 py-3 min-h-touch
-                      text-sm text-accent hover:bg-accent/5 active:bg-accent/10
-                      flex items-center gap-2 touch-manipulation
-                      focus-visible:outline-hidden focus-visible:bg-accent/5
-                    "
-                  >
-                    <SignOut className="w-4 h-4" aria-hidden="true" />
-                    Sign Out
+                      <span
+                        className={`
+                          inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform
+                          ${journeyEnabled ? 'translate-x-5' : 'translate-x-1'}
+                        `}
+                      />
+                    </span>
                   </button>
                 </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {onboardingComplete && (
+                {journeyError && (
+                  <p className="text-2xs text-error mt-2">{journeyError}</p>
+                )}
+              </div>
+
+              {/* Upgrade CTA */}
+              {nextTierConfig && (
+                <Link
+                  to="/pricing"
+                  onClick={closeDropdown}
+                  className="
+                    w-full px-4 py-3 min-h-touch
+                    text-sm text-main hover:bg-accent/10 active:bg-accent/20
+                    flex items-center justify-between gap-3 touch-manipulation
+                    focus-visible:outline-hidden focus-visible:bg-accent/10
+                    border-b border-accent/10
+                  "
+                >
+                  <div className="flex items-center gap-2">
+                    {nextTier === 'pro' ? (
+                      <Crown className="h-4 w-4 text-accent" weight="fill" />
+                    ) : (
+                      <Sparkle className="h-4 w-4 text-accent" weight="fill" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-accent">
+                        Upgrade to {nextTierConfig.label}
+                      </p>
+                      <p className="text-2xs text-muted">
+                        ${nextTierConfig.price}/month
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted">View</span>
+                </Link>
+              )}
+
+              {/* Account Settings Link */}
+              <Link
+                to="/account"
+                onClick={closeDropdown}
+                className="
+                  w-full text-left px-4 py-3 min-h-touch
+                  text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                  flex items-center gap-2 touch-manipulation
+                  focus-visible:outline-hidden focus-visible:bg-accent/5
+                  border-b border-accent/10
+                "
+              >
+                <Gear className="w-4 h-4" aria-hidden="true" />
+                Account & Settings
+              </Link>
+              <Link
+                to={isPaid ? '/account#subscription' : '/pricing'}
+                onClick={closeDropdown}
+                className="
+                  w-full text-left px-4 py-3 min-h-touch
+                  text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                  flex items-center gap-2 touch-manipulation
+                  focus-visible:outline-hidden focus-visible:bg-accent/5
+                  border-b border-accent/10
+                "
+              >
+                {isPaid ? 'Manage Subscription' : 'View Plans'}
+              </Link>
+
+              {/* Replay Tutorial */}
               <button
+                role="menuitem"
                 onClick={handleReplayTutorial}
                 className="
-                  flex items-center justify-center min-w-touch min-h-touch
-                  rounded-full bg-surface/50 border border-accent/20
-                  text-accent hover:bg-surface hover:border-accent/40 active:bg-surface-muted
-                  transition touch-manipulation
-                  focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
-                  focus-visible:ring-offset-2 focus-visible:ring-offset-main
+                  w-full text-left px-4 py-3 min-h-touch
+                  text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                  flex items-center gap-2 touch-manipulation
+                  focus-visible:outline-hidden focus-visible:bg-accent/5
+                  border-b border-accent/10
                 "
-                aria-label="Replay tutorial"
-                title="Replay Tutorial"
               >
                 <BookOpen className="w-4 h-4" aria-hidden="true" />
+                Replay Tutorial
               </button>
-            )}
-            <Link
-              to="/account"
-              className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch min-w-touch
-                rounded-full border border-accent/30 text-accent
-                hover:bg-surface hover:border-accent/50 active:bg-surface-muted
-                transition text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
-              aria-label="Open settings"
-            >
-              <Gear className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden xs:inline">Settings</span>
-            </Link>
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="
-                flex items-center gap-1.5 px-3 sm:px-4 min-h-touch
-                rounded-full bg-primary text-surface
-                hover:bg-primary/90 active:bg-primary/80 active:scale-[0.98]
-                shadow-xs shadow-primary/20 transition
-                text-xs-plus font-semibold touch-manipulation
-                focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60
-                focus-visible:ring-offset-2 focus-visible:ring-offset-main
-              "
-            >
-              <SignIn className="w-4 h-4" aria-hidden="true" />
-              <span>Sign In</span>
-            </button>
+
+              {installInMenu && <div className="px-4 py-2 border-b border-accent/10">
+                <InstallControl getFallbackFocus={() => triggerRef.current} preventFocusScroll />
+              </div>}
+
+              {/* Sign out */}
+              <button
+                role="menuitem"
+                onClick={handleLogout}
+                className="
+                  w-full text-left px-4 py-3 min-h-touch
+                  text-sm text-accent hover:bg-accent/5 active:bg-accent/10
+                  flex items-center gap-2 touch-manipulation
+                  focus-visible:outline-hidden focus-visible:bg-accent/5
+                "
+              >
+                <SignOut className="w-4 h-4" aria-hidden="true" />
+                Sign Out
+              </button>
+            </div>
           </div>
+        ) : (
+          compactGuest ? <GuestAccountMenu>{renderGuestActions()}</GuestAccountMenu> : renderGuestActions()
         )}
-        {installInMenu ? <AppUtilities /> : null}
       </div>
 
       <ConfirmModal
@@ -456,60 +489,5 @@ export function UserMenu({ condensed = false, installInMenu = false }) {
         />
       )}
     </>
-  );
-}
-
-/** The same global utility entry works for guest and signed-in readers. */
-export function AppUtilities() {
-  const summaryRef = useRef(null);
-  const panelRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  const getFallbackFocus = useCallback(() => summaryRef.current, []);
-  useLayoutEffect(() => {
-    if (!open) return undefined;
-    const panel = panelRef.current;
-    const summary = summaryRef.current;
-    const dock = document.querySelector('.mobile-action-bar');
-    const position = () => {
-      const viewport = window.visualViewport;
-      const viewportTop = viewport?.offsetTop || 0;
-      const viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
-      const dockBox = dock?.getBoundingClientRect();
-      const bottom = dockBox?.height ? Math.min(viewportBottom, dockBox.top) : viewportBottom;
-      const anchorBottom = summary.getBoundingClientRect().bottom;
-      const top = Math.max(viewportTop + 8, Math.min(anchorBottom + 4, bottom - panel.scrollHeight - 10));
-      panel.style.setProperty('--utilities-offset', `${top - anchorBottom}px`);
-      panel.style.setProperty('--utilities-height', `${Math.max(44, bottom - top - 8)}px`);
-    };
-    const observer = new ResizeObserver(position);
-    observer.observe(panel);
-    observer.observe(summary);
-    if (dock) observer.observe(dock);
-    window.addEventListener('resize', position);
-    window.addEventListener('scroll', position, { passive: true });
-    window.visualViewport?.addEventListener('resize', position);
-    position();
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', position);
-      window.removeEventListener('scroll', position);
-      window.visualViewport?.removeEventListener('resize', position);
-    };
-  }, [open]);
-  return (
-    <details className="relative shrink-0" data-reading-app-options onToggle={event => setOpen(event.currentTarget.open)} onKeyDown={event => {
-      if (event.key === 'Escape' && event.currentTarget.open && !event.target.closest('[role="dialog"]')) {
-        event.currentTarget.open = false;
-        summaryRef.current?.focus({ preventScroll: true });
-      }
-    }}>
-      <summary ref={summaryRef} className="flex min-h-touch min-w-touch cursor-pointer list-none items-center justify-center rounded-lg text-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary">
-        <Gear className="w-5 h-5" aria-hidden="true" /><span className="sr-only">App options</span>
-      </summary>
-      <div ref={panelRef} className="absolute right-0 top-full z-50 translate-y-(--utilities-offset,4px) w-56 max-w-[80vw] max-h-(--utilities-height,50dvh) overflow-y-auto rounded-xl border border-accent/30 bg-surface p-2 shadow-xl space-y-2">
-        <InstallControl getFallbackFocus={getFallbackFocus} preventFocusScroll />
-        <Link to="/account" className="flex min-h-touch items-center rounded-lg px-2 text-sm text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary">Account and settings</Link>
-      </div>
-    </details>
   );
 }

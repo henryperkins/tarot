@@ -1,12 +1,11 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { MOBILE_SETTINGS_DIALOG_ID } from './mobileActionBarConstants';
 
-export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null }) {
+export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null, keepMounted = false }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const viewportOffset = useKeyboardOffset();
@@ -17,19 +16,17 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     : { paddingBottom: 'calc(1rem + var(--safe-pad-bottom))' };
   const prefersReducedMotion = useReducedMotion();
 
-  // Shared modal accessibility: scroll lock, escape key, focus trap, focus restoration
+  // Shared modal accessibility: scroll lock, escape key, focus trap, focus
+  // restoration, and Back (mobile-only component, so always enabled)
   useModalA11y(isOpen, {
     onClose,
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
+    isolateBackground: true,
+    fallbackFocusSelector: '.reading-settings',
     scrollLockStrategy: 'simple', // Simple strategy for drawers
-  });
-
-  // Android back button dismisses drawer (mobile-only component, always enabled)
-  useAndroidBackGuard(isOpen, {
-    onBack: onClose,
-    enabled: true,
-    guardId: 'settingsDrawer'
+    closeOnBack: true,
+    backGuardId: 'settingsDrawer',
   });
 
   // Handle swipe-to-dismiss with velocity and visual feedback
@@ -63,7 +60,9 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
       target.closest('.mobile-drawer__header');
 
     // Allow anywhere if at scroll top, or specifically on handle/header
-    const scrollContainer = drawerRef.current?.querySelector('.mobile-drawer__body');
+    const drawer = drawerRef.current;
+    const scrollContainer = drawer && getComputedStyle(drawer).overflowY === 'auto'
+      ? drawer : drawer?.querySelector('.mobile-drawer__body');
     const isAtScrollTop = !scrollContainer || scrollContainer.scrollTop <= 0;
 
     if (isHandleOrHeader || isAtScrollTop) {
@@ -128,15 +127,19 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
     setDragOffset(0);
   }, []);
 
-  if (!isOpen) return null;
+  if (!isOpen && !keepMounted) return null;
 
   return (
     <div
+      data-reading-settings-drawer
+      hidden={!isOpen}
+      inert={!isOpen || undefined}
       className="fixed inset-0 z-70 flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
       style={wrapperStyle}
     >
       <div
         className="mobile-drawer-overlay absolute inset-0 motion-safe:animate-fade-in"
+        data-modal-backdrop
         onClick={onClose}
         aria-hidden="true"
       />
@@ -167,7 +170,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null 
             <div className="space-y-1">
               <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
               <p className="text-xs text-muted leading-relaxed max-w-88">
-                Choose your deck and ritual before you draw.
+                Choose the deck for your next draw.
               </p>
             </div>
 

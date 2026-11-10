@@ -51,7 +51,7 @@ test('dealing stays face-down, reveals select meaning, and reset preserves the t
   await page.getByRole('button', { name: 'Reveal next: Past', exact: true }).click();
   await expect(detail.getByRole('heading', { level: 3 })).toHaveText(firstName);
   await expect(detail.getByLabel('What resonates for you?')).toHaveValue('A small step is enough.');
-  await page.getByRole('button', { name: 'Reveal all cards', exact: true }).click();
+  await page.getByRole('button', { name: 'Reveal remaining cards', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Interpret cards', exact: true })).toBeVisible();
 });
 
@@ -70,7 +70,7 @@ for (const width of [1440, 390]) {
     await page.keyboard.press('Shift+G');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('button', { name: /^Reveal next:/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Reveal all cards|Reset reveals/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Reveal remaining cards|Reset reveals/ })).toHaveCount(0);
     await page.keyboard.press('Shift+G');
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await expect(page.locator('#guided-intention-coach')).toHaveCount(0);
@@ -137,7 +137,7 @@ test('touch reading adapts from portrait to landscape and keeps reflections thro
 
   await detail.getByRole('button', { name: 'Open full card' }).tap();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Reveal next:|Reveal all cards|Reset reveals/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Reveal next:|Reveal remaining cards|Reset reveals/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Reset reveals', exact: true }).tap();
   await page.getByRole('button', { name: /^Reveal next:/ }).tap();

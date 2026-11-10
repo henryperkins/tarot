@@ -5,6 +5,7 @@ import { djb2Hash } from '../src/lib/utils.js';
 
 function browser(t, mediaSource = false) {
   const players = [];
+  const sources = [];
   const storage = Object.create(null);
   Object.defineProperties(storage, {
     getItem: { value(key) { return storage[key] ?? null; } },
@@ -19,7 +20,17 @@ function browser(t, mediaSource = false) {
   t.mock.property(globalThis, 'localStorage', storage);
   t.mock.property(globalThis, 'window', { addEventListener() {}, removeEventListener() {}, localStorage: storage });
   t.mock.property(globalThis, 'Audio', class extends EventTarget {
-    constructor(src) { super(); this.src = src; this.paused = true; this.ended = false; players.push(this); }
+    constructor(src) {
+      super(); this.src = src; this.paused = true; this.ended = false; players.push(this);
+      // A real MediaSource opens only after a media element attaches its URL.
+      if (src === 'blob:test-audio') queueMicrotask(() => {
+        for (const source of sources) {
+          if (source.readyState !== 'closed') continue;
+          source.readyState = 'open';
+          source.dispatchEvent(new Event('sourceopen'));
+        }
+      });
+    }
     async play() { this.paused = false; }
     pause() { this.paused = true; }
   });
@@ -28,9 +39,17 @@ function browser(t, mediaSource = false) {
   if (mediaSource) {
     t.mock.property(globalThis, 'MediaSource', class extends EventTarget {
       static isTypeSupported() { return true; }
-      constructor() { super(); this.readyState = 'open'; queueMicrotask(() => this.dispatchEvent(new Event('sourceopen'))); }
-      addSourceBuffer() { return Object.assign(new EventTarget(), { appendBuffer() {}, updating: false }); }
-      endOfStream() {}
+      constructor() { super(); this.readyState = 'closed'; sources.push(this); }
+      addSourceBuffer() {
+        return Object.assign(new EventTarget(), {
+          buffered: { length: 0 }, updating: false,
+          appendBuffer() {
+            this.updating = true;
+            queueMicrotask(() => { this.updating = false; this.dispatchEvent(new Event('updateend')); });
+          }
+        });
+      }
+      endOfStream() { this.readyState = 'ended'; }
     });
   } else t.mock.property(globalThis, 'MediaSource', undefined);
   t.after(() => cleanupAudio());
@@ -68,6 +87,7 @@ for (const mediaSource of [false, true]) {
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(getCurrentTTSState().status, 'error');
     assert.equal(getCurrentTTSState().errorCode, 'NARRATION_INCOMPLETE');
+    assert.equal(getCurrentTTSState().error, 'Audio body failed');
     assert.ok(getCurrentTTSState().message.includes('Please try again'));
   });
 }
@@ -106,22 +126,52 @@ test('switching narrator uses separate caches and preserves the actual provider 
   assert.equal(Object.keys(storage).filter(key => key.startsWith('tts_cache_')).length, 2);
 });
 
-test('legacy narrator preferences migrate to the ElevenLabs request and reuse its cache', async t => {
+test('legacy narrator preferences use the Deepgram request and reuse its cache', async t => {
   browser(t);
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     calls.push({ url, body: JSON.parse(options.body) });
-    return Response.json({ audio: 'data:audio/mpeg;base64,SUQz', provider: 'elevenlabs' });
+    return Response.json({ audio: 'data:audio/mpeg;base64,SUQz', provider: 'workers-ai-aura-2' });
   });
   const narration = { text: 'A migrated provider reading.', enabled: true };
-  for (const provider of ['azure', 'azure-sdk', 'hume', undefined, 'elevenlabs']) {
+  for (const provider of ['azure', 'azure-sdk', 'hume', undefined, 'deepgram']) {
     await speakText({ ...narration, provider });
-    assert.equal(getCurrentTTSState().provider, 'elevenlabs');
+    assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
   }
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/tts');
-  assert.equal(calls[0].body.provider, 'elevenlabs');
+  assert.equal(calls[0].body.provider, 'deepgram');
   assert.equal(getCurrentTTSState().source, 'cache');
+});
+
+test('streaming narration without a selected provider requests Deepgram', async t => {
+  browser(t);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': 'workers-ai-aura-2' } });
+  });
+  await speakText({ text: 'A default narrated reading.', enabled: true, stream: true, context: 'full-reading' });
+  assert.deepEqual(calls.map(call => [call.url, call.body.provider]), [['/api/tts?stream=true', 'deepgram']]);
+  assert.equal(getCurrentTTSState().status, 'playing');
+  assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
+});
+
+test('queued narration without a selected provider requests Deepgram', async t => {
+  const { players } = browser(t);
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls.push({ url, body: JSON.parse(options.body) });
+    return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': 'workers-ai-aura-2' } });
+  });
+  assert.equal(enqueueTTSChunk({ text: 'A default queued reading.' }), true);
+  finalizeTTSStream();
+  await waitFor(() => getCurrentTTSState().status === 'playing');
+  assert.deepEqual(calls.map(call => [call.url, call.body.provider]), [['/api/tts?stream=true', 'deepgram']]);
+  assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
+  players.at(-1).ended = true;
+  players.at(-1).dispatchEvent(new Event('ended'));
+  await waitFor(() => getCurrentTTSState().status === 'completed');
 });
 
 test('unscoped reader cache entries from the previous release never override the selected narrator', async t => {
@@ -166,7 +216,7 @@ test('queued narration retains each segment narrator until its own network reque
     return new Response('MP3 bytes', { headers: { 'content-type': 'audio/mpeg', 'x-tts-provider': body.provider === 'deepgram' ? 'workers-ai-aura-2' : 'elevenlabs' } });
   });
   assert.equal(enqueueTTSChunk({ text: 'The first queued reading.', provider: 'deepgram' }), true);
-  assert.equal(enqueueTTSChunk({ text: 'The second queued reading.', provider: 'azure-sdk' }), true);
+  assert.equal(enqueueTTSChunk({ text: 'The second queued reading.', provider: 'elevenlabs' }), true);
   finalizeTTSStream();
   await waitFor(() => calls.length === 1 && getCurrentTTSState().status === 'playing');
   assert.equal(getCurrentTTSState().provider, 'workers-ai-aura-2');
@@ -181,3 +231,39 @@ test('queued narration retains each segment narrator until its own network reque
   players.at(-1).dispatchEvent(new Event('ended'));
   await waitFor(() => getCurrentTTSState().status === 'completed');
 });
+
+for (const [header, expected] of [['5', 5], ['1', 1], [undefined, 2], ['0', 2], ['-1', 2], ['1.5', 2], ['3seconds', 2], ['Infinity', 2], ['9007199254740992', 2]]) {
+  test(`busy narration preserves a validated retry interval (${header ?? 'missing'}) and resolves without retry`, async t => {
+    browser(t);
+    t.mock.method(console, 'error', () => {});
+    let requests = 0;
+    t.mock.method(globalThis, 'fetch', async () => {
+      requests++;
+      return Response.json({ errorCode: 'NARRATION_BUSY', retryable: true }, { status: 409, headers: header === undefined ? {} : { 'Retry-After': header } });
+    });
+    await speakText({ text: 'Busy fixture.', enabled: true, context: 'full-reading', stream: true });
+    const state = getCurrentTTSState();
+    assert.equal(state.status, 'error');
+    assert.equal(state.message, 'Another narration is finishing. Please wait a moment, then try again.');
+    assert.equal(state.errorCode, 'NARRATION_BUSY');
+    assert.equal(state.errorDetails.retryAfterSeconds, expected);
+    assert.equal(requests, 1);
+  });
+}
+for (const [status, data, code, message] of [
+  [409, { errorCode: 'OTHER_CONFLICT' }, 'OTHER_CONFLICT', 'Unable to generate audio right now.'],
+  [429, { errorCode: 'TIER_LIMIT', tierLimited: true, used: 3, limit: 3 }, 'TIER_LIMIT', 'Monthly limit reached (3/3). Upgrade for more.'],
+  [429, {}, 'RATE_LIMIT', 'Too many requests. Please wait a moment.'],
+  [503, { errorCode: 'NARRATION_BUSY' }, 'NARRATION_BUSY', 'Voice service temporarily unavailable. Try again shortly.']
+]) {
+  test(`HTTP ${status} ${code} retains its distinct classification`, async t => {
+    browser(t);
+    t.mock.method(console, 'error', () => {});
+    t.mock.method(globalThis, 'fetch', async () => Response.json(data, { status, headers: { 'Retry-After': '5' } }));
+    await speakText({ text: 'Classification fixture.', enabled: true });
+    const state = getCurrentTTSState();
+    assert.equal(state.errorCode, code);
+    assert.equal(state.message, message);
+    assert.equal(state.errorDetails.retryAfterSeconds, undefined);
+  });
+}

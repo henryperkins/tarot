@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
 import { buildReadingSnapshot } from '../src/lib/readingSnapshot.js';
 import { getCanonicalCard } from '../src/lib/cardLookup.js';
@@ -53,6 +53,7 @@ test('completed guest prose and notes survive sign-in and save under the new own
     await page.goto('/');
     await expect(page.locator('.narrative-stream')).toContainText('Keep this private reflection.');
     await page.getByRole('button', { name: /^Step 2:/ }).click();
+    await openAccountOptions(page);
     await page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first().click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Email', { exact: true }).fill(USER.email);

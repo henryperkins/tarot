@@ -1,3 +1,4 @@
+import { detectUndrawnCardAssertions } from './readingCardAssertions.js';
 import { buildHeuristicScores, checkEvalGate } from './evaluation.js';
 import { getLocalComposerLanguageSupport } from './narrativeBackends.js';
 import { detectHallucinatedCards } from './readingQuality.js';
@@ -26,7 +27,8 @@ export function createReadingPassageGuard({ cardsInfo, spreadKey, deckStyle = 'r
     if (!getLocalComposerLanguageSupport(prefix).supported) reject();
     // Coverage and spine are incomplete by definition while text is arriving.
     // Only pass metrics that can already be assessed for this delivered prefix.
-    const metrics = { hallucinatedCards: detectHallucinatedCards(prefix, cardsInfo, deckStyle) };
+    const metrics = { hallucinatedCards: detectHallucinatedCards(prefix, cardsInfo, deckStyle),
+      undrawnCardAssertions: detectUndrawnCardAssertions(prefix, cardsInfo, deckStyle) };
     const result = buildHeuristicScores(metrics, spreadKey, {
       readingText: prefix, cardCount: cardsInfo.length
     });

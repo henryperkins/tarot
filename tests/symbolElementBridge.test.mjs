@@ -35,8 +35,29 @@ describe('symbolElementBridge', () => {
 
     const cue = buildSymbolElementCue({ reading, themes });
     assert.ok(cue, 'Expected a cue to be returned');
-    assert.ok(cue.text.includes('Wands') || cue.text.includes('Fire'));
-    assert.ok(cue.text.toLowerCase().includes('wand'));
+    assert.equal(cue.focusText, 'Fire energy and Wands');
+    assert.equal(cue.text, 'Sprouting wand (creative potential, growth).');
+  });
+
+  test('cue lists imagery with its meanings instead of restating the dominant theme', async () => {
+    // Two Cups and an Air card: Suit Focus and Elemental Balance already name Cups and Water.
+    const cards = [['Nine of Cups', 'Upright'], ['Two of Cups', 'Upright'], ['Knight of Swords', 'Reversed']];
+    const themes = await analyzeSpreadThemes(
+      cards.map(([card, orientation]) => ({ card, orientation, suit: card.split(' of ')[1] })),
+      { enableKnowledgeGraph: false }
+    );
+    const reading = cards.map(([name, orientation]) => ({ name, isReversed: orientation === 'Reversed' }));
+    const cue = buildSymbolElementCue({ reading, themes });
+    assert.equal(cue.text, 'Nine cups (wishes fulfilled) and cups raised (mutual exchange).');
+    assert.deepEqual(cue.symbols, ['nine cups', 'cups raised']);
+    assert.equal(cue.focusText, 'Water energy and Cups');
+    assert.doesNotMatch(cue.text, /Your reading leans|Water energy/);
+
+    const three = buildSymbolElementCue({
+      reading: ['Page of Cups', 'Ten of Cups', 'Five of Cups'].map(name => ({ name })),
+      themes: { suitCounts: { Cups: 3 }, elementCounts: { Water: 3 } }
+    });
+    assert.equal(three.text, 'Cup (creative offering), fish (unexpected message, intuition), and three spilled cups (what is lost).');
   });
 
   test('getSymbolFollowUpPrompt prefers dominant family when available', () => {
@@ -130,5 +151,5 @@ test('Major-heavy cues agree with the actual elemental analysis', async () => {
   const mixedThemes = await analyzeSpreadThemes(mixed);
   assert.equal(mixedThemes.majorRatio, 0.8);
   assert.doesNotMatch(mixedThemes.elementalBalance, /transcending/);
-  assert.match(buildSymbolElementCue({ reading: mixed, themes: mixedThemes }).text, /Fire/);
+  assert.match(buildSymbolElementCue({ reading: mixed, themes: mixedThemes }).focusText, /Fire/);
 });

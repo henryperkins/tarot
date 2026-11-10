@@ -22,11 +22,9 @@ export {
   useEntryMetadata,
   useActionMenu,
   useEntryActions,
-  // Header variants
-  CompactHeader,
+  // Header
   ComfortableHeader,
   // Sections
-  QuestionSection,
   CardsDrawnSection,
   ReflectionsSection,
   KeyThemesSection,

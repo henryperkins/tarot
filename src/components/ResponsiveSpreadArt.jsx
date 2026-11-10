@@ -7,10 +7,12 @@ export function ResponsiveSpreadArt({
   fallbackHeight,
   sizes = '(max-width: 640px) 88vw, (max-width: 1024px) 46vw, 340px',
   className = '',
-  priority = false
+  priority = false,
+  // Empty alt text when a surrounding control already names this artwork.
+  decorative = false
 }) {
   const pictureSources = Array.isArray(sources) ? sources : [];
-  const safeAlt = alt || 'Spread artwork';
+  const safeAlt = decorative ? '' : (alt || 'Spread artwork');
 
   return (
     <div

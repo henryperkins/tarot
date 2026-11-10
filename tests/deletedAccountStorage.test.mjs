@@ -5,11 +5,13 @@ import { parse } from '@babel/parser';
 import { setCachedNarrative } from '../src/lib/safeStorage.js';
 import { persistJournalWithVisualFallback, writeVisualResume } from '../src/lib/readingVisualStorage.js';
 import { saveCoachRecommendation } from '../src/lib/journalInsights.js';
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 
 const ownerKeys = owner => ['tarot_journal', 'tarot_journal_cache', 'tarot_journal_insights',
   'tarot_coach_recommendation', 'tarot_coach_stats_snapshot'].map(prefix => `${prefix}_${owner}`);
 const savedValue = owner => JSON.stringify([{ id: `saved-${owner}`, personalReading: `${owner} saved prose and cues`, cards: [] }]);
 function storageFixture(t, owner) {
+  installJournalLocks(t);
   const values = new Map();
   const storage = { get length() { return values.size; }, key: index => [...values.keys()][index],
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)),

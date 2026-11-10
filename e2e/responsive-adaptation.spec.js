@@ -1,35 +1,33 @@
-import { test, expect } from './helpers/frontendTest.js';
-import { createNarrativeFixture, openSetup } from './helpers/narrativeFixtures.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
+import { createNarrativeFixture, openSetup, startReading } from './helpers/narrativeFixtures.js';
 
 async function expectTouchTarget(locator) {
-  const box = await locator.boundingBox();
-  expect(box).not.toBeNull();
   // Browsers can report transformed 44px edges a few millionths below the integer.
-  expect(box.width).toBeGreaterThanOrEqual(43.99);
-  expect(box.height).toBeGreaterThanOrEqual(43.99);
+  // Resolve the visible placement again while a breakpoint handoff completes.
+  await expect.poll(async () => {
+    const box = await locator.boundingBox();
+    return box ? Math.min(box.width, box.height) : 0;
+  }).toBeGreaterThanOrEqual(43.99);
 }
 
 async function expectNavigationFits(page) {
   const nav = page.getByRole('navigation', { name: 'Primary navigation' });
-  for (const name of ['Reading', 'Journal']) {
-    const button = nav.getByRole('button', { name, exact: true });
-    await expectTouchTarget(button);
-    const bounds = await button.evaluate(element => {
-      const buttonBox = element.getBoundingClientRect();
-      const labelBox = element.querySelector('span').getBoundingClientRect();
-      return {
-        left: labelBox.left - buttonBox.left,
-        right: buttonBox.right - labelBox.right
-      };
-    });
-    expect(bounds.left, `${name} label extends beyond its button`).toBeGreaterThanOrEqual(0);
-    expect(bounds.right, `${name} label extends beyond its button`).toBeGreaterThanOrEqual(0);
-  }
-  const reading = await nav.getByRole('button', { name: 'Reading', exact: true }).boundingBox();
-  const journal = await nav.getByRole('button', { name: 'Journal', exact: true }).boundingBox();
-  const overlapX = Math.min(reading.x + reading.width, journal.x + journal.width) - Math.max(reading.x, journal.x);
-  const overlapY = Math.min(reading.y + reading.height, journal.y + journal.height) - Math.max(reading.y, journal.y);
-  expect(Math.max(0, overlapX) * Math.max(0, overlapY)).toBe(0);
+  // Read both destinations atomically while the responsive copy is settling.
+  // Separate boundingBox calls can straddle its hidden/inert handoff.
+  await expect.poll(() => nav.evaluate(element => {
+    const links = [...element.querySelectorAll('a')];
+    if (links.length !== 2) return null;
+    const boxes = links.map(link => link.getBoundingClientRect());
+    const labels = links.map(link => link.querySelector('span').getBoundingClientRect());
+    const [reading, journal] = boxes;
+    const overlapX = Math.min(reading.right, journal.right) - Math.max(reading.left, journal.left);
+    const overlapY = Math.min(reading.bottom, journal.bottom) - Math.max(reading.top, journal.top);
+    return {
+      targets: boxes.every(box => Math.min(box.width, box.height) >= 43.99),
+      labels: labels.every((box, index) => box.left >= boxes[index].left && box.right <= boxes[index].right),
+      overlap: Math.max(0, overlapX) * Math.max(0, overlapY)
+    };
+  })).toEqual({ targets: true, labels: true, overlap: 0 });
 }
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
@@ -48,16 +46,62 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             await page.getByRole('navigation', { name: 'Primary navigation' }).waitFor();
             await page.evaluate(() => document.fonts.ready);
             await expectNavigationFits(page);
-            await expectTouchTarget(page.getByRole('link', { name: 'Open settings', exact: true }));
+            const signIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+            await expectTouchTarget(signIn);
+            const settings = page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true });
+            await expectTouchTarget(settings);
+            await settings.focus();
+            await page.keyboard.press('Tab');
+            await expect(signIn).toBeFocused();
           }
         }
         const nav = page.getByRole('navigation', { name: 'Primary navigation' });
-        await nav.getByRole('button', { name: 'Reading', exact: true }).press('Enter');
+        await nav.getByRole('link', { name: 'Reading', exact: true }).press('Enter');
         await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
-        await nav.getByRole('button', { name: 'Journal', exact: true }).press('Enter');
+        await nav.getByRole('link', { name: 'Journal', exact: true }).press('Enter');
         await expect(page).toHaveURL(/\/journal$/);
-        await nav.getByRole('button', { name: 'Sign In', exact: true }).click();
+        await expect(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true })).toBeVisible();
+        await openAccountOptions(page);
+        const signIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+        await signIn.focus();
+        await signIn.press('Enter');
         await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.locator('#auth-email')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(signIn).toBeFocused();
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('reading navigation returns to the same cards, question, notes, and interpretation', async ({ page }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      const note = 'Keep this reflection while visiting the journal.';
+      const readingSnapshot = () => page.evaluate(() => {
+        const snapshot = JSON.parse(sessionStorage.getItem('tarot:reading-snapshot') || 'null');
+        if (!snapshot) return null;
+        const { reading, question, reflections, narrative } = snapshot;
+        return { reading, question, reflections, narrative };
+      });
+      try {
+        await startReading(page, fixture, { reflection: note });
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        await expect.poll(async () => (await readingSnapshot())?.narrative?.raw).toBe(fixture.narrative);
+        const before = await readingSnapshot();
+        expect(before.reading.length).toBeGreaterThan(0);
+        expect(Object.values(before.reflections)).toContain(note);
+        const nav = page.getByRole('navigation', { name: 'Primary navigation', exact: true });
+        await expect(nav).toHaveCount(1);
+        await expectNavigationFits(page);
+        await expect(nav.getByRole('link', { name: 'Reading', exact: true })).toHaveAttribute('aria-current', 'page');
+        await nav.getByRole('link', { name: 'Journal', exact: true }).click();
+        await expect(page).toHaveURL(/\/journal$/);
+        await expect(nav.getByRole('link', { name: 'Journal', exact: true })).toHaveAttribute('aria-current', 'page');
+        await nav.getByRole('link', { name: 'Reading', exact: true }).click();
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        await expect(page.getByText('Narrative ready.', { exact: true })).toBeAttached();
+        await expect.poll(readingSnapshot).toEqual(before);
+        expect(fixture.requests.reading).toHaveLength(1);
       } finally {
         await fixture.close();
       }
@@ -102,8 +146,10 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await page.setViewportSize(viewport);
           await page.evaluate(() => document.fonts.ready);
           await expectNavigationFits(page);
-          const overlaps = await page.locator('.header-sticky__row').evaluate(row => {
-            const controls = [...row.querySelectorAll('button,a')].filter(element => element.getClientRects().length);
+          await expectTouchTarget(page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true }));
+          await expectTouchTarget(page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true }));
+          const overlaps = await page.locator('.header-sticky .site-nav').evaluate(row => {
+            const controls = [...row.querySelectorAll('button,a,summary')].filter(element => element.getClientRects().length);
             return controls.flatMap((control, index) => controls.slice(index + 1).flatMap(other => {
               const a = control.getBoundingClientRect();
               const b = other.getBoundingClientRect();
@@ -114,8 +160,69 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           });
           expect(overlaps).toEqual([]);
         }
+        await openAccountOptions(page);
         await page.getByRole('button', { name: 'Sign In', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('desktop header stays quiet and progress remains operable inside the canvas', async ({ page }) => {
+      test.setTimeout(60000);
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        await openSetup(page);
+        for (const width of [1023, 1024, 1440, 1920]) {
+          await page.setViewportSize({ width, height: 1000 });
+          await page.evaluate(() => document.fonts.ready);
+          await expectNavigationFits(page);
+          const dimensions = await page.locator('[data-app-header]').evaluate(header => {
+            const measure = selector => {
+              const element = document.querySelector(selector);
+              const box = element.getBoundingClientRect();
+              return { width: box.width, height: box.height, x: box.x, y: box.y, fontSize: parseFloat(getComputedStyle(element).fontSize) };
+            };
+            return {
+              inner: measure('.app-header__inner'),
+              logo: measure('.tableu-logo'),
+              wordmark: measure('.site-nav__wordmark'),
+              link: measure('.site-nav__link'),
+              header: header.getBoundingClientRect().toJSON(),
+              progress: measure('.step-progress-canvas'),
+              step: measure('.step-progress-canvas button'),
+              scrollWidth: document.documentElement.scrollWidth,
+              viewportWidth: document.documentElement.clientWidth
+            };
+          });
+          expect(dimensions.logo.width).toBe(30);
+          expect(dimensions.wordmark.fontSize).toBe(17);
+          expect(dimensions.link.fontSize).toBe(14);
+          expect(dimensions.step.fontSize).toBe(14);
+          expect(dimensions.header.height).toBe(56);
+          expect(dimensions.progress.y).toBeGreaterThanOrEqual(dimensions.header.bottom);
+          expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+          expect(dimensions.inner.width).toBeLessThanOrEqual(1024);
+          const progress = page.getByRole('navigation', { name: 'Tarot reading progress' });
+          const currentStep = progress.locator('[aria-current="step"]');
+          await expect(currentStep).toHaveCount(1);
+          for (const button of await progress.getByRole('button').all()) await expectTouchTarget(button);
+          await page.keyboard.press('Tab');
+          await currentStep.focus();
+          await expect(currentStep).toBeFocused();
+          await expect(currentStep).toHaveCSS('outline-style', 'solid');
+          await expect(currentStep).toHaveCSS('outline-width', '2px');
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await startReading(page, fixture);
+        await expect(page.locator('.app-shell--reading')).toBeVisible();
+        const readingProgress = page.locator('main .step-progress-canvas');
+        await expect(page.locator('[data-app-header] .step-progress-canvas')).toHaveCount(0);
+        expect((await readingProgress.boundingBox()).width).toBeLessThanOrEqual((await page.locator('main').boundingBox()).width);
+        for (const button of await readingProgress.getByRole('button').all()) await expectTouchTarget(button);
+        const settings = page.getByRole('button', { name: 'Reading settings', exact: true });
+        await expectTouchTarget(settings);
+        expect((await settings.locator('svg').boundingBox()).width).toBeGreaterThanOrEqual(21);
       } finally {
         await fixture.close();
       }
@@ -171,13 +278,25 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.evaluate(() => document.fonts.ready);
         const sectionLinks = page.getByRole('navigation', { name: 'Jump to section' }).getByRole('link');
         for (const link of await sectionLinks.all()) await expectTouchTarget(link);
+        const returnLinks = page.locator('main').getByRole('link', { name: 'Back to reading', exact: true });
+        await expect(returnLinks).toHaveCount(2);
+        for (const link of await returnLinks.all()) await expectTouchTarget(link);
+        for (const name of ['Open journal', 'Forgot password?']) {
+          await expectTouchTarget(page.locator('main').getByRole('link', { name, exact: true }));
+        }
         for (const name of [
-          'Done', 'Edit', 'Password', 'Resend verification', 'Forgot password?',
-          'Refresh', 'Try again', 'Restore purchases', 'Reset Journey data',
-          'Export PDF', 'Export CSV', 'Download account summary', 'Manage subscription', 'Back to Reading'
+          'Edit', 'Password', 'Resend verification', 'Reset Journey data',
+          'Export PDF', 'Export CSV', 'Export all data (JSON)', 'Manage subscription'
         ]) {
-          const control = page.locator('main').getByRole(/Done|Forgot password\?|Back to Reading/.test(name) ? 'link' : 'button', { name, exact: true });
-          await expectTouchTarget(control);
+          await expectTouchTarget(page.locator('main').getByRole('button', { name, exact: true }));
+        }
+        const planToggle = page.locator('button[aria-controls="plan-usage-details"]');
+        await expectTouchTarget(planToggle);
+        await expect(planToggle).toHaveAttribute('aria-expanded', 'false');
+        await planToggle.click();
+        await expect(planToggle).toHaveAttribute('aria-expanded', 'true');
+        for (const name of ['Refresh', 'Try again', 'Restore purchases']) {
+          await expectTouchTarget(page.locator('#subscription').getByRole('button', { name, exact: true }));
         }
         await expectTouchTarget(page.locator('#reversal-framework-select'));
       } finally {

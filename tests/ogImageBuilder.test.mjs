@@ -98,6 +98,16 @@ describe('OG Image Builder', () => {
       assert.match(svg, /My Journey Reading/);
     });
 
+    it('replaces XML-invalid characters even in previously stored share content', () => {
+      const svg = buildOgImageSvg([{ ...sampleEntry, question: 'A\u0001question\uFFFE 🌙' }], {
+        ...sampleShareRecord, title: 'A\u0001title 🌙'
+      });
+      assert.ok(svg.includes('A title 🌙'));
+      assert.ok(svg.includes('A question  🌙'));
+      assert.ok(!svg.includes(String.fromCharCode(1)));
+      assert.ok(!svg.includes(String.fromCharCode(0xFFFE)));
+    });
+
     it('handles missing share title gracefully', () => {
       const recordWithoutTitle = { token: 'xyz789', scope: 'entry' };
       const svg = buildOgImageSvg([sampleEntry], recordWithoutTitle);

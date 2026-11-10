@@ -47,13 +47,13 @@ export const safeStorage = {
   },
 
   setItem(key, value) {
-    if (!this.isAvailable) return;
+    if (!this.isAvailable) return false;
     try {
-      if (isDeletedAccountStorageKey(key, { storage: localStorage })) return;
+      if (isDeletedAccountStorageKey(key, { storage: localStorage })) return false;
       const namespace = journalNamespaceForKey(key);
       if (namespace) value = JSON.stringify(filterDeletedJournalEntries(namespace, JSON.parse(value)));
       const derivedNamespace = derivedJournalNamespaceForKey(key);
-      if (derivedNamespace && !canPersistJournalDerivation(derivedNamespace, JSON.parse(value)?.sourceEntryIds)) return;
+      if (derivedNamespace && !canPersistJournalDerivation(derivedNamespace, JSON.parse(value)?.sourceEntryIds)) return false;
       // A different owner's stale shared-cache copy must not restore deleted
       // prose when it writes its own new narrative.
       if (key === NARRATIVE_CACHE_KEY) {
@@ -65,8 +65,10 @@ export const safeStorage = {
         }
       }
       localStorage.setItem(key, value);
+      return true;
     } catch {
-      // Silently fail if storage is unavailable
+      // Report failure without throwing so cache owners can recover from quota.
+      return false;
     }
   },
 

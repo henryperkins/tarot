@@ -65,6 +65,24 @@ typography:
     fontWeight: 600
     lineHeight: "1rem"
     letterSpacing: "0.18em"
+  label-meta:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 400
+    lineHeight: 1.4
+    letterSpacing: "0.18em"
+  label-badge:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    lineHeight: 1.4
+    letterSpacing: "0.18em"
+  label-wide:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 400
+    lineHeight: "1rem"
+    letterSpacing: "0.3em"
   reading-title:
     fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
     fontSize: "clamp(1.5rem, 2.4vw, 2rem)"
@@ -96,6 +114,16 @@ typography:
     fontWeight: 600
     lineHeight: "1rem"
     letterSpacing: "0.1em"
+  brand-wordmark:
+    fontFamily: "Source Serif 4 Variable, Georgia, Times New Roman, serif"
+    fontSize: "1.0625rem"
+    fontWeight: 500
+    letterSpacing: "0.08em"
+  step-annotation:
+    fontFamily: "Inter Variable, -apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 400
+    lineHeight: 1.4
 rounded:
   sm: "0.25rem"
   default: "0.375rem"
@@ -146,11 +174,11 @@ components:
     padding: "4px 12px"
     height: "44px"
   nav-active:
-    backgroundColor: "{colors.candlelit-brass}"
-    textColor: "{colors.reading-surface}"
+    backgroundColor: "transparent"
+    textColor: "{colors.moonlit-paper}"
     typography: "{typography.control-small}"
-    rounded: "{rounded.pill}"
-    padding: "10px 14px"
+    rounded: "{rounded.md}"
+    padding: "8px 12px"
     height: "44px"
   surface-card:
     backgroundColor: "rgba(28, 26, 34, 0.70)"
@@ -171,6 +199,11 @@ components:
     rounded: "{rounded.xl}"
     padding: "10px 16px"
     height: "44px"
+  button-close:
+    backgroundColor: "transparent"
+    textColor: "{colors.softened-paper}"
+    rounded: "{rounded.pill}"
+    size: "44px"
 ---
 
 # Design System: Tableu
@@ -196,6 +229,7 @@ Where a surface has an approved image composition, preserve its focal hierarchy,
 - Rounded, tactile controls and layered cards with thin warm borders.
 - Ambient glow and restrained texture instead of ornamental occult excess.
 - Responsive spread selection that becomes a carousel on handsets, with reading actions in a bottom dock.
+- Reading setup leads with spread selection at every width, followed by the optional question and Coach controls. Draw cards stays in reach, and the optional ritual waits at the reading table on the deck itself.
 - A quiet reading table that places card geometry beside interpretation on wide screens and stacks them on phones.
 - Bold focal contrast paired with deliberately slower pacing for ceremonial moments.
 
@@ -245,8 +279,8 @@ Exact colors live in the frontmatter. [theme.css](src/styles/theme.css) also own
 - **Display:** regular serif onboarding welcomes. Short landscape layouts use the smaller headline size.
 - **Headline:** regular serif page titles, including the design reference page. Reading-table titles use their own fluid, medium-weight role.
 - **Title:** semibold serif for compact artifact headings. Spread-selector names are a smaller local variant (16px at standard widths, slightly smaller on compact phones).
-- **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy.
-- **Label:** tracked uppercase eyebrows and metadata. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than eyebrow typography.
+- **Body:** regular sans-serif for instructions and form content. Reading-table meanings use the more open reading-body role. The shared [MarkdownRenderer](src/components/MarkdownRenderer.jsx) uses 16px prose, growing to 18px at 768px, with a 65ch reading measure on wider screens. Follow-up answers retain 16px copy. A saved reading's narrative in the journal uses 16px prose, 17px from 640px, at 1.7 leading and about 70 characters a line (`.journal-reading`); its section headings are Source Serif.
+- **Label:** tracked uppercase text that names a field, column, stat or badge, or a section with no other heading. A label is never a kicker above a section heading; the page-hero eyebrows above the Pricing and Shared Reading h1s are a deliberate exception. [Label classes](src/styles/labelClasses.js) carry three roles on `tracking-label` (0.18em): `LABEL_CLASS` (12px semibold), `META_LABEL_CLASS` (11px captions such as card positions) and `BADGE_LABEL_CLASS` (11px semibold text inside pills). The coach, journal, ritual and share surfaces keep a spaced voice with `tracking-label-wide` (0.3em). Both values live in [theme.css](src/styles/theme.css), so plain CSS reads them as `var(--tracking-label)`. The reading step indicator and the serif settings headings use `tracking-widest`, and body-size caps keep their own tighter tracking. Coach step chips use a separate step-label role with tighter tracking; button labels use the control roles rather than label typography.
 - **Supporting scale:** 11px is the absolute minimum for non-essential metadata; 12px serves captions, 14px serves secondary text, and form controls remain 16px on mobile.
 
 ### Named Rules
@@ -261,9 +295,11 @@ At 640px, handset carousels and stacked controls begin resolving into grids and 
 
 The supported lower bound is 320px, with specific 360px, 375px, 400px, and 440px accommodations for compact phones. Those compact max-width queries are distinct from Tailwind's min-width breakpoints. Short landscape layouts use a max-height 500px treatment; the separate short-viewport query uses 600px.
 
-On handsets, preserve the spread-selection carousel, condensed labels, safe-area padding, and the fixed primary action bar. The revealed spread retains its card geometry rather than becoming that selection carousel. On larger screens, expose complete labels and keep related controls in shared rows. Tableu's internal target is 44px for interactive controls and 52px for primary reading CTAs; a 56px navigation token is available, while GlobalNav currently uses 44px. Compact landscape dock actions may use the 44px minimum.
+On handsets, preserve the spread-selection carousel, condensed labels, and safe-area padding. One shared bottom region owns contextual actions above a 56px destination row. The revealed spread retains its card geometry rather than becoming that selection carousel. On larger screens, expose complete labels and keep related controls in shared rows. Tableu's internal target is 44px for interactive controls and 52px for primary reading CTAs. Header destination targets are at least 44px; compact landscape actions retain the same minimum.
 
-Bottom content clearance includes the measured action-bar height, keyboard offset, and safe-area inset. Use the shared safe-area utilities and existing dock measurement rather than assuming a fixed bar height.
+The shared app bar is 56px at normal text size plus top safe area, with a 64rem inner cap on all consumer routes. Its 16px handset and 24px desktop gutters grow for device safe areas. Reading keeps its wider canvas; the differing left edges at 1440px are deliberate. The bar can grow for enlarged text and moves into flow when space is insufficient.
+
+One page-scoped measurement owner publishes actual pinned heights and bottom content clearance. Count safe area and keyboard offset once, and restore root styles/listeners when a route unmounts. The provisional policy allows bottom chrome 25% of visible height and combined chrome 40%, reduced to 25% below 500px. Completed readings release contents and card rails before Save and Ask when the bottom row fits its budget. Other contextual actions release into flow first, followed by the route's secondary controls, the app bar, and destinations; restore placement when space returns. When short or enlarged views require completed-reading actions in flow, a Save or ask shortcut beside the contents focuses the existing action group. The thresholds remain subject to integration/device evidence, while readable labels, reachable focus, and unobscured content are required.
 
 **The Four-Pixel Rhythm Rule.** Prefer the established 4px-derived spacing steps; introduce a new interval only when card geometry or safe-area math requires it.
 
@@ -285,7 +321,7 @@ The Midnight Reading Room uses a hybrid of tonal layering, ambient shadow, thin 
 
 ## Shapes
 
-Controls use softly curved 10–12px corners, while standard cards use 14–16px corners. Signature spread cards expand to about 21.6px and mystic panels to about 25.6px, giving the reading environment a softer silhouette than utility surfaces. Pills are reserved for navigation segments, chips, badges, and compact actions.
+Controls use softly curved 10–12px corners, while standard cards use 14–16px corners. Signature spread cards expand to about 21.6px and mystic panels to about 25.6px, giving the reading environment a softer silhouette than utility surfaces. Pills serve chips, badges, and compact actions. Primary destinations use plain text with an underline and dot.
 
 Borders are usually one pixel and warm, translucent, and low contrast. Cards clip artwork and texture to their radius; selection adds a brighter border and slight lift without changing the underlying form. Tarot artwork keeps its natural tall-card proportion rather than being cropped into generic landscape thumbnails.
 
@@ -297,15 +333,16 @@ Components are tactile and quietly ceremonial: clear enough for task completion,
 
 ### Buttons
 
-- **Shape:** 12px corners for primary CTAs; full pills for compact navigation and secondary actions.
+- **Shape:** 12px corners for primary CTAs; full pills for compact actions and secondary controls.
 - **Primary reading action:** Pale Candlelight fill with Midnight Ink text in the dark theme, switching to Daylight Candlelight with Daylight Paper text in light mode. It has a 52px minimum height and the control typography role. The reading-table instance changes fill on hover and presses down by one pixel only when motion is allowed.
 - **Journey action:** the shared [journey button](src/styles/buttonClasses.js) uses a transparent brass gradient, warm border, medium-weight 14px text, and a 44px minimum target. The design reference page labels this softer variant “Primary action”; it is distinct from the solid reading CTA.
 - **Hover / Focus:** use each shared variant's actual state treatment. The general focus fallback is a 2px semantic outline with 3px offset; reading-table controls use 4px offset. Shared Tailwind focus helpers use rings, sometimes with a surface-matched offset.
 - **Secondary / Panel / Destructive:** the outline action is a translucent brass pill with a small hover lift. The panel action uses 10px corners and a quieter warm wash. Both target 44px minimum height. Destructive actions use the theme-aware error token and a clear label.
+- **Close:** [CloseButton](src/components/CloseButton.jsx) closes dialogs, sheets and panels and dismisses notices and toasts. It is a 44px circle in muted text with a faint secondary wash on hover and the shared focus ring, and it requires an accessible label. Dialogs and sheets use its 20px icon; compact panels, notices and toasts pass `size="sm"` for 16px. Its style, `ICON_BUTTON_CLASS`, also serves an icon-only control that sits beside it, such as the journey sheet's settings link. Surfaces with their own stylesheet (follow-up chat, the reading-preparation drawer) keep their designed close controls.
 
 ### Chips
 
-- **Style:** navigation and coach step chips use full pills; current onboarding preference choices use 12px corners. Interactive chips keep a 44px target even when their text and padding are compact. Non-interactive metadata badges may be smaller.
+- **Style:** coach step and filtering chips use full pills; current onboarding preference choices use 12px corners. Interactive chips keep a 44px target even when their text and padding are compact. Non-interactive metadata badges may be smaller. Site destinations and reading progress have their own plain-text treatment.
 - **State:** selected options use the accent fill with theme-aware on-brand text. Coach steps expose selection semantically and keep the full step name accessible when phones show only a number. Suit and status chips retain their own semantic roles.
 
 ### Cards / Containers
@@ -324,21 +361,33 @@ Components are tactile and quietly ceremonial: clear enough for task completion,
 
 ### Navigation
 
-Primary navigation uses pill segments with 14px semibold sans-serif labels and 44px minimum targets. The active destination receives the primary fill and on-brand text and exposes `aria-current="page"`; inactive items use the semantic surface with secondary borders. Reading and Journal remain readable as guest controls wrap. Reading progress is a separate control group with 12px corners and a subtler brass wash. On mobile, progress labels condense and the decisive next action moves to the safe-area-aware bottom dock.
+Consumer routes compose the same [AppHeader](src/components/AppHeader.jsx) inside their page's navigation/focus guard. The linked mark and 17px wordmark stay left; Reading and Journal form a desktop cluster immediately after the brand; Account stays right. Navigation uses 14px sans-serif labels on a transparent background. The active real link exposes `aria-current="page"` and a thin brass underline with a dot. Keep its focus ring distinct from that marker.
+
+Guests see a 44px Settings gear linking directly to `/account` and visible Sign in, including at 320px and on Journal. Tutorial replay remains available to guests in Settings. Signed-in desktop users see the avatar and Account; handsets retain the accessible identity on the compact trigger. Reserve the account area during authentication loading. Reset-password, verify-email, and shared readings use `destinations={false}` with the same frame and no empty dock reservation.
+
+[DestinationNav](src/components/DestinationNav.jsx) provides one route model in desktop and handset placements. Handsets use only the shared bottom destination row. An inactive mounted group is both `hidden` and `inert`; transfer focus to its visible equivalent before hiding it. Keyboard hiding uses the page heading when no equivalent remains. Quiet routes never acquire destinations after keyboard or viewport changes.
+
+[AppBottomRegion](src/components/AppBottomRegion.jsx) owns fixed positioning, keyboard offset, measured height, and safe-area padding. Contextual actions remain the same DOM when released into page flow. Reading setup keeps Prepare and Draw cards in this row; Coach stays beside the intention. Wider screens place "Prepare your reading" and the question below the spreads, followed by the deck disclosure with its art and name and the saved-memories option. The handset Prepare drawer holds the deck alone. Draw cards sits in a bottom-pinned row that names the reading step and the spread, card count and deck it will draw; like the completed reading's Save and Ask row it is a bottom-placed secondary that the chrome budget releases into flow. The shared-reading guest row hosts Start Reading and Sign In, while its explanation stays in flow. Signed-in shared Notes uses the same measured region for Add note only while the form is offscreen and unfocused. Account's section chips, Journal's floating controls/month headings/insights rail, Reading's contents toolbar/card companion, setup's Draw cards row on wider screens, and Share's tab strip release in that order within each route before the app bar.
+
+Resizing chrome keeps a visible focused control clear, without pulling the page back after deliberate scrolling away from it. Measuring a flow action's prospective fixed size preserves both document and nested scroll positions. The 56px row plus safe area also applies in short landscape; legacy reading-header padding must not enlarge the shared frame. Reading wayfinding retains its natural row height at the final section so section tracking cannot shift the page repeatedly; its unavailable continuation is invisible, inert, and absent from keyboard and screen-reader navigation.
+
+Reading progress belongs at the top of the canvas, with 44px targets and ordered step semantics. Completed steps use a check and normal main text, the current step keeps its numeral and stronger weight with `aria-current="step"`, and upcoming steps use a numeral and muted text. The optional ritual is upcoming until Draw cards (its step then moves focus to Draw cards), current at the table, completed once the reader knocks three times or cuts, and skipped only when they deal without either or hide ritual steps in Settings. A skipped ritual keeps its numeral and a Skipped annotation, including an 11px supplemental annotation on compact handsets; its accessible name carries the state. Derive these facts from reading milestones, with current state taking precedence when revisiting. Keep settings and shuffling announcements in the canvas; the full masthead belongs to first-run welcome.
 
 ### Mystic Panel
 
-The signature panel combines theme-specific layered gradients, three soft radial glows, a thin warm border, subtle noise, and the mystic-panel radius. Padding grows from 16px to 21.6px at 640px and 25.6px at 1024px. Its light variant uses warm paper tones. It frames spread and deck decisions; it is not the shell used by the quieter reading table.
+The signature panel combines theme-specific layered gradients, three soft radial glows, a thin warm border, subtle noise, and the mystic-panel radius. Padding grows from 16px to 21.6px at 640px and 25.6px at 1024px. Its light variant uses warm paper tones. It frames the spread decision and the handset deck drawer; on wider screens the deck opens inside its preparation disclosure instead. It is not the shell used by the quieter reading table.
 
 ### Spread Card
 
-Spread cards combine artwork previews, serif names, tracked metadata, the spread-card radius, and suit-aware selection accents. Hover lifts by 3px on fine pointers; selection strengthens the border and glow. Mobile choices form a horizontal snap carousel, while wider layouts use equal-height grid rows. Heights are minimums and may grow with copy. Actual tarot cards retain their 2:3 shape; the spread artwork preview may use a wider crop.
+Spread cards combine artwork previews, serif names, tracked metadata, the spread-card radius, and suit-aware selection accents. Hover lifts by 3px on fine pointers; selection strengthens the border and glow and adds one "Selected" badge (deck cards share it). The kind and card count stand in for any difficulty rating; cards carry no star scale. Mobile choices form a horizontal snap carousel, while wider layouts use equal-height grid rows. Heights are minimums and may grow with copy. Actual tarot cards retain their 2:3 shape; the spread artwork preview may use a wider crop.
 
 The sidecar uses the existing three-card SVG fallback from [SpreadPatternThumbnail](src/components/SpreadPatternThumbnail.jsx), keeping it self-contained without fabricating replacement artwork. Current per-spread background strings in [SpreadSelector](src/components/SpreadSelector.jsx) contain unitless gradient stops; sampled card backgrounds resolve to `none`, while their decorative pseudo-elements still render. That is an observed implementation discrepancy, not a palette rule.
 
 ### Reading Table
 
 [ReadingTableScene](src/components/scenes/ReadingTableScene.jsx) keeps the spread, selected card meaning, navigation, and optional reflection together. A fine divider separates spread and interpretation on wide screens and becomes a horizontal rule when stacked. Fluid serif headings carry the card names; meaning paragraphs use the reading-body role. Decorative scene backgrounds and particles are suppressed in this surface.
+
+Before Deal, [TableDeck](src/components/scenes/TableDeck.jsx) holds the optional ritual with nothing to open. The deck's face (80×120px, 64×96px on narrow tables) is the knock button, with three small marks that fill per knock; its stacked edge is the cut, drawn as one hairline per card with a Candlelight marker, operated by pointing, dragging and releasing, or as a slider whose Enter (or leaving it after arrow keys) makes the cut. A serif invitation and a muted line on what sets the shuffle sit beside the deck, and the table's status line reports knocks and the cut. With motion allowed the deck dips under a knock and parts at a made cut; reduced motion keeps only the marker and its head, and forced colors draw the knock marks and the marker in system colors. Room for the card-number readout above the edge grows with text size. Deal stays the primary action, described by the invitation, and readers who hide ritual steps see only the deck and Deal.
 
 ### Preparing and Reading
 
@@ -370,6 +419,18 @@ The selected reading references continue the quiet table treatment in [ReadingPr
 - **Don't** turn the light theme into a generic white dashboard; preserve the warm paper-and-brass hierarchy.
 - **Don't** dilute the approved focal hierarchy or accelerate ceremonial motion into generic app-speed transitions.
 
-### Journal card fan visibility
+### Journal entries
 
-Expanded card fans preserve the full rotated card and name within the section, including at 320px and with enlarged text. Reserve the measured card footprint around the bottom-center rotation origin. Intentional overlap remains; keyboard selection brings the active card forward. Section radius clipping must not crop the card edges or focus ring.
+Saved readings lead the Journal with one toolbar: search, a Filters button that shows how many filters are active, and the Comfortable/Compact switch (the same names at every width; inside the Filters panel on phones, so search and Filters share a row; remembered on the device). The filter controls open on request; active filters sit under search as removable chips with Reset view and Save this view, and one results sentence ("Showing 10 of 12 readings", "4 of 12 readings match") replaces count chips. The heading row keeps its 44px height whether or not the month picker shows. While the journal loads, placeholders take the collapsed row's shape.
+
+A collapsed entry is one quiet row a reader can scan: a small overlapping stack of the reading's own card art (its deck, from the 120px renditions in `public/images/cards/w120/`; a reversed card is turned), the question in Source Serif, always in full (the Compact list drops the art), then spread, date and time, context, a deck other than Rider-Waite-Smith and a note count, and a line naming the first two cards. It carries no actions: share and the entry menu appear once it is open.
+
+An open journal entry is one surface. Its sections (cards, narrative, reflections, themes, pattern web, follow-ups) are open regions divided by hairlines under a tracked label row, never cards nested inside the entry. The open header carries the question once, with the full spread name and time; the title keeps at least 14rem beside the share and menu buttons, so on phones and with enlarged text they wrap under it. Action feedback (a copied link, a failed share) appears under the header, where the actions are; errors stay until the next action. Its sections show the cards and notes. With no notes yet, Reflections asks "What resonates for you now?", the reading table's own question, above a brass Add a reflection action that opens the editor with focus in the note.
+
+The entry heading contains its expand/collapse button, named by the question or spread title and described by the collapsed row's details and cards; it stretches over the whole header, and the open header's actions sit above it. Reversal labels use neutral text and surfaces; card orientation is not an error state. Copied summaries use the same catalog deck names as the header.
+
+Saved cards keep their canonical identity, and every journal view (header art, card fan, captions, Practice snapshot) and the shared page shows them in the reading's own deck, as the reading screen did. Sharing a reading is a decision, not a tap: on a signed-in cloud journal the share button opens a region under the open header that says what a link shows (the question, spread and cards, and that anyone with it can leave a note; the narrative and reflections stay private) and offers a Link expiry choice (24 hours, 7 days by default, 30 days, No expiry) before Create link. A reading with a live link copies it instead. Public share responses carry only those shared fields.
+
+Journey statistics (the rail, the phone summary, Cards Calling You, the Practice snapshot and the journey story) name a top card or context only when it repeated and leads alone; tied leaders are named together, a card seen once is never called recurring, and "Recurring theme" needs more than one reading. The Practice snapshot's four stat cards sit in one row in reading order, and the Major Arcana rows fit their width instead of scrolling.
+
+Expanded card fans preserve the full rotated card and name within the section, including at 320px and with enlarged text. Reserve the measured card footprint around the bottom-center rotation origin. Intentional overlap remains; keyboard selection brings the active card forward. The entry card is the only clipping edge, so it must not crop the card edges or any focus ring.

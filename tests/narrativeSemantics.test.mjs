@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToPipeableStream, renderToStaticMarkup } from 'react-dom/server';
+import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react';
+import { MemoryRouter } from 'react-router-dom';
 
 let server;
 let MarkdownRenderer;
@@ -13,6 +15,12 @@ let NarrativePanelHeader;
 let SpreadPatterns;
 let FeedbackPanel;
 let CardTouchArt;
+let NarrativeSection;
+let JournalEntryCard;
+let AuthProvider;
+let SubscriptionProvider;
+let ReadingFeedbackSection;
+let ReadingMediaSection;
 
 before(async () => {
   server = await createServer({
@@ -29,6 +37,12 @@ before(async () => {
   ({ SpreadPatterns } = await server.ssrLoadModule('/src/components/SpreadPatterns.jsx'));
   ({ FeedbackPanel } = await server.ssrLoadModule('/src/components/FeedbackPanel.jsx'));
   ({ CardTouchArt } = await server.ssrLoadModule('/src/components/reading/narrative/CardTouchArt.jsx'));
+  ({ NarrativeSection } = await server.ssrLoadModule('/src/components/journal/entry-card/EntrySections/NarrativeSection.jsx'));
+  ({ JournalEntryCard } = await server.ssrLoadModule('/src/components/journal/entry-card/JournalEntryCard.jsx'));
+  ({ AuthProvider } = await server.ssrLoadModule('/src/contexts/AuthContext.jsx'));
+  ({ SubscriptionProvider } = await server.ssrLoadModule('/src/contexts/SubscriptionContext.jsx'));
+  ({ ReadingFeedbackSection } = await server.ssrLoadModule('/src/components/reading/complete/ReadingFeedbackSection.jsx'));
+  ({ ReadingMediaSection } = await server.ssrLoadModule('/src/components/reading/complete/ReadingMediaSection.jsx'));
 });
 
 test('unsupported artwork editions retain whole-card context without vector details', () => {
@@ -49,6 +63,42 @@ function render(Component, props = {}) {
   return renderToStaticMarkup(createElement(Component, props));
 }
 
+// Production saved-reading renderers now load on expansion. Wait for Suspense
+// before asserting their final semantics rather than inspecting its fallback.
+function renderDeferred(element) {
+  return new Promise((resolve, reject) => {
+    const output = new PassThrough();
+    let markup = '';
+    output.setEncoding('utf8');
+    output.on('data', chunk => { markup += chunk; });
+    output.on('end', () => resolve(markup));
+    output.on('error', reject);
+    const stream = renderToPipeableStream(element, {
+      onAllReady() { stream.pipe(output); },
+      onShellError: reject,
+      onError: reject
+    });
+  });
+}
+
+test('readings without a request ID omit the entire feedback section', () => {
+  for (const readingMeta of [undefined, {}, { requestId: null }]) {
+    assert.equal(render(ReadingFeedbackSection, { personalReading: { raw: 'Restored reading.' }, readingMeta }), '');
+  }
+  assert.match(render(ReadingFeedbackSection, {
+    personalReading: { raw: 'Current reading.' }, readingMeta: { requestId: 'current-reading' }
+  }), /How did this reading land/);
+});
+
+test('media section hides itself while a reading streams or has failed', () => {
+  for (const personalReading of [null, { isStreaming: true }, { isError: true }]) {
+    assert.equal(render(ReadingMediaSection, { personalReading, canUseMediaGallery: true }), '');
+  }
+  assert.match(render(ReadingMediaSection, {
+    personalReading: { raw: 'Complete reading.' }, canUseMediaGallery: true
+  }), /View recent media/);
+});
+
 function headings(markup) {
   return Array.from(markup.matchAll(/<h([1-6])\b[^>]*>(.*?)<\/h\1>/gs), ([, level, content]) => ({
     level: Number(level),
@@ -57,6 +107,41 @@ function headings(markup) {
 }
 
 const ALL_HEADINGS = '# One\n\n## Two\n\n### Three\n\n#### Four\n\n##### Five\n\n###### Six';
+
+test('plain saved journal headings nest under the entry, preserving parsed Markdown and both expansion modes', async () => {
+  const narrativeText = '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail';
+  for (const collapsible of [true, false]) {
+    const markup = await renderDeferred(createElement(NarrativeSection, {
+      narrativeText, narrativeId: 'saved-reading', collapsible, defaultExpanded: true
+    }));
+    assert.deepEqual(headings(markup), [
+      { level: 4, text: 'Opening' },
+      { level: 5, text: 'Reflection' },
+      { level: 6, text: 'Detail' },
+      { level: 6, text: 'More detail' }
+    ]);
+    assert.match(markup, /# Not a heading/);
+  }
+});
+
+for (const gestureStudyEnabled of [false, true]) {
+  test(`saved journal card nests narrative headings below its title (restored cues: ${gestureStudyEnabled})`, async () => {
+    const entry = { id: 'heading-card', ts: 0, spread: 'Journal entry', question: 'A reflection',
+      cards: [{ name: 'The Fool', position: 'Present', orientation: 'Upright' }],
+      personalReading: '~~~text\n# Not a heading\n~~~\n\nOpening\n-------\n\n### Reflection\n\n##### Detail\n\n###### More detail' };
+    const card = createElement(JournalEntryCard, { entry, defaultExpanded: true, gestureStudyEnabled });
+    const markup = await renderDeferred(createElement(MemoryRouter, null,
+      createElement(AuthProvider, null, createElement(SubscriptionProvider, null, card))));
+    assert.deepEqual(headings(markup), [
+      { level: 3, text: 'A reflection' },
+      { level: 4, text: 'Opening' },
+      { level: 5, text: 'Reflection' },
+      { level: 6, text: 'Detail' },
+      { level: 6, text: 'More detail' }
+    ]);
+    assert.match(markup, /# Not a heading/);
+  });
+}
 
 test('shared Markdown keeps all six original heading levels for chat and journal', () => {
   assert.deepEqual(headings(render(MarkdownRenderer, { content: ALL_HEADINGS })), [
@@ -158,6 +243,14 @@ test('spread insights uses an h2 panel title with h3 immediate subsections', () 
   assert.match(markup, /^<section[^>]*aria-labelledby="([^"]+)"[^>]*>\s*<h2[^>]*id="\1"/, 'The panel is a region named by its title');
 });
 
+test('historical references render with an explicit preview label and no confirmed-source claim', () => {
+  const markup = render(SpreadPatterns, { previewPassages: [{ title: 'Historical reference', text: 'A historical background passage.' }] });
+  assert.match(markup, /Traditional wisdom preview/);
+  assert.match(markup, /inclusion in the generated reading is unverified/);
+  assert.match(markup, /aria-label="Traditional wisdom preview passages"/);
+  assert.doesNotMatch(markup, /aria-label="Traditional wisdom passages"/);
+});
+
 test('collapsed feedback disclosure controls a mounted, hidden panel', () => {
   const markup = render(FeedbackPanel, { requestId: 'reading-semantics' });
   const targetId = markup.match(/aria-controls="([^"]+)"/)?.[1];
@@ -194,6 +287,19 @@ test('traditional passages expose native list items and their source tradition',
   assert.match(markup, /Rider-Waite-Smith reference/);
   assert.match(markup, /Thoth/);
   assert.match(markup, /imagery/);
+});
+
+test('projected reference names link through the selected deck while crediting their source tradition', () => {
+  const markup = render(SpreadPatterns, {
+    themes: { deckStyle: 'thoth-a1' },
+    passages: [{ type: 'court-lineage', sourceDeck: 'rws-1909', projectedDeck: 'thoth-a1', promptText: 'Knight of Cups invites reflection.', title: 'Knight of Cups', text: 'Knight of Cups invites reflection.' }],
+    cards: [{ name: 'Prince of Cups', canonicalName: 'Knight of Cups', position: 'Past' }, { name: 'Knight of Cups', canonicalName: 'King of Cups', position: 'Future' }],
+    onSelectCard: () => {}
+  });
+  assert.match(markup, /aria-label="View Knight of Cups — Future"/);
+  assert.doesNotMatch(markup, /aria-label="View Prince of Cups — Past"/);
+  assert.match(markup, /Rider-Waite-Smith reference/);
+  assert.match(markup, /wording is adapted/);
 });
 
 test('card mentions offer detail actions only for cards in the current spread', () => {

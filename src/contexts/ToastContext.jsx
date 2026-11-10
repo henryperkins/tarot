@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Info, WarningCircle, X, XCircle } from '@phosphor-icons/react';
+import { CheckCircle, Info, WarningCircle, XCircle } from '@phosphor-icons/react';
+import { CloseButton } from '../components/CloseButton';
 import { animate, set, spring } from '../lib/motionAdapter';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -194,8 +195,10 @@ function ToastViewport({ toasts, onDismiss, onRemove, toastRefs, positionsRef })
     };
   }, [toasts, prefersReducedMotion, positionsRef, toastRefs]);
 
+  // Clear the status bar, notch or Dynamic Island in the installed app
+  // (viewport-fit=cover) and the side insets of a landscape phone.
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-toast flex flex-col items-center gap-3 px-4 sm:top-6 sm:items-end sm:px-6">
+    <div className="pointer-events-none fixed inset-x-0 top-[max(1rem,var(--safe-pad-top))] z-toast flex flex-col items-center gap-3 pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:top-[max(1.5rem,var(--safe-pad-top))] sm:items-end sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))]">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}
@@ -318,14 +321,7 @@ function ToastItem({ toast, onDismiss, onRemove, toastRefs }) {
           {toast.title && <p className="font-semibold leading-tight">{toast.title}</p>}
           {toast.description && <p className={`text-sm leading-snug ${variant.description}`}>{toast.description}</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => onDismiss(toast.id)}
-          className="rounded-full p-1 min-h-touch min-w-touch flex items-center justify-center text-sm text-white/80 transition-all duration-200 hover:scale-110 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50"
-          aria-label="Dismiss notification"
-        >
-          <X className="h-4 w-4" weight="bold" />
-        </button>
+        <CloseButton label="Dismiss notification" size="sm" onClick={() => onDismiss(toast.id)} />
       </div>
     </div>
   );

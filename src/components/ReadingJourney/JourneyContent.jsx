@@ -20,6 +20,7 @@ export default function JourneyContent({
   filtersActive,
   filtersApplied,
   isAuthenticated,
+  journalSummary,
   canUseCloudJournal = false,
   historyComplete = true,
   userId,
@@ -29,9 +30,11 @@ export default function JourneyContent({
   locale = 'en-US',
   timezone,
   onCreateShareLink,
+  shareManagement = null,
   onStartReading,
   showStartReadingCta = true,
   scopeLabel,
+  scopeError = '',
   scopeEntries,
   analyticsScope,
   onScopeSelect,
@@ -45,6 +48,7 @@ export default function JourneyContent({
     userId,
     focusAreas,
     seasonWindow,
+    scopeEntries,
     locale,
     timezone,
   });
@@ -242,6 +246,8 @@ export default function JourneyContent({
     isAuthenticated,
     userId,
     onCreateShareLink,
+    shareManagement,
+    journalSummary,
     onStartReading,
     showStartReadingCta,
     scopeLabel,
@@ -294,6 +300,8 @@ export default function JourneyContent({
     isAuthenticated,
     userId,
     onCreateShareLink,
+    shareManagement,
+    journalSummary,
     onStartReading,
     showStartReadingCta,
     scopeLabel,
@@ -311,7 +319,7 @@ export default function JourneyContent({
 
   // Persist coach snapshot for GuidedIntentionCoach to consume
   useEffect(() => {
-    if (typeof window === 'undefined' || !historyComplete) return;
+    if (typeof window === 'undefined' || !historyComplete || scopeError) return;
     const entryCount = scopedEntries?.length ?? 0;
     const totalEntries = Array.isArray(entries) ? entries.length : null;
     persistCoachStatsSnapshot(exportStats, {
@@ -328,6 +336,7 @@ export default function JourneyContent({
     }, userId);
   }, [
     historyComplete,
+    scopeError,
     exportStats,
     _dataSource,
     journeyFiltersActive,
@@ -347,6 +356,12 @@ export default function JourneyContent({
   }
 
   // Render appropriate variant
+  if (scopeError) {
+    return <p role="status" className="rounded-xl border border-secondary/20 p-4 text-sm text-muted">
+      {scopeError}
+    </p>;
+  }
+
   if (variant === 'mobile') {
     return <JourneyMobileSheet {...commonProps} />;
   }

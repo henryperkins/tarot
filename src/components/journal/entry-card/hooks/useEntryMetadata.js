@@ -6,9 +6,9 @@ import { useMemo } from 'react';
 import { normalizeTimestamp, getTimestamp } from '../../../../../shared/journal/utils.js';
 import { buildReflectionEntries } from '../../../../../shared/journal/reflectionLabels.js';
 import { formatContextName } from '../../../../lib/journalInsights';
+import { hasOwnDeckArt, toDeckCards } from '../../../../lib/journal/deckCards';
 import { DECK_OPTIONS } from '../../../deckOptions';
 import {
-  CONTEXT_SUMMARIES,
   TIMING_SUMMARIES,
   FOLLOW_UP_LIMITS,
   getEntryAccentColor
@@ -19,15 +19,12 @@ const DECK_LABEL_MAP = Object.fromEntries(
 );
 
 /**
- * Build theme insight lines from entry data
+ * Build theme insight lines from entry data. The reading's context is not
+ * repeated here: the header already names it.
  */
 function buildThemeInsights(entry) {
   const lines = [];
   const themes = entry?.themes;
-
-  if (entry?.context) {
-    lines.push(CONTEXT_SUMMARIES[entry.context] || `Context lens: ${entry.context}`);
-  }
 
   if (!themes || typeof themes !== 'object') {
     return lines;
@@ -65,9 +62,9 @@ function buildThemeInsights(entry) {
  * Format timestamp for display
  */
 function formatEntryTimestamp(timestamp) {
-  if (!timestamp) return 'Date unavailable';
+  if (timestamp == null || !Number.isFinite(new Date(timestamp).getTime())) return 'Date unavailable';
   return new Date(timestamp).toLocaleString(undefined, {
-    weekday: 'short',
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -75,12 +72,19 @@ function formatEntryTimestamp(timestamp) {
   });
 }
 
+/** "Three-Card Story (Past · Present · Future)" → "Three-Card Story". */
+export function shortSpreadName(name) {
+  if (typeof name !== 'string') return '';
+  const short = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return short || name.trim();
+}
+
 /**
  * Format relative time from now
  */
 function formatRelativeTimeFromNow(value) {
   const ts = normalizeTimestamp(value);
-  if (!ts) return null;
+  if (ts == null || !Number.isFinite(new Date(ts).getTime())) return null;
   const diff = ts - Date.now();
   const ranges = [
     { unit: 'day', ms: 24 * 60 * 60 * 1000 },
@@ -107,8 +111,10 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
 
   const accentColor = useMemo(() => getEntryAccentColor(entry), [entry]);
 
+  // Saved cards keep their canonical identity; show them in the reading's own
+  // deck (its art and names), as the reading screen did.
   const cards = useMemo(
-    () => (Array.isArray(entry?.cards) ? entry.cards : []),
+    () => toDeckCards(entry?.cards, entry?.deckId),
     [entry]
   );
 
@@ -125,6 +131,12 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     () => formatEntryTimestamp(timestamp),
     [timestamp]
   );
+
+  const timestampIso = useMemo(() => {
+    if (timestamp == null) return undefined;
+    const date = new Date(timestamp);
+    return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+  }, [timestamp]);
 
   const relativeTimeLabel = useMemo(
     () => formatRelativeTimeFromNow(timestamp),
@@ -175,6 +187,13 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
     [entry]
   );
 
+  // A collapsed entry names its spread without the position list; the open
+  // header keeps the full name.
+  const spreadShortName = useMemo(
+    () => shortSpreadName(entry?.spread || entry?.spreadName),
+    [entry]
+  );
+
   return {
     // Raw data
     timestamp,
@@ -183,7 +202,10 @@ export function useEntryMetadata(entry, { effectiveTier = 'free', isSmallScreen 
 
     // Computed strings
     deckLabel,
+    showsDeckLabel: Boolean(deckLabel) && hasOwnDeckArt(entry?.deckId),
+    spreadShortName,
     formattedTimestamp,
+    timestampIso,
     relativeTimeLabel,
     narrativeText,
     contextLabel,

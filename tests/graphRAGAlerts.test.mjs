@@ -4,6 +4,16 @@ import { describe, it } from 'node:test';
 import { collectGraphRAGAlerts } from '../functions/lib/graphRAGAlerts.js';
 
 describe('GraphRAG alert heuristics', () => {
+    it('distinguishes reference integrity removal from a budget omission without logging diagnostic input', () => {
+        const alerts = collectGraphRAGAlerts({ graphRAG: {
+            includedInPrompt: false, passagesProvided: 1, passagesUsedInPrompt: 0,
+            skippedReason: 'reference_integrity_failed', integrityRemovedBlocks: 1,
+            integrityRemovalReasons: ['missing_card_guardrail', 'private reference text']
+        } });
+        assert.ok(alerts.some(alert => /integrity/i.test(alert)));
+        assert.ok(!alerts.some(alert => /budget|private reference text|missing_card_guardrail/.test(alert)));
+    });
+
     it('does not warn when no passages were retrieved', () => {
         const alerts = collectGraphRAGAlerts({
             graphRAG: {
@@ -143,6 +153,16 @@ describe('GraphRAG stub telemetry', () => {
             !alerts.some((a) => a.includes('omitted')),
             'Should not warn about omitted passages when none were retrieved'
         );
+    });
+
+    it('separates a retrieval error from a retrieval that found nothing', () => {
+        const alertsFor = (skippedReason) => collectGraphRAGAlerts({
+            graphRAG: { includedInPrompt: false, disabledByEnv: false, passagesProvided: 0, passagesUsedInPrompt: 0, skippedReason }
+        });
+
+        assert.deepEqual(alertsFor('retrieval_error'), ['GraphRAG: retrieval error']);
+        assert.deepEqual(alertsFor('retrieval_failed_or_empty'), ['GraphRAG: no reference passages available']);
+        assert.deepEqual(alertsFor('no_patterns_detected'), ['GraphRAG: no patterns detected']);
     });
 
     it('does not warn about omission when GraphRAG passages are visible in debug output', () => {

@@ -53,6 +53,7 @@ export function ReadingProvider({ children }) {
         isNarrationStreamActive,
         pauseNarrationPlayback,
         resumeNarrationPlayback,
+        handleNarrationStop: stopNarration,
         ttsProvider,
         ttsState
     } = audioController;
@@ -175,7 +176,29 @@ export function ReadingProvider({ children }) {
     const [analysisContext, setAnalysisContext] = useState(() => restoredAnalysis?.analysisContext ?? null);
     const [reasoningSummary, setReasoningSummary] = useState(null);
     const [reasoning, setReasoning] = useState(null);
-    const [followUps, setFollowUps] = useState([]);
+    const [followUps, setFollowUps] = useState(() => initialSnapshot?.followUp?.turns || []);
+    // Composer recovery belongs to the same owner and reading as the snapshot.
+    // Include the seed as well as the request ID so drawing again retires drafts
+    // before the next narrative has received its request ID.
+    const followUpOwner = restoreReady ? tarotState.snapshotOwner : initialSnapshot?.owner ?? tarotState.snapshotOwner;
+    const followUpIdentity = JSON.stringify([followUpOwner, readingMeta?.requestId, sessionSeed, readingMeta?.readingId]);
+    const [followUpComposer, setFollowUpComposer] = useState(() => ({
+        owner: followUpOwner,
+        identity: followUpIdentity,
+        draft: initialSnapshot?.followUp?.draft || '',
+        includeJournal: initialSnapshot?.followUp?.includeJournal ?? true
+    }));
+    if (followUpComposer.owner !== followUpOwner || followUpComposer.identity !== followUpIdentity) {
+        setFollowUpComposer({ owner: followUpOwner, identity: followUpIdentity, draft: '', includeJournal: true });
+    }
+    const setFollowUpDraft = useCallback(draft => {
+        setFollowUpComposer(current => current.owner === followUpOwner && current.identity === followUpIdentity
+            ? { ...current, draft } : current);
+    }, [followUpOwner, followUpIdentity]);
+    const setIncludeJournalContext = useCallback(includeJournal => {
+        setFollowUpComposer(current => current.owner === followUpOwner && current.identity === followUpIdentity
+            ? { ...current, includeJournal } : current);
+    }, [followUpOwner, followUpIdentity]);
     const acceptVisualStatus = useCallback(({ binding, status }) => {
         const current = gestureSourceRef.current;
         if (!current || !sameVisualCueBinding(current.visualBinding, binding)) return;
@@ -225,6 +248,7 @@ export function ReadingProvider({ children }) {
         }
     }, [restoreReady, authLoading, initialSnapshot, visualNamespace, updateGestureSource]);
 
+    const [useSavedMemories, setUseSavedMemories] = useState(() => initialSnapshot?.useSavedMemories !== false);
     const [reflections, setReflections] = useState(() => initialSnapshot?.reflections || {});
     const [lastCardsForFeedback, setLastCardsForFeedback] = useState(() => (
         Array.isArray(restoredAnalysis?.lastCardsForFeedback) ? restoredAnalysis.lastCardsForFeedback : []
@@ -264,6 +288,7 @@ export function ReadingProvider({ children }) {
         setSpreadAnalysis(null);
         setAnalysisContext(null);
         setReflections({});
+        setUseSavedMemories(true);
         setLastCardsForFeedback([]);
         setFollowUps([]);
         setReasoning(null);
@@ -316,8 +341,10 @@ export function ReadingProvider({ children }) {
                 sessionSeed,
                 ritual: { hasKnocked, knockCount, hasCut, cutIndex, knockTimes: knockTimesRef.current },
                 question: userQuestion,
+                useSavedMemories,
                 reflections,
                 narrative: finishedReading,
+                followUp: { draft: followUpComposer.draft, includeJournal: followUpComposer.includeJournal, turns: followUps },
                 analysis: finishedReading
                     ? { themes, emotionalTone, spreadAnalysis, analysisContext, readingMeta, lastCardsForFeedback }
                     : null
@@ -329,8 +356,8 @@ export function ReadingProvider({ children }) {
     }, [
         restoreReady, snapshotOwner, selectedSpread, hasUserSelectedSpread, reading, drawIncludeMinors, drawDeckStyleId, isSpreadDealt, revealedCards,
         dealIndex, hasConfirmedSpread, sessionSeed, hasKnocked, knockCount, hasCut, cutIndex, knockTimesRef,
-        userQuestion, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
-        readingMeta, lastCardsForFeedback
+        userQuestion, useSavedMemories, reflections, finishedReading, themes, emotionalTone, spreadAnalysis, analysisContext,
+        readingMeta, lastCardsForFeedback, followUpComposer, followUps
     ]);
 
     // A reload, a discarded background tab or a sign-in redirect can come
@@ -371,6 +398,14 @@ export function ReadingProvider({ children }) {
     const narrationFallbackPendingRef = useRef(false);
     const narrationFallbackTextRef = useRef('');
     const narrationInterruptedByUserRef = useRef(false);
+    const previousAutoNarrateRef = useRef(autoNarrate);
+    const handleNarrationStop = useCallback(() => {
+        narrationInterruptedByUserRef.current = true;
+        narrationSuppressedRef.current = true;
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
+        stopNarration();
+    }, [stopNarration]);
     const narrationSettingsRef = useRef({
         autoNarrate,
         voiceOn,
@@ -452,12 +487,14 @@ export function ReadingProvider({ children }) {
         safeSessionStorage.removeItem(readingJobStorageKey);
     }, []);
 
-    const cancelInFlightReading = useCallback(() => {
+    const cancelInFlightReading = useCallback((narrationOptions = {}) => {
+        narrationFallbackPendingRef.current = false;
+        narrationFallbackTextRef.current = '';
         if (inFlightReadingRef.current?.controller) {
             inFlightReadingRef.current.controller.abort();
         }
         inFlightReadingRef.current = null;
-        resetNarrationStream();
+        resetNarrationStream(narrationOptions);
 
         const { jobId, jobToken } = readingJobRef.current || {};
         if (jobId && jobToken) {
@@ -495,7 +532,7 @@ export function ReadingProvider({ children }) {
         setNarrativePhase(current => keepGuestReading && current === 'complete' ? 'complete' : 'idle');
     }, [authLoading, visualNamespace, cancelInFlightReading]);
 
-    const resetStreamingNarration = useCallback(() => {
+    const resetStreamingNarration = useCallback((options = {}) => {
         narrationBufferRef.current = '';
         narrationSuppressedRef.current = false;
         narrationStartedRef.current = false;
@@ -504,7 +541,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         narrationInterruptedByUserRef.current = false;
-        resetNarrationStream();
+        resetNarrationStream(options);
     }, [resetNarrationStream]);
 
     // Reset analysis state when Shuffle is triggered
@@ -526,6 +563,7 @@ export function ReadingProvider({ children }) {
             setNarrativePhase('idle');
             setJournalStatus(null);
             setReflections({});
+            if (reading?.length) setUseSavedMemories(true);
             setFollowUps([]);
             cardsInfoRef.current = [];
             visionAnalysis.setVisionResults([]);
@@ -534,7 +572,7 @@ export function ReadingProvider({ children }) {
             setShowAllHighlights(false);
             setSrAnnouncement('');
         });
-    }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration]);
+    }, [shuffle, visionAnalysis, cancelInFlightReading, resetStreamingNarration, reading]);
 
     const pauseReadingStream = useCallback((message = 'Finishing your narrative in the background.', { preserveNarration = true } = {}) => {
         setIsReadingStreamActive(false);
@@ -629,46 +667,14 @@ export function ReadingProvider({ children }) {
         flushNarrationBuffer(false);
     }, [flushNarrationBuffer]);
 
-    const settleNarrationAfterStreamFailure = useCallback((fallbackText = '') => {
-        const {
-            autoNarrate: autoNarrateEnabled,
-            voiceOn: voiceEnabled,
-            ttsProvider: narrationProvider
-        } = narrationSettingsRef.current;
-        const narrationEligible = autoNarrateEnabled && voiceEnabled && isServerNarrationProvider(narrationProvider);
-
-        if (!narrationEligible || narrationInterruptedByUserRef.current) {
-            narrationFallbackPendingRef.current = false;
-            narrationFallbackTextRef.current = '';
-            resetNarrationStream();
-            return;
-        }
-
-        if (!narrationSuppressedRef.current) {
-            flushNarrationBuffer(true);
-            const hasQueuedNarration = narrationStartedRef.current || isNarrationStreamActive();
-            if (hasQueuedNarration) {
-                finalizeNarrationStream();
-                return;
-            }
-        }
-
-        const trimmedFallback = typeof fallbackText === 'string' ? fallbackText.trim() : '';
-        if (trimmedFallback) {
-            narrationFallbackPendingRef.current = true;
-            narrationFallbackTextRef.current = trimmedFallback;
-            return;
-        }
-
+    const settleNarrationAfterStreamFailure = useCallback(() => {
+        // Partial output has not passed the completed reading's screening.
+        narrationBufferRef.current = '';
+        narrationSuppressedRef.current = true;
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         resetNarrationStream();
-    }, [
-        finalizeNarrationStream,
-        flushNarrationBuffer,
-        isNarrationStreamActive,
-        resetNarrationStream
-    ]);
+    }, [resetNarrationStream]);
 
     const buildReadingKey = useCallback(() => {
         const count = reading?.length ?? 0;
@@ -695,10 +701,11 @@ export function ReadingProvider({ children }) {
             seed: sessionSeed || null,
             fingerprint: fingerprint || null,
             question: questionKey || null,
+            useSavedMemories,
             reflections: reflectionsKey || null,
             personalization: personalizationKey || null
         });
-    }, [reading, selectedSpread, sessionSeed, userQuestion, reflections, personalizationForRequest]);
+    }, [reading, selectedSpread, sessionSeed, userQuestion, useSavedMemories, reflections, personalizationForRequest]);
 
     const streamReadingJob = useCallback(async ({ jobId, jobToken, cursor = 0, resume = false }) => {
         if (!jobId || !jobToken) return;
@@ -728,7 +735,7 @@ export function ReadingProvider({ children }) {
         setIsReadingStreamActive(true);
         setIsGenerating(true);
         if (!resume) {
-            resetStreamingNarration();
+            resetStreamingNarration({ preserveCardNarration: true });
         }
         const streamNarrationEnabled = autoNarrate && voiceOn && isServerNarrationProvider(ttsProvider);
         const isTtsBusy = isNarrationPlaybackBusy(ttsState?.status);
@@ -971,7 +978,7 @@ export function ReadingProvider({ children }) {
             }
 
             updateGestureSource(runId, { raw: streamedText, status: 'error' });
-            settleNarrationAfterStreamFailure(streamedText);
+            settleNarrationAfterStreamFailure();
             const errorMsg =
                 typeof error?.message === 'string' && error.message.trim()
                     ? error.message.trim()
@@ -1037,6 +1044,8 @@ export function ReadingProvider({ children }) {
     ]);
 
     useEffect(() => {
+        const autoNarrationTurnedOff = previousAutoNarrateRef.current && !autoNarrate;
+        previousAutoNarrateRef.current = autoNarrate;
         const narrationDisabled = !voiceOn || !autoNarrate || !isServerNarrationProvider(ttsProvider);
         if (narrationDisabled) {
             const disabledByUserChoice = !voiceOn || !autoNarrate;
@@ -1046,7 +1055,12 @@ export function ReadingProvider({ children }) {
             narrationSuppressedRef.current = true;
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
-            resetNarrationStream();
+            // This effect disables automatic scheduling. Voice/provider changes
+            // already stop playback in the audio controller; manual play stays
+            // available when only auto narration is off.
+            if (autoNarrationTurnedOff || !voiceOn || !isServerNarrationProvider(ttsProvider)) {
+                resetNarrationStream({ preserveAudio: true });
+            }
             return;
         }
 
@@ -1058,6 +1072,7 @@ export function ReadingProvider({ children }) {
 
     useEffect(() => {
         if (!narrationFallbackPendingRef.current) return;
+        if (!personalReading || personalReading.isStreaming || personalReading.isError) return;
         if (narrationInterruptedByUserRef.current) {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
@@ -1072,17 +1087,11 @@ export function ReadingProvider({ children }) {
 
         const status = ttsState?.status;
         const isBusy = isNarrationPlaybackBusy(status);
-        if (isBusy) {
+        if (isBusy && ttsState?.context !== 'card-reveal') {
             narrationFallbackPendingRef.current = false;
             narrationFallbackTextRef.current = '';
             return;
         }
-        if (ttsState?.reason === 'user') {
-            narrationFallbackPendingRef.current = false;
-            narrationFallbackTextRef.current = '';
-            return;
-        }
-
         const fallbackText = narrationFallbackTextRef.current;
         if (!fallbackText) {
             narrationFallbackPendingRef.current = false;
@@ -1092,7 +1101,7 @@ export function ReadingProvider({ children }) {
         narrationFallbackPendingRef.current = false;
         narrationFallbackTextRef.current = '';
         void speak(fallbackText, 'full-reading', narrationEmotionRef.current);
-    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.reason, isNarrationStreamActive, speak, personalReading]);
+    }, [autoNarrate, voiceOn, ttsProvider, ttsState?.status, ttsState?.context, isNarrationStreamActive, speak, personalReading]);
 
     useEffect(() => {
         // Re-renders must not replace a live cursor with an older batched
@@ -1232,8 +1241,8 @@ export function ReadingProvider({ children }) {
         }
         if (isGenerating) return;
 
-        cancelInFlightReading();
-        resetStreamingNarration();
+        cancelInFlightReading({ preserveCardNarration: true });
+        resetStreamingNarration({ preserveCardNarration: true });
         let runId = beginGestureSource();
         setVisualResume(null);
         const startController = new AbortController();
@@ -1313,6 +1322,7 @@ export function ReadingProvider({ children }) {
                 // Card reflections travel on cardsInfo[].userReflection; this field is
                 // for notes not tied to a card, which this flow does not collect.
                 reflectionsText: '',
+                useSavedMemories,
                 reversalFrameworkOverride: reversalFramework,
                 deckStyle: deckStyleId
             };
@@ -1468,6 +1478,7 @@ export function ReadingProvider({ children }) {
         isGenerating,
         selectedSpread,
         userQuestion,
+        useSavedMemories,
         reflections,
         sessionSeed,
         deckStyleId,
@@ -1718,18 +1729,19 @@ export function ReadingProvider({ children }) {
         baseRevealAll();
     }, [baseRevealAll, describeCardAtIndex, reading, revealedCards, selectedSpread, isSpreadDealt]);
 
-    const cancelPersonalReading = useCallback(() => {
+    const cancelPersonalReading = useCallback((options = {}) => {
         cancelInFlightReading();
         setPersonalReading(null);
         setIsGenerating(false);
         setIsReadingStreamActive(false);
         setNarrativePhase('idle');
         updateGestureSource(gestureSourceRef.current?.runId, { status: 'paused' });
-        setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
+        if (options.announce !== false) setSrAnnouncement('Generation cancelled. Your cards and question are still here.');
     }, [cancelInFlightReading, updateGestureSource]);
 
     const value = useMemo(() => ({
         ...audioController,
+        handleNarrationStop,
         ...tarotState,
         ...visionAnalysis,
         shuffle: handleShuffle,
@@ -1749,7 +1761,11 @@ export function ReadingProvider({ children }) {
         readingMeta, setReadingMeta, visualResume,
         journalStatus, setJournalStatus,
         reflections, setReflections,
+        useSavedMemories, setUseSavedMemories,
         followUps, setFollowUps,
+        followUpIdentity,
+        followUpDraft: followUpComposer.draft, setFollowUpDraft,
+        includeJournalContext: followUpComposer.includeJournal, setIncludeJournalContext,
         lastCardsForFeedback, setLastCardsForFeedback,
         showAllHighlights, setShowAllHighlights,
         generatePersonalReading,
@@ -1758,6 +1774,7 @@ export function ReadingProvider({ children }) {
         srAnnouncement, setSrAnnouncement
     }), [
         audioController,
+        handleNarrationStop,
         tarotState,
         visionAnalysis,
         handleShuffle,
@@ -1779,7 +1796,9 @@ export function ReadingProvider({ children }) {
         visualResume,
         journalStatus,
         reflections,
+        useSavedMemories,
         followUps,
+        followUpIdentity, followUpComposer, setFollowUpDraft, setIncludeJournalContext,
         lastCardsForFeedback,
         showAllHighlights,
         generatePersonalReading,

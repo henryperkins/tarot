@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { GlobalNav } from './GlobalNav';
+import { AppHeader } from './AppHeader';
+import { AppBottomRegion } from './AppBottomRegion';
 import { InstallFooter } from './InstallFooter';
 import { ConfirmModal } from './ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useJournal } from '../hooks/useJournal';
+import { useJournalSummary } from '../hooks/useJournalSummary';
 import { JournalFilters } from './JournalFilters.jsx';
 import { InsightsErrorBoundary } from './InsightsErrorBoundary.jsx';
 import { JournalEntryCard } from './JournalEntryCard.jsx';
 import { SavedIntentionsModal } from './SavedIntentionsModal.jsx';
 import { OUTLINE_BUTTON_CLASS } from '../styles/buttonClasses';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 import { ReadingJourney } from './ReadingJourney';
 import { NoFiltersIllustration } from './illustrations/NoFiltersIllustration';
 import { useSmallScreen, SMALL_SCREEN_MAX } from '../hooks/useSmallScreen';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { useResponsiveSticky } from '../hooks/useResponsiveSticky';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { getTimestamp } from '../../shared/journal/utils.js';
@@ -27,6 +29,7 @@ import { useJournalSharing } from '../hooks/useJournalSharing';
 import { AmberStarfield } from './AmberStarfield';
 import { JournalSummaryBand } from './journal/JournalSummaryBand';
 import { JournalEmptyState } from './journal/JournalEmptyState';
+import { JournalRecoveryState } from './journal/JournalRecoveryState';
 import { JournalFloatingControls } from './journal/JournalFloatingControls';
 import { JournalStatusBanner } from './journal/JournalStatusBanner';
 import {
@@ -41,15 +44,16 @@ import {
   AMBER_SHELL_MOBILE_CLASS,
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
-import { getMonthHeader } from '../lib/journal/utils';
+import { buildJournalMonthSections, describeHistoryResults } from '../lib/journal/utils';
 import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
 
-
+// Comfortable or Compact, remembered on this device.
+const LIST_DENSITY_KEY = 'journal_list_density_v1';
 
 export default function Journal() {
   // Context hooks
-  const { isAuthenticated, user } = useAuth();
-  const { canUseCloudJournal } = useSubscription();
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { canUseCloudJournal, canUseAdvancedInsights } = useSubscription();
   const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
   const { publish: showToast } = useToast();
   const navigate = useNavigate();
@@ -61,7 +65,10 @@ export default function Journal() {
     entries,
     loading,
     loadingMore,
+    historyComplete,
+    historyError,
     deleteEntry,
+    saveReflection,
     retrySavedVisuals,
     migrateToCloud,
     importLegacyLocalEntries,
@@ -75,13 +82,19 @@ export default function Journal() {
     lastLocalSaveAt,
     syncSource,
     reload: reloadJournal
-  } = useJournal({ completeHistory: true });
+  } = useJournal({ completeHistory: true, progressiveHistory: true });
+  const historyPending = syncSource === 'api' && !historyComplete;
+
+  const journalSummary = useJournalSummary({
+    userId: user?.id,
+    entries,
+    enabled: isAuthenticated && canUseAdvancedInsights && historyComplete,
+  });
 
   // Layout detection
   const isMobileLayout = useSmallScreen(MOBILE_LAYOUT_MAX);
   const isSmallSummary = useSmallScreen(SMALL_SCREEN_MAX);
   const prefersReducedMotion = useReducedMotion();
-  const headerRef = useResponsiveSticky();
   const shellClass = isMobileLayout ? AMBER_SHELL_MOBILE_CLASS : AMBER_SHELL_CLASS;
   const cardClass = isMobileLayout ? AMBER_CARD_MOBILE_CLASS : AMBER_CARD_CLASS;
 
@@ -91,12 +104,16 @@ export default function Journal() {
     setFilters,
     filterSignature,
     filteredEntries,
+    timeframeWindow,
     filtersActive,
     activeFilterChips,
     handleResetFilters,
     handleRemoveFilter,
     serverSearchState,
-    refreshServerSearch
+    refreshServerSearch,
+    updateServerSearchEntry,
+    requestSemanticSearch,
+    clearSemanticSearch
   } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id, completeHistory: syncSource === 'api' });
 
   const {
@@ -118,36 +135,62 @@ export default function Journal() {
     statNodeMap,
     scopedStatsEntries,
     journeyFiltersActive
-  } = useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary });
+  } = useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary, timeframeWindow });
 
   const {
     shareLinks,
     shareLoading,
     shareError,
+    fetchShareLinks,
     createShareLink,
-    deleteShareLink
+    deleteShareLink,
+    renameShareLink
   } = useJournalSharing(isAuthenticated, user?.id);
+  // Owners can always see, rename and revoke links, even on a plan that can
+  // no longer create them.
+  const shareManagement = useMemo(() => (isAuthenticated ? {
+    links: shareLinks,
+    loading: shareLoading,
+    error: shareError,
+    onDelete: deleteShareLink,
+    onRename: renameShareLink,
+    onRefresh: fetchShareLinks
+  } : null), [isAuthenticated, shareLinks, shareLoading, shareError, deleteShareLink, renameShareLink, fetchShareLinks]);
 
   // Local UI state
   const [migrating, setMigrating] = useState(false);
   const [importingLegacy, setImportingLegacy] = useState(false);
+  const [localStorageRevision, setLocalStorageRevision] = useState(0);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, entryId: null });
-  const [compactList, setCompactList] = useState(false);
+  // The reader's list density is remembered on this device.
+  const [compactList, setCompactList] = useState(() => {
+    try { return localStorage.getItem(LIST_DENSITY_KEY) === 'compact'; } catch { return false; }
+  });
+  const handleViewModeChange = useCallback((mode) => {
+    setCompactList(mode === 'compact');
+    try { localStorage.setItem(LIST_DENSITY_KEY, mode === 'compact' ? 'compact' : 'comfortable'); } catch { /* Optional preference. */ }
+  }, []);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSavedIntentionsModal, setShowSavedIntentionsModal] = useState(false);
   const [historyFiltersEl, setHistoryFiltersEl] = useState(null);
-  const [historyFiltersInView, setHistoryFiltersInView] = useState(true);
-  const [hasScrolled, setHasScrolled] = useState(false);
   const [highlightNavigationKey, setHighlightNavigationKey] = useState(location.key);
   const [pendingHighlightEntryId, setPendingHighlightEntryId] = useState(location.state?.highlightEntryId ?? null);
   const [highlightStatus, setHighlightStatus] = useState(null);
   const [entryVisibility, setEntryVisibility] = useState({ filterSignature, count: VISIBLE_ENTRY_BATCH });
   const [monthJump, setMonthJump] = useState('');
+  const [historyNavigation, setHistoryNavigation] = useState(null);
+  const [historyAnnouncement, setHistoryAnnouncement] = useState(null);
   const [journeyReady, setJourneyReady] = useState(false);
+  const [hasOpenedMobileJourney, setHasOpenedMobileJourney] = useState(false);
   const summaryRef = useRef(null);
+  const mobileJourneyDetailsRef = useRef(null);
+  const mobileJourneySummaryRef = useRef(null);
+  const journeyScrollFrameRef = useRef(null);
   const searchInputRef = useRef(null);
   const highlightRequestRef = useRef(0);
   const filteredEntriesRef = useRef(filteredEntries);
+  const historyListRef = useRef(null);
+  const historyLoadRequestRef = useRef(null);
   const hasMoreServerEntriesRef = useRef(hasMoreServerEntries);
   const [summaryVisibility, setSummaryVisibility] = useState({ small: isSmallSummary, seen: false });
 
@@ -175,6 +218,11 @@ export default function Journal() {
   );
   if (entryVisibility.filterSignature !== filterSignature || entryVisibility.count !== visibleCount) {
     setEntryVisibility({ filterSignature, count: visibleCount });
+    if (entryVisibility.filterSignature !== filterSignature) {
+      setMonthJump('');
+      setHistoryNavigation(null);
+      setHistoryAnnouncement(null);
+    }
   }
   const setVisibleCount = useCallback(update => {
     setEntryVisibility(previous => ({
@@ -186,11 +234,14 @@ export default function Journal() {
   // Derived values
   const hasEntries = entries.length > 0;
   const visibleEntries = useMemo(() => filteredEntries.slice(0, visibleCount), [filteredEntries, visibleCount]);
+  const historyCountLabel = historyPending
+    ? `Showing ${visibleEntries.length} loaded ${visibleEntries.length === 1 ? 'reading' : 'readings'}`
+    : `Showing ${visibleEntries.length} of ${filteredEntries.length} ${filteredEntries.length === 1 ? 'reading' : 'readings'}`;
   const localRemaining = Math.max(filteredEntries.length - visibleEntries.length, 0);
   const hasLocalMoreEntries = filteredEntries.length > visibleCount;
   const hasMoreVisibleResults = filteredEntries.length > visibleEntries.length;
   const hasMoreEntries = hasLocalMoreEntries || hasMoreServerEntries;
-  const showSummaryBand = !loading && hasEntries;
+  const showSummaryBand = !loading && hasEntries && !historyPending;
   const summaryDataSource = syncSource === 'api' || syncSource === 'cache' ? 'server' : 'client';
   const totalEntryCount = hasTotalEntries ? totalEntries : entries.length;
   const hasRemoteEntries = hasMoreServerEntries || (hasTotalEntries && totalEntryCount > entries.length);
@@ -199,17 +250,36 @@ export default function Journal() {
   const serverSearchMode = serverSearchState?.mode;
   const serverSearchLoading = serverSearchEnabled && serverSearchStatus === 'loading';
   const serverSearchErrored = serverSearchEnabled && serverSearchStatus === 'error';
+  const semanticSearchActive = Boolean(serverSearchState?.semanticActive);
+  const semanticSearchAvailable = Boolean(serverSearchState?.semanticAvailable);
 
-  const searchCoverageLabel = serverSearchEnabled
+  // One results sentence under search replaces separate count chips. A server
+  // search looks through the whole journal; local filters, the loaded entries.
+  const historyResultsLabel = describeHistoryResults({
+    pending: historyPending,
+    visible: visibleEntries.length,
+    matched: filteredEntries.length,
+    searched: serverSearchEnabled && hasTotalEntries ? totalEntryCount : entries.length,
+    filtersActive
+  });
+
+  const searchCoverageLabel = semanticSearchActive
+    ? (serverSearchLoading
+        ? 'Finding readings with a similar meaning'
+        : serverSearchErrored
+          ? 'Search by meaning unavailable'
+          : 'Searching your recent analyzed readings by meaning')
+    : serverSearchEnabled
     ? (serverSearchLoading
         ? 'Searching your full journal history'
         : serverSearchErrored
           ? 'Full-history search unavailable'
           : 'Search spans your full journal history')
+    // Only a partly loaded journal needs a coverage note beside its results.
     : filtersActive
     ? (hasTotalEntries
-        ? `Searching latest ${entries.length} of ${totalEntryCount} entries`
-        : `Searching latest ${entries.length} entries`)
+        ? (totalEntryCount > entries.length ? `Searching latest ${entries.length} of ${totalEntryCount} entries` : null)
+        : (hasMoreServerEntries ? `Searching latest ${entries.length} entries` : null))
     : (hasTotalEntries && totalEntryCount > entries.length
         ? `Loaded ${entries.length} of ${totalEntryCount} entries`
         : null);
@@ -259,8 +329,12 @@ export default function Journal() {
       }));
     }
 
-    // Clear the navigation state so back/forward doesn't keep re-applying.
-    navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, { replace: true, state: null });
+    // Clear the one-shot requests so back/forward doesn't keep re-applying,
+    // but keep `fromReading`, which drives the "Back to Reading" button.
+    navigate(`${location.pathname}${location.search || ''}${location.hash || ''}`, {
+      replace: true,
+      state: state.fromReading ? { fromReading: true } : null
+    });
   }, [location.key, location.pathname, location.search, location.hash, location.state, navigate, setFilters, handleScopeSelect]);
 
   const registerHistoryFiltersEl = useCallback((node) => {
@@ -298,16 +372,6 @@ export default function Journal() {
     }, 240);
   }, [historyFiltersEl, prefersReducedMotion]);
 
-  const handleMonthJump = useCallback((event) => {
-    const value = event.target.value;
-    setMonthJump(value);
-    if (!value || typeof document === 'undefined') return;
-    const anchor = document.getElementById(`month-${value}`);
-    if (anchor) {
-      anchor.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-    }
-  }, [prefersReducedMotion]);
-
   const locale = useMemo(() => {
     if (typeof navigator !== 'undefined' && navigator.language) {
       return navigator.language;
@@ -325,6 +389,36 @@ export default function Journal() {
   useEffect(() => {
     filteredEntriesRef.current = filteredEntries;
   }, [filteredEntries]);
+
+  useEffect(() => {
+    historyLoadRequestRef.current = null;
+  }, [filterSignature]);
+
+  useEffect(() => () => { historyLoadRequestRef.current = null; }, []);
+
+  // A destination can be outside the current batch. Move focus after it mounts,
+  // and leave a newer filter or user-selected focus alone.
+  useEffect(() => {
+    if (!historyNavigation || historyNavigation.filterSignature !== filterSignature) return;
+    const target = historyListRef.current?.querySelector(
+      `[data-journal-entry-index="${historyNavigation.index}"] [data-journal-entry-toggle]`
+    );
+    if (!target) return;
+    const { trigger, monthKey, keyboard } = historyNavigation;
+    if (document.activeElement === trigger || document.activeElement === document.body) {
+      // A pointer click schedules the app chrome's focus reveal. Anchor focus
+      // to the new article so it cannot chase the loading button down the page.
+      const focusTarget = keyboard || monthKey ? target : target.closest('article');
+      focusTarget?.focus({ preventScroll: true });
+      if (keyboard || monthKey) {
+        const anchor = monthKey
+          ? document.getElementById(`month-${monthKey}`)
+          : target.closest('[data-journal-entry-index]');
+        anchor?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+      }
+    }
+    setHistoryNavigation(null);
+  }, [historyNavigation, filterSignature, visibleEntries, prefersReducedMotion]);
 
   useEffect(() => {
     hasMoreServerEntriesRef.current = hasMoreServerEntries;
@@ -346,28 +440,6 @@ export default function Journal() {
     observer.observe(summaryRef.current);
     return () => observer.disconnect();
   }, [isSmallSummary, showSummaryBand]);
-
-  useEffect(() => {
-    if (!historyFiltersEl || typeof IntersectionObserver === 'undefined') return undefined;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          setHistoryFiltersInView(entry.isIntersecting);
-        });
-      },
-      { threshold: 0.15 }
-    );
-    observer.observe(historyFiltersEl);
-    return () => observer.disconnect();
-  }, [historyFiltersEl]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const handleScroll = () => setHasScrolled(window.scrollY > 200);
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const resolveHighlightEntry = useCallback(async (entryId) => {
     if (!entryId) return;
@@ -475,19 +547,48 @@ export default function Journal() {
   }, [pendingHighlightEntryId, filteredEntries, visibleCount, prefersReducedMotion]);
 
   useEffect(() => {
-    if (!hasEntries) return undefined;
+    if (!hasEntries || historyPending || journeyReady) return undefined;
     const activate = () => setJourneyReady(true);
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(activate, { timeout: 600 });
-      return () => window.cancelIdleCallback(idleId);
-    }
-    const timer = typeof window !== 'undefined' ? window.setTimeout(activate, 250) : null;
+    let idleId;
+    // Let the first readings and a newly typed query settle before importing
+    // secondary charts. Restart the quiet period while the reader is typing.
+    const timer = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) idleId = window.requestIdleCallback(activate, { timeout: 600 });
+      else activate();
+    }, 300);
     return () => {
-      if (timer) {
-        window.clearTimeout(timer);
-      }
+      window.clearTimeout(timer);
+      if (idleId !== undefined) window.cancelIdleCallback?.(idleId);
     };
-  }, [hasEntries]);
+  }, [hasEntries, historyPending, journeyReady, filters.query]);
+
+  useEffect(() => () => {
+    if (journeyScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(journeyScrollFrameRef.current);
+    }
+  }, []);
+
+  const handleMobileJourneyToggle = useCallback((event) => {
+    if (event.currentTarget.open) setHasOpenedMobileJourney(true);
+  }, []);
+
+  const handleSeeJourney = useCallback(() => {
+    const details = mobileJourneyDetailsRef.current;
+    if (!details) return;
+    details.open = true;
+    setHasOpenedMobileJourney(true);
+    mobileJourneySummaryRef.current?.focus({ preventScroll: true });
+    if (journeyScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(journeyScrollFrameRef.current);
+    }
+    journeyScrollFrameRef.current = window.requestAnimationFrame(() => {
+      journeyScrollFrameRef.current = null;
+      details.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'start'
+      });
+    });
+  }, [prefersReducedMotion]);
 
   const handleMigrate = async () => {
     setMigrating(true);
@@ -499,6 +600,7 @@ export default function Journal() {
       if (typeof result.skipped === 'number' && result.skipped > 0) {
         parts.push(`${result.skipped} already existed`);
       }
+      if (result.sourceRetained) parts.push('Local copies changed during sync and have been kept; sync again to include new readings');
       showToast({
         type: 'success',
         title: 'Local entry results',
@@ -537,10 +639,10 @@ export default function Journal() {
     setImportingLegacy(false);
   };
 
-  const handleDeleteRequest = (entryId) => {
-    const entry = filteredEntries.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
+  const handleDeleteRequest = useCallback((entryId) => {
+    const entry = filteredEntriesRef.current.find(item => item.id === entryId) || entries.find(item => item.id === entryId);
     setDeleteConfirmModal({ isOpen: true, entryId, ownerId: user?.id || null, readingResultId: entry?.readingResultId || null });
-  };
+  }, [entries, user?.id]);
 
   const handleDeleteConfirm = async () => {
     const entryId = deleteConfirmModal.entryId;
@@ -573,23 +675,48 @@ export default function Journal() {
     }
   };
 
+  const handleSaveReflection = useCallback(async (entryId, edit) => {
+    const result = await saveReflection(entryId, edit);
+    // Keep other expanded cards and unfinished drafts mounted while adopting
+    // the stored map in the separate search-result copy.
+    if (result?.success && serverSearchEnabled) updateServerSearchEntry(entryId, { reflections: result.reflections });
+    return result;
+  }, [saveReflection, serverSearchEnabled, updateServerSearchEntry]);
+
   const handleDeleteCancel = () => {
     setDeleteConfirmModal({ isOpen: false, entryId: null });
   };
 
-  const handleLoadMoreEntries = async () => {
-    if (loadingMore) return;
+  const handleLoadMoreEntries = async (event) => {
+    if (loadingMore && !hasLocalMoreEntries) return;
+    const request = { filterSignature, index: visibleEntries.length, trigger: event.currentTarget, keyboard: event.detail === 0 };
+    historyLoadRequestRef.current = request;
     if (filteredEntries.length > visibleCount) {
       setVisibleCount((prev) => Math.min(filteredEntries.length, prev + VISIBLE_ENTRY_BATCH));
+      setHistoryAnnouncement(filterSignature);
+      setHistoryNavigation(request);
       return;
     }
     if (hasMoreServerEntries) {
       const result = await loadMoreEntries();
+      if (historyLoadRequestRef.current !== request) return;
       const appended = result?.appended || 0;
       if (appended > 0) {
         setVisibleCount((prev) => prev + Math.min(VISIBLE_ENTRY_BATCH, appended));
+        setHistoryAnnouncement(filterSignature);
+        setHistoryNavigation(request);
       }
     }
+  };
+
+  const handleRetryHistory = async event => {
+    const request = { filterSignature, index: visibleEntries.length, trigger: event.currentTarget, keyboard: event.detail === 0 };
+    historyLoadRequestRef.current = request;
+    const result = await loadMoreEntries();
+    if (historyLoadRequestRef.current !== request || !result?.success) return;
+    setVisibleCount(previous => previous + Math.min(VISIBLE_ENTRY_BATCH, result.appended || 0));
+    setHistoryNavigation({ ...request, index: result.appended ? request.index : 0 });
+    setHistoryAnnouncement(filterSignature);
   };
 
   const handleLoadOlderForHighlight = async () => {
@@ -600,43 +727,56 @@ export default function Journal() {
   // Check if we have localStorage entries that can be migrated/imported.
   // - legacy: tarot_journal (anonymous)
   // - user-scoped: tarot_journal_<userId>
-  const getLocalStorageEntryPresence = () => {
-    if (typeof localStorage === 'undefined') return false;
-    const state = {
-      hasLegacy: false,
-      hasScoped: false,
-    };
-
-    const legacyKey = 'tarot_journal';
+  useEffect(() => {
     const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
-
-    const keysToCheck = [legacyKey, scopedKey].filter(Boolean);
-    for (const key of keysToCheck) {
-      const stored = localStorage.getItem(key);
-      if (!stored) continue;
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          if (key === legacyKey) state.hasLegacy = true;
-          if (scopedKey && key === scopedKey) state.hasScoped = true;
-        }
-      } catch {
-        // Ignore malformed cache and keep scanning other keys.
+    const refresh = event => {
+      if (event.storageArea && event.storageArea !== localStorage) return;
+      if (event.key === null || event.key === 'tarot_journal' || event.key === scopedKey) {
+        setLocalStorageRevision(revision => revision + 1);
       }
-    }
+    };
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, [user?.id]);
+  const localStoragePresence = useMemo(() => {
+    try {
+      if (typeof localStorage === 'undefined') return { hasLegacy: false, hasScoped: false };
+      const state = {
+        hasLegacy: false,
+        hasScoped: false,
+      };
 
-    return state;
-  };
+      const legacyKey = 'tarot_journal';
+      const scopedKey = user?.id ? `tarot_journal_${user.id}` : null;
 
-  // Compute each render so it updates after import/migration without needing
-  // brittle dependency tracking.
-  const localStoragePresence = getLocalStorageEntryPresence();
+      const keysToCheck = [legacyKey, scopedKey].filter(Boolean);
+      for (const key of keysToCheck) {
+        const stored = localStorage.getItem(key);
+        if (!stored) continue;
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            if (key === legacyKey) state.hasLegacy = true;
+            if (scopedKey && key === scopedKey) state.hasScoped = true;
+          }
+        } catch {
+          // Ignore malformed cache and keep scanning other keys.
+        }
+      }
 
-  const desktopRailContent = (journeyReady && !loading && hasEntries && !isMobileLayout) ? (
+      return state;
+    } catch { return { hasLegacy: false, hasScoped: false }; }
+    // These dependencies invalidate external storage after reloads and writes;
+    // other tabs invalidate it through the storage event above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, loading, lastLocalSaveAt, migrating, importingLegacy, localStorageRevision]);
+
+  const desktopRailContent = (journeyReady && !loading && hasEntries && !historyPending && !isMobileLayout) ? (
     <div className="space-y-6 lg:space-y-8 w-full">
       <div className="w-full">
         <InsightsErrorBoundary>
           <ReadingJourney
+            journalSummary={journalSummary}
             entries={entries}
             filteredEntries={filteredEntries}
             filtersActive={journeyFiltersActive}
@@ -652,67 +792,49 @@ export default function Journal() {
             locale={locale}
             timezone={timezone}
             variant="sidebar"
-            onCreateShareLink={isAuthenticated ? createShareLink : null}
+            onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
+            shareManagement={shareManagement}
             onStartReading={handleStartReading}
             showStartReadingCta={false}
             seasonWindow={scopeWindow}
             scopeLabel={scopeLabel}
+            scopeError={scopeError}
           />
         </InsightsErrorBoundary>
       </div>
     </div>
   ) : null;
-  const hasRailContent = !loading && hasEntries && journeyReady;
+  const hasRailContent = !loading && hasEntries && !historyPending && journeyReady;
   const entryStackSpacingClass = compactList ? 'space-y-3.5' : 'space-y-5';
-  const monthSections = useMemo(() => {
-    const sections = [];
-    let current = null;
-    visibleEntries.forEach((entry) => {
-      const timestamp = getTimestamp(entry);
-      let monthKey = 'undated';
-      if (timestamp) {
-        const date = new Date(timestamp);
-        if (!Number.isNaN(date.getTime())) {
-          monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        }
-      }
-      const monthLabel = getMonthHeader(timestamp);
-      if (!current || current.key !== monthKey) {
-        if (current) {
-          current.count = current.entries.length;
-          sections.push(current);
-        }
-        current = {
-          key: monthKey,
-          label: monthLabel,
-          entries: []
-        };
-      }
-      current.entries.push(entry);
-    });
-    if (current) {
-      current.count = current.entries.length;
-      sections.push(current);
-    }
-    return sections.map((section) => ({
-      ...section,
-      anchorId: `month-${section.key}`
-    }));
-  }, [visibleEntries]);
+  const monthSections = useMemo(() => buildJournalMonthSections(filteredEntries), [filteredEntries]);
+  const visibleMonthSections = useMemo(() => buildJournalMonthSections(visibleEntries, { consecutive: true }), [visibleEntries]);
+  const visibleMonthTotals = useMemo(() => new Map(buildJournalMonthSections(visibleEntries).map(section => [section.key, section.count])), [visibleEntries]);
+  const monthTotals = useMemo(() => new Map(monthSections.map(section => [section.key, section.count])), [monthSections]);
   const monthJumpValue = monthSections.some((section) => section.key === monthJump) ? monthJump : '';
 
-  const renderedHistoryEntries = monthSections.map((section) => (
-    <div key={section.key} id={section.anchorId} className="space-y-4 scroll-mt-24">
-      <div className="sticky top-24 z-20">
+  const handleMonthJump = (event) => {
+    const value = event.target.value;
+    setMonthJump(value);
+    const section = monthSections.find(item => item.key === value);
+    if (!section) return;
+    const count = Math.ceil((section.firstIndex + 1) / VISIBLE_ENTRY_BATCH) * VISIBLE_ENTRY_BATCH;
+    setVisibleCount(previous => Math.max(previous, count));
+    setHistoryNavigation({ filterSignature, index: section.firstIndex, monthKey: value, trigger: event.currentTarget });
+    setHistoryAnnouncement(filterSignature);
+  };
+
+  const renderedHistoryEntries = visibleMonthSections.map((section) => (
+    <div key={section.anchorId} id={section.anchorId} className="space-y-4 scroll-mt-24">
+      <div data-app-secondary="2" data-chrome-group="journal-months" className="sticky top-24 z-20">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-secondary/20 bg-(--surface-88) px-3 py-2 backdrop-blur">
-          <span className="text-2xs uppercase tracking-[0.3em] text-muted">{section.label}</span>
-          <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted">
-            {section.count} entries
+          <span className={`${LABEL_CLASS} text-muted`}>{section.label}</span>
+          <span className={`${BADGE_LABEL_CLASS} inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-2.5 py-1 text-muted`}>
+            {visibleMonthTotals.get(section.key) < monthTotals.get(section.key) ? `${visibleMonthTotals.get(section.key)} of ${monthTotals.get(section.key)}` : monthTotals.get(section.key)} {monthTotals.get(section.key) === 1 ? 'reading' : 'readings'}
           </span>
         </div>
       </div>
       <div className={entryStackSpacingClass}>
-        {section.entries.map((entry, index) => {
+        {section.items.map(({ entry, index }) => {
           const timestamp = getTimestamp(entry);
           const key = entry.id || `${timestamp || 'entry'}-${index}`;
           const isHighlighted = pendingHighlightEntryId && String(entry?.id || '') === String(pendingHighlightEntryId);
@@ -720,20 +842,22 @@ export default function Journal() {
           return (
             <div
               id={anchorId}
+              data-journal-entry-index={index}
               key={key}
-              className={`space-y-2 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
+              className={`space-y-2 scroll-mt-40 ${isHighlighted ? 'rounded-2xl ring-2 ring-primary/35 bg-primary/3 p-2' : ''}`}
             >
               <JournalEntryCard
                 entry={entry}
                 openRequestKey={isHighlighted ? highlightNavigationKey : null}
                 isAuthenticated={isAuthenticated}
-                onCreateShareLink={isAuthenticated ? createShareLink : null}
+                onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
                 shareLinks={shareLinks}
                 shareLoading={shareLoading}
                 shareError={shareError}
                 onDeleteShareLink={isAuthenticated ? deleteShareLink : null}
                 onDelete={handleDeleteRequest}
                 onRetryVisuals={retrySavedVisuals}
+                onSaveReflection={handleSaveReflection}
                 compact={compactList}
                 cardClass={cardClass}
               />
@@ -744,11 +868,12 @@ export default function Journal() {
     </div>
   ));
 
-  const mobileRailContent = (journeyReady && !loading && hasEntries && isMobileLayout) ? (
+  const mobileRailContent = (hasOpenedMobileJourney && !loading && hasEntries && !historyPending && isMobileLayout) ? (
     <section className="mb-6 space-y-3 lg:hidden" aria-label="Journal insights and journey">
       {/* Filters moved to Journal history section to avoid duplication */}
       <InsightsErrorBoundary>
         <ReadingJourney
+          journalSummary={journalSummary}
           entries={entries}
           filteredEntries={filteredEntries}
           filtersActive={journeyFiltersActive}
@@ -764,11 +889,13 @@ export default function Journal() {
           locale={locale}
           timezone={timezone}
           variant="mobile"
-          onCreateShareLink={isAuthenticated ? createShareLink : null}
+          onCreateShareLink={isAuthenticated && canUseCloudJournal ? createShareLink : null}
+          shareManagement={shareManagement}
           onStartReading={handleStartReading}
           showStartReadingCta={false}
           seasonWindow={scopeWindow}
           scopeLabel={scopeLabel}
+          scopeError={scopeError}
         />
       </InsightsErrorBoundary>
     </section>
@@ -776,20 +903,12 @@ export default function Journal() {
 
   return (
     <>
-      <div className="min-h-screen bg-main text-main">
-        {/* Sticky navigation header with safe-area padding */}
-        <header
-          ref={headerRef}
-          className="sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-            <GlobalNav withUserChip />
-          </div>
-        </header>
+      <div data-app-chrome className="min-h-screen bg-main text-main">
+        <AppHeader />
 
-        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-[calc(2rem+var(--journal-controls-inset,0px))]">
+        <main id="main-content" tabIndex={-1} className="journal-page max-w-7xl mx-auto pl-[max(min(1rem,4vw),var(--safe-pad-left))] pr-[max(min(1rem,4vw),var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] pt-8 pb-8">
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div className={fromReading ? 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6' : 'hidden'}>
             {fromReading && (
               <button
                 onClick={() => {
@@ -837,6 +956,8 @@ export default function Journal() {
             syncSource={syncSource}
             journalError={journalError}
             loading={loading}
+            historyPending={historyPending}
+            historyError={historyError}
             localStoragePresence={localStoragePresence}
             localEntryCount={entries.length}
             onMigrate={handleMigrate}
@@ -848,26 +969,29 @@ export default function Journal() {
             onDismissNudge={dismissAccountNudge}
             onShowAuthModal={() => setShowAuthModal(true)}
             cardClass={cardClass}
+            errorShownBelow={!loading && !hasEntries && !historyPending && Boolean(journalError)}
           />
 
-          {mobileRailContent}
-
           {loading ? (
-            <div className="space-y-4 py-6" aria-live="polite">
+            // Placeholders take the shape of a collapsed reading: its small card
+            // stack, the question, then the spread-and-date and cards lines.
+            <div className="space-y-5 py-6" aria-live="polite">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="animate-pulse rounded-2xl border border-secondary/20 bg-surface-muted/40 ring-1 ring-primary/10 p-4 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.7)]"
+                  className="animate-pulse motion-reduce:animate-none rounded-[24px] border border-(--border-warm-subtle) bg-surface-muted/40 px-[min(1rem,4vw)] py-3.5 sm:px-5 sm:py-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="h-4 w-28 rounded-full bg-(--border-warm-light)" />
-                    <div className="h-9 w-9 rounded-full bg-(--border-warm-light)" />
-                  </div>
-                  <div className="mt-3 h-3 w-3/4 rounded-full bg-(--border-warm-light)" />
-                  <div className="mt-2 h-3 w-5/6 rounded-full bg-(--border-warm-light)" />
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
-                    <div className="h-16 rounded-xl bg-(--border-warm-subtle)" />
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="relative mt-0.5 hidden h-[51px] w-[64px] shrink-0 sm:block" aria-hidden="true">
+                      <div className="absolute left-0 top-0 h-full w-[34px] rounded-md bg-(--border-warm-light)" />
+                      <div className="absolute left-[15px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                      <div className="absolute left-[30px] top-0 h-full w-[34px] rounded-md border border-(--bg-surface) bg-(--border-warm-light)" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2.5 pt-1">
+                      <div className="h-[1.125rem] w-3/4 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3.5 w-1/2 rounded-full bg-(--border-warm-light)" />
+                      <div className="h-3 w-1/3 rounded-full bg-(--border-warm-subtle)" />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -876,47 +1000,42 @@ export default function Journal() {
             <div className={hasEntries && hasRailContent ? 'lg:flex lg:flex-wrap lg:gap-6 xl:gap-8' : ''}>
               {/* Let the rail move below history when enlarged text needs more room. */}
               <div className="min-w-0 flex-[999_1_32rem] space-y-8">
-                {hasEntries ? (
+                {hasEntries || historyPending ? (
                   <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
                     {/* Keep decorative orbs from becoming native focus-scroll space. */}
                     <div className="pointer-events-none absolute inset-0 overflow-clip rounded-[inherit]" aria-hidden="true">
                       <AmberStarfield />
                     </div>
                     <div className="relative z-10 space-y-5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-serif text-main">Journal history</h2>
-                        </div>
-                        <div className="flex flex-col items-start gap-1 sm:items-end">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
-                              Filtered: {filteredEntries.length}
-                            </span>
-                            <span className="inline-flex items-center rounded-full border border-secondary/20 bg-surface-muted/40 px-3 py-1 text-2xs text-muted">
-                              Loaded: {entries.length}{hasTotalEntries ? ` of ${totalEntryCount}` : hasMoreEntries ? '+' : ''}
-                            </span>
+                      {/* One row at a stable 44px: the month picker can come and go
+                          with a search without moving the search field under it. */}
+                      <div className="flex min-h-touch flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-2xl font-serif text-main">Saved readings</h2>
+                        {monthSections.length > 1 && (
+                          <div className="flex min-w-0 max-w-full items-center">
+                            {/* Visible as the picker's first option ("Month" on phones). */}
+                            <label htmlFor="jump-to-month" className="sr-only">
+                              Jump to month
+                            </label>
+                            <select
+                              id="jump-to-month"
+                              value={monthJumpValue}
+                              onChange={handleMonthJump}
+                              disabled={historyPending}
+                              aria-describedby={historyPending ? 'journal-history-progress' : undefined}
+                              className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                            >
+                              {/* Short on phones so the picker shares the heading's row;
+                                  its label keeps the full name for assistive tech. */}
+                              <option value="">{isMobileLayout ? 'Month' : 'Jump to month'}</option>
+                              {monthSections.map((section) => (
+                                <option key={section.key} value={section.key}>
+                                  {isMobileLayout ? section.shortLabel : section.label} ({section.count})
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                          {monthSections.length > 1 && (
-                            <div className="flex items-center gap-2">
-                              <label htmlFor="jump-to-month" className="text-2xs uppercase tracking-[0.22em] text-muted/80">
-                                Jump to month
-                              </label>
-                              <select
-                                id="jump-to-month"
-                                value={monthJumpValue}
-                                onChange={handleMonthJump}
-                                className="min-h-touch rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-2xs text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
-                              >
-                                <option value="">Jump to month</option>
-                                {monthSections.map((section) => (
-                                  <option key={section.key} value={section.key}>
-                                    {section.label} ({section.count})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
 
                       {showHighlightBanner && (
@@ -945,7 +1064,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore || !hasMoreEntries}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore || !hasMoreEntries ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Load older entries
@@ -956,7 +1075,7 @@ export default function Journal() {
                               type="button"
                               onClick={handleLoadOlderForHighlight}
                               disabled={loadingMore}
-                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-2xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
+                              className={`inline-flex min-h-touch items-center gap-1 rounded-full border border-secondary/20 bg-surface/60 px-3 py-1 text-xs font-semibold text-main hover:border-secondary/40 hover:bg-surface-muted/60 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 ${loadingMore ? 'cursor-not-allowed opacity-60' : ''}`}
                             >
                               <JournalSearchIcon className="h-3 w-3" aria-hidden="true" />
                               Try again
@@ -966,80 +1085,99 @@ export default function Journal() {
                       )}
 
                       <div className="space-y-4">
-                        {showSummaryBand && (
-                          <JournalSummaryBand
-                            summaryRef={summaryRef}
-                            isMobileLayout={isMobileLayout}
-                            summaryInView={summaryInView}
-                            analyticsScope={analyticsScope}
-                            onScopeSelect={handleScopeSelect}
-                            customScope={customScope}
-                            onCustomScopeChange={handleCustomScopeChange}
-                            scopeError={scopeError}
-                            scopeLabel={scopeLabel}
-                            scopeEntryCount={scopeEntryCount}
-                            summaryCardData={summaryCardData}
-                            statNodes={statNodes}
-                            statNodeMap={statNodeMap}
-                            heroEntry={heroEntry}
-                            heroCards={heroCards}
-                            heroDateLabel={heroDateLabel}
-                            expandedCardIndex={expandedCardIndex}
-                            onExpandedCardChange={setExpandedCardIndex}
-                            onStartReading={handleStartReading}
-                            filtersActive={filtersActive}
-                            dataSource={summaryDataSource}
-                            embedded
-                          />
+                        {historyPending && (
+                          <div id="journal-history-progress" className="space-y-2 rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-3 text-sm text-muted-high">
+                            <p className="font-semibold text-main" role="status">{historyError ? 'History loading paused' : 'Loading your complete history'}</p>
+                            <p>{hasEntries ? 'Open a reading now. ' : ''}Search and insights become available when your full history has loaded.</p>
+                            {historyError && (
+                              <button type="button" onClick={handleRetryHistory} disabled={loadingMore} className={`${OUTLINE_BUTTON_CLASS} text-sm`}>
+                                Retry loading history
+                              </button>
+                            )}
+                          </div>
                         )}
-
                         <div
                           id="journal-history-filters"
                           ref={registerHistoryFiltersEl}
                           className="scroll-mt-24"
                         >
-                          <JournalFilters
-                            filters={filters}
-                            onChange={setFilters}
-                            contexts={CONTEXT_FILTERS}
-                            spreads={SPREAD_FILTERS}
-                            decks={DECK_FILTERS}
-                            variant={isMobileLayout ? 'compact' : 'full'}
-                            viewMode={compactList ? 'compact' : 'comfortable'}
-                            onViewModeChange={(mode) => setCompactList(mode === 'compact')}
-                            resultCount={filteredEntries.length}
-                            totalCount={entries.length}
-                            searchCoverageLabel={searchCoverageLabel}
-                            searchScopeLabel={searchScopeLabel}
-                            onSearchRef={registerSearchInput}
-                          />
+                          <fieldset disabled={historyPending} aria-describedby={historyPending ? 'journal-history-progress' : undefined} className="min-w-0">
+                            <legend className="sr-only">Search and filter saved readings</legend>
+                            <JournalFilters
+                              ownerId={isAuthenticated ? user?.id : null}
+                              storageReady={!authLoading}
+                              filters={filters}
+                              onChange={setFilters}
+                              contexts={CONTEXT_FILTERS}
+                              spreads={SPREAD_FILTERS}
+                              decks={DECK_FILTERS}
+                              variant={isMobileLayout ? 'compact' : 'full'}
+                              viewMode={compactList ? 'compact' : 'comfortable'}
+                              onViewModeChange={handleViewModeChange}
+                              resultsLabel={historyResultsLabel}
+                              searchCoverageLabel={searchCoverageLabel}
+                              searchScopeLabel={searchScopeLabel}
+                              activeFilterChips={activeFilterChips}
+                              onRemoveFilter={handleRemoveFilter}
+                              onSearchRef={registerSearchInput}
+                            />
+                          </fieldset>
                         </div>
+
+                        {(semanticSearchAvailable || semanticSearchActive) && (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-secondary/20 bg-surface-muted/30 px-3 py-2 text-xs text-muted-high">
+                            <span className="min-w-0 flex-[1_1_14rem]">
+                              {semanticSearchActive
+                                ? 'Showing readings with a similar meaning, not just these exact words.'
+                                : 'Looking for readings on the same theme in other words?'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={semanticSearchActive ? clearSemanticSearch : requestSemanticSearch}
+                              disabled={historyPending}
+                              className="inline-flex min-h-touch items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-main hover:border-primary/40 hover:bg-primary/20 transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
+                            >
+                              <JournalSearchIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                              {semanticSearchActive ? 'Show exact matches' : 'Search by meaning'}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {serverSearchErrored && (
                         <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                          Full-history search failed. Showing matches from loaded entries only.
+                          {semanticSearchActive
+                            ? 'Search by meaning failed. Showing exact matches from loaded entries instead.'
+                            : 'Full-history search failed. Showing matches from loaded entries only.'}
                         </div>
                       )}
 
                       {serverSearchLoading ? (
-                        <div className="rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
+                        <div className="rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]" role="status">
                           <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border border-secondary/60 border-t-transparent" aria-hidden="true" />
-                          <p className="journal-prose text-lg text-main">Searching your full journal history...</p>
+                          <p className="journal-prose text-lg text-main">
+                            {semanticSearchActive ? 'Finding readings with a similar meaning...' : 'Searching your full journal history...'}
+                          </p>
                           <p className="journal-prose mt-2 text-muted">This can take a few seconds for large collections.</p>
                         </div>
-                      ) : filteredEntries.length === 0 ? (
+                      ) : filteredEntries.length === 0 && !historyPending ? (
                         <div className="relative overflow-hidden rounded-2xl border border-secondary/20 bg-surface-muted/40 p-8 text-center text-sm text-muted-high shadow-[0_16px_40px_-30px_rgba(0,0,0,0.8)]">
                           <NoFiltersIllustration className="mb-4" />
                           <p className="journal-prose text-lg text-main">
-                            {serverSearchEnabled
+                            {semanticSearchActive && serverSearchEnabled
+                              ? 'No readings with a similar meaning were found.'
+                              : serverSearchEnabled
                               ? 'No matches found in your full journal history.'
                               : hasMoreServerEntries
                                 ? `No matches in the most recent ${entries.length} entries.`
                                 : 'No entries match your filters.'}
                           </p>
                           <p className="journal-prose mt-2 text-muted">
-                            {serverSearchEnabled
+                            {semanticSearchActive && serverSearchEnabled
+                              ? 'Search by meaning looks through your recent analyzed readings. Try other words, or show exact matches.'
+                              : semanticSearchAvailable
+                              ? 'Try other words, adjust your filters, or search by meaning to find readings on the same theme.'
+                              : serverSearchEnabled
                               ? 'Try a different search term or adjust your filters.'
                               : hasMoreServerEntries
                                 ? 'Searching loaded entries only. Try searching older entries or adjust your filters.'
@@ -1061,7 +1199,7 @@ export default function Journal() {
                         </div>
                       ) : (
                         <>
-                          <div className={entryStackSpacingClass}>
+                          <div ref={historyListRef} className={entryStackSpacingClass}>
                             {renderedHistoryEntries}
                           </div>
                           {showLoadMoreButton && (
@@ -1069,28 +1207,98 @@ export default function Journal() {
                               <button
                                 type="button"
                                 onClick={handleLoadMoreEntries}
-                                disabled={loadingMore}
-                                className={`${OUTLINE_BUTTON_CLASS} min-h-touch px-4 py-2 ${loadingMore ? 'cursor-wait opacity-60' : ''}`}
+                                disabled={loadingMore && !hasLocalMoreEntries}
+                                className={`${OUTLINE_BUTTON_CLASS} min-h-touch px-4 py-2 ${loadingMore && !hasLocalMoreEntries ? 'cursor-wait opacity-60' : ''}`}
                               >
-                                {loadingMore ? 'Loading...' : loadMoreLabel}
+                                {loadingMore && !hasLocalMoreEntries ? 'Loading...' : loadMoreLabel}
                               </button>
                             </div>
                           )}
                         </>
                       )}
+                      {/* Mounted with the history, so filter results (including none)
+                          and loaded batches are announced once, politely. */}
+                      <p role="status" aria-atomic="true" className="sr-only">
+                        {historyAnnouncement === filterSignature
+                          ? `${historyCountLabel}.`
+                          : filtersActive && !serverSearchLoading ? `${historyResultsLabel}.` : ''}
+                      </p>
+                        <JournalFloatingControls
+                          hasEntries={hasEntries}
+                          filtersActive={filtersActive}
+                          activeFilterChips={activeFilterChips}
+                          onResetFilters={handleResetFilters}
+                          onRemoveFilter={handleRemoveFilter}
+                          onScrollToFilters={scrollToHistoryFilters}
+                          onStartReading={handleStartReading}
+                          isMobileLayout={isMobileLayout}
+                        />
                     </div>
                   </section>
+                ) : journalError ? (
+                  <JournalRecoveryState cloud={isAuthenticated && canUseCloudJournal} onReload={reloadJournal} loading={loading} />
                 ) : (
                   <JournalEmptyState
                     shellClass={shellClass}
                     onStartReading={handleStartReading}
                   />
                 )}
+                {hasEntries && !historyPending && (
+                  <div className="space-y-4">
+                    {isMobileLayout && (
+                      <details
+                        ref={mobileJourneyDetailsRef}
+                        onToggle={handleMobileJourneyToggle}
+                        className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4"
+                      >
+                        <summary
+                          ref={mobileJourneySummaryRef}
+                          className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)"
+                        >
+                          Your reading journey
+                        </summary>
+                        <div className="pt-3">{mobileRailContent}</div>
+                      </details>
+                    )}
+                    <details className="rounded-2xl border border-(--border-warm-light) bg-(--bg-surface) p-4">
+                      <summary className="min-h-touch content-center cursor-pointer rounded-lg font-serif text-lg text-main focus-visible:outline-2 focus-visible:outline-(--focus-ring-color)">Practice snapshot</summary>
+                      <div className="pt-3">
+                        {showSummaryBand && (
+                          <JournalSummaryBand
+                            summaryRef={summaryRef}
+                            isMobileLayout={isMobileLayout}
+                            summaryInView={summaryInView}
+                            analyticsScope={analyticsScope}
+                            onScopeSelect={handleScopeSelect}
+                            customScope={customScope}
+                            onCustomScopeChange={handleCustomScopeChange}
+                            scopeError={scopeError}
+                            scopeLabel={scopeLabel}
+                            scopeEntryCount={scopeEntryCount}
+                            summaryCardData={summaryCardData}
+                            statNodes={statNodes}
+                            statNodeMap={statNodeMap}
+                            heroEntry={heroEntry}
+                            heroCards={heroCards}
+                            heroDateLabel={heroDateLabel}
+                            expandedCardIndex={expandedCardIndex}
+                            onExpandedCardChange={setExpandedCardIndex}
+                            onStartReading={handleStartReading}
+                            onSeeJourney={handleSeeJourney}
+                            filtersActive={filtersActive}
+                            dataSource={summaryDataSource}
+                            embedded
+                          />
+                        )}
+                      </div>
+                    </details>
+                  </div>
+                )}
               </div>
 
               {hasEntries && hasRailContent && desktopRailContent && (
                 <aside className="hidden min-w-0 lg:block lg:flex-[1_1_24rem]">
-                  <div className="lg:sticky lg:top-6 lg:w-full">
+                  <div data-app-secondary="3" className="lg:sticky lg:top-6 lg:w-full">
                     {desktopRailContent}
                   </div>
                 </aside>
@@ -1100,19 +1308,8 @@ export default function Journal() {
           <InstallFooter />
         </main>
 
-        <JournalFloatingControls
-          hasEntries={hasEntries}
-          hasScrolled={hasScrolled}
-          historyFiltersEl={historyFiltersEl}
-          historyFiltersInView={historyFiltersInView}
-          filtersActive={filtersActive}
-          activeFilterChips={activeFilterChips}
-          onResetFilters={handleResetFilters}
-          onRemoveFilter={handleRemoveFilter}
-          onScrollToFilters={scrollToHistoryFilters}
-          onStartReading={handleStartReading}
-          isMobileLayout={isMobileLayout}
-        />
+
+        <AppBottomRegion />
       </div>
 
       <ConfirmModal

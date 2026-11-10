@@ -6,8 +6,10 @@ import { parse } from '@babel/parser';
 import { persistJournalWithVisualFallback, writeVisualResume, readVisualResume, visualStorageNamespace, requestSavedVisualRetry, fingerprintSavedVisualEntry } from '../src/lib/readingVisualStorage.js';
 import { safeStorage, setCachedNarrative } from '../src/lib/safeStorage.js';
 import { persistJournalInsights, persistCoachStatsSnapshot, saveCoachRecommendation } from '../src/lib/journalInsights.js';
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 
 function storageFixture(t) {
+  installJournalLocks(t);
   const values = new Map();
   const storage = { get length() { return values.size; }, key: index => [...values.keys()][index],
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) };
@@ -90,7 +92,8 @@ test('pagination queued before confirmed deletion cannot persist or reinsert the
   const owner = 'entry-queued-page'; const { storage } = storageFixture(t); const removed = entry('remove-page'); const keep = entry('keep-page');
   seed(storage, owner, [removed, keep]); let gets = 0;
   const driver = await journalDriver(owner, async (_url, options) => options?.method === 'DELETE' ? Response.json({ success: true, retiredReadingResultIds: [removed.readingResultId] })
-    : Response.json({ entries: ++gets === 1 ? [removed, keep] : [removed, entry('new-page')], pagination: { hasMore: true, nextCursor: 'next' } }));
+    : Response.json({ entries: ++gets === 1 ? [removed, keep] : [removed, { ...entry('new-page'), ts: 1791688000000 }],
+      pagination: { hasMore: true, nextCursor: gets === 1 ? 1791689000000 : 1791688000000 } }));
   t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render();
   await hook.loadMoreEntries(); await hook.deleteEntry(removed.id); driver.flush();
   assert.deepEqual(new Set(driver.render().entries.map(e => e.id)), new Set(['keep-page', 'new-page']));
@@ -117,6 +120,19 @@ test('failed cloud DELETE creates no tombstone and leaves prose and future saves
   t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render(); const before = new Map(values);
   assert.equal((await hook.deleteEntry(removed.id)).success, false); driver.flush(); assert.deepEqual(values, before);
   assert.equal((await hook.saveEntry(removed)).success, true); driver.flush(); assert.equal(driver.render().entries[0].id, removed.id);
+});
+
+test('confirmed cloud DELETE reports success and fences the entry if browser locking fails', async t => {
+  const owner = 'entry-cloud-lock-denied'; const { storage } = storageFixture(t); const removed = entry('lock-denied'); seed(storage, owner, [removed]);
+  const driver = await journalDriver(owner, async (_url, options) => options?.method === 'DELETE'
+    ? Response.json({ retiredReadingResultIds: [removed.readingResultId] }) : Response.json({ entries: [removed] }));
+  t.after(() => driver.close()); await driver.render().loadEntries(); driver.flush(); const hook = driver.render();
+  navigator.locks = null;
+  const result = await hook.deleteEntry(removed.id); driver.flush();
+  assert.equal(result.success, true); assert.equal(result.purged, false);
+  assert.deepEqual(driver.render().entries, []);
+  assert.equal(storage.getItem(`tarot_deleted_journal_entry:user:${owner}:${removed.id}`) !== null, true);
+  assert.equal((await hook.saveEntry(removed)).success, false);
 });
 
 test('local deletion removes from actual storage before success and preserves entries absent from stale hook state', async t => {
@@ -286,11 +302,12 @@ test('a low-level cloud retry cannot commit after another tab deletes the entry 
 async function journeyHook(archetypeData) {
   const source = await readFile(new URL('../src/hooks/useJourneyData.js', import.meta.url), 'utf8');
   const ast = parse(source, { sourceType: 'module' }); const removed = [];
-  const dependencies = { useMemo: callback => callback(), useCallback: callback => callback, useArchetypeJourney: () => archetypeData };
+  const dependencies = { useMemo: callback => callback(), useCallback: callback => callback,
+    useLocalCalendarDate: () => new Date(), useArchetypeJourney: () => archetypeData };
   for (const node of ast.program.body) {
     if (node.type === 'ImportDeclaration') {
       removed.push([node.start, node.end]);
-      if (node.source.value === 'react' || node.source.value.includes('useArchetypeJourney')) continue;
+      if (node.source.value === 'react' || node.source.value.includes('useArchetypeJourney') || node.source.value.includes('useLocalCalendarDate')) continue;
       let target = node.source.value; if (!target.endsWith('.js')) target += '.js';
       const imported = await import(new URL(target, new URL('../src/hooks/useJourneyData.js', import.meta.url)));
       for (const specifier of node.specifiers) dependencies[specifier.local.name] = imported[specifier.imported.name];
@@ -304,23 +321,27 @@ async function journeyHook(archetypeData) {
   return new Function(...Object.keys(dependencies), `${program}; return useJourneyData;`)(...Object.values(dependencies));
 }
 
-test('retained server aggregate prose cannot be cached with falsely complete survivor entry provenance', async t => {
+test('retained server aggregates cannot restore deleted prose or persist a stale narrative', async t => {
   const owner = 'entry-retained-aggregate'; const { storage } = storageFixture(t);
-  const removed = { ...entry('aggregate-moon'), ts: Date.now(), cards: [{ name: 'The Moon', position: 'Present' }] };
-  const keep = { ...entry('aggregate-star'), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] };
-  seed(storage, owner, [removed, keep]);
-  const aggregate = { topCards: [{ card_name: 'The Moon', count: 1 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
-  const hook = await journeyHook(aggregate); const props = { entries: [removed, keep], filteredEntries: [removed, keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
-  assert.equal(hook(props)._dataSource, 'server');
-  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
-  const stale = hook({ ...props, entries: [keep], filteredEntries: [keep] }); assert.equal(stale._dataSource, 'server');
-  assert.equal(Object.keys(read(storage, 'journey_narrative_cache')).some(key => key.startsWith(`${owner}:`)), false, 'retained aggregate must not claim surviving IDs are all its inputs');
-  aggregate.isDisabled = true; hook({ ...props, entries: [keep], filteredEntries: [keep] });
-  const narratives = Object.values(read(storage, 'journey_narrative_cache'));
-  assert.equal(narratives.length, 1); assert.deepEqual(narratives[0].sourceEntryIds, [keep.id]); assert.match(narratives[0].narrative, /Star/);
+  // The summary names only cards that repeat, so each card comes up twice.
+  const removed = ['aggregate-moon', 'aggregate-moon-2'].map(id => ({ ...entry(id), ts: Date.now(), cards: [{ name: 'The Moon', position: 'Present' }] }));
+  const keep = ['aggregate-star', 'aggregate-star-2'].map(id => ({ ...entry(id), ts: Date.now(), cards: [{ name: 'The Star', position: 'Present' }] }));
+  seed(storage, owner, [...removed, ...keep]);
+  const aggregate = { topCards: [{ card_name: 'The Moon', count: 2 }], badges: [], majorArcanaFrequency: {}, cadenceData: [], stats: { needsBackfill: false } };
+  const hook = await journeyHook(aggregate); const props = { entries: [...removed, ...keep], filteredEntries: [...removed, ...keep], filtersActive: false, isAuthenticated: true, canUseCloudJournal: true, userId: owner, timezone: 'UTC' };
+  assert.match(hook(props).seasonNarrative, /Moon/);
+  const h = await helpers();
+  for (const deleted of removed) purge(h, { namespace: visualStorageNamespace(owner), entryId: deleted.id, entries: [...removed, ...keep], storage });
+  const current = hook({ ...props, entries: keep, filteredEntries: keep });
+  assert.match(current.seasonNarrative, /Star/);
+  assert.doesNotMatch(current.seasonNarrative, /Moon/);
+  aggregate.isDisabled = true;
+  assert.match(hook({ ...props, entries: keep, filteredEntries: keep }).seasonNarrative, /Star/);
+  assert.equal(Object.keys(read(storage, 'journey_narrative_cache')).some(key => key.startsWith(`${owner}:`)), false,
+    'template summaries must not persist stale journal derivations');
 });
 
-test('the actual delayed JourneyContent snapshot effect rejects retained server aggregate inputs after deletion', async t => {
+test('the actual delayed JourneyContent snapshot effect rejects deleted inputs', async t => {
   const owner = 'entry-delayed-coach-effect'; const { storage } = storageFixture(t); const removed = entry('effect-remove'); const keep = entry('effect-keep'); seed(storage, owner, [removed, keep]);
   const source = await readFile(new URL('../src/components/ReadingJourney/JourneyContent.jsx', import.meta.url), 'utf8');
   const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] }); let callback;
@@ -330,11 +351,14 @@ test('the actual delayed JourneyContent snapshot effect rejects retained server 
     for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value?.type) visit(value); }
   }
   visit(ast); assert.ok(callback, 'actual coach snapshot effect exists');
-  const dependencies = { historyComplete: true, persistCoachStatsSnapshot, scopedEntries: [keep], entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
-    journeyFiltersActive: false, scopeLabel: null, coachSuggestionSnapshot: { question: 'Old Moon guidance' }, coachSuggestionIndex: 0, coachSuggestionKey: 'old-moon', userId: owner, _dataSource: 'server' };
-  const effect = new Function(...Object.keys(dependencies), `return (${source.slice(callback.start, callback.end)});`)(...Object.values(dependencies));
-  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage }); effect();
-  assert.equal(storage.getItem(`tarot_coach_stats_snapshot_${owner}`), null);
+  const h = await helpers(); purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, entries: [removed, keep], storage });
+  for (const sourceInputs of [{ _dataSource: 'client', scopedEntries: [removed, keep] }, { _dataSource: 'server', scopedEntries: [keep] }]) {
+    const dependencies = { historyComplete: true, scopeError: '', persistCoachStatsSnapshot, entries: [keep], exportStats: { frequentCards: [{ name: 'The Moon', count: 1 }] },
+      journeyFiltersActive: false, scopeLabel: null, coachSuggestionSnapshot: { question: 'Old Moon guidance' }, coachSuggestionIndex: 0, coachSuggestionKey: 'old-moon', userId: owner, ...sourceInputs };
+    const effect = new Function(...Object.keys(dependencies), `return (${source.slice(callback.start, callback.end)});`)(...Object.values(dependencies));
+    effect();
+    assert.equal(storage.getItem(`tarot_coach_stats_snapshot_${owner}`), null, `retained ${sourceInputs._dataSource} inputs must not restore deleted prose`);
+  }
 });
 
 async function filterDriver(owner, loadedEntries, fetchImpl) {
@@ -399,8 +423,13 @@ test('full-history search identity includes owner and rejects an old queued resp
   const owner = 'entry-search-old'; const other = 'entry-search-new'; storageFixture(t); const old = entry('search-old-prose'); const current = entry('search-current-prose');
   const releases = []; const driver = await filterDriver(owner, Array.from({ length: 201 }, (_, i) => entry(`switch-loaded-${i}`)), () => new Promise(resolve => releases.push(resolve)));
   t.after(() => driver.close()); driver.render(true); releases[0](Response.json({ entries: [old] })); await settle();
-  driver.setOwner(other); const switched = driver.render(true); assert.deepEqual(switched.filteredEntries, [], 'old same-query result must not surface for new owner');
-  driver.flush(); assert.deepEqual(driver.render().filteredEntries, []);
+  driver.setOwner(other); const switched = driver.render(true);
+  assert.equal(switched.filters.query, '', 'private search text resets before exposing a new owner');
+  assert.equal(switched.filteredEntries.some(item => item.id === old.id), false, 'old queued result must not surface');
+  driver.flush();
+  const next = driver.render();
+  assert.equal(next.filteredEntries.some(item => item.id === old.id), false);
+  next.setFilters(previous => ({ ...previous, query: 'Private current' })); driver.flush(); driver.render(true);
   releases[1](Response.json({ entries: [current] })); await settle(); driver.flush(); assert.deepEqual(driver.render().filteredEntries, [current]);
 });
 
@@ -412,7 +441,8 @@ test('actual Journal search-result deletion carries its result identity and purg
   function visit(node) { if (!node || typeof node !== 'object') return;
     if (node.type === 'VariableDeclarator' && ['handleDeleteRequest', 'handleDeleteConfirm'].includes(node.id?.name)) callbacks[node.id.name] = node.init;
     for (const value of Object.values(node)) { if (Array.isArray(value)) value.forEach(visit); else if (value?.type) visit(value); } }
-  visit(ast); let modal; const notices = []; const common = { filteredEntries: [removed], entries: [], user: { id: owner }, isAuthenticated: true,
+  visit(ast); let modal; const notices = []; const common = { filteredEntries: [removed], filteredEntriesRef: { current: [removed] },
+    useCallback: callback => callback, entries: [], user: { id: owner }, isAuthenticated: true,
     setDeleteConfirmModal: next => { modal = next; }, deleteEntry: hook.deleteEntry, showToast: notice => notices.push(notice), serverSearchEnabled: false, refreshServerSearch() {} };
   const compile = (node, dependencies) => new Function(...Object.keys(dependencies), `return (${source.slice(node.start, node.end)});`)(...Object.values(dependencies));
   compile(callbacks.handleDeleteRequest, common)(removed.id); await compile(callbacks.handleDeleteConfirm, { ...common, deleteConfirmModal: modal })(); driver.flush();
@@ -438,6 +468,59 @@ test('entry-associated original metadata lets local erasure retire an orphan han
   writeVisualResume({ namespace: visualStorageNamespace(owner), entryId: removed.id, binding: b, resumeHandle: { visualBinding: b, visualJobToken: 'orphan-local-secret' }, storage });
   const h = await helpers(); assert.equal(purge(h, { namespace: visualStorageNamespace(owner), entryId: removed.id, storage }).purged, true);
   assert.equal(storage.getItem(`tarot_visual_resume:user:${owner}:${removed.readingResultId}`), null);
+});
+
+test('large history filtering indexes tombstone keys instead of reading one marker per entry', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-index-benchmark';
+  const entries = Array.from({ length: 1000 }, (_, index) => entry(`indexed-${index}`));
+  let markerReads = 0;
+  const getItem = storage.getItem;
+  storage.getItem = key => {
+    if (key.startsWith('tarot_deleted_journal_entry:')) markerReads += 1;
+    return getItem(key);
+  };
+  assert.equal(h.filterDeletedJournalEntries(namespace, entries, { storage }).length, 1000);
+  assert.equal(markerReads, 0, 'an empty tombstone index must not read every entry marker');
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:indexed-499`, '{}');
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, entries, { storage }).map(item => item.id),
+    entries.filter((_, index) => index !== 499).map(item => item.id)
+  );
+  assert.equal(markerReads, 0, 'marker keys supply the tombstone IDs without per-entry getItem calls');
+});
+
+test('deleted entries stay filtered when marker enumeration fails but exact reads remain available', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-enumeration-failed';
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:removed`, '{}');
+  storage.key = () => { throw new Error('Storage enumeration unavailable'); };
+
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, [entry('removed'), entry('keep')], { storage }).map(item => item.id),
+    ['keep']
+  );
+});
+
+test('deleted entries stay filtered when another tab removes a preceding key during enumeration', async t => {
+  const { storage } = storageFixture(t);
+  const h = await helpers();
+  const namespace = 'user:tombstone-enumeration-shrank';
+  storage.setItem('unrelated-old-handle', '1');
+  storage.setItem(`tarot_deleted_journal_entry:${namespace}:removed`, '{}');
+  const key = storage.key;
+  storage.key = index => {
+    const current = key(index);
+    if (index === 0) storage.removeItem('unrelated-old-handle');
+    return current;
+  };
+
+  assert.deepEqual(
+    h.filterDeletedJournalEntries(namespace, [entry('removed'), entry('keep')], { storage }).map(item => item.id),
+    ['keep']
+  );
 });
 
 test('confirmed cloud deletion with an unreadable retirement receipt reports cleanup uncertainty and preserves unknown aliases', async t => {

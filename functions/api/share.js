@@ -1,21 +1,40 @@
 import { validateSession, getSessionFromCookie } from '../lib/auth.js';
-import { loadEntriesForUser, loadRecentEntries, buildShareMeta } from '../lib/shareUtils.js';
+import { loadEntriesForUser, loadRecentEntries, buildShareMeta, normalizeShareTitle, defaultShareTitle } from '../lib/shareUtils.js';
 import { safeJsonParse } from '../lib/utils.js';
 
-function buildShareResponseRow(row) {
+export function buildShareResponseRow(row, entryIds = []) {
   const meta = row.meta_json ? safeJsonParse(row.meta_json, {}, { silent: true }) : {};
   return {
     token: row.token,
     scope: row.scope,
-    title: row.title || (row.scope === 'entry' ? 'Shared reading' : 'Journal snapshot'),
+    title: row.title || defaultShareTitle(row.scope),
+    hasCustomTitle: Boolean(row.title),
     createdAt: row.created_at * 1000,
     expiresAt: row.expires_at ? row.expires_at * 1000 : null,
     viewCount: row.view_count || 0,
     entryCount: meta.entryCount ?? row.entry_count ?? 0,
+    // The journal matches links to its entries by these ids.
+    entryIds,
     spreadKeys: Array.isArray(meta.spreadKeys) ? meta.spreadKeys : [],
     contexts: Array.isArray(meta.contexts) ? meta.contexts : [],
     lastEntryTs: typeof meta.lastEntryTs === 'number' ? meta.lastEntryTs : null
   };
+}
+
+async function loadShareEntryIds(db, tokens) {
+  const byToken = new Map(tokens.map((token) => [token, []]));
+  if (!tokens.length) return byToken;
+  const placeholders = tokens.map(() => '?').join(', ');
+  const result = await db.prepare(`
+    SELECT token, entry_id
+    FROM share_token_entries
+    WHERE token IN (${placeholders})
+    ORDER BY token, sort_index ASC
+  `).bind(...tokens).all();
+  for (const row of result.results || []) {
+    byToken.get(row.token)?.push(row.entry_id);
+  }
+  return byToken;
 }
 
 export async function onRequestGet(context) {
@@ -33,18 +52,34 @@ export async function onRequestGet(context) {
       });
     }
 
+    const rawCursor = new URL(request.url).searchParams.get('cursor');
+    let cursor = null;
+    if (rawCursor !== null) {
+      try { cursor = JSON.parse(rawCursor); } catch { /* Validated below. */ }
+      if (!Array.isArray(cursor) || cursor.length !== 2 || !Number.isSafeInteger(cursor[0]) || cursor[0] < 0
+        || typeof cursor[1] !== 'string' || !cursor[1] || cursor[1].length > 128) {
+        return Response.json({ error: 'Invalid share-list cursor' }, { status: 400 });
+      }
+    }
+    const pageSize = 50;
+    const cursorClause = cursor ? ' AND (st.created_at < ? OR (st.created_at = ? AND st.token < ?))' : '';
+    const cursorParams = cursor ? [cursor[0], cursor[0], cursor[1]] : [];
     const result = await env.DB.prepare(`
       SELECT st.token, st.scope, st.title, st.created_at, st.expires_at, st.view_count, st.meta_json,
              (SELECT COUNT(*) FROM share_token_entries ste WHERE ste.token = st.token) AS entry_count
       FROM share_tokens st
-      WHERE st.user_id = ?
-      ORDER BY st.created_at DESC
-      LIMIT 50
-    `).bind(user.id).all();
+      WHERE st.user_id = ?${cursorClause}
+      ORDER BY st.created_at DESC, st.token DESC
+      LIMIT ?
+    `).bind(user.id, ...cursorParams, pageSize + 1).all();
 
-    const shares = result.results.map(buildShareResponseRow);
+    const rows = (result.results || []).slice(0, pageSize);
+    const entryIdsByToken = await loadShareEntryIds(env.DB, rows.map((row) => row.token));
+    const shares = rows.map((row) => buildShareResponseRow(row, entryIdsByToken.get(row.token) || []));
 
-    return new Response(JSON.stringify({ shares }), {
+    const last = rows.at(-1);
+    const nextCursor = result.results?.length > pageSize ? JSON.stringify([last.created_at, last.token]) : null;
+    return new Response(JSON.stringify({ shares, nextCursor }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -110,7 +145,7 @@ export async function onRequestPost(context) {
     const shareToken = crypto.randomUUID().replace(/-/g, '');
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = expiresInHours ? now + expiresInHours * 3600 : null;
-    const title = (body.title && typeof body.title === 'string') ? body.title.trim().slice(0, 80) : null;
+    const title = normalizeShareTitle(body.title);
     const meta = buildShareMeta(entries);
 
     await env.DB.prepare(`

@@ -29,6 +29,8 @@ import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
+import { JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 import EmptyState from './sections/EmptyState';
 import BackfillBanner from './sections/BackfillBanner';
 import PatternAlertBanner from '../PatternAlertBanner';
@@ -36,6 +38,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import { recordCoachQuestion } from '../../lib/coachStorage';
 import { getCoachSuggestionJournalState } from '../../lib/coachSuggestionUtils';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
+import { filterRepeated, findSoleLeader } from '../../lib/journal/leaders';
 
 /**
  * CollapsibleSection - Expandable section wrapper.
@@ -119,14 +122,15 @@ export default function JourneySidebar({
   exportStats,
   // Other props
   isAuthenticated,
+  journalSummary,
   userId,
   onCreateShareLink,
+  shareManagement,
   onStartReading,
   showStartReadingCta = true,
   locale = 'default',
   timezone,
   seasonTimezone,
-  _dataSource,
   variant: _variant = 'sidebar',
   scopeLabel,
   filtersApplied,
@@ -135,9 +139,10 @@ export default function JourneySidebar({
 }) {
   const navigate = useNavigate();
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
-  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
+    // Negative margins keep the 44px target from pushing "streak" below the other stat labels.
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -mx-2 -my-3.5';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -208,7 +213,7 @@ export default function JourneySidebar({
   }, [navigate, resetOnboarding, setShowPersonalizationBanner]);
 
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+  const sourceLabel = 'Journal';
 
   // Use shared patterns snapshot hook
   const {
@@ -244,6 +249,7 @@ export default function JourneySidebar({
       <ExportSection
         isAuthenticated={isAuthenticated}
         onCreateShareLink={onCreateShareLink}
+        shareManagement={shareManagement}
         scopeEntries={scopeEntries}
         filteredEntries={filteredEntries}
         allEntries={allEntries}
@@ -383,7 +389,7 @@ export default function JourneySidebar({
             <Sparkle className="h-3 w-3" aria-hidden="true" />
             Your Reading Journey
             {scopeLabel && (
-              <span className="ml-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className={`${BADGE_LABEL_CLASS} ml-2 max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2 py-0.5 text-main`}>
                 {scopeChipLabel} · {sourceLabel}
               </span>
             )}
@@ -427,11 +433,13 @@ export default function JourneySidebar({
         {/* Season Summary (always visible) */}
         <SeasonSummary
           narrative={seasonNarrative}
-          topCard={cardFrequency[0]}
+          hasHistory={!isEmpty}
+          onScopeSelect={onScopeSelect}
+          topCard={findSoleLeader(cardFrequency)}
           cardFrequencyReliable={cardFrequencyReliable}
           currentStreak={currentStreak}
           totalReadings={totalReadings}
-          topContext={[...contextBreakdown].sort((a, b) => b.count - a.count)[0]}
+          topContext={findSoleLeader(contextBreakdown)}
           contextBreakdown={contextBreakdown}
           preferenceDrift={preferenceDrift}
           coachSuggestion={activeCoachSuggestion}
@@ -502,7 +510,7 @@ export default function JourneySidebar({
             onToggle={() => toggleSection('cards')}
             icon={TrendUp}
             label="Cards Calling You"
-            badge={cardFrequency.length > 0 ? cardFrequency.length : null}
+            badge={filterRepeated(cardFrequency).length || null}
           >
             <div className="space-y-4">
               <CardsCallingYou
@@ -567,7 +575,7 @@ export default function JourneySidebar({
                   type="button"
                   onClick={handlePatternsToggle}
                   aria-expanded={showAllPatterns}
-                  className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className={JOURNEY_TEXT_BUTTON_CLASS}
                 >
                   {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                 </button>
@@ -603,7 +611,8 @@ export default function JourneySidebar({
             >
             <JournalSummarySection
               isAuthenticated={isAuthenticated}
-              entryCount={allEntries?.length || 0}
+              allEntries={allEntries}
+              journalSummary={journalSummary}
               filteredEntries={filteredEntries}
               filtersApplied={filtersApplied}
             />

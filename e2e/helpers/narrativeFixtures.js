@@ -71,7 +71,9 @@ export async function createNarrativeFixture(page, options = {}) {
   const clients = { reading: new Set(), followup: new Set(), visual: new Set() };
   const connectionGenerations = { reading: 0, followup: 0, visual: 0 };
   const connectionIds = new WeakMap();
-  const requests = { reading: [], followup: [], feedback: [], visual: [], journal: [] };
+  const requests = { reading: [], followup: [], feedback: [], visual: [], journal: [], accountPreferences: [] };
+  // The signed-in account's own copy of preferences (GET/PUT /api/account/preferences).
+  let accountPreferences = options.accountPreferences ?? null;
   const entries = [];
   let journalStatus = 200;
   let journalGate = null;
@@ -172,10 +174,25 @@ export async function createNarrativeFixture(page, options = {}) {
     if (pathname === '/api/generate-card-video' && new URL(route.request().url()).searchParams.get('capabilities') === 'true') {
       return route.fulfill({ json: { enabled: false } });
     }
+    if (pathname === '/api/account/preferences') {
+      if (route.request().method() === 'PUT') {
+        const body = route.request().postDataJSON();
+        requests.accountPreferences.push(body);
+        accountPreferences = {
+          v: 1,
+          personalization: body.personalization || {},
+          explicitFields: body.explicitFields || [],
+          onboardingCompletedAt: accountPreferences?.onboardingCompletedAt || (body.onboardingCompleted ? 1_800_000_000 : null),
+          updatedAt: 1_800_000_000
+        };
+      }
+      return route.fulfill({ json: { preferences: accountPreferences, available: true } });
+    }
     if (route.request().method() === 'GET') {
       const defaults = {
         '/api/subscription': { subscription: { tier: options.tier || 'pro', status: 'active', provider: 'stripe' } },
-        '/api/memories': { memories: [] },
+        '/api/memories': { memories: options.memories ?? [] },
+        '/api/archetype-journey': { analytics: { topCards: [], badges: [], monthlyTotals: [] } },
         '/api/share': { shares: [] },
         '/api/journal/pattern-alerts': { alerts: [] }
       };
@@ -194,6 +211,12 @@ export async function createNarrativeFixture(page, options = {}) {
       return route.fulfill({ json: { entry, deduplicated } });
     }
     if (pathname === '/api/journal') {
+      if (requestUrl.searchParams.get('summary') === 'true') {
+        return route.fulfill({ json: { summary: {
+          total: entries.length,
+          lastReadingAt: entries.length ? Math.max(...entries.map(entry => entry.ts * 1000)) : null
+        } } });
+      }
       const id = requestUrl.searchParams.get('entryId');
       return route.fulfill({ json: id ? { entry: entries.find(entry => entry.id === id) } : { entries, pagination: { hasMore: false, total: entries.length } } });
     }
@@ -273,7 +296,7 @@ export async function startReading(page, fixture, { complete = true, setup = tru
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(question || fixture.question || QUESTION);
   await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
   await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-  await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+  await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
   if (reflection !== null) await page.getByPlaceholder('Your reflection (optional)').fill(reflection);
   await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().press('Enter');
   if (complete) await fixture.completeReading();

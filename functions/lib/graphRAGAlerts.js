@@ -7,6 +7,18 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
 
     if (!graphMeta) return alerts;
 
+    const reasonAlerts = {
+        reference_integrity_failed: 'GraphRAG: references removed after an integrity check failed',
+        no_patterns_detected: 'GraphRAG: no patterns detected',
+        projection_rejected: 'GraphRAG: deck projection rejected reference candidates',
+        unverified_reference_provenance: 'GraphRAG: unverified reference provenance',
+        // Exceptions report retrieval_error; this code now means nothing was available.
+        retrieval_failed_or_empty: 'GraphRAG: no reference passages available',
+        retrieval_error: 'GraphRAG: retrieval error',
+        removed_for_budget: 'GraphRAG: references removed for budget'
+    };
+    if (Object.hasOwn(reasonAlerts, graphMeta.skippedReason)) alerts.push(reasonAlerts[graphMeta.skippedReason]);
+
     // Only warn when GraphRAG had something to contribute but was omitted.
     // If no passages were retrieved (e.g. no graph keys/patterns), omission is expected.
     const passagesProvided =

@@ -1,5 +1,9 @@
 # Saved reading visual replay
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 This implementation is prepared and verified locally with fake providers. Visual provider, migration and DO production gates remain closed.
 
 An explicit POST is the only action that can start a saved-source visual replay. Cloud replay takes its exact raw Markdown, ordered cards/orientations, deck, question and every supplied reflection from the authenticated owned journal row. Local replay takes explicitly submitted prose/context and discards old result IDs, bindings, capabilities and cached sidecars as authority. It does not regenerate prose.

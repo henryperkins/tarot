@@ -1,5 +1,9 @@
 # Compact card inspection follow-up
 
+Type: evidence
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 At 200% text size, a reversed card name could join its orientation into one unbreakable line and overflow the card dialog. The title now includes a real word boundary and can wrap long words. The defect was reproduced with both Tailwind 3 and Tailwind 4 styles.
 
 The images mount the actual `CardModal` component with compiled application CSS, The Empress reversed, and a 375 × 568 Chromium viewport at 200% text. The before case restores the original title markup and margin; the after case uses the corrected component. This is browser component evidence, not a physical-device or authenticated production test.

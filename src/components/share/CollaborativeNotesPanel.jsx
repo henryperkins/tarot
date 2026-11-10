@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useId, useCallback, useRef } from 'react';
+import { META_LABEL_CLASS } from '../../styles/labelClasses';
 
 const ALIAS_STORAGE_KEY = 'mystic-share-alias';
 const DRAFT_STORAGE_KEY = 'mystic-share-draft';
@@ -161,6 +162,9 @@ function CollaborativeNotesContent({
   const [reportError, setReportError] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const statusTimeoutRef = useRef(null);
+  const formRef = useRef(null);
+  const submitRef = useRef(null);
+  const errorFocusFrame = useRef(null);
 
   const reportedNotesKey = getReportedNotesKey(shareToken);
   const [reportedNoteIds, setReportedNoteIds] = useState(() => new Set(readStoredList(reportedNotesKey)));
@@ -194,6 +198,7 @@ function CollaborativeNotesContent({
       if (statusTimeoutRef.current) {
         clearTimeout(statusTimeoutRef.current);
       }
+      cancelAnimationFrame(errorFocusFrame.current);
     };
   }, []);
 
@@ -240,6 +245,17 @@ function CollaborativeNotesContent({
       setStatus('Shared!', 'success', 2500);
     } catch (submitError) {
       setStatus(submitError?.message || 'Unable to add note.', 'error');
+      // Inserting the parent alert can push an already-focused retry button
+      // below the viewport. Re-reveal it after the expanded form has settled.
+      errorFocusFrame.current = requestAnimationFrame(() => {
+        errorFocusFrame.current = requestAnimationFrame(() => {
+          const form = formRef.current;
+          if (!form?.getClientRects().length || form.closest('[hidden], [inert]')) return;
+          if (document.activeElement !== document.body && !form.contains(document.activeElement)) return;
+          submitRef.current?.focus({ preventScroll: true });
+          submitRef.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        });
+      });
     }
   };
 
@@ -372,7 +388,7 @@ function CollaborativeNotesContent({
                 <span className="min-w-0 max-w-full wrap-break-word font-semibold">{note.authorName || 'Anonymous'}</span>
                 <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                   {isReported ? (
-                    <span className="text-2xs uppercase tracking-[0.14em] text-muted">Reported</span>
+                    <span className={`${META_LABEL_CLASS} text-muted`}>Reported</span>
                   ) : onReport ? (
                     <button
                       type="button"
@@ -392,7 +408,7 @@ function CollaborativeNotesContent({
                 </div>
               </div>
               {note.cardPosition && (
-                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-accent">
+                <p className="mt-1 text-xs uppercase tracking-widest text-accent">
                   {note.cardPosition}
                 </p>
               )}
@@ -466,7 +482,7 @@ function CollaborativeNotesContent({
         })}</ul>}
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+      <form ref={formRef} onSubmit={handleSubmit} className="mt-5 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="min-w-0 flex-1">
             <label htmlFor={nameInputId} className="sr-only">
@@ -531,6 +547,7 @@ function CollaborativeNotesContent({
             {body.length} / 600
           </span>
           <button
+            ref={submitRef}
             type="submit"
             disabled={isSubmitting || !body.trim()}
             className="min-h-touch min-w-touch max-w-full rounded-full border border-secondary/60 px-5 py-2.5 text-sm font-medium text-secondary transition-colors touch-manipulation

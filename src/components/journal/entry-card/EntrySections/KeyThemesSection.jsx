@@ -12,17 +12,16 @@ export const KeyThemesSection = memo(function KeyThemesSection({ insights }) {
   return (
     <section className={cn(styles.section, 'mt-4')}>
       <header className={styles.sectionHeader}>
-        <div className="flex items-center gap-2">
-          <JournalThemesIcon className="h-4 w-4 text-(--brand-primary)" aria-hidden="true" />
+        <div className="flex min-w-0 items-center gap-2">
+          <JournalThemesIcon className={styles.sectionIcon} aria-hidden="true" />
           <div className={styles.sectionLabel}>Key themes</div>
         </div>
       </header>
 
       <div className={styles.sectionBody}>
-        <ul className="space-y-2">
+        <ul className="max-w-[34em] list-disc space-y-2 pl-5 marker:text-(--brand-primary)">
           {insights.map((line, idx) => (
-            <li key={idx} className="text-sm leading-relaxed text-muted">
-              <span className="mr-2 text-accent">•</span>
+            <li key={idx} className="text-sm leading-relaxed text-muted text-pretty">
               {line}
             </li>
           ))}

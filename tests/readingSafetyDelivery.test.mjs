@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { onRequestPost } from '../functions/api/tarot-reading.js';
 import { buildSelectiveEvalGatePolicy } from '../functions/lib/evalGatePolicy.js';
 import { ReadingJob } from '../src/worker/readingJob.js';
+import { createReadingJobState } from './helpers/fakeReadingJobs.mjs';
 
 const basePayload = {
   spreadInfo: { name: 'One-Card Insight' },
@@ -186,11 +187,15 @@ for (const advice of [
   });
 }
 
-test('reading jobs retain the retryable failure and user message', async () => {
-  const job = new ReadingJob({ blockConcurrencyWhile: (callback) => callback(), storage: { get: async () => null, put: async () => {}, setAlarm: async () => {} }, waitUntil: () => {} }, {});
-  await job.initialized;
-  job.job.status = 'running';
-  await job.consumeResponse(Response.json({ code: 'reading_safety_unavailable', retryable: true, message: 'We could not check your reading. Please try again.' }, { status: 503 }));
+test('reading jobs retain the retryable failure and user message', async t => {
+  const state = createReadingJobState();
+  const job = new ReadingJob(state, {}, { runReading: async () => Response.json({ code: 'reading_safety_unavailable', retryable: true, message: 'We could not check your reading. Please try again.' }, { status: 503 }) });
+  t.after(() => job.closeSubscribers());
+  const started = await job.fetch(new Request('https://reading-jobs/start', { method: 'POST', headers: { 'X-Job-Token': 'safety-token' }, body: JSON.stringify({ jobId: 'safety-error-job', payload: basePayload }) }));
+  assert.equal(started.status, 200);
+  await job.runningPromise;
+  while (state.pending.size) await Promise.all([...state.pending]);
+  assert.equal(job.job.status, 'error');
   assert.equal(job.events.at(-1).data.code, 'reading_safety_unavailable');
   assert.equal(job.events.at(-1).data.retryable, true);
   assert.match(job.events.at(-1).data.message, /try again/);

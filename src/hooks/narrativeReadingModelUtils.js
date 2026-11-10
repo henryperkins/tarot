@@ -1,3 +1,8 @@
+import { buildGraphContext } from '../../functions/lib/graphContext.js';
+import { retrievePassages } from '../../functions/lib/graphRAG.js';
+import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { MINOR_ARCANA } from '../data/minorArcana.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { getCardForDeck, getOrientationMeaning } from '../lib/cardLookup.js';
 import { getNarrationLabels } from '../components/reading/narrative/narrationLabels.js';
 import { extractShortLabel } from '../components/readingBoardUtils.js';
@@ -144,23 +149,59 @@ export function buildReadingDisplayCards({ reading, visibleCount, spreadPosition
   });
 }
 
-export function getTraditionalPassages(themes, readingMeta) {
+export function getTraditionalPassages(themes, readingMeta, selectedDeck) {
   if (readingMeta?.provider === 'safe-fallback') return [];
-  const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages
-    || themes?.knowledgeGraph?.retrievedPassages
-    || [];
-  if (!Array.isArray(candidates)) return [];
   const usage = readingMeta?.sourceUsage?.graphRAG;
-  if (usage?.used === false || usage?.mode === 'none' || usage?.mode === 'summary' || usage?.passagesUsedInPrompt === 0) return [];
-  if (Array.isArray(usage?.passageIndices)) {
-    return getVisibleTraditionalPassages([...new Set(usage.passageIndices)]
-      .filter(index => Number.isInteger(index) && index >= 0 && index < candidates.length)
-      .map(index => candidates[index]));
+  if (selectedDeck && usage?.selectedDeck !== selectedDeck) return [];
+  const candidates = themes?.knowledgeGraph?.graphRAGPayload?.passages;
+  if (!usage?.used || usage.mode !== 'full' || !Number.isInteger(usage.passagesUsedInPrompt)
+    || usage.passagesUsedInPrompt <= 0 || !Array.isArray(candidates) || !Array.isArray(usage.passageIndices)) return [];
+  const indices = [...new Set(usage.passageIndices)];
+  if (indices.length !== usage.passagesUsedInPrompt
+    || indices.some(index => !Number.isInteger(index) || index < 0 || index >= candidates.length)) return [];
+  const retained = indices.map(index => candidates[index]);
+  if (retained.some(passage => !passage?.candidateId || !passage.projectionId || !passage.projectedDeck || (usage.selectedDeck && passage.projectedDeck !== usage.selectedDeck) || typeof passage.promptText !== 'string')) return [];
+  return getVisibleTraditionalPassages(retained.map(passage => ({ ...passage, text: passage.promptText })));
+}
+
+/** Historical/unconditioned material is never evidence of generation inclusion. */
+function verifiedPreview(passage, selectedDeck) {
+  return passage?.projectedDeck === selectedDeck && typeof passage.candidateId === 'string'
+    && typeof passage.projectionVersion === 'string'
+    && passage.projectionId === JSON.stringify([passage.candidateId, passage.projectionVersion, selectedDeck])
+    && typeof passage.promptText === 'string' && passage.promptText.trim();
+}
+
+export function getTraditionalPassagePreview(themes, readingMeta, selectedDeck, recoveryContext = null) {
+  if (readingMeta?.sourceUsage?.graphRAG || readingMeta?.provider === 'safe-fallback'
+    || !Object.hasOwn(DECK_CATALOG, selectedDeck || '')) return [];
+  const candidates = themes?.knowledgeGraph?.retrievedPassages
+    || themes?.knowledgeGraph?.graphRAGPayload?.passages || [];
+  const valid = (Array.isArray(candidates) ? candidates : []).filter(passage => verifiedPreview(passage, selectedDeck));
+  if (valid.length) return getVisibleTraditionalPassages(valid.map(passage => ({ ...passage,
+    text: passage.promptText, previewOrigin: 'original' }))).slice(0, 5);
+  if (recoveryContext?.savedDeckStyle !== selectedDeck || !Array.isArray(recoveryContext?.cardsInfo)
+    || !recoveryContext.cardsInfo.length) return [];
+  const catalog = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+  const cards = recoveryContext.cardsInfo.map(card => {
+    const name = card?.canonicalName || card?.name;
+    const canonical = typeof name === 'string' ? catalog.find(entry => entry.name.toLowerCase() === name.toLowerCase())
+      : Number.isInteger(card?.number) ? MAJOR_ARCANA.find(entry => entry.number === card.number) : null;
+    if (!canonical || card.number != null && card.number !== canonical.number) return null;
+    return { ...card, ...canonical, canonicalName: canonical.name, canonicalKey: canonical.name.toLowerCase(),
+      card: canonical.name, orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright') };
+  });
+  if (cards.some(card => !card)) return [];
+  try {
+    const graph = buildGraphContext(cards, { deckStyle: selectedDeck });
+    if (!graph?.graphKeys) return [];
+    const rebuilt = retrievePassages(graph.graphKeys, { maxPassages: 5, includeMetadata: true,
+      deckStyle: selectedDeck, questionContext: recoveryContext.contextSelection?.graphRAGContext || 'general' });
+    return getVisibleTraditionalPassages(rebuilt.filter(passage => verifiedPreview(passage, selectedDeck))
+      .map(passage => ({ ...passage, text: passage.promptText, previewOrigin: 'reconstructed' }))).slice(0, 5);
+  } catch {
+    return [];
   }
-  // Older trimmed snapshots record only a count, which cannot identify the
-  // retained references after ranking. Do not guess which candidates survived.
-  if (Number.isFinite(usage?.passagesUsedInPrompt) && usage.passagesUsedInPrompt !== candidates.length) return [];
-  return getVisibleTraditionalPassages(candidates);
 }
 
 export function deriveNarrativeVisibility({
@@ -170,46 +211,41 @@ export function deriveNarrativeVisibility({
   narrativePhase,
   themes,
   readingMeta,
+  selectedDeck,
+  previewRecoveryContext,
   highlightItems = [],
   visibleCount,
   revealedCardsSize,
   isShuffling,
-  isNarrativeFocus,
   canShowVisionPanel,
   effectiveTier,
   isAuthenticated,
-  autoGenerateVisualsEnabled,
   cardVideoEnabled = false,
   isGenerating,
   storyArtCards = [],
   cinematicCard
 }) {
-  const traditionalPassages = getTraditionalPassages(themes, readingMeta);
+  const traditionalPassages = getTraditionalPassages(themes, readingMeta, selectedDeck);
+  const traditionalPreviewPassages = getTraditionalPassagePreview(themes, readingMeta, selectedDeck, previewRecoveryContext);
   const hasPatternHighlights = Boolean(!isPersonalReadingError && themes?.knowledgeGraph?.narrativeHighlights?.length);
   const hasTraditionalInsights = traditionalPassages.length > 0;
+  const hasTraditionalPreview = traditionalPreviewPassages.length > 0;
   const hasHighlightPanel = Boolean(highlightItems.length && visibleCount > 0 && revealedCardsSize === visibleCount);
   const cardsFullyRevealed = Boolean(visibleCount > 0 && revealedCardsSize >= visibleCount);
-  const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasHighlightPanel || canShowVisionPanel;
+  const hasInsightPanels = hasPatternHighlights || hasTraditionalInsights || hasTraditionalPreview || hasHighlightPanel || canShowVisionPanel;
   const focusToggleAvailable = hasInsightPanels;
   const shouldShowSpreadInsights = cardsFullyRevealed
     && !isShuffling
-    && !isNarrativeFocus
-    && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights);
+    && (hasPatternHighlights || hasHighlightPanel || hasTraditionalInsights || hasTraditionalPreview);
   const canAutoGenerateVisuals = effectiveTier === 'plus' || effectiveTier === 'pro';
   const canUseMediaGallery = Boolean(isAuthenticated && canAutoGenerateVisuals);
   const isReadingComplete = Boolean(
     personalReading && !isPersonalReadingError
     && narrativePhase === 'complete' && !isReadingStreaming && !isGenerating
   );
-  const autoGenerateVisuals = Boolean(
-    autoGenerateVisualsEnabled
-    && canAutoGenerateVisuals
-    && personalReading
-    && !isPersonalReadingError
-    && narrativePhase === 'complete'
-    && !isReadingStreaming
-    && !isGenerating
-  );
+  // Media generation starts only from an explicit studio action. Legacy build
+  // flags must not advertise or enable background generation.
+  const autoGenerateVisuals = false;
   const shouldShowStoryIllustration = Boolean(
     isReadingComplete
     && storyArtCards.length > 0
@@ -224,6 +260,7 @@ export function deriveNarrativeVisibility({
 
   return {
     traditionalPassages,
+    traditionalPreviewPassages,
     hasPatternHighlights,
     hasTraditionalInsights,
     hasHighlightPanel,
@@ -237,15 +274,11 @@ export function deriveNarrativeVisibility({
     shouldShowStoryIllustration,
     shouldShowCinematicReveal,
     shouldShowVisualCompanion,
-    cinematicRevealMessage: autoGenerateVisuals
-      ? 'Auto-generating a short cinematic reveal from your completed reading.'
-      : 'Generate a short cinematic reveal of this card.',
-    visualCompanionMessage: autoGenerateVisuals
-      ? 'Visual generation is running from your completed narrative.'
-      : shouldShowCinematicReveal
-        ? 'Generate artwork and cinematic motion that stay anchored to this reading.'
-        : 'Generate artwork that stays anchored to this reading.',
-    visualCompanionModeLabel: autoGenerateVisuals ? 'Auto generation on' : 'Generate on demand'
+    cinematicRevealMessage: 'Generate a short cinematic reveal of this card.',
+    visualCompanionMessage: shouldShowCinematicReveal
+      ? 'Generate artwork and cinematic motion that stay anchored to this reading.'
+      : 'Generate artwork that stays anchored to this reading.',
+    visualCompanionModeLabel: 'Generate on demand'
   };
 }
 
@@ -286,7 +319,7 @@ export function buildNarrativePanelModel({
   manualInspectionStatus = null
 }) {
   const hasNarrativeContext = Boolean(personalReading && !isPersonalReadingError);
-  const narrationState = ttsState?.status || 'idle';
+  const narrationState = ttsState?.context === 'full-reading' ? ttsState.status || 'idle' : 'idle';
   const isNarrationLoading = narrationState === 'loading';
   const isNarrationPlaying = narrationState === 'playing';
   const isNarrationPaused = narrationState === 'paused';
@@ -342,7 +375,7 @@ export function buildNarrativePanelModel({
       isSaving
     },
     statusModel: {
-      showNarrationStatus: hasNarrativeContext && narrationState !== 'idle' && narrationState !== 'completed',
+      showNarrationStatus: hasNarrativeContext && Boolean(ttsState?.status) && ttsState.status !== 'idle' && ttsState.status !== 'completed',
       showNarrationProgress: hasNarrativeContext && isServerNarrationProvider(ttsProvider) && (isNarrationPlaying || isNarrationPaused),
       showNarrationTierLimit: ttsState?.status === 'error' && ttsState?.errorCode === 'TIER_LIMIT',
       showVoicePrompt: Boolean(showVoicePrompt),
@@ -375,10 +408,15 @@ export function buildNarrativeSurfaceModel({
   themes,
   highlightItems,
   traditionalPassages,
+  traditionalPreviewPassages,
   insightCards,
   isLandscape
 }) {
+  const shouldShowSafetyNotice = !personalReading && !isGenerating;
+
   return {
+    hasSecondaryContent: Boolean(shouldShowVisualCompanion || shouldShowSpreadInsights || shouldShowSafetyNotice),
+    shouldShowSafetyNotice,
     shouldShowVisualCompanion,
     shouldShowCinematicReveal,
     shouldShowStoryIllustration,
@@ -401,6 +439,7 @@ export function buildNarrativeSurfaceModel({
     themes,
     highlightItems,
     traditionalPassages,
+    traditionalPreviewPassages,
     insightCards,
     layoutClassName: isLandscape ? 'space-y-4' : 'space-y-8'
   };

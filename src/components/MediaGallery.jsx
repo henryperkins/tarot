@@ -201,7 +201,7 @@ export function MediaGallery({
                         href={mediaUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-2xs text-main transition hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-sm text-main transition hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                       >
                         <ArrowsOut className="h-3.5 w-3.5" aria-hidden="true" />
                         Open
@@ -211,7 +211,7 @@ export function MediaGallery({
                       <a
                         href={downloadUrl}
                         download
-                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-2xs text-main transition hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                        className="inline-flex min-h-touch items-center gap-1 rounded-md border border-secondary/25 bg-surface/60 px-2.5 py-1.5 text-sm text-main transition hover:bg-surface focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                       >
                         <DownloadSimple className="h-3.5 w-3.5" aria-hidden="true" />
                         Download
@@ -222,7 +222,7 @@ export function MediaGallery({
                         type="button"
                         onClick={() => handleDelete(item.id)}
                         disabled={isDeleting}
-                        className="inline-flex min-h-touch items-center justify-center rounded-md border border-error/35 bg-error/10 px-2.5 py-1.5 text-2xs text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                        className="inline-flex min-h-touch min-w-touch items-center justify-center rounded-md border border-error/35 bg-error/10 px-2.5 py-1.5 text-sm text-error transition hover:bg-error/20 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                         aria-label={`Remove ${title}`}
                       >
                         <Trash className="h-3.5 w-3.5" aria-hidden="true" />

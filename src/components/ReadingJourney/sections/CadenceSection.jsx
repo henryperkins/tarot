@@ -2,9 +2,10 @@
  * CadenceSection - Reading cadence sparkline/bar chart.
  */
 
-import { memo } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import { ChartLine } from '@phosphor-icons/react';
-import { CadenceChart } from '../../charts/CadenceChart';
+
+const CadenceChart = lazy(() => import('../../charts/CadenceChart'));
 
 // Use larger height on mobile for better touch interaction
 const CHART_HEIGHT_MOBILE = 72;
@@ -15,7 +16,7 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
 
   // Calculate average readings per month
   const total = data.reduce((sum, item) => sum + (item.count || 0), 0);
-  const avg = Math.round(total / data.length);
+  const avg = Number((total / data.length).toFixed(1));
 
   // Use larger height on mobile for better touch targets
   const chartHeight = variant === 'mobile' ? CHART_HEIGHT_MOBILE : CHART_HEIGHT_DESKTOP;
@@ -27,9 +28,19 @@ function CadenceSection({ data = [], variant = 'mobile' }) {
         Reading Rhythm
       </p>
 
-      <CadenceChart data={data} height={chartHeight} />
+      <Suspense fallback={(
+        <div
+          className="flex items-center justify-center rounded-lg text-xs text-muted"
+          style={{ height: chartHeight }}
+          role="status"
+        >
+          Loading reading rhythm…
+        </div>
+      )}>
+        <CadenceChart data={data} height={chartHeight} />
+      </Suspense>
 
-      <p className="mt-2 text-2xs text-muted/70">
+      <p className="mt-2 text-2xs text-muted">
         {total} readings over {data.length} months ({avg}/month avg)
       </p>
     </div>

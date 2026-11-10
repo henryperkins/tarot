@@ -1,125 +1,187 @@
 import { memo } from 'react';
 
 /**
- * CardRelationshipGraph - Visualizes connections between cards in a reading.
- * 
+ * CardRelationshipGraph - the archetypal triads and dyads among a reading's
+ * cards, drawn around a circle and written out as a list.
+ *
+ * The drawing is decorative; the list carries the same relationships as text.
+ * Card names are HTML labels, so they stay legible at every width instead of
+ * scaling with the drawing.
+ *
  * @param {Object} props
- * @param {Array} props.cards - Array of { name, position, id }
- * @param {Object} props.graphKeys - { completeTriadIds, dyadPairs }
+ * @param {Array} props.cards - The reading's cards, in spread order
+ * @param {{ triads: Array, dyads: Array }} props.web - From resolvePatternWeb()
  */
-const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], graphKeys }) {
-  if (!cards.length || !graphKeys) return null;
+const VIEW_WIDTH = 300;
+const VIEW_HEIGHT = 200;
+const CENTER_X = VIEW_WIDTH / 2;
+const CENTER_Y = VIEW_HEIGHT / 2;
+const RADIUS = 58;
+/** Name every card up to this many; beyond it, only the connected ones. */
+const MAX_LABELLED = 5;
+const LABEL_GAP = '0.625rem';
 
-  // Extract relationships
-  const triads = graphKeys.completeTriadIds || [];
-  const dyads = graphKeys.dyadPairs || [];
-  
-  if (!triads.length && !dyads.length) return null;
+const listFormat = typeof Intl !== 'undefined' && Intl.ListFormat
+  ? new Intl.ListFormat('en', { style: 'long', type: 'conjunction' })
+  : null;
 
-  const width = 300;
-  const height = 200;
-  const cx = width / 2;
-  const cy = height / 2;
-  const radius = 60; // Slightly smaller to fit labels
+function joinNames(names) {
+  return listFormat ? listFormat.format(names) : names.join(', ');
+}
 
-  // Helper to normalize names for matching
-  const normalize = str => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+function cardName(card) {
+  return card?.displayName || card?.name || card?.card || 'Card';
+}
 
-  const cardNodes = cards.map((card, i) => {
-    const angle = (i / cards.length) * 2 * Math.PI - Math.PI / 2;
-    return {
-      ...card,
-      normName: normalize(card.name),
-      x: cx + radius * Math.cos(angle),
-      y: cy + radius * Math.sin(angle),
-    };
+function sentenceCase(text) {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+}
+
+function nodePositions(count) {
+  return Array.from({ length: count }, (_, index) => {
+    const angle = (index / count) * 2 * Math.PI - Math.PI / 2;
+    return { x: CENTER_X + RADIUS * Math.cos(angle), y: CENTER_Y + RADIUS * Math.sin(angle) };
   });
+}
 
-  const getNode = (identifier) => {
-    const target = normalize(identifier);
-    // Try exact match first, then partial
-    return cardNodes.find(n => n.normName === target || n.normName.includes(target) || target.includes(n.normName));
+// Names sit beside their node, on the side away from the centre. Names wrap
+// between words; a single long word may run into the section's padding
+// rather than break mid-word.
+function labelStyle({ x, y }) {
+  const left = (x / VIEW_WIDTH) * 100;
+  const top = (y / VIEW_HEIGHT) * 100;
+  if (x >= CENTER_X - 0.5) {
+    return {
+      left: `${left}%`,
+      top: `${top}%`,
+      transform: `translate(${LABEL_GAP}, -50%)`,
+      maxWidth: `calc(${100 - left}% - ${LABEL_GAP} - 0.25rem)`
+    };
+  }
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    transform: `translate(calc(-100% - ${LABEL_GAP}), -50%)`,
+    maxWidth: `calc(${left}% - ${LABEL_GAP} - 0.25rem)`,
+    textAlign: 'right'
   };
+}
+
+function RelationshipGlyph({ kind }) {
+  return (
+    <svg viewBox="0 0 16 16" className="mt-1 h-4 w-4 shrink-0 text-(--brand-primary)" aria-hidden="true" focusable="false">
+      {kind === 'triad' ? (
+        <path d="M8 2.5 13.5 13h-11Z" fill="currentColor" fillOpacity="0.14" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      ) : (
+        <>
+          <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.5 2.5" strokeLinecap="round" />
+          <circle cx="2.5" cy="8" r="1.75" fill="currentColor" />
+          <circle cx="13.5" cy="8" r="1.75" fill="currentColor" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], web }) {
+  const triads = web?.triads || [];
+  const dyads = web?.dyads || [];
+  if (!cards.length || (!triads.length && !dyads.length)) return null;
+
+  const nodes = nodePositions(cards.length);
+  const linked = new Set([...triads, ...dyads].flatMap((relationship) => relationship.indices));
+  const labelled = cards.length <= MAX_LABELLED
+    ? cards.map((_, index) => index)
+    : [...linked].sort((a, b) => a - b);
+  const relationships = [
+    ...triads.map((triad) => ({ kind: 'triad', key: `triad-${triad.id}`, indices: triad.indices, detail: triad.theme })),
+    ...dyads.map((dyad) => ({ kind: 'dyad', key: `dyad-${dyad.key}`, indices: dyad.indices, detail: sentenceCase(dyad.theme || dyad.category) }))
+  ];
 
   return (
-    <div className="w-full flex flex-col items-center bg-surface/40 rounded-xl p-4 border border-(--border-warm-subtle)">
-      <h4 className="text-xs font-bold uppercase tracking-widest text-muted mb-2">Pattern Web</h4>
-      <div style={{ width: '100%', height: '180px' }}>
-        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-          {/* Edges for Dyads */}
-          {dyads.map((dyad, i) => {
-            // dyad.cards is likely array of names or IDs
-            if (!Array.isArray(dyad.cards)) return null;
-            const nodes = dyad.cards.map(id => getNode(String(id))).filter(Boolean);
-            if (nodes.length !== 2) return null;
+    <figure className="m-0">
+      <div className="relative mx-auto w-full max-w-[22rem]" style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}>
+        <svg
+          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          className="absolute inset-0 h-full w-full overflow-visible"
+          aria-hidden="true"
+          focusable="false"
+        >
+          {triads.map((triad) => (
+            <polygon
+              key={`triad-${triad.id}`}
+              points={triad.indices.map((index) => `${nodes[index].x},${nodes[index].y}`).join(' ')}
+              fill="var(--brand-primary)"
+              fillOpacity="0.1"
+              stroke="var(--brand-primary)"
+              strokeOpacity="0.75"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          ))}
+          {dyads.map((dyad) => {
+            const [from, to] = dyad.indices.map((index) => nodes[index]);
             return (
-              <line 
-                key={`dyad-${i}`}
-                x1={nodes[0].x} y1={nodes[0].y}
-                x2={nodes[1].x} y2={nodes[1].y}
-                stroke="var(--brand-primary)"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                opacity="0.4"
-              />
-            );
-          })}
-
-          {/* Edges for Triads */}
-          {triads.map((triad, i) => {
-            // Triad ID format "card1-card2-card3" or similar
-            const parts = triad.split('-');
-            const nodes = parts.map(p => getNode(p)).filter(Boolean);
-            if (nodes.length < 2) return null;
-            
-            // Draw lines between all nodes in triad to form shape
-            const pathData = nodes.map((n, idx) => 
-              (idx === 0 ? 'M' : 'L') + `${n.x},${n.y}`
-            ).join(' ') + ' Z';
-
-            return (
-              <path 
-                key={`triad-${i}`}
-                d={pathData}
-                fill="var(--brand-primary)"
-                fillOpacity="0.08"
+              <line
+                key={`dyad-${dyad.key}`}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
                 stroke="var(--brand-primary)"
                 strokeWidth="1.5"
-                strokeOpacity="0.6"
+                strokeDasharray="4 4"
+                strokeLinecap="round"
               />
             );
           })}
-
-          {/* Nodes */}
-          {cardNodes.map((node, i) => (
-            <g key={i} transform={`translate(${node.x},${node.y})`}>
-              <circle r="3" fill="var(--brand-primary)" />
-              {/* Short name label */}
-              <text 
-                y={node.y > cy ? 12 : -8} 
-                x={node.x > cx ? 5 : -5}
-                textAnchor={node.x > cx ? "start" : "end"}
-                fontSize="9" 
-                fill="var(--text-muted)"
-                className="font-serif"
-              >
-                {node.name}
-              </text>
-            </g>
+          {nodes.map((node, index) => (
+            <circle
+              key={`node-${index}`}
+              cx={node.x}
+              cy={node.y}
+              r={linked.has(index) ? 4.5 : 3}
+              fill={linked.has(index) ? 'var(--brand-primary)' : 'var(--text-muted)'}
+              fillOpacity={linked.has(index) ? 1 : 0.55}
+            />
           ))}
         </svg>
+        {labelled.map((index) => (
+          <span
+            key={`label-${index}`}
+            aria-hidden="true"
+            className={`pointer-events-none absolute text-xs leading-snug ${
+              linked.has(index) ? 'font-medium text-(--text-main)' : 'text-(--text-muted)'
+            }`}
+            style={labelStyle(nodes[index])}
+          >
+            {cardName(cards[index])}
+          </span>
+        ))}
       </div>
-      <div className="flex gap-4 mt-2 text-2xs text-muted">
-        <span className="flex items-center gap-1">
-          <span className="w-2 h-2 bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-sm"></span>
-          Triad
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-0.5 border-t border-(--border-warm-light) border-dashed"></span>
-          Dyad
-        </span>
-      </div>
-    </div>
+
+      <figcaption className="mt-4">
+        <ul className="max-w-[34em] space-y-2.5">
+          {relationships.map((relationship) => (
+            <li key={relationship.key} className="flex items-start gap-2.5 text-sm leading-relaxed">
+              <RelationshipGlyph kind={relationship.kind} />
+              <p className="min-w-0 wrap-break-word">
+                <span className="sr-only">{relationship.kind === 'triad' ? 'Three-card pattern: ' : 'Card pair: '}</span>
+                <span className="block font-semibold text-(--text-main)">
+                  {joinNames(relationship.indices.map((index) => cardName(cards[index])))}
+                </span>
+                {relationship.detail && (
+                  <span className="block text-(--text-muted)">
+                    <span className="sr-only">: </span>
+                    {relationship.detail}
+                  </span>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </figcaption>
+    </figure>
   );
 });
 

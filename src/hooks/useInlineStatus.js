@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 const DEFAULT_STATUS = { tone: 'info', message: '', action: null };
 
+// Errors and warnings stay until the next action replaces or clears them: a
+// reader may need time to act on one (a warning can carry a link to copy).
+const PERSISTENT_TONES = new Set(['error', 'warning']);
+
 export function useInlineStatus(timeoutMs = 3200) {
   const [status, setStatus] = useState(DEFAULT_STATUS);
   const timerRef = useRef(null);
@@ -27,7 +31,7 @@ export function useInlineStatus(timeoutMs = 3200) {
 
     setStatus(merged);
 
-    if (timeoutMs > 0) {
+    if (timeoutMs > 0 && !PERSISTENT_TONES.has(merged.tone)) {
       timerRef.current = setTimeout(() => {
         setStatus(DEFAULT_STATUS);
         timerRef.current = null;

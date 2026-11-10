@@ -7,6 +7,33 @@ import {
   transformOpenAIStream
 } from '../functions/lib/openaiResponsesStream.js';
 
+test('stream completion reconciles every final answer message without duplicating deltas', async () => {
+  const events = await collectSseEvents(transformOpenAIStream(createMockOpenAIStream([
+    formatOpenAIEvent('response.output_text.delta', { item_id: 'a', output_index: 0, content_index: 0, delta: 'Opening. ' }),
+    formatOpenAIEvent('response.output_text.done', { item_id: 'a', output_index: 0, content_index: 0, text: 'Opening. ' }),
+    formatOpenAIEvent('response.output_text.delta', { item_id: 'a', output_index: 0, content_index: 1, delta: 'Boundary.' }),
+    formatOpenAIEvent('response.output_text.done', { item_id: 'a', output_index: 0, content_index: 1, text: 'Boundary.' }),
+    formatOpenAIEvent('response.completed', { response: {
+      status: 'completed', output: [
+        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Opening. ' }, { type: 'output_text', text: 'Boundary.' }] },
+        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'The Moon appears in your spread.' }] }
+      ]
+    } })
+  ])));
+  assert.equal(events.find(event => event.eventType === 'done').data.fullText, 'Opening. Boundary.\n\nThe Moon appears in your spread.');
+});
+
+test('stream text-done events reconcile individual pieces rather than replace the whole answer', async () => {
+  const events = await collectSseEvents(transformOpenAIStream(createMockOpenAIStream([
+    formatOpenAIEvent('response.output_text.delta', { output_index: 0, content_index: 0, delta: 'Opening. ' }),
+    formatOpenAIEvent('response.output_text.done', { output_index: 0, content_index: 0, text: 'Opening. ' }),
+    formatOpenAIEvent('response.output_text.delta', { output_index: 0, content_index: 1, delta: 'Boundary.' }),
+    formatOpenAIEvent('response.output_text.done', { output_index: 0, content_index: 1, text: 'Boundary.' }),
+    formatOpenAIEvent('response.completed', { response: { status: 'completed' } })
+  ])));
+  assert.equal(events.find(event => event.eventType === 'done').data.fullText, 'Opening. Boundary.');
+});
+
 function formatOpenAIEvent(event, data = {}) {
   return `event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`;
 }

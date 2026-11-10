@@ -5,6 +5,23 @@ import {
   sanitizePersonalization
 } from '../utils/personalizationStorage.js';
 
+// Browser settings share one lens catalog; the reading engine's supported
+// overrides are checked against these keys in reversalFrameworkOptions.test.mjs.
+export const REVERSAL_FRAMEWORK_OPTIONS = Object.freeze([
+  { value: 'auto', label: 'Auto (recommended)', description: 'Balances context, card meaning, and spread position.' },
+  { value: 'blocked', label: 'Blocked energy', description: 'Reversals highlight blocked or resisted energy.' },
+  { value: 'delayed', label: 'Timing & delays', description: 'Reversals point to timing issues and delays.' },
+  { value: 'internalized', label: 'Internal process', description: 'Reversals indicate inward or private processing.' },
+  { value: 'contextual', label: 'Context-based', description: 'Reversals adapt to your question context.' },
+  { value: 'shadow', label: 'Shadow Integration (Jungian)', description: 'Reversals reveal shadow work and integration.' },
+  { value: 'mirror', label: 'Mirror / reflection', description: 'Reversals reflect your current state back to you.' },
+  { value: 'potentialBlocked', label: 'Unrealized potential', description: 'Reversals show unrealized potential or hesitations.' }
+].map(option => Object.freeze(option)));
+
+export const REVERSAL_FRAMEWORK_KEYS = Object.freeze(
+  REVERSAL_FRAMEWORK_OPTIONS.filter(option => option.value !== 'auto').map(option => option.value)
+);
+
 // These values are optional checkpoints; React retains live state when a
 // browser blocks access to storage or runs out of space.
 export const safeSessionStorage = {

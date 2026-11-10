@@ -2,11 +2,14 @@
  * CardsCallingYou - Top cards list with inline badges and suit icons.
  */
 
-import { memo } from 'react';
+import { lazy, memo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
+import { useSmallScreen } from '../../../hooks/useSmallScreen';
 import { Fire, TrendUp, TrendDown, Minus, ArrowRight } from '@phosphor-icons/react';
-import TrendSparkline from '../../charts/TrendSparkline';
 import { getSuitIcon } from '../../illustrations/suitIconUtils';
+import { filterRepeated } from '../../../lib/journal/leaders';
+
+const TrendSparkline = lazy(() => import('../../charts/TrendSparkline'));
 
 // Suit color mapping for visual distinction
 const SUIT_COLORS = {
@@ -17,21 +20,29 @@ const SUIT_COLORS = {
   Major: 'text-accent',
 };
 
+// role="img" makes the SVG's label part of the row for screen readers.
 function TrendIndicator({ trend }) {
   if (trend === 'up') {
-    return <TrendUp className="h-3 w-3 text-success" aria-label="trending up" />;
+    return <TrendUp className="h-3 w-3 text-success" role="img" aria-label="Rising over recent months" />;
   }
   if (trend === 'down') {
-    return <TrendDown className="h-3 w-3 text-error" aria-label="trending down" />;
+    return <TrendDown className="h-3 w-3 text-error" role="img" aria-label="Falling over recent months" />;
   }
-  return <Minus className="h-3 w-3 text-muted opacity-60" aria-label="stable" />;
+  return <Minus className="h-3 w-3 text-muted opacity-60" role="img" aria-label="Steady over recent months" />;
 }
 
 function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSize = 0 }) {
-  if (!cards.length) {
+  // Sparklines appear from the `sm` breakpoint. Below it they are not mounted,
+  // so phones never load or measure charts they would hide.
+  const showSparklines = !useSmallScreen(639);
+  // "Keep appearing" holds only for cards drawn more than once.
+  const repeated = filterRepeated(cards);
+  if (!repeated.length) {
     return (
       <p className="text-sm text-muted">
-        Draw more cards to see which ones keep appearing.
+        {cards.length
+          ? 'No card has repeated yet. Cards that return across your readings will gather here.'
+          : 'Draw more cards to see which ones keep appearing.'}
       </p>
     );
   }
@@ -47,7 +58,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
         {subtitle}
       </p>
       <ul className="space-y-2" aria-label="Your top most frequently appearing cards">
-        {cards.slice(0, 5).map((card, index) => {
+        {(showSparklines ? repeated : repeated.map(({ trendData: _trendData, ...card }) => card)).slice(0, 5).map((card, index) => {
           const hasBadge = card.hasBadge || badges.some(b => b.card_name === card.name);
           const SuitIcon = getSuitIcon(card.name);
           const suitName = card.suit || (card.name?.includes(' of ') ? card.name.split(' of ')[1] : 'Major');
@@ -58,9 +69,9 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
               key={`${card.name}-${index}`}
               className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm rounded-lg bg-surface-muted/40 px-3 py-3 min-h-touch hover:bg-surface-muted/60 transition-colors"
             >
-              <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-2">
+              <div className="flex flex-wrap min-w-0 flex-[1_1_12rem] items-center gap-x-2 gap-y-1">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-accent shrink-0"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-main shrink-0"
                   aria-hidden="true"
                 >
                   {index + 1}
@@ -71,7 +82,7 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                     aria-label={`${suitName} suit`}
                   />
                 )}
-                <span className="min-w-0 text-main wrap-break-word">
+                <span className="min-w-0 flex-[1_1_8ch] text-main wrap-break-word">
                   <span className="sr-only">Rank {index + 1}: </span>
                   {card.name}
                 </span>
@@ -85,7 +96,9 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
 
               {card.trendData && (
                 <div className="mx-2 hidden sm:block">
-                  <TrendSparkline data={card.trendData} height={24} color="var(--brand-primary)" />
+                  <Suspense fallback={<div className="h-6 w-16" aria-hidden="true" />}>
+                    <TrendSparkline data={card.trendData} height={24} color="var(--brand-primary)" />
+                  </Suspense>
                 </div>
               )}
 
@@ -95,17 +108,12 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
                 )}
                 <span
                   className="text-muted tabular-nums"
-                  aria-label={`appeared ${card.count} times`}
                 >
-                  {card.count}x
+                  <span aria-hidden="true">{card.count}x</span>
+                  <span className="sr-only">appeared {card.count} {card.count === 1 ? 'time' : 'times'}</span>
                 </span>
                 {card.reversedCount > 0 && (
-                  <span
-                    className="text-xs text-muted/70"
-                    aria-label={`${card.reversedCount} reversed`}
-                  >
-                    ({card.reversedCount}↺)
-                  </span>
+                  <span className="text-xs text-muted">{card.reversedCount} reversed</span>
                 )}
               </div>
             </li>
@@ -114,20 +122,19 @@ function CardsCallingYou({ cards = [], badges = [], isEmerging = false, sampleSi
       </ul>
       
       <div className="mt-3 pt-2 border-t border-secondary/20 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm sm:text-xs">
-        <span className="text-muted/70">
-          {cards.length > 5 ? `+${cards.length - 5} more` : 'Explore deck'}
+        <span className="text-muted">
+          {repeated.length > 5 ? `+${repeated.length - 5} more` : 'Explore deck'}
         </span>
         <Link 
           to="/journal/gallery" 
           className="flex items-center gap-1 min-h-touch py-2 px-2 -m-2 text-accent hover:text-main transition-colors touch-manipulation"
-          aria-label="View your card collection"
         >
           View Collection
-          <ArrowRight className="w-3 h-3" />
+          <ArrowRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
       {isEmerging && (
-        <p className="mt-2 text-2xs text-muted/70">
+        <p className="mt-2 text-2xs text-muted">
           Keep logging to confirm which cards stay in focus.
         </p>
       )}

@@ -2,7 +2,7 @@ const deletedOwners = new Set();
 const listeners = new Set();
 const DELETED_ACCOUNT_PREFIX = 'tarot_deleted_account:';
 const OWNER_KEYS = ['tarot_journal', 'tarot_journal_cache', 'tarot_journal_insights',
-  'tarot_coach_recommendation', 'tarot_coach_stats_snapshot'];
+  'tarot_coach_recommendation', 'tarot_coach_stats_snapshot', 'tarot_saved_views_user'];
 const NARRATIVE_CACHE_KEY = 'journey_narrative_cache';
 
 export function isDeletedAccount(userId, { storage } = {}) {

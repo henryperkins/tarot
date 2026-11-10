@@ -105,7 +105,7 @@ test('a restored Thoth draw keeps its reveal artwork and request edition under a
     await page.locator('#question-input').fill(fixture.question);
     await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-    await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+    await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
     await expect(page.locator('.reading-table img[src*="/thoth/"]').first()).toBeVisible();
     await expect.poll(async () => (await snapshot(page))?.isSpreadDealt).toBe(true);
     await page.evaluate(() => localStorage.setItem('tarot-deck-style', 'rws-1909'));
@@ -126,7 +126,7 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     const fullDeck = page.getByRole('switch', { name: 'Toggle Full Deck', exact: true });
     await expect(fullDeck).toHaveAttribute('aria-checked', 'true');
     await fullDeck.click();
-    await page.getByRole('link', { name: 'Back to Reading', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
     await startReading(page, fixture, { setup: false });
     let panel = await openDetails(page);
     await expect(panel).toContainText('Major Arcana focus');
@@ -135,7 +135,7 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
     await expect(fullDeck).toHaveAttribute('aria-checked', 'false');
     await fullDeck.click();
-    await page.getByRole('link', { name: 'Back to Reading', exact: true }).click();
+    await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
     panel = await openDetails(page);
     await expect(panel).toContainText('Major Arcana focus');
     await page.reload();

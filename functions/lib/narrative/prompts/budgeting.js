@@ -14,7 +14,7 @@ export const TOKEN_ESTIMATE_DIVISOR = 3.25; // Conservative divisor: ~3.25 chara
 // Allow runtime override for A/B testing different divisor values
 // This enables empirical validation without code changes
 export function getEffectiveDivisor(env = null) {
-  const effectiveEnv = env || (typeof process !== 'undefined' && process.env ? process.env : {});
+  const effectiveEnv = env ?? (typeof process !== 'undefined' && process.env ? process.env : {});
   const override = effectiveEnv?.TOKEN_ESTIMATE_DIVISOR_OVERRIDE;
   if (override) {
     const parsed = parseFloat(override);
@@ -41,9 +41,8 @@ function readEnvNumber(value) {
  * @param {boolean} [options.detailed] - Return detailed breakdown for calibration
  * @returns {number|Object} Token count estimate, or detailed breakdown if requested
  */
-export function estimateTokenCount(text = '', options = {}) {
+function estimateWithDivisor(text, divisor, detailed = false) {
   const safe = typeof text === 'string' ? text : String(text || '');
-  const divisor = getEffectiveDivisor(options.env);
 
   // Count Unicode code points (handles surrogate pairs) and raw bytes to
   // provide a conservative estimate for dense markdown or emoji-rich text.
@@ -65,7 +64,7 @@ export function estimateTokenCount(text = '', options = {}) {
   const adjustmentPenalty = Math.max(markdownPenalty, safetyBuffer);
   const total = baseEstimate + adjustmentPenalty + headingPenalty;
 
-  if (options.detailed) {
+  if (detailed) {
     return {
       total,
       breakdown: {
@@ -86,6 +85,30 @@ export function estimateTokenCount(text = '', options = {}) {
   }
 
   return total;
+}
+
+// Capture configuration once per prompt build. Neither later Worker binding
+// changes nor another request's process fallback can alter this estimate.
+export function createTokenEstimator({ env = null } = {}) {
+  const divisor = getEffectiveDivisor(env);
+  return Object.freeze({
+    divisor,
+    estimate(text = '', { detailed = false } = {}) {
+      return estimateWithDivisor(text, divisor, detailed);
+    }
+  });
+}
+
+export function estimateTokenCount(text = '', options = {}) {
+  return createTokenEstimator({ env: options.env }).estimate(text, options);
+}
+
+export class PromptBudgetError extends Error {
+  constructor() {
+    super('Prompt cannot fit within the configured token budget while preserving required boundaries.');
+    this.name = 'PromptBudgetError';
+    this.code = 'PROMPT_BUILD_BUDGET_EXCEEDED';
+  }
 }
 
 // Default token budgets per provider - used if no env var is set
@@ -156,6 +179,7 @@ export function getHardCapBudget(target = 'default') {
  */
 export function compareEstimateWithActual(estimated, actual, options = {}) {
   const { label = 'unknown' } = options;
+  const divisor = options.estimator?.divisor ?? getEffectiveDivisor(options.env);
 
   if (typeof estimated !== 'number' || typeof actual !== 'number') {
     return {
@@ -184,9 +208,7 @@ export function compareEstimateWithActual(estimated, actual, options = {}) {
 
   // Calculate suggested divisor adjustment for future calibration
   // If we over-estimated, divisor should be higher; if under-estimated, lower
-  const impliedDivisor = overEstimated
-    ? TOKEN_ESTIMATE_DIVISOR * (estimated / actual)
-    : TOKEN_ESTIMATE_DIVISOR * (estimated / actual);
+  const impliedDivisor = divisor * (estimated / actual);
 
   return {
     label,
@@ -198,7 +220,7 @@ export function compareEstimateWithActual(estimated, actual, options = {}) {
     overEstimated,
     accuracy: Math.round(accuracy * 100) / 100,
     impliedDivisor: Math.round(impliedDivisor * 100) / 100,
-    currentDivisor: TOKEN_ESTIMATE_DIVISOR,
+    currentDivisor: divisor,
     recommendation: Math.abs(percentError) > 20
       ? `Consider adjusting divisor to ~${Math.round(impliedDivisor * 10) / 10}`
       : 'Estimation within acceptable range'

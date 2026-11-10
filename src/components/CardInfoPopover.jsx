@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Drop, Flame, Sparkle, Wind, Leaf } from '@phosphor-icons/react';
 import { getOrientationMeaning } from '../lib/cardLookup';
+import { META_LABEL_CLASS } from '../styles/labelClasses';
 
 const MIN_WIDTH = 260;
 const MAX_WIDTH = 320;
@@ -114,10 +115,10 @@ export function CardInfoPopover({
               {card.name}
             </h4>
             {positionLabel ? (
-              <p className="text-2xs uppercase tracking-[0.14em] text-muted mt-1">{positionLabel}</p>
+              <p className={`${META_LABEL_CLASS} text-muted mt-1`}>{positionLabel}</p>
             ) : null}
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2 py-1 text-2xs uppercase tracking-[0.14em]">
+          <span className={`${META_LABEL_CLASS} inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-2 py-1`}>
             <ElementIcon className="w-3.5 h-3.5" />
             {element}
           </span>

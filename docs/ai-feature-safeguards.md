@@ -1,5 +1,9 @@
 # AI feature operational safeguards
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 Photo recognition, AI question suggestions and cloud journal summaries have daily request safeguards and permit one active request per identity and feature. These controls protect service capacity and inference spending; they are operational limits, separate from advertised subscription allowances and existing API-key call metering.
 
 | Feature | Guest / Free | Active Plus | Active Pro |

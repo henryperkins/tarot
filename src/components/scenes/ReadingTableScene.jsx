@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef } from 'react';
-import { CaretLeft, CaretRight, HandTap, Sparkle } from '@phosphor-icons/react';
-import { CardBack } from '../CardBack';
+import { CaretLeft, CaretRight, Sparkle } from '@phosphor-icons/react';
 import { SpreadTable } from '../SpreadTable';
+import { TableDeck, TABLE_RITUAL_INVITE_ID } from './TableDeck';
 import { getReadingTableAction, extractShortLabel } from '../readingBoardUtils';
 import { getCardImage, getCardThumbnailSrcSet, getOrientationMeaning } from '../../lib/cardLookup';
 import { getSceneModel } from './sceneModelUtils';
+import { ClampedQuestion } from '../reading/ClampedQuestion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import '../../styles/reading-table.css';
 
@@ -23,6 +24,14 @@ export function ReadingTableScene({ sceneModels = {} }) {
   } = model;
   const action = getReadingTableAction({ isSpreadDealt, revealedCards, totalCards: visibleCount, positions: spreadPositions });
   const onPrimary = action?.phase === 'deal' ? dealSpread : action?.phase === 'reveal' ? dealNext : generatePersonalReading;
+  // The optional ritual waits beside the deck until Deal, unless the reader
+  // hid ritual steps in Settings. Deal, focused after Draw, carries its invitation.
+  const showRitual = !ritual.shouldSkipRitual;
+  const ritualInvites = showRitual && !isSpreadDealt;
+  const commitCut = index => {
+    ritual.setCutIndex(index);
+    ritual.applyCut();
+  };
   const selected = activeFocusedCardData;
   const card = selected?.card;
   const reflection = selected ? (reflections?.[selected.index] || '') : '';
@@ -43,11 +52,18 @@ export function ReadingTableScene({ sceneModels = {} }) {
     <section className="reading-table" data-scene={isSpreadDealt ? 'reveal' : 'ritual'} aria-labelledby="reading-table-title">
       <header className="reading-table__header">
         <div>
-          <h2 id="reading-table-title">{spreadName?.split(' (')[0]}</h2>
-          {userQuestion ? <p className="reading-table__question" dir="auto">{userQuestion}</p> : null}
+          <h2
+            id="reading-table-title"
+            tabIndex={isHandset ? -1 : undefined}
+            data-reading-focus-target={isHandset ? true : undefined}
+            data-reading-focus-scroll={isHandset ? true : undefined}
+          >
+            {spreadName?.split(' (')[0]}
+          </h2>
+          {userQuestion ? <ClampedQuestion className="reading-table__question" text={userQuestion} /> : null}
         </div>
         {!isHandset && action ? (
-          <button type="button" className="reading-table__primary" data-reading-primary data-reading-focus-target onKeyDown={event => {
+          <button type="button" className="reading-table__primary" data-reading-primary data-reading-focus-target aria-describedby={ritualInvites ? TABLE_RITUAL_INVITE_ID : undefined} onKeyDown={event => {
             if (event.key === 'Enter' && event.repeat) event.preventDefault();
           }} onClick={event => {
             // A double click must not activate the next phase of the same button.
@@ -61,27 +77,19 @@ export function ReadingTableScene({ sceneModels = {} }) {
 
       <div className="reading-table__workspace">
         <div className="reading-table__spread">
-          <div className="reading-table__deck-row">
-            <div ref={deckRef} className="reading-table__deck" aria-hidden="true"><CardBack /></div>
-            <p className="reading-table__status" role="status">
-              {isSpreadDealt ? `${revealedCards.size} of ${visibleCount} cards revealed` : 'Your deck is ready. Deal when you feel ready.'}
-            </p>
-            {!isSpreadDealt ? (
-              <details className="reading-table__ritual">
-                <summary>Optional ritual</summary>
-                <div className="reading-table__ritual-controls">
-                  <button type="button" className="reading-table__secondary" onClick={ritual.handleKnock} disabled={ritual.knockCount >= 3}>
-                    <HandTap size={20} aria-hidden="true" />Knock ({ritual.knockCount}/3)
-                  </button>
-                  <label htmlFor="table-cut">Cut the deck</label>
-                  <input id="table-cut" type="range" min="1" max={ritual.deckSize - 1} value={ritual.cutIndex} onChange={event => ritual.setCutIndex(Number(event.target.value))} />
-                  <button type="button" className="reading-table__secondary" onClick={ritual.applyCut}>
-                    {ritual.hasCut ? 'Cut set' : 'Set cut'}
-                  </button>
-                </div>
-              </details>
-            ) : null}
-          </div>
+          <TableDeck
+            deckRef={deckRef}
+            isSpreadDealt={isSpreadDealt}
+            showRitual={showRitual}
+            knockCount={ritual.knockCount}
+            onKnock={ritual.handleKnock}
+            cutIndex={ritual.cutIndex}
+            hasCut={ritual.hasCut}
+            deckSize={ritual.deckSize}
+            onCut={commitCut}
+            revealedCount={revealedCards.size}
+            visibleCount={visibleCount}
+          />
           <SpreadTable
             spreadKey={safeSpreadKey}
             cards={isSpreadDealt ? reading : []}
@@ -107,7 +115,7 @@ export function ReadingTableScene({ sceneModels = {} }) {
           ) : null}
           <div className="reading-table__secondary-actions">
             {isSpreadDealt && revealedCards.size < visibleCount ? (
-              <button type="button" className="reading-table__quiet" onClick={handleRevealAllWithScroll} aria-label="Reveal all cards">Reveal remaining</button>
+              <button type="button" className="reading-table__quiet" onClick={handleRevealAllWithScroll} aria-label="Reveal remaining cards">Reveal remaining</button>
             ) : null}
             {revealedCards.size > 0 ? (
               <button type="button" className="reading-table__quiet" onClick={handleResetReveals}>Reset reveals</button>

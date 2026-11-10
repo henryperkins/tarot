@@ -12,10 +12,10 @@
   - `data/` — Static frontend data
   - `styles/tailwind.css` — Tailwind setup
 - **Cloudflare Worker** entrypoint is `src/worker/index.js`; route handlers live in `functions/api/`, shared logic in `functions/lib/`.
-- **Narrative providers** are tried in `functions/lib/narrativeBackends.js` order: `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `openai-native` (OpenAI Responses) → `local-composer`.
+- **Narrative providers** are tried in `functions/lib/narrativeBackends.js` order: `openai-native` (OpenAI Responses) → `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `local-composer`.
 - **Reading jobs** use the `READING_JOBS` Durable Object and public start/status/SSE/cancel routes under `/api/tarot-reading/jobs`.
 - **Shared code** between frontend and worker lives in `shared/`: `contracts/`, `journal/`, `monetization/`, `symbols/`, `vision/`.
-- **Scripts** live in `scripts/`: `evaluation/` for quality gates, `training/` for ML workflows, `vision/` for vision pipeline tools, and `lib/` plus category-specific `lib/` folders for shared utilities.
+- **Scripts** live in `scripts/`: `evaluation/` for quality gates, `training/` for ML workflows, `vision/` for vision pipeline tools, `enrichment/` for web-source fetching (Browserbase Search + Fetch), and `lib/` plus category-specific `lib/` folders for shared utilities.
 - **Tests** are organized as:
   - Unit tests: `tests/*.test.mjs` and `functions/__tests__/`
   - E2E tests: `e2e/*.spec.js` (Playwright)
@@ -78,6 +78,14 @@
 - `npm run prompts:stats` — prompt statistics.
 - `npm run prompts:export` — export prompts for analysis.
 
+### Content Enrichment
+- `npm run enrich:web -- "<query>"` — search with Browserbase Search and fetch top sources into `data/enrichment/`. Reads `BROWSERBASE_API_KEY` from `.dev.vars` or the environment; requires Node 22.18+.
+- Blocked or empty Fetch responses get one Stagehand v4 browser attempt. Cloud sessions are reused and rotated before their five-minute limit, with every session closed afterward. Browser challenge pages get up to 15 seconds to settle. Browser reads return `format: "text"` (or rendered HTML with `--format raw`); Fetch defaults to Markdown. Failed sources are recorded as errors and cause a nonzero exit, as do cleanup failures.
+- Default source archives have an explicit UTC timestamp and a unique run suffix. `data/enrichment/` is local and gitignored, including the review queue and provenance.
+- Use repeatable `--url <url>` to fetch specific sources, `--browser-fallback always` to verify browser rendering, or `--browser-fallback never` for Fetch only. Session replay links are printed and saved with browser results. The fallback uses deterministic reads without LLM calls; ordinary browser usage applies. Some protected sites may still block these standard, unproxied sessions.
+- `npm run enrich:passages` — turn fetched sources into knowledge-base passage candidates. It extracts card evidence deterministically, drafts one passage per card in the Tableu canon voice using the owner's Claude subscription (never a paid API key), and writes `data/enrichment/passage-review-queue.csv`. Fetched pages are untrusted input and are passed to the model as data only.
+- `npm run enrich:apply` — apply **approved** queue rows to the generated `functions/lib/knowledgeBaseEnrichment.js`, which `functions/lib/knowledgeBase.js` merges at import time. Never edits the hand-written canon. Only rows with `human_verdict` of `approve` are applied, and only one passage per card and context is kept. Regenerating the queue preserves reviewed rows with their exact draft, context, tags, evidence, provenance, and notes; only unreviewed rows are regenerated. Clear a row's verdict to request a fresh draft.
+
 ### Linting
 - `npm run lint` — run ESLint.
 - `npm run lint:fix` — auto-fix linting issues.
@@ -99,8 +107,8 @@
 - For interactive authenticated UI review, use the local Pro reviewer account described in [docs/local-reviewer-account.md](docs/local-reviewer-account.md). Read its private credential file directly in the login script; never print credentials or commit browser session state.
 - For Impeccable `audit`, `critique`, `polish`, `harden`, and `adapt`, follow the [review workflow](docs/local-reviewer-account.md#impeccable-review-workflows): check relevant guest and real signed-in Pro states, record authentication and tier coverage, and log out afterward. Cover other subscription states separately when affected.
 - Run `npm test` before pushing; for vision/narrative changes, also run `npm run ci:vision-check` or `npm run ci:narrative-check` and record results.
-- Gates that generate narratives use the owner's Claude subscription, never paid API credentials. `npm run ci:narrative-check` and `npm run ci:release-check` default to the existing Claude Code login (Opus 5.5, `xhigh`); no gateway setup is needed locally. Hosted runners use a private subscription gateway. Missing login or gateway access must fail without paid API fallback. Workers AI integrations keep their configured providers.
-- GitHub Actions billing is permanently unavailable. Use local verification and `npm run deploy` on the subscription-authenticated host for releases; GitHub Actions success is not a release prerequisite. Do not ask the user to remove the billing lock. Cloudflare Workers Builds is independent of Actions but requires its own private subscription gateway for live QA. Record local checks and verify the active Worker version and live assets after deployment.
+- The release gate grades readings from the production primary provider. With `openai-native` first, `npm run ci:release-check` generates its samples through the paid OpenAI Responses API (owner-authorized on 2026-11-06), reading `OPENAI_API_KEY` or `NARRATIVE_EVAL_OPENAI_API_KEY`; only the narrative check receives the key, and a missing key fails without provider fallback. `npm run ci:narrative-check` alone defaults to the existing Claude Code login (Opus 5.5, `xhigh`); no gateway setup is needed locally, hosted runners use a private subscription gateway, and missing login or gateway access fails without paid API fallback. Other paid backends stay disabled for gates. Workers AI integrations keep their configured providers.
+- GitHub Actions billing is permanently unavailable. Use local verification and `npm run deploy` on this host, with `OPENAI_API_KEY` exported, for releases; GitHub Actions success is not a release prerequisite. Do not ask the user to remove the billing lock. Cloudflare Workers Builds is independent of Actions but needs the OpenAI evaluation key as a build secret for live QA. Record local checks and verify the active Worker version and live assets after deployment.
 
 ## Commit & Pull Request Guidelines
 

@@ -1,151 +1,107 @@
-/**
- * useJournalSummary - Hook for generating journal summaries via API.
- *
- * Handles loading, error, and success states for the /api/journal-summary endpoint.
- * Includes debouncing to prevent rapid re-generation.
- */
-
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { captureSummarySource, getSummaryCandidates, summarySourceMatches } from '../lib/journalSummarySource.js';
 
-const COOLDOWN_MS = 5000; // 5 second cooldown between requests
-
-/**
- * @typedef {Object} SummaryMeta
- * @property {'claude-api'|'claude-code'|'openai-native'|'heuristic'} provider - Summary generation provider
- * @property {number} totalEntries - Number of entries summarized
- * @property {string|null} model - Model used (for AI summaries)
- */
+const COOLDOWN_MS = 5000;
+const emptyState = (ownerKey, notice = null) => ({ ownerKey, request: null, result: null, isLoading: false, error: null, notice });
 
 /**
- * @typedef {Object} SummaryResult
- * @property {string} summary - The generated summary text
- * @property {SummaryMeta} meta - Metadata about the summary
+ * Owned by the journal page, above responsive layouts and summary disclosures.
+ * Results live only for this page session and the account/source that made them.
  */
-
-/**
- * @typedef {Object} UseJournalSummaryReturn
- * @property {SummaryResult|null} result - The summary result
- * @property {boolean} isLoading - Whether a summary is being generated
- * @property {string|null} error - Error message if generation failed
- * @property {boolean} canGenerate - Whether generation is allowed (cooldown check)
- * @property {Function} generate - Function to generate a summary
- * @property {Function} clear - Function to clear the current summary
- */
-
-/**
- * Hook for generating journal summaries.
- *
- * @returns {UseJournalSummaryReturn}
- */
-export function useJournalSummary() {
-  const [result, setResult] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [cooldownActive, setCooldownActive] = useState(false);
+export function useJournalSummary({ userId, entries = [], enabled = false } = {}) {
+  const ownerKey = enabled && userId != null ? String(userId) : null;
+  const [state, setState] = useState(() => emptyState(ownerKey));
+  const [cooldown, setCooldown] = useState(null);
+  const cooldownRef = useRef(null);
   const cooldownTimerRef = useRef(null);
+  const activeRequestRef = useRef(null);
 
-  // Clean up timer on unmount
+  // Adjust before rendering: neither an old account's result nor a result for
+  // edited/deleted source entries may flash while an effect catches up.
+  if (state.ownerKey !== ownerKey) {
+    setState(emptyState(ownerKey));
+  } else if (state.request && !summarySourceMatches(state.request.source, entries)) {
+    setState(emptyState(ownerKey, 'Your journal changed. Generate a new summary to include your latest entries.'));
+  }
+
   useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current) {
-        clearTimeout(cooldownTimerRef.current);
-      }
-    };
+    const request = state.request;
+    return () => request?.controller.abort();
+  }, [state.request]);
+
+  useEffect(() => () => {
+    clearTimeout(cooldownTimerRef.current);
+    activeRequestRef.current?.controller.abort();
   }, []);
 
-  const canGenerate = !cooldownActive;
+  const generate = useCallback(async ({ entryIds, limit = 10, context } = {}) => {
+    if (!ownerKey) return null;
+    const active = activeRequestRef.current;
+    if (active?.ownerKey === ownerKey && !active.controller.signal.aborted) return null;
+    if (cooldownRef.current?.ownerKey === ownerKey && cooldownRef.current.until > Date.now()) return null;
 
-  /**
-   * Generate a journal summary.
-   *
-   * @param {Object} options
-   * @param {(string|number)[]} [options.entryIds] - Specific entry IDs to summarize
-   * @param {number} [options.limit=10] - Max entries to summarize (1-10)
-   * @returns {Promise<SummaryResult|null>}
-   */
-  const generate = useCallback(async ({ entryIds, limit = 10 } = {}) => {
-    // Cooldown check
-    if (cooldownActive) {
-      setError('Please wait a moment before generating another summary.');
+    const ids = Array.isArray(entryIds) ? new Set(entryIds.map(String)) : null;
+    const selected = getSummaryCandidates(entries)
+      .filter((entry) => !ids || ids.has(String(entry.id)))
+      .slice(0, Math.min(10, Math.max(1, Number(limit) || 10)));
+    if (!selected.length) {
+      setState({ ...emptyState(ownerKey), error: 'No cloud entries are available in this scope.' });
       return null;
     }
 
-    setIsLoading(true);
-    setError(null);
+    active?.controller.abort();
+    const request = { ownerKey, source: captureSummarySource(selected), controller: new AbortController(), context };
+    activeRequestRef.current = request;
+    setState({ ...emptyState(ownerKey), request, isLoading: true });
+    const nextCooldown = { ownerKey, until: Date.now() + COOLDOWN_MS };
+    cooldownRef.current = nextCooldown;
+    setCooldown(nextCooldown);
+    clearTimeout(cooldownTimerRef.current);
+    cooldownTimerRef.current = setTimeout(() => setCooldown(null), COOLDOWN_MS);
 
-    // Start cooldown with timer that triggers re-render when it expires
-    setCooldownActive(true);
-    cooldownTimerRef.current = setTimeout(() => {
-      setCooldownActive(false);
-    }, COOLDOWN_MS);
+    // Every completion also checks ownership. Abort alone is insufficient when
+    // a response has already arrived or a transport ignores cancellation.
+    const updateRequest = (update) => setState((previous) => (
+      previous.request === request ? { ...previous, ...update } : previous
+    ));
 
     try {
-      const body = {};
-      if (Array.isArray(entryIds) && entryIds.length > 0) {
-        body.entryIds = entryIds;
-      }
-      if (typeof limit === 'number' && limit >= 1 && limit <= 10) {
-        body.limit = limit;
-      }
-
       const response = await fetch('/api/journal-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(body),
+        signal: request.controller.signal,
+        body: JSON.stringify({ entryIds: selected.map((entry) => entry.id), limit: selected.length }),
       });
-
       const data = await response.json();
-
+      if (request.controller.signal.aborted) return null;
       if (!response.ok) {
-        // Handle tier-limited response
-        if (response.status === 403 && data.tierLimited) {
-          setError('Journal summaries require a Plus subscription.');
-          return null;
-        }
-        // Handle auth error
-        if (response.status === 401) {
-          setError('Please sign in to generate summaries.');
-          return null;
-        }
-        // Handle no entries
-        if (response.status === 400) {
-          setError(data.error || 'No entries available to summarize.');
-          return null;
-        }
-        // Generic error
-        throw new Error(data.error || 'Failed to generate summary');
+        if (response.status === 403 && data.tierLimited) throw new Error('Journal summaries require an active Plus or Pro subscription.');
+        if (response.status === 401) throw new Error('Please sign in to generate summaries.');
+        throw new Error(data.error || 'Unable to generate a summary. Please try again.');
       }
-
-      const summaryResult = {
-        summary: data.summary,
-        meta: data.meta,
-      };
-
-      setResult(summaryResult);
-      return summaryResult;
-    } catch (err) {
-      console.error('[useJournalSummary] Generation failed:', err);
-      setError(err.message || 'Unable to generate summary. Please try again.');
+      const result = { summary: data.summary, meta: data.meta, context, entryIds: selected.map((entry) => entry.id) };
+      updateRequest({ result, isLoading: false });
+      return result;
+    } catch (error) {
+      if (!request.controller.signal.aborted) {
+        updateRequest({ error: error.message || 'Unable to generate a summary. Please try again.', isLoading: false });
+      }
       return null;
     } finally {
-      setIsLoading(false);
+      if (activeRequestRef.current === request) activeRequestRef.current = null;
     }
-  }, [cooldownActive]);
+  }, [ownerKey, entries]);
 
-  /**
-   * Clear the current summary and error state.
-   */
-  const clear = useCallback(() => {
-    setResult(null);
-    setError(null);
-  }, []);
+  const clear = useCallback(() => setState(emptyState(ownerKey)), [ownerKey]);
 
   return {
-    result,
-    isLoading,
-    error,
-    canGenerate,
+    result: state.result,
+    isLoading: state.isLoading,
+    error: state.error,
+    notice: state.notice,
+    pendingContext: state.request?.context,
+    canGenerate: Boolean(ownerKey) && !state.isLoading && cooldown?.ownerKey !== ownerKey,
     generate,
     clear,
   };

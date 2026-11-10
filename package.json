@@ -28,12 +28,13 @@
     "migrations:status": "node scripts/deploy.js --migrations-only --dry-run",
     "migrations:apply": "node scripts/deploy.js --migrations-only",
     "migrations:apply:local": "node scripts/deploy.js --migrations-only --local",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test --test-concurrency=2 tests/*.test.mjs",
     "test:vision-grounding": "node --test tests/rwsEvidenceOntology.test.mjs tests/rwsCaptionDataset.test.mjs tests/symbolDetectorWeightedScoring.test.mjs tests/visionEvidence.test.mjs tests/visionFusionRouter.test.mjs tests/visionMetricsWeightedGrounding.test.mjs tests/symbolDetectorIntegrity.test.mjs tests/visionMetricsIntegrity.test.mjs tests/visionGateIntegrity.test.mjs tests/visionEvaluationDataset.test.mjs tests/visionAnnotationEligibility.test.mjs",
     "test:eval:synthetic": "node --test tests/evaluationSyntheticFailures.test.mjs",
-    "test:deploy": "node --test tests/deployScript.test.mjs tests/deployQualityGate.test.mjs tests/releaseChecks.test.mjs tests/ciVisionPolicy.test.mjs",
+    "test:deploy": "node --test tests/deployScript.test.mjs tests/deploySettings.test.mjs tests/deployQualityGate.test.mjs tests/releaseChecks.test.mjs tests/ciVisionPolicy.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:reflection": "playwright test --config playwright.reading-reflection.config.js",
     "test:e2e:install": "playwright test --config playwright.install.config.js",
     "test:e2e:journal": "playwright test --config playwright.journal.config.js",
     "test:e2e:modals": "playwright test --config playwright.modals.config.js",
@@ -81,9 +82,13 @@
     "prompts:view": "node scripts/viewPrompts.js",
     "prompts:stats": "node scripts/viewPrompts.js --stats",
     "prompts:export": "node scripts/viewPrompts.js --export",
+    "enrich:web": "node scripts/enrichment/fetchWebSources.js",
+    "enrich:passages": "node scripts/enrichment/buildPassageCandidates.js",
+    "enrich:apply": "node scripts/enrichment/applyPassageCandidates.js",
     "ci:release-check": "node scripts/evaluation/runReleaseChecks.js",
     "test:e2e:regressions": "playwright test --config playwright.regressions.config.js",
-    "test:e2e:production": "playwright test --config playwright.production.config.js"
+    "test:e2e:production": "playwright test --config playwright.production.config.js",
+    "test:e2e:browserbase": "node scripts/browserbase/smoke.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -92,7 +97,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/source-serif-4": "^5.2.9",
     "@microlabs/otel-cf-workers": "^1.0.0-rc.52",
-    "@modelcontextprotocol/sdk": "~1.30.0",
+    "@modelcontextprotocol/sdk": "~1.32.0",
     "@opentelemetry/api": "^1.9.0",
     "@phosphor-icons/react": "^2.1.10",
     "@sentry/cloudflare": "^10.38.0",
@@ -116,7 +121,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
-    "zod": "^4.1.12"
+    "zod": "^4.6.6"
   },
   "overrides": {
     "fast-xml-parser": "^5.3.4",
@@ -126,7 +131,10 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
-    "@axe-core/playwright": "^4.11.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@babel/parser": "^7.29.8",
+    "@browserbasehq/sdk": "^2.22.0",
+    "@browserbasehq/stagehand": "^4.3.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/forms": "^0.5.7",
@@ -145,10 +153,10 @@
     "miniflare": "5.20260926.0-alpha",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.5",
-    "sharp": "0.32.6",
+    "sharp": "0.35.5",
     "sql.js": "^1.14.2",
     "tailwindcss": "^4.3.3",
-    "vite": "^7.2.4",
+    "vite": "^7.3.7",
     "vitest": "^5.0.3",
     "weave": "^0.11.0",
     "wrangler": "^4.142.0"

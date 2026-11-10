@@ -1,0 +1,50 @@
+Historical qualification validation (timestamps in companion JSON)
+
+Installed pinned CLI isolation:
+✔ installed CLI exposes no tools or host context to an untrusted reading (952.534ms)
+✔ installed app-server streams before completion with no tools, host context, hooks, or MCP execution (1056.202ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2133.5184
+
+Deterministic prompt assembly:
+Narrative prompt assembly checks passed: 849 fixtures, 2523 provider builds, 30 partial pairs, 10 complete triads, 525 canon/deck projections, 12 exercised boundaries.
+
+Full root suite (failure preserved):
+ℹ tests 5429
+ℹ suites 537
+ℹ pass 5426
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 301556.222868
+
+✖ failing tests:
+
+test at tests/readingCueValidationRuntime.test.mjs:97:1
+✖ cold startup serves callable development JSX after the production build, with optimized DEV false (62135.877224ms)
+  Error: Cold owned frontend never acquired its listener
+      at TestContext.<anonymous> (repository/tests/readingCueValidationRuntime.test.mjs:121:38)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7)
+
+Isolated cold-start recheck:
+✔ cold startup serves callable development JSX after the production build, with optimized DEV false (34999.521639ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 35163.340537
+
+Targeted ESLint result:
+{"code":0,"finishedAt":"2026-10-24T00:42:35.036Z"}

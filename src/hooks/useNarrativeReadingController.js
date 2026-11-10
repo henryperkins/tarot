@@ -27,6 +27,7 @@ export function useNarrativeReadingController({
   reading,
   reflections = null,
   deckStyleId,
+  savedDeckStyle = null,
   onSelectInsightCard,
   visibleCount,
   spreadPositions,
@@ -159,6 +160,8 @@ export function useNarrativeReadingController({
     narrativePhase,
     themes,
     readingMeta,
+    selectedDeck: deckStyleId,
+    previewRecoveryContext: { cardsInfo: reading, savedDeckStyle: savedDeckStyle || themes?.deckStyle || readingMeta?.deckStyle },
     highlightItems,
     visibleCount,
     revealedCardsSize: revealedCards?.size ?? revealedCards?.length ?? 0,
@@ -193,6 +196,9 @@ export function useNarrativeReadingController({
     storyArtCards,
     themes,
     readingMeta,
+    deckStyleId,
+    savedDeckStyle,
+    reading,
     visibleCount
   ]);
 
@@ -383,6 +389,7 @@ export function useNarrativeReadingController({
     themes,
     highlightItems,
     traditionalPassages: visibilityState.traditionalPassages,
+    traditionalPreviewPassages: visibilityState.traditionalPreviewPassages,
     insightCards,
     isLandscape
   }), [
@@ -453,11 +460,11 @@ export function useNarrativeReadingController({
   const narrativePanel = personalReading
     ? createElement(NarrativePanel, { panelModel, callbacks: panelCallbacks })
     : null;
-  const secondaryContent = createElement(
+  const secondaryContent = surfaceModel.hasSecondaryContent ? createElement(
     'div',
     { className: surfaceModel.layoutClassName },
     createElement(NarrativeReadingSurface, { surfaceModel, callbacks: surfaceCallbacks })
-  );
+  ) : null;
 
   return {
     resolvedQuestion,
@@ -470,6 +477,8 @@ export function useNarrativeReadingController({
     narrativeModel: {
       narrativePanel,
       secondaryContent,
+      hasSecondaryContent: surfaceModel.hasSecondaryContent,
+      hasSpreadCompanion: Boolean(gestureStudyEnabled && spreadCards.length),
       personalReading,
       spreadCards
     }

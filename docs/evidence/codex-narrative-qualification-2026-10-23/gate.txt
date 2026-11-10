@@ -1,0 +1,19 @@
+Narrative metrics meet thresholds: {
+  spinePassRate: '100.0%',
+  avgCardCoverage: '100.0%',
+  deterministicLanguageCount: 0,
+  missingAgencyCount: 0,
+  hallucinationCount: 0,
+  suitCountMismatchCount: 0,
+  harshToneCount: 0,
+  missingSupportiveToneCount: 0,
+  questionNotAddressedCount: 0,
+  templatedRepetitionCount: 0,
+  flaggedSamples: 0,
+  avgRubric: {
+    accuracy: '100.0%',
+    coherence: '100.0%',
+    agency: '100.0%',
+    compassion: '100.0%'
+  }
+}

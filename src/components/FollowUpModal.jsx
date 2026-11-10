@@ -2,8 +2,7 @@ import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useReading } from '../contexts/ReadingContext';
-import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
-import { useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { useVisibleViewport } from '../hooks/useKeyboardOffset';
 import FollowUpChat from './FollowUpChat';
 import { MOBILE_FOLLOWUP_DIALOG_ID } from './mobileActionBarConstants';
@@ -13,10 +12,9 @@ import '../styles/follow-up.css';
 export default function FollowUpModal({
   isOpen, onClose, isVisible = true, isHandset = false, autoFocusInput = true, returnFocusRef
 }) {
-  const { readingMeta, sessionSeed } = useReading();
-  // Start with the incoming saved turns when a different reading is opened.
-  // Older journal entries may have neither a request ID nor a session seed.
-  const readingIdentity = readingMeta?.requestId || sessionSeed || readingMeta?.readingId || 'unidentified-reading';
+  // Retire pending work as soon as the owner or draw changes, even before a
+  // replacement narrative receives its request ID.
+  const { followUpIdentity: readingIdentity } = useReading();
   const modalRef = useRef(null);
   const active = Boolean(isOpen && isVisible);
   const viewport = useVisibleViewport(active);
@@ -30,12 +28,10 @@ export default function FollowUpModal({
     isolateBackground: true,
     initialFocusSelector: autoFocusInput
       ? 'textarea:not(:disabled)' : '[aria-label="Close follow-up chat"]',
-    fallbackFocusSelector: '#personalized-narrative-title'
-  });
-  useAndroidBackGuard(active, {
-    onBack: onClose,
-    enabled: isHandset,
-    guardId: 'followUpDrawer'
+    fallbackFocusSelector: '#personalized-narrative-title',
+    // Back closes the handset drawer; the desktop modal keeps browser Back.
+    closeOnBack: isHandset,
+    backGuardId: 'followUpDrawer'
   });
 
   if (typeof document === 'undefined') return null;
@@ -50,9 +46,8 @@ export default function FollowUpModal({
       hidden={!active}
       inert={!active}
       aria-hidden={!active}
-      onClick={createBackdropHandler(onClose)}
     >
-      <div className="follow-up-backdrop" aria-hidden="true" onClick={onClose} />
+      <div className="follow-up-backdrop" data-modal-backdrop aria-hidden="true" onClick={onClose} />
       <div
         ref={modalRef}
         id={MOBILE_FOLLOWUP_DIALOG_ID}

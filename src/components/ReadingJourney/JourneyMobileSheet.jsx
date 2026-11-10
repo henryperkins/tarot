@@ -14,7 +14,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkle,
   Fire,
-  X,
   TrendUp,
   ChartBar,
   Export,
@@ -22,6 +21,7 @@ import {
   Info,
 } from '@phosphor-icons/react';
 import { Tooltip } from '../Tooltip';
+import { CloseButton } from '../CloseButton';
 import { CoachSuggestion } from '../CoachSuggestion';
 import CoachSuggestionSwitcher from './CoachSuggestionSwitcher';
 import { useModalA11y } from '../../hooks/useModalA11y';
@@ -37,9 +37,15 @@ import CadenceSection from './sections/CadenceSection';
 import JourneyStorySection from './sections/JourneyStorySection';
 import ExportSection from './sections/ExportSection';
 import JournalSummarySection from './sections/JournalSummarySection';
+import { ICON_BUTTON_CLASS, JOURNEY_TEXT_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
 import EmptyState from './sections/EmptyState';
+import EmptyScopeNotice from './sections/EmptyScopeNotice';
 import BackfillBanner from './sections/BackfillBanner';
+import PatternAlertBanner from '../PatternAlertBanner';
 import { usePatternsSnapshot } from './hooks/usePatternsSnapshot';
+import { JournalCardIcon } from '../JournalIcons';
+import { findLeaders, joinNames } from '../../lib/journal/leaders';
 
 const TABS = [
   { key: 'cards', label: 'Cards', icon: TrendUp },
@@ -86,14 +92,15 @@ export default function JourneyMobileSheet({
   exportStats,
   // Other props
   isAuthenticated,
+  journalSummary,
   userId,
   onCreateShareLink,
+  shareManagement,
   onStartReading,
   showStartReadingCta = true,
   locale = 'default',
   timezone,
   seasonTimezone,
-  _dataSource,
   scopeLabel,
   filtersApplied,
   analyticsScope,
@@ -104,7 +111,9 @@ export default function JourneyMobileSheet({
   const navigate = useNavigate();
   const { resetOnboarding, setShowPersonalizationBanner } = usePreferences();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('cards');
+  const [selectedTab, setActiveTab] = useState('cards');
+  const activeTab = !isAuthenticated && selectedTab === 'summary' ? 'cards' : selectedTab;
+  const tabRefs = useRef({});
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const [saveNotice, setSaveNotice] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -119,7 +128,7 @@ export default function JourneyMobileSheet({
   const abortControllerRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = _dataSource === 'server' ? 'D1' : 'Journal';
+  const sourceLabel = 'Journal';
 
   // Use shared patterns snapshot hook
   const {
@@ -140,9 +149,10 @@ export default function JourneyMobileSheet({
     themes,
   });
 
-  const streakGraceTooltip = 'Counts from yesterday if no reading today (grace period).';
+  const streakGraceTooltip = 'Across your journal. Counts from yesterday if no reading today (grace period).';
   const streakInfoButtonClass =
-    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -ml-2 -mr-2';
+    // Negative margins keep the 44px target from pushing "streak" below the other stat labels.
+    'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -mx-2 -my-3.5';
   const themeHint = activeCoachSuggestion?.source === 'theme' && typeof totalReadings === 'number' && totalReadings > 0
     ? `Theme from ${totalReadings} reading${totalReadings === 1 ? '' : 's'}`
     : '';
@@ -189,6 +199,20 @@ export default function JourneyMobileSheet({
     }
     setActiveTab(tabKey);
   }, [activeTab, showAllPatterns]);
+
+  const handleTabKeyDown = (event, tabKey) => {
+    const index = visibleTabs.findIndex((tab) => tab.key === tabKey);
+    let nextIndex;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % visibleTabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + visibleTabs.length) % visibleTabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = visibleTabs.length - 1;
+    else return;
+    event.preventDefault();
+    const nextKey = visibleTabs[nextIndex].key;
+    handleTabChange(nextKey);
+    tabRefs.current[nextKey]?.focus();
+  };
 
   const clearSaveTimeout = useCallback(() => {
     if (saveTimeoutRef.current) {
@@ -340,6 +364,7 @@ export default function JourneyMobileSheet({
     <ExportSection
       isAuthenticated={isAuthenticated}
       onCreateShareLink={onCreateShareLink}
+      shareManagement={shareManagement}
       scopeEntries={scopeEntries}
       filteredEntries={filteredEntries}
       allEntries={allEntries}
@@ -445,10 +470,13 @@ export default function JourneyMobileSheet({
     );
   }
 
-  const topCard = cardFrequency[0];
+  // Name the card that leads alone, or every card tied with it; a card seen once is not a pattern.
+  const cardLeaders = findLeaders(cardFrequency);
+  const severalCardsTie = cardLeaders.length >= 4 && cardLeaders.length === cardFrequency.length;
+  const topCard = cardLeaders.length === 1 ? cardLeaders[0] : null;
   const topCardScopeLabel = filtersActive
     ? 'in filtered view'
-    : (_dataSource === 'server' ? 'this month' : 'in your journal');
+    : (analyticsScope === 'month' ? 'this month' : 'in this scope');
 
   return (
     <>
@@ -471,12 +499,12 @@ export default function JourneyMobileSheet({
           {/* Header */}
           <h2
             id="reading-journey-mobile-heading"
-            className="flex items-center gap-2 journal-eyebrow text-muted-high"
+            className="flex flex-wrap items-center gap-2 journal-eyebrow text-main"
           >
-            <Sparkle className="h-3 w-3" aria-hidden="true" />
-            Your Journey
+            <Sparkle className="h-3 w-3 shrink-0" aria-hidden="true" />
+            <span>Your Journey</span>
             {scopeLabel && (
-              <span className="rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+              <span className={`${BADGE_LABEL_CLASS} max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2 py-0.5 text-muted-high`}>
                 Scope: {scopeLabel}
               </span>
             )}
@@ -494,6 +522,9 @@ export default function JourneyMobileSheet({
             </div>
           )}
 
+          {/* Pattern alert, in the same place as the desktop sidebar's */}
+          <PatternAlertBanner isAuthenticated={isAuthenticated} className="" />
+
           {/* Backfill banner - shown when D1 sync is needed but doesn't block insights */}
           {needsBackfill && !hasBackfilled && (
             <BackfillBanner
@@ -507,22 +538,27 @@ export default function JourneyMobileSheet({
 
           {/* Season window indicator for localized formatting */}
           {seasonWindow && (
-            <p className="text-2xs text-muted">
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.start)}
-              {' – '}
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', ...((seasonTimezone || timezone) && { timeZone: seasonTimezone || timezone }) }).format(seasonWindow.end)}
+            <p className="inline-flex max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--bg-surface) px-2.5 py-1 text-2xs text-muted">
+              {formattedSeasonWindow}
             </p>
           )}
 
-          {/* Top Card Feature */}
-          {topCard && (
-            <div className="rounded-xl bg-gradient-ambient p-4 border border-(--border-warm-light) text-center">
-              <div className="text-2xl mb-1">🃏</div>
-              <p className="text-lg font-serif text-main">{topCard.name}</p>
-              <p className="text-xs text-muted-high">
-                appeared {topCard.count}x {topCardScopeLabel}
+          {/* Top Card Feature: an opaque local surface keeps text off ambient glows. */}
+          {totalReadings === 0 && <EmptyScopeNotice onScopeSelect={onScopeSelect} />}
+          {totalReadings > 0 && cardLeaders.length === 0 && cardFrequency.length > 0 && (
+            // Said plainly, as the desktop summary does, rather than left out.
+            <p className="text-center text-sm text-muted-high">No card has repeated {topCardScopeLabel} yet.</p>
+          )}
+          {cardLeaders.length > 0 && (
+            <div className="rounded-xl border border-(--border-warm-light) bg-(--bg-surface) p-4 text-center">
+              <JournalCardIcon className="mx-auto mb-1 h-6 w-6 text-(--text-accent)" aria-hidden="true" />
+              <p className="text-lg font-serif text-main text-balance">
+                {severalCardsTie ? 'Several cards' : joinNames(cardLeaders.map((card) => card.name))}
               </p>
-              {topCard.hasBadge && (
+              <p className="text-xs text-muted-high">
+                {cardLeaders.length === 1 ? 'appeared' : 'each appeared'} {cardLeaders[0].count}x {topCardScopeLabel}
+              </p>
+              {topCard?.hasBadge && (
                 <p className="mt-2 inline-flex items-center gap-1 text-xs text-(--text-accent)">
                   <Fire className="h-3 w-3 text-(--text-accent)" />
                   Streak badge earned
@@ -532,7 +568,7 @@ export default function JourneyMobileSheet({
           )}
 
           {/* Stats row */}
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <div className="text-center">
               <p className="text-xl font-medium text-main">{totalReadings}</p>
               <p className="text-2xs text-muted">readings</p>
@@ -658,7 +694,7 @@ export default function JourneyMobileSheet({
                   <span className="min-w-0 wrap-break-word">Your Reading Journey</span>
                 </h2>
                 {scopeLabel && (
-                  <span className="max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+                  <span className={`${BADGE_LABEL_CLASS} max-w-full wrap-break-word rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted-high`}>
                     {scopeChipLabel} · {sourceLabel}
                   </span>
                 )}
@@ -666,26 +702,17 @@ export default function JourneyMobileSheet({
               <div className="ms-auto flex shrink-0 items-center gap-1">
                 <Link
                   to="/account#analytics"
-                  className="flex items-center justify-center min-h-touch min-w-touch rounded-lg text-muted hover:text-main hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) transition-colors"
+                  className={ICON_BUTTON_CLASS}
                   aria-label="Journey settings"
                 >
                   <Gear className="h-5 w-5" />
                 </Link>
-                <button
+                <CloseButton
                   ref={closeButtonRef}
+                  label="Close journey panel"
                   onClick={handleClose}
-                  className="
-                    flex items-center justify-center
-                    min-h-touch min-w-touch -mr-2
-                    rounded-lg text-muted
-                    hover:text-main hover:bg-(--border-warm-subtle)
-                    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)
-                    transition-colors
-                  "
-                  aria-label="Close journey panel"
-                >
-                  <X className="h-5 w-5" />
-                </button>
+                  className="-mr-2"
+                />
               </div>
             </div>
 
@@ -695,10 +722,13 @@ export default function JourneyMobileSheet({
                 <button
                   key={tab.key}
                   id={`journey-tab-${tab.key}`}
+                  ref={(element) => { tabRefs.current[tab.key] = element; }}
                   onClick={() => handleTabChange(tab.key)}
+                  onKeyDown={(event) => handleTabKeyDown(event, tab.key)}
                   onFocus={(event) => event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })}
                   role="tab"
                   aria-selected={activeTab === tab.key}
+                  tabIndex={activeTab === tab.key ? 0 : -1}
                   aria-controls="journey-tabpanel"
                   className={`
                     flex shrink-0 items-center justify-center gap-1.5
@@ -720,8 +750,9 @@ export default function JourneyMobileSheet({
 
             {/* Tab content with safe area padding and overscroll containment */}
             <div
-              className="journey-sheet__body min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3"
+              className="journey-sheet__body min-h-0 flex-1 overflow-y-auto p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] space-y-4 overscroll-contain short:px-4 short:pt-4 short:space-y-3 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring-color)"
               role="tabpanel"
+              tabIndex={0}
               id="journey-tabpanel"
               aria-labelledby={`journey-tab-${activeTab}`}
             >
@@ -769,7 +800,7 @@ export default function JourneyMobileSheet({
                       type="button"
                       onClick={handlePatternsToggle}
                       aria-expanded={showAllPatterns}
-                      className="text-xs font-semibold text-(--text-accent) hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                      className={JOURNEY_TEXT_BUTTON_CLASS}
                     >
                       {showAllPatterns ? 'Hide patterns' : 'View full patterns'}
                     </button>
@@ -793,7 +824,8 @@ export default function JourneyMobileSheet({
               {activeTab === 'summary' && isAuthenticated && (
                 <JournalSummarySection
                   isAuthenticated={isAuthenticated}
-                  entryCount={allEntries?.length || 0}
+                  allEntries={allEntries}
+                  journalSummary={journalSummary}
                   filteredEntries={filteredEntries}
                   filtersApplied={filtersApplied}
                 />

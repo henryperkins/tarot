@@ -687,3 +687,13 @@ Detect court clusters separately (see COURT_PATTERNS in main knowledge graph spe
 - Greer, Mary K. *Complete Book of Tarot Reversals*. Llewellyn, 2002.
 - Place, Robert. *The Tarot: History, Symbolism, and Divination*. Tarcher, 2005.
 - Louis, Anthony. *Tarot Plain and Simple*. Llewellyn, 1996.
+
+## Current runtime rendering contract (October 24)
+
+The stage narratives and reading-significance quotations above document historical authoring. Runtime highlights now use `renderSuitProgressionHighlight()` from `functions/lib/minorPatternHighlights.js`, the neutral stage `summary`, matched members' `cards[].role`, and `completeTheme` only for complete membership. Historical `narrative` and `readingSignificance` fields have no active suit-highlight rendering path.
+
+The renderer groups canonical identities before counting strength. It includes only the drawn ranks, their selected-deck labels and orientations, and all original matching slot indices. A two-member stage stays emerging even when one identity is repeated. A complete stage offers the reviewed-for-code symbolic relationships among its actual members; its editorial human approval remains pending. No rank order implies a chronology in the reader's life, no reversed member receives an invented reversal interpretation, and no stage guarantees an outcome.
+
+For Four, Six and Seven of Cups, the active roles are contemplative withdrawal, sweet memory, and fantasy/illusion. Five's mourning theme is absent. Eight and Nine of Swords offer bound-by-thought and anguish as possible symbolic themes, without asserting a mental crisis or promising dawn/recovery. Ten's role is “Painful ending”; the old guaranteed daybreak wording is retired from member authoring.
+
+The deterministic inventory contains 76 eligible memberships across the four suits, 228 membership/deck combinations, 1,368 order/orientation render cases and 684 provider-target prompt builds. These counts describe separate checks and must not be added to an overlapping suite total. The [October 24 editorial inventory](READING_PIPELINE_EDITORIAL_REVIEW.md) includes every changed Minor membership rendering and the conditional court highlights; agent tests supply no human approval.

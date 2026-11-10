@@ -16,7 +16,7 @@ const DETERMINISTIC_PATTERNS = [
   /\bwill definitely\b/i,
   /\bfated to\b/i,
   /\bdestined to\b/i,
-  /\bno choice\b/i,
+  /\bno choices?\b/i,
   /\bset in stone\b/i,
   /\binescapable\b/i,
   /\bcannot fail\b/i,
@@ -26,11 +26,33 @@ const DETERMINISTIC_PATTERNS = [
 const NEGATED_DETERMINISTIC_PATTERNS = [
   /\b(?:not|never|(?:is|are|was|were)n['’]t)\s+(?:(?:a\s+)?guaranteed|fated to|destined to|set in stone|inescapable|an? inevitable outcome)\b/giu,
   /\bnothing(?:\s+[\p{L}'’-]+){0,4}\s+(?:is|was|will be)\s+guaranteed\b/giu,
-  /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu
+  /\bno\s+(?:outcome|result|path|future)(?:\s+[\p{L}'’-]+){0,3}\s+(?:is|was|will be)\s+guaranteed\b/giu,
+  // A negated auxiliary can govern a short offering verb: "doesn't offer guaranteed footing".
+  /\b(?:(?:do|does|did|will|would|could|can|should)\s+not|(?:do|does|did|would|could|should)n['’]t|can['’]t|cannot|won['’]t)\s+(?:offer|promise|give|bring|provide|ensure|deliver|grant|mean|come\s+with)\s+(?:(?:a|an|any)\s+)?guaranteed\b/giu,
+  /\b(?:without|no)\s+(?:(?:a|any)\s+)?guaranteed\b/giu,
+  // A negator up to four words earlier in the same clause also negates it: "doesn't
+  // put relief on a guaranteed schedule", "can't be rushed or guaranteed", "not
+  // forcing a guaranteed result". A contrast does too: "direction rather than a
+  // guaranteed outcome", "far from guaranteed". It does not when the next word reinforces the
+  // claim: an idiom ("no doubt", "without question", "no matter", "don't worry"), a
+  // "more than" frame ("not just a guaranteed success") or a negated preventer
+  // ("does not stop success being guaranteed").
+  /\b(?:not|never|no|without|cannot|rather\s+than|instead\s+of|as\s+opposed\s+to|far\s+from|\p{L}+n['’]t)\b(?!\s+(?:doubt|question|matter|wonder|worry|fear|just|merely|simply|only|stop|stops|prevent|prevents|change|changes)\b)(?:\s+[\p{L}'’-]+){0,4}?\s+guaranteed\b/giu
 ];
 
 // Exceptions such as "nothing but success" assert a positive guarantee.
 const NEGATION_EXCEPTION_PATTERN = /\b(?:but|except|save|other\s+than|apart\s+from)\b/iu;
+
+// A temporal "before" clause marks a window that is still open: "show them the
+// plans before the work is set in stone". Only the idiom is removed, so the rest
+// of the clause is still checked. The idiom stays flagged after "long before" and
+// "time before" ("it won't be long before…", "only a matter of time before…"),
+// which predict the fixing, and in a spatial "before you" ("the path before you
+// is set in stone"). It also stays flagged when "will", "shall" or "'ll" comes
+// between them: a "before" clause takes the present tense for the future, so a
+// future form puts the idiom in the main clause ("before Friday it will be set
+// in stone").
+const OPEN_WINDOW_SET_IN_STONE_PATTERN = /(?<!\b(?:long|time)\s+)(\bbefore(?!\s+(?:you|me|us|them|him|her)\b)(?:\s+(?!(?:will|shall)\b|[\p{L}'’-]*['’]ll\b)[\p{L}'’-]+){1,5}\s+)set in stone\b/giu;
 
 const AGENCY_PATTERNS = [
   /\bfree will\b/i,
@@ -49,7 +71,8 @@ const AGENCY_PATTERNS = [
 ];
 
 const SUPPORTIVE_TONE_PATTERNS = [
-  /\bgentle\b/i,
+  // Recognize ordinary forms of existing cues while retaining whole-word matching.
+  /\bgentl(?:e(?:ness)?|y)\b/i,
   /\bcompassion\b/i,
   /\bself-compassion\b/i,
   /\bkindness\b/i,
@@ -59,9 +82,9 @@ const SUPPORTIVE_TONE_PATTERNS = [
   /\bpermission\b/i,
   /\bsoften\b/i,
   /\bbreath\b/i,
-  /\binvite\b/i,
+  /\binvit(?:e[sd]?|ing)\b/i,
   /\bconsider\b/i,
-  /\bchoice\b/i,
+  /\bchoices?\b/i,
   /\bagency\b/i,
   /\bsuave(?:s|mente)?\b/i,
   /\bcuid(?:ar|ado|arte|arte a ti|arse)\b/i,
@@ -78,7 +101,7 @@ const SUPPORTIVE_TONE_PATTERNS = [
 const HARSH_TONE_PATTERNS = [
   /\byou must\b/i,
   /\byou should\b/i,
-  /\bno choice\b/i,
+  /\bno choices?\b/i,
   /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?never\s+(?:again|do|ignore|allow)\b/im,
   /(?:^|[.!?]\s+)[\t ]*(?:(?:[-+*]|\d+[.)])\s+)?always\s+(?:do|avoid)\b/im,
   /\bonly way\b/i,
@@ -87,7 +110,9 @@ const HARSH_TONE_PATTERNS = [
 
 const NON_HARSH_TONE_PATTERNS = [
   /\bnot\s+the\s+only way\b/giu,
-  /\b(?:isn't|isn’t|aren't|aren’t|wasn't|wasn’t|weren't|weren’t)\s+the\s+only way\b/giu
+  /\b(?:isn't|isn’t|aren't|aren’t|wasn't|wasn’t|weren't|weren’t)\s+the\s+only way\b/giu,
+  // Naming a feared restriction does not assert that the reader has no choice.
+  /\b(?:worry|worrying|worried|fear|fearing|afraid)\s+that\s+the\s+only way\b/giu
 ];
 
 function usage() {
@@ -130,12 +155,28 @@ function hasAffirmativeDecisionAgency(text) {
   // Recognize explicit influence without treating any mention of decisions as agency.
   const direct = /^your\s+decisions\s+(?:(?:are\s+what|can|will)\s+)?(?:shape|steer|guide|influence|affect)\b/iu;
   const about = /^your\s+decisions\s+about\s+(?:when|how)(?:\s+and\s+(?:when|how))?\s+to\s+[\p{L}'’-]+\s+(?:this|the|your|our|my|a|an)\s+[\p{L}'’-]+\s+are\s+what\s+(?:shape|steer|guide|influence|affect)\b/iu;
+  // A reader-controlled action can state influence without using a decision
+  // noun. Keep the subject/action/object grammar and any "including" aside
+  // bounded so another subject or an unrelated later clause cannot supply it.
+  const readerAction = /^how\s+you\s+(?:pace|approach|respond\s+to|work\s+with|engage\s+with|act\s+on)\s+(?:this|these|that|those|the|your)\s+[\p{L}'’-]+(?:,\s+including\s+[^.!?;:\n]{1,240},)?\s+(?:(?:is\s+what|can|will)\s+)?(?:shapes?|steers?|guides?|influences?|affects?)\s+(?:how|what|where|the|your)\b/iu;
+  const includingAside = /,\s+including\s+[^.!?;:\n]{1,240},/iu;
+  const additionalClause = /[;:—–,]|\b(?:and|but|yet|although|though|however|if)\b/iu;
+  const repudiation = /\b(?:untrue|incorrect|inaccurate|false|reject\w*|disput\w*|den(?:y|ies|ied)|refut\w*|myth|illusion|nonsense)\b/iu;
   const negativeContext = /\b(?:not|never|no|none|nothing|nobody|cannot|powerless|irrelevant|inevitable|predetermined|destined|fated|destiny|fate|fixed|false|illusion|myth)\b|\b(?:can['’]t|won['’]t|(?:do|does|did|is|are|was|were|has|have|had|should|could|would|must)n['’]t)\b/iu;
 
-  return text.split(/[.!?\n]+/u).some((part) => {
-    const sentence = part.trim();
-    return (direct.test(sentence) || about.test(sentence)) && !negativeContext.test(sentence);
-  });
+  return text.split(/\n\s*\n/u).some(paragraph => (
+    (paragraph.match(/[^.!?\n]+[.!?]?/gu) || []).some(part => {
+      const sentence = part.trim();
+      // This added family recognizes a single affirmative main clause, with
+      // only the bounded including-aside. Do not infer affirmation through an
+      // extra clause or a nearby explicit rejection of the proposition.
+      const affirmativeAction = !sentence.endsWith('?') && readerAction.test(sentence)
+        && !additionalClause.test(sentence.replace(includingAside, ''))
+        && !repudiation.test(paragraph);
+      return (direct.test(sentence) || about.test(sentence) || affirmativeAction)
+        && !negativeContext.test(sentence);
+    })
+  ));
 }
 
 function findDeterministicLanguage(text) {
@@ -145,7 +186,7 @@ function findDeterministicLanguage(text) {
       NEGATION_EXCEPTION_PATTERN.test(claim) ? claim : ''
     )),
     text
-  );
+  ).replace(OPEN_WINDOW_SET_IN_STONE_PATTERN, '$1');
   return DETERMINISTIC_PATTERNS.flatMap(pattern => {
     const match = withoutNegatedClaims.match(pattern);
     return match ? [match[0]] : [];
@@ -182,6 +223,7 @@ function buildIssueNotes(result) {
   if (!result.hasAgencyLanguage) {
     notes.push('Agency/choice language missing');
   }
+  if (result.undrawnCardAssertions.length) notes.push(`Undrawn card assertions: ${result.undrawnCardAssertions.join(', ')}`);
   if (result.hallucinatedCards.length) {
     notes.push(`Hallucinated cards referenced: ${result.hallucinatedCards.join(', ')}`);
   }
@@ -217,6 +259,7 @@ function buildIssueFlags(result) {
   if (!result.hasAgencyLanguage) {
     flags.push('missing-agency-language');
   }
+  if (result.undrawnCardAssertions.length) flags.push(`undrawn-card-assertion(${result.undrawnCardAssertions.length})`);
   if (result.hallucinatedCards.length) {
     flags.push(`hallucinated-cards(${result.hallucinatedCards.length})`);
   }
@@ -257,6 +300,7 @@ function summarizeSample(sample) {
   const deterministicLanguage = deterministicLanguageMatches.length > 0;
   const hasAgencyLanguage = containsPattern(plainReading, AGENCY_PATTERNS) || hasAffirmativeDecisionAgency(plainReading);
   const hallucinatedCards = runtimeMetrics.hallucinatedCards || [];
+  const undrawnCardAssertions = runtimeMetrics.undrawnCardAssertions || [];
   const suitCountMismatches = runtimeMetrics.suitCountMismatches || [];
   const tone = analyzeToneSignals(plainReading);
   // A reading can cover every card and still ignore the querent: check that it
@@ -269,6 +313,7 @@ function summarizeSample(sample) {
     deterministicLanguage,
     hasAgencyLanguage,
     hallucinatedCards,
+    undrawnCardAssertions,
     suitCountMismatches,
     hasHarshTone: tone.harsh,
     hasSupportiveTone: tone.supportive,
@@ -303,6 +348,7 @@ function summarizeSample(sample) {
     deterministicLanguageMatches,
     hasAgencyLanguage,
     hallucinatedCards,
+    undrawnCardAssertions,
     suitCountMismatches,
     hasSupportiveTone: tone.supportive,
     hasHarshTone: tone.harsh,
@@ -402,6 +448,7 @@ async function main() {
   const spinePass = analyses.filter((result) => result.spine.isValid).length;
   const deterministicCount = analyses.filter((result) => result.deterministicLanguage).length;
   const missingAgencyCount = analyses.filter((result) => !result.hasAgencyLanguage).length;
+  const undrawnCardAssertionCount = analyses.filter(result => result.undrawnCardAssertions.length > 0).length;
   const hallucinationCount = analyses.filter((result) => result.hallucinatedCards.length > 0).length;
   const suitCountMismatchCount = analyses.filter((result) => result.suitCountMismatches.length > 0).length;
   const harshToneCount = analyses.filter((result) => result.hasHarshTone).length;
@@ -444,6 +491,7 @@ async function main() {
     deterministicLanguageCount: deterministicCount,
     missingAgencyCount,
     hallucinationCount,
+    undrawnCardAssertionCount,
     suitCountMismatchCount,
     harshToneCount,
     missingSupportiveToneCount,

@@ -24,6 +24,9 @@ async function prepare(page, { tier = null, status = 'active' } = {}) {
     if (path === '/api/subscription') {
       return route.fulfill({ json: { subscription: { tier, status, provider: 'stripe' } } });
     }
+    if (path === '/api/journal' && new URL(route.request().url()).searchParams.get('summary') === 'true') {
+      return route.fulfill({ json: { summary: { total: 0, lastReadingAt: null } } });
+    }
     if (path === '/api/usage') {
       return route.fulfill({ json: {
         trackingAvailable: true, resetAt: '2026-11-01T00:00:00Z',
@@ -92,6 +95,9 @@ test.describe('Account and plan hardening', () => {
       await prepare(page, { tier: 'pro' });
       await page.goto('/account');
       const subscription = page.locator('#subscription');
+      const details = subscription.getByRole('button', { expanded: false });
+      await expect(details).toBeVisible();
+      await details.click();
       await expect(subscription.getByText('Unlimited AI readings/month', { exact: true })).toBeVisible();
       await enlargeText(page);
       await expectNoHorizontalOverflow(page, width);
@@ -164,6 +170,7 @@ test.describe('Account and plan hardening', () => {
     await expect(page.getByRole('button', { name: /stay on the Seeker/i })).toHaveCount(0);
     await page.getByRole('link', { name: 'Manage current plan', exact: true }).click();
     await expect(page).toHaveURL(/\/account#subscription$/);
+    await expect(page.locator('button[aria-controls="plan-usage-details"]')).toHaveAttribute('aria-expanded', 'true');
     for (const tier of ['Plus', 'Free']) {
       await openPricing();
       const action = page.getByRole('button', { name: `Manage downgrade to ${tier}`, exact: true }).last();
@@ -171,6 +178,7 @@ test.describe('Account and plan hardening', () => {
       await action.scrollIntoViewIfNeeded();
       await action.click();
       await expect(page).toHaveURL(/\/account#subscription$/);
+      await expect(page.locator('button[aria-controls="plan-usage-details"]')).toHaveAttribute('aria-expanded', 'true');
     }
     expect(checkout).toEqual([]);
   });

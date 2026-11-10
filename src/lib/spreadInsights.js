@@ -5,13 +5,17 @@ const asInsights = (items, kind) => (Array.isArray(items) ? items : [])
   .filter(item => item && typeof item.text === 'string' && item.text.trim())
   .map(item => ({ ...item, kind }));
 
-// Partial-pattern quotations can name undrawn cards. Keep them as guarded
-// backend context, but omit them from the reader's spread evidence and counts.
+// Legacy partial arcs can name undrawn cards. The member-bound Minor projection
+// supplies only drawn roles and is also suitable for the reader's disclosure.
 export function getVisibleTraditionalPassages(passages) {
-  return (Array.isArray(passages) ? passages : []).filter(passage => (
-    passage && typeof passage.text === 'string' && passage.text.trim()
-    && !passage.isPartialPattern && passage.metadata?.isComplete !== false
-  ));
+  return (Array.isArray(passages) ? passages : []).filter(passage => {
+    const memberBound = ['suit-progression', 'court-lineage'].includes(passage?.type)
+      && passage.projectionVersion === 'minor-members-v1'
+      && Array.isArray(passage.matchedCardKeys) && passage.matchedCardKeys.length >= 2
+      && new Set(passage.matchedCardKeys).size === passage.matchedCardKeys.length;
+    return passage && typeof passage.text === 'string' && passage.text.trim()
+      && ((!passage.isPartialPattern && passage.metadata?.isComplete !== false) || memberBound);
+  });
 }
 
 function spreadPriority(item) {

@@ -23,15 +23,15 @@ Custom illustrations would create a more immersive, memorable first impression w
 
 **Component Files:**
 
-- [`src/components/onboarding/OnboardingWizard.jsx`](src/components/onboarding/OnboardingWizard.jsx)
-- [`src/components/onboarding/WelcomeHero.jsx`](src/components/onboarding/WelcomeHero.jsx)
-- [`src/components/onboarding/AccountSetup.jsx`](src/components/onboarding/AccountSetup.jsx)
-- [`src/components/onboarding/SpreadEducation.jsx`](src/components/onboarding/SpreadEducation.jsx)
-- [`src/components/onboarding/QuestionCrafting.jsx`](src/components/onboarding/QuestionCrafting.jsx)
-- [`src/components/onboarding/RitualIntro.jsx`](src/components/onboarding/RitualIntro.jsx)
-- [`src/components/onboarding/JournalIntro.jsx`](src/components/onboarding/JournalIntro.jsx)
-- [`src/components/onboarding/JourneyBegin.jsx`](src/components/onboarding/JourneyBegin.jsx)
-- [`src/components/onboarding/OnboardingProgress.jsx`](src/components/onboarding/OnboardingProgress.jsx)
+- [`src/components/onboarding/OnboardingWizard.jsx`](../../../src/components/onboarding/OnboardingWizard.jsx)
+- [`src/components/onboarding/WelcomeHero.jsx`](../../../src/components/onboarding/WelcomeHero.jsx)
+- [`src/components/onboarding/AccountSetup.jsx`](../../../src/components/onboarding/AccountSetup.jsx)
+- [`src/components/onboarding/SpreadEducation.jsx`](../../../src/components/onboarding/SpreadEducation.jsx)
+- [`src/components/onboarding/QuestionCrafting.jsx`](../../../src/components/onboarding/QuestionCrafting.jsx)
+- [`src/components/onboarding/RitualIntro.jsx`](../../../src/components/onboarding/RitualIntro.jsx)
+- [`src/components/onboarding/JournalIntro.jsx`](../../../src/components/onboarding/JournalIntro.jsx)
+- [`src/components/onboarding/JourneyBegin.jsx`](../../../src/components/onboarding/JourneyBegin.jsx)
+- [`src/components/onboarding/OnboardingProgress.jsx`](../../../src/components/onboarding/OnboardingProgress.jsx)
 
 ---
 
@@ -41,7 +41,7 @@ Custom illustrations would create a more immersive, memorable first impression w
 
 #### 1. Welcome Hero Illustration
 
-**Location:** [`src/components/onboarding/WelcomeHero.jsx`](src/components/onboarding/WelcomeHero.jsx:29-52)
+**Location:** [`src/components/onboarding/WelcomeHero.jsx`](../../../src/components/onboarding/WelcomeHero.jsx#L29-L52)
 
 **Current state:** Phosphor icon cluster (Moon, Star, Sparkle) arranged manually
 
@@ -72,7 +72,7 @@ Custom illustrations would create a more immersive, memorable first impression w
 
 #### 2. Ritual Step Illustrations (Knock & Cut)
 
-**Location:** [`src/components/onboarding/RitualIntro.jsx`](src/components/onboarding/RitualIntro.jsx:55-110)
+**Location:** [`src/components/onboarding/RitualIntro.jsx`](../../../src/components/onboarding/RitualIntro.jsx#L55-L110)
 
 **Current state:** Phosphor icons (Hand, Scissors) inside circular badges
 
@@ -107,7 +107,7 @@ Custom illustrations would create a more immersive, memorable first impression w
 
 #### 3. Journey Begin Celebration Scene
 
-**Location:** [`src/components/onboarding/JourneyBegin.jsx`](src/components/onboarding/JourneyBegin.jsx:62-85)
+**Location:** [`src/components/onboarding/JourneyBegin.jsx`](../../../src/components/onboarding/JourneyBegin.jsx#L62-L85)
 
 **Current state:** Phosphor Star and Sparkle icons
 
@@ -138,7 +138,7 @@ Custom illustrations would create a more immersive, memorable first impression w
 
 #### 4. Question Crafting Visual Aid
 
-**Location:** [`src/components/onboarding/QuestionCrafting.jsx`](src/components/onboarding/QuestionCrafting.jsx:162-215)
+**Location:** [`src/components/onboarding/QuestionCrafting.jsx`](../../../src/components/onboarding/QuestionCrafting.jsx#L162-L215)
 
 **Current state:** Text-based tips with simple checkmark/X icons
 
@@ -171,7 +171,7 @@ Alternative concept: A flowering plant that blooms as question quality improves
 
 #### 5. Progress Step Icons
 
-**Location:** [`src/components/onboarding/OnboardingProgress.jsx`](src/components/onboarding/OnboardingProgress.jsx:4-12)
+**Location:** [`src/components/onboarding/OnboardingProgress.jsx`](../../../src/components/onboarding/OnboardingProgress.jsx#L4-L12)
 
 **Current state:** Numbers and checkmarks in circles
 
@@ -209,7 +209,7 @@ const STEP_LABELS = [
 
 #### 6. Journal Introduction Visual
 
-**Location:** [`src/components/onboarding/JournalIntro.jsx`](src/components/onboarding/JournalIntro.jsx:57-73)
+**Location:** [`src/components/onboarding/JournalIntro.jsx`](../../../src/components/onboarding/JournalIntro.jsx#L57-L73)
 
 **Current state:** Basic Notebook icon with Sparkle decoration
 
@@ -243,7 +243,7 @@ const STEP_LABELS = [
 
 #### 7. Account Benefits Visual Icons
 
-**Location:** [`src/components/onboarding/AccountSetup.jsx`](src/components/onboarding/AccountSetup.jsx:129-157)
+**Location:** [`src/components/onboarding/AccountSetup.jsx`](../../../src/components/onboarding/AccountSetup.jsx#L129-L157)
 
 **Current state:** Checkmark bullets with text
 
@@ -272,7 +272,7 @@ const STEP_LABELS = [
 
 #### 8. Spread Education Enhancements
 
-**Location:** [`src/components/onboarding/SpreadEducation.jsx`](src/components/onboarding/SpreadEducation.jsx:134-149)
+**Location:** [`src/components/onboarding/SpreadEducation.jsx`](../../../src/components/onboarding/SpreadEducation.jsx#L134-L149)
 
 **Current state:** Uses existing spread artwork from `selectorimages/`
 
@@ -300,7 +300,7 @@ const STEP_LABELS = [
 
 #### 9. Key Principles Illustrations
 
-**Location:** [`src/components/onboarding/WelcomeHero.jsx`](src/components/onboarding/WelcomeHero.jsx:93-120)
+**Location:** [`src/components/onboarding/WelcomeHero.jsx`](../../../src/components/onboarding/WelcomeHero.jsx#L93-L120)
 
 **Current state:** Phosphor icons (Eye, Path, Lightbulb) in circular badges
 
@@ -328,7 +328,7 @@ const STEP_LABELS = [
 
 #### 10. Experience Level Visual Selection
 
-**Location:** [`src/components/onboarding/WelcomeHero.jsx`](src/components/onboarding/WelcomeHero.jsx:149-174)
+**Location:** [`src/components/onboarding/WelcomeHero.jsx`](../../../src/components/onboarding/WelcomeHero.jsx#L149-L174)
 
 **Current state:** Text-only button chips
 
@@ -358,7 +358,7 @@ const EXPERIENCE_OPTIONS = [
 
 #### 11. Reading Tone/Frame Visual Selection
 
-**Location:** [`src/components/onboarding/QuestionCrafting.jsx`](src/components/onboarding/QuestionCrafting.jsx:237-300)
+**Location:** [`src/components/onboarding/QuestionCrafting.jsx`](../../../src/components/onboarding/QuestionCrafting.jsx#L237-L300)
 
 **Current state:** Text-only chips for tone and spiritual frame
 
@@ -387,7 +387,7 @@ const EXPERIENCE_OPTIONS = [
 
 #### 12. Background Patterns
 
-**Location:** [`src/components/onboarding/OnboardingWizard.jsx`](src/components/onboarding/OnboardingWizard.jsx:211-222)
+**Location:** [`src/components/onboarding/OnboardingWizard.jsx`](../../../src/components/onboarding/OnboardingWizard.jsx#L211-L222)
 
 **Current state:** CSS radial gradients only
 
@@ -680,4 +680,4 @@ After implementing illustrations, measure:
 
 _Document created: 2025-12-05_
 _Last updated: 2025-12-05_
-_Related: [CUSTOM_ILLUSTRATIONS_SPEC.md](CUSTOM_ILLUSTRATIONS_SPEC.md) (Journal illustrations)_
+_Related: [CUSTOM_ILLUSTRATIONS_SPEC.md](../../CUSTOM_ILLUSTRATIONS_SPEC.md) (Journal illustrations)_

@@ -1,5 +1,9 @@
 # Reading gestures development beta
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-11-10
+
 ## Current aligner candidate
 
 The protected beta instructions below describe the earlier model-enabled development environment. Do not restart that checkout or reuse its ports to review the aligner candidate. Current work is recorded in the [aligner execution review](superpowers/reviews/2026-10-11-reading-aligner-release.md).
@@ -14,6 +18,14 @@ The updated source separates two exact opt-ins:
 Existing development/controlled-validation presentation still supports `VITE_READING_GESTURES=true`; that flag alone no longer grants model-request consent in this updated source. Server admission, subscription eligibility and qualified model configuration remain separate requirements. The existing running beta's files/configuration were not changed.
 
 The [aligner plan](superpowers/plans/2026-10-11-reading-aligner-release.md) owns ordinary production acceptance through `scripts/evaluation/runReadingAlignerAcceptance.mjs`, with explicit source/output manifests, owned loopback ports and recorded prose. It does not use the development fixture route or permit provider calls. Physical VoiceOver, real authentication and deployment evidence remain separate.
+
+## Controlled reflection regression
+
+```bash
+npm run test:e2e:reflection
+```
+
+The [reflection runner](../playwright.reading-reflection.config.js) starts an isolated Vite server on loopback port 5218 with both visual flags explicitly enabled. It runs the live card-note and duplicate-card journal cases in desktop Chromium and mobile WebKit, using fixture authentication and controlled reading/visual streams. Assertions cover card-dialog inspection, retained notes and keyboard focus return. The [current work record](CURRENT_WORK.md#reflection-e2e-maintenance--november-10) records the verification.
 
 ## Historical model beta setup
 

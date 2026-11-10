@@ -1,0 +1,277 @@
+{
+  "commit": "98106dd895d7c57874614b356f17287681c2e1b5",
+  "sourceRoot": "repository root",
+  "fixtureModuleSha256": "204867c37d79ef04d8e61b65771c8cc1c6a89c2b35c053b1e6288a37177a42c9",
+  "fixtureExpressionSha256": "918719a776cfe50e30706be75678cb38737fc57c7dd98924f20aa59b8bd42c07",
+  "sampleIds": [
+    "single-new-role",
+    "three-card-transition",
+    "five-card-creative-project",
+    "relationship-checkin",
+    "celtic-deep-shift",
+    "decision-crossroads-long-reflections",
+    "spiritual-thoth-ritual",
+    "wellbeing-marseille-reset",
+    "relationship-hypothetical-collaborators",
+    "celtic-general-focused-week",
+    "non-english-spanish"
+  ],
+  "provider": "codex-subscription",
+  "model": "gpt-6.1-sol",
+  "modelSource": "configured",
+  "reasoningEffort": "xhigh",
+  "cliVersion": "0.162.0",
+  "authentication": "ChatGPT subscription; existing native login",
+  "transport": "local-cli",
+  "promptBuilder": "generateWithClaudeApi using the unchanged production Claude prompt builder",
+  "userAuthorization": "Fix the Codex CLI and complete fresh narrative-generation qualification (with Codex) for deployed commit 98106dd8.",
+  "runnerRepair": "Remove temporary sqlite_home override; all production prompts and scoring source unchanged",
+  "perSampleDeadlineMs": 600000,
+  "codexHardTokenCap": null,
+  "outputByteLimit": 2097152,
+  "startedAt": "2026-10-24T00:23:18.690Z",
+  "completedSamples": [
+    {
+      "id": "single-new-role",
+      "startedAt": "2026-10-24T00:23:18.887Z",
+      "systemPromptSha256": "e01fa9cb130ec76ba16aa9b7d6e642ec223bca107020ee0608f72f27a6395a8b",
+      "userMessagesSha256": "a2e7dd4409c65accc834c5372a62f1d5b90ce23f5ccdaa0dfae836ca33167532",
+      "systemPromptCharacters": 10133,
+      "messageCharacters": 5066,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 3204,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1470,
+        "reasoning_output_tokens": 1034
+      },
+      "finishedAt": "2026-10-24T00:24:00.267Z",
+      "readingCharacters": 2179,
+      "readingSha256": "4bf0c59aa30d9d3eb8d76dbc5f3d35486731feb2d4873ec5cc500175b4d24bc6"
+    },
+    {
+      "id": "three-card-transition",
+      "startedAt": "2026-10-24T00:24:00.325Z",
+      "systemPromptSha256": "87ec66a1cea44f77f88f96eac318644cdd28411c6495e4308169baf55b22775a",
+      "userMessagesSha256": "8d25647f4e41d30820f2429a18690d3a9a1401a75947b4f86cc2719ad4fd1ead",
+      "systemPromptCharacters": 10575,
+      "messageCharacters": 8712,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 4067,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2323,
+        "reasoning_output_tokens": 1552
+      },
+      "finishedAt": "2026-10-24T00:25:25.617Z",
+      "readingCharacters": 4124,
+      "readingSha256": "5d50d7c6b1cc7a4dbe6d636aed519c2899bc411f8d975c60e7633c4b8cb74a82"
+    },
+    {
+      "id": "five-card-creative-project",
+      "startedAt": "2026-10-24T00:25:25.734Z",
+      "systemPromptSha256": "7d7a3c7e36069a2d42da3f16cff4fd4e762c9b15668e45c35b956221ba3be15b",
+      "userMessagesSha256": "c66351f730eec7e650c29d5f3a50df05efe24bded0cf0af102689399e1a3e415",
+      "systemPromptCharacters": 11480,
+      "messageCharacters": 9595,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 4472,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3036,
+        "reasoning_output_tokens": 2070
+      },
+      "finishedAt": "2026-10-24T00:26:35.185Z",
+      "readingCharacters": 5260,
+      "readingSha256": "df565516280fbc26adfa2d8441c096d4bf6e68cc91460f8e8cd116fd74223139"
+    },
+    {
+      "id": "relationship-checkin",
+      "startedAt": "2026-10-24T00:26:35.205Z",
+      "systemPromptSha256": "b945603f26ff75658ad570ac241636099b1bea3e11f0615bd694c9d6503ed289",
+      "userMessagesSha256": "ce4b0e3aae9589f3e1637d1e56df8bcfe43973ddccc5199d54cc7399caf82bfc",
+      "systemPromptCharacters": 10562,
+      "messageCharacters": 6622,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 3576,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2320,
+        "reasoning_output_tokens": 1552
+      },
+      "finishedAt": "2026-10-24T00:27:42.657Z",
+      "readingCharacters": 4044,
+      "readingSha256": "10081058c566db774463e8ba95c0f9a7c8ff191d48b4698a5f949782165f8b26"
+    },
+    {
+      "id": "celtic-deep-shift",
+      "startedAt": "2026-10-24T00:27:42.681Z",
+      "systemPromptSha256": "ead9131ec5f7898a6cff96a0aadeed44c25b07755d8482d65b6094d7eca069a0",
+      "userMessagesSha256": "8f10dc9c3226ecf0e6a28dd23d5d4bc9b3c9196a702969261cdf8ea25a160152",
+      "systemPromptCharacters": 10996,
+      "messageCharacters": 20249,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 6583,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3880,
+        "reasoning_output_tokens": 2340
+      },
+      "finishedAt": "2026-10-24T00:29:44.675Z",
+      "readingCharacters": 8631,
+      "readingSha256": "8c54c4d6e252c3910b032cf38ec9c5868466a1d0413f06f9019ad761ff2535f0"
+    },
+    {
+      "id": "decision-crossroads-long-reflections",
+      "startedAt": "2026-10-24T00:29:44.705Z",
+      "systemPromptSha256": "2f7b9e7f515c188ae8c0d65ec897f87303943eae5100f644d90f9e7bcf0691f6",
+      "userMessagesSha256": "fce364f09cf01ce7d509049bc93b93c161d61b40fec81a6afded62719e4e2c56",
+      "systemPromptCharacters": 10746,
+      "messageCharacters": 12118,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 4821,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2601,
+        "reasoning_output_tokens": 1552
+      },
+      "finishedAt": "2026-10-24T00:31:12.559Z",
+      "readingCharacters": 5724,
+      "readingSha256": "9eead87098920a02570cc028d2e6a170c65e2e2d0a12d197941c0145ca6d6f76"
+    },
+    {
+      "id": "spiritual-thoth-ritual",
+      "startedAt": "2026-10-24T00:31:12.606Z",
+      "systemPromptSha256": "d67a7949f0c11c58e41e2557ef891d522a687c53458e87e8a4f41349cee90cc1",
+      "userMessagesSha256": "3fbd77fe94672f4886575fff5d21ee9c4a01f7caa1c010ecea2f3fb389185854",
+      "systemPromptCharacters": 11842,
+      "messageCharacters": 7280,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 4048,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2735,
+        "reasoning_output_tokens": 1939
+      },
+      "finishedAt": "2026-10-24T00:32:29.822Z",
+      "readingCharacters": 4128,
+      "readingSha256": "8c8b9892538a1294ae5507740ee4e73a6ac82b85b32fb306d099ee36b4987f0e"
+    },
+    {
+      "id": "wellbeing-marseille-reset",
+      "startedAt": "2026-10-24T00:41:40.917Z",
+      "reusedPromptFromInterruptedAttempt": true,
+      "systemPromptSha256": "bec7321bf21fcc6e31acd2e4097cf8c8085f9e96f8e5bd49ef48d3c14ca22aeb",
+      "userMessagesSha256": "93e3c1dfa57371968f49b3d4f7572441ae0f916f5fafb3757322fec1a6b30f5c",
+      "systemPromptCharacters": 11077,
+      "messageCharacters": 7320,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 3887,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3593,
+        "reasoning_output_tokens": 2588
+      },
+      "finishedAt": "2026-10-24T00:43:29.211Z",
+      "readingCharacters": 5312,
+      "readingSha256": "6a4064fb7e3f6e9c4c66538164ac951dd2c9036cc3b530fd4efe1179eb274b70"
+    },
+    {
+      "id": "relationship-hypothetical-collaborators",
+      "startedAt": "2026-10-24T00:43:29.238Z",
+      "systemPromptSha256": "0fd817bbac2917d0fea3b0e8c4cd33ff2fbac84c577603ef4b1b086ac5bac66b",
+      "userMessagesSha256": "50550f065b548e094f16966704accbfb07970d061b7a2857a5ae00ca53234549",
+      "systemPromptCharacters": 10874,
+      "messageCharacters": 6542,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 3644,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2325,
+        "reasoning_output_tokens": 1552
+      },
+      "finishedAt": "2026-10-24T00:44:44.171Z",
+      "readingCharacters": 4074,
+      "readingSha256": "4eb3e1885c597ce323fb4aeb1c9bc8b32996eb0e7ea911224ad1e4f356f5575e"
+    },
+    {
+      "id": "celtic-general-focused-week",
+      "startedAt": "2026-10-24T00:44:44.247Z",
+      "systemPromptSha256": "8605d6249723c43d323617994c3f1200c6ccd4497f29eefd0c9ee80cef863ff4",
+      "userMessagesSha256": "41ab2ef3c9d1df90bef4412e3ea36982e2319da0b1df8e1d260dc154401dc875",
+      "systemPromptCharacters": 11490,
+      "messageCharacters": 20291,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 6845,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4383,
+        "reasoning_output_tokens": 2913
+      },
+      "finishedAt": "2026-10-24T00:46:34.743Z",
+      "readingCharacters": 7594,
+      "readingSha256": "48084aef50511b9ba51aac7999235180f7875828437bc305d4a83a212d5664f4"
+    },
+    {
+      "id": "non-english-spanish",
+      "startedAt": "2026-10-24T00:46:34.758Z",
+      "systemPromptSha256": "87ec66a1cea44f77f88f96eac318644cdd28411c6495e4308169baf55b22775a",
+      "userMessagesSha256": "0fe677087816c14ca4119889527f74911f5f7ea95feef5bf644ef18508b9bdc5",
+      "systemPromptCharacters": 10575,
+      "messageCharacters": 6584,
+      "productionRequestTokenCeiling": 32000,
+      "model": "gpt-6.1-sol",
+      "modelSource": "configured",
+      "usage": {
+        "input_tokens": 3621,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2376,
+        "reasoning_output_tokens": 1552
+      },
+      "finishedAt": "2026-10-24T00:47:48.920Z",
+      "readingCharacters": 3885,
+      "readingSha256": "bd202b5e99bed4840b108c68dabdd3dbfb6fe095c425e9cdb79409aaffa5620c"
+    }
+  ],
+  "status": "generation-complete",
+  "interruptedAttempts": [
+    {
+      "id": "wellbeing-marseille-reset",
+      "reason": "Generator terminated during task interruption; no completed output retained.",
+      "recordedAt": "2026-10-24T00:41:40.290Z"
+    }
+  ],
+  "resumedAt": "2026-10-24T00:41:40.290Z",
+  "finishedAt": "2026-10-24T00:47:48.924Z"
+}

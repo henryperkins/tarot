@@ -1,0 +1,381 @@
+{
+  "model": "@cf/baai/bge-m3",
+  "providerMetadata": {
+    "mode": "frozen-real-workers-ai-cosines",
+    "sourceVectorSha256": "ff6f4d2f1d3dd0e43ce886a5eecc22c13d4ad73f0ca636e6472a0871d20bafd4",
+    "fixtureSha256": "ff7922c809fbe948d78714ce4adccf0f026673495b744585a23c2d9530fbda51",
+    "note": "Derived without rounding or relabeling from the preserved 2026-10-24 Workers AI capture. Seen regression evidence, not an independent holdout."
+  },
+  "caseOrder": [
+    "REL01",
+    "REL02",
+    "REL03",
+    "REL04",
+    "REL05",
+    "REL06",
+    "REL07",
+    "REL08",
+    "REL09",
+    "REL10"
+  ],
+  "cosinesByCase": {
+    "REL01": {
+      "queryHash": "6eb27aea3cb9b4ed0f757b72bfbe4a812040a1a1f15768e24952eb9353cc1fc2",
+      "candidates": {
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]": {
+          "promptTextHash": "1ff66af2577ba4df2607dfdac69c2b7568297abd59391dd4690d2b2135da28c2",
+          "cosine": 0.4832627401099522
+        },
+        "[\"triad\",\"death-temperance-star\",\"grief\",null,\"tableu:triad:death-temperance-star:grief:1\"]": {
+          "promptTextHash": "7dbabf9a64505162ee5e1f4d268eef1c7253d63a56956eaa7eba83253b8b73f9",
+          "cosine": 0.5967181856228455
+        },
+        "[\"triad\",\"death-temperance-star\",\"transition\",null,\"tableu:triad:death-temperance-star:transition:2\"]": {
+          "promptTextHash": "f11fb65786ce67f16333abea7678be094f99670453a8d60b4ba85242893b1698",
+          "cosine": 0.5165034460552896
+        },
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]": {
+          "promptTextHash": "c119116f48620c1645864449b9d5150acc48106a1f676804b201f54d59431254",
+          "cosine": 0.5745976161282124
+        },
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]": {
+          "promptTextHash": "4e1de4d03006c59903b44d20a1419affd31a29d3567a3beafbd0f286a89883c5",
+          "cosine": 0.5719847936434013
+        },
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]": {
+          "promptTextHash": "914696c0cb2bdb1ef438588d3928a07383515bede2e26e9f7aecfd47c3b76454",
+          "cosine": 0.5277728841127788
+        },
+        "[\"dyad\",\"13-17\",\"grief\",null,\"tableu:dyad:13-17:grief:1\"]": {
+          "promptTextHash": "828684cb3b091033e56a934e005c4d8bb379cd07168e7703f42a19f4d660794b",
+          "cosine": 0.5754657535918017
+        },
+        "[\"dyad\",\"13-14\",\"general\",null,\"tableu:dyad:13-14:general:0\"]": {
+          "promptTextHash": "acbdf2e8f26d2525ca1dd92c02090c785a29d0ad32a1eb9c2f348aa439d0ee2c",
+          "cosine": 0.5323356418329479
+        },
+        "[\"dyad\",\"13-14\",\"healing\",null,\"tableu:dyad:13-14:healing:1\"]": {
+          "promptTextHash": "f39f87ea9e4ad1d060e9802e7e051d197245965435263cbec16a4d4a530b6f1e",
+          "cosine": 0.5825589978388134
+        },
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]": {
+          "promptTextHash": "5647461cff672b03bb367e78146fcfddc49a8d4e2444d8b84651ac3983473c6c",
+          "cosine": 0.5310724901752562
+        },
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]": {
+          "promptTextHash": "72408dfe3ff4f27fdd22eb5b49a92ee28cade4e30cf5c1f8e68e7538da8e832d",
+          "cosine": 0.5402347451133948
+        },
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]": {
+          "promptTextHash": "66fd27459aff4e48e572ead933c456c981c3ead9f73de8d6aafbf6c47fa1db1f",
+          "cosine": 0.5100514236615385
+        }
+      }
+    },
+    "REL02": {
+      "queryHash": "1a0c8b6ee7edffc63be9d447655ade797168c31c80aa5bc99daca5a90495932d",
+      "candidates": {
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]": {
+          "promptTextHash": "1ff66af2577ba4df2607dfdac69c2b7568297abd59391dd4690d2b2135da28c2",
+          "cosine": 0.49073212865587634
+        },
+        "[\"triad\",\"death-temperance-star\",\"grief\",null,\"tableu:triad:death-temperance-star:grief:1\"]": {
+          "promptTextHash": "7dbabf9a64505162ee5e1f4d268eef1c7253d63a56956eaa7eba83253b8b73f9",
+          "cosine": 0.5687591916709369
+        },
+        "[\"triad\",\"death-temperance-star\",\"transition\",null,\"tableu:triad:death-temperance-star:transition:2\"]": {
+          "promptTextHash": "f11fb65786ce67f16333abea7678be094f99670453a8d60b4ba85242893b1698",
+          "cosine": 0.4837346381603564
+        },
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]": {
+          "promptTextHash": "c119116f48620c1645864449b9d5150acc48106a1f676804b201f54d59431254",
+          "cosine": 0.5459481945371399
+        },
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]": {
+          "promptTextHash": "4e1de4d03006c59903b44d20a1419affd31a29d3567a3beafbd0f286a89883c5",
+          "cosine": 0.5338786205344407
+        },
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]": {
+          "promptTextHash": "914696c0cb2bdb1ef438588d3928a07383515bede2e26e9f7aecfd47c3b76454",
+          "cosine": 0.5276288514588333
+        },
+        "[\"dyad\",\"13-17\",\"grief\",null,\"tableu:dyad:13-17:grief:1\"]": {
+          "promptTextHash": "828684cb3b091033e56a934e005c4d8bb379cd07168e7703f42a19f4d660794b",
+          "cosine": 0.5972886402428071
+        },
+        "[\"dyad\",\"13-14\",\"general\",null,\"tableu:dyad:13-14:general:0\"]": {
+          "promptTextHash": "acbdf2e8f26d2525ca1dd92c02090c785a29d0ad32a1eb9c2f348aa439d0ee2c",
+          "cosine": 0.5327913489667718
+        },
+        "[\"dyad\",\"13-14\",\"healing\",null,\"tableu:dyad:13-14:healing:1\"]": {
+          "promptTextHash": "f39f87ea9e4ad1d060e9802e7e051d197245965435263cbec16a4d4a530b6f1e",
+          "cosine": 0.5852035144337638
+        },
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]": {
+          "promptTextHash": "5647461cff672b03bb367e78146fcfddc49a8d4e2444d8b84651ac3983473c6c",
+          "cosine": 0.5414007614221764
+        },
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]": {
+          "promptTextHash": "72408dfe3ff4f27fdd22eb5b49a92ee28cade4e30cf5c1f8e68e7538da8e832d",
+          "cosine": 0.5206190117206456
+        },
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]": {
+          "promptTextHash": "66fd27459aff4e48e572ead933c456c981c3ead9f73de8d6aafbf6c47fa1db1f",
+          "cosine": 0.488797384096276
+        }
+      }
+    },
+    "REL03": {
+      "queryHash": "2264e2ecfb6945e6a27c25709143aeeb37796a99ddad5328beb8526a83f08e2b",
+      "candidates": {
+        "[\"triad\",\"empress-emperor-hierophant\",\"general\",null,\"tableu:triad:empress-emperor-hierophant:general:0\"]": {
+          "promptTextHash": "3c784dbb1ca488d1d6d862f340284e119a9a2bcfe0bb1bfe597fc7ba5b2a9ddc",
+          "cosine": 0.4519125922209242
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"parenting\",null,\"tableu:triad:empress-emperor-hierophant:parenting:1\"]": {
+          "promptTextHash": "29a349418ecfc698a72f09faf8bd34bd7617ea264b63e989a272cd653a4bcd47",
+          "cosine": 0.4384181556920988
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"leadership\",null,\"tableu:triad:empress-emperor-hierophant:leadership:2\"]": {
+          "promptTextHash": "109906a6a65ea767c2e0e6f363253e0ac3bc8060e5548103894b3e5324951d1c",
+          "cosine": 0.48685275704325615
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"creative\",null,\"tableu:triad:empress-emperor-hierophant:creative:3\"]": {
+          "promptTextHash": "8e1eaccd73638ea7557885dc6f67ba676378643ea6c1e4945f0cc7434b2cab64",
+          "cosine": 0.4136857823311078
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"career\",null,\"tableu:triad:empress-emperor-hierophant:career:4\"]": {
+          "promptTextHash": "58fee3ace5797e6f59d6fdbe8bab2ab64112ea9724e61a7bca453b957245f692",
+          "cosine": 0.5067312657120233
+        },
+        "[\"fools-journey\",\"initiation\",\"general\",null,\"tableu:fools-journey:initiation:general:0\"]": {
+          "promptTextHash": "e8122d6e6c4bac005d9d48d05bc6b8644304d31d850683082fc11e635436ef17",
+          "cosine": 0.5289281072169373
+        },
+        "[\"dyad\",\"4-3\",\"general\",null,\"tableu:dyad:4-3:general:0\"]": {
+          "promptTextHash": "10d536b3731cea49367f4cf7f737e9739a72c0d217f8904b5dc0dbc45ba9fefd",
+          "cosine": 0.441921168754999
+        },
+        "[\"dyad\",\"4-3\",\"creative\",null,\"tableu:dyad:4-3:creative:1\"]": {
+          "promptTextHash": "d1d5d3f9e4feb2f972990bfafd00538f0c67cc7aa87762ee21791d9303d20333",
+          "cosine": 0.49784502267338043
+        },
+        "[\"triad\",\"empress-lovers-hierophant\",\"general\",[3,5],\"tableu:triad:empress-lovers-hierophant:general:0\"]": {
+          "promptTextHash": "b77c849a0ca460d2beaa6beaac18844bc9c7220016ac371276dd70d3c001cf36",
+          "cosine": 0.46863124164992914
+        },
+        "[\"major-arcana\",\"3\",\"general\",null,\"tableu:major-arcana:3:general:0\"]": {
+          "promptTextHash": "5ed9fc136a6e92cd45c75af5b798d3f4e9554558d2c40e9233517c6a3c24955c",
+          "cosine": 0.4756609387689362
+        },
+        "[\"major-arcana\",\"4\",\"general\",null,\"tableu:major-arcana:4:general:0\"]": {
+          "promptTextHash": "e37c4650ec70206e24a8b18cdfa7a97f80b2d0fc1f0dbf81d26f999d3ed48b02",
+          "cosine": 0.5921491909114779
+        },
+        "[\"major-arcana\",\"5\",\"general\",null,\"tableu:major-arcana:5:general:0\"]": {
+          "promptTextHash": "87372dbe8f77acf44ef849eadea82a611c1cd4d9d33cf00f15732e3a83004e39",
+          "cosine": 0.5161042377736913
+        },
+        "[\"major-arcana\",\"11\",\"general\",null,\"tableu:major-arcana:11:general:0\"]": {
+          "promptTextHash": "b6b01c47baa39ee9497613ca5856532624e052e8add0a856b36400c12010e0c7",
+          "cosine": 0.510687694224061
+        }
+      }
+    },
+    "REL04": {
+      "queryHash": "3176a661da7fa30d1863ce47c489fa67df68a77b000e99dfca8cb5a701c29d16",
+      "candidates": {
+        "[\"fools-journey\",\"initiation\",\"general\",null,\"tableu:fools-journey:initiation:general:0\"]": {
+          "promptTextHash": "e8122d6e6c4bac005d9d48d05bc6b8644304d31d850683082fc11e635436ef17",
+          "cosine": 0.43542651385652387
+        },
+        "[\"major-arcana\",\"6\",\"general\",null,\"tableu:major-arcana:6:general:0\"]": {
+          "promptTextHash": "3b002e4faf2e9273a268da60ec3210c971a1449b4199a034589a58876aae10a0",
+          "cosine": 0.4679768886177393
+        },
+        "[\"major-arcana\",\"7\",\"general\",null,\"tableu:major-arcana:7:general:0\"]": {
+          "promptTextHash": "c3a66165db8e8dba27e33c7539e26c6845fee5c7cd64d673dfd15f9d2b4d8a92",
+          "cosine": 0.40066687079778524
+        }
+      }
+    },
+    "REL05": {
+      "queryHash": "739377fba37ac3fec109288d4d2ffed604d036496cafa56d1d7ca9426308941f",
+      "candidates": {
+        "[\"triad\",\"empress-emperor-hierophant\",\"general\",null,\"tableu:triad:empress-emperor-hierophant:general:0\"]": {
+          "promptTextHash": "3c784dbb1ca488d1d6d862f340284e119a9a2bcfe0bb1bfe597fc7ba5b2a9ddc",
+          "cosine": 0.4782846681682903
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"parenting\",null,\"tableu:triad:empress-emperor-hierophant:parenting:1\"]": {
+          "promptTextHash": "29a349418ecfc698a72f09faf8bd34bd7617ea264b63e989a272cd653a4bcd47",
+          "cosine": 0.4709322644051308
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"leadership\",null,\"tableu:triad:empress-emperor-hierophant:leadership:2\"]": {
+          "promptTextHash": "109906a6a65ea767c2e0e6f363253e0ac3bc8060e5548103894b3e5324951d1c",
+          "cosine": 0.4605644243238537
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"creative\",null,\"tableu:triad:empress-emperor-hierophant:creative:3\"]": {
+          "promptTextHash": "8e1eaccd73638ea7557885dc6f67ba676378643ea6c1e4945f0cc7434b2cab64",
+          "cosine": 0.5257078487179592
+        },
+        "[\"triad\",\"empress-emperor-hierophant\",\"career\",null,\"tableu:triad:empress-emperor-hierophant:career:4\"]": {
+          "promptTextHash": "58fee3ace5797e6f59d6fdbe8bab2ab64112ea9724e61a7bca453b957245f692",
+          "cosine": 0.4082812334569786
+        },
+        "[\"fools-journey\",\"initiation\",\"general\",null,\"tableu:fools-journey:initiation:general:0\"]": {
+          "promptTextHash": "e8122d6e6c4bac005d9d48d05bc6b8644304d31d850683082fc11e635436ef17",
+          "cosine": 0.4918822979912251
+        },
+        "[\"dyad\",\"4-3\",\"general\",null,\"tableu:dyad:4-3:general:0\"]": {
+          "promptTextHash": "10d536b3731cea49367f4cf7f737e9739a72c0d217f8904b5dc0dbc45ba9fefd",
+          "cosine": 0.40381375914128675
+        },
+        "[\"dyad\",\"4-3\",\"creative\",null,\"tableu:dyad:4-3:creative:1\"]": {
+          "promptTextHash": "d1d5d3f9e4feb2f972990bfafd00538f0c67cc7aa87762ee21791d9303d20333",
+          "cosine": 0.577799697698734
+        },
+        "[\"triad\",\"empress-lovers-hierophant\",\"general\",[3,5],\"tableu:triad:empress-lovers-hierophant:general:0\"]": {
+          "promptTextHash": "b77c849a0ca460d2beaa6beaac18844bc9c7220016ac371276dd70d3c001cf36",
+          "cosine": 0.4739795611249372
+        },
+        "[\"major-arcana\",\"3\",\"general\",null,\"tableu:major-arcana:3:general:0\"]": {
+          "promptTextHash": "5ed9fc136a6e92cd45c75af5b798d3f4e9554558d2c40e9233517c6a3c24955c",
+          "cosine": 0.5759587774814487
+        },
+        "[\"major-arcana\",\"4\",\"general\",null,\"tableu:major-arcana:4:general:0\"]": {
+          "promptTextHash": "e37c4650ec70206e24a8b18cdfa7a97f80b2d0fc1f0dbf81d26f999d3ed48b02",
+          "cosine": 0.5193909563884846
+        },
+        "[\"major-arcana\",\"5\",\"general\",null,\"tableu:major-arcana:5:general:0\"]": {
+          "promptTextHash": "87372dbe8f77acf44ef849eadea82a611c1cd4d9d33cf00f15732e3a83004e39",
+          "cosine": 0.4727012390408913
+        }
+      }
+    },
+    "REL06": {
+      "queryHash": "b6568c743e2986f47b31ce05fdff2da1c7964bc7a6389b811612a0f8d2e28ba8",
+      "candidates": {
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]": {
+          "promptTextHash": "72408dfe3ff4f27fdd22eb5b49a92ee28cade4e30cf5c1f8e68e7538da8e832d",
+          "cosine": 0.5302803960553162
+        },
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]": {
+          "promptTextHash": "4e1de4d03006c59903b44d20a1419affd31a29d3567a3beafbd0f286a89883c5",
+          "cosine": 0.4782377453814811
+        },
+        "[\"suit-progression\",\"Pentacles:beginning\",\"general\",[\"ace of pentacles\",\"two of pentacles\",\"three of pentacles\"],\"tableu:suit-progression:Pentacles:beginning:general:0\"]": {
+          "promptTextHash": "3cdc79a3c3739183882203aef839369cbc7fb82da9fb78d1fb31de1d32fe37d8",
+          "cosine": 0.44054316621041084
+        }
+      }
+    },
+    "REL07": {
+      "queryHash": "3f0eeb1a9ec12af9858c4681cb44d33f873cabdd7dd0d639ce629219217db9e6",
+      "candidates": {
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]": {
+          "promptTextHash": "914696c0cb2bdb1ef438588d3928a07383515bede2e26e9f7aecfd47c3b76454",
+          "cosine": 0.6397301440897513
+        },
+        "[\"dyad\",\"13-17\",\"grief\",null,\"tableu:dyad:13-17:grief:1\"]": {
+          "promptTextHash": "828684cb3b091033e56a934e005c4d8bb379cd07168e7703f42a19f4d660794b",
+          "cosine": 0.6648451039627495
+        },
+        "[\"triad\",\"death-temperance-star\",\"general\",[13,17],\"tableu:triad:death-temperance-star:general:0\"]": {
+          "promptTextHash": "21ed4132e64a622a9b950b0f0db16fd68bf79e117740b00d7564ab7c14773fd0",
+          "cosine": 0.6011402144157465
+        },
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]": {
+          "promptTextHash": "5647461cff672b03bb367e78146fcfddc49a8d4e2444d8b84651ac3983473c6c",
+          "cosine": 0.6895415658898384
+        },
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]": {
+          "promptTextHash": "66fd27459aff4e48e572ead933c456c981c3ead9f73de8d6aafbf6c47fa1db1f",
+          "cosine": 0.5873101489246211
+        }
+      }
+    },
+    "REL08": {
+      "queryHash": "a95d67ead765269a77fceb9b3edeb49bd72789af5f6263cd99c31fee17884ea9",
+      "candidates": {
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]": {
+          "promptTextHash": "4dbb901129ea7327aa3f08aa6995980e57d6b4e0eb027d29b944d6764b3fd321",
+          "cosine": 0.47748830287962507
+        },
+        "[\"triad\",\"death-temperance-star\",\"grief\",null,\"tableu:triad:death-temperance-star:grief:1\"]": {
+          "promptTextHash": "007abd603689de7146d2921cb4630ab39a8e6e1e11553a93c65bc54c0a05ad46",
+          "cosine": 0.41006515399697313
+        },
+        "[\"triad\",\"death-temperance-star\",\"transition\",null,\"tableu:triad:death-temperance-star:transition:2\"]": {
+          "promptTextHash": "75aec46c3c04d8debda4c5fdbc0a6261d1d55b40b53f7cc66e86f7893544547e",
+          "cosine": 0.4453309484262873
+        },
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]": {
+          "promptTextHash": "71445592453a6e9f5ee143651009359955b47a88db261ace29b5058ee9ab266b",
+          "cosine": 0.4681439934802296
+        },
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]": {
+          "promptTextHash": "4e1de4d03006c59903b44d20a1419affd31a29d3567a3beafbd0f286a89883c5",
+          "cosine": 0.5145028015403372
+        },
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]": {
+          "promptTextHash": "4ce2481f6b83b6bc2a23ab5fa916307f5763b7cb63c87b57313a8a6831503ab2",
+          "cosine": 0.48485130128625586
+        },
+        "[\"dyad\",\"13-17\",\"grief\",null,\"tableu:dyad:13-17:grief:1\"]": {
+          "promptTextHash": "828684cb3b091033e56a934e005c4d8bb379cd07168e7703f42a19f4d660794b",
+          "cosine": 0.49046556179808737
+        },
+        "[\"dyad\",\"13-14\",\"general\",null,\"tableu:dyad:13-14:general:0\"]": {
+          "promptTextHash": "d842233c3518e6d7ba3ec4f0a679a80d058bb954d13aad1ade62e6212559b039",
+          "cosine": 0.5173790964300381
+        },
+        "[\"dyad\",\"13-14\",\"healing\",null,\"tableu:dyad:13-14:healing:1\"]": {
+          "promptTextHash": "51481108216d5caca7bd025f41fbfaf67e37318ffd081e1c929789f816d3e9bb",
+          "cosine": 0.5671047055746764
+        },
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]": {
+          "promptTextHash": "5647461cff672b03bb367e78146fcfddc49a8d4e2444d8b84651ac3983473c6c",
+          "cosine": 0.5280470119215884
+        },
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]": {
+          "promptTextHash": "72408dfe3ff4f27fdd22eb5b49a92ee28cade4e30cf5c1f8e68e7538da8e832d",
+          "cosine": 0.44577208988638595
+        },
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]": {
+          "promptTextHash": "66fd27459aff4e48e572ead933c456c981c3ead9f73de8d6aafbf6c47fa1db1f",
+          "cosine": 0.33508749876977234
+        }
+      }
+    },
+    "REL09": {
+      "queryHash": "cb046e990783c9f950c45d38bedf999d88020dfce50129f40d1765b0ad48a4dc",
+      "candidates": {
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]": {
+          "promptTextHash": "66fd27459aff4e48e572ead933c456c981c3ead9f73de8d6aafbf6c47fa1db1f",
+          "cosine": 0.43604958769263646
+        },
+        "[\"fools-journey\",\"culmination\",\"general\",null,\"tableu:fools-journey:culmination:general:0\"]": {
+          "promptTextHash": "2709189f6a341bd0e7a1d2cc4b3fd1a1770ce34189ec2d5cc37403ea20b71537",
+          "cosine": 0.44232754514622025
+        }
+      }
+    },
+    "REL10": {
+      "queryHash": "bb91e850a9fe614d9bf14c74f863e0e0a1544a0a1315ab3405644d6d97ddd909",
+      "candidates": {
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]": {
+          "promptTextHash": "5647461cff672b03bb367e78146fcfddc49a8d4e2444d8b84651ac3983473c6c",
+          "cosine": 0.3832430714903479
+        },
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]": {
+          "promptTextHash": "4e1de4d03006c59903b44d20a1419affd31a29d3567a3beafbd0f286a89883c5",
+          "cosine": 0.3573236478286717
+        },
+        "[\"court-lineage\",\"Cups:alliance\",\"general\",[\"queen of cups\",\"king of cups\"],\"tableu:court-lineage:Cups:alliance:general:0\"]": {
+          "promptTextHash": "48bcdbbe0d1d6e904cd6d51959b5eaf47b986cd329c5eede5258f0bda6df9711",
+          "cosine": 0.4138198646743185
+        }
+      }
+    }
+  }
+}

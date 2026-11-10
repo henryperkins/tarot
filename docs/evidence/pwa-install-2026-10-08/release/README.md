@@ -1,5 +1,9 @@
 # PR #102 release review
 
+Type: evidence
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 This follow-up reviews `04403a3` and remediates confirmed regressions before
 merging and deploying. The earlier [PR evidence](../fixes/README.md) remains
 historical evidence; the results below are from the release review.

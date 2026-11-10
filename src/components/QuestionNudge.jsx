@@ -1,5 +1,5 @@
 import { useSettledValue } from '../hooks/useSettledValue';
-import { QUESTION_NUDGES } from './questionField';
+import { QUESTION_NUDGES } from '../lib/questionQuality';
 
 /**
  * QuestionNudge - one ungraded line when the phrasing is hard to read for,

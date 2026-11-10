@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import { CaretDown, CaretUp } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
 import { OUTLINE_BUTTON_CLASS } from '../../styles/buttonClasses';
+import { META_LABEL_CLASS } from '../../styles/labelClasses';
 import { AMBER_CARD_CLASS } from '../../lib/journal/constants';
 import { EmptyJournalIllustration } from '../illustrations/EmptyJournalIllustration';
 import { AmberStarfield } from '../AmberStarfield';
@@ -30,7 +31,7 @@ function JournalEntryPreview() {
         className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-(--border-warm-subtle) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
       >
         <div className="space-y-1">
-          <p className="text-2xs uppercase tracking-[0.18em] text-muted">Journal entry preview</p>
+          <p className={`${META_LABEL_CLASS} text-muted`}>Journal entry preview</p>
           <p className="text-base font-semibold text-main">Daily check-in · Solo pull</p>
           <p className="text-sm text-muted">
             {isExpanded ? 'Hide details' : 'Expand to see cards and reflection'}
@@ -43,7 +44,7 @@ function JournalEntryPreview() {
       {isExpanded && (
         <div id={previewContentId} className="relative z-10 space-y-4 px-5 pb-5 pt-2">
           <div>
-            <p className="text-2xs uppercase tracking-[0.18em] text-muted">Cards drawn</p>
+            <p className={`${META_LABEL_CLASS} text-muted`}>Cards drawn</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="rounded-full border border-(--border-warm-light) bg-(--panel-dark-2) px-3 py-1 text-xs font-semibold text-main">
                 The Star · Upright
@@ -51,7 +52,7 @@ function JournalEntryPreview() {
             </div>
           </div>
           <div>
-            <p className="text-2xs uppercase tracking-[0.18em] text-muted">Reflection</p>
+            <p className={`${META_LABEL_CLASS} text-muted`}>Reflection</p>
             <p className="journal-prose mt-2 text-sm text-muted-high">
               Quiet progress feels steady today. Keep the intention simple, and let the next step reveal itself.
             </p>
@@ -69,12 +70,28 @@ export function JournalEmptyState({ shellClass, onStartReading }) {
     <div className={`${shellClass} animate-fade-in space-y-6 rounded-3xl p-8 text-center text-main`}>
       <AmberStarfield />
       <div className="relative z-10 space-y-6">
-        <EmptyJournalIllustration className="mx-auto mb-2 w-40" />
+        <EmptyJournalIllustration className="mx-auto mb-2 w-24 sm:w-32" />
         <div>
           <h2 className="text-2xl font-serif text-primary">Start your tarot journal</h2>
           <p className="journal-prose mt-1 text-sm text-muted sm:text-base">
             Track patterns across readings, revisit past insights, and watch your understanding deepen over time.
           </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => onStartReading()}
+            className={`${OUTLINE_BUTTON_CLASS} px-5 py-2.5 text-sm`}
+          >
+            Start a reading
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
+            className="inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-5 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_var(--primary-30)] transition hover:-translate-y-0.5 hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+          >
+            Try a guided draw
+          </button>
         </div>
         <div className="grid gap-3 text-left text-sm text-muted sm:grid-cols-3">
           <div className="flex items-start gap-2">
@@ -99,32 +116,8 @@ export function JournalEmptyState({ shellClass, onStartReading }) {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-left shadow-[0_14px_40px_-24px_rgba(0,0,0,0.75)]">
-          <p className="text-[0.78rem] uppercase tracking-[0.12em] text-muted mb-1">Example entry</p>
-          <div className="journal-prose flex flex-col gap-1 text-sm text-muted-high">
-            <p className="text-main font-semibold">Three-Card Story · Daily check-in</p>
-            <p>Question: &ldquo;What pattern is emerging for me this week?&rdquo;</p>
-            <p>Pull: The Star (upright), Six of Cups, Two of Wands</p>
-            <p className="italic text-muted">Reflection: Hope is back. Remember the plan from Tuesday and take the next step.</p>
-          </div>
-        </div>
         <JournalEntryPreview />
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-          <button
-            type="button"
-            onClick={() => onStartReading()}
-            className={`${OUTLINE_BUTTON_CLASS} px-5 py-2.5 text-sm`}
-          >
-            Start a reading
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/', { state: { focusSpread: true, initialQuestion: 'What pattern is emerging for me this week?' } })}
-            className="inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-5 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_var(--primary-30)] transition hover:-translate-y-0.5 hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-          >
-            Try a guided draw
-          </button>
-        </div>
+
       </div>
     </div>
   );

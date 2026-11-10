@@ -50,7 +50,8 @@ describe('final narrative preference contract', () => {
           assert.doesNotMatch(systemPrompt, /120–160 words per card/);
         }
         assert.match(userPrompt, /Use invitational language/);
-        assert.match(userPrompt, /choices or decisions shape outcomes/);
+        assert.match(userPrompt, /querent's choices shaping outcomes/);
+        assert.match(userPrompt, /Never treat card-implied habits or events as done or missing/);
         assert.match(userPrompt, /CARD NAME CONTRACT/);
         assert.match(systemPrompt, /same language as the user's question/);
       });
@@ -95,9 +96,10 @@ describe('final narrative preference contract', () => {
   });
 
   it('keeps saved interests subordinate to the current question and reflections', () => {
-    const { systemPrompt, userPrompt } = buildPrompt({ focusAreas: ['Love & relationships'] });
+    const { systemPrompt, userPrompt } = buildPrompt({ focusAreas: ['Career & purpose', 'Love & relationships'] });
     const focusSection = userPrompt.match(/\*\*Focus Areas\*\*:\n([\s\S]*?)\n\n/)?.[1] || '';
-    assert.match(focusSection, /Love & relationships/);
+    assert.match(focusSection, /Career & purpose/);
+    assert.doesNotMatch(userPrompt, /Love & relationships/);
     assert.match(focusSection, /current question and (?:current )?reflections.*(?:priority|override|precedence)/i);
     assert.match(focusSection, /only when.*relevant/i);
     assert.doesNotMatch(userPrompt, /Keep the reading anchored in:|Return to these themes|question and focus areas as the throughline/);

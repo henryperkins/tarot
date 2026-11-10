@@ -1,3 +1,9 @@
+# PWA install fixes evidence - PR #102
+
+Type: evidence
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 This isolated remediation of PR #102 addresses all seven findings and the related focus, error, spacing, and iOS reminder issues from the review of `44c3523`. The remediation was prepared on `fix/pr102-install-controls` for PR #102; this evidence does not represent a deployment.
 
 | Finding | Result |

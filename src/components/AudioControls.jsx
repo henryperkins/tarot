@@ -82,7 +82,7 @@ export function AudioControls({ className = '' }) {
   return (
     <div className={`${controlShellClass} ${className}`}>
       <div className="mb-3">
-        <h3 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.12em] text-accent sm:text-sm">
+        <h3 className="flex items-center gap-2 font-serif text-xs uppercase tracking-widest text-accent sm:text-sm">
           <SpeakerHigh className="h-4 w-4" aria-hidden="true" />
           Audio Settings
         </h3>

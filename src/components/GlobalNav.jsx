@@ -1,86 +1,39 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Sparkle } from './icons';
-import { Icon } from './Icon';
-import { ICON_SIZES } from './iconConstants';
+import { useLayoutEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { TableuLogo } from './TableuLogo';
+import { DestinationNav } from './DestinationNav';
 import { UserMenu } from './UserMenu';
-import { JournalBookIcon } from './JournalIcons';
+import { useHandsetLayout } from '../hooks/useHandsetLayout';
+import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
+import { syncDestinationPlacement } from '../lib/destinationPlacement';
+import '../styles/navigation.css';
 
-export function GlobalNav({ condensed = false, withUserChip = false }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  // Precise route detection: only mark active when on actual route
-  const isJournal = location.pathname.startsWith('/journal');
-  const isReading = location.pathname === '/' || location.pathname === '';
-  // Don't mark either as active on other pages (pricing, account, share, etc.)
-  const showActiveState = isReading || isJournal;
-
-  const baseButtonClasses = `
-    inline-flex items-center justify-center gap-1.5
-    rounded-full font-semibold
-    transition-all touch-manipulation
-    focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/80
-    focus-visible:ring-offset-2 focus-visible:ring-offset-main
-    active:scale-[0.97]
-    min-h-touch
-  `;
-
-  const buttonPadding = condensed
-    ? 'px-3 sm:px-3.5 py-2 text-xs-plus'
-    : 'px-3.5 sm:px-5 py-2.5 text-sm';
-  // Reserve readable destinations; guest actions wrap below them when space is tight.
-  const buttonWidth = condensed
-    ? 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-36 sm:basis-auto'
-    : 'w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-40 sm:basis-auto';
-
-  const activeClasses = 'bg-primary text-surface shadow-sm shadow-primary/30 active:bg-primary/90';
-  const inactiveClasses = `
-    bg-surface text-main border border-secondary/50
-    hover:bg-surface-muted hover:text-main hover:border-secondary/60
-    active:bg-surface-muted
-  `;
+/** The shared app-bar row: brand, left-clustered destinations, account. */
+export function GlobalNav({ destinations = true, withUserChip = true, installInMenu = false, onRequestExit }) {
+  const isHandset = useHandsetLayout();
+  const keyboardOffset = useKeyboardOffset({ setCssVar: false });
+  const navRef = useRef(null);
+  useLayoutEffect(() => {
+    const page = navRef.current?.closest('[data-app-chrome]');
+    if (page) syncDestinationPlacement(page, isHandset, keyboardOffset > 0);
+  }, [isHandset, keyboardOffset, destinations]);
 
   return (
-    <nav
-      aria-label="Primary navigation"
-      className={`flex ${condensed ? 'justify-start mb-1.5' : 'justify-center mb-3'} animate-fade-in w-full`}
-    >
-      <div className={`w-full max-w-full ${withUserChip ? 'flex flex-wrap items-center gap-2' : ''} sm:block`}>
-        <div
-          className={`
-            grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] items-center w-full max-w-full
-            ${withUserChip ? 'flex-[1_1_14rem]' : ''}
-            sm:inline-flex sm:flex-nowrap
-            ${condensed ? 'gap-1 sm:gap-1.5 px-1.5 py-1 shadow-inner shadow-main/20' : 'gap-1.5 sm:gap-2 px-1.5 py-1'}
-            rounded-full sm:bg-surface/80 bg-surface/60 border border-transparent sm:border-accent/20
-          `}
-        >
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isReading ? activeClasses : inactiveClasses}`}
-            aria-current={showActiveState && isReading ? 'page' : undefined}
-          >
-            <Icon icon={Sparkle} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
-            <span>Reading</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/journal')}
-            className={`${baseButtonClasses} ${buttonPadding} ${buttonWidth} ${showActiveState && isJournal ? activeClasses : inactiveClasses}`}
-            aria-current={showActiveState && isJournal ? 'page' : undefined}
-          >
-            <Icon icon={JournalBookIcon} size={condensed ? ICON_SIZES.md : ICON_SIZES.lg} decorative />
-            <span>Journal</span>
-          </button>
+    <div ref={navRef} className="site-nav" data-handset={String(isHandset)}>
+      <Link to="/" className="site-nav__brand" aria-label="Tableu home">
+        <TableuLogo variant="icon" size={30} decorative />
+        <span className="site-nav__wordmark" aria-hidden="true">Tableu</span>
+      </Link>
+      {destinations && (
+        <div className="destination-group destination-group--header" data-destination-group="header" hidden inert>
+          <DestinationNav placement="header" />
         </div>
-
-        {withUserChip && (
-          <div className="ml-auto max-w-full sm:hidden">
-            <UserMenu condensed />
-          </div>
-        )}
-      </div>
-    </nav>
+      )}
+      {withUserChip && (
+        <div className="site-nav__account">
+          <UserMenu condensed installInMenu={installInMenu} onRequestExit={onRequestExit} />
+        </div>
+      )}
+    </div>
   );
 }

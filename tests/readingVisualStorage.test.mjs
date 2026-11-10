@@ -1,3 +1,4 @@
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +26,7 @@ function entry() { return { id: 'local-one', readingResultId: binding.readingRes
 function ledger() { return { ...createVisualCueLedger(binding), raw, analyzedEnd: raw.length, ledgerRevision: 1,
   cues: [{ id: 'literal', passage: { start: 9, end: raw.length, quote: raw.slice(9) }, targets: [] }] }; }
 
-test('pending local save restores later source-bound snapshot with private resume excluded from entry', () => {
+test('pending local save restores later source-bound snapshot with private resume excluded from entry', async () => {
   const store = storage();
   const namespace = visualStorageNamespace(null);
   const saved = persistJournalWithVisualFallback({ key: 'tarot_journal', entries: [entry()], storage: store });
@@ -36,7 +37,7 @@ test('pending local save restores later source-bound snapshot with private resum
   assert.equal(hydrateEntryVisuals(restored).status, 'pending');
   assert.equal(JSON.stringify(restored).includes('private-token'), false);
   assert.equal(readVisualResume({ namespace, readingResultId: 'result', binding, storage: store }).visualJobToken, 'private-token');
-  assert.equal(patchSavedVisualSnapshot({ namespace, binding, cueLedger: ledger(), status: 'complete', storage: store }), 1);
+  assert.equal(await patchSavedVisualSnapshot({ namespace, binding, cueLedger: ledger(), status: 'complete', storage: store }), 1);
   const completed = hydrateEntryVisuals(JSON.parse(store.getItem('tarot_journal'))[0]);
   assert.equal(completed.status, 'complete');
   assert.equal(completed.ledgerRevision, 1);
@@ -44,34 +45,34 @@ test('pending local save restores later source-bound snapshot with private resum
   assert.equal(readVisualResume({ namespace, readingResultId: 'result', binding, storage: store }), null);
 });
 
-test('account namespaces cannot read or patch another account and clearing resumes preserves entries', () => {
+test('account namespaces cannot read or patch another account and clearing resumes preserves entries', async () => {
   const store = storage();
   const a = visualStorageNamespace('a'), b = visualStorageNamespace('b');
   store.setItem('tarot_journal_a', JSON.stringify([entry()]));
   writeVisualResume({ namespace: a, binding, resumeHandle: { visualBinding: binding, visualJobToken: 'private' }, storage: store });
   assert.equal(readVisualResume({ namespace: b, readingResultId: 'result', binding, storage: store }), null);
-  assert.equal(patchSavedVisualSnapshot({ namespace: b, binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: b, binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
   clearVisualResumes(a, store);
   assert.equal(readVisualResume({ namespace: a, readingResultId: 'result', binding, storage: store }), null);
   assert.equal(JSON.parse(store.getItem('tarot_journal_a'))[0].personalReading, raw);
 });
 
-test('deleted entries never reappear from late results', () => {
+test('deleted entries never reappear from late results', async () => {
   const store = storage();
   store.setItem('tarot_journal', '[]');
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
   assert.equal(store.getItem('tarot_journal'), '[]');
 });
 
-test('late source replacement, wrong prose and old ledger revisions cannot mutate a saved entry', () => {
+test('late source replacement, wrong prose and old ledger revisions cannot mutate a saved entry', async () => {
   const store = storage();
   store.setItem('tarot_journal', JSON.stringify([entry()]));
   const original = store.getItem('tarot_journal');
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding: { ...binding, sourceRevision: 1 }, cueLedger: ledger(), storage: store }), 0);
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: { ...ledger(), raw: 'Wrong', analyzedEnd: 5 }, storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding: { ...binding, sourceRevision: 1 }, cueLedger: ledger(), storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: { ...ledger(), raw: 'Wrong', analyzedEnd: 5 }, storage: store }), 0);
   assert.equal(store.getItem('tarot_journal'), original);
-  patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store });
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: createVisualCueLedger(binding), status: 'pending', storage: store }), 0);
+  await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store });
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: createVisualCueLedger(binding), status: 'pending', storage: store }), 0);
 });
 
 test('expired or mismatched resume handles disappear without removing saved prose', () => {
@@ -93,12 +94,12 @@ test('optional cue quota failure retries prose save and private storage failure 
   assert.equal(JSON.parse(store.getItem('tarot_journal'))[0].visual, undefined);
 });
 
-test('late cue storage errors preserve the original cache; true prose quota failures are reported', () => {
+test('late cue storage errors preserve the original cache; true prose quota failures are reported', async () => {
   const store = storage();
   store.setItem('tarot_journal', JSON.stringify([entry()]));
   const before = store.getItem('tarot_journal');
   store.setItem = () => { throw new Error('Quota'); };
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), storage: store }), 0);
   assert.equal(store.getItem('tarot_journal'), before);
   assert.equal(persistJournalWithVisualFallback({ key: 'tarot_journal', entries: [entry()], storage: store }).ok, false);
 });
@@ -163,7 +164,7 @@ test('replay handles are owner/entry scoped and attempt guarded while legacy ori
   assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }).attemptId, 'attempt-1');
   // An original terminal callback for another binding cannot delete either handle.
   store.setItem('tarot_journal', JSON.stringify([entry()]));
-  patchSavedVisualSnapshot({ namespace: 'anon', binding: { ...binding, sourceRevision: 3 }, cueLedger: ledger(), status: 'complete', storage: store });
+  await patchSavedVisualSnapshot({ namespace: 'anon', binding: { ...binding, sourceRevision: 3 }, cueLedger: ledger(), status: 'complete', storage: store });
   assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }).attemptId, 'attempt-1');
   assert.equal(removeVisualResume({ namespace: 'anon', readingResultId: 'result', binding: { ...binding, sourceRevision: 3 }, storage: store }), false);
   assert.ok(readVisualResume({ namespace: 'anon', readingResultId: 'result', binding, storage: store }));
@@ -230,7 +231,7 @@ test('saved visual recovery offers an explicit retry only for eligible failed, e
   assert.deepEqual(view({ ...SAVED, cards: Array.from({ length: 21 }, () => SAVED.cards[0]) }), { phase: 'unavailable', canRetry: false });
 });
 
-test('guarded commits patch only an existing matching entry for the current owner, source and state version', () => {
+test('guarded commits patch only an existing matching entry for the current owner, source and state version', async () => {
   const store = storage();
   const current = { ...SAVED, visualState: { attachmentStatus: 'failed', retryStatus: 'unavailable', sourceFingerprint: FP, stateVersion: 1, reason: null } };
   const sourceKey = savedVisualSourceKey(current);
@@ -240,18 +241,18 @@ test('guarded commits patch only an existing matching entry for the current owne
   store.setItem('tarot_journal', JSON.stringify([current]));
   store.setItem('tarot_journal_other', JSON.stringify([current]));
   const before = store.getItem('tarot_journal');
-  assert.equal(commit({ isCurrent: () => false }).committed, false);
-  assert.equal(commit({ expectedStateVersion: 0 }).reason, 'stale-state');
+  assert.equal((await commit({ isCurrent: () => false })).committed, false);
+  assert.equal((await commit({ expectedStateVersion: 0 })).reason, 'stale-state');
   store.setItem('tarot_journal', JSON.stringify([{ ...current, reflections: { ...current.reflections, Overall: 'Edited' } }]));
-  assert.equal(commit().reason, 'source-changed');
+  assert.equal((await commit()).reason, 'source-changed');
   store.setItem('tarot_journal', JSON.stringify([{ ...current, personalReading: `${SAVED_RAW} More.` }]));
-  assert.equal(commit().reason, 'source-changed');
+  assert.equal((await commit()).reason, 'source-changed');
   // Deleted entries are never upserted or recreated.
   store.setItem('tarot_journal', '[]');
-  assert.equal(commit().reason, 'entry-not-found');
+  assert.equal((await commit()).reason, 'entry-not-found');
   assert.equal(store.getItem('tarot_journal'), '[]');
   store.setItem('tarot_journal', before);
-  const result = commit();
+  const result = await commit();
   assert.equal(result.committed, true);
   assert.equal(result.entry.visualState.stateVersion, 2);
   assert.equal(JSON.parse(store.getItem('tarot_journal'))[0].personalReading, SAVED_RAW);
@@ -290,7 +291,7 @@ test('a validated replay successor becomes the static snapshot; late originals a
     assert.equal(readVisualResume({ namespace: 'anon', entryId: SAVED.id, storage: store }), null);
     const afterAdoption = store.getItem('tarot_journal');
     // A late original callback (old binding) cannot overwrite the successor.
-    assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding: original, cueLedger: prior, status: 'complete', storage: store }), 0);
+    assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding: original, cueLedger: prior, status: 'complete', storage: store }), 0);
     // A duplicate completion (another tab) is a no-op once the successor is adopted.
     assert.equal((await adoptSavedVisualReplay({ namespace: 'anon', entryId: SAVED.id, resume, cueLedger: successor, status: 'complete', storage: store })).adopted, false);
     assert.equal(store.getItem('tarot_journal'), afterAdoption);
@@ -387,7 +388,7 @@ test('snapshot events and stored ledgers project only public cue data while pres
     const base = ledger();
     const leaky = { ...base, visualJobToken: 'secret-token-e', attemptId: 'secret-attempt-e',
       cues: base.cues.map(cue => ({ ...cue, visualJobId: 'secret-job-e', resumeHandle: { visualJobToken: 'secret-token-f' } })) };
-    assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: leaky, status: 'complete', storage: store }), 1);
+    assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: leaky, status: 'complete', storage: store }), 1);
     assert.equal(events.length, 1);
     const serialized = JSON.stringify(events) + store.getItem('tarot_journal');
     assert.equal(/secret-/.test(serialized), false);
@@ -438,11 +439,11 @@ test('a claimed replay fences late original-stream patches even while the origin
   const pendingReplay = { ...entry(), visualState: { attachmentStatus: 'pending', retryStatus: 'pending', sourceFingerprint: FP, stateVersion: 1, reason: null } };
   store.setItem('tarot_journal', JSON.stringify([pendingReplay]));
   const before = store.getItem('tarot_journal');
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 0);
   assert.equal(store.getItem('tarot_journal'), before);
   // Without a replay claim the same original update is still accepted.
   store.setItem('tarot_journal', JSON.stringify([entry()]));
-  assert.equal(patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 1);
+  assert.equal(await patchSavedVisualSnapshot({ namespace: 'anon', binding, cueLedger: ledger(), status: 'complete', storage: store }), 1);
 });
 
 test('cloud polling covers only pending durable work and never terminal or complete states', () => {
@@ -627,3 +628,5 @@ test('model consent off preserves cached accepted cues and private handles witho
   assert.deepEqual(hydrateEntryVisuals(readSavedVisualEntry({ namespace: 'anon', entryId: SAVED.id, storage: store })).snapshot, visual.snapshot);
   assert.equal(readVisualResume({ namespace: 'anon', readingResultId: original.readingResultId, binding: original, storage: store }).visualJobToken, 'retained-private-token');
 });
+
+test.beforeEach(t => installJournalLocks(t));

@@ -98,14 +98,14 @@ test('Claude follow-up failure releases reservation without a paid fallback', as
 for (const stream of [false, true]) {
   test(`Claude repairs an undrawn card before follow-up delivery (${stream ? 'SSE' : 'JSON'})`, async t => {
     const configured = await setup();
-    const inputs = responses(t, [result({ response: 'The Tower says to rebuild your painting routine.', memory: null }), result(null, answer)]);
+    const inputs = responses(t, [result({ response: 'The Tower appears in your spread.', memory: null }), result(null, answer)]);
     const waits = [];
     const response = await onRequestPost({ request: request(stream), env: configured, ctx: { waitUntil: promise => waits.push(promise) } });
     const delivered = await response.text();
     await Promise.all(waits);
     assert.equal(response.status, 200);
     assert.match(delivered, /small creative step/);
-    assert.ok(!delivered.includes('The Tower says'));
+    assert.ok(!delivered.includes('The Tower appears'));
     assert.deepEqual(inputs.map(input => input.task), ['followup', 'followup-repair']);
     assert.ok(inputs.every(input => input.url === 'https://claude.test/v1/generate'));
   });

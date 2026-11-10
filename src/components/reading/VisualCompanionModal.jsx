@@ -2,9 +2,9 @@ import { useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { Sparkle, X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
-import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
+import { Sparkle } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export const VISUAL_COMPANION_MODAL_TITLE_ID = 'visual-companion-modal-title';
 const DESCRIPTION_ID = 'visual-companion-modal-description';
@@ -12,12 +12,9 @@ const DESCRIPTION_ID = 'visual-companion-modal-description';
 /**
  * Dialog shell for the Visual Companion Studio.
  *
- * Stays mounted while `shouldShowVisualCompanion` is true and toggles visibility
- * instead of unmounting, the same way FollowUpModal does. That matters here: the
- * studio's children auto-start paid generation on mount, portal the hero
- * background into #app-bg, and poll long-running video jobs with no way to
- * cancel them server-side. Unmounting on close would orphan those jobs and
- * re-trigger generation on every reopen.
+ * The caller mounts the studio on its first explicit open. It then toggles
+ * visibility so closing preserves the user's artwork, settings and any manual
+ * generation already in progress. Mounting never starts generation by itself.
  */
 export function VisualCompanionModal({
   isOpen,
@@ -62,8 +59,9 @@ export function VisualCompanionModal({
     <div
       className={overlayClasses}
       aria-hidden={!isOpen}
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"
@@ -75,19 +73,12 @@ export function VisualCompanionModal({
         tabIndex={-1}
         inert={!isOpen || undefined}
       >
-        <button
-          type="button"
+        <CloseButton
+          label="Close visual companion studio"
           onClick={onClose}
-          className={clsx(
-            'absolute top-[min(.75rem,12px)] right-[min(.75rem,12px)] z-20 p-[min(.5rem,8px)] min-w-touch min-h-touch flex items-center justify-center',
-            'text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors touch-manipulation',
-            FOCUS_RING_ACCENT_50,
-            FOCUS_RING_OFFSET_MAIN
-          )}
-          aria-label="Close visual companion studio"
-        >
-          <X className="h-[min(1.25rem,20px)] w-[min(1.25rem,20px)]" aria-hidden="true" />
-        </button>
+          className="absolute top-[min(.75rem,12px)] right-[min(.75rem,12px)] z-20"
+          iconClassName="h-[min(1.25rem,20px)] w-[min(1.25rem,20px)]"
+        />
 
         <div
           role="region"
@@ -105,12 +96,12 @@ export function VisualCompanionModal({
                 <span className="min-w-0">Visual Companion Studio</span>
               </h2>
               {modeLabel ? (
-                <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-2xs sm:text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                <span className="max-w-full rounded-full border border-secondary/40 bg-surface/70 px-3 py-1 text-sm font-semibold uppercase tracking-[0.08em] text-muted">
                   {modeLabel}
                 </span>
               ) : null}
             </div>
-            <p id={DESCRIPTION_ID} className="wrap-anywhere text-xs sm:text-sm text-muted mt-2">{message}</p>
+            <p id={DESCRIPTION_ID} className="wrap-anywhere text-sm text-muted mt-2">{message}</p>
           </div>
 
           <div

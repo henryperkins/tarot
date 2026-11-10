@@ -1,0 +1,33 @@
+{
+  "unchangedDefaultThresholds": true,
+  "environmentOverridesRemoved": [
+    "NARRATIVE_MIN_SPINE_PASS_RATE",
+    "NARRATIVE_MIN_CARD_COVERAGE",
+    "NARRATIVE_MAX_DETERMINISTIC_ISSUES",
+    "NARRATIVE_MAX_MISSING_AGENCY",
+    "NARRATIVE_MAX_FLAGGED_SAMPLES",
+    "NARRATIVE_MAX_HALLUCINATIONS",
+    "NARRATIVE_MAX_HARSH_TONE",
+    "NARRATIVE_MAX_MISSING_SUPPORTIVE",
+    "NARRATIVE_MAX_QUESTION_UNADDRESSED",
+    "NARRATIVE_MAX_TEMPLATED_REPETITION",
+    "NARRATIVE_MIN_RUBRIC_ACCURACY",
+    "NARRATIVE_MIN_RUBRIC_COHERENCE",
+    "NARRATIVE_MIN_RUBRIC_AGENCY",
+    "NARRATIVE_MIN_RUBRIC_COMPASSION"
+  ],
+  "results": [
+    {
+      "name": "metrics",
+      "code": 0,
+      "startedAt": "2026-10-24T00:47:55.464Z",
+      "finishedAt": "2026-10-24T00:47:55.912Z"
+    },
+    {
+      "name": "gate",
+      "code": 0,
+      "startedAt": "2026-10-24T00:47:55.913Z",
+      "finishedAt": "2026-10-24T00:47:56.008Z"
+    }
+  ]
+}

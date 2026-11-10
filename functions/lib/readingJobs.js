@@ -20,6 +20,8 @@ import { getVisualCueReadiness } from './visualCueProvider.js';
 import { getVisualInitialReadiness, prepareVisualInitialAdmission } from './readingVisualAdmission.js';
 import { hasWebVisualCapability } from './readingVisualWebAdmission.js';
 
+import { ReadingCardResolutionError, resolveReadingCards } from './readingCardResolution.js';
+
 const DO_ORIGIN = 'https://reading-jobs';
 
 function jobStub(env, jobId) {
@@ -54,6 +56,13 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
   const schemaResult = safeParseReadingRequest(payload);
   if (!schemaResult.success) {
     return { ok: false, status: 400, error: schemaResult.error || 'Invalid reading request payload.' };
+  }
+
+  try {
+    resolveReadingCards(schemaResult.data.cardsInfo, schemaResult.data.deckStyle || schemaResult.data.spreadInfo?.deckStyle || 'rws-1909');
+  } catch (error) {
+    if (!(error instanceof ReadingCardResolutionError)) throw error;
+    return { ok: false, status: 400, error: error.message, code: error.code };
   }
 
   const jobId = crypto.randomUUID();

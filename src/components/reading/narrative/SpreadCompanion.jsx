@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { createBackdropHandler, useModalA11y } from '../../../hooks/useModalA11y';
+import { useModalA11y } from '../../../hooks/useModalA11y';
 import { CardTouchArt } from './CardTouchArt';
 import { useNarrativeCardFocus, useNarrativeCardFocusApi } from './narrativeFocusContext.js';
 import { railColumns } from './spreadCompanionLayout';
@@ -49,6 +49,8 @@ export function SpreadCompanion({ variant = 'rail' }) {
   return (
     <aside
       className={`spread-companion spread-companion--${variant}`}
+      data-app-secondary={variant === 'rail' ? '2' : undefined}
+      data-chrome-min-width="1180"
       aria-label="Your cards"
       data-count={cards.length}
       data-cols={variant === 'rail' ? railColumns(cards.length) : undefined}
@@ -237,7 +239,7 @@ function GestureCompanion({ focus, api }) {
         }}>Open {card.name}</button>;
     })}
   </div> : null;
-  return <aside ref={root} className="gesture-companion" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
+  return <aside ref={root} className="gesture-companion" data-app-secondary="2" data-chrome-min-width="1100" aria-label="Your cards" data-calm={calm ? 'true' : undefined}>
     <ol data-gesture-shelf className="gesture-shelf" style={{ '--shelf-count': cards.length, '--shelf-columns': Math.min(cards.length, 5) }}>
       {cards.map(card => {
         const introduced = state.introduced.includes(card.occurrenceId);
@@ -261,7 +263,8 @@ function GestureCompanion({ focus, api }) {
     </ol>
     {mobileInspection ? <div className="gesture-inspection-placeholder" aria-hidden="true" /> : null}
     {mobileInspection ? createPortal(
-      <div className="reading-personal-context__overlay" onClick={createBackdropHandler(closeInspection)}>
+      <div className="reading-personal-context__overlay">
+        <div data-modal-backdrop aria-hidden="true" className="reading-personal-context__backdrop" onClick={closeInspection} />
         <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}
           className="reading-personal-context__dialog gesture-inspection-dialog">
           <div className="reading-personal-context__header">

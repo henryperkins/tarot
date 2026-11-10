@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "corpusId": "graph-rag-relevance-v1",
+  "description": "Fixed relevance qualification corpus for GraphRAG lexical and semantic-primary scoring.",
+  "cases": [
+    {
+      "id": "REL01",
+      "fixtureClass": "relevant_paraphrase",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "Death", "number": 13, "position": "Past", "orientation": "Upright" },
+        { "card": "Temperance", "number": 14, "position": "Present", "orientation": "Upright" },
+        { "card": "The Star", "number": 17, "position": "Future", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "How can I move through sorrow toward quiet renewal?",
+      "expectedRelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]",
+        "[\"triad\",\"death-temperance-star\",\"transition\",null,\"tableu:triad:death-temperance-star:transition:2\"]",
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]",
+        "[\"dyad\",\"13-14\",\"general\",null,\"tableu:dyad:13-14:general:0\"]",
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]"
+      ],
+      "judgmentRationale": "The Healing Arc triad and Death/Temperance/Star passages directly address moving from sorrow and ending into patient integration and quiet renewal; the shadow variant is context-mismatched and gated."
+    },
+    {
+      "id": "REL02",
+      "fixtureClass": "multilingual_retrieval",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "Death", "number": 13, "position": "Past", "orientation": "Upright" },
+        { "card": "Temperance", "number": 14, "position": "Present", "orientation": "Upright" },
+        { "card": "The Star", "number": 17, "position": "Future", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "悲しみのあとに静かな再生へ向かうにはどうすればよいですか？",
+      "expectedRelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]",
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]",
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]",
+        "[\"triad\",\"death-temperance-star\",\"transition\",null,\"tableu:triad:death-temperance-star:transition:2\"]"
+      ],
+      "judgmentRationale": "A non-English query about moving toward quiet renewal after sorrow has zero English lexical overlap with the English registry; semantic similarity must carry general Healing Arc and Star passages above the 0.3 threshold without admitting non-matching context variants."
+    },
+    {
+      "id": "REL03",
+      "fixtureClass": "short_word_plural",
+      "deck": "rws-1909",
+      "spreadKey": "fiveCard",
+      "cards": [
+        { "card": "The Empress", "number": 3, "position": "Situation", "orientation": "Upright" },
+        { "card": "The Emperor", "number": 4, "position": "Challenge", "orientation": "Upright" },
+        { "card": "The Hierophant", "number": 5, "position": "Foundation", "orientation": "Upright" },
+        { "card": "Justice", "number": 11, "position": "Outcome", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "How can I find better jobs and set clear boundaries while working?",
+      "expectedRelevantCandidateIds": [
+        "[\"triad\",\"empress-emperor-hierophant\",\"career\",null,\"tableu:triad:empress-emperor-hierophant:career:4\"]",
+        "[\"triad\",\"empress-emperor-hierophant\",\"general\",null,\"tableu:triad:empress-emperor-hierophant:general:0\"]",
+        "[\"major-arcana\",\"4\",\"general\",null,\"tableu:major-arcana:4:general:0\"]",
+        "[\"major-arcana\",\"11\",\"general\",null,\"tableu:major-arcana:11:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"triad\",\"empress-emperor-hierophant\",\"parenting\",null,\"tableu:triad:empress-emperor-hierophant:parenting:1\"]",
+        "[\"triad\",\"empress-emperor-hierophant\",\"creative\",null,\"tableu:triad:empress-emperor-hierophant:creative:3\"]",
+        "[\"dyad\",\"4-3\",\"creative\",null,\"tableu:dyad:4-3:creative:1\"]"
+      ],
+      "judgmentRationale": "Plural/inflected terms (jobs->job, boundaries->boundary, working->work) classify the query as career and match workplace/structure passages while parenting and creative variants are gated."
+    },
+    {
+      "id": "REL04",
+      "fixtureClass": "exact_context_unrelated",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "The Lovers", "number": 6, "position": "Present", "orientation": "Upright" },
+        { "card": "The Chariot", "number": 7, "position": "Action", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "I feel bereft after this loss.",
+      "expectedRelevantCandidateIds": [],
+      "expectedIrrelevantCandidateIds": [
+        "[\"fools-journey\",\"initiation\",\"general\",null,\"tableu:fools-journey:initiation:general:0\"]",
+        "[\"major-arcana\",\"6\",\"general\",null,\"tableu:major-arcana:6:general:0\"]",
+        "[\"major-arcana\",\"7\",\"general\",null,\"tableu:major-arcana:7:general:0\"]"
+      ],
+      "judgmentRationale": "Although 'loss' classifies the reading context as grief, the drawn cards (Lovers and Chariot, initiation stage) contain no grief-specific passage and no lexical match to 'bereft' or 'loss'; context classification alone must not grant a passing relevance score."
+    },
+    {
+      "id": "REL05",
+      "fixtureClass": "negated_excluded_topic",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "The Empress", "number": 3, "position": "Self", "orientation": "Upright" },
+        { "card": "The Emperor", "number": 4, "position": "Other", "orientation": "Upright" },
+        { "card": "The Hierophant", "number": 5, "position": "Bond", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "I am not asking about quitting my job; how can I nurture creative art at home?",
+      "expectedRelevantCandidateIds": [
+        "[\"triad\",\"empress-emperor-hierophant\",\"creative\",null,\"tableu:triad:empress-emperor-hierophant:creative:3\"]",
+        "[\"dyad\",\"4-3\",\"creative\",null,\"tableu:dyad:4-3:creative:1\"]",
+        "[\"major-arcana\",\"3\",\"general\",null,\"tableu:major-arcana:3:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"triad\",\"empress-emperor-hierophant\",\"career\",null,\"tableu:triad:empress-emperor-hierophant:career:4\"]",
+        "[\"triad\",\"empress-emperor-hierophant\",\"parenting\",null,\"tableu:triad:empress-emperor-hierophant:parenting:1\"]"
+      ],
+      "judgmentRationale": "Career is explicitly excluded in the opening clause while creative expression ('creative art') is the positive intent; the career triad variant must be gated out and creative passages selected."
+    },
+    {
+      "id": "REL06",
+      "fixtureClass": "mixed_topic",
+      "deck": "rws-1909",
+      "spreadKey": "fiveCard",
+      "cards": [
+        { "card": "Temperance", "number": 14, "position": "Present", "orientation": "Upright" },
+        { "card": "Ace of Pentacles", "suit": "Pentacles", "rank": "Ace", "number": 1, "position": "Seed", "orientation": "Upright" },
+        { "card": "Two of Pentacles", "suit": "Pentacles", "rank": "Two", "number": 2, "position": "Balance", "orientation": "Upright" },
+        { "card": "Three of Pentacles", "suit": "Pentacles", "rank": "Three", "number": 3, "position": "Craft", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "How can I balance my career workload while protecting my health and rest?",
+      "expectedRelevantCandidateIds": [
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]",
+        "[\"suit-progression\",\"Pentacles:beginning\",\"general\",[\"ace of pentacles\",\"two of pentacles\",\"three of pentacles\"],\"tableu:suit-progression:Pentacles:beginning:general:0\"]",
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [],
+      "judgmentRationale": "A mixed career-and-health question draws Temperance and the Pentacles beginning progression; both moderation/balance (Temperance) and grounded practical foundation (Pentacles progression) are relevant."
+    },
+    {
+      "id": "REL07",
+      "fixtureClass": "partial_triad",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "Death", "number": 13, "position": "Ending", "orientation": "Upright" },
+        { "card": "The Star", "number": 17, "position": "Renewal", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "What helps me let go and trust hope after an ending?",
+      "expectedRelevantCandidateIds": [
+        "[\"dyad\",\"13-17\",\"general\",null,\"tableu:dyad:13-17:general:0\"]",
+        "[\"triad\",\"death-temperance-star\",\"general\",[13,17],\"tableu:triad:death-temperance-star:general:0\"]",
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]",
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"dyad\",\"13-17\",\"grief\",null,\"tableu:dyad:13-17:grief:1\"]"
+      ],
+      "judgmentRationale": "Death and The Star form a high-significance dyad (13-17) and a 2-of-3 partial Healing Arc triad (missing Temperance), plus priority-7 individual Majors; all general variants are relevant while the partial triad retains its absent-card metadata."
+    },
+    {
+      "id": "REL08",
+      "fixtureClass": "cross_deck_projection",
+      "deck": "thoth-a1",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "Death", "number": 13, "position": "Past", "orientation": "Upright" },
+        { "card": "Art", "number": 14, "position": "Present", "orientation": "Upright" },
+        { "card": "The Star", "number": 17, "position": "Future", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "How does alchemical integration transform an ending into renewal?",
+      "expectedRelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"general\",null,\"tableu:triad:death-temperance-star:general:0\"]",
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]",
+        "[\"major-arcana\",\"14\",\"general\",null,\"tableu:major-arcana:14:general:0\"]"
+      ],
+      "expectedIrrelevantCandidateIds": [
+        "[\"triad\",\"death-temperance-star\",\"grief\",null,\"tableu:triad:death-temperance-star:grief:1\"]",
+        "[\"triad\",\"death-temperance-star\",\"shadow\",null,\"tableu:triad:death-temperance-star:shadow:3\"]"
+      ],
+      "judgmentRationale": "In Thoth, Temperance is Art (14) and passages project to archetypal cross-deck prose without RWS visual anchors; general triad, integration journey, and Major 14 are directly relevant."
+    },
+    {
+      "id": "REL09",
+      "fixtureClass": "common_word_collision",
+      "deck": "rws-1909",
+      "spreadKey": "single",
+      "cards": [
+        { "card": "The Star", "number": 17, "position": "Focus", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "What interests me when I look at my partner?",
+      "expectedRelevantCandidateIds": [],
+      "expectedIrrelevantCandidateIds": [
+        "[\"major-arcana\",\"17\",\"general\",null,\"tableu:major-arcana:17:general:0\"]",
+        "[\"fools-journey\",\"culmination\",\"general\",null,\"tableu:fools-journey:culmination:general:0\"]"
+      ],
+      "judgmentRationale": "The word 'interests' must not collide with 'rest' and 'partner' must not collide with 'art'; The Star's general passage has zero lexical overlap with this question and should stay below the lexical threshold."
+    },
+    {
+      "id": "REL10",
+      "fixtureClass": "unrelated_weak_floor",
+      "deck": "rws-1909",
+      "spreadKey": "threeCard",
+      "cards": [
+        { "card": "Queen of Cups", "suit": "Cups", "rank": "Queen", "number": 13, "position": "Left", "orientation": "Upright" },
+        { "card": "King of Cups", "suit": "Cups", "rank": "King", "number": 14, "position": "Center", "orientation": "Upright" },
+        { "card": "Death", "number": 13, "position": "Right", "orientation": "Upright" }
+      ],
+      "acceptedQuery": "How could I arrange labels in a small collection?",
+      "expectedRelevantCandidateIds": [],
+      "expectedIrrelevantCandidateIds": [
+        "[\"court-lineage\",\"Cups:alliance\",\"general\",[\"queen of cups\",\"king of cups\"],\"tableu:court-lineage:Cups:alliance:general:0\"]",
+        "[\"major-arcana\",\"13\",\"general\",null,\"tableu:major-arcana:13:general:0\"]",
+        "[\"fools-journey\",\"integration\",\"general\",null,\"tableu:fools-journey:integration:general:0\"]"
+      ],
+      "judgmentRationale": "An object-sorting question about arranging labels in a small collection is unrelated to Cups emotional stewardship or Death's ending archetype; at most one candidate may survive via the labeled weak-match floor (belowRelevanceThreshold: true), and zero candidates should be strongly selected."
+    }
+  ]
+}

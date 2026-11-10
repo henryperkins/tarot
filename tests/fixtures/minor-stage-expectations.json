@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "stages": [
+    {
+      "suit": "Wands",
+      "stage": "beginning",
+      "members": [
+        {
+          "rank": 1,
+          "name": "Ace of Wands",
+          "role": "Inspired beginning"
+        },
+        {
+          "rank": 2,
+          "name": "Two of Wands",
+          "role": "Strategic planning"
+        },
+        {
+          "rank": 3,
+          "name": "Three of Wands",
+          "role": "Confident expansion"
+        }
+      ]
+    },
+    {
+      "suit": "Wands",
+      "stage": "challenge",
+      "members": [
+        {
+          "rank": 4,
+          "name": "Four of Wands",
+          "role": "Joyful milestone"
+        },
+        {
+          "rank": 5,
+          "name": "Five of Wands",
+          "role": "Conflict & competition"
+        },
+        {
+          "rank": 6,
+          "name": "Six of Wands",
+          "role": "Public recognition"
+        },
+        {
+          "rank": 7,
+          "name": "Seven of Wands",
+          "role": "Standing your ground"
+        }
+      ]
+    },
+    {
+      "suit": "Wands",
+      "stage": "mastery",
+      "members": [
+        {
+          "rank": 8,
+          "name": "Eight of Wands",
+          "role": "Rapid progress"
+        },
+        {
+          "rank": 9,
+          "name": "Nine of Wands",
+          "role": "Wounded but standing"
+        },
+        {
+          "rank": 10,
+          "name": "Ten of Wands",
+          "role": "Carrying the full weight"
+        }
+      ]
+    },
+    {
+      "suit": "Cups",
+      "stage": "beginning",
+      "members": [
+        {
+          "rank": 1,
+          "name": "Ace of Cups",
+          "role": "Overflowing heart"
+        },
+        {
+          "rank": 2,
+          "name": "Two of Cups",
+          "role": "Mutual devotion"
+        },
+        {
+          "rank": 3,
+          "name": "Three of Cups",
+          "role": "Joyful community"
+        }
+      ]
+    },
+    {
+      "suit": "Cups",
+      "stage": "challenge",
+      "members": [
+        {
+          "rank": 4,
+          "name": "Four of Cups",
+          "role": "Contemplative withdrawal"
+        },
+        {
+          "rank": 5,
+          "name": "Five of Cups",
+          "role": "Mourning what is lost"
+        },
+        {
+          "rank": 6,
+          "name": "Six of Cups",
+          "role": "Sweet memory"
+        },
+        {
+          "rank": 7,
+          "name": "Seven of Cups",
+          "role": "Fantasy & illusion"
+        }
+      ]
+    },
+    {
+      "suit": "Cups",
+      "stage": "mastery",
+      "members": [
+        {
+          "rank": 8,
+          "name": "Eight of Cups",
+          "role": "Conscious release"
+        },
+        {
+          "rank": 9,
+          "name": "Nine of Cups",
+          "role": "Contentment achieved"
+        },
+        {
+          "rank": 10,
+          "name": "Ten of Cups",
+          "role": "Blessed union"
+        }
+      ]
+    },
+    {
+      "suit": "Swords",
+      "stage": "beginning",
+      "members": [
+        {
+          "rank": 1,
+          "name": "Ace of Swords",
+          "role": "Cutting truth"
+        },
+        {
+          "rank": 2,
+          "name": "Two of Swords",
+          "role": "Stalemate"
+        },
+        {
+          "rank": 3,
+          "name": "Three of Swords",
+          "role": "Necessary grief"
+        }
+      ]
+    },
+    {
+      "suit": "Swords",
+      "stage": "challenge",
+      "members": [
+        {
+          "rank": 4,
+          "name": "Four of Swords",
+          "role": "Contemplative pause"
+        },
+        {
+          "rank": 5,
+          "name": "Five of Swords",
+          "role": "Pyrrhic win"
+        },
+        {
+          "rank": 6,
+          "name": "Six of Swords",
+          "role": "Moving toward calm"
+        },
+        {
+          "rank": 7,
+          "name": "Seven of Swords",
+          "role": "Cunning or theft"
+        }
+      ]
+    },
+    {
+      "suit": "Swords",
+      "stage": "mastery",
+      "members": [
+        {
+          "rank": 8,
+          "name": "Eight of Swords",
+          "role": "Bound by thought"
+        },
+        {
+          "rank": 9,
+          "name": "Nine of Swords",
+          "role": "Anguish"
+        },
+        {
+          "rank": 10,
+          "name": "Ten of Swords",
+          "role": "Painful ending"
+        }
+      ]
+    },
+    {
+      "suit": "Pentacles",
+      "stage": "beginning",
+      "members": [
+        {
+          "rank": 1,
+          "name": "Ace of Pentacles",
+          "role": "Seed of prosperity"
+        },
+        {
+          "rank": 2,
+          "name": "Two of Pentacles",
+          "role": "Adaptive balance"
+        },
+        {
+          "rank": 3,
+          "name": "Three of Pentacles",
+          "role": "Recognized expertise"
+        }
+      ]
+    },
+    {
+      "suit": "Pentacles",
+      "stage": "challenge",
+      "members": [
+        {
+          "rank": 4,
+          "name": "Four of Pentacles",
+          "role": "Security or greed"
+        },
+        {
+          "rank": 5,
+          "name": "Five of Pentacles",
+          "role": "Material/spiritual poverty"
+        },
+        {
+          "rank": 6,
+          "name": "Six of Pentacles",
+          "role": "Balanced giving"
+        },
+        {
+          "rank": 7,
+          "name": "Seven of Pentacles",
+          "role": "Evaluating progress"
+        }
+      ]
+    },
+    {
+      "suit": "Pentacles",
+      "stage": "mastery",
+      "members": [
+        {
+          "rank": 8,
+          "name": "Eight of Pentacles",
+          "role": "Dedicated practice"
+        },
+        {
+          "rank": 9,
+          "name": "Nine of Pentacles",
+          "role": "Refined independence"
+        },
+        {
+          "rank": 10,
+          "name": "Ten of Pentacles",
+          "role": "Generational wealth"
+        }
+      ]
+    }
+  ]
+}

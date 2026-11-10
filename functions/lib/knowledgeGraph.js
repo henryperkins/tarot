@@ -1,3 +1,5 @@
+import { renderSuitProgressionHighlight } from './minorPatternHighlights.js';
+import { groupGraphCardIdentities, graphMemberIndices } from './graphCardMembership.js';
 // functions/lib/knowledgeGraph.js
 // Pattern detection logic for archetypal multi-card combinations
 // Version 1.0.0
@@ -101,7 +103,7 @@ function deckAwareName(card, fallback, deckStyle = 'rws-1909') {
     if (typeof card?.number === 'number' && meta.majorAliases?.[card.number]) {
       // Shared deck resolution accounts for the Strength/Justice VIII/XI swap.
       // Marseille labels already include an RWS suffix; add it only once below.
-      const alias = getDeckAlias({ ...card, name: baseLabel }, deckStyle).split(' (RWS:')[0];
+      const alias = getDeckAlias({ ...card, name: card.canonicalName || card.canonicalKey || baseLabel }, deckStyle).split(' (RWS:')[0];
       if (!alias) {
         return baseLabel;
       }
@@ -207,9 +209,11 @@ function isCourtCard(card) {
 export function detectFoolsJourneyStage(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   // Filter to Major Arcana only
-  const majorCards = cards.filter(
-    (c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21
+  const majorSlots = groupGraphCardIdentities(cards, { deckStyle }).members.map(member => member.card).filter(
+    (c) => Number.isInteger(c?.number) && c.number >= 0 && c.number <= 21
   );
+  // Duplicate slots count in telemetry, but cannot strengthen membership.
+  const majorCards = [...new Map(majorSlots.map((card) => [card.number, card])).values()];
 
   // Need at least 1 Major to provide any archetypal context
   if (majorCards.length < 1) return null;
@@ -260,7 +264,8 @@ export function detectFoolsJourneyStage(cards, options = {}) {
     // Override with actual detected data from this spread:
     cardCount: stageCards.length,
     cards: stageCards, // Actual cards from spread (not static reference)
-    totalMajors: majorCards.length,
+    matchedCardIndices: graphMemberIndices(cards, stageCards, { deckStyle }),
+    totalMajors: majorSlots.length,
     significance,
     displayNames: stageCards.map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
   };
@@ -283,11 +288,20 @@ export function detectFoolsJourneyStage(cards, options = {}) {
  * const triads = detectArchetypalTriads(cards);
  * // Returns: [{ id: 'death-temperance-star', isComplete: true, ... }]
  */
+/** Return a stable numeric identity for exactly two distinct canonical Majors. */
+export function getMajorPairKey(cardNumbers) {
+  if (!Array.isArray(cardNumbers) || cardNumbers.length !== 2
+    || !cardNumbers.every((number) => Number.isInteger(number) && number >= 0 && number <= 21)
+    || cardNumbers[0] === cardNumbers[1]) return null;
+  return [...cardNumbers].sort((a, b) => a - b).join('-');
+}
+
 export function detectArchetypalTriads(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
-  const numbers = cards
-    .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
+  const majorMembers = groupGraphCardIdentities(cards, { deckStyle }).members;
+  const numbers = majorMembers.map(member => member.card)
+    .filter((c) => Number.isInteger(c.number) && c.number >= 0 && c.number <= 21)
     .map((c) => c.number);
 
   if (numbers.length < 2) return [];
@@ -305,26 +319,21 @@ export function detectArchetypalTriads(cards, options = {}) {
       // Generate narrative based on which cards are present
       let narrative = triad.description;
       if (!isComplete) {
-        // Build partial narrative key
-        const pairKey = matches
-          .map((n) => {
-            const index = triad.cards.indexOf(n);
-            return triad.names[index].toLowerCase().replace(/^the /, '');
-          })
-          .sort()
-          .join('-');
-
-        narrative = triad.partialNarrative[pairKey] || triad.description;
+        const pairKey = getMajorPairKey(matches);
+        narrative = triad.partialNarrative?.[pairKey]
+          || `${matches.map((n) => triad.names[triad.cards.indexOf(n)]).join(' and ')} form a partial pattern; interpret only these drawn cards.`;
       }
 
       detected.push({
         id: triad.id,
         theme: triad.theme,
         matchedCards: matches,
+        matchedCardIndices: majorMembers.filter(member => matches.includes(member.card.number)).flatMap(member => member.indices).sort((a, b) => a - b),
+        missingCards: triad.cards.filter((number) => !matches.includes(number)),
         matchedNames: matches.map((n) => {
           const index = triad.cards.indexOf(n);
           const fallbackName = triad.names[index];
-          const card = cards.find((c) => c.number === n);
+          const card = majorMembers.find(member => member.card.number === n)?.card;
           return deckAwareName(card, fallbackName, deckStyle);
         }),
         completeness: Math.round(completeness * 100),
@@ -364,8 +373,9 @@ export function detectArchetypalTriads(cards, options = {}) {
 export function detectArchetypalDyads(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   // Extract Major Arcana numbers
-  const numbers = cards
-    .filter((c) => typeof c.number === 'number' && c.number >= 0 && c.number <= 21)
+  const majorMembers = groupGraphCardIdentities(cards, { deckStyle }).members;
+  const numbers = majorMembers.map(member => member.card)
+    .filter((c) => Number.isInteger(c.number) && c.number >= 0 && c.number <= 21)
     .map((c) => c.number);
 
   if (numbers.length < 2) return [];
@@ -377,12 +387,13 @@ export function detectArchetypalDyads(cards, options = {}) {
     if (dyad.cards.every((num) => numbers.includes(num))) {
       const names = dyad.cards.map((num, index) => {
         const fallback = dyad.names[index];
-        const card = cards.find((c) => c.number === num);
+        const card = majorMembers.find(member => member.card.number === num)?.card;
         return deckAwareName(card, fallback, deckStyle);
       });
 
       detected.push({
         cards: dyad.cards,
+        matchedCardIndices: majorMembers.filter(member => dyad.cards.includes(member.card.number)).flatMap(member => member.indices).sort((a, b) => a - b),
         names,
         theme: dyad.theme,
         category: dyad.category,
@@ -412,7 +423,7 @@ export function detectSuitProgressions(cards, options = {}) {
   const deckStyle = options.deckStyle || 'rws-1909';
   if (!Array.isArray(cards) || cards.length < 2) return [];
 
-  const minorCards = cards
+  const minorCards = groupGraphCardIdentities(cards, { deckStyle }).members.map(member => member.card)
     .map((card) => {
       if (!card) return null;
       const suit = resolveSuit(card);
@@ -482,6 +493,7 @@ export function detectSuitProgressions(cards, options = {}) {
       stageCardCount: stageCards.length,
       cards: suitCards,
       stageCards,
+      matchedCardIndices: graphMemberIndices(cards, stageCards, { deckStyle }),
       ranks: suitCards.map((c) => c.rankValue).sort((a, b) => a - b),
       stageRanks: stageCards.map((c) => c.rankValue).sort((a, b) => a - b),
       distribution: {
@@ -502,7 +514,7 @@ function detectCourtLineages(cards, options = {}) {
   }
 
   const deckStyle = options.deckStyle || 'rws-1909';
-  const courtCards = cards.filter((card) => isCourtCard(card));
+  const courtCards = groupGraphCardIdentities(cards, { deckStyle }).members.map(member => member.card).filter((card) => isCourtCard(card));
   if (courtCards.length < 2) {
     return [];
   }
@@ -538,6 +550,7 @@ function detectCourtLineages(cards, options = {}) {
       significance,
       count: list.length,
       cards: sorted,
+      matchedCardIndices: graphMemberIndices(cards, list, { deckStyle }),
       ranks: sorted.map((card) => deckAwareCourtRank(card, deckStyle)),
       narrative: narrative || `Multiple ${deckAwareSuitLabel(suit, deckStyle)} court cards are collaborating.`
     });
@@ -555,15 +568,16 @@ function detectThothEpithets(cards, options = {}) {
   const entries = [];
   const suitMap = new Map();
 
-  cards.forEach((card) => {
+  groupGraphCardIdentities(cards, { deckStyle }).members.forEach(({ card, indices }) => {
     const rawLabel = (card?.card || card?.name || '').trim();
     if (!rawLabel) return;
-    const canonicalLabel = canonicalizeCardName(rawLabel, deckStyle) || rawLabel;
+    const canonicalLabel = card.canonicalName || canonicalizeCardName(rawLabel, deckStyle) || rawLabel;
     const info = THOTH_MINOR_TITLES[canonicalLabel] || THOTH_MINOR_TITLES[rawLabel];
     if (!info) return;
 
     const entry = {
       card: deckAwareName(card, canonicalLabel, deckStyle),
+      matchedCardIndices: indices,
       title: info.title,
       suit: info.suit || card.suit || 'Minor',
       rank: info.rank || card.rankValue || null,
@@ -593,7 +607,8 @@ function detectThothEpithets(cards, options = {}) {
       suit,
       titles: list.map((item) => item.entry.title),
       description: buildThothSuitNarrative(suit, list.map((item) => item.entry)),
-      cards: list.map((item) => item.originalCard)
+      cards: list.map((item) => item.originalCard),
+      matchedCardIndices: list.flatMap((item) => item.entry.matchedCardIndices)
     });
   });
 
@@ -622,7 +637,7 @@ function detectMarseillePipPatterns(cards, options = {}) {
   }
 
   const rankBuckets = new Map();
-  cards.forEach((card) => {
+  groupGraphCardIdentities(cards, { deckStyle }).members.forEach(({ card }) => {
     const rankValue = normalizeRankValue(card);
     if (!rankValue || !MARSEILLE_NUMERICAL_THEMES[rankValue]) return;
     if (!rankBuckets.has(rankValue)) {
@@ -639,8 +654,8 @@ function detectMarseillePipPatterns(cards, options = {}) {
       rankValue: rank,
       keyword: theme.keyword,
       description: theme.description,
-      geometry: theme.geometry,
-      cards: list
+      cards: list,
+      matchedCardIndices: graphMemberIndices(cards, list, { deckStyle })
     });
   });
 
@@ -816,8 +831,10 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
         narratives.push({
           priority: 1,
           type: 'complete-triad',
-          text: `**${triad.theme}** ${triad.matchedNames.join(', ')} form a complete narrative arc—${triad.narrative}`,
+          text: `**${triad.theme}** ${triad.matchedNames.join(', ')} — possible shared theme: ${triad.narrative}. Apply the drawn positions and orientations without assuming chronological order.`,
           cards: triad.matchedCards,
+          matchedCardIndices: triad.matchedCardIndices,
+          isComplete: true,
           id: triad.id
         });
       });
@@ -834,6 +851,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       type: 'fools-journey',
       text: `**Fool's Journey — ${journeyStageTitle(journey)}** ${journey.cardCount} cards from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
+      matchedCardIndices: journey.matchedCardIndices || [],
       stage: journey.stage
     });
   }
@@ -849,6 +867,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       type: 'fools-journey',
       text: `**Fool's Journey — ${journeyStageTitle(journey)}** ${journey.cardCount} card${journey.cardCount > 1 ? 's' : ''} from this stage${journeyNames} suggest ${journey.readingSignificance.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
+      matchedCardIndices: journey.matchedCardIndices || [],
       stage: journey.stage
     });
   }
@@ -864,6 +883,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       type: 'fools-journey-minimal',
       text: `**${journeyNames}** appears in the ${journeyStageLabel(journey)} stage of the Fool's Journey, touching on themes of ${journey.theme.toLowerCase()}.`,
       cards: journey.cards.map((c) => c.number),
+      matchedCardIndices: journey.matchedCardIndices || [],
       stage: journey.stage
     });
   }
@@ -877,19 +897,14 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       .forEach((prog) => {
         const suitLabel = prog.displaySuit || prog.suit;
         const label = `${suitLabel} ${stageDisplay[prog.stage] || prog.stage}`;
-        const cardList = prog.stageCards
-          .map((c) => deckAwareName(c, getCardLabel(c), deckStyle))
-          .join(', ');
-        const themeDescriptor = typeof prog.theme === 'string'
-          ? prog.theme.toLowerCase()
-          : 'this stage';
-        const significanceText = prog.readingSignificance ? `${prog.readingSignificance} ` : '';
-        const stageNarrative = prog.narrative || '';
+        const rendered = renderSuitProgressionHighlight(prog, { deckStyle });
+        if (!rendered) return;
         narratives.push({
           priority: 3,
           type: 'suit-progression',
-          text: `**${label}** ${cardList} highlight the ${themeDescriptor} arc of this suit. ${significanceText}${stageNarrative}`.trim(),
+          text: `**${label}** ${rendered.text}`,
           cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
+          matchedCardIndices: prog.matchedCardIndices || [],
           suit: prog.suit,
           stage: prog.stage
         });
@@ -905,12 +920,13 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           .map((card) => deckAwareName(card, getCardLabel(card), deckStyle))
           .join(', ');
         const heading = lineage.significance === 'council' ? 'court council' : 'court alliance';
-        const summary = lineage.narrative || lineage.theme;
+        const summary = `Possible dialogue about ${lineage.theme}. Explore how the drawn court figures’ approaches interact as symbolic roles; do not infer actual people, family history, or events.`;
         narratives.push({
           priority: lineage.significance === 'council' ? 3 : 4,
           type: 'court-lineage',
           text: `**${lineage.displaySuit} ${heading}** ${cardList} — ${summary}`.trim(),
           cards: lineage.cards.map((card) => card.number ?? card.rankValue ?? null),
+          matchedCardIndices: lineage.matchedCardIndices || [],
           suit: lineage.suit
         });
       });
@@ -928,7 +944,8 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           priority: 3,
           type: 'thoth-suit',
           text: `**Thoth ${highlight.suit} Titles** ${highlight.description} Cards: ${cardList}.`,
-          cards: highlight.cards.map((card) => card.number ?? card.rankValue ?? null)
+          cards: highlight.cards.map((card) => card.number ?? card.rankValue ?? null),
+          matchedCardIndices: highlight.matchedCardIndices || []
         });
       });
   } else if (patterns.thothEpithets?.entries?.length) {
@@ -939,7 +956,8 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           priority: 4,
           type: 'thoth-epithet',
           text: `**${entry.card} → ${entry.title}** ${entry.description}${entry.astrology ? ` (${entry.astrology})` : ''}.`,
-          cards: [entry.rank]
+          cards: [entry.rank],
+          matchedCardIndices: entry.matchedCardIndices || []
         });
       });
   }
@@ -955,6 +973,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           type: 'high-dyad',
           text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
           cards: dyad.cards,
+          matchedCardIndices: dyad.matchedCardIndices || [],
           category: dyad.category
         });
       });
@@ -969,8 +988,10 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
         narratives.push({
           priority: 5,
           type: 'partial-triad',
-          text: `**${triad.theme} (partial)** ${triad.matchedNames.join(' + ')}—${triad.narrative}`,
+          text: `**${triad.theme} (partial)** ${triad.matchedNames.join(' + ')} — possible shared theme: ${triad.narrative.replace(/[.!?]$/, '')}. Missing arc members are not drawn evidence. Apply the drawn positions and orientations without assuming chronological order.`,
           cards: triad.matchedCards,
+          matchedCardIndices: triad.matchedCardIndices,
+          isComplete: false,
           id: triad.id
         });
       });
@@ -985,15 +1006,14 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
       .forEach((prog) => {
         const suitLabel = prog.displaySuit || prog.suit;
         const label = `${suitLabel} ${stageDisplay[prog.stage] || prog.stage} (emerging)`;
-        const cardList = prog.stageCards
-          .map((c) => deckAwareName(c, getCardLabel(c), deckStyle))
-          .join(' + ');
-        const insight = prog.readingSignificance || prog.narrative || '';
+        const rendered = renderSuitProgressionHighlight(prog, { deckStyle });
+        if (!rendered) return;
         narratives.push({
           priority: 6,
           type: 'emerging-suit-progression',
-          text: `**${label}** ${cardList} hint that ${insight}`,
+          text: `**${label}** ${rendered.text}`,
           cards: prog.stageCards.map((card) => card.number ?? card.rankValue ?? null),
+          matchedCardIndices: prog.matchedCardIndices || [],
           suit: prog.suit,
           stage: prog.stage
         });
@@ -1012,8 +1032,9 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
         narratives.push({
           priority: 6,
           type: 'marseille-numerology',
-          text: `**Pip ${cluster.rankValue} — ${cluster.keyword}** ${cluster.description} (Geometry: ${cluster.geometry}). Cards: ${cardList}.`,
-          cards: cluster.cards.map((card) => card.rankValue ?? card.number ?? null)
+          text: `**Pip ${cluster.rankValue} — ${cluster.keyword}** ${cluster.description} Cards: ${cardList}.`,
+          cards: cluster.cards.map((card) => card.rankValue ?? card.number ?? null),
+          matchedCardIndices: cluster.matchedCardIndices || []
         });
       });
   }
@@ -1029,11 +1050,18 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
           type: 'medium-high-dyad',
           text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
           cards: dyad.cards,
+          matchedCardIndices: dyad.matchedCardIndices || [],
           category: dyad.category
         });
       });
   }
 
   // Sort by priority and limit to top 5
-  return narratives.sort((a, b) => a.priority - b.priority).slice(0, 5);
+  return narratives.sort((a, b) => a.priority - b.priority).slice(0, 5).map((highlight) => {
+    if (highlight.type === 'complete-triad' || highlight.type === 'partial-triad') return highlight;
+    return {
+      ...highlight,
+      text: `${highlight.text.replace(/^(\*\*.*?\*\*)\s*/, '$1 Possible shared theme: ')} Apply the drawn positions and orientations without assuming chronological order.`
+    };
+  });
 }

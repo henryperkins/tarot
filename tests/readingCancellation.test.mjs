@@ -38,9 +38,12 @@ function fixture({ active = true, rejectCancellation = false } = {}) {
   const inFlightReadingRef = { current: active ? { controller } : null };
   const readingJobRef = { current: active ? { jobId: 'job-1', jobToken: 'test-token', cursor: 8, readingKey: 'reading-1' } : {} };
   const cursorPersistRef = { current: { lastPersistAt: 100, eventCount: 8, lastJobId: 'job-1' } };
+  const narrationFallbackPendingRef = { current: active };
+  const narrationFallbackTextRef = { current: active ? 'Previous owner reading.' : '' };
   const clearReadingJob = callback('clearReadingJob', { readingJobRef, cursorPersistRef,
     safeSessionStorage: { removeItem: key => removedKeys.push(key) }, readingJobStorageKey: 'tarot:reading-job' });
   const cancelInFlightReading = callback('cancelInFlightReading', { inFlightReadingRef, readingJobRef, clearReadingJob,
+    narrationFallbackPendingRef, narrationFallbackTextRef,
     resetNarrationStream: () => { state.narrationReset = true; },
     fetch: (url, options) => { requests.push({ url, ...options });
       return rejectCancellation ? Promise.reject(new Error('offline')) : Promise.resolve(new Response()); } });
@@ -51,7 +54,8 @@ function fixture({ active = true, rejectCancellation = false } = {}) {
   const setters = Object.fromEntries(['personalReading', 'isGenerating', 'isReadingStreamActive', 'narrativePhase', 'srAnnouncement']
     .map(key => [`set${key[0].toUpperCase()}${key.slice(1)}`, value => { state[key] = value; }]));
   const cancel = callback('cancelPersonalReading', { cancelInFlightReading, gestureSourceRef, updateGestureSource, ...setters });
-  return { cancel, state, controller, gestureSourceRef, inFlightReadingRef, readingJobRef, cursorPersistRef, requests, removedKeys };
+  return { cancel, state, controller, gestureSourceRef, inFlightReadingRef, readingJobRef, cursorPersistRef,
+    narrationFallbackPendingRef, narrationFallbackTextRef, requests, removedKeys };
 }
 
 for (const rejectCancellation of [false, true]) {
@@ -69,6 +73,8 @@ for (const rejectCancellation of [false, true]) {
     assert.equal(f.state.isReadingStreamActive, false);
     assert.equal(f.state.narrativePhase, 'idle');
     assert.equal(f.state.narrationReset, true);
+    assert.equal(f.narrationFallbackPendingRef.current, false, 'cancelled output must not be scheduled by a later effect');
+    assert.equal(f.narrationFallbackTextRef.current, '');
     assert.deepEqual(f.requests, [{ url: '/api/tarot-reading/jobs/job-1/cancel', method: 'POST', headers: { 'X-Job-Token': 'test-token' } }]);
     assert.deepEqual(f.readingJobRef.current, { jobId: null, jobToken: null, cursor: 0, readingKey: null });
     assert.deepEqual(f.cursorPersistRef.current, { lastPersistAt: 0, eventCount: 0, lastJobId: null });

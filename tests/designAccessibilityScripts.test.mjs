@@ -47,10 +47,29 @@ describe('Design accessibility scripts', () => {
     );
   });
 
+  it('ignores backdrops hidden from assistive technology', () => {
+    const issues = scanContent(`
+      <div className="overlay">
+        <div aria-hidden="true" className="absolute inset-0" onClick={onClose} />
+        <div aria-hidden={true} className="backdrop" onClick={close} />
+      </div>
+    `);
+
+    assert.deepStrictEqual(
+      issues.filter((issue) => issue.checkName === 'divAsButton'),
+      []
+    );
+  });
+
   it('flags clickable divs without keyboard semantics', () => {
     const issues = scanContent('<div onClick={openPanel}>Open</div>');
     assert.strictEqual(issues.length, 1);
     assert.strictEqual(issues[0].checkName, 'divAsButton');
+  });
+
+  it('still flags a clickable wrapper that is exposed to assistive technology', () => {
+    const issues = scanContent('<div className="overlay" aria-hidden={!isOpen} onClick={createBackdropHandler(onClose)} />');
+    assert.deepStrictEqual(issues.map((issue) => issue.checkName), ['divAsButton']);
   });
 
   it('keeps text-2xs aligned to the 11px contract', async () => {

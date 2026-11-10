@@ -7,6 +7,10 @@
   /* Typography */
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-serif: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  /* Uppercase label tracking: the label role, and the spaced voice of the
+     coach, journal, ritual and share labels. */
+  --tracking-label: 0.18em;
+  --tracking-label-wide: 0.3em;
 
   /* Neutral Foundation (warmer, softer tones) */
   --color-black: #0F0E13;
@@ -24,6 +28,10 @@
   --color-gold-soft: #E8DAC3;
   --color-silver: #A8A39E;
   --color-silver-rgb: 168 163 158;
+
+  /* Fixed logo variants retain their colors across themes and contrast preferences. */
+  --brand-logo-ink: #1A1A1A;
+  --brand-logo-ivory: #E8DAC3;
 
   /* Suit Colors (Subtle & Harmonious) */
   --color-wands: #C9A876;

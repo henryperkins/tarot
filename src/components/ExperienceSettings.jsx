@@ -5,6 +5,7 @@ import { GlowToggle } from './GlowToggle';
 import { HelperToggle } from './HelperToggle';
 import { usePreferences } from '../contexts/PreferencesContext';
 import { useLocation } from '../hooks/useLocation';
+import { REVERSAL_FRAMEWORK_OPTIONS } from '../lib/preferenceStorage.js';
 
 /**
  * ExperienceSettings - Non-audio reading preferences
@@ -95,7 +96,7 @@ export function ExperienceSettings({ className = '' }) {
   return (
     <div className={`${controlShellClass} ${className}`}>
       <div className="mb-3">
-        <h3 className="text-xs sm:text-sm font-serif text-accent uppercase tracking-[0.12em] flex items-center gap-2">
+        <h3 className="text-xs sm:text-sm font-serif text-accent uppercase tracking-widest flex items-center gap-2">
           <Stack className="w-4 h-4" aria-hidden="true" />
           Experience Preferences
         </h3>
@@ -186,14 +187,9 @@ export function ExperienceSettings({ className = '' }) {
               }}
               aria-describedby={getId('reversal-description')}
             >
-              <option value="auto">Auto (recommended)</option>
-              <option value="blocked">Blocked energy</option>
-              <option value="delayed">Timing & delays</option>
-              <option value="internalized">Internal process</option>
-              <option value="contextual">Context-based</option>
-              <option value="shadow">Shadow Integration (Jungian)</option>
-              <option value="mirror">Mirror / reflection</option>
-              <option value="potentialBlocked">Unrealized potential</option>
+              {REVERSAL_FRAMEWORK_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
         </div>

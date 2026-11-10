@@ -1,13 +1,14 @@
 {
-  "generatedAt": "2026-10-10T04:57:53.110Z",
+  "generatedAt": "2026-11-06T14:18:09.736Z",
   "sourceFile": "data/evaluations/narrative-samples.json",
-  "artifactsDirectory": "data/evaluations/runs/2026-10-10T04-57-53.109Z-Pvi8MF",
+  "artifactsDirectory": "data/evaluations/runs/2026-11-06T14-18-09.735Z-er9dHB",
   "totalSamples": 11,
   "spinePassRate": 1,
   "avgCardCoverage": 1,
   "deterministicLanguageCount": 0,
   "missingAgencyCount": 0,
   "hallucinationCount": 0,
+  "undrawnCardAssertionCount": 0,
   "suitCountMismatchCount": 0,
   "harshToneCount": 0,
   "missingSupportiveToneCount": 0,
@@ -28,8 +29,8 @@
       "question": "What guiding energy should I bring into this new leadership role?",
       "spine": {
         "isValid": true,
-        "totalSections": 5,
-        "completeSections": 4,
+        "totalSections": 4,
+        "completeSections": 3,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -38,6 +39,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -50,7 +52,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 22,
+        "sentenceCount": 15,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -71,8 +73,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 6,
-        "completeSections": 6,
-        "incompleteSections": 0
+        "completeSections": 5,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -80,6 +82,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -92,7 +95,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 43,
+        "sentenceCount": 30,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -112,8 +115,8 @@
       "question": "What should I know about launching my creative project this quarter?",
       "spine": {
         "isValid": true,
-        "totalSections": 6,
-        "completeSections": 4,
+        "totalSections": 8,
+        "completeSections": 6,
         "incompleteSections": 2
       },
       "cardCoverage": 1,
@@ -122,6 +125,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -134,7 +138,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 46,
+        "sentenceCount": 41,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -154,8 +158,8 @@
       "question": "What should I understand about the energetic exchange between me and Alex?",
       "spine": {
         "isValid": true,
-        "totalSections": 6,
-        "completeSections": 5,
+        "totalSections": 5,
+        "completeSections": 4,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -164,6 +168,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -176,7 +181,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 42,
+        "sentenceCount": 32,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -197,8 +202,8 @@
       "spine": {
         "isValid": true,
         "totalSections": 8,
-        "completeSections": 6,
-        "incompleteSections": 2
+        "completeSections": 7,
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -206,6 +211,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -218,7 +224,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 73,
+        "sentenceCount": 70,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -238,9 +244,9 @@
       "question": "I am at a decision point about whether to relocate or stay. Which path supports my growth?",
       "spine": {
         "isValid": true,
-        "totalSections": 9,
+        "totalSections": 8,
         "completeSections": 7,
-        "incompleteSections": 2
+        "incompleteSections": 1
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -248,6 +254,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -260,7 +267,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 54,
+        "sentenceCount": 49,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -280,9 +287,9 @@
       "question": "What spiritual practice should I commit to this season to deepen my intuition?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 7,
-        "incompleteSections": 1
+        "totalSections": 6,
+        "completeSections": 4,
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -290,6 +297,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -302,7 +310,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 41,
+        "sentenceCount": 34,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -322,8 +330,8 @@
       "question": "I am feeling burnout and restless sleep. What helps me restore my wellbeing?",
       "spine": {
         "isValid": true,
-        "totalSections": 9,
-        "completeSections": 8,
+        "totalSections": 8,
+        "completeSections": 7,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -332,6 +340,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -339,12 +348,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 7,
-        "matchedTermCount": 6,
-        "ratio": 0.8571428571428571
+        "matchedTermCount": 7,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 48,
+        "sentenceCount": 44,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -364,9 +373,9 @@
       "question": "Two hypothetical collaborators are planning a project together. What could help them communicate well?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 5,
-        "incompleteSections": 3
+        "totalSections": 6,
+        "completeSections": 4,
+        "incompleteSections": 2
       },
       "cardCoverage": 1,
       "missingCards": [],
@@ -374,6 +383,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -381,12 +391,12 @@
         "applicable": true,
         "addressed": true,
         "termCount": 8,
-        "matchedTermCount": 7,
-        "ratio": 0.875
+        "matchedTermCount": 8,
+        "ratio": 1
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 39,
+        "sentenceCount": 31,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -406,8 +416,8 @@
       "question": "What can help me have a focused week?",
       "spine": {
         "isValid": true,
-        "totalSections": 8,
-        "completeSections": 7,
+        "totalSections": 9,
+        "completeSections": 8,
         "incompleteSections": 1
       },
       "cardCoverage": 1,
@@ -416,6 +426,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -428,7 +439,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 72,
+        "sentenceCount": 66,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },
@@ -448,8 +459,8 @@
       "question": "Como puedo sostener mi energia mientras apoyo a mi familia y mi trabajo?",
       "spine": {
         "isValid": true,
-        "totalSections": 7,
-        "completeSections": 5,
+        "totalSections": 6,
+        "completeSections": 4,
         "incompleteSections": 2
       },
       "cardCoverage": 1,
@@ -458,6 +469,7 @@
       "deterministicLanguageMatches": [],
       "hasAgencyLanguage": true,
       "hallucinatedCards": [],
+      "undrawnCardAssertions": [],
       "suitCountMismatches": [],
       "hasSupportiveTone": true,
       "hasHarshTone": false,
@@ -470,7 +482,7 @@
       },
       "templateRepetition": {
         "templated": false,
-        "sentenceCount": 43,
+        "sentenceCount": 29,
         "repeatedSentenceCount": 0,
         "repeatedShare": 0
       },

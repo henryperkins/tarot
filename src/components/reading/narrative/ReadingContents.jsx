@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { List, SpeakerHigh, CaretDown } from '@phosphor-icons/react';
 import { useReducedMotion } from '../../../hooks/useReducedMotion';
 
-export function ReadingContents({ sections, readingRef, controlsModel, onNarrate, onStopNarration, compactTabs = false }) {
+export function ReadingContents({ sections, readingRef, controlsModel, onNarrate, onStopNarration, compactTabs = false, showReadingActions = false }) {
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const reducedMotion = useReducedMotion();
@@ -17,7 +17,7 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
   // the document root for the reading page's root scroll-padding.
   const pinToolbar = useCallback(() => {
     const toolbar = toolbarRef.current;
-    if (!toolbar) return;
+    if (!toolbar || toolbar.closest('[data-app-chrome]')) return;
     const visible = window.visualViewport?.height || innerHeight;
     const header = parseFloat(getComputedStyle(readingRef.current || toolbar).getPropertyValue('--sticky-header-height')) || 0;
     const sticky = toolbar.offsetHeight + header <= visible * .3;
@@ -29,7 +29,7 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
-    if (!toolbar) return undefined;
+    if (!toolbar || toolbar.closest('[data-app-chrome]')) return undefined;
     // Measure after the header has re-measured for the same resize.
     let frame = 0;
     const schedule = () => {
@@ -91,7 +91,7 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
     });
   }, [reducedMotion, pinToolbar]);
 
-  return <div className="reading-wayfinding" ref={toolbarRef}>
+  return <div className="reading-wayfinding" ref={toolbarRef} data-app-secondary="1" data-chrome-height-var="--reading-wayfinding-height">
     <div className="reading-toolbar">
       {controlsModel?.show && <div className="reading-toolbar__audio">
         <button type="button" onClick={onNarrate} disabled={!controlsModel.canNarrate}>
@@ -120,7 +120,21 @@ export function ReadingContents({ sections, readingRef, controlsModel, onNarrate
       {sections.map((section, index) => <a key={section.id} href={`#${section.id}`}
         aria-current={current === index ? 'location' : undefined} onClick={event => visit(event, section.id)}>{section.title}</a>)}
     </nav>}
-    {sections.length > 3 && current < sections.length - 1 && <a className="reading-continue" href={`#${sections[current + 1].id}`}
-      onClick={event => visit(event, sections[current + 1].id)}><CaretDown aria-hidden="true" size={18} /> Continue reading</a>}
+    {/* Keep its natural height at the last section. Removing this row changes
+        the sticky inset and can alternate the current section every frame. */}
+    {sections.length > 3 && <a className={`reading-continue${current === sections.length - 1 ? ' invisible' : ''}`}
+      aria-hidden={current === sections.length - 1 || undefined}
+      inert={current === sections.length - 1 || undefined}
+      tabIndex={current === sections.length - 1 ? -1 : undefined}
+      href={`#${sections[Math.min(current + 1, sections.length - 1)].id}`}
+      onClick={event => visit(event, sections[Math.min(current + 1, sections.length - 1)].id)}><CaretDown aria-hidden="true" size={18} /> Continue reading</a>}
+    {showReadingActions && <button type="button" className="reading-actions-jump" onClick={() => {
+      const actions = readingRef.current?.closest('[data-app-chrome]')
+        ?.querySelector('[data-app-bottom-actions] [data-reading-completion]');
+      const control = actions?.querySelector('button:not(:disabled)');
+      if (!control) return;
+      control.focus({ preventScroll: true });
+      control.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+    }}>Save or ask about this reading</button>}
   </div>;
 }

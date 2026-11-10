@@ -114,6 +114,61 @@ describe('reading snapshot', () => {
     assert.deepEqual(restored.analysis.themes, { suitFocus: 'Cups' });
   });
 
+  it('restores follow-up work and an explicit false context choice for the same owner', () => {
+    const followUp = {
+      draft: 'How can I rest — 明日? 🌙',
+      includeJournal: false,
+      turns: [{ question: 'Where can I begin?', answer: 'Protect one quiet pause.', turnNumber: 2,
+        createdAt: NOW, journalContext: { patternsFound: ['rest'] }, isInterrupted: true }]
+    };
+    saveReadingSnapshot(snapshot({ owner: 'user:one', narrative: { raw: 'The original reading.' }, followUp }), { storage });
+    const restored = loadReadingSnapshot({ storage, owner: 'user:one', now: NOW });
+    assert.deepEqual(restored.followUp, followUp);
+    assert.equal(loadReadingSnapshot({ storage, owner: 'user:two', now: NOW }), null);
+    assert.equal(loadReadingSnapshot({ storage, owner: 'guest', now: NOW }), null);
+  });
+
+  it('ignores pending or malformed turns without discarding the recoverable question', () => {
+    saveReadingSnapshot(snapshot({ narrative: { raw: 'Reading' }, followUp: {
+      draft: 'The question awaiting its answer', includeJournal: false,
+      turns: [null, { question: 'Pending', answer: 'Partial delta', isStreaming: true },
+        { question: 'No answer', answer: '' }, { question: 42, answer: 'Invalid' },
+        { question: 'Finished', answer: 'Complete', turnNumber: 1 }]
+    } }), { storage });
+    const { followUp } = loadReadingSnapshot({ storage, now: NOW });
+    assert.equal(followUp.draft, 'The question awaiting its answer');
+    assert.equal(followUp.includeJournal, false);
+    assert.deepEqual(followUp.turns.map(turn => turn.question), ['Finished']);
+  });
+
+  it('defaults old or malformed composer snapshots without changing valid false values', () => {
+    for (const followUp of [undefined, null, {}, { draft: 12, includeJournal: 'false', turns: {} }]) {
+      storage.setItem(READING_SNAPSHOT_STORAGE_KEY, JSON.stringify({ ...snapshot({ narrative: { raw: 'Reading' } }), followUp }));
+      assert.deepEqual(loadReadingSnapshot({ storage, now: NOW }).followUp, { draft: '', includeJournal: true, turns: [] });
+    }
+  });
+
+  it('does not carry a previous conversation into a new unfinished reading', () => {
+    saveReadingSnapshot(snapshot({ followUp: { draft: 'Previous reading', includeJournal: false,
+      turns: [{ question: 'Previous question', answer: 'Previous answer' }] } }), { storage });
+    assert.deepEqual(loadReadingSnapshot({ storage, now: NOW }).followUp, { draft: '', includeJournal: true, turns: [] });
+  });
+
+  it('bounds conversation storage while retaining the latest turn and its allowance number', () => {
+    saveReadingSnapshot(snapshot({ narrative: { raw: 'Reading' }, followUp: {
+      draft: 'd'.repeat(600), includeJournal: false,
+      turns: Array.from({ length: 70 }, (_, index) => ({ question: 'q'.repeat(900),
+        answer: 'a'.repeat(17_000), turnNumber: index + 1 }))
+    } }), { storage });
+    const { followUp } = loadReadingSnapshot({ storage, now: NOW });
+    assert.equal(followUp.draft.length, 500);
+    assert.equal(followUp.includeJournal, false);
+    assert.equal(followUp.turns.at(-1).turnNumber, 70);
+    assert.equal(followUp.turns.at(-1).isInterrupted, true);
+    assert.ok(JSON.stringify(followUp.turns).length <= 200_000);
+    assert.ok(followUp.turns.every(turn => turn.question.length <= 800 && turn.answer.length <= 16_000));
+  });
+
   it('never returns another account\'s reading, but follows a guest into sign-in', () => {
     saveReadingSnapshot(snapshot({ owner: 'user:u1' }), { storage });
     assert.equal(loadReadingSnapshot({ storage, owner: 'user:u2', now: NOW }), null);

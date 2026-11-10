@@ -206,6 +206,12 @@ export function isAssessableQuestion(question) {
   return Boolean(latin) && latin.length / letters.length >= 0.6;
 }
 
+// One voice for the ungraded phrasing check on every surface that shows it.
+export const QUESTION_NUDGES = {
+  closed: 'This reads as a yes-or-no question. Asking how or what gives you more to reflect on.',
+  'fixed-outcome': 'A reading can’t promise an outcome. Asking what you can understand or change gives you more to work with.'
+};
+
 /**
  * Ungraded guidance for phrasing a reading cannot answer well.
  *

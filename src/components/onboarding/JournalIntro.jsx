@@ -113,7 +113,7 @@ export function JournalIntro({ onNext, onBack, onGoToStep }) {
           style={{ animationDelay: '0.3s' }}
         >
           <div className="flex items-center gap-1.5 mb-1">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted">Journal storage</p>
+            <p className="text-xs uppercase tracking-label text-muted">Journal storage</p>
             <Tooltip
               content="Local stays on this device. Sync stores a copy in your account."
               position="top"

@@ -20,6 +20,14 @@ function acceptedContext(fields) {
 }
 
 describe('context detection input composition', () => {
+  it('keeps the established retrieval normalization separate from accepted reader wording', () => {
+    const input = { userQuestion: 'Can I discuss café plans with Élodie?', reflectionsText: 'が 한' };
+    const original = structuredClone(input);
+    const selected = contextDetection.resolveContextSelection(input, 'single');
+    assert.ok(selected.retrievalQuery.includes('Can I discuss cafe plans with Elodie?'));
+    assert.deepEqual(input, original, 'Retrieval normalization must not rewrite the accepted request');
+  });
+
   it('builds a combined sanitized context string from question, reflections, and focus areas', () => {
     const contextInput = buildContextInferenceInput({
       userQuestion: 'Any guidance for this week?',
@@ -171,5 +179,129 @@ describe('current intent precedence', () => {
     assert.match(selection.retrievalQuery, /job interview/);
     assert.match(selection.retrievalQuery, /evening shift/);
     assert.doesNotMatch(selection.retrievalQuery, /Love & relationships/);
+  });
+});
+
+it('excludes explicitly rejected topics without treating negative action constraints as exclusions', () => {
+  const selected = contextDetection.resolveContextSelection({ userQuestion: 'I am not asking about career, work, or my job. I need help with my relationship.', reflectionsText: 'My career and job concern me.' }, 'single');
+  assert.equal(selected.context, 'love');
+  assert.equal(selected.graphRAGContext, 'relationship');
+  assert.doesNotMatch(selected.retrievalQuery, /reflections:/);
+  for (const userQuestion of ['I am not ready for a career change.', 'I cannot leave my job.', 'I do not want to quit my job.']) {
+    const result = contextDetection.resolveContextSelection({ userQuestion }, 'single');
+    assert.equal(result.context, 'career');
+    assert.ok(result.retrievalQuery.includes(userQuestion));
+  }
+});
+
+it('keeps fixed current-evidence tie priority independent of spread defaults', () => {
+  const result = contextDetection.resolveContextSelection({ userQuestion: 'My job and relationship need attention.' }, 'decision');
+  assert.equal(result.context, 'love');
+  assert.equal(result.graphRAGContext, 'relationship');
+});
+
+it('records clarification sources as selected evidence contributors', () => {
+  const result = contextDetection.resolveContextSelection({ userQuestion: 'My job and relationship need attention.', cardsInfo: [{ userReflection: 'My job and career are urgent.' }] }, 'single');
+  assert.equal(result.clarifiedBy, 'reflections');
+  assert.ok(result.selectedSourceIds.includes('card-0'));
+});
+
+it('equivalent apostrophes preserve topic exclusions and original matching offsets', async () => {
+  const { contextPhraseMatches, CONTEXT_KEYWORDS } = await import('../functions/lib/readingContextVocabulary.js');
+  const selections = [];
+  for (const apostrophe of ["'", '’', '‘', 'ʼ', '＇']) {
+    const userQuestion = `I don${apostrophe}t want advice about career.`;
+    const selected = contextDetection.resolveContextSelection({ userQuestion, reflectionsText: 'My marriage and partner need attention.' }, 'single');
+    assert.equal(selected.context, 'love');
+    assert.equal(selected.source, 'reflections');
+    const [evidence] = contextPhraseMatches(userQuestion, CONTEXT_KEYWORDS.career, { includeExcluded: true });
+    assert.equal(evidence.excluded, true);
+    assert.equal(userQuestion.slice(evidence.start, evidence.end), 'career');
+    selections.push([selected.context, selected.graphRAGContext, selected.source, selected.selectedSourceIds]);
+    const action = contextDetection.resolveContextSelection({ userQuestion: `I don${apostrophe}t want to leave my career.` }, 'single');
+    assert.equal(action.context, 'career');
+    assert.equal(action.source, 'question');
+  }
+  assert.ok(selections.every(selection => JSON.stringify(selection) === JSON.stringify(selections[0])));
+});
+
+describe('scoped exclusions preserve positive current authority and relevant interests', () => {
+  it('does not turn a coordinated excluded-topic question into health or relationship context', () => {
+    const userQuestion = 'Not a divorce, not a lawsuit, and not a medical recovery question. Le 2026-12-03, je dois parler avec mon père de nos responsabilités dans le soin du jardin commun.';
+    const input = { userQuestion };
+    const selected = contextDetection.resolveContextSelection(input, 'threeCard');
+    assert.equal(selected.graphRAGContext, 'general');
+    assert.ok(selected.excludedContexts.graph.includes('health'));
+    assert.ok(selected.excludedContexts.graph.includes('relationship'));
+    assert.equal(input.userQuestion, userQuestion);
+    assert.ok(selected.retrievalQuery.includes('2026-12-03'));
+    assert.doesNotMatch(selected.retrievalContentText, /medical recovery|divorce|lawsuit/);
+  });
+
+  it('keeps an affirmative topic after an excluded question and preserves ordinary negative constraints', () => {
+    const selected = contextDetection.resolveContextSelection({
+      userQuestion: 'Not a medical recovery question, but I need support with burnout.'
+    }, 'threeCard');
+    assert.equal(selected.graphRAGContext, 'health');
+    assert.ok(selected.retrievalContentText.includes('burnout'));
+    const negativeAction = contextDetection.resolveContextSelection({
+      userQuestion: 'I am not a person who wants to stop therapy. What can help my healing?'
+    }, 'threeCard');
+    assert.equal(negativeAction.graphRAGContext, 'health');
+    assert.deepEqual(negativeAction.excludedContexts.graph, []);
+  });
+
+  for (const userQuestion of ['This is not a health or work question.', 'This is not a love, work, or health question.']) {
+    it(`recognizes a bounded coordinated topic list: ${userQuestion}`, () => {
+      const selected = contextDetection.resolveContextSelection({ userQuestion }, 'threeCard');
+      assert.equal(selected.graphRAGContext, 'general');
+      assert.ok(selected.excludedContexts.graph.includes('health'));
+      assert.ok(selected.excludedContexts.graph.includes('career'));
+    });
+  }
+
+  for (const [userQuestion, graphContext] of [
+    ['I am not a person who wants to stop therapy, so my question is how to keep going.', 'health'],
+    ['This is not a job I want to leave, and my question is how to keep going.', 'career'],
+    ['Not a day goes by without worrying about my job, and I question whether to ask for help.', 'career'],
+    ['This is not a simple career question; I need help with my job.', 'career']
+  ]) it(`does not misread a person, action, or quality negation as topic exclusion: ${userQuestion}`, () => {
+    const selected = contextDetection.resolveContextSelection({ userQuestion }, 'threeCard');
+    assert.equal(selected.graphRAGContext, graphContext);
+    assert.deepEqual(selected.excludedContexts.graph, []);
+    assert.ok(selected.retrievalContentText.length > 0);
+  });
+
+  const questions = [
+    'I am not asking about quitting my job. How can I handle my boss at work?',
+    'I’m not asking about leaving my job; I need guidance on my workplace boundaries.',
+    'I am not asking about changing career but how can I handle my boss?',
+    'This is not about my job. How can I handle my boss?',
+    'I am not asking about quitting my job\nHow can I handle my boss?'
+  ];
+  for (const userQuestion of questions) it(`preserves career outside excluded scope: ${userQuestion}`, () => {
+    const selection = contextDetection.resolveContextSelection({ userQuestion, focusAreas: ['Love & relationships', 'Career & purpose'] }, 'threeCard');
+    assert.equal(selection.context, 'career');
+    assert.equal(selection.graphRAGContext, 'career');
+    assert.equal(selection.source, 'question');
+    assert.ok(selection.retrievalQuery.includes(userQuestion));
+    assert.doesNotMatch(selection.retrievalQuery, /Love & relationships|Career & purpose/);
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(['Love & relationships', 'Career & purpose'], selection), ['Career & purpose']);
+  });
+  it('keeps a whole-topic veto when no separate positive workplace request exists', () => {
+    const selection = contextDetection.resolveContextSelection({
+      userQuestion: 'I am not asking about career, work, or my job. I need help with my relationship.',
+      reflectionsText: 'My career matters.', focusAreas: ['Career & purpose', 'Love & relationships']
+    }, 'single');
+    assert.equal(selection.context, 'love');
+    assert.ok(selection.excludedContexts.reading.includes('career'));
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(['Career & purpose', 'Love & relationships'], selection), ['Love & relationships']);
+  });
+  it('retains a useful twelfth focus label when current sources are generic', () => {
+    const focusAreas = [...Array.from({length: 11}, (_, i) => `Interest ${i}`), 'Career & purpose'];
+    const selection = contextDetection.resolveContextSelection({ userQuestion: 'What should I consider?', focusAreas }, 'single');
+    assert.equal(selection.context, 'career');
+    assert.equal(selection.source, 'focusAreas');
+    assert.deepEqual(contextDetection.selectPromptFocusAreas(focusAreas, selection), ['Career & purpose']);
   });
 });

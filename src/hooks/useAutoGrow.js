@@ -43,7 +43,9 @@ export function useAutoGrow(value, minRows = 1, maxRows = 4, active = true) {
     const newHeight = Math.min(Math.max(contentHeight, minHeight), maxHeight);
     el.style.height = `${style.boxSizing === 'border-box' ? newHeight : newHeight - paddingY - borderY}px`;
     el.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
-    if (scroller) scroller.scrollTop = scrollTop;
+    // Assigning the same offset still cancels an in-flight smooth scroll,
+    // including the coach's handoff to this editor. Restore only real shifts.
+    if (scroller && scroller.scrollTop !== scrollTop) scroller.scrollTop = scrollTop;
   }, [active, minRows, maxRows]);
 
   useLayoutEffect(fit, [value, fit]);
@@ -66,11 +68,19 @@ export function useAutoGrow(value, minRows = 1, maxRows = 4, active = true) {
       scheduleFit();
     });
     observer?.observe(el);
+    // Pixel gutters keep the editor wide under enlarged text, so changing the
+    // root font need not resize its box. Refit when typography changes too.
+    const typographyObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleFit);
+    typographyObserver?.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
+    if (document.body) typographyObserver?.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+    window.addEventListener('resize', scheduleFit);
     document.fonts?.addEventListener('loadingdone', scheduleFit);
 
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
+      typographyObserver?.disconnect();
+      window.removeEventListener('resize', scheduleFit);
       document.fonts?.removeEventListener('loadingdone', scheduleFit);
     };
   }, [active, fit]);

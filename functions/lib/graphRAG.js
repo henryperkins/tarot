@@ -1,3 +1,10 @@
+import { collectPassageCandidates, selectPassageCandidates, passageContextMatch, isValidPassageLimit, scoreKeywordRelevance, retrievalQueryTerms, resolveRetrievalMode, getMajorTopicDescriptor, SUPPLEMENTAL_MAJOR_PRIORITY, MAJOR_TOPIC_CORROBORATION_POLICY_ID } from './graphRAGCandidates.js';
+export { resolveRetrievalMode } from './graphRAGCandidates.js';
+import { composeRelevanceScore } from './graphRAGScoring.js';
+import { getPassageRankingScore } from './graphRAGRanking.js';
+export { composeRelevanceScore } from './graphRAGScoring.js';
+import { summarizeProjectedPatterns } from './graphRAGPatternSummary.js';
+import { projectPassageForDeck } from './graphRAGProjection.js';
 // functions/lib/graphRAG.js
 // GraphRAG (Graph-Enhanced Retrieval-Augmented Generation) for tarot readings
 //
@@ -17,7 +24,6 @@
 // - Relevance threshold filtering
 
 import {
-  getPassagesForPattern,
   getKnowledgeBaseStats
 } from './knowledgeBase.js';
 import {
@@ -27,118 +33,6 @@ import {
   isSemanticEmbedding
 } from './embeddings.js';
 import { getPassageSource } from '../../shared/passageSource.js';
-
-// ============================================================================
-// HELPER: Word Boundary Matching
-// ============================================================================
-
-/**
- * Escape special regex characters in a string.
- * @param {string} str - String to escape
- * @returns {string} Escaped string safe for use in RegExp
- */
-function escapeRegexChars(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Check if a keyword appears as a whole word in text.
- * Uses word boundaries to avoid substring matches.
- *
- * LIMITATION: JavaScript's \b word boundary is ASCII-only [A-Za-z0-9_].
- * This means:
- * - Accented characters (café, naïve, über) may not match correctly
- * - Non-Latin scripts (Chinese, Japanese, Arabic) have no word boundaries
- * - Hyphenated words like "self-love" treat hyphens as boundaries
- *
- * This is acceptable for English-centric tarot terminology but should be
- * revisited if i18n support is needed. Consider using Unicode-aware regex
- * with \p{L} character class or space-based splitting for broader support.
- *
- * @param {string} text - Text to search in (should be lowercase)
- * @param {string} keyword - Keyword to find (should be lowercase)
- * @returns {boolean} True if keyword appears as whole word
- *
- * @example
- * matchesWholeWord('i love tarot', 'love')     // true
- * matchesWholeWord('beloved cards', 'love')    // false (substring)
- * matchesWholeWord('the art of reading', 'art') // true
- * matchesWholeWord('heart and soul', 'art')    // false (substring)
- */
-function matchesWholeWord(text, keyword) {
-  if (!text || !keyword) return false;
-  const escaped = escapeRegexChars(keyword);
-  const pattern = new RegExp(`\\b${escaped}\\b`);
-  return pattern.test(text);
-}
-
-const GRAPH_RAG_CONTEXT_MATCHES = {
-  grief: ['grief', 'loss', 'mourning', 'bereavement'],
-  relationship: [
-    'relationship',
-    'relationships',
-    'romantic',
-    'romance',
-    'love',
-    'partnership',
-    'marriage',
-    'dating'
-  ],
-  career: ['career', 'work', 'job', 'professional', 'business', 'leadership'],
-  health: [
-    'health',
-    'healing',
-    'wellbeing',
-    'wellness',
-    'therapy',
-    'recovery',
-    'self-care'
-  ],
-  spiritual: ['spiritual', 'spirit', 'soul', 'intuition', 'mystic', 'divine', 'ritual', 'meditation'],
-  transition: ['transition', 'change', 'shift', 'crossroads', 'ending', 'beginning', 'threshold'],
-  shadow: ['shadow', 'trauma', 'addiction', 'compulsion', 'habit', 'inner child', 'subconscious']
-};
-
-function normalizeContextValue(context) {
-  return typeof context === 'string' ? context.trim().toLowerCase() : '';
-}
-
-function resolveContextCandidates(questionContext) {
-  const normalized = normalizeContextValue(questionContext);
-  if (!normalized) return [];
-  if (normalized === 'general') return ['general'];
-
-  if (GRAPH_RAG_CONTEXT_MATCHES[normalized]) {
-    return GRAPH_RAG_CONTEXT_MATCHES[normalized];
-  }
-
-  for (const candidates of Object.values(GRAPH_RAG_CONTEXT_MATCHES)) {
-    if (candidates.includes(normalized)) {
-      return candidates;
-    }
-  }
-
-  return [normalized];
-}
-
-function selectPassageForContext(passages, contextCandidates) {
-  if (!Array.isArray(passages) || passages.length === 0) {
-    return null;
-  }
-
-  if (!Array.isArray(contextCandidates) || contextCandidates.length === 0) {
-    return passages[0];
-  }
-
-  const candidateSet = new Set(contextCandidates.map(normalizeContextValue));
-  const match = passages.find((passage) => candidateSet.has(normalizeContextValue(passage.context)));
-  if (match) {
-    return match;
-  }
-
-  const generalPassage = passages.find((passage) => normalizeContextValue(passage.context) === 'general');
-  return generalPassage || passages[0];
-}
 
 /**
  * Determine the number of passages to retrieve based on spread complexity
@@ -202,308 +96,34 @@ export function getPassageCountForSpread(spreadKey, tier = 'plus') {
  * const passages = retrievePassages(graphKeys, { maxPassages: 3 });
  */
 export function retrievePassages(graphKeys, options = {}) {
-  const maxPassages = options.maxPassages || 3;
-  const includeMetadata = options.includeMetadata || false;
-  const contextCandidates = resolveContextCandidates(options.questionContext);
-
-  if (!graphKeys || typeof graphKeys !== 'object') {
-    return [];
-  }
-
-  const passages = [];
-  const singleMajorNumber = Number.isInteger(graphKeys?.singleMajorNumber)
-    ? graphKeys.singleMajorNumber
-    : null;
-  const hasSingleMajor = singleMajorNumber !== null && graphKeys?.totalMajors === 1;
-
-  // Priority 1: Complete triads (highest narrative value)
-  // Only take first passage per triad to avoid duplicate titles in UI
-  if (Array.isArray(graphKeys.completeTriadIds) && graphKeys.completeTriadIds.length > 0) {
-    graphKeys.completeTriadIds.forEach((triadId) => {
-      const entry = getPassagesForPattern('triad', triadId);
-      if (entry && entry.passages && entry.passages.length > 0) {
-        const passage = selectPassageForContext(entry.passages, contextCandidates);
-        if (!passage) {
-          return;
-        }
-        passages.push({
-          priority: 1,
-          type: 'triad',
-          patternId: triadId,
-          title: entry.title,
-          theme: entry.theme,
-          ...passage,
-          ...(includeMetadata ? { metadata: { triadId, isComplete: true } } : {})
-        });
-      }
-    });
-  }
-
-  // Priority 2: Single Major Arcana archetype (for minor-heavy spreads)
-  if (hasSingleMajor) {
-    const entry = getPassagesForPattern('major-arcana', singleMajorNumber);
-    if (entry && entry.passages && entry.passages.length > 0) {
-      const passage = selectPassageForContext(entry.passages, contextCandidates);
-      if (passage) {
-        passages.push({
-          priority: 2,
-          type: 'major-arcana',
-          patternId: String(singleMajorNumber),
-          title: entry.title,
-          theme: entry.theme,
-          cardNumber: singleMajorNumber,
-          cardName: graphKeys?.singleMajorName || entry.title,
-          ...passage,
-          ...(includeMetadata
-            ? { metadata: { cardNumber: singleMajorNumber } }
-            : {})
-        });
-      }
-    }
-  }
-
-  // Priority 2: Fool's Journey stage (developmental context)
-  // Only take first passage per stage to avoid duplicate titles in UI
-  if (graphKeys.foolsJourneyStageKey) {
-    const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
-    if (entry && entry.passages && entry.passages.length > 0) {
-    const passage = selectPassageForContext(entry.passages, contextCandidates);
-    if (passage) {
-      passages.push({
-        priority: hasSingleMajor ? 3 : 2,
-        type: 'fools-journey',
-        patternId: graphKeys.foolsJourneyStageKey,
-        title: entry.title,
-        theme: entry.theme,
-        stage: entry.stage,
-        ...passage,
-        ...(includeMetadata
-          ? { metadata: { stageKey: graphKeys.foolsJourneyStageKey } }
-          : {})
-      });
-    }
-  }
-  }
-
-  // Priority 3/4: High and medium-high dyads (two-card synergies)
-  // Only take first passage per dyad to avoid duplicate titles in UI
-  if (Array.isArray(graphKeys.dyadPairs) && graphKeys.dyadPairs.length > 0) {
-    const dyadPriorityBySignificance = {
-      high: 3,
-      'medium-high': 4,
-      medium: 5
+  const maxPassages = options.maxPassages === undefined ? 3 : options.maxPassages;
+  if (!isValidPassageLimit(maxPassages)) return [];
+  const candidates = collectPassageCandidates(graphKeys, options);
+  const disabled = options.env?.DISABLE_QUALITY_FILTERING === 'true' || options.env?.DISABLE_QUALITY_FILTERING === true;
+  const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
+  const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
+  const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, keywordQuery });
+  const queryTerms = mode === 'keyword' ? retrievalQueryTerms(keywordQuery) : [];
+  const scored = candidates.map(passage => {
+    const keywordScore = mode === 'keyword' ? scoreKeywordRelevance(passage.promptText, keywordQuery, queryTerms) : null;
+    return {
+      ...passage,
+      ...(keywordScore !== null ? { relevance: keywordScore, relevanceScore: keywordScore } : {}),
+      _qualityFilteringDisabled: disabled,
+      _semanticScoringAttempted: false,
+      _semanticScoringSucceeded: false,
+      _contextMatch: passageContextMatch(passage, options.questionContext),
+      _priorityOnly: mode !== 'keyword'
     };
-
-    graphKeys.dyadPairs
-      .filter((dyad) => dyadPriorityBySignificance[dyad.significance])
-      .forEach((dyad) => {
-        const dyadKey = dyad.cards.join('-');
-        const priority = dyadPriorityBySignificance[dyad.significance] || 4;
-        let entry = getPassagesForPattern('dyad', dyadKey);
-        if (!entry && Array.isArray(dyad.cards)) {
-          const sortedKey = [...dyad.cards].sort((a, b) => a - b).join('-');
-          if (sortedKey !== dyadKey) {
-            entry = getPassagesForPattern('dyad', sortedKey);
-          }
-        }
-        if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = selectPassageForContext(entry.passages, contextCandidates);
-          if (!passage) {
-            return;
-          }
-          let cardNames = entry.names;
-          if (Array.isArray(entry.cards) && Array.isArray(entry.names)) {
-            const nameMap = new Map(
-              entry.cards.map((cardNum, index) => [cardNum, entry.names[index]])
-            );
-            const orderedNames = dyad.cards
-              .map((cardNum) => nameMap.get(cardNum))
-              .filter(Boolean);
-            if (orderedNames.length === dyad.cards.length) {
-              cardNames = orderedNames;
-            }
-          }
-          passages.push({
-            priority,
-            type: 'dyad',
-            patternId: dyadKey,
-            theme: entry.theme,
-            cardNumbers: dyad.cards,
-            cardNames,
-            ...passage,
-            ...(includeMetadata
-              ? { metadata: { cards: dyad.cards, category: dyad.category } }
-              : {})
-          });
-        }
-      });
-  }
-
-  // Priority 4: Strong suit progressions (Minor Arcana developmental arcs)
-  // Only take first passage per progression to avoid duplicate titles in UI
-  if (Array.isArray(graphKeys.suitProgressions) && graphKeys.suitProgressions.length > 0) {
-    graphKeys.suitProgressions
-      .filter((prog) => prog.significance === 'strong-progression')
-      .forEach((prog) => {
-        const progKey = `${prog.suit}:${prog.stage}`;
-        const entry = getPassagesForPattern('suit-progression', progKey);
-        if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = selectPassageForContext(entry.passages, contextCandidates);
-          if (!passage) {
-            return;
-          }
-          passages.push({
-            priority: 4,
-            type: 'suit-progression',
-            patternId: progKey,
-            title: entry.title,
-            suit: prog.suit,
-            stage: prog.stage,
-            ...passage,
-            ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
-          });
-        }
-      });
-  }
-
-  // Priority 5: Emerging suit progressions (2-card signals)
-  // Only take first passage per progression to avoid duplicate titles in UI
-  if (Array.isArray(graphKeys.suitProgressions) && graphKeys.suitProgressions.length > 0) {
-    graphKeys.suitProgressions
-      .filter((prog) => prog.significance === 'emerging-progression')
-      .forEach((prog) => {
-        const progKey = `${prog.suit}:${prog.stage}`;
-        const entry = getPassagesForPattern('suit-progression', progKey);
-        if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = selectPassageForContext(entry.passages, contextCandidates);
-          if (!passage) {
-            return;
-          }
-          passages.push({
-            priority: 5,
-            type: 'suit-progression',
-            patternId: progKey,
-            title: entry.title,
-            suit: prog.suit,
-            stage: prog.stage,
-            ...passage,
-            ...(includeMetadata ? { metadata: { suit: prog.suit, stage: prog.stage } } : {})
-          });
-        }
-      });
-  }
-
-  // Priority 5: Court lineages (multiple court cards sharing a suit)
-  // Every card behind this pattern is present in the spread, so it is safe to
-  // inject even when no Major Arcana structure was detected.
-  if (Array.isArray(graphKeys.courtLineages) && graphKeys.courtLineages.length > 0) {
-    graphKeys.courtLineages.forEach((lineage) => {
-      const lineageKey = `${lineage.suit}:${lineage.significance}`;
-      const entry = getPassagesForPattern('court-lineage', lineageKey);
-      if (entry && entry.passages && entry.passages.length > 0) {
-        const passage = selectPassageForContext(entry.passages, contextCandidates);
-        if (!passage) {
-          return;
-        }
-        passages.push({
-          priority: 5,
-          type: 'court-lineage',
-          patternId: lineageKey,
-          title: entry.title,
-          theme: entry.theme,
-          suit: lineage.suit,
-          significance: lineage.significance,
-          ...passage,
-          ...(includeMetadata
-            ? { metadata: { suit: lineage.suit, significance: lineage.significance } }
-            : {})
-        });
-      }
-    });
-  }
-
-  // Prefer the existing tradition-specific collections when those patterns
-  // were detected. These graph keys are emitted only for the matching deck.
-  for (const { keys, type } of [
-    { keys: graphKeys.thothSuits, type: 'thoth-suit' },
-    { keys: graphKeys.marseilleRanks, type: 'marseille-numerology' }
-  ]) {
-    if (!Array.isArray(keys)) continue;
-    for (const key of new Set(keys)) {
-      const entry = getPassagesForPattern(type, key);
-      const passage = entry?.passages && selectPassageForContext(entry.passages, contextCandidates);
-      if (!passage) continue;
-      passages.push({
-        ...passage,
-        priority: 3,
-        type,
-        patternId: String(key),
-        title: entry.title,
-        theme: entry.theme
-      });
-    }
-  }
-
-  // Priority 6: Partial triads (two of three archetypes present)
-  // Ranked below every complete pattern because the arc's third card is absent;
-  // the reference block's card guardrail keeps it contextual.
-  if (Array.isArray(graphKeys.triadIds) && graphKeys.triadIds.length > 0) {
-    const completeTriadIds = new Set(
-      Array.isArray(graphKeys.completeTriadIds) ? graphKeys.completeTriadIds : []
-    );
-
-    graphKeys.triadIds
-      .filter((triadId) => !completeTriadIds.has(triadId))
-      .forEach((triadId) => {
-        const entry = getPassagesForPattern('triad', triadId);
-        if (entry && entry.passages && entry.passages.length > 0) {
-          const passage = selectPassageForContext(entry.passages, contextCandidates);
-          if (!passage) {
-            return;
-          }
-          passages.push({
-            priority: 6,
-            type: 'triad',
-            patternId: triadId,
-            title: entry.title,
-            theme: entry.theme,
-            ...passage,
-            // Surfaced outside `metadata` so prompt assembly can add an
-            // absent-card guardrail without opting into metadata.
-            isPartialPattern: true,
-            ...(includeMetadata ? { metadata: { triadId, isComplete: false } } : {})
-          });
-        }
-      });
-  }
-
-  // Sort by priority (lower number = higher priority) and relevance to user query
-  const keywords = (options.userQuery || '').toLowerCase().match(/\w+/g) || [];
-  const significantKeywords = keywords.filter(w => w.length > 3 && !['what', 'when', 'where', 'which', 'this', 'that', 'have', 'from', 'with', 'about', 'card', 'reading'].includes(w));
-
-  passages.forEach(p => {
-    p.relevance = 0;
-    const text = (p.text + ' ' + (p.title || '') + ' ' + (p.theme || '')).toLowerCase();
-    significantKeywords.forEach(kw => {
-      // Use word boundary matching to avoid false positives from substrings
-      // e.g., "love" should not match "beloved", "art" should not match "heart"
-      if (matchesWholeWord(text, kw)) p.relevance += 1;
-    });
   });
-
-  const ranked = passages
-    .sort((a, b) => {
-      // Boost priority by 2.0 per keyword match (lower score is better)
-      const scoreA = a.priority - (a.relevance * 2.0);
-      const scoreB = b.priority - (b.relevance * 2.0);
-      return scoreA - scoreB;
-    })
-    .slice(0, maxPassages);
-
-  return ranked.map(passage => ({
-    ...passage,
-    sourceDeck: getPassageSource(passage)?.deckStyle || null
-  }));
+  Object.defineProperty(scored, 'retrievalStats', { value: {
+    ...candidates.retrievalStats, candidatesScored: mode === 'keyword' ? scored.length : 0,
+    retrievalMode: mode, scoringMethod: mode,
+    semanticScoringAttempted: false, semanticScoringUsed: false,
+    semanticScoringFallbackReason: disabled ? 'quality-filtering-disabled' : null,
+    embeddingBatchCount: 0, embeddingCacheHits: 0
+  } });
+  return selectPassageCandidates(scored, { ...options, maxPassages, qualityFilteringDisabled: disabled });
 }
 
 /**
@@ -528,6 +148,8 @@ export function formatPassagesForPrompt(passages, options = {}) {
     return '';
   }
 
+  const projected = passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || passage?.projectedDeck || 'rws-1909')).filter(Boolean);
+  if (!projected.length) return '';
   const lines = [];
 
   if (markdown) {
@@ -538,7 +160,7 @@ export function formatPassagesForPrompt(passages, options = {}) {
     lines.push('');
   }
 
-  passages.forEach((passage, index) => {
+  projected.forEach((passage, index) => {
     const number = index + 1;
 
     // Title line
@@ -566,20 +188,29 @@ export function formatPassagesForPrompt(passages, options = {}) {
       }
     }
 
+    const source = getPassageSource(passage);
+    lines.push(`  Source tradition: ${source.label}.`);
+    if (passage.cardNames?.length) lines.push(`  Matched cards: ${passage.cardNames.join(', ')}.`);
+    if (passage.projectionVersion) lines.push(`  Projection version: ${passage.projectionVersion}; human editorial status: ${passage.projectionReviewStatus || 'pending'}.`);
+    if (passage.sourceUrls?.length) lines.push(`  Source provenance (background research, not quotations): ${passage.sourceUrls.join(', ')}.`);
+    if (passage.crossDeckReference) {
+      lines.push('  Cross-deck reference: archetypal meaning is background; its imagery is not evidence of the selected deck.');
+    }
+
     // Passage text
-    if (passage.text) {
+    if (passage.promptText) {
       const indent = '  ';
       if (markdown) {
-        lines.push(`${indent}"${passage.text}"`);
+        lines.push(`${indent}"${passage.promptText}"`);
       } else {
-        lines.push(`${indent}${passage.text}`);
+        lines.push(`${indent}${passage.promptText}`);
       }
     }
 
     // Visual anchors - integrate into prompt for imagery grounding
-    if (includeVisualAnchors && passage.visualAnchors && passage.visualAnchors.length > 0) {
+    if (includeVisualAnchors && passage.promptVisualAnchors && passage.promptVisualAnchors.length > 0) {
       const indent = '  ';
-      const anchorText = passage.visualAnchors.slice(0, 5).join(', ');
+      const anchorText = passage.promptVisualAnchors.slice(0, 5).join(', ');
       if (markdown) {
         lines.push(`${indent}*Visual anchors: ${anchorText}*`);
       } else {
@@ -611,7 +242,12 @@ export function formatPassagesForPrompt(passages, options = {}) {
  * @returns {Object} Summary of retrieval results
  */
 export function buildRetrievalSummary(graphKeys, passages) {
+  const projectedCandidates = graphKeys && typeof graphKeys === 'object'
+    ? collectPassageCandidates(graphKeys, { deckStyle: passages?.[0]?.projectedDeck || 'rws-1909' })
+    : [];
+  const validatedCounts = summarizeProjectedPatterns(projectedCandidates).counts;
   const summary = {
+    ...(passages?.retrievalStats || {}),
     graphKeysProvided: !!graphKeys,
     patternsDetected: {
       completeTriads: graphKeys?.completeTriadIds?.length || 0,
@@ -619,6 +255,7 @@ export function buildRetrievalSummary(graphKeys, passages) {
       foolsJourneyStage: graphKeys?.foolsJourneyStageKey || null,
       totalMajors: typeof graphKeys?.totalMajors === 'number' ? graphKeys.totalMajors : 0,
       singleMajor: Number.isInteger(graphKeys?.singleMajorNumber) ? 1 : 0,
+      majorArcana: validatedCounts.majorArcana,
       highDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'high').length || 0,
       mediumHighDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium-high').length || 0,
       mediumDyads: graphKeys?.dyadPairs?.filter((d) => d.significance === 'medium').length || 0,
@@ -628,7 +265,9 @@ export function buildRetrievalSummary(graphKeys, passages) {
           .length || 0,
       emergingSuitProgressions:
         graphKeys?.suitProgressions?.filter((p) => p.significance === 'emerging-progression')
-          .length || 0
+          .length || 0,
+      thothSuitPatterns: validatedCounts.thothSuitPatterns,
+      marseilleNumerologyPatterns: validatedCounts.marseilleNumerologyPatterns
     },
     passagesRetrieved: passages?.length || 0,
     passagesByType: passages?.reduce((acc, p) => {
@@ -643,6 +282,30 @@ export function buildRetrievalSummary(graphKeys, passages) {
   };
 
   return summary;
+}
+
+function hasMeaningfulGraphData(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value === true;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulGraphData(entry));
+  if (typeof value === 'object') {
+    return Object.values(value).some((entry) => hasMeaningfulGraphData(entry));
+  }
+  return false;
+}
+
+/**
+ * Whether graph keys contain a detected pattern or Major Arcana card.
+ * buildGraphContext() returns keys for every nonempty spread, so keys that
+ * are all empty mean no patterns were found and there is nothing to retrieve.
+ *
+ * @param {Object|null|undefined} graphKeys - Graph keys from buildGraphContext()
+ * @returns {boolean}
+ */
+export function hasMeaningfulGraphKeys(graphKeys) {
+  return hasMeaningfulGraphData(graphKeys);
 }
 
 /**
@@ -703,7 +366,7 @@ export function getKnowledgeBaseInfo() {
 // ============================================================================
 
 // Passage text sent for embedding; truncated for efficiency.
-const MAX_PASSAGE_EMBEDDING_CHARS = 500;
+const MAX_PASSAGE_EMBEDDING_CHARS = 8000;
 
 /**
  * Score passage relevance against user query.
@@ -736,28 +399,17 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
   } = options;
 
   if (!userQuery || !passage) {
-    return 0.5; // Default neutral score
+    return 0; // No content overlap can be measured
   }
 
   const queryText = typeof userQuery === 'string' ? userQuery : '';
   const passageText = typeof passage === 'string' ? passage : '';
 
   if (!queryText.trim() || !passageText.trim()) {
-    return 0.5;
+    return 0;
   }
 
-  // Keyword overlap scoring (fast, cheap)
-  // Uses word boundary matching to avoid false positives from substrings
-  const queryTerms = queryText
-    .toLowerCase()
-    .split(/\W+/)
-    .filter((t) => t.length > 3);
-  const passageLower = passageText.toLowerCase();
-  const keywordMatches = queryTerms.filter((term) =>
-    matchesWholeWord(passageLower, term)
-  );
-  const keywordScore =
-    queryTerms.length > 0 ? keywordMatches.length / queryTerms.length : 0;
+  const keywordScore = scoreKeywordRelevance(passageText, typeof options.keywordQuery === 'string' ? options.keywordQuery : queryText);
 
   // Semantic similarity (requires embeddings API)
   let semanticScore = 0.5; // Default to neutral if semantic scoring is disabled
@@ -773,15 +425,15 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
           [queryText, passageText.slice(0, MAX_PASSAGE_EMBEDDING_CHARS)],
           { env: options.env }
         );
-      if (!isSemanticEmbedding(queryEmbed) || !isSemanticEmbedding(passageEmbed)) {
+      if (!isValidSemanticVector(queryEmbed) || !isValidSemanticVector(passageEmbed, queryEmbed?.embedding?.length)) {
         return keywordScore;
       }
       semanticScore = cosineSimilarity(queryEmbed.embedding, passageEmbed.embedding);
       if (semanticStatus) {
         semanticStatus.succeeded = true;
       }
-    } catch (err) {
-      console.warn('[GraphRAG] Semantic scoring failed:', err.message);
+    } catch (_err) {
+      console.warn('[GraphRAG] Semantic scoring failed');
       if (semanticStatus) {
         semanticStatus.succeeded = false;
       }
@@ -790,7 +442,15 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
     }
   }
 
-  return keywordScore * keywordWeight + semanticScore * semanticWeight;
+  const hasCustomWeights =
+    (Object.hasOwn(options, 'keywordWeight') && options.keywordWeight !== undefined) ||
+    (Object.hasOwn(options, 'semanticWeight') && options.semanticWeight !== undefined);
+  if (!options.enableSemanticScoring) {
+    return keywordScore;
+  }
+  return hasCustomWeights
+    ? keywordScore * keywordWeight + semanticScore * semanticWeight
+    : composeRelevanceScore({ keywordScore, semanticScore });
 }
 
 /**
@@ -805,8 +465,7 @@ export async function scorePassageRelevance(passage, userQuery, options = {}) {
  * @example
  * const unique = deduplicatePassages(passages);
  */
-export function deduplicatePassages(passages, options = {}) {
-  const fingerprintLength = options.fingerprintLength || 100;
+export function deduplicatePassages(passages, _options = {}) {
 
   if (!Array.isArray(passages) || passages.length === 0) {
     return [];
@@ -820,11 +479,10 @@ export function deduplicatePassages(passages, options = {}) {
     }
 
     // Generate content fingerprint (normalized first N chars)
-    const fingerprint = passage.text
+    const fingerprint = (passage.promptText || passage.text)
       .toLowerCase()
       .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, fingerprintLength);
+      .trim();
 
     if (seen.has(fingerprint)) {
       return false; // Duplicate, filter out
@@ -883,6 +541,8 @@ function determineScoreField(passages) {
  */
 export function describeScoringMethod(passages) {
   if (!Array.isArray(passages) || passages.length === 0) return 'none';
+  if (passages.some((passage) => passage?._qualityFilteringDisabled)) return 'bypassed';
+  if (passages.retrievalStats?.scoringMethod) return passages.retrievalStats.scoringMethod;
 
   const scored = passages.filter((p) => typeof p?.relevanceScore === 'number');
   if (scored.length > 0) {
@@ -896,7 +556,7 @@ export function describeScoringMethod(passages) {
 
 function getPrimaryScore(passage, scoreField) {
   if (scoreField === 'relevanceScore') {
-    return typeof passage.relevanceScore === 'number' ? passage.relevanceScore : 0;
+    return getPassageRankingScore(passage);
   }
   if (scoreField === 'relevance') {
     return typeof passage.relevance === 'number' ? passage.relevance : 0;
@@ -914,11 +574,15 @@ function comparePassagesForPrompt(a, b, scoreField) {
     return scoreB - scoreA;
   }
 
-  const keywordA = typeof a.relevance === 'number' ? a.relevance : 0;
-  const keywordB = typeof b.relevance === 'number' ? b.relevance : 0;
-  if (keywordA !== keywordB) {
-    return keywordB - keywordA;
+  // Selection breaks equal pattern affinities by the actual passage's score
+  // before context and priority. Budget fitting must make the same choice.
+  if (scoreField === 'relevanceScore' && a.relevanceScore !== b.relevanceScore) {
+    return (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
   }
+
+  const contextA = a._contextMatch || 0;
+  const contextB = b._contextMatch || 0;
+  if (contextA !== contextB) return contextB - contextA;
 
   const priorityA = typeof a.priority === 'number' ? a.priority : Infinity;
   const priorityB = typeof b.priority === 'number' ? b.priority : Infinity;
@@ -926,7 +590,9 @@ function comparePassagesForPrompt(a, b, scoreField) {
     return priorityA - priorityB;
   }
 
-  return 0;
+  const identityA = a.candidateId || '';
+  const identityB = b.candidateId || '';
+  return identityA < identityB ? -1 : identityA > identityB ? 1 : 0;
 }
 
 /**
@@ -972,120 +638,122 @@ function comparePassagesForPrompt(a, b, scoreField) {
  *   }
  * );
  */
+function isValidSemanticVector(result, dimensions = null) {
+  const vector = result?.embedding;
+  return isSemanticEmbedding(result) && Array.isArray(vector) && vector.length > 0
+    && (dimensions === null || vector.length === dimensions)
+    && vector.every(Number.isFinite)
+    && Number.isFinite(vector.reduce((sum, value) => sum + value * value, 0))
+    && vector.some((value) => value !== 0);
+}
+
+// Explicit whole-registry budget: overflow falls back for the complete eligible
+// set, never to a truncated semantic shortlist. Registry qualification must
+// validate this bound when approved enrichment changes the compiled corpus.
+export const MAX_SEMANTIC_REGISTRY_PASSAGES = 1000;
+
 export async function retrievePassagesWithQuality(graphKeys, options = {}) {
-  const {
-    maxPassages = 5,
-    userQuery = '',
-    questionContext = '',
-    minRelevanceScore = 0.3,
-    enableDeduplication = true,
-    enableSemanticScoring: explicitSemanticScoring,
-    env = null
-  } = options;
-
-  // Auto-detect semantic scoring: enabled by default when API is available
-  // Can be explicitly disabled by passing enableSemanticScoring: false
-  const enableSemanticScoring = explicitSemanticScoring === undefined || explicitSemanticScoring === null
-    ? isSemanticScoringAvailable(env)
-    : explicitSemanticScoring;
-
-  // Quality filtering selects the most relevant passages for the user's question.
-  // This is independent of prompt slimming (which controls whether entire sections
-  // are dropped from prompts for budget reasons). Use DISABLE_QUALITY_FILTERING
-  // explicitly if you need to bypass relevance scoring and deduplication.
-  const disableQualityFiltering = env?.DISABLE_QUALITY_FILTERING === 'true' ||
-    env?.DISABLE_QUALITY_FILTERING === true;
-
-  // Get raw passages (retrieve 2x to allow for filtering unless explicitly disabled)
-  const retrievalLimit = disableQualityFiltering ? maxPassages : maxPassages * 2;
-  const rawPassages = retrievePassages(graphKeys, {
-    maxPassages: retrievalLimit,
-    userQuery,
-    questionContext,
-    includeMetadata: true
+  const { maxPassages = 5, questionContext = '', minRelevanceScore = 0.3, enableDeduplication = true, env = null } = options;
+  if (!isValidPassageLimit(maxPassages)) return [];
+  const startedAt = Date.now();
+  const userQuery = typeof options.userQuery === 'string' ? options.userQuery : '';
+  const keywordQuery = typeof options.keywordQuery === 'string' ? options.keywordQuery : userQuery;
+  const hasQuery = Boolean(userQuery.trim());
+  const queryTerms = retrievalQueryTerms(keywordQuery);
+  const hasKeywordQuery = queryTerms.length > 0;
+  const semanticRequested = options.enableSemanticScoring ?? isSemanticScoringAvailable(env);
+  const disabled = env?.DISABLE_QUALITY_FILTERING === 'true' || env?.DISABLE_QUALITY_FILTERING === true;
+  const mode = resolveRetrievalMode({ qualityFilteringDisabled: disabled, semanticRequested, keywordQuery });
+  const candidates = collectPassageCandidates(graphKeys, { ...options, includeMetadata: true });
+  const embeddingStats = {};
+  const registryOverflow = candidates.retrievalStats.registryPassageCount > MAX_SEMANTIC_REGISTRY_PASSAGES;
+  let embeddings = [];
+  const attempted = Boolean(mode === 'semantic' && hasQuery && candidates.length && isSemanticScoringAvailable(env) && !registryOverflow);
+  if (attempted) embeddings = await embedTextsWithMetadata([userQuery, ...candidates.map(entry => entry.promptText)], { env, stats: embeddingStats, deadline: startedAt + 3000, signal: options.signal });
+  const valid = attempted && isValidSemanticVector(embeddings[0])
+    && embeddings.length === candidates.length + 1
+    && embeddings.slice(1).every(entry => isValidSemanticVector(entry, embeddings[0].embedding.length));
+  const anyValid = attempted && embeddings.some(entry => isValidSemanticVector(entry));
+  const fallback = disabled ? 'quality-filtering-disabled' : !semanticRequested ? null : !hasQuery ? 'no-query'
+    : !candidates.length ? (candidates.retrievalStats.projectionRejected ? 'projection-rejected' : 'no-passages')
+      : registryOverflow ? 'embeddings-registry-overflow' : !isSemanticScoringAvailable(env) ? 'embeddings-not-configured'
+        : valid ? null : ['embeddings-timeout', 'embeddings-cancelled'].includes(embeddingStats.failureReason) ? embeddingStats.failureReason
+          : anyValid ? 'embeddings-partial-failure' : embeddingStats.failureReason === 'embeddings-invalid-vector' ? 'embeddings-partial-failure' : embeddingStats.failureReason || 'embeddings-failed';
+  const scoringMethod = disabled ? 'bypassed' : valid ? 'semantic' : hasKeywordQuery ? 'keyword' : 'priority';
+  const scored = candidates.map((passage, index) => {
+    const keywordScore = disabled || scoringMethod === 'priority' ? null : scoreKeywordRelevance(passage.promptText, keywordQuery, queryTerms);
+    const semanticScore = valid ? cosineSimilarity(embeddings[0].embedding, embeddings[index + 1].embedding) : null;
+    return {
+      ...passage,
+      ...(keywordScore === null ? {} : { relevance: keywordScore, relevanceScore: composeRelevanceScore({ keywordScore, semanticScore }) }),
+      _qualityFilteringDisabled: disabled,
+      _semanticScoringEnabled: Boolean(semanticRequested),
+      _semanticScoringAttempted: attempted,
+      _semanticScoringSucceeded: Boolean(valid),
+      _semanticScore: semanticScore,
+      _contextMatch: passageContextMatch(passage, questionContext),
+      _priorityOnly: scoringMethod === 'priority' || disabled
+    };
   });
-
-  if (!rawPassages || rawPassages.length === 0) {
-    return [];
-  }
-
-  // If filtering is explicitly disabled, return raw passages with nominal scores
-  if (disableQualityFiltering) {
-    return rawPassages.map((p) => ({
-      ...p,
-      relevanceScore: 1.0,
-      _qualityFilteringDisabled: true
-    }));
-  }
-
-  // Embed the question and every candidate passage in one request instead of
-  // a request pair per passage.
-  let queryEmbedding = null;
-  let passageEmbeddings = null;
-  if (enableSemanticScoring && typeof userQuery === 'string' && userQuery.trim()) {
-    [queryEmbedding, ...passageEmbeddings] = await embedTextsWithMetadata(
-      [
-        userQuery,
-        ...rawPassages.map((p) => (typeof p.text === 'string' ? p.text.slice(0, MAX_PASSAGE_EMBEDDING_CHARS) : ''))
-      ],
-      { env }
-    );
-  }
-
-  // Score each passage for relevance
-  const scoredPassages = await Promise.all(
-    rawPassages.map(async (passage, index) => {
-      const semanticStatus = { attempted: false, succeeded: false };
-      const relevanceScore = await scorePassageRelevance(
-        passage.text,
-        userQuery,
-        {
-          enableSemanticScoring,
-          env,
-          semanticStatus,
-          embeddings: passageEmbeddings
-            ? { query: queryEmbedding, passage: passageEmbeddings[index] }
-            : undefined
+  // Corroborate a pivotal semantic-only supplemental Major against its
+  // canonical topic descriptor. This runs only when the strongest drawn
+  // Major lacks shared question terms, clears the threshold, and outranks
+  // every qualified non-Major pattern (or none qualifies); the descriptor
+  // embedding shares the retrieval deadline, and any failure leaves the
+  // lexical safeguard in force. Selection re-checks every condition.
+  const topicCorroboration = { attempted: false, used: false, fallbackReason: null };
+  if (valid) {
+    const isMajor = entry => entry.type === 'major-arcana' && entry.priority === SUPPLEMENTAL_MAJOR_PRIORITY;
+    const topMajor = scored.filter(isMajor).sort((a, b) =>
+      (Number.isFinite(b.relevanceScore) ? b.relevanceScore : -Infinity) - (Number.isFinite(a.relevanceScore) ? a.relevanceScore : -Infinity)
+      || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0))[0];
+    const qualifiedOthers = scored.filter(entry => !isMajor(entry) && Number.isFinite(entry.relevanceScore) && entry.relevanceScore >= minRelevanceScore);
+    if (topMajor && !(topMajor.relevance > 0) && Number.isFinite(topMajor.relevanceScore)
+      && topMajor.relevanceScore >= minRelevanceScore
+      && qualifiedOthers.every(entry => topMajor.relevanceScore > entry.relevanceScore)) {
+      const descriptor = getMajorTopicDescriptor(topMajor.patternId);
+      if (descriptor) {
+        topicCorroboration.attempted = true;
+        const descriptorStats = {};
+        const [descriptorResult] = await embedTextsWithMetadata([descriptor], { env, stats: descriptorStats, deadline: startedAt + 3000, signal: options.signal });
+        for (const key of ['inputCount', 'inputCharacters', 'batchCount', 'cacheHits']) {
+          embeddingStats[key] = (embeddingStats[key] || 0) + (descriptorStats[key] || 0);
         }
-      );
-      return {
-        ...passage,
-        relevanceScore,
-        // Track whether semantic scoring was enabled for this retrieval
-        _semanticScoringEnabled: enableSemanticScoring,
-        _semanticScoringAttempted: semanticStatus.attempted,
-        _semanticScoringSucceeded: semanticStatus.succeeded
-      };
-    })
-  );
-
-  // Filter by quality threshold
-  let filtered = scoredPassages.filter(
-    (p) => p.relevanceScore >= minRelevanceScore
-  );
-
-  // Floor: retrieval found real patterns, so never hand back nothing just
-  // because the question wording scored poorly against every passage. Keep the
-  // single best candidate, flagged so telemetry can tell it apart.
-  if (filtered.length === 0) {
-    const best = scoredPassages.reduce(
-      (top, p) => (p.relevanceScore > top.relevanceScore ? p : top),
-      scoredPassages[0]
-    );
-    filtered = [{ ...best, belowRelevanceThreshold: true }];
+        embeddingStats.peakConcurrency = Math.max(embeddingStats.peakConcurrency || 0, descriptorStats.peakConcurrency || 0);
+        if (Number.isFinite(descriptorStats.cacheSizeAfter)) embeddingStats.cacheSizeAfter = descriptorStats.cacheSizeAfter;
+        if (isValidSemanticVector(descriptorResult, embeddings[0].embedding.length)) {
+          topicCorroboration.used = true;
+          const topicScore = composeRelevanceScore({ keywordScore: 0, semanticScore: cosineSimilarity(embeddings[0].embedding, descriptorResult.embedding) });
+          for (const entry of scored) {
+            if (isMajor(entry) && entry.patternId === topMajor.patternId) entry._supplementalMajorTopicScore = topicScore;
+          }
+        } else {
+          topicCorroboration.fallbackReason = descriptorStats.failureReason || 'embeddings-invalid-vector';
+        }
+      }
+    }
   }
-
-  // Deduplicate similar passages
-  if (enableDeduplication) {
-    filtered = deduplicatePassages(filtered);
-  }
-
-  // Sort by relevance score (highest first) and take top N
-  const ranked = filtered
-    .sort((a, b) => b.relevanceScore - a.relevanceScore)
-    .slice(0, maxPassages);
-
-  return ranked;
+  Object.defineProperty(scored, 'retrievalStats', { value: {
+    ...candidates.retrievalStats,
+    candidatesScored: ['semantic', 'keyword'].includes(scoringMethod) ? scored.length : 0,
+    retrievalMode: mode, scoringMethod,
+    semanticScoringAttempted: attempted, semanticScoringUsed: Boolean(valid),
+    semanticScoringFallbackReason: fallback,
+    majorTopicCorroborationPolicy: MAJOR_TOPIC_CORROBORATION_POLICY_ID,
+    majorTopicCorroborationAttempted: topicCorroboration.attempted,
+    majorTopicCorroborationUsed: topicCorroboration.used,
+    majorTopicCorroborationFallbackReason: topicCorroboration.fallbackReason,
+    embeddingBatchCount: embeddingStats.batchCount || 0,
+    embeddingCacheHits: embeddingStats.cacheHits || 0,
+    embeddingInputCount: embeddingStats.inputCount || 0,
+    embeddingInputCharacters: embeddingStats.inputCharacters || 0,
+    embeddingCacheSizeBefore: embeddingStats.cacheSizeBefore || 0,
+    embeddingCacheSizeAfter: embeddingStats.cacheSizeAfter || 0,
+    embeddingCacheMaxSize: embeddingStats.cacheMaxSize || 100,
+    embeddingPeakConcurrency: embeddingStats.peakConcurrency || 0,
+    retrievalElapsedMs: Date.now() - startedAt
+  } });
+  return selectPassageCandidates(scored, { maxPassages, minRelevanceScore, enableDeduplication, qualityFilteringDisabled: disabled });
 }
 
 /**
@@ -1105,7 +773,7 @@ export function buildQualityRetrievalSummary(graphKeys, passages) {
     maxRelevance: 0,
     belowRelevanceThresholdPassages: 0,
     semanticScoringUsed: false,
-    semanticScoringAttempted: false
+    semanticScoringAttempted: passages?.retrievalStats?.semanticScoringAttempted === true
   };
 
   if (Array.isArray(passages) && passages.length > 0) {

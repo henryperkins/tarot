@@ -1,7 +1,8 @@
 import { normalizeReadingText, prepareForTTS } from './formatting.js';
 import { djb2Hash } from './utils.js';
 import { safeStorage } from './safeStorage.js';
-import { normalizeTtsProvider } from '../../shared/narrationProviders.js';
+import { streamAudioToMediaSource } from './streamingAudio.js';
+import { DEFAULT_NARRATION_PROVIDER, normalizeTtsProvider } from '../../shared/narrationProviders.js';
 
 export { normalizeTtsProvider };
 
@@ -32,6 +33,7 @@ let currentNarrationRequestId = 0;
 let activeNarrationId = null;
 let cancelledUpToRequestId = 0;
 let ttsAbortController = null;
+let narrationIntentId = 0;
 let audioUnlocked = false;
 let unlockListenersRegistered = false;
 const TTS_CACHE_PREFIX = 'tts_cache_';
@@ -55,12 +57,21 @@ let ttsStreamAbortController = null;
 
 const SILENT_AUDIO_URI = 'data:audio/mp3;base64,//MkxAAHiAICWABElBeKPL/RANb2w+yiT1g/gTok//lP/W/l3h8QO/OCdCqCW2Cw//MkxAQHkAIWUAhEmAQXWUOFW2dxPu//9mr60ElY5sseQ+xxesmHKtZr7bsqqX2L//MkxAgFwAYiQAhEAC2hq22d3///9FTV6tA36JdgBJoOGgc+7qvqej5Zu7/7uI9l//MkxBQHAAYi8AhEAO193vt9KGOq+6qcT7hhfN5FTInmwk8RkqKImTM55pRQHQSq//MkxBsGkgoIAABHhTACIJLf99nVI///yuW1uBqWfEu7CgNPWGpUadBmZ////4sL//MkxCMHMAH9iABEmAsKioqKigsLCwtVTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVV//MkxCkECAUYCAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 
+// UI actions can wait for permission before speakText creates a request.
+// Resets, stops and replacement requests invalidate those pending actions too.
+export function beginNarrationIntent() {
+  const intentId = ++narrationIntentId;
+  return () => narrationIntentId === intentId;
+}
+
 /**
  * Unlock audio playback by creating and playing a silent audio element.
  * Must be called from a user interaction event (click, touch, keydown, etc.)
  * to satisfy browser autoplay policies.
  */
-export async function unlockAudio() {
+export async function unlockAudio({ isCurrent } = {}) {
+  const intentId = narrationIntentId;
+  const canNotify = isCurrent || (() => narrationIntentId === intentId);
   if (audioUnlocked) return true;
   if (typeof Audio === 'undefined' || typeof window === 'undefined') return false;
 
@@ -73,6 +84,7 @@ export async function unlockAudio() {
     audioUnlocked = true;
     return true;
   } catch (err) {
+    if (!canNotify()) return false;
     console.warn('[Audio] Audio unlock failed - user interaction needed', err);
     emitTTSState({
       status: 'unlock-failed',
@@ -242,78 +254,12 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
   const objectUrl = URL.createObjectURL(mediaSource);
   trackObjectUrl(objectUrl);
 
-  const reader = response.body.getReader();
-  const queue = [];
-  let streamDone = false;
-  let sourceBuffer = null;
-
-  const pumpQueue = () => {
-    if (!sourceBuffer || sourceBuffer.updating || queue.length === 0) return;
-    const chunk = queue.shift();
-    if (chunk) {
-      sourceBuffer.appendBuffer(chunk);
-    }
-  };
-
-  const finishStream = () => {
-    if (mediaSource.readyState === 'open') {
-      try {
-        mediaSource.endOfStream();
-      } catch {
-        // Ignore end-of-stream errors.
-      }
-    }
-  };
-
-  const readLoop = async () => {
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          queue.push(value);
-          pumpQueue();
-        }
-      }
-      streamDone = true;
-      if (!sourceBuffer?.updating && queue.length === 0) {
-        finishStream();
-      }
-    } catch (error) {
-      await reader.cancel().catch(() => {});
-      if (!signal?.aborted) onError(error);
-      finishStream();
-    } finally {
-      reader.releaseLock();
-    }
-  };
-
-  mediaSource.addEventListener('sourceopen', () => {
-    try {
-      sourceBuffer = mediaSource.addSourceBuffer(contentType);
-    } catch (error) {
-      reader.cancel().catch(() => null);
-      onError(error);
-      finishStream();
-      return;
-    }
-
-    sourceBuffer.addEventListener('updateend', () => {
-      pumpQueue();
-      if (streamDone && queue.length === 0) {
-        finishStream();
-      }
-    });
-
-    void readLoop();
-  }, { once: true });
-
-  if (signal) {
-    signal.addEventListener('abort', () => {
-      reader.cancel().catch(() => null);
-      finishStream();
-    }, { once: true });
-  }
+  void streamAudioToMediaSource(response, mediaSource, {
+    signal,
+    contentType,
+    getAudio: () => ttsAudio,
+    onError
+  });
 
   return { url: objectUrl, source: 'media-source' };
 }
@@ -327,7 +273,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {Object} options
  * @param {string} options.text - Text to speak (can be Markdown)
  * @param {boolean} options.enabled - Whether TTS is enabled
- * @param {string} [options.provider='elevenlabs'] - Selected narration provider
+ * @param {string} [options.provider='deepgram'] - Selected narration provider
  * @param {string} [options.context='default'] - Reading context (card-reveal, full-reading, synthesis, etc.)
  * @param {string} [options.voice='verse'] - Voice name; the server currently uses one voice for all narration
  * @param {number} [options.speed] - Playback speed, applied by the player (1 is normal)
@@ -335,7 +281,7 @@ async function buildStreamingAudioSource(response, signal, onError = () => {}) {
  * @param {boolean} [options.stream=false] - Use streaming mode for progressive audio playback
  * @param {string} [options.emotion=null] - Emotion from GraphRAG analysis for voice styling
  */
-export async function speakText({ text, enabled, provider: requestedProvider = 'elevenlabs', context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
+export async function speakText({ text, enabled, provider: requestedProvider = DEFAULT_NARRATION_PROVIDER, context = 'default', voice = 'verse', speed, format, stream = false, emotion = null }) {
   ensureGlobalCleanupListeners();
 
   if (!enabled) {
@@ -357,6 +303,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
   const ttsText = prepareForTTS(normalizedText);
 
   const requestId = ++currentNarrationRequestId;
+  narrationIntentId++;
   resetTTSStream({ preserveAudio: true });
   if (ttsAbortController) {
     ttsAbortController.abort();
@@ -437,6 +384,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
           // Not JSON, use status text
         }
 
+        errorData = withBusyRetryAfter(response, errorData);
         const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
         const userMessage = getErrorMessage(response.status, errorData);
 
@@ -461,8 +409,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
         // Streaming mode: response body is a ReadableStream of audio chunks
         const streamResult = await buildStreamingAudioSource(response, controller?.signal, error => {
           if (isStaleRequest()) return;
-          activeNarrationId = null;
-          ttsAudio?.pause();
+          cancelCurrentNarration();
           emitTTSState({ status: 'error', errorCode: 'NARRATION_INCOMPLETE', error: error?.message || 'Audio body failed', context: narrationContext, message: 'Narration stopped before it finished. Please try again.' });
         });
         audioDataUri = streamResult.url;
@@ -521,22 +468,16 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
     }
 
     if (isStaleRequest() || requestId <= cancelledUpToRequestId) {
-      emitTTSState({
-        status: 'stopped',
-        reason: 'user',
-        context: narrationContext,
-        message: 'Narration stopped.'
-      });
-      activeNarrationId = null;
+      if (objectUrlForCleanup) revokeTrackedObjectUrl(objectUrlForCleanup);
       return;
     }
 
     // Ensure audio is unlocked before attempting playback
     if (!audioUnlocked) {
-      const unlocked = await unlockAudio();
+      const unlocked = await unlockAudio({ isCurrent: () => !isStaleRequest() });
       if (!unlocked) {
         if (isStaleRequest()) {
-          activeNarrationId = null;
+          if (objectUrlForCleanup) revokeTrackedObjectUrl(objectUrlForCleanup);
           return;
         }
         emitTTSState({
@@ -548,13 +489,14 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
           message: 'Tap anywhere on the page to enable audio, then try again.',
           reason: 'interaction-required'
         });
-        activeNarrationId = null;
+        cancelCurrentNarration();
+        if (objectUrlForCleanup) revokeTrackedObjectUrl(objectUrlForCleanup);
         return;
       }
     }
 
     if (isStaleRequest()) {
-      activeNarrationId = null;
+      if (objectUrlForCleanup) revokeTrackedObjectUrl(objectUrlForCleanup);
       return;
     }
 
@@ -588,11 +530,16 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
         message: getPlayMessage(provider, narrationContext)
       });
     } catch (err) {
+      if (isStaleRequest()) {
+        releaseAudioObjectUrl(audio);
+        return;
+      }
       console.error('Error playing TTS audio:', err);
       const isAutoplayError = err.name === 'NotAllowedError' ||
         err.message?.toLowerCase().includes('autoplay') ||
         err.message?.toLowerCase().includes('user interaction');
 
+      cancelCurrentNarration();
       emitTTSState({
         status: 'error',
         provider,
@@ -621,7 +568,7 @@ export async function speakText({ text, enabled, provider: requestedProvider = '
   }
 }
 
-export function enqueueTTSChunk({ text, provider: requestedProvider = 'elevenlabs', context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
+export function enqueueTTSChunk({ text, provider: requestedProvider = DEFAULT_NARRATION_PROVIDER, context = 'full-reading', voice = 'nova', speed, format, emotion = null }) {
   if (!text || typeof text !== 'string') return false;
   ensureGlobalCleanupListeners();
 
@@ -653,7 +600,11 @@ export function finalizeTTSStream() {
 }
 
 export function resetTTSStream({ preserveAudio = false } = {}) {
-  clearTtsStreamState({ preserveAudio });
+  clearTtsStreamState({ preserveAudio: true });
+  if (!preserveAudio) {
+    cancelCurrentNarration();
+    emitTTSState({ status: 'idle' });
+  }
 }
 
 export function isTTSStreamActive() {
@@ -768,6 +719,7 @@ async function playTtsStreamSegment(segment, requestId) {
     } catch {
       errorData = {};
     }
+    errorData = withBusyRetryAfter(response, errorData);
     const errorCode = errorData.errorCode || (response.status === 429 ? 'RATE_LIMIT' : 'SERVICE_ERROR');
     const userMessage = getErrorMessage(response.status, errorData);
     emitTTSState({
@@ -1005,27 +957,12 @@ function cacheAudio(key, audioDataUri, provider = null) {
       entries = entries.slice(TTS_CACHE_EVICT_BATCH);
     }
 
-    try {
-      safeStorage.setItem(key, payload);
-    } catch (err) {
-      if (isQuotaExceededError(err)) {
-        entries = collectCacheEntries();
-        const removalTarget = Math.max(TTS_CACHE_EVICT_BATCH, entries.length - TTS_CACHE_PURGE_TARGET);
-        if (removalTarget > 0) {
-          evictOldestEntries(entries, removalTarget);
-        } else {
-          clearTTSCache({ keepLatest: TTS_CACHE_PURGE_TARGET });
-        }
-
-        try {
-          safeStorage.setItem(key, payload);
-          return;
-        } catch (retryErr) {
-          console.warn('Unable to cache TTS audio after eviction:', retryErr);
-        }
-      } else {
-        console.warn('Unable to cache TTS audio:', err);
-      }
+    if (safeStorage.setItem(key, payload)) return;
+    // Storage can fill long before the entry-count sweep. Only evict TTS
+    // entries, oldest first, and stop as soon as the new audio fits.
+    for (const entry of collectCacheEntries()) {
+      safeStorage.removeItem(entry.key);
+      if (safeStorage.setItem(key, payload)) return;
     }
   } catch (err) {
     // localStorage full or unavailable - just continue without caching
@@ -1094,10 +1031,19 @@ function maybeSweepCache(entryCount) {
   clearTTSCache({ keepLatest: TTS_CACHE_PURGE_TARGET });
 }
 
-function isQuotaExceededError(err) {
-  if (!err) return false;
-  const name = err.name || '';
-  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED';
+function cancelCurrentNarration() {
+  narrationIntentId++;
+  cancelledUpToRequestId = Math.max(cancelledUpToRequestId, currentNarrationRequestId);
+  activeNarrationId = null;
+  ttsAbortController?.abort();
+  ttsAbortController = null;
+  const audio = ttsAudio;
+  ttsAudio = null;
+  if (audio) {
+    releaseAudioObjectUrl(audio);
+    audio.pause();
+    audio.currentTime = 0;
+  }
 }
 
 /**
@@ -1107,33 +1053,8 @@ function isQuotaExceededError(err) {
 export function stopTTS() {
   try {
     resetTTSStream({ preserveAudio: true });
-    const targetId = activeNarrationId ?? currentNarrationRequestId;
-    if (targetId) {
-      cancelledUpToRequestId = Math.max(cancelledUpToRequestId, targetId);
-    }
-    activeNarrationId = null;
-    if (ttsAbortController) {
-      ttsAbortController.abort();
-      ttsAbortController = null;
-    }
-
-    if (ttsAudio) {
-      releaseAudioObjectUrl(ttsAudio);
-      ttsAudio.pause();
-      ttsAudio.currentTime = 0;
-      ttsAudio = null;
-      emitTTSState({
-        status: 'stopped',
-        reason: 'user',
-        message: 'Narration stopped.'
-      });
-    } else {
-      emitTTSState({
-        status: 'stopped',
-        reason: 'user',
-        message: 'Narration stopped.'
-      });
-    }
+    cancelCurrentNarration();
+    emitTTSState({ status: 'stopped', reason: 'user', message: 'Narration stopped.' });
   } catch {
     // ignore errors
   }
@@ -1141,7 +1062,7 @@ export function stopTTS() {
 
 export function cleanupAudio() {
   try {
-    resetTTSStream({ preserveAudio: true });
+    resetTTSStream();
     if (ambienceSwellTimer) {
       clearTimeout(ambienceSwellTimer);
       ambienceSwellTimer = null;
@@ -1202,8 +1123,12 @@ export function pauseTTS() {
 
 export async function resumeTTS() {
   if (!ttsAudio) return;
+  const audio = ttsAudio;
+  const requestId = activeNarrationId;
+  const isCurrent = () => ttsAudio === audio && activeNarrationId === requestId;
   try {
-    await ttsAudio.play();
+    await audio.play();
+    if (!isCurrent()) return;
     emitTTSState({
       status: 'playing',
       reason: 'resume',
@@ -1212,6 +1137,7 @@ export async function resumeTTS() {
         : 'Resuming narration.'
     });
   } catch (err) {
+    if (!isCurrent()) return;
     emitTTSState({
       status: 'error',
       error: err?.message || String(err),
@@ -1330,6 +1256,7 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
 
   audio.addEventListener('error', () => {
     if (!isCurrent()) return;
+    cancelCurrentNarration();
     emitTTSState({
       status: 'error',
       provider,
@@ -1339,10 +1266,6 @@ function wireTTSEvents(audio, provider, source, requestId, context) {
       errorCode: 'PLAYBACK_ERROR',
       message: 'Something went wrong while playing audio.'
     });
-    releaseAudioObjectUrl(audio);
-    if (activeNarrationId === requestId) {
-      activeNarrationId = null;
-    }
   });
 }
 
@@ -1401,7 +1324,17 @@ function getPauseMessage(provider, context) {
 /**
  * Get user-friendly error message based on status and error data.
  */
+function withBusyRetryAfter(response, errorData) {
+  if (response.status !== 409 || errorData?.errorCode !== 'NARRATION_BUSY') return errorData;
+  const header = response.headers.get('retry-after')?.trim() || '';
+  const seconds = /^\d+$/.test(header) ? Number(header) : NaN;
+  return { ...errorData, retryAfterSeconds: Number.isSafeInteger(seconds) && seconds > 0 ? seconds : 2 };
+}
+
 function getErrorMessage(status, errorData) {
+  if (status === 409 && errorData.errorCode === 'NARRATION_BUSY') {
+    return 'Another narration is finishing. Please wait a moment, then try again.';
+  }
   if (status === 429) {
     if (errorData.tierLimited) {
       const used = errorData.used ?? '?';

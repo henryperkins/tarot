@@ -77,7 +77,7 @@ async function prepareNarrative(page) {
   await question.fill('How can I find balance? 🌿 ما الذي يدعمني؟ 自分を大切にする');
   await page.getByRole('button', { name: /^Draw cards$/ }).click();
   await page.getByRole('button', { name: /^Deal spread/ }).click();
-  await page.getByRole('button', { name: /^Reveal all cards/ }).click();
+  await page.getByRole('button', { name: /^Reveal remaining cards/ }).click();
   await expect(page.getByRole('button', { name: /^Interpret cards/ })).toBeEnabled();
 }
 
@@ -107,7 +107,7 @@ test('page remains painted when motion preference changes or its animation is pa
     });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect.poll(() => effectiveOpacity(page.locator('#main-content'))).toBe(1);
-    await page.getByRole('button', { name: 'Journal', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
     await expect(page).toHaveURL(/\/journal$/);
     await page.goBack();
     await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
@@ -214,7 +214,7 @@ test('a delayed request stays truthful and completion preserves focus chosen els
     await prepareNarrative(page);
     await generate(page);
     await expect(page.getByRole('heading', { name: 'Preparing your reading' })).toBeFocused();
-    await expect(page.locator('.narrative-skeleton [role="status"]')).toContainText('taking longer than usual', { timeout: 16000 });
+    await expect(page.locator('.reading-preparation__status')).toContainText('Your reading is still being prepared.', { timeout: 16000 });
     await expect(page.getByText(/Almost there|Step [123] of 3/)).toHaveCount(0);
     const readingStep = page.getByRole('button', { name: 'Step 4: Reading', exact: true });
     await readingStep.focus();
@@ -234,7 +234,7 @@ test('mobile retry and motion changes remain usable through generation and failu
     await prepareNarrative(page);
     await generate(page);
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await expect.poll(() => effectiveOpacity(page.locator('.narrative-skeleton'))).toBe(1);
+    await expect.poll(() => effectiveOpacity(page.locator('.reading-screen--preparing'))).toBe(1);
     await jobs.emit('error', { message: 'The connection was interrupted.' });
     await expect(page.getByRole('alert')).toContainText('connection was interrupted');
     await page.getByRole('button', { name: /Retry interpretation/ }).press('Enter');

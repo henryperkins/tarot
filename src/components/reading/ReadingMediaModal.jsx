@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { createPortal } from 'react-dom';
-import clsx from 'clsx';
-import { X } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { MediaGallery } from '../MediaGallery';
-import { useModalA11y, createBackdropHandler } from '../../hooks/useModalA11y';
-import { FOCUS_RING_ACCENT_50, FOCUS_RING_OFFSET_MAIN } from '../../styles/focusClasses';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export const READING_MEDIA_MODAL_TITLE_ID = 'reading-media-modal-title';
 const DESCRIPTION_ID = 'reading-media-modal-description';
@@ -56,8 +54,9 @@ export function ReadingMediaModal({
   return createPortal(
     <div
       className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 px-safe pt-safe pb-safe"
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"
@@ -68,19 +67,7 @@ export function ReadingMediaModal({
         onClick={(event) => event.stopPropagation()}
         tabIndex={-1}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className={clsx(
-            'absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center',
-            'text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors touch-manipulation',
-            FOCUS_RING_ACCENT_50,
-            FOCUS_RING_OFFSET_MAIN
-          )}
-          aria-label="Close recent media"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <CloseButton label="Close recent media" onClick={onClose} className="absolute top-3 right-3 z-20" />
 
         <div className="relative z-10 px-4 sm:px-6 py-4 pr-14 sm:pr-16 border-b border-secondary/25">
           <h2
@@ -90,7 +77,7 @@ export function ReadingMediaModal({
             Recent media
           </h2>
           <p id={DESCRIPTION_ID} className="text-xs sm:text-sm text-muted mt-2">
-            Saved visuals from this reading flow.
+            Saved visuals from your readings.
           </p>
         </div>
 

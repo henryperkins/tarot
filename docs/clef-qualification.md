@@ -1,5 +1,9 @@
 # Evaluator qualification
 
+Type: reference
+Status: active reference
+Last reviewed: 2026-10-23
+
 The production evaluator remains GLM-5.3 / GLM-5.3 Flash. The candidate tooling makes no activation decision: `qualified` is always false. Offline replay verifies control flow, not model quality. A candidate requires bounded live results, independent review of corpus labels and explicit approval before production activation.
 
 ## Contract and policy

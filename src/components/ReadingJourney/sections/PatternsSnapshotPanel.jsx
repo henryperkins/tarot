@@ -5,8 +5,9 @@
  */
 
 import { memo } from 'react';
-import { X } from '@phosphor-icons/react';
+import { CloseButton } from '../../CloseButton';
 import ContextBreakdown from './ContextBreakdown';
+import { LABEL_CLASS } from '../../../styles/labelClasses';
 
 function PatternsSnapshotPanel({
   timeframeLabel,
@@ -20,7 +21,7 @@ function PatternsSnapshotPanel({
     <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-high">
+          <p className={`${LABEL_CLASS} text-muted-high`}>
             Full Patterns Snapshot
           </p>
           <p className="text-2xs text-muted">
@@ -28,14 +29,7 @@ function PatternsSnapshotPanel({
             {formattedSeasonWindow ? ` · ${formattedSeasonWindow}` : ''}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted hover:text-main hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-          aria-label="Close full patterns snapshot"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <CloseButton label="Close full patterns snapshot" size="sm" onClick={onClose} />
       </div>
       {contextBreakdown.length > 0 && (
         <ContextBreakdown

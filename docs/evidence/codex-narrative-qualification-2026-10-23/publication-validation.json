@@ -1,0 +1,81 @@
+{
+  "status": "passed",
+  "validatedAt": "2026-10-24T01:24:01.844Z",
+  "qualificationSourceCommit": "98106dd895d7c57874614b356f17287681c2e1b5",
+  "verificationScope": "Runner repair and portable qualification evidence; no fresh generation repeated for publication.",
+  "fullSuite": {
+    "command": "npm test",
+    "environment": "Linux verification checkout",
+    "code": 0,
+    "signal": null,
+    "sourceBase": "a0ff83d32d67df46cf5146e5856156c5a23dd797",
+    "finishedAt": "2026-10-24T01:23:36.010Z",
+    "total": 5430,
+    "passed": 5428,
+    "failed": 0,
+    "skipped": 2
+  },
+  "installedCliIsolation": {
+    "code": 0,
+    "finishedAt": "2026-10-24T01:15:37.856Z",
+    "passed": 2,
+    "failed": 0,
+    "cliVersion": "0.162.0"
+  },
+  "checks": [
+    {
+      "name": "lint",
+      "code": 0
+    },
+    {
+      "name": "docs",
+      "code": 0
+    },
+    {
+      "name": "retainedNarrativeGate",
+      "code": 0
+    }
+  ],
+  "docsMarkdownFiles": 238,
+  "whitespaceCheck": "passed",
+  "privacyReview": {
+    "reviewedFiles": 17,
+    "decodedJsonStringsChecked": true,
+    "findings": [],
+    "reportLinksVerified": 15,
+    "excluded": [
+      "Credentials",
+      "Native session state",
+      "Diagnostic databases",
+      "Raw host logs"
+    ],
+    "syntheticPromptsAndReadings": true
+  },
+  "source": {
+    "testedRunnerSha256": "b0bd22316aab04ea8cdfdac26a6ec8385aa95376efd5f61f2736a691c701513c",
+    "normalizedRunnerSha256": "8c9c882c0db92f9149e0422c248398785414a40ca0f5f51342aa32bc6a6fffe6"
+  },
+  "historicalQualificationChecks": "The earlier 5426-pass, 1-failure, 2-skipped run and passing isolated recheck remain unchanged in qualification-receipt.json and validation.txt.",
+  "priorPublicationFullSuite": {
+    "command": "npm test",
+    "environment": "Linux verification checkout",
+    "code": 0,
+    "signal": null,
+    "finishedAt": "2026-10-24T01:15:30.656Z",
+    "total": 5429,
+    "passed": 5427,
+    "failed": 0,
+    "skipped": 2
+  },
+  "publicationBaseCommit": "a0ff83d32d67df46cf5146e5856156c5a23dd797",
+  "sync": {
+    "oldHead": "98106dd895d7c57874614b356f17287681c2e1b5",
+    "newHead": "a0ff83d32d67df46cf5146e5856156c5a23dd797",
+    "remotePaths": [
+      "functions/api/generate-question.js",
+      "tests/questionRefinementRoute.test.mjs"
+    ],
+    "reviewedFilesPreserved": 20,
+    "verifiedAt": "2026-10-24T01:19:17.420Z"
+  }
+}

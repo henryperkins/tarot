@@ -16,13 +16,19 @@ import {
   isGraphRAGEnabled,
   isSemanticScoringAvailable,
   getKnowledgeBaseInfo,
-  getPassageCountForSpread
+  getPassageCountForSpread,
+  hasMeaningfulGraphKeys
 } from '../functions/lib/graphRAG.js';
 import {
   getPassagesForPattern,
   getKnowledgeBaseStats
 } from '../functions/lib/knowledgeBase.js';
+import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js';
+import { buildGraphContext } from '../functions/lib/graphContext.js';
+import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
 import { ARCHETYPAL_DYADS } from '../src/data/knowledgeGraphData.js';
+import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
 test('retrieval preserves the origin of imagery instead of implying the selected deck', () => {
   const passages = retrievePassages({ completeTriadIds: ['death-temperance-star'], thothSuits: ['Cups'], marseilleRanks: [3] }, { maxPassages: 10 });
@@ -264,7 +270,7 @@ describe('GraphRAG Retrieval', () => {
   test('retrievePassages: suit progression (priority 4)', () => {
     const graphKeys = {
       suitProgressions: [
-        { suit: 'Wands', stage: 'beginning', significance: 'strong-progression' }
+        { suit: 'Wands', stage: 'beginning', significance: 'strong-progression', matchedCardKeys: ['ace of wands', 'two of wands', 'three of wands'] }
       ]
     };
 
@@ -280,7 +286,7 @@ describe('GraphRAG Retrieval', () => {
   test('retrievePassages: emerging suit progression (priority 5)', () => {
     const graphKeys = {
       suitProgressions: [
-        { suit: 'Cups', stage: 'challenge', significance: 'emerging-progression' }
+        { suit: 'Cups', stage: 'challenge', significance: 'emerging-progression', matchedCardKeys: ['four of cups', 'six of cups'] }
       ]
     };
 
@@ -298,7 +304,7 @@ describe('GraphRAG Retrieval', () => {
       completeTriadIds: ['death-temperance-star'],
       foolsJourneyStageKey: 'integration',
       dyadPairs: [{ cards: [13, 17], significance: 'high' }],
-      suitProgressions: [{ suit: 'Wands', stage: 'beginning', significance: 'strong-progression' }]
+      suitProgressions: [{ suit: 'Wands', stage: 'beginning', significance: 'strong-progression', matchedCardKeys: ['ace of wands', 'two of wands', 'three of wands'] }]
     };
 
     const passages = retrievePassages(graphKeys, { maxPassages: 10 });
@@ -375,96 +381,44 @@ describe('GraphRAG Retrieval', () => {
       userQuery: query 
     });
 
-    assert.ok(passages.length >= 2);
+    assert.ok(passages.length >= 1);
     
     // The Dyad (Priority 3) should be boosted above Journey (Priority 2)
     // because it matches 'hope' and 'star'
     assert.strictEqual(passages[0].type, 'dyad', 'Dyad should be boosted to first position');
-    assert.strictEqual(passages[1].type, 'fools-journey', 'Journey should be second');
+    assert.ok(!passages.some(p => p.type === 'fools-journey'), 'A zero-overlap passage is excluded by the relevance threshold');
   });
 });
 
 describe('GraphRAG Formatting', () => {
-  test('formatPassagesForPrompt: formats passages as markdown', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'The Healing Arc',
-        text: 'Death clears away what must die...',
-        source: 'Rachel Pollack, Seventy-Eight Degrees of Wisdom'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: true,
-      markdown: true
-    });
-
+  const registered = (type = 'triad', patternId = 'death-temperance-star') => ({ ...getPassagesForPattern(type, patternId).passages[0], type, patternId, priority: 1 });
+  test('formatPassagesForPrompt: formats registered passages as markdown', () => {
+    const passage = registered();
+    const formatted = formatPassagesForPrompt([{ ...passage, source: 'Rachel Pollack, Seventy-Eight Degrees of Wisdom' }]);
     assert.ok(formatted.includes('**Retrieved Wisdom from Tarot Tradition:**'));
     assert.ok(formatted.includes('**The Healing Arc**'));
-    assert.ok(formatted.includes('"Death clears away what must die..."'));
-    assert.ok(formatted.includes('— Rachel Pollack'));
+    assert.ok(formatted.includes(`"${passage.text}"`));
+    assert.ok(formatted.includes('— Tableu Tarot Canon'));
+    assert.ok(!formatted.includes('Rachel Pollack'));
   });
-
   test('formatPassagesForPrompt: plain text format', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'The Healing Arc',
-        text: 'Death clears away...',
-        source: 'Test Source'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: true,
-      markdown: false
-    });
-
+    const formatted = formatPassagesForPrompt([registered()], { markdown: false });
     assert.ok(formatted.includes('Retrieved Wisdom from Tarot Tradition:'));
-    assert.ok(!formatted.includes('**'), 'Should not include markdown formatting');
-    assert.ok(formatted.includes('(Source: Test Source)'));
+    assert.ok(!formatted.includes('**'));
+    assert.ok(formatted.includes('(Source: Tableu Tarot Canon)'));
   });
-
   test('formatPassagesForPrompt: omits source when requested', () => {
-    const passages = [
-      {
-        priority: 1,
-        type: 'triad',
-        title: 'Test',
-        text: 'Test text',
-        source: 'Should not appear'
-      }
-    ];
-
-    const formatted = formatPassagesForPrompt(passages, {
-      includeSource: false,
-      markdown: true
-    });
-
-    assert.ok(!formatted.includes('Should not appear'));
-    assert.ok(!formatted.includes('—'));
+    const formatted = formatPassagesForPrompt([registered()], { includeSource: false });
+    assert.ok(formatted.includes(registered().text));
+    assert.ok(!formatted.includes('— Tableu Tarot Canon'));
   });
-
   test('formatPassagesForPrompt: handles empty array', () => {
-    const formatted = formatPassagesForPrompt([]);
-    assert.strictEqual(formatted, '', 'Should return empty string for empty array');
+    assert.equal(formatPassagesForPrompt([]), '');
   });
-
-  test('formatPassagesForPrompt: numbers passages correctly', () => {
-    const passages = [
-      { priority: 1, title: 'First', text: 'Text 1' },
-      { priority: 2, title: 'Second', text: 'Text 2' },
-      { priority: 3, title: 'Third', text: 'Text 3' }
-    ];
-
+  test('formatPassagesForPrompt: numbers registered passages correctly', () => {
+    const passages = [0, 1, 2].map(id => registered('major-arcana', String(id)));
     const formatted = formatPassagesForPrompt(passages);
-
-    assert.ok(formatted.includes('1. **First**'));
-    assert.ok(formatted.includes('2. **Second**'));
-    assert.ok(formatted.includes('3. **Third**'));
+    passages.forEach((passage, index) => assert.ok(formatted.includes(`${index + 1}. **${getPassagesForPattern('major-arcana', passage.patternId).title}**`)));
   });
 });
 
@@ -515,6 +469,47 @@ describe('GraphRAG Utilities', () => {
 
     assert.strictEqual(summary.graphKeysProvided, false);
     assert.strictEqual(summary.passagesRetrieved, 0);
+  });
+
+  const graphKeysFor = (names, deckStyle = 'rws-1909') => buildGraphContext(
+    resolveReadingCards(names.map(card => ({ card, position: 'Theme', orientation: 'Upright' })), deckStyle),
+    { deckStyle }
+  ).graphKeys;
+
+  test('hasMeaningfulGraphKeys: keys from a spread without patterns are empty', () => {
+    for (const keys of [null, undefined, {}, graphKeysFor(['Eight of Cups']), graphKeysFor(['Nine of Cups', 'Two of Cups', 'Knight of Swords'])]) {
+      assert.strictEqual(hasMeaningfulGraphKeys(keys), false, JSON.stringify(keys));
+    }
+    // The Fool is Major 0: its count, not its number, carries the signal.
+    for (const names of [['The Fool'], ['Death', 'Temperance', 'The Star'], ['Ace of Wands', 'Two of Wands', 'Three of Wands']]) {
+      assert.strictEqual(hasMeaningfulGraphKeys(graphKeysFor(names)), true, names.join(', '));
+    }
+  });
+
+  test('hasMeaningfulGraphKeys: rejected keys never have a passage candidate, so skipping retrieval drops none', () => {
+    const singles = [...MAJOR_ARCANA, ...MINOR_ARCANA].map(card => [card.name]);
+    const minors = MINOR_ARCANA.map(card => card.name);
+    const pairs = minors.flatMap((first, index) => minors.slice(index + 1).map(second => [first, second]));
+    const candidateCounts = new Map();
+    for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
+      let rejected = 0;
+      for (const names of [...singles, ...pairs]) {
+        let keys;
+        try {
+          keys = graphKeysFor(names, deckStyle);
+        } catch (err) {
+          // Two RWS court names can resolve to one Thoth court; that is not a valid draw.
+          if (err.code === 'duplicate_card_identity') continue;
+          throw err;
+        }
+        if (hasMeaningfulGraphKeys(keys)) continue;
+        rejected += 1;
+        const shape = `${deckStyle}:${JSON.stringify(keys)}`;
+        if (!candidateCounts.has(shape)) candidateCounts.set(shape, collectPassageCandidates(keys, { deckStyle }).length);
+        assert.strictEqual(candidateCounts.get(shape), 0, `${deckStyle}: ${names.join(', ')}`);
+      }
+      assert.ok(rejected > 100, `${deckStyle}: scenario precondition, many draws have no pattern`);
+    }
   });
 
   test('isGraphRAGEnabled: returns boolean', () => {
@@ -580,16 +575,16 @@ describe('GraphRAG Passage Ranking', () => {
 });
 
 describe('GraphRAG Quality Filtering', () => {
-  test('scorePassageRelevance: returns neutral score for empty inputs', async () => {
+  test('scorePassageRelevance: returns zero for empty inputs', async () => {
     const score1 = await scorePassageRelevance('', 'test query');
     const score2 = await scorePassageRelevance('test passage', '');
     const score3 = await scorePassageRelevance(null, 'test');
     const score4 = await scorePassageRelevance('test', null);
 
-    assert.strictEqual(score1, 0.5, 'Should return 0.5 for empty passage');
-    assert.strictEqual(score2, 0.5, 'Should return 0.5 for empty query');
-    assert.strictEqual(score3, 0.5, 'Should return 0.5 for null passage');
-    assert.strictEqual(score4, 0.5, 'Should return 0.5 for null query');
+    assert.strictEqual(score1, 0);
+    assert.strictEqual(score2, 0);
+    assert.strictEqual(score3, 0);
+    assert.strictEqual(score4, 0);
   });
 
   test('scorePassageRelevance: keyword matching increases score', async () => {
@@ -660,7 +655,7 @@ describe('GraphRAG Quality Filtering', () => {
     assert.strictEqual(deduped.length, 2, 'Should preserve passages without text');
   });
 
-  test('deduplicatePassages: uses configurable fingerprint length', () => {
+  test('deduplicatePassages: preserves distinct full text regardless of legacy prefix option', () => {
     const passages = [
       { text: 'Short prefix but different ending one.', title: 'First' },
       { text: 'Short prefix but different ending two.', title: 'Second' }
@@ -671,7 +666,7 @@ describe('GraphRAG Quality Filtering', () => {
     // With long fingerprint (100 chars), they're unique
     const longFingerprint = deduplicatePassages(passages, { fingerprintLength: 100 });
 
-    assert.strictEqual(shortFingerprint.length, 1, 'Short fingerprint should detect as duplicates');
+    assert.strictEqual(shortFingerprint.length, 2, 'A shared prefix cannot remove a distinct full passage');
     assert.strictEqual(longFingerprint.length, 2, 'Long fingerprint should preserve unique passages');
   });
 
@@ -1093,7 +1088,7 @@ describe('Keyword Boost Edge Cases', () => {
 
     // Only "interpretation" should contribute to boost (if it matches)
     // Journey (P2) should still come before dyad (P3) without strong boost
-    assert.ok(passages.length >= 2, 'Should retrieve passages');
+    assert.equal(passages.length, 1, 'A wholly unmatched query retains the single best weak background');
   });
 
   test('retrievePassages: special characters in query handled', () => {
@@ -1125,32 +1120,32 @@ describe('Malformed Data Handling', () => {
 
     const formatted = formatPassagesForPrompt(passages);
 
-    assert.ok(formatted.includes('Test Title'), 'Should include title');
+    assert.equal(formatted, '', 'A malformed passage supplies no generation evidence');
     assert.ok(!formatted.includes('undefined'), 'Should not output "undefined"');
   });
 
   test('formatPassagesForPrompt: handles passage without source field', () => {
     const passages = [
-      { priority: 1, title: 'Test Title', text: 'Test text content' }
+      { ...getPassagesForPattern('triad', 'death-temperance-star').passages[0], type: 'triad', patternId: 'death-temperance-star', source: undefined }
       // Note: no 'source' field
     ];
 
     const formatted = formatPassagesForPrompt(passages, { includeSource: true });
 
-    assert.ok(formatted.includes('Test text content'), 'Should include text');
+    assert.ok(formatted.includes(getPassagesForPattern('triad', 'death-temperance-star').passages[0].text), 'Should include text');
     assert.ok(!formatted.includes('— null'), 'Should not output "— null"');
     assert.ok(!formatted.includes('— undefined'), 'Should not output "— undefined"');
   });
 
   test('formatPassagesForPrompt: handles passage without title or theme', () => {
     const passages = [
-      { priority: 1, text: 'Just text, no title', source: 'Source' }
+      { ...getPassagesForPattern('triad', 'death-temperance-star').passages[0], type: 'triad', patternId: 'death-temperance-star', title: undefined, theme: undefined }
     ];
 
     const formatted = formatPassagesForPrompt(passages);
 
     // Should not crash, text should still appear
-    assert.ok(formatted.includes('Just text, no title'), 'Should include text');
+    assert.ok(formatted.includes(getPassagesForPattern('triad', 'death-temperance-star').passages[0].text), 'Should include text');
   });
 
   test('deduplicatePassages: handles null passage in array', () => {

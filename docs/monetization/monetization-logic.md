@@ -2,7 +2,7 @@
 
 Type: reference
 Status: active reference
-Last reviewed: 2026-09-25
+Last reviewed: 2026-10-23
 
 This document consolidates the monetization behavior implemented in the current Tableu codebase.
 
@@ -133,7 +133,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id
 
 - Table: `usage_tracking` (primary key: `user_id`, `month`)
 - Month format: `YYYY-MM` (UTC calendar month)
-- Used for: monthly quota enforcement and the shipped Account usage meters (readings, authenticated TTS, Pro API calls)
+- Used for: monthly reading/API quota enforcement and the shipped Account usage meters. Authenticated TTS totals are mirrored here when a D1 narration reservation settles; narration admission uses the separate tables described in [TTS rate limiting](#31-tts-rate-limiting-).
 
 ### Processed Webhook Events ✅
 
@@ -151,75 +151,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer_id
 
 ### 3.1 TTS Rate Limiting ✅
 
-**File:** `functions/api/tts.js:49-88, 390-445`
+**Sources:** [Narration route](../../functions/api/tts.js), [accounting helpers](../../functions/lib/ttsLimits.js), and [migration 0034](../../migrations/0034_add_narration_reservations.sql).
 
-```javascript
-/**
- * Get TTS limits based on subscription tier
- */
-function getTTSLimits(tier) {
-  const limits = {
-    free: { monthly: 3, premium: false },
-    plus: { monthly: 50, premium: true },
-    pro: { monthly: Infinity, premium: true }
-  };
-  return limits[tier] || limits.free;
-}
+`getTtsLimits` reads the shared effective-tier allowances: Free gets 3 narrations per UTC month, Plus gets 50, and Pro has no monthly ceiling. ElevenLabs and Deepgram share this allowance. Before synthesis, `reserveNarration` uses D1 for both guests and authenticated users to enforce the monthly allowance, one active narration per identity, and 30 admission attempts per minute. Monthly exhaustion and the minute limit return 429; an active narration returns 409. Unavailable accounting returns 503 before synthesis.
 
-// In onRequestPost:
-const user = await getUserFromRequest(request, env);
-const subscription = getSubscriptionContext(user);
-const tier = subscription.effectiveTier;
-const ttsLimits = getTTSLimits(tier);
+| D1 table | Responsibility |
+| --- | --- |
+| `narration_monthly_usage` | Consumed units (`used`) and active reservations (`reserved`), keyed by identity and UTC month. |
+| `narration_requests` | Atomic quota/concurrency reservations with a three-minute lease and idempotent settlement or release. |
+| `narration_request_limits` | Admission-attempt counts in fixed minute windows. |
 
-const rateLimitResult = await enforceTtsRateLimit(env, request, user, ttsLimits);
-if (rateLimitResult?.limited) {
-  const errorMessage = rateLimitResult.tierLimited
-    ? `You've reached your monthly TTS limit (${ttsLimits.monthly}). Upgrade to Plus or Pro for more.`
-    : 'Too many text-to-speech requests. Please wait a few moments and try again.';
+Authenticated identities use the user ID. Guest identities hash the edge-provided client IP, with a shared `local-anonymous` input when it is absent. Existing authenticated `usage_tracking.tts_count` values and legacy guest `RATELIMIT` KV monthly counts seed a new month's accounting row. KV does not enforce new narration requests. Settlement also updates authenticated `usage_tracking.tts_count` for the Account usage meter.
 
-  return jsonResponse({
-    error: errorMessage,
-    tierLimited: rateLimitResult.tierLimited || false,
-    currentTier: tier
-  }, { status: 429 });
-}
-```
-
-**Rate Limit Storage:**
-- Short-term: `RATELIMIT` KV (`tts-rate:{clientId}:{windowBucket}`), per-minute, per IP.
-- Monthly:
-  - Authenticated users: D1 `usage_tracking.tts_count` (per user, UTC month).
-  - Anonymous fallback: `RATELIMIT` KV (`tts-monthly:{clientId}:{YYYY-MM}`), per IP, UTC month.
+ElevenLabs consumes one monthly unit after producing any nonempty audio, including when a later piece fails, times out, or is cancelled. Deepgram consumes one unit only after all synthesis pieces finish successfully. ElevenLabs failures before audio production and Deepgram interruptions before synthesis completes release the reservation. See [narration safeguards](../narration-safeguards.md) for request bounds, cancellation, and provider behavior.
 
 ---
 
 ### 3.2 AI Question Generation ✅
 
-**File:** `functions/api/generate-question.js:14-18, 284-300`
-
-```javascript
-// In onRequestPost:
-const user = await getUserFromRequest(request, env);
-const subscription = getSubscriptionContext(user);
-const hasAIAccess = subscription.effectiveTier === 'plus' || subscription.effectiveTier === 'pro';
-
-if (!hasAIAccess) {
-  const question = craftQuestionFromPrompt(prompt, metadata);
-  return new Response(JSON.stringify({
-    question,
-    provider: 'local-template',
-    model: null,
-    forecast: null,
-    tierLimited: true  // Signal to frontend
-  }), { status: 200 });
-}
-```
+**Source:** [Question generation route](../../functions/api/generate-question.js).
 
 **Behavior:**
-- Free tier → deterministic local template (`craftQuestionFromPrompt`, `provider: 'local-template'`).
-- Plus/Pro → native OpenAI Responses when `OPENAI_API_KEY` is configured (`provider: 'openai-native'`).
-- Paid generation falls back to the deterministic local generator when no provider is configured or the provider call fails (`provider: 'local-fallback'`).
+
+- Free effective tier uses `craftQuestionFromPrompt` locally (`provider: 'local-template'`), or preserves supplied question wording (`provider: 'local-preserved'`), with `tierLimited: true` and no model call.
+- Eligible Plus/Pro generation uses the Worker's `AI` binding (`provider: 'workers-ai'`). `QUESTION_MODEL` selects the model and defaults to `@cf/zai-org/glm-5.3`. This route is independent of `TEXT_PROVIDER` and does not call OpenAI or the owner subscription gateways.
+- An unavailable binding, model failure, or rejected model output falls back locally: `local-fallback` for a new question, or `local-preserved` for existing wording. Instruction-like existing wording is preserved before model admission. Caller cancellation or the overall request deadline still fails the request.
+- Model requests require a D1 feature reservation. Successful Workers AI generation consumes the daily operation allowance; local fallbacks release that reservation while retaining the admission attempt. See [AI feature safeguards](../ai-feature-safeguards.md) for tier limits, concurrency, and attempt protection.
 
 ---
 
@@ -617,7 +574,7 @@ if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
 | Cloud Journal sync | ✅ Defined | ✅ Implemented | Journal list/save/delete/summary require Plus/Pro entitlements |
 | API call limits | ✅ Defined (Pro: 1,000/mo) | ✅ Implemented | Metered for API-key requests via D1 `usage_tracking.api_calls_count` |
 | Spread access enforcement | ✅ Defined | ✅ Implemented | Enforced server-side in `functions/api/tarot-reading.js` |
-| Usage tracking for TTS/API calls | ✅ Defined | ✅ Implemented | Authenticated users are metered in D1; anonymous TTS uses KV |
+| Usage tracking for TTS/API calls | ✅ Defined | ✅ Implemented | D1 narration reservations cover guests and authenticated users; API calls use `usage_tracking.api_calls_count` |
 
 ### Low Priority (P2)
 

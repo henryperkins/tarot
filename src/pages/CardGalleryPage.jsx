@@ -1,18 +1,25 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { BookOpen, CaretLeft, Check, Funnel, SortAscending, LockKey } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
-import { GlobalNav } from '../components/GlobalNav';
+import { AppHeader } from '../components/AppHeader';
+import { AppBottomRegion } from '../components/AppBottomRegion';
 import { InstallFooter } from '../components/InstallFooter';
 import { CardModal } from '../components/CardModal';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { MINOR_ARCANA } from '../data/minorArcana';
 import { useAuth } from '../contexts/AuthContext';
 import { useJournal } from '../hooks/useJournal';
-import { getCanonicalCard } from '../lib/cardLookup';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { getCanonicalCard, getCardGallerySrcSet, getCardPreviewImage } from '../lib/cardLookup';
 import { getTimestampSeconds, safeJsonParse } from '../../shared/journal/utils.js';
 import { pickStats, computeGalleryLoading } from './cardGallerySelectors';
+import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
 
 const ALL_CARDS = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+const CARD_GRID_CLASS = 'gallery-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6';
+const CARD_TILE_GEOMETRY_CLASS = "relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border overflow-hidden";
+// Match the grid's columns, gutters and 80rem content cap, including text scaling.
+const CARD_IMAGE_SIZES = '(min-width: 64rem) calc((min(100vw, 80rem) - 10.5rem) / 6), (min-width: 48rem) calc((100vw - 7.5rem) / 4), (min-width: 40rem) calc((100vw - 6rem) / 3), calc((100vw - 3rem) / 2)';
 
 function normalizeCardName(name) {
   if (!name || typeof name !== 'string') return null;
@@ -99,7 +106,7 @@ function buildLocalCardStats(entries) {
   return map;
 }
 
-function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
+function CardItem({ card, stats, onSelect, onViewInJournal, index = 0, reducedMotion = false }) {
   const isFound = !!stats;
   const count = stats?.total_count || 0;
 
@@ -113,10 +120,13 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
       {/* Card Image */}
       <div className="absolute inset-0">
         <img
-          src={card.image}
+          src={getCardPreviewImage(card)}
+          srcSet={getCardGallerySrcSet(card.image)}
+          sizes={CARD_IMAGE_SIZES}
           alt={card.name}
           className={`h-full w-full object-cover transition-opacity duration-(--duration-slow) ${isFound ? 'opacity-90 group-hover:opacity-100' : 'opacity-30'}`}
           loading="lazy"
+          decoding="async"
         />
         <div className="absolute inset-0 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--bg-main)_82%,transparent),transparent,color-mix(in_srgb,var(--bg-main)_40%,transparent))]" />
       </div>
@@ -139,7 +149,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
                 event.stopPropagation();
                 onViewInJournal(card);
               }}
-              className="gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-[color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-2xs font-semibold uppercase tracking-[0.18em] text-muted-high transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+              className={`${BADGE_LABEL_CLASS} gallery-card__journal relative z-20 inline-flex min-h-touch min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-full border border-(--border-warm-light) bg-[color-mix(in_srgb,var(--bg-main)_70%,transparent)] px-2 py-1 text-muted-high transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
               aria-label={`View ${card.name} in Journal`}
             >
               <BookOpen className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -166,9 +176,9 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
   if (isFound) {
     return (
       <div
-        className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) overflow-hidden text-left hover:-translate-y-1 hover:border-(--border-warm) hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]"
+        className={`${CARD_TILE_GEOMETRY_CLASS} group border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] shadow-[0_18px_36px_-24px_rgba(0,0,0,0.85)] transition-[transform,box-shadow,border-color,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) text-left hover:-translate-y-1 hover:border-(--border-warm) hover:shadow-[0_24px_44px_-26px_rgba(0,0,0,0.9),0_0_18px_var(--primary-20)]`}
         aria-label={`Card ${card.name}`}
-        style={{
+        style={reducedMotion ? undefined : {
           animation: `fadeInUp 320ms ease-out ${Math.min(index * 30, 500)}ms both`
         }}
       >
@@ -185,9 +195,9 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
   return (
     <div
-      className="group relative grid grid-cols-1 min-w-0 before:content-[''] before:[grid-area:1/1] before:aspect-2/3 rounded-xl border border-(--border-warm-subtle) bg-(--bg-surface) transition-[opacity,border-color] duration-(--duration-normal) ease-(--ease-out) overflow-hidden opacity-60 grayscale hover:opacity-80"
+      className={`${CARD_TILE_GEOMETRY_CLASS} group border-(--border-warm-subtle) bg-(--bg-surface) transition-[opacity,border-color] duration-(--duration-normal) ease-(--ease-out) opacity-60 grayscale hover:opacity-80`}
       aria-label={`${card.name} (not yet discovered)`}
-      style={{
+      style={reducedMotion ? undefined : {
         animation: `fadeInUp 280ms ease-out ${index * 24}ms both`
       }}
     >
@@ -198,6 +208,7 @@ function CardItem({ card, stats, onSelect, onViewInJournal, index = 0 }) {
 
 export default function CardGalleryPage() {
   const { isAuthenticated, user } = useAuth();
+  const reducedMotion = useReducedMotion();
   const navigate = useNavigate();
   const {
     entries,
@@ -220,8 +231,6 @@ export default function CardGalleryPage() {
   const { stats: remoteStats, loading: remoteLoading, analyticsDisabled } = remoteState;
   const [loadingFullHistory, setLoadingFullHistory] = useState(false);
   const pageRef = useRef(null);
-  const headerRef = useRef(null);
-  const toolbarRef = useRef(null);
 
   const entriesLengthRef = useRef(entries.length);
   const hasMoreEntriesRef = useRef(hasMoreEntries);
@@ -231,41 +240,6 @@ export default function CardGalleryPage() {
   const [filterSuit, setFilterSuit] = useState('all'); // all, major, wands, cups, swords, pentacles
   const [filterStatus, setFilterStatus] = useState('all'); // all, found, missing
   const [sortBy, setSortBy] = useState('deck'); // deck, count_desc, count_asc, recency
-
-  // Pin chrome only when the real border boxes leave room for the collection.
-  useEffect(() => {
-    const page = pageRef.current;
-    const header = headerRef.current;
-    const toolbar = toolbarRef.current;
-    if (!page || !header || !toolbar) return undefined;
-    const root = document.documentElement;
-    const previousScrollPadding = root.style.getPropertyValue('scroll-padding-top');
-    const previousPriority = root.style.getPropertyPriority('scroll-padding-top');
-    const measure = () => {
-      const headerHeight = header.getBoundingClientRect().height;
-      const toolbarHeight = toolbar.getBoundingClientRect().height;
-      const gap = parseFloat(getComputedStyle(root).fontSize) || 16;
-      const maxPinnedHeight = window.innerHeight * 0.4;
-      const pinHeader = headerHeight <= maxPinnedHeight;
-      const desktop = window.matchMedia('(min-width: 1024px) and (min-height: 700px)').matches;
-      const pinToolbar = desktop && pinHeader && headerHeight + toolbarHeight + gap <= maxPinnedHeight;
-      header.dataset.pinned = String(pinHeader);
-      toolbar.dataset.pinned = String(pinToolbar);
-      page.style.setProperty('--gallery-header-height', `${pinHeader ? headerHeight : 0}px`);
-      root.style.scrollPaddingTop = `${(pinHeader ? headerHeight : 0) + (pinToolbar ? toolbarHeight : 0) + gap}px`;
-    };
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    [header, toolbar].forEach(element => observer?.observe(element, { box: 'border-box' }));
-    window.addEventListener('resize', measure);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', measure);
-      page.style.removeProperty('--gallery-header-height');
-      if (previousScrollPadding) root.style.setProperty('scroll-padding-top', previousScrollPadding, previousPriority);
-      else root.style.removeProperty('scroll-padding-top');
-    };
-  }, []);
 
   useEffect(() => {
     entriesLengthRef.current = entries.length;
@@ -344,6 +318,7 @@ export default function CardGalleryPage() {
   const deckSize = ALL_CARDS.length;
   const totalFound = ALL_CARDS.reduce((sum, card) => sum + (stats[card.name] ? 1 : 0), 0);
   const progressPercent = deckSize ? Math.round((totalFound / deckSize) * 100) : 0;
+  const collectionPending = loading || journalLoading;
 
   const filteredCards = useMemo(() => {
     let result = [...ALL_CARDS];
@@ -459,17 +434,9 @@ export default function CardGalleryPage() {
   }, [hasTotalEntries, isAuthenticated, loadMoreEntries, loadingFullHistory, loadingMore]);
 
   return (
-      <div ref={pageRef} className="min-h-screen bg-main text-main">
+      <div data-app-chrome ref={pageRef} className="min-h-screen bg-main text-main">
         {/* Sticky navigation header with safe-area padding */}
-        <header
-          ref={headerRef}
-          data-pinned="false"
-          className="gallery-header sticky top-0 z-sticky-elevated bg-main/95 backdrop-blur-sm border-b border-secondary/20 pt-[max(var(--safe-pad-top),0.75rem)] pl-[max(var(--safe-pad-left),1rem)] pr-[max(var(--safe-pad-right),1rem)]"
-        >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-          <GlobalNav withUserChip />
-        </div>
-      </header>
+        <AppHeader />
 
       <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto pl-[max(1rem,var(--safe-pad-left))] pr-[max(1rem,var(--safe-pad-right))] sm:pl-[max(1.5rem,var(--safe-pad-left))] sm:pr-[max(1.5rem,var(--safe-pad-right))] py-8">
         {/* Header */}
@@ -511,24 +478,8 @@ export default function CardGalleryPage() {
           </div>
         </div>
 
-        {!loading && entries.length === 0 && (
-          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <h2 className="text-lg font-serif text-main mb-2 wrap-anywhere">Your collection starts with a saved reading</h2>
-            <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/', { state: { focusSpread: true } })}
-                className="inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-              >
-                <span className="min-w-0 wrap-anywhere">Start a reading</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Toolbar */}
-        <div ref={toolbarRef} data-pinned="false" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
+        <div data-app-secondary="1" data-chrome-min-width="1024" data-chrome-min-height="700" className="gallery-toolbar z-20 mb-6 p-1 rounded-xl bg-[color-mix(in_srgb,var(--bg-main)_72%,transparent)] backdrop-blur-md border border-(--border-warm-subtle) flex flex-wrap gap-2 items-center">
           {/* Suit Filter */}
           <div className="relative group min-w-0 max-w-full">
             <label htmlFor="suit-filter" className="sr-only">Filter by suit</label>
@@ -590,77 +541,93 @@ export default function CardGalleryPage() {
           </div>
         </div>
 
-        {showPartialStatsBanner && (
-          <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span>{statsScopeLabel}</span>
+        {/* Empty and populated results have different layouts. Keep one stable
+            content origin without predicting an empty notice above a tile grid. */}
+        <div className="gallery-content">
+          {!analyticsDisabled && collectionPending && (
+            <div role="status" aria-label="Loading card collection" aria-busy="true"
+              className="min-h-screen py-20 text-center text-sm text-muted">
+              Loading your card collection…
+            </div>
+          )}
+
+          {!analyticsDisabled && !collectionPending && entries.length === 0 && totalFound === 0 && (
+            <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-5 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+              <h2 className="text-lg font-serif text-main mb-2 wrap-anywhere">Your collection starts with a saved reading</h2>
+              <p>Save a reading to your journal to begin tracking its cards and patterns.</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/', { state: { focusSpread: true } })}
+                  className={`${LABEL_CLASS} inline-flex min-h-touch min-w-0 max-w-full items-center rounded-full border border-(--border-warm-light) bg-(--accent-25) px-4 py-2 text-(--text-main) transition hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
+                >
+                  <span className="min-w-0 wrap-anywhere">Start a reading</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!collectionPending && showPartialStatsBanner && (
+            <div className="mb-6 rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-4 text-sm text-muted-high shadow-[0_12px_30px_-22px_rgba(0,0,0,0.7)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span>{statsScopeLabel}</span>
+                <button
+                  type="button"
+                  onClick={handleLoadFullHistory}
+                  disabled={loadingFullHistory || loadingMore}
+                  className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
+                    loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
+                  }`}
+                >
+                  {loadingFullHistory ? 'Loading full history...' : 'Load full history'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Grid */}
+          {analyticsDisabled ? (
+            <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-6 text-center">
+              <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
+              <p className="text-sm text-muted-high mb-4">
+                Enable Journey analytics in your account settings to track your card collection.
+              </p>
               <button
                 type="button"
-                onClick={handleLoadFullHistory}
-                disabled={loadingFullHistory || loadingMore}
-                className={`inline-flex min-h-touch items-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-2xs font-semibold uppercase tracking-[0.18em] text-main transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:border-(--border-warm) hover:bg-(--border-warm-light) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
-                  loadingFullHistory || loadingMore ? 'cursor-not-allowed opacity-60' : ''
-                }`}
+                onClick={() => navigate('/account#analytics')}
+                className="px-4 py-2 rounded-full border border-(--border-warm-light) text-main hover:bg-(--border-warm-subtle)"
               >
-                {loadingFullHistory ? 'Loading full history...' : 'Load full history'}
+                Go to Settings
               </button>
             </div>
-          </div>
-        )}
+          ) : !collectionPending && (
+            <div className={CARD_GRID_CLASS}>
+              {filteredCards.map((card, index) => (
+                <CardItem
+                  key={card.name}
+                  card={card}
+                  stats={stats[card.name]}
+                  onSelect={handleSelectCard}
+                  onViewInJournal={(selectedCard) => handleViewAllInJournal(selectedCard?.name)}
+                  index={index}
+                  reducedMotion={reducedMotion}
+                />
+              ))}
+            </div>
+          )}
 
-        {/* Grid */}
-        {analyticsDisabled ? (
-          <div className="rounded-2xl border border-(--border-warm-light) bg-(--border-warm-subtle) p-6 text-center">
-            <h2 className="text-lg font-serif text-main mb-2">Collection tracking is disabled</h2>
-            <p className="text-sm text-muted-high mb-4">
-              Enable Journey analytics in your account settings to track your card collection.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/account#analytics')}
-              className="px-4 py-2 rounded-full border border-(--border-warm-light) text-main hover:bg-(--border-warm-subtle)"
-            >
-              Go to Settings
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {[...Array(12)].map((_, i) => (
-              <div
-                key={i}
-                className="aspect-2/3 rounded-xl bg-(--border-warm-subtle) animate-pulse"
-                style={{
-                  animationDelay: `${i * 80}ms`
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-            {filteredCards.map((card, index) => (
-              <CardItem
-                key={card.name}
-                card={card}
-                stats={stats[card.name]}
-                onSelect={handleSelectCard}
-                onViewInJournal={(selectedCard) => handleViewAllInJournal(selectedCard?.name)}
-                index={index}
-              />
-            ))}
-          </div>
-        )}
-
-        {!loading && filteredCards.length === 0 && (
-          <div className="text-center py-20 short:py-12 text-muted">
-            <p>No cards match your filters.</p>
-            <button
-              onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}
-              className="mt-4 text-accent hover:underline text-sm"
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
+          {!collectionPending && filteredCards.length === 0 && (
+            <div className="text-center py-20 short:py-12 text-muted">
+              <p>No cards match your filters.</p>
+              <button
+                onClick={() => { setFilterSuit('all'); setFilterStatus('all'); }}
+                className="mt-4 text-accent hover:underline text-sm"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
         <InstallFooter />
       </main>
 
@@ -677,6 +644,7 @@ export default function CardGalleryPage() {
           onOpenEntry={(entry) => handleOpenEntry(entry, selected.card?.name)}
         />
       )}
+      <AppBottomRegion />
     </div>
   );
 }

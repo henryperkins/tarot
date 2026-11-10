@@ -7,6 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { observeInferenceAttempt } from './inferenceAttempts.js';
+import { sanitizeProviderErrorMessage } from './providerErrorDetails.js';
 
 export const CLAUDE_API_PROVIDER = 'claude-api';
 export const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-5-5';
@@ -20,6 +21,24 @@ const MAX_TIMEOUT_MS = 600000;
 const REFUSAL_FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 export class ClaudeApiError extends Error {}
+
+/**
+ * Anthropic's error message explains a rejection ("Unexpected value(s) `x` for
+ * the `anthropic-beta` header."); see providerErrorDetails.js for what is masked.
+ */
+export const sanitizeAnthropicErrorMessage = sanitizeProviderErrorMessage;
+
+/** Status, error type, request ID and sanitized message of an Anthropic SDK error. */
+function describeAnthropicError(error) {
+  const apiError = error instanceof Anthropic.APIError ? error : null;
+  const requestId = [apiError?.requestID, apiError?.error?.request_id].find((value) => /^req_[A-Za-z0-9_]{1,128}$/.test(value || '')) || null;
+  return {
+    status: Number.isInteger(error?.status) ? error.status : null,
+    type: /^[a-z_]{1,64}$/.test(apiError?.type || '') ? apiError.type : null,
+    requestId,
+    message: sanitizeAnthropicErrorMessage(apiError?.error?.error?.message)
+  };
+}
 
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -153,9 +172,16 @@ async function callClaudeMessagesInternal(env, {
     if (signal?.aborted) throw new ClaudeApiError('Claude request was cancelled.');
     if (controller.signal.aborted) throw new ClaudeApiError('Claude request timed out.');
     if (error instanceof ClaudeApiError) throw error;
-    // SDK errors can carry upstream response bodies; keep only the status.
-    const status = Number.isInteger(error?.status) ? ` (HTTP ${error.status})` : '';
-    throw new ClaudeApiError(`Claude API request failed${status}.`);
+    // The thrown message can reach clients, so it names only the status and
+    // Anthropic's error type (invalid_request_error, billing_error, ...). The
+    // request ID and sanitized upstream message go to the Worker log alone.
+    const upstream = describeAnthropicError(error);
+    const detail = [upstream.status ? `HTTP ${upstream.status}` : null, upstream.type].filter(Boolean).join(', ');
+    if (detail || upstream.requestId || upstream.message) {
+      const logged = [detail, upstream.requestId ? `request ${upstream.requestId}` : null].filter(Boolean).join(', ');
+      console.warn(`[${requestId}] [claude-api] Request failed${logged ? ` (${logged})` : ''}${upstream.message ? `: ${upstream.message}` : ''}`);
+    }
+    throw new ClaudeApiError(`Claude API request failed${detail ? ` (${detail})` : ''}.`);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onCallerAbort);

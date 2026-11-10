@@ -1,9 +1,12 @@
 import { computeJournalStats, REVERSED_PATTERN } from '../../shared/journal/stats.js';
+import { buildJournalJson, buildJournalText } from '../../shared/journal/exportFormats.js';
 import { getTimestamp } from '../../shared/journal/utils.js';
+import { DECK_CATALOG } from '../../shared/vision/deckCatalog.js';
 import { buildThemeQuestion, normalizeThemeLabel } from './themeText.js';
 import { safeStorage } from './safeStorage.js';
 import { filterDeletedJournalEntries, canPersistJournalDerivation } from './deletedJournalEntryStorage.js';
 import { MAJOR_ARCANA } from '../data/majorArcana.js';
+import { findSoleLeader } from './journal/leaders.js';
 
 export { computeJournalStats, REVERSED_PATTERN };
 
@@ -178,6 +181,47 @@ export function loadCoachStatsSnapshot(userId = null) {
     console.warn('Unable to load coach stats snapshot:', error);
     return null;
   }
+}
+
+/**
+ * Choose which stored stats the coach may trust. The Journey snapshot is
+ * scoped to whatever the Journey was showing and is only rewritten when the
+ * Journey renders. The insights cache is rewritten whenever a journal hook
+ * that holds the whole journal loads or saves; useJournal never writes it
+ * from a partial history (see holdsFullJournalRef). A filtered snapshot is
+ * never used; otherwise the fresher payload wins, and ties go to the
+ * snapshot, which carries the richer meta.
+ *
+ * @param {Object|null} snapshot - loadCoachStatsSnapshot() result
+ * @param {Object|null} insights - loadStoredJournalInsights() result
+ * @returns {{ stats: Object, meta: Object|null, updatedAt: number, source: 'snapshot'|'insights' }|null}
+ */
+export function selectCoachStatsSource(snapshot, insights) {
+  const timestamp = value => (Number.isFinite(value) ? value : 0);
+  const snapshotCandidate = snapshot?.stats && !snapshot.meta?.filtersActive
+    ? {
+      stats: snapshot.stats,
+      meta: snapshot.meta || null,
+      updatedAt: timestamp(snapshot.updatedAt),
+      source: 'snapshot'
+    }
+    : null;
+  const insightsCandidate = insights?.stats
+    ? {
+      stats: insights.stats,
+      meta: {
+        filterLabel: null,
+        entryCount: typeof insights.stats.totalReadings === 'number' ? insights.stats.totalReadings : null
+      },
+      updatedAt: timestamp(insights.updatedAt),
+      source: 'insights'
+    }
+    : null;
+
+  if (snapshotCandidate && insightsCandidate) {
+    return insightsCandidate.updatedAt > snapshotCandidate.updatedAt ? insightsCandidate : snapshotCandidate;
+  }
+  return snapshotCandidate || insightsCandidate || null;
 }
 
 /**
@@ -1277,6 +1321,75 @@ export function exportJournalEntriesToMarkdown(entries, filename = 'tarot-journa
   return true;
 }
 
+function downloadTextFile(content, filename, type) {
+  if (typeof document === 'undefined' || !content) return false;
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+/**
+ * Export journal entries as the plain-text journal (the same format as the
+ * cloud export), newest first.
+ * @returns {boolean} True if the download started
+ */
+export function exportJournalEntriesToText(entries, filename = 'tarot-journal.txt') {
+  if (!Array.isArray(entries) || entries.length === 0) return false;
+  return downloadTextFile(buildJournalText(entries), filename, 'text/plain;charset=utf-8;');
+}
+
+/**
+ * Export journal entries as a journal-only JSON document, newest first.
+ * @param {Array} entries
+ * @param {string} [filename='tarot-journal.json']
+ * @param {{ scope?: string }} [options] - Human-readable label for the exported selection
+ * @returns {boolean} True if the download started
+ */
+export function exportJournalEntriesToJson(entries, filename = 'tarot-journal.json', { scope } = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) return false;
+  const json = JSON.stringify(buildJournalJson(entries, { scope }), null, 2);
+  return downloadTextFile(json, filename, 'application/json;charset=utf-8;');
+}
+
+/**
+ * Copy text to the clipboard, falling back to a hidden textarea.
+ * @returns {Promise<boolean>} True when the text was copied
+ */
+export async function copyTextToClipboard(text) {
+  if (!text) return false;
+  try {
+    if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    console.warn('Clipboard write failed:', error);
+  }
+  if (typeof document === 'undefined') return false;
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return copied;
+  } catch (error) {
+    console.warn('Clipboard fallback copy failed:', error);
+    return false;
+  }
+}
+
 export async function copyJournalEntriesToClipboard(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return false;
   const csv = buildJournalCsv(entries);
@@ -1408,6 +1521,8 @@ function formatDeckLabel(value) {
   if (!value || typeof value !== 'string') return '';
   const trimmed = value.trim();
   if (!trimmed) return '';
+  const knownDeck = DECK_CATALOG[trimmed.toLowerCase()];
+  if (knownDeck) return knownDeck.label;
   if (/[A-Z]/.test(trimmed) || trimmed.includes(' ')) return trimmed;
   return trimmed
     .split(/[-_]/g)
@@ -1701,13 +1816,11 @@ export function computeMajorArcanaMapFromEntries(entries) {
  * Example: If today is Dec 10 with no reading, but Dec 9, 8, 7 all have readings,
  * the streak is 3 (not 0).
  *
- * Note: This may differ from backend `currentStreak` calculations. When displaying
- * streak values, prefer server data for authenticated unfiltered views.
- *
  * @param {Array} entries - Journal entries (should have ts or created_at field)
+ * @param {Date} today - Current local calendar date
  * @returns {number} Current streak in days (0 if no consecutive days found)
  */
-export function computeStreakFromEntries(entries) {
+export function computeStreakFromEntries(entries, today = new Date()) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return 0;
   }
@@ -1731,7 +1844,6 @@ export function computeStreakFromEntries(entries) {
 
   // Check streak from today backwards
   let streak = 0;
-  const today = new Date();
 
   for (let i = 0; i < 365; i++) { // Check up to a year
     const checkDate = new Date(today);
@@ -1841,11 +1953,9 @@ export function generateJourneyStory(entries, options = {}) {
   const stats = options.precomputedStats || computeJournalStats(entries);
   if (!stats) return null;
 
-  const topCard = stats.frequentCards?.[0];
-  // Clone before sorting to avoid mutating shared stats
-  const topContext = stats.contextBreakdown
-    ? [...stats.contextBreakdown].sort((a, b) => b.count - a.count)[0]
-    : undefined;
+  // Only a card or context that repeated and leads alone is called significant.
+  const topCard = findSoleLeader(stats.frequentCards);
+  const topContext = findSoleLeader(stats.contextBreakdown);
   const themes = stats.recentThemes || [];
 
   if (!topCard && !topContext && themes.length === 0) {
@@ -1860,7 +1970,7 @@ export function generateJourneyStory(entries, options = {}) {
   }
 
   if (topCard) {
-    parts.push(`${topCard.name} has appeared ${topCard.count} time${topCard.count > 1 ? 's' : ''}, suggesting it holds particular significance for you right now.`);
+    parts.push(`${topCard.name} has appeared ${topCard.count} times, suggesting it holds particular significance for you right now.`);
   }
 
   if (topContext) {
@@ -1869,8 +1979,7 @@ export function generateJourneyStory(entries, options = {}) {
   }
 
   if (themes.length > 0) {
-    const themeText = themes.slice(0, 2).join(' and ');
-    parts.push(`Themes of ${themeText.toLowerCase()} weave through your recent readings.`);
+    parts.push(`Themes in this scope: ${themes.slice(0, 2).join('; ')}.`);
   }
 
   if (parts.length < 2) {

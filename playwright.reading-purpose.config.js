@@ -6,8 +6,8 @@ const port = Number(process.env.READING_REVIEW_PORT || 5214);
 const baseURL = `http://127.0.0.1:${port}`;
 // Routine checks stay on the changed UI. The larger fixture matrix is opt-in.
 const extendedMatrix = process.env.READING_REVIEW_MATRIX === '1';
-const uiTests = ['reading-card-touch.spec.js', 'reading-purpose-ui.spec.js'];
-const flowTests = ['reading-card-touch.spec.js', 'reading-purpose-ui.spec.js', 'reading-purpose-matrix.spec.js', 'reading-purpose-edges.spec.js', 'reading-purpose-owner.spec.js'];
+const uiTests = ['reading-card-touch.spec.js', 'reading-purpose-ui.spec.js', 'reading-support.spec.js'];
+const flowTests = [...uiTests, 'reading-purpose-matrix.spec.js', 'reading-purpose-edges.spec.js', 'reading-purpose-owner.spec.js'];
 const supportingTests = ['reading-visual-modals.spec.js', 'narrative-remediation.spec.js', 'reading-input-usage.spec.js', 'spread-insights.spec.js', 'media-narration-reliability.spec.js'];
 export default defineConfig({
   testDir: './e2e',
@@ -32,6 +32,8 @@ export default defineConfig({
   })))).filter(project => extendedMatrix || ['chromium-desktop-no-preference', 'webkit-phone-no-preference'].includes(project.name)),
   webServer: {
     command: `npx vite --config vite.reading-purpose.config.js --port ${port}`,
+    // These suites exercise the opt-in companion and original-context UI.
+    env: { VITE_READING_GESTURES: 'true' },
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120000

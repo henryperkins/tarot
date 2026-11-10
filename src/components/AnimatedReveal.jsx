@@ -11,6 +11,7 @@ import { animate, set } from '../lib/motionAdapter';
 import { getCanonicalCard, getOrientationMeaning } from '../lib/cardLookup';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useSounds } from '../hooks/useSounds';
+import { leavePage, useAndroidBackGuard } from '../hooks/useAndroidBackGuard';
 import { VIDEO_STYLE_PRESETS, DEFAULT_VIDEO_STYLE } from '../../shared/vision/videoStyles.js';
 import { getMediaTierConfig } from '../../shared/monetization/media.js';
 
@@ -258,6 +259,9 @@ function VideoPlayer({ videoData, prefersReducedMotion = false, onExpandedChange
       if (isExpanded) onExpandedChange?.(false);
     };
   }, [isExpanded, onExpandedChange]);
+
+  // Back closes the expanded video first, as Escape does.
+  useAndroidBackGuard(isExpanded, { onBack: closeExpanded, guardId: 'expandedVideo' });
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -855,7 +859,7 @@ export default function AnimatedReveal({
           Animated card reveals available with Plus subscription
         </p>
         <button
-          onClick={() => window.location.href = '/pricing'}
+          onClick={() => leavePage('/pricing')}
           className="mt-2 text-accent hover:text-accent/80 text-sm underline"
         >
           Upgrade

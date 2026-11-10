@@ -1,17 +1,18 @@
 import { sanitizeText } from '../../utils.js';
 import { detectPromptInjection } from '../../promptInjectionDetector.js';
 import { sanitizeReadingContext, getReadingContextInputStats } from '../../readingCardContext.js';
-import { CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH } from '../../../../shared/contracts/readingSchema.js';
-import { estimateTokenCount } from './budgeting.js';
+import { CARD_MEANING_MAX_LENGTH, CARD_REFLECTION_MAX_LENGTH, USER_QUESTION_MAX_LENGTH, REFLECTIONS_TEXT_MAX_LENGTH, DECISION_PATH_MAX_LENGTH, MAXIMUM_CARD_COUNT } from '../../../../shared/contracts/readingSchema.js';
+import { createTokenEstimator } from './budgeting.js';
 
 function cleanText(value, cardReflection = false) {
   if (cardReflection) return sanitizeReadingContext(value);
-  const safe = sanitizeText(value, { stripMarkdown: true, stripControlChars: true, filterInstructions: true });
+  const prepared = typeof value === 'string' ? value.replace(/\p{Cc}/gu, char => /[\r\n]/.test(char) ? char : ' ') : value;
+  const safe = typeof prepared === 'string' ? prepared.split(/\r\n|\r|\n/).map(line => sanitizeText(line, { stripMarkdown: true, collapseWhitespace: false, filterInstructions: true })).join('\n') : '';
   const check = detectPromptInjection(safe, { confidenceThreshold: 0.6, sanitize: true });
   return check.isInjection ? check.sanitizedText || '' : safe;
 }
 
-export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inputStats = {}) {
+export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inputStats = {}, decisionPaths = {}) {
   const fields = {};
   const add = (key, value, limit, cardReflection = false) => {
     const original = typeof value === 'string' ? value : '';
@@ -21,14 +22,20 @@ export function prepareUserContext(userQuestion, reflectionsText, cardsInfo, inp
       originalLength: inputStats[key]?.originalLength ?? original.length,
       sanitizationChanged: Boolean(inputStats[key]?.sanitizationChanged || original !== sanitized),
       sanitizationTruncated: Boolean(inputStats[key]?.sanitizationTruncated || stats.sanitizationTruncated),
-      sanitizedLength: sanitized.length,
+      sanitizedLength: inputStats[key]?.sanitizedLength ?? sanitized.length,
       text: sliceUnicode(sanitized, 0, limit),
-      limitApplied: sanitized.length > limit
+      limitApplied: Boolean(inputStats[key]?.limitApplied || sanitized.length > limit)
     };
   };
   add('question', userQuestion, USER_QUESTION_MAX_LENGTH);
   add('reflections', reflectionsText, REFLECTIONS_TEXT_MAX_LENGTH);
-  cardsInfo.forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
+  for (const [key, id] of [['a', 'pathA'], ['b', 'pathB']]) {
+    if (Object.hasOwn(decisionPaths, key)) add(id, decisionPaths[key], DECISION_PATH_MAX_LENGTH, true);
+  }
+  (cardsInfo || []).slice(0, MAXIMUM_CARD_COUNT).forEach((card, index) => add(`card-${index}`, card?.userReflection, CARD_REFLECTION_MAX_LENGTH, true));
+  (cardsInfo || []).slice(0, MAXIMUM_CARD_COUNT).forEach((card, index) => {
+    if (card?.callerMeaning) add(`interpretation-${index}`, card.callerMeaning, CARD_MEANING_MAX_LENGTH, true);
+  });
   const dedupKey = (text) => text.trim().toLowerCase().replace(/\s+/g, ' ');
   const duplicate = Object.keys(fields).find((key) => key.startsWith('card-') && fields.reflections.text && dedupKey(fields[key].text) === dedupKey(fields.reflections.text));
   if (duplicate) fields.reflections.duplicateOf = duplicate;
@@ -42,7 +49,7 @@ export function renderUserContext(source, value) {
 
 export function parseUserContext(prompt) {
   const result = new Map();
-  for (const match of prompt.matchAll(/<user_context source="(question|reflections|card-\d+)">([^\n]*?)<\/user_context>/g)) {
+  for (const match of prompt.matchAll(/<user_context source="(question|reflections|pathA|pathB|card-\d+|interpretation-\d+)">([^\n]*?)<\/user_context>/g)) {
     try {
       const value = JSON.parse(match[2]);
       if (typeof value === 'string' || (value?.omittedForBudget === true && typeof value.head === 'string' && typeof value.tail === 'string')) result.set(match[1], value);
@@ -90,9 +97,10 @@ function sliceUnicode(text, start, end) {
 
 // Preserve both the setup and closing constraints. An explicit data marker
 // tells the model when the middle is unavailable; never splice a broken JSON tag.
-export function fitUserContext(source, value, maxTokens) {
+export function fitUserContext(source, value, maxTokens, options = {}) {
+  const estimator = options.estimator ?? createTokenEstimator();
   const full = renderUserContext(source, value);
-  if (estimateTokenCount(full) <= maxTokens) return full;
+  if (estimator.estimate(full) <= maxTokens) return full;
   const text = typeof value === 'string' ? value : `${value.head}${value.tail}`;
   let lo = 0;
   let hi = text.length;
@@ -101,7 +109,7 @@ export function fitUserContext(source, value, maxTokens) {
     const length = Math.floor((lo + hi) / 2);
     const headLength = Math.ceil(length / 2);
     const candidate = renderUserContext(source, { head: sliceUnicode(text, 0, headLength), omittedForBudget: true, tail: sliceUnicode(text, text.length - Math.floor(length / 2), text.length) });
-    if (estimateTokenCount(candidate) <= maxTokens) {
+    if (estimator.estimate(candidate) <= maxTokens) {
       fitted = length ? candidate : '';
       lo = length + 1;
     } else hi = length - 1;

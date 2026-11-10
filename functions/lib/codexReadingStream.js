@@ -1,7 +1,7 @@
 import { formatSSEEvent } from './readingStream.js';
 
 /** Own generation, validation and request cleanup for the lifetime of the body. */
-export function createCodexReadingStream({ source, guard, meta, signal, waitUntil, onComplete, onError, onFinally }) {
+export function createCodexReadingStream({ source, guard, meta, signal, waitUntil, onComplete, onAccepted, onError, onFinally }) {
   const abortController = new AbortController();
   const encoder = new TextEncoder();
   let cancelled = false;
@@ -40,6 +40,7 @@ export function createCodexReadingStream({ source, guard, meta, signal, waitUnti
               for (const text of tail) emit('delta', { text });
               emit('done', { ...completion, fullText: event.result.text, provider: 'codex-subscription' });
               terminal = true;
+              await settleCleanup(onAccepted, undefined, 'Accepted');
               break;
             }
           }

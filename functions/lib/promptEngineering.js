@@ -89,6 +89,9 @@ const CAPITALIZED_TOKEN_PATTERN = new RegExp(String.raw`^${NAME_TOKEN}$`, 'u');
 const LOWERCASE_TOKEN_PATTERN = new RegExp(String.raw`^${LOWERCASE_NAME_TOKEN}$`, 'u');
 const INITIAL_TOKEN_PATTERN = new RegExp(String.raw`^\p{Lu}\.?$`, 'u');
 const NAME_HINT_PATTERNS = [
+  // Keep explicit relationship introductions separate from broad with/about
+  // patterns, which can consume a lowercase prefix before the actual name.
+  new RegExp(String.raw`\bmy\s+(?:partner|spouse|friend|mother|father|sister|brother|boss|manager|coworker|colleague|mentor|client|child|son|daughter|ex|roommate)\s+(${NAME_SEQUENCE})`, 'gu'),
   new RegExp(
     String.raw`\bbetween\s+(${NAME_SEQUENCE})\s+and\s+(${NAME_SEQUENCE})`,
     'giu'
@@ -102,7 +105,7 @@ const NAME_HINT_PATTERNS = [
     'giu'
   ),
   new RegExp(String.raw`(${NAME_SEQUENCE})\s+and\s+(?:me|I)\b`, 'giu'),
-  new RegExp(String.raw`(${NAME_SEQUENCE})['']s\\b`, 'giu'),
+  new RegExp(String.raw`(${NAME_SEQUENCE})['']s\b`, 'giu'),
   // Querent self-references in stored memories: "User (Henry) prefers…", "name is Henry".
   // Case-sensitive so the parenthetical must be only capitalized words, unlike "User (Pro tier)".
   new RegExp(String.raw`\b(?:[Uu]ser|[Qq]uerent|[Ss]eeker|[Cc]lient)\s*\(\s*(${NAME_SEQUENCE})\s*\)`, 'gu'),
@@ -149,6 +152,10 @@ const NAME_HINT_BLOCKLIST = new Set([
 const HONORIFIC_BLOCKLIST = new Set(['mr', 'mrs', 'ms', 'mx', 'dr', 'prof', 'sir', 'dame', 'rev', 'fr']);
 const MIN_REDACTION_NAME_LENGTH = 2;
 const MAX_REDACTION_NAME_HINTS = 24;
+// Match the bounded initial-reading pool, giving each candidate its own hint
+// budget so late candidates do not disappear behind the generic 24-name cap.
+const MAX_REDACTION_MEMORY_CANDIDATES = 100;
+const MAX_CANDIDATE_REDACTION_NAME_HINTS = MAX_REDACTION_MEMORY_CANDIDATES * MAX_REDACTION_NAME_HINTS;
 
 function normalizeNameHint(value) {
   return value.trim().replace(/\s+/g, ' ');
@@ -398,24 +405,56 @@ function redactNameWithBoundary(text, rawName) {
 /**
  * Redaction options for a reading: the display name plus names found in the
  * question, the querent's reflections and stored memories, since the reading
- * can echo any of them.
+ * can echo any of them. Preserve the existing 24 current/selected hints, then
+ * union at most 2400 private candidate hints (24 per loaded memory, up to 100).
+ * The maximum storage-only union is 2424; generic prompt options stay capped at 24.
  *
  * @param {Object} params
  * @param {Object} [params.personalization] - Personalization with displayName
  * @param {string} [params.userQuestion] - User question
  * @param {string} [params.reflectionsText] - Collected querent reflections
  * @param {Array<{text: string}>} [params.memories] - Stored memories used in the prompt
+ * @param {string[]} [params.candidateNameHints] - Private persistence-only hints from the loaded candidate pool
  * @returns {Object} Sanitized redaction options
  */
-export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories } = {}) {
-  return buildPromptRedactionOptions({
+export function buildReadingRedactionOptions({ personalization, userQuestion, reflectionsText, memories, decisionPaths, cardsInfo, candidateNameHints } = {}) {
+  const options = buildPromptRedactionOptions({
     personalization,
     userQuestion,
     reflectionsText,
-    additionalTextSources: Array.isArray(memories)
-      ? memories.map((memory) => memory?.text).filter(Boolean)
-      : []
+    additionalTextSources: [
+      ...(cardsInfo || []).flatMap(card => [card?.callerMeaning, card?.userReflection]).filter(Boolean),
+      ...Object.values(decisionPaths || {}).filter(value => typeof value === 'string'),
+      ...(Array.isArray(memories) ? memories.map((memory) => memory?.text).filter(Boolean) : [])
+    ]
   });
+  return mergeCandidateRedactionNames(options, candidateNameHints);
+}
+
+function mergeCandidateRedactionNames(options, candidateNameHints) {
+  // Current-source/selected-memory coverage keeps its existing priority and cap.
+  // Candidate hints are private storage inputs, never generation context.
+  const candidateNames = dedupeRedactionNames(candidateNameHints, MAX_CANDIDATE_REDACTION_NAME_HINTS);
+  const additionalNames = dedupeRedactionNames(
+    [...(options.additionalNames || []), ...candidateNames],
+    MAX_REDACTION_NAME_HINTS + MAX_CANDIDATE_REDACTION_NAME_HINTS
+  );
+  return additionalNames.length ? { ...options, additionalNames } : options;
+}
+
+/**
+ * Extract private persistence-only hints from an already-loaded owner-bound
+ * memory pool. This uses heuristic name recognition, not universal PII detection.
+ * Keep the returned names request-local and separate from provider payloads.
+ */
+export function buildMemoryCandidateRedactionNames(memories) {
+  if (!Array.isArray(memories)) return [];
+  return dedupeRedactionNames(
+    memories.slice(0, MAX_REDACTION_MEMORY_CANDIDATES).flatMap(memory =>
+      dedupeRedactionNames(extractNameHints(memory?.text))
+    ),
+    MAX_CANDIDATE_REDACTION_NAME_HINTS
+  );
 }
 
 /**
@@ -536,6 +575,7 @@ export function extractPromptFeatures(prompt) {
  * @param {string} params.reflectionsText - The user's reflections (for name redaction hints)
  * @param {Object} params.personalization - Optional personalization object with displayName/additionalNames
  * @param {string[]} params.nameHints - Optional explicit name hints to redact
+ * @param {string[]} params.candidateNameHints - Private storage-only candidate hints, bounded separately to 2400
  * @param {boolean} params.disableAutomaticNameExtraction - Optional explicit extraction bypass
  * @param {Object} params.redactionOptions - Options for PII redaction
  * @param {boolean} params.stripUserContent - Whether to strip user questions/reflections (default: true)
@@ -550,6 +590,8 @@ export async function buildPromptEngineeringPayload(params) {
     reflectionsText,
     personalization = null,
     nameHints,
+    candidateNameHints,
+    decisionPaths,
     disableAutomaticNameExtraction = false,
     redactionOptions = {},
     stripUserContent: shouldStripUserContent = true,
@@ -572,14 +614,15 @@ export async function buildPromptEngineeringPayload(params) {
     processedResponse = stripResponseEchoContent(processedResponse);
   }
 
-  const effectiveRedactionOptions = buildPromptRedactionOptions({
+  const effectiveRedactionOptions = mergeCandidateRedactionNames(buildPromptRedactionOptions({
     redactionOptions,
     personalization,
     userQuestion,
     reflectionsText,
     nameHints,
+    additionalTextSources: Object.values(decisionPaths || {}).filter(value => typeof value === 'string'),
     disableAutomaticNameExtraction
-  });
+  }), candidateNameHints);
 
   // Layer 2: Redact PII patterns from prompts and response (unless skipped)
   let redactedSystem, redactedUser, redactedResponse;
@@ -693,7 +736,7 @@ function stripCommonUserContent(text) {
   if (!text || typeof text !== 'string') return text || '';
 
   // Remove serialized data before prose regexes can consume a closing tag.
-  let result = text.replace(/<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '[USER_CONTEXT_REDACTED]');
+  let result = text.replace(/<reading_memory slot="memory-\d+">[^\n]*?<\/reading_memory>/g, '[MEMORY_REDACTED]').replace(/<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '[USER_CONTEXT_REDACTED]');
 
   // Strip user questions - **Question**: format (multiline support)
   // Matches from **Question**: to the next blank line or next ** header

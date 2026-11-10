@@ -2,7 +2,7 @@
 
 Type: guide
 Status: active reference
-Last reviewed: 2026-09-30
+Last reviewed: 2026-10-23
 
 This guide is the current starting point for engineers working in the Tableu repository.
 
@@ -15,10 +15,10 @@ This guide is the current starting point for engineers working in the Tableu rep
 Common local variables include:
 
 - `ANTHROPIC_API_KEY` — enables the public `claude-api` backend, which is tried first for readings, follow-up answers and journal summaries. Narrative QA gates use the owner's subscription instead. `ANTHROPIC_MODEL` (default `claude-opus-5-5`), `ANTHROPIC_EFFORT` (reading effort, default `xhigh`) and `ANTHROPIC_TIMEOUT_MS` are non-secret settings in `wrangler.jsonc`.
-- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
+- `MODAL_PROXY_TOKEN_ID` and `MODAL_PROXY_TOKEN_SECRET` — `modal-qwen` credentials (the reading fallback after OpenAI and Claude). Both are required together; the adapter forms the Bearer value as `ID.SECRET`. A partial or empty declared pair fails validation, even when legacy or fallback credentials exist. The legacy combined `MODAL_PROXY_TOKEN` works only when both pair fields are absent.
 - `MODAL_ENDPOINT_URL`, `MODAL_MODEL`, `MODAL_REASONING_EFFORT`, `MODAL_STREAM`, `MODAL_TEMPERATURE`, `MODAL_TOP_P`, and `MODAL_TIMEOUT_MS` — non-secret Modal settings from `wrangler.jsonc`
 - `OPENAI_API_KEY` — enables the `openai-native` Responses backend
-- `OPENAI_MODEL` (defaults to `gpt-5.6-sol` in `wrangler.jsonc`) and `OPENAI_STREAMING_ENABLED`
+- `OPENAI_MODEL` (set to `gpt-6.1-sol` in `wrangler.jsonc`, with `OPENAI_REASONING_EFFORT` `high`) and `OPENAI_STREAMING_ENABLED`
 - `VISION_PROOF_SECRET` when using the opt-in vision research flow
 - `ELEVENLABS_API_KEY` — enables the ElevenLabs narration option through the Worker. Optional `ELEVENLABS_VOICE_ID` (default Sarah, `EXAVITQu4vr4xnSDxMaL`) and `ELEVENLABS_MODEL_ID` (default `eleven_v4`) select the voice/model. The separate Deepgram option uses Workers AI Aura-2 with Cora through the `AI` binding and needs no provider API key. Users choose an engine in Audio settings or the reading audio controls; both use the same monthly narration allowance. See [narration safeguards](narration-safeguards.md).
 - `VITE_ENABLE_VISION_RESEARCH` — set to `true` only to expose the research UI; the default is `false`
@@ -66,7 +66,7 @@ See the [provider inventory and reference](provider-reference.md) for all implem
 - Backend: Cloudflare Workers with route handlers in `functions/api/`
 - Data: Cloudflare D1, KV, R2
 
-Public narrative backends are attempted in this order: `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `openai-native` (OpenAI Responses when `OPENAI_API_KEY` is set) → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
+Public narrative backends are attempted in this order: `openai-native` (OpenAI Responses when `OPENAI_API_KEY` is set) → `claude-api` (Claude Opus 5.5 through the Anthropic Messages API when `ANTHROPIC_API_KEY` is set) → `modal-qwen` → `local-composer`. Follow-up answers and journal summaries also try Claude first, then the Responses API. Question suggestions use Workers AI with spread-shaped template fallback. Offline narrative and release gates always use the owner's Claude subscription.
 
 Runtime reading metrics and evaluation payloads are written to D1 `eval_metrics`. `METRICS_DB` is also active operational KV for media telemetry and daily media-usage counters, with ongoing legacy `reading:*` compatibility archival. `R2_LOGS` stores generated/user media, journal-export caches, archives, and exports. GraphRAG passages are internally authored `Tableu Tarot Canon` content from `functions/lib/knowledgeBase.js`.
 
@@ -132,6 +132,8 @@ supports an optional `cursor` for replay.
 The Durable Object persists job state and a bounded event history, forwards the
 caller's credentials for app jobs, and owns the public SSE stream. MCP-originated
 principal jobs use separate `/mcp/snapshot` and `/mcp/cancel` paths.
+
+Use the [reading input and source-use contract](reading-context-inputs.md) for decision labels, catalog/caller meaning authority, memory opt-out, independent limits and accepted-attempt retention. A durable successful job atomically stores a separate private `readingMemoryReceipt` key; its memory/run/attempt identities never enter public result/events or MCP snapshots. Replay persists only the original idempotent access update and cannot regenerate a reading. Direct persistence remains best effort. Receipt-aware or drained compatible rollback is necessary for pending accounting; old envelope writes can erase replay identity. This scope reuses existing D1 timestamps and adds no schema migration. Current progress and remaining qualification lanes are recorded in the [ledger](knowledge-graph/REMEDIATION_LEDGER.md) and [qualification status](knowledge-graph/QUALIFICATION_STATUS.md).
 
 ## Validation Commands
 

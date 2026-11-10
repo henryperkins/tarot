@@ -20,6 +20,16 @@ async function renderedOpacity(locator) {
   });
 }
 
+// The selected spread is centred on load, which enables both arrows. Arrow
+// boundary checks start from the first spread instead.
+async function showFirstSpread(page) {
+  const carousel = page.getByRole('radiogroup', { name: 'Spread selection' });
+  await carousel.evaluate(element => element.scrollTo({ left: 0, behavior: 'instant' }));
+  // An unavailable arrow leaves the accessibility tree along with its edge fade.
+  await expect(page.getByRole('button', { name: 'Previous spread', exact: true })).toBeHidden();
+  return carousel;
+}
+
 async function expectMemoryContrast(page) {
   const violations = await new AxeBuilder({ page })
     .include('[data-reader-memory]')
@@ -88,8 +98,23 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
     }
 
+    test('the selected spread leads the carousel on load', async ({ page }) => {
+      await openSetup(page);
+      const carousel = page.getByRole('radiogroup', { name: 'Spread selection' });
+      await expect.poll(() => carousel.evaluate(element => {
+        const selected = element.querySelector('[role="radio"][aria-checked="true"]');
+        const bounds = selected.getBoundingClientRect();
+        const viewport = element.getBoundingClientRect();
+        const inView = bounds.left >= viewport.left - 1 && bounds.right <= viewport.right + 1;
+        return inView && Math.abs(bounds.left + bounds.width / 2 - (viewport.left + viewport.width / 2)) <= 2;
+      })).toBe(true);
+      await expect(page.getByRole('button', { name: 'Previous spread', exact: true })).toHaveAttribute('aria-disabled', 'false');
+      await expect(page.getByRole('button', { name: 'Next spread', exact: true })).toHaveAttribute('aria-disabled', 'false');
+    });
+
     test('tab navigation skips unavailable spread arrows', async ({ page }) => {
       await openSetup(page);
+      await showFirstSpread(page);
       const names = [];
       for (let index = 0; index < 16; index += 1) {
         await page.keyboard.press('Tab');
@@ -103,7 +128,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('a focused spread arrow stays visible at the end and becomes a no-op', async ({ page }) => {
       await openSetup(page);
       const next = page.getByRole('button', { name: 'Next spread', exact: true });
-      const carousel = page.getByRole('radiogroup', { name: 'Spread selection' });
+      const carousel = await showFirstSpread(page);
       await page.evaluate(() => document.fonts.ready);
       await next.focus();
       for (let index = 1; index < 6; index += 1) {

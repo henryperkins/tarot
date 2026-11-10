@@ -1,3 +1,9 @@
+# PWA install evidence - 2026-10-08
+
+Type: evidence
+Status: historical snapshot
+Last reviewed: 2026-10-23
+
 These Chromium captures show the compact install action beside the bottom reading and Pricing controls. The light guest reading uses a 390 × 844 viewport; the completed reading uses an isolated narrative fixture at 320 × 568. Annual Pricing uses a guest view at 320 × 568 with 200% text. No real reviewer identity or session state is included.
 
 ![Guest reading with compact bottom installation](reading-light-390.png)

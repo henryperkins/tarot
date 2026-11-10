@@ -356,3 +356,65 @@ describe('Workers AI embeddings', () => {
     assert.equal(isSemanticEmbedding(result), false);
   });
 });
+
+
+test('embedding batches use at most two concurrent requests and preserve all results', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  let active = 0, peak = 0;
+  const env = { AI: { run: async (_model, { text }) => {
+    active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 2));
+    active--; return { data: text.map(() => [1, 0]) };
+  } } };
+  const results = await embedTextsWithMetadata(Array.from({ length: 350 }, (_, i) => `concurrent ${i}`), { env });
+  assert.equal(peak, 2);
+  assert.ok(results.every(isSemanticEmbedding));
+  assert.equal(getEmbeddingCacheStats().size, 100);
+});
+
+test('ignored abort returns by the shared deadline and late responses never populate cache', { timeout: 1000 }, async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let started;
+  const ready = new Promise(resolve => { started = resolve; });
+  let finish;
+  const stats = {};
+  const pending = embedTextsWithMetadata(['late'], { stats, env: { AI: { run: () => { started(); return new Promise(resolve => { finish = resolve; }); } } } });
+  await ready;
+  t.mock.timers.tick(3000);
+  const results = await pending;
+  assert.equal(results[0].source, 'fallback');
+  assert.equal(stats.failureReason, 'embeddings-timeout');
+  finish({ data: [[1, 0]] });
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(getEmbeddingCacheStats().size, 0);
+});
+
+test('caller cancellation stops scheduling and prevents late cache effects', async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  const controller = new AbortController();
+  let calls = 0;
+  const stats = {};
+  const results = await embedTextsWithMetadata(['cancelled'], { signal: controller.signal, stats, env: { AI: { run: async () => { calls++; controller.abort(); return { data: [[1, 0]] }; } } } });
+  assert.equal(calls, 1);
+  assert.equal(results[0].source, 'fallback');
+  assert.equal(stats.failureReason, 'embeddings-cancelled');
+  assert.equal(getEmbeddingCacheStats().size, 0);
+});
+
+
+test('one request-wide deadline stops queued batches after two ignored-abort requests', { timeout: 1000 }, async (t) => {
+  clearEmbeddingCache(); t.after(clearEmbeddingCache);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  const stats = {};
+  const pending = embedTextsWithMetadata(Array.from({ length: 350 }, (_, i) => `deadline ${i}`), { stats, env: { AI: { run: () => { if (++calls === 2) started(); return new Promise(() => {}); } } } });
+  await ready;
+  t.mock.timers.tick(3000);
+  const results = await pending;
+  assert.equal(calls, 2);
+  assert.equal(stats.batchCount, 2);
+  assert.equal(stats.failureReason, 'embeddings-timeout');
+  assert.ok(results.every(result => result.source === 'fallback'));
+});

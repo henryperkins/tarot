@@ -23,7 +23,7 @@
 - Preserve `.claude/settings.local.json` as a local preference. Do not publish credentials, `.dev.vars`, OAuth/PKCE state, local databases, or unrelated artifacts.
 - The original checkout may hold documentation work. MCP implementation commands run in `C:/Users/htper/tarot-chatgpt-mcp`, respecting its existing plan's worktree constraint.
 - Source `.github/workflows/deploy.yml` runs CI and Playwright, then migrations/deployment on a push to master. A GitHub merge is therefore a release operation, not housekeeping.
-- Existing MCP Task 18 says: **“Ask the owner before each step and wait for a yes.”** Honor its separate infrastructure and push/PR steps, carrying forward any explicit session authorization. [Exact source](C:/Users/htper/tarot-chatgpt-mcp/docs/superpowers/plans/2026-09-23-chatgpt-mcp-journal.md).
+- Existing MCP Task 18 says: **“Ask the owner before each step and wait for a yes.”** Honor its separate infrastructure and push/PR steps, carrying forward any explicit session authorization. Exact source: `tarot-chatgpt-mcp/docs/superpowers/plans/2026-09-23-chatgpt-mcp-journal.md`.
 - No provider-key setup or live model calls are needed for planning or focused tests. Full narrative/vision gates must state their backend and write outputs in a verification worktree. Do not assume synthetic/local evidence proves live model quality.
 - All return codes matter. A collected browser test is not an executed test; a dry run is not a deployment; old test logs are not proof of an integrated candidate.
 

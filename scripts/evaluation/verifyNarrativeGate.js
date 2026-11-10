@@ -39,6 +39,8 @@ async function main() {
   const agencyIssues = metrics?.missingAgencyCount ?? 0;
   const flagged = metrics?.flaggedSampleCount ?? 0;
   const hallucinations = metrics?.hallucinationCount ?? 0;
+  const assertions = metrics?.undrawnCardAssertionCount;
+  if (Number.isFinite(assertions) && assertions > 0) failures.push(`Undrawn card assertion samples ${assertions} > limit 0`);
   const suitCountMismatches = metrics?.suitCountMismatchCount ?? 0;
   const harshTone = metrics?.harshToneCount ?? 0;
   const missingSupportive = metrics?.missingSupportiveToneCount ?? 0;

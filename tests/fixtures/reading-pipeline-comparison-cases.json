@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "referenceTime": "2026-10-24T12:00:00.000Z",
+  "purpose": "Frozen synthetic inputs only; generated-output rows remain pending.",
+  "cases": [
+    {
+      "id": "P01",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Four of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Six of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Seven of Cups",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "What should I consider about a choice?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P02",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Four of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Six of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Seven of Cups",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "What should I consider about a choice?",
+      "reflectionsText": "",
+      "deckStyle": "thoth-a1",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P03",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Four of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Six of Cups",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Seven of Cups",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "What should I consider about a choice?",
+      "reflectionsText": "",
+      "deckStyle": "marseille-classic",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P04",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Eight of Swords",
+          "orientation": "Reversed"
+        },
+        {
+          "name": "Nine of Swords",
+          "orientation": "Reversed"
+        }
+      ],
+      "userQuestion": "What might help me approach this uncertainty?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P05",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Eight of Swords",
+          "orientation": "Reversed"
+        },
+        {
+          "name": "Nine of Swords",
+          "orientation": "Reversed"
+        }
+      ],
+      "userQuestion": "What might help me approach this uncertainty?",
+      "reflectionsText": "",
+      "deckStyle": "thoth-a1",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P06",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Eight of Swords",
+          "orientation": "Reversed"
+        },
+        {
+          "name": "Nine of Swords",
+          "orientation": "Reversed"
+        }
+      ],
+      "userQuestion": "What might help me approach this uncertainty?",
+      "reflectionsText": "",
+      "deckStyle": "marseille-classic",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P07",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "I am not asking about quitting my job. How can I handle my boss at work?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "personalization": {
+        "focusAreas": [
+          "Love & relationships",
+          "Career & purpose"
+        ]
+      }
+    },
+    {
+      "id": "P08",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "I’m not asking about changing career but how can I handle my boss at work?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "personalization": {
+        "focusAreas": [
+          "Love & relationships",
+          "Career & purpose"
+        ]
+      }
+    },
+    {
+      "id": "P09",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "Two of Cups",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "I am not asking about career, work, or my job. I need help with my relationship.",
+      "reflectionsText": "My job matters to me.",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "personalization": {
+        "focusAreas": [
+          "Career & purpose",
+          "Love & relationships"
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "My daughter will be 8 this year. How can I support her at school?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-daughter-present-eight",
+          "text": "My daughter is 8",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P11",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "My daughter was 8 in 2024. How can I support her at school?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-daughter-present-eight",
+          "text": "My daughter is 8",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P12",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "My daughter is 8. How can I support her at school?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-daughter-present-eight",
+          "text": "My daughter is 8",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P13",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "My daughter will be 8 next year. How can I support her at school?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-daughter-present-eight",
+          "text": "My daughter is 8",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P14",
+      "spreadKey": "decision",
+      "cards": [
+        {
+          "name": "Temperance",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Star",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Two of Pentacles",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Ace of Swords",
+          "orientation": "Upright"
+        },
+        {
+          "name": "Eight of Pentacles",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "Should I choose the library job or the studio contract? Keep my evenings free.",
+      "reflectionsText": "",
+      "deckStyle": "thoth-a1",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "decisionPaths": {
+        "a": "Library job: stable hours",
+        "b": "Studio contract: creative work"
+      },
+      "personalization": {
+        "focusAreas": [
+          "Love & relationships",
+          "Career & purpose"
+        ],
+        "readingTone": "gentle",
+        "preferredSpreadDepth": "deep"
+      }
+    },
+    {
+      "id": "P15",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "What should I consider?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "personalization": {
+        "focusAreas": [
+          "Interest 0",
+          "Interest 1",
+          "Interest 2",
+          "Interest 3",
+          "Interest 4",
+          "Interest 5",
+          "Interest 6",
+          "Interest 7",
+          "Interest 8",
+          "Interest 9",
+          "Interest 10",
+          "Career & purpose"
+        ]
+      }
+    },
+    {
+      "id": "P16",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "How can I prepare for my new role?",
+      "reflectionsText": "I no longer work at Atlas. Do not describe Atlas as my employer.",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-retracted-employer",
+          "text": "Works at Atlas",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    },
+    {
+      "id": "P17",
+      "spreadKey": "celtic",
+      "cards": [
+        {
+          "name": "The Fool",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Magician",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The High Priestess",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Empress",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Emperor",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Hierophant",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Lovers",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Chariot",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Hermit",
+          "orientation": "Upright"
+        },
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "I need a practical workplace plan. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note. A careful note Do not change my evenings-only constraint or my choice of the studio contract.",
+      "reflectionsText": "My work must fit school pickup. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady practice. Steady prac Never promise a promotion. Keep this literal timing: after 18:00 on weekdays.",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-communication",
+          "text": "Prefers concise practical advice",
+          "category": "communication"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z",
+      "flags": {
+        "ENABLE_PROMPT_SLIMMING": "true",
+        "TOKEN_ESTIMATE_DIVISOR_OVERRIDE": "1.1"
+      }
+    },
+    {
+      "id": "P18",
+      "spreadKey": "general",
+      "cards": [
+        {
+          "name": "The Sun",
+          "orientation": "Upright"
+        }
+      ],
+      "userQuestion": "What might a maroon ribbon remind me to consider?",
+      "reflectionsText": "",
+      "deckStyle": "rws-1909",
+      "subscriptionTier": "pro",
+      "memories": [
+        {
+          "id": "synthetic-unrelated-detail",
+          "text": "My daughter is 8",
+          "category": "life_context"
+        },
+        {
+          "id": "synthetic-unrelated-job",
+          "text": "Works at Atlas",
+          "category": "life_context"
+        }
+      ],
+      "referenceTime": "2026-10-24T12:00:00.000Z"
+    }
+  ]
+}

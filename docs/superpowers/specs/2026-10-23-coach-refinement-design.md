@@ -1,0 +1,15 @@
+# Coach refinement design
+
+This implements the user's approved direction from 2026-10-23. Existing reading-page wording opens directly on Review your question, verbatim. It remains recoverable throughout the session; topic defaults and journal recommendations never replace that concern. Start fresh is a secondary action inside the coach. An empty field opens Topic → Timeframe → Depth → Review your question. Templates, suggestions, and recent questions land on review with their exact wording.
+
+Review puts the editable question first, then at most two gentle Question framing suggestions. There is no numerical score, grade, positive checklist, or requirement to add a timeframe. Only confidently supported English receives automated feedback; Latin script alone is not language evidence. Feedback never blocks valid text. Existing wording is a refinement input, including to explicitly requested AI generation. No automatic rewrite is needed on contextual entry.
+
+Settings and detail changes never overwrite manually edited or explicitly selected wording. Explicit refinement/Remix may generate a new version, with Restore my wording retaining the prior version and Restore original question retaining the entry text. Start fresh does not erase the recoverable original. Late model responses must never overwrite subsequent edits. Choice radios use ordinary arrow-key selection once settings cease to cause destructive regeneration.
+
+Review has its own heading and focus destination. Depth advances via Review question. Only review exposes Use this question, applying the exact editor text. Advanced controls follow the editor. Compact/enlarged layouts remove redundant nested insets and release the footer into document flow when its measured height exceeds 25% of the available dialog height.
+
+Malformed response values fall back to local wording. Template replacement identifies the displaced template truthfully and supports undo without overwriting intervening storage changes. No paid/live model calls, deployment, push, or commit is part of this task. Preserve the incumbent visual identity and unrelated workspace files.
+
+Implementation choices: keep the established context/session architecture; add review as step index 3; retain the original in owner-scoped in-memory draft state; use conservative rule-based English confidence rather than adding a language-detection dependency; use measured footer budgeting with CSS support; refuse template undo if storage has changed since the save.
+
+Acceptance: career concern and any stated date retained at entry; sister wording survives timeframe changes until explicit regeneration; review appears before Apply; guaranteed-outcome example gets an ungraded suggestion; Spanish and uncertain language receive no assessment; timeframe optional; exact template/suggestion/history wording; original/prior restoration; late-response protection; malformed response fallback; ninth-template replacement and undo; usable 320×568 editing with 32px root text; guest and real active-Pro review with logout.

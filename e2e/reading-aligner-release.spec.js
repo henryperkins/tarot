@@ -20,7 +20,7 @@ async function startOrdinaryReading(page, fixture, { captureSpreadEdition = fals
   await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(fixture.question);
   await nativeClick(page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first());
   await nativeClick(page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first());
-  await nativeClick(page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first());
+  await nativeClick(page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first());
   const table = page.getByRole('region', { name: /Three-Card Story.*layout/ }); await expect(table.locator('img')).toHaveCount(3);
   const spreadURLs = await table.locator('img').evaluateAll(images => images.map(image => image.getAttribute('src')));
   for (const url of spreadURLs) expect(url).toMatch(/^\/images\/cards\/RWS1909_.*\.jpeg$/);

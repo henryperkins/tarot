@@ -35,7 +35,8 @@ export function buildSelectiveEvalGatePolicy({
   env,
   languageSupport,
   userQuestion,
-  reflectionsText
+  reflectionsText,
+  decisionPaths
 } = {}) {
   const reasons = [];
 
@@ -43,7 +44,7 @@ export function buildSelectiveEvalGatePolicy({
     reasons.push(`language_${languageSupport.language || 'unsupported'}`);
   }
 
-  const combinedInput = [userQuestion, reflectionsText]
+  const combinedInput = [userQuestion, reflectionsText, ...Object.values(decisionPaths || {})]
     .filter((value) => typeof value === 'string' && value.trim())
     .join('\n');
   reasons.push(...collectRestrictedInputReasons(combinedInput));

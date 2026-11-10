@@ -1,4 +1,4 @@
-import { Sparkle, ArrowRight, Trash, Info, Fire } from '@phosphor-icons/react';
+import { Sparkle, ArrowRight, Trash, Info, Fire, Lightbulb } from '@phosphor-icons/react';
 import { Tooltip } from './Tooltip';
 import {
     FOCUS_RING_ACCENT_50,
@@ -6,6 +6,7 @@ import {
     FOCUS_RING_PRIMARY_50,
     FOCUS_RING_SECONDARY_50
 } from '../styles/focusClasses';
+import { META_LABEL_CLASS } from '../styles/labelClasses';
 
 const ACCENT_50_RING_WITH_OFFSET = `${FOCUS_RING_ACCENT_50} ${FOCUS_RING_OFFSET_2}`;
 const PRIMARY_50_RING_WITH_OFFSET = `${FOCUS_RING_PRIMARY_50} ${FOCUS_RING_OFFSET_2}`;
@@ -206,34 +207,34 @@ export function CoachSuggestion({
         const focusCtaPlacement = focusAreasCtaPlacement || (isAmberTone ? 'before-actions' : 'after-actions');
         const classes = isAmberTone
             ? {
-                container: 'rounded-lg bg-primary/5 p-3 border border-primary/10',
-                headline: 'text-sm sm:text-xs text-accent/85 mb-2',
-                scope: 'mb-2 text-2xs uppercase tracking-[0.18em] text-accent/50',
-                badge: 'mb-2 flex items-center gap-1 text-2xs text-accent/80',
-                source: 'mb-2 flex items-center gap-2 text-2xs uppercase tracking-[0.18em] text-accent/60',
-                sourceTrigger: 'text-accent/60 hover:text-main',
+                container: 'rounded-lg bg-(--bg-surface) p-3 border border-primary/20',
+                headline: 'text-sm text-accent mb-2',
+                scope: `${META_LABEL_CLASS} mb-2 text-muted`,
+                badge: 'mb-2 flex items-center gap-1 text-xs text-accent',
+                source: `${META_LABEL_CLASS} mb-2 flex items-center gap-2 text-muted`,
+                sourceTrigger: 'text-accent hover:text-main',
                 theme: 'mb-2 space-y-1 text-2xs text-muted',
                 related: 'mb-2 text-2xs text-muted-high',
-                relatedTitle: 'text-2xs uppercase tracking-[0.18em] text-muted',
-                remaining: 'mt-1 text-2xs text-muted/70',
+                relatedTitle: `${META_LABEL_CLASS} text-muted`,
+                remaining: 'mt-1 text-xs text-muted',
                 statusMessage: 'mb-2 text-2xs text-muted',
                 actions: 'flex flex-wrap items-center gap-2',
                 startButton: `inline-flex items-center gap-1.5 min-h-touch px-3 py-2 text-xs font-medium text-accent hover:text-main transition-colors touch-manipulation ${FOCUS_RING_PRIMARY_50}`,
                 saveButton: `min-h-touch rounded-full border border-primary/25 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/40 transition-colors ${FOCUS_RING_PRIMARY_50}`,
                 openButton: `min-h-touch rounded-full border border-primary/20 px-3 py-2 text-xs text-muted-high hover:text-main hover:border-primary/35 transition-colors ${FOCUS_RING_PRIMARY_50}`,
-                status: 'text-2xs text-muted/70',
-                focusCta: 'mb-2 min-h-touch min-w-touch text-left text-2xs text-accent/80 underline underline-offset-4 hover:text-main transition-colors',
+                status: 'text-xs text-muted',
+                focusCta: 'mb-2 min-h-touch min-w-touch text-left text-xs text-accent underline underline-offset-4 hover:text-main transition-colors',
             }
             : {
                 container: 'rounded-lg bg-(--border-warm-subtle) p-3 border border-(--border-warm-light)',
                 headline: 'text-xs text-muted-high',
-                scope: 'mt-2 text-2xs uppercase tracking-[0.2em] text-muted',
+                scope: `${META_LABEL_CLASS} mt-2 text-muted`,
                 badge: 'mt-2 flex items-center gap-1 text-2xs text-(--text-accent)',
-                source: 'mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.2em] text-muted',
+                source: `${META_LABEL_CLASS} mt-2 flex items-center gap-2 text-muted`,
                 sourceTrigger: 'text-muted hover:text-main',
                 theme: 'mt-2 space-y-1 text-2xs text-muted',
                 related: 'mt-2 text-2xs text-muted-high',
-                relatedTitle: 'text-2xs uppercase tracking-[0.2em] text-muted',
+                relatedTitle: `${META_LABEL_CLASS} text-muted`,
                 remaining: 'mt-1 text-2xs text-muted',
                 statusMessage: 'mt-2 text-2xs text-muted',
                 actions: 'mt-2 flex flex-wrap items-center gap-2',
@@ -256,7 +257,10 @@ export function CoachSuggestion({
         return (
             <div className={`${classes.container} ${className}`.trim()}>
                 {headlineText && (
-                    <p className={classes.headline}>💡 {headlineText}</p>
+                    <p className={classes.headline}>
+                        <Lightbulb className="mr-1.5 inline-block h-4 w-4 align-[-0.2em]" aria-hidden="true" />
+                        {headlineText}
+                    </p>
                 )}
                 {filtersActive && scopeLabel && (
                     <p className={classes.scope}>
@@ -357,7 +361,7 @@ export function CoachSuggestion({
 
     const titleClasses = isJournalVariant
         ? "mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent/80"
-        : "flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-primary";
+        : "flex items-center gap-2 text-xs uppercase tracking-label-wide text-primary";
 
     const questionClasses = isJournalVariant
         ? "font-serif text-lg text-main"
@@ -402,7 +406,7 @@ export function CoachSuggestion({
             )}
 
             {filtersActive && scopeLabel && (
-                <p className="mt-3 text-2xs uppercase tracking-[0.2em] text-muted">
+                <p className={`${META_LABEL_CLASS} mt-3 text-muted`}>
                     Scoped to: {scopeLabel}
                 </p>
             )}
@@ -412,7 +416,7 @@ export function CoachSuggestion({
                 </p>
             )}
             {recommendation.sourceLabel && (
-                <div className="mt-2 flex items-center gap-2 text-2xs uppercase tracking-[0.3em] text-muted">
+                <div className="mt-2 flex items-center gap-2 text-2xs uppercase tracking-label-wide text-muted">
                     <span>Source: {recommendation.sourceLabel}</span>
                     {recommendation.sourceDetail && (
                         <Tooltip
@@ -428,7 +432,7 @@ export function CoachSuggestion({
             )}
             {relatedSteps.length > 0 && (
                 <div className="mt-2 text-xs text-muted">
-                    <p className="text-2xs uppercase tracking-[0.2em] text-muted">{clusterTitle}</p>
+                    <p className={`${META_LABEL_CLASS} text-muted`}>{clusterTitle}</p>
                     <ul className="mt-1 list-disc list-inside space-y-1">
                         {relatedSteps.map((step, index) => (
                             <li key={`${step}-${index}`}>{step}</li>

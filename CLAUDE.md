@@ -10,7 +10,7 @@ Guidance for Claude Code when working with this repository.
 |-------|------|----------|
 | Frontend | React + Vite | `src/` |
 | Backend | Cloudflare Workers | `functions/api/` |
-| AI | `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `openai-native` (native OpenAI Responses) → `local-composer` | `functions/api/tarot-reading.js`, `functions/lib/narrativeBackends.js`, `wrangler.jsonc` |
+| AI | `openai-native` (native OpenAI Responses) → `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `local-composer` | `functions/api/tarot-reading.js`, `functions/lib/narrativeBackends.js`, `wrangler.jsonc` |
 | Database | Cloudflare D1 | `migrations/*.sql` |
 | Storage | Cloudflare D1 + KV + R2 | `eval_metrics` in D1 is the primary reading/evaluation store; `METRICS_DB` KV carries media telemetry, media-usage counters, card-video job metadata, and ongoing legacy archival input; R2 stores generated/user media, exports, archives, and logs |
 
@@ -61,7 +61,7 @@ Shared logic goes in `shared/`; pure card/spread data in `src/data/` is also use
 2. **Ritual** — Knocks + cut position + question → `computeSeed()`
 3. **Draw** — `drawSpread()` uses seeded shuffle, assigns upright/reversed
 4. **Reveal** — Card flip animation, user reflections per card
-5. **Narrative** — Use `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `openai-native` (native OpenAI Responses) → `local-composer` in `functions/lib/narrativeBackends.js`; do not assume a model from an older guide.
+5. **Narrative** — Use `openai-native` (native OpenAI Responses) → `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `local-composer` in `functions/lib/narrativeBackends.js`; do not assume a model from an older guide.
 
 **Pipeline**: `spreadAnalysis.js` (dignities, reversals) + `knowledgeGraph.js` (patterns) → `graphContext.js` → `graphRAG.js` (passages) → `prompts.js` → AI → structural quality gate (`tarot-reading.js` + `readingQuality.js`) → `evaluation.js` (async scoring). The same analysis invokes `buildReadingReasoning()`; the local composer wraps its builders with `buildReadingWithReasoning()`.
 
@@ -110,7 +110,7 @@ Tables are defined by the migrations in `migrations/`.
 
 **IMPORTANT**: Always apply D1 migrations BEFORE deploying code using new columns.
 
-Production releases use `npm run deploy` locally on the host with the owner's Claude subscription login. GitHub Actions billing is permanently unavailable and its checks are not release prerequisites; `.github/workflows/deploy.yml` is retained as a manual reference and does not run on pushes. The release script requires fresh QA before applying pending migrations and deploying the Worker. Photo manifests are optional for deployment: without `VISION_EVAL_MANIFEST_DIR`, release QA reports vision qualification as unrun and continues through the code checks and live narrative gate. Setting that variable opts into the strict three-deck vision gate; invalid data or a failed requested gate blocks deployment. A release without vision qualification does not establish photo recognition or symbol quality. Cloudflare Workers Builds is independent of GitHub Actions and requires private subscription-gateway access for live QA. Verify its migration behavior separately. Apply and verify pending remote migrations before merging, then confirm the active Worker version and live assets before another release.
+Production releases use `npm run deploy` locally on the host, with `OPENAI_API_KEY` exported for the release narrative gate (see Evaluation System). GitHub Actions billing is permanently unavailable and its checks are not release prerequisites; `.github/workflows/deploy.yml` is retained as a manual reference and does not run on pushes. The release script requires fresh QA before applying pending migrations and deploying the Worker. Photo manifests are optional for deployment: without `VISION_EVAL_MANIFEST_DIR`, release QA reports vision qualification as unrun and continues through the code checks and live narrative gate. Setting that variable opts into the strict three-deck vision gate; invalid data or a failed requested gate blocks deployment. A release without vision qualification does not establish photo recognition or symbol quality. Cloudflare Workers Builds is independent of GitHub Actions and needs the OpenAI evaluation key as a build secret for live QA. Verify its migration behavior separately. Apply and verify pending remote migrations before merging, then confirm the active Worker version and live assets before another release.
 
 ```bash
 npm run deploy              # Auto-applies migrations + deploys (recommended)
@@ -121,12 +121,18 @@ npm run migrations:apply    # Apply only
 
 ## Evaluation System
 
-Narrative-generation and release gates use the owner's Claude subscription, never
-paid APIs. Run `npm run ci:narrative-check` or `npm run ci:release-check` with the
-existing Claude Code login; they default to Opus 5.5 at `xhigh` effort without
-local gateway setup. Hosted runners require a private subscription gateway.
-Missing subscription access fails the gate without API fallback. Workers AI
-integrations retain their configured providers. See [subscription setup](docs/claude-subscription.md#run-narrative-evals).
+The release gate grades readings from the production primary provider. With
+`openai-native` first, `npm run ci:release-check` (and so `npm run deploy`)
+generates its narrative samples through the paid OpenAI Responses API with the
+production prompt, model and effort; the owner authorized this on 2026-11-06. It
+reads `OPENAI_API_KEY` or `NARRATIVE_EVAL_OPENAI_API_KEY`, passes the key only to
+the narrative check as `NARRATIVE_EVAL_OPENAI_API_KEY` (unit suites and the prompt
+verifier stay credential-free), and fails without falling back to another provider.
+`npm run ci:narrative-check` alone still defaults to the owner's Claude subscription
+(Opus 5.5 at `xhigh`, no local gateway setup); set `NARRATIVE_EVAL_BACKEND=openai-native`
+with `NARRATIVE_EVAL_OPENAI_API_KEY` to grade OpenAI instead. Other paid backends stay
+disabled for gates, and missing subscription access fails without API fallback.
+Workers AI integrations retain their configured providers. See [narrative evals](docs/claude-subscription.md#run-narrative-evals).
 
 When evaluation is enabled, readings are scored asynchronously with the configured
 Workers AI `EVAL_MODEL` using `waitUntil()`. Runtime metrics and evaluation payloads

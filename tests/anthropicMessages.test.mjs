@@ -8,12 +8,14 @@ import {
   callClaudeMessages,
   ensureAnthropicConfig,
   generateClaudeText,
-  isAnthropicConfigured
+  isAnthropicConfigured,
+  sanitizeAnthropicErrorMessage
 } from '../functions/lib/anthropicMessages.js';
 import { generateClaudeApiFollowUp } from '../functions/lib/claudeApiFollowUp.js';
 import { CLAUDE_API_URL_PREFIX, claudeErrorResponse, claudeSseResponse } from './helpers/claudeSse.mjs';
 
 const ENV = { ANTHROPIC_API_KEY: 'test-only' };
+const errorBody = (type) => JSON.stringify({ type: 'error', error: { type, message: 'private upstream details' } });
 
 function mockClaude(t, responses) {
   const calls = [];
@@ -110,11 +112,58 @@ describe('callClaudeMessages', () => {
     );
   });
 
-  test('reports only the HTTP status of an upstream error', async (t) => {
+  test('reports the HTTP status and Anthropic error type, never the upstream message', async (t) => {
     mockClaude(t, [() => claudeErrorResponse(400)]);
     await assert.rejects(
       callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
-      (error) => error.message === 'Claude API request failed (HTTP 400).' && !error.message.includes('private')
+      (error) => error.message === 'Claude API request failed (HTTP 400, invalid_request_error).' && !error.message.includes('private')
+    );
+  });
+
+  test('names a billing failure by its error type', async (t) => {
+    mockClaude(t, [() => new Response(errorBody('billing_error'), { status: 402, headers: { 'content-type': 'application/json' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (HTTP 402, billing_error).'
+    );
+  });
+
+  test('keeps the error type of a failure reported inside the stream', async (t) => {
+    mockClaude(t, [() => new Response(`event: error\ndata: ${errorBody('overloaded_error')}\n\n`, { status: 200, headers: { 'content-type': 'text/event-stream' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (overloaded_error).' && !error.message.includes('private')
+    );
+  });
+
+  test('logs the Anthropic request ID and sanitized message without adding them to the thrown error', async (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    const upstream = 'Unexpected value(s) `server-side-fallback-2026-07-01` for the `anthropic-beta` header.';
+    mockClaude(t, [() => new Response(
+      JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: upstream }, request_id: 'req_011CSHoEeqs5C35K' }),
+      { status: 400, headers: { 'content-type': 'application/json', 'request-id': 'req_011CSHoEeqs5C35K' } }
+    )]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000, requestId: 'req-test' }),
+      (error) => error.message === 'Claude API request failed (HTTP 400, invalid_request_error).'
+    );
+    const logged = warn.mock.calls.map((call) => call.arguments.join(' ')).filter((line) => line.includes('[claude-api]'));
+    assert.deepEqual(logged, [`[req-test] [claude-api] Request failed (HTTP 400, invalid_request_error, request req_011CSHoEeqs5C35K): ${upstream}`]);
+  });
+
+  test('omits a request ID that does not have Anthropic\'s format', async (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    mockClaude(t, [() => new Response(errorBody('invalid_request_error'), { status: 400, headers: { 'content-type': 'application/json', 'request-id': 'private value' } })]);
+    await assert.rejects(callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000, requestId: 'req-test' }));
+    const logged = warn.mock.calls.map((call) => call.arguments.join(' ')).filter((line) => line.includes('[claude-api]'));
+    assert.deepEqual(logged, ['[req-test] [claude-api] Request failed (HTTP 400, invalid_request_error): private upstream details']);
+  });
+
+  test('drops an error type that is not a plain identifier', async (t) => {
+    mockClaude(t, [() => new Response(errorBody('Private text in the type field'), { status: 400, headers: { 'content-type': 'application/json' } })]);
+    await assert.rejects(
+      callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }], maxTokens: 1000 }),
+      (error) => error.message === 'Claude API request failed (HTTP 400).'
     );
   });
 
@@ -134,6 +183,32 @@ describe('callClaudeMessages', () => {
       callClaudeMessages(ENV, { system: 'S', messages: [{ role: 'user', content: 'P' }] }),
       /maxTokens/
     );
+  });
+});
+
+describe('sanitizeAnthropicErrorMessage', () => {
+  test('keeps explanations and identifier values', () => {
+    for (const message of [
+      'Unexpected value(s) `server-side-fallback-2026-07-01` for the `anthropic-beta` header.',
+      "output_config.effort 'xhigh' doesn't apply when thinking is off.",
+      'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'
+    ]) {
+      assert.equal(sanitizeAnthropicErrorMessage(message), message);
+    }
+  });
+
+  test('masks free-text quotes, email addresses and long tokens', () => {
+    assert.equal(sanitizeAnthropicErrorMessage('stop sequence "my private question" is invalid'), 'stop sequence "[redacted]" is invalid');
+    assert.equal(sanitizeAnthropicErrorMessage("tool name 'two words' is invalid"), "tool name '[redacted]' is invalid");
+    assert.equal(sanitizeAnthropicErrorMessage('Contact person@example.com\nkey sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123'), 'Contact [redacted] key sk-ant-api03-[redacted]');
+  });
+
+  test('caps long messages and rejects empty input', () => {
+    const capped = sanitizeAnthropicErrorMessage('word '.repeat(100));
+    assert.equal(capped.length, 200);
+    assert.ok(capped.endsWith('…'));
+    assert.equal(sanitizeAnthropicErrorMessage(undefined), null);
+    assert.equal(sanitizeAnthropicErrorMessage(' \n '), null);
   });
 });
 

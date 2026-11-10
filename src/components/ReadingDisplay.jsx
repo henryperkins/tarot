@@ -12,6 +12,7 @@ import { useHandsetLayout } from '../hooks/useHandsetLayout';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useCinematicBeat } from '../hooks/useCinematicBeat';
 import { useSceneOrchestrator } from '../hooks/useSceneOrchestrator';
+import { useReadingSceneFocus } from '../hooks/useReadingSceneFocus';
 import { useReadingSelection } from '../hooks/useReadingSelection';
 import { useReadingMediaGallery } from '../hooks/useReadingMediaGallery';
 import { useNarrativeReadingController } from '../hooks/useNarrativeReadingController';
@@ -35,13 +36,10 @@ function inferElementFromSuit(suit) {
 export function ReadingDisplay({
     saveController,
     sectionRef,
-    followUpOpen,
-    onFollowUpOpenChange,
     onOpenFollowUp,
     onSaveReading: saveReading,
     isSaving = false,
     savedEntryId = null,
-    followUpAutoFocus = true,
     suppressInterruptions = false,
     onCardModalChange,
     isMobileStableMode = false,
@@ -70,6 +68,7 @@ export function ReadingDisplay({
         selectedSpread,
         reading,
         readingDeckStyleId: deckStyleId,
+        drawDeckStyleId,
         isShuffling,
         isSpreadDealt,
         dealSpread,
@@ -83,7 +82,7 @@ export function ReadingDisplay({
         revealCard,
         revealAll,
 
-        // Ritual State (for DeckRitual)
+        // Ritual State (the reading table's deck)
         knockCount,
         knockCadenceResetAt,
         hasKnocked: _hasKnocked,
@@ -92,6 +91,7 @@ export function ReadingDisplay({
         setCutIndex,
         handleKnock,
         applyCut,
+        shouldSkipRitual,
 
         // Vision
         visionResults,
@@ -132,9 +132,6 @@ export function ReadingDisplay({
     }, [selectedSpread, sessionSeed, reading]);
 
     const [isNarrativeFocus, setIsNarrativeFocus] = useState(false);
-    const [isFollowUpOpenLocal, setIsFollowUpOpenLocal] = useState(false);
-    const isFollowUpOpen = typeof followUpOpen === 'boolean' ? followUpOpen : isFollowUpOpenLocal;
-    const setIsFollowUpOpen = onFollowUpOpenChange || setIsFollowUpOpenLocal;
     const [heroStoryState, setHeroStoryState] = useState({ key: readingIdentity, value: false });
 
     const hasHeroStoryArt = heroStoryState.key === readingIdentity ? heroStoryState.value : false;
@@ -161,18 +158,7 @@ export function ReadingDisplay({
         reading
     });
 
-    useEffect(() => {
-        // Restore focus only when the previous control disappeared or was disabled.
-        // A user who moved elsewhere while waiting keeps their chosen focus.
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement !== document.body && !activeElement.disabled) return;
-        const target = sectionRef.current?.querySelector('[data-reading-focus-target]');
-        if (!target) return;
-        target.focus({ preventScroll: true });
-        // A failed reading replaces the narrative in place; bring its title out
-        // from under the pinned header (the page's scroll-padding reserves it).
-        if (personalReading?.isError) target.scrollIntoView({ block: 'nearest' });
-    }, [sceneOrchestrator.activeScene, personalReading?.isError, sectionRef]);
+    useReadingSceneFocus(sectionRef, sceneOrchestrator.activeScene, Boolean(personalReading?.isError));
 
     useEffect(() => {
         const isNarrativeDeliveryActive = Boolean(isReadingStreamActive || personalReading?.isStreaming);
@@ -348,6 +334,7 @@ export function ReadingDisplay({
         reading,
         reflections,
         deckStyleId,
+        savedDeckStyle: drawDeckStyleId,
         onSelectInsightCard: handleSelectInsightCard,
         visibleCount,
         spreadPositions: spreadInfo?.positions || [],
@@ -571,6 +558,7 @@ export function ReadingDisplay({
 
     const ritualModel = {
         deckSize,
+        shouldSkipRitual,
         reading,
         revealedCards,
         visibleCount,
@@ -647,13 +635,10 @@ export function ReadingDisplay({
     };
 
     const completionModel = {
-        saveController,
-        onViewJournalEntry: handleOpenJournalEntry,
+        saveState: saveController?.saveState,
         personalReading,
         isNarrativeFocus,
         isPersonalReadingError,
-        narrativePhase,
-        isHandset,
         userQuestion,
         isShuffling,
         shuffle,
@@ -669,11 +654,7 @@ export function ReadingDisplay({
         mediaLoading,
         mediaError,
         onRefreshMedia: loadMediaGallery,
-        onDeleteMedia: deleteMediaById,
-        followUpOpen: isFollowUpOpen,
-        setFollowUpOpen: setIsFollowUpOpen,
-        followUpAutoFocus,
-        isMobileStableMode
+        onDeleteMedia: deleteMediaById
     };
     const sceneModels = {
         sceneVisuals,

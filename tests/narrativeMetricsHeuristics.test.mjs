@@ -34,9 +34,10 @@ async function computeMetrics(samples, { includeReview = false } = {}) {
 async function verifyGate(metrics) {
   const dir = await mkdtemp(path.join(tmpdir(), 'narrative-gate-'));
   const metricsPath = path.join(dir, 'metrics.json');
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^NARRATIVE_(?:MIN|MAX)_/.test(key)));
   try {
     await writeFile(metricsPath, JSON.stringify(metrics));
-    return await execFileAsync(process.execPath, ['scripts/evaluation/verifyNarrativeGate.js', metricsPath]);
+    return await execFileAsync(process.execPath, ['scripts/evaluation/verifyNarrativeGate.js', metricsPath], { env });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -61,6 +62,122 @@ function sampleWithGuidance(id, guidance) {
     ].join('\n\n')
   };
 }
+
+function sampleWithTone(id, tone) {
+  return {
+    id,
+    spreadKey: 'single',
+    spreadName: 'One-Card Insight',
+    userQuestion: 'What deserves attention?',
+    cardsInfo: [{ card: 'The Fool', position: 'Present', orientation: 'Upright' }],
+    reading: [
+      '### Opening',
+      'This reading explores what deserves attention.',
+      '### The Fool — Present',
+      '**The Fool** suggests a fresh beginning. Because starting small can reveal what works, you can choose one reversible step before going further.',
+      '### Guidance', tone,
+      '### Closing',
+      'Your decisions shape the path ahead.'
+    ].join('\n\n')
+  };
+}
+
+test('narrative gate accepts the saved transition reading without base-form tone keywords', async () => {
+  // Preserve the reading that failed the 2026-10-20 subscription gate verbatim.
+  const sample = JSON.parse(await readFile(new URL('./fixtures/narrative-supportive-transition.json', import.meta.url), 'utf8'));
+  const metrics = await computeMetrics([sample]);
+
+  assert.equal(metrics.perSample[0].hasSupportiveTone, true);
+  assert.deepEqual(metrics.perSample[0].rubric, { accuracy: 1, coherence: 1, agency: 1, compassion: 1 });
+  assert.deepEqual(metrics.perSample[0].issueFlags, []);
+  assert.equal(metrics.missingSupportiveToneCount, 0);
+  assert.equal(metrics.flaggedSampleCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative tone recognition accepts ordinary forms of existing supportive cues', async () => {
+  const cues = [
+    'A gentle pace may help.',
+    'Move **gently** as you begin.',
+    'Meet this moment with gentleness.',
+    'Invite yourself to pause.',
+    'This invites you to pause.',
+    'You are invited to pause.',
+    'This is inviting you to pause.',
+    'You retain a choice about the pace.',
+    'Your choices about the pace matter.'
+  ];
+  const metrics = await computeMetrics(cues.map((cue, index) => sampleWithTone(`supportive-form-${index}`, cue)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.hasSupportiveTone, true, cues[index]);
+    assert.equal(result.rubric.compassion, 1, cues[index]);
+    assert.deepEqual(result.issueFlags, [], cues[index]);
+  }
+  await verifyGate(metrics);
+});
+
+test('narrative gate still rejects missing supportive tone and unrelated word fragments', async () => {
+  const neutralPhrases = [
+    'Name one reversible step.',
+    'A gentleman waits by the door.',
+    'The room looks uninviting.',
+    'The organizer disinvited a guest.',
+    'The choicest date appears on the calendar.'
+  ];
+
+  for (const [index, phrase] of neutralPhrases.entries()) {
+    const metrics = await computeMetrics([sampleWithTone(`unsupported-form-${index}`, phrase)]);
+    assert.equal(metrics.perSample[0].hasAgencyLanguage, true, phrase);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, false, phrase);
+    assert.equal(metrics.perSample[0].rubric.compassion, 0, phrase);
+    assert.deepEqual(metrics.perSample[0].issueFlags, ['missing-supportive-tone'], phrase);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /Missing supportive tone issues 1 > limit 0/);
+      return true;
+    });
+  }
+});
+
+test('newly recognized supportive cues do not bypass harsh, deterministic or agency failures', async () => {
+  const cases = [
+    { tone: 'Move gently. You must ignore your limits.', flag: 'harsh-tone', gateFailure: /Harsh-tone issues 1 > limit 0/ },
+    { tone: 'Your choices matter. Success is guaranteed.', flag: 'deterministic-language', gateFailure: /Deterministic language issues 1 > limit 0/ },
+    { tone: 'This is inviting you to pause.', flag: 'missing-agency-language', gateFailure: /Missing agency language issues 1 > limit 0/, removeAgency: true }
+  ];
+
+  for (const { tone, flag, gateFailure, removeAgency } of cases) {
+    const sample = sampleWithTone(`supportive-with-${flag}`, tone);
+    if (removeAgency) {
+      sample.reading = sample.reading.replace('you can choose', 'you can take').replace('Your decisions shape the path ahead.', 'The path remains open.');
+    }
+    const metrics = await computeMetrics([sample]);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, true, flag);
+    assert.deepEqual(metrics.perSample[0].issueFlags, [flag]);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, gateFailure);
+      return true;
+    });
+  }
+});
+
+test('narrative gate rejects denied choice in both singular and plural forms', async () => {
+  for (const claim of ['You have no choice.', 'You have no choices.']) {
+    const metrics = await computeMetrics([sampleWithTone('denied-choice', claim)]);
+    assert.equal(metrics.perSample[0].hasSupportiveTone, true, claim);
+    assert.equal(metrics.perSample[0].deterministicLanguage, true, claim);
+    assert.equal(metrics.perSample[0].hasHarshTone, true, claim);
+    assert.deepEqual(metrics.perSample[0].issueFlags, ['deterministic-language', 'harsh-tone'], claim);
+    await assert.rejects(verifyGate(metrics), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /Deterministic language issues 1 > limit 0/);
+      assert.match(error.stderr, /Harsh-tone issues 1 > limit 0/);
+      return true;
+    });
+  }
+});
 
 test('narrative metrics do not flag neutral never/always phrasing as harsh tone', async () => {
   const metrics = await computeMetrics([
@@ -202,6 +319,49 @@ test('decision agency detection rejects bare mentions, negation and fatalistic c
   }
 });
 
+test('explicit reader actions shaping outcomes satisfy the agency criterion', async () => {
+  const readings = [
+    'How you pace these changes, including which thread you pick up first, where you let things rest and how kindly you treat yourself in between, is what shapes how much of that Sun-warmth you walk into.',
+    'How you approach this project can influence the direction it takes.',
+    'How you respond to the news shapes what follows.',
+    'How you work with these constraints affects the path ahead.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `reader-influence-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+  assert.equal(metrics.missingAgencyCount, 0);
+  for (const sample of metrics.perSample) assert.equal(sample.hasAgencyLanguage, true);
+});
+
+test('reader-action agency excludes questions, bare advice, negation and fixed outcomes', async () => {
+  const readings = [
+    'How you pace these changes is difficult.',
+    'How you approach this project is a topic for reflection.',
+    'How you respond to the news shapes what follows?',
+    'How you pace these changes cannot shape the path ahead.',
+    "How you pace these changes can't shape the path ahead.",
+    'How you pace these changes is not what shapes the outcome.',
+    'How you pace these changes shapes nothing.',
+    'How you pace these changes shapes the outcome, but the future is predetermined.',
+    'How you approach this project influences an irrelevant detail; fate determines the outcome.',
+    'How you approach this project is meaningless because outside forces influence the outcome.',
+    'How you approach this project shapes what follows — a claim that is untrue.',
+    'How you pace these changes affects the outcome; that assertion is incorrect.',
+    'How you approach this project can influence the direction it takes; I reject that idea.',
+    'How you approach this project shapes what follows, and that assertion is incorrect.',
+    'How you approach this project shapes what follows. That claim is untrue.',
+    'How you pace these changes, the weather is what shapes the outcome.',
+    'How you pace these changes. The cards shape the outcome.',
+    'How the team paces these changes shapes what follows.',
+    'Consider how you pace these changes.'
+  ];
+  const metrics = await computeMetrics(readings.map((reading, index) => ({
+    id: `not-reader-influence-${index}`, spreadKey: 'single', reading, cardsInfo: []
+  })));
+  assert.equal(metrics.missingAgencyCount, readings.length);
+  for (const sample of metrics.perSample) assert.equal(sample.hasAgencyLanguage, false);
+});
+
 test('narrative metrics distinguish negated guarantees from deterministic claims', async () => {
   const metrics = await computeMetrics([
     {
@@ -247,7 +407,10 @@ test('narrative metrics retain positive guarantees in exception constructions', 
     "This isn't just a guaranteed success; it is a transformation.",
     'This isn’t just a guaranteed success; it is a transformation.',
     "Success isn't a guaranteed result, but victory is guaranteed.",
-    'Success isn’t a guaranteed result, but victory is guaranteed.'
+    'Success isn’t a guaranteed result, but victory is guaranteed.',
+    "You won't fail; success is guaranteed.",
+    'This does not stop success being guaranteed.',
+    'Nothing can stop this, and a guaranteed win follows.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`exception-${index}`, claim)));
 
@@ -284,7 +447,12 @@ test('narrative gate accepts ordinary negated certainty including copular contra
     "The result wasn't guaranteed.",
     'The result wasn’t guaranteed.',
     "The outcomes weren't guaranteed.",
-    'The outcomes weren’t guaranteed.'
+    'The outcomes weren’t guaranteed.',
+    'The Fool doesn’t offer guaranteed footing. It offers a step forward.',
+    "This card can't promise a guaranteed outcome.",
+    'The plan does not come with guaranteed results.',
+    'You can begin without a guaranteed outcome.',
+    'There is no guaranteed endpoint, only a direction.'
   ];
   const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`negated-${index}`, claim)));
 
@@ -294,6 +462,109 @@ test('narrative gate accepts ordinary negated certainty including copular contra
   }
   assert.equal(metrics.deterministicLanguageCount, 0);
   await verifyGate(metrics);
+});
+
+test('narrative gate accepts "set in stone" in a "before" clause that leaves the window open', async () => {
+  const guidance = [
+    'If you do have a peer, editor or early reader whose judgment you trust, this card suggests showing them the plans before the work is set in stone.',
+    'Before anything is set in stone, try the idea with one trusted reader.',
+    "Share a draft before it's set in stone.",
+    'Share a draft before it’s set in stone.',
+    'Ask for feedback before the tone and timing are set in stone.',
+    // Only a future form ending in "'ll" keeps the flag, not any word ending in "ll".
+    'Review the draft before the final bill is set in stone.',
+    'BEFORE THE WORK IS SET IN STONE, SHARE IT.'
+  ];
+  const metrics = await computeMetrics(guidance.map((text, index) => sampleWithGuidance(`open-window-${index}`, text)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.deterministicLanguage, false, guidance[index]);
+    assert.deepEqual(result.issueFlags, [], guidance[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative metrics still flag "set in stone" outside an open "before" clause', async () => {
+  const claims = [
+    ['Your path is set in stone.', ['set in stone']],
+    ['Everything is set in stone before you begin.', ['set in stone']],
+    ["It won't be long before your path is set in stone.", ['set in stone']],
+    ['It’s only a matter of time before the outcome is set in stone.', ['set in stone']],
+    ['The path before you is set in stone.', ['set in stone']],
+    ['Before the launch, the outcome is set in stone.', ['set in stone']],
+    // A future form puts the idiom in the main clause, not in the "before" clause.
+    ['Before Friday it will be set in stone.', ['set in stone']],
+    ["Before long it'll be set in stone.", ['set in stone']],
+    ['Before long they’ll be set in stone.', ['set in stone']],
+    ['Well before spring the outcome shall be set in stone.', ['set in stone']],
+    // Only the idiom is removed; the rest of the clause is still checked.
+    ['Share the plans before the guaranteed launch is set in stone.', ['guaranteed']]
+  ];
+  const metrics = await computeMetrics(claims.map(([claim], index) => sampleWithGuidance(`fixed-${index}`, claim)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    const [claim, matches] = claims[index];
+    assert.deepEqual(result.deterministicLanguageMatches, matches, claim);
+    assert.deepEqual(result.issueFlags, ['deterministic-language'], claim);
+  }
+  assert.equal(metrics.deterministicLanguageCount, claims.length);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Deterministic language issues/);
+    return true;
+  });
+});
+
+test('narrative gate accepts "guaranteed" negated earlier in its clause', async () => {
+  const guidance = [
+    "That improves the odds of relief, but it doesn't put relief on a guaranteed schedule.",
+    'The Moon and The Sun suggest clearing, though that readiness can’t be rushed or guaranteed.',
+    'The waxing Moon supports refining one plan and releasing one distraction—not forcing a guaranteed result.',
+    "This doesn't mean the outcome is guaranteed.",
+    'You are never handed a guaranteed answer.',
+    'As a prospective Future lens, this card offers hope, renewal, and direction rather than a guaranteed outcome.',
+    'Treat it as a direction to cultivate instead of a guaranteed result.',
+    'It is a practice, as opposed to a guaranteed path.',
+    'Agreement is far from guaranteed.'
+  ];
+  const metrics = await computeMetrics(guidance.map((text, index) => sampleWithGuidance(`negated-guarantee-${index}`, text)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.equal(result.deterministicLanguage, false, guidance[index]);
+    assert.deepEqual(result.issueFlags, [], guidance[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, 0);
+  await verifyGate(metrics);
+});
+
+test('narrative metrics still flag guarantees that idioms or exceptions reinforce', async () => {
+  const claims = [
+    'Your success is guaranteed.',
+    'There is no doubt it is guaranteed.',
+    'No matter what you choose success is guaranteed.',
+    "Don't worry your success is guaranteed.",
+    'Never doubt that it is guaranteed.',
+    'Without question it is guaranteed.',
+    // "but" turns the negation into an assertion.
+    'It is not only possible but guaranteed.',
+    // Punctuation ends the negated clause.
+    'You will not fail: success is guaranteed.',
+    // A contrast after the claim does not negate it.
+    'Success is guaranteed rather than merely hoped for.'
+  ];
+  const metrics = await computeMetrics(claims.map((claim, index) => sampleWithGuidance(`reinforced-guarantee-${index}`, claim)));
+
+  for (const [index, result] of metrics.perSample.entries()) {
+    assert.deepEqual(result.deterministicLanguageMatches, ['guaranteed'], claims[index]);
+    assert.deepEqual(result.issueFlags, ['deterministic-language'], claims[index]);
+  }
+  assert.equal(metrics.deterministicLanguageCount, claims.length);
+  await assert.rejects(verifyGate(metrics), (error) => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Deterministic language issues/);
+    return true;
+  });
 });
 
 test('narrative metrics do not treat agency-preserving never and always phrasing as harsh', async () => {
@@ -340,6 +611,35 @@ test('narrative metrics keep choice affirmations distinct from direct imperative
 
   assert.equal(metrics.perSample[0].hasHarshTone, false);
   assert.equal(metrics.perSample[1].hasHarshTone, true);
+});
+
+test('narrative tone distinguishes reported fears from restrictive advice', async () => {
+  const reportedFears = [
+    'The hope and the fear may be tangled together: wanting to finally get on top of things, and worrying that the only way there is being hard on yourself. The card suggests that harshness is more likely to scatter your focus than sharpen it.',
+    'You may fear that the only way forward is self-punishment. Consider a gentler pace instead.'
+  ];
+  const supportive = await computeMetrics(reportedFears.map((text, index) => sampleWithGuidance(`reported-fear-${index}`, text)));
+  for (const [index, result] of supportive.perSample.entries()) {
+    assert.equal(result.hasHarshTone, false, reportedFears[index]);
+    assert.deepEqual(result.issueFlags, [], reportedFears[index]);
+  }
+  await verifyGate(supportive);
+
+  const restrictiveAdvice = [
+    'The only way forward is being hard on yourself.',
+    'You may worry about this, but the only way forward is self-punishment.',
+    'You may fear that the only way forward is self-punishment. You must ignore your limits.'
+  ];
+  const restrictive = await computeMetrics(restrictiveAdvice.map((text, index) => sampleWithGuidance(`restrictive-advice-${index}`, text)));
+  for (const [index, result] of restrictive.perSample.entries()) {
+    assert.equal(result.hasHarshTone, true, restrictiveAdvice[index]);
+    assert.deepEqual(result.issueFlags, ['harsh-tone'], restrictiveAdvice[index]);
+  }
+  await assert.rejects(verifyGate(restrictive), error => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /Harsh-tone issues/);
+    return true;
+  });
 });
 
 test('narrative gate detects imperative language through Markdown formatting', async () => {
@@ -581,4 +881,15 @@ test('template repetition leaves lowercase words that double as Thoth titles alo
     'You deserve rest after a long season of effort and worry today.'
   ].join(' ');
   assert.equal(analyzeTemplateRepetition(reading, { deckStyle: 'thoth-a1' }).repeatedSentenceCount, 0);
+});
+
+test('narrative metrics and its gate reject one affirmative undrawn assertion with a distinct field', async () => {
+  const metrics = await computeMetrics([sampleWithGuidance('affirmative-undrawn-review', 'The Moon appears in your spread. You can consider a gentle pause.')]);
+  assert.deepEqual(metrics.perSample[0].undrawnCardAssertions, ['The Moon']);
+  assert.equal(metrics.undrawnCardAssertionCount, 1);
+  assert.ok(metrics.perSample[0].issueFlags.includes('undrawn-card-assertion(1)'));
+  await assert.rejects(verifyGate(metrics), error => {
+    assert.match(error.stderr, /Undrawn card assertion/);
+    return true;
+  });
 });

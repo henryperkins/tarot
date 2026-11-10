@@ -1,0 +1,30 @@
+{
+  "rootCause": "A per-request sqlite_home creates a fresh state database; CLI 0.162.0 backfills existing CODEX_HOME rollouts before starting the requested turn, even with --ephemeral. The host history was large enough to exceed both fixture deadlines.",
+  "evidence": {
+    "version": "codex-cli 0.162.0",
+    "savedLoginCheck": "Logged in using ChatGPT",
+    "baseline": {
+      "deadlineMs": 12000,
+      "fixtureReached": false,
+      "stdoutBytes": 0,
+      "stderrBytes": 0
+    },
+    "windowsEnvironmentVariant": "Adding Windows standard environment variables did not fix startup.",
+    "withoutSqliteHome": {
+      "fixtureReached": true,
+      "elapsedMs": 692,
+      "tools": 0,
+      "authorizationSent": false
+    },
+    "temporaryDatabaseObserved": {
+      "backfillStatus": "running",
+      "importedThreadMetadataCount": 958
+    }
+  },
+  "fix": {
+    "path": "services/codex-subscription/runner.mjs",
+    "change": "Remove sqlite_home override; retain ephemeral execution, no history persistence, isolated request files, disabled host instructions and tool suppression.",
+    "validatedInstalledCliTests": 2
+  },
+  "cleanup": "Removal of temporary diagnostic database copies was rejected by automatic approval review as blocked by policy. Copies remain in this private evidence directory and are not committed or shared."
+}

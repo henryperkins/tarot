@@ -1,6 +1,5 @@
 /**
- * EntryHeader/index.jsx
- * Header factory - selects compact or comfortable header based on props.
+ * EntryHeader/index.js
+ * The entry header. ComfortableHeader also renders the compact list view.
  */
-export { CompactHeader } from './CompactHeader';
 export { ComfortableHeader } from './ComfortableHeader';

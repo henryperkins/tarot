@@ -11,7 +11,7 @@ export function ReadingFeedbackSection({
     lastCardsForFeedback,
     feedbackVisionSummary
 }) {
-    if (!personalReading || personalReading.isError || personalReading.isStreaming) return null;
+    if (!personalReading || personalReading.isError || personalReading.isStreaming || !readingMeta?.requestId) return null;
 
     return (
         <div className={`${READING_PANEL_COLUMN_CLASS} mt-6 sm:mt-8`}>

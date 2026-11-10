@@ -64,13 +64,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await field.fill('How can I balance work and rest this week?');
       const draw = page.locator('.mobile-action-bar').getByRole('button', { name: 'Draw cards', exact: true });
       await expect(draw).not.toContainText(/Step \d/);
-      await page.getByRole('button', { name: 'Open reading preparation', exact: true }).click();
+      await page.getByRole('button', { name: 'Prepare reading', exact: true }).click();
       const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
       await expect(drawer.getByRole('textbox')).toHaveCount(0);
-      await expect(drawer.getByRole('tablist', { name: 'Preparation settings' }).getByRole('tab')).toHaveText(['Deck', 'Ritual']);
+      await expect(drawer.getByRole('tab')).toHaveCount(0);
+      await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
       await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
       await expect(field).toHaveValue('How can I balance work and rest this week?');
-      await expect(page.getByRole('button', { name: 'Open reading preparation', exact: true })).toBeFocused();
+      await expect(page.getByRole('button', { name: 'Prepare reading', exact: true })).toBeFocused();
       await field.fill('أمان 🌿 安心 — What can I learn today?');
       await field.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
       await expect(field).toBeFocused();

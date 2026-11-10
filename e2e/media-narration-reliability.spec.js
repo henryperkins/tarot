@@ -36,7 +36,7 @@ for (const width of [1440, 390]) {
       try {
         await openSetup(page);
         if (width === 390) {
-          await page.getByRole('link', { name: 'Open settings', exact: true }).click();
+          await page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true }).click();
           await page.getByRole('navigation', { name: 'Jump to section' }).getByRole('link', { name: 'Audio', exact: true }).click();
         } else {
           await page.locator('a[href="/account#audio"]').filter({ visible: true }).first().click();
@@ -46,7 +46,7 @@ for (const width of [1440, 390]) {
         const engines = page.getByRole('radiogroup', { name: 'Select voice engine' });
         const elevenlabs = engines.getByRole('radio', { name: 'ElevenLabs Eleven v4' });
         const deepgram = engines.getByRole('radio', { name: 'Deepgram Aura-2' });
-        await expect(savedProvider === 'deepgram' ? deepgram : elevenlabs).toHaveAttribute('aria-checked', 'true');
+        await expect(deepgram).toHaveAttribute('aria-checked', 'true');
         await expect(engines.getByRole('radio')).toHaveCount(2);
         await expect(page.getByText(/Azure SDK|Word-Sync/)).toHaveCount(0);
         await elevenlabs.focus();
@@ -85,7 +85,7 @@ for (const width of [1440, 390]) {
         await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
         await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
         await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-        await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
         await expect(page.getByRole('button', { name: /Cinematic|Generate.*video|Watch.*video/i })).toHaveCount(0);
         const details = page.getByRole('button', { name: /Click to view details\./ }).filter({ visible: true }).first();
         await details.press('Enter');
@@ -193,12 +193,17 @@ test('stream duration stays indeterminate until a finite length is available', a
     document.body.append(container);
     const root = createRoot(container);
     const results = [];
+    function CommittedProgress({ ttsState, onCommit }) {
+      React.useLayoutEffect(onCommit);
+      return React.createElement(NarrationProgress, { ttsState });
+    }
     try {
       for (const duration of [Infinity, 0, NaN, 125]) {
-        root.render(React.createElement(NarrationProgress, {
-          ttsState: { status: 'playing', progress: 0.2, currentTime: 25, duration }
-        }));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Concurrent rendering may outlive a timer; inspect the committed DOM.
+        await new Promise(resolve => root.render(React.createElement(CommittedProgress, {
+          ttsState: { status: 'playing', progress: 0.2, currentTime: 25, duration },
+          onCommit: resolve
+        })));
         const progress = container.querySelector('[role="progressbar"]');
         results.push({ text: container.textContent, value: progress?.getAttribute('aria-valuenow'), label: progress?.getAttribute('aria-label') });
       }

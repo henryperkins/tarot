@@ -65,6 +65,8 @@ export function NarrationStatus({ ttsState, showLabel = true, showMessage = fals
 
   const Icon = config.icon;
   const displayText = showMessage && message ? message : config.label;
+  const retryAfter = ttsState.errorDetails?.retryAfterSeconds;
+  const showBusyHint = status === 'error' && ttsState.errorCode === 'NARRATION_BUSY' && Number.isSafeInteger(retryAfter) && retryAfter > 0;
 
   return (
     <div
@@ -80,6 +82,11 @@ export function NarrationStatus({ ttsState, showLabel = true, showMessage = fals
       {showLabel && displayText && (
         <span className="text-xs text-muted">
           {displayText}
+          {showBusyHint && (
+            <span className="block mt-1 text-muted/80">
+              Use Play to try again after at least {retryAfter} {retryAfter === 1 ? 'second' : 'seconds'}; another narration may take longer.
+            </span>
+          )}
           {cached && status === 'loading' && (
             <span className="text-muted/70"> (cached)</span>
           )}

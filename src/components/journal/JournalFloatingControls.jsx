@@ -1,19 +1,16 @@
 /**
- * JournalFloatingControls - Fixed position FAB buttons that appear on scroll
+ * Journal actions stay in document flow so saved writing remains unobscured.
  */
 
-import { useEffect, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
 import {
   JournalPlusCircleIcon,
   JournalSlidersIcon
 } from '../JournalIcons';
+import { BADGE_LABEL_CLASS, META_LABEL_CLASS } from '../../styles/labelClasses';
 
 export function JournalFloatingControls({
   hasEntries,
-  hasScrolled,
-  historyFiltersEl,
-  historyFiltersInView,
   filtersActive,
   activeFilterChips,
   onResetFilters,
@@ -24,52 +21,28 @@ export function JournalFloatingControls({
   showFiltersShortcut = true,
   showFilterSummary = true
 }) {
-  const controlsRef = useRef(null);
   const showActiveFilters = showFilterSummary && filtersActive && activeFilterChips.length > 0;
   const showFiltersButton = showFiltersShortcut;
   const showNewReading = isMobileLayout;
-  const visible = hasEntries && hasScrolled && historyFiltersEl && !historyFiltersInView
-    && (showActiveFilters || showFiltersButton || showNewReading);
-
-  useEffect(() => {
-    if (!visible) return undefined;
-    const controls = controlsRef.current;
-    const parent = controls?.parentElement;
-    if (!controls || !parent) return undefined;
-
-    // Reserve enough scrollable space to uncover the final entry's actions.
-    const measure = () => {
-      const bottom = parseFloat(getComputedStyle(controls).bottom) || 0;
-      parent.style.setProperty('--journal-controls-inset', `${controls.getBoundingClientRect().height + bottom}px`);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(controls);
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-      parent.style.removeProperty('--journal-controls-inset');
-    };
-  }, [visible]);
+  const visible = hasEntries && (showActiveFilters || showFiltersButton || showNewReading);
 
   if (!visible) return null;
 
   return (
     <div
-      ref={controlsRef}
-      className="pointer-events-none fixed z-sticky-elevated flex max-w-[calc(100%-2rem)] flex-col items-end gap-2 right-[max(var(--safe-pad-right),clamp(1rem,2vw,1.5rem))] bottom-[max(var(--safe-pad-bottom),clamp(1rem,2vw,1.5rem))]"
+      role="group" aria-label="Journal actions"
+      className="relative flex flex-wrap items-center justify-end gap-3 border-t border-(--border-warm-light) pt-4"
     >
       {showActiveFilters && (
         <div className="pointer-events-auto max-w-sm rounded-2xl border border-(--border-warm-subtle) bg-(--surface-92) px-3 py-2 text-2xs text-muted shadow-[0_22px_55px_-28px_rgba(0,0,0,0.85)] backdrop-blur">
-          <p className="mb-1 text-2xs uppercase tracking-[0.16em] text-muted">Filters</p>
+          <p className={`${META_LABEL_CLASS} mb-1 text-muted`}>Filters</p>
           <div className="flex flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
               <button
                 key={`floating-${chip.key}`}
                 type="button"
                 onClick={() => onRemoveFilter?.(chip.key)}
-                className="inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted"
+                className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-muted`}
                 aria-label={`Remove ${chip.label} filter`}
               >
                 {chip.label}
@@ -79,7 +52,7 @@ export function JournalFloatingControls({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+              className={`${BADGE_LABEL_CLASS} inline-flex min-h-touch items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-0.5 text-main hover:border-(--border-warm) hover:bg-(--accent-25) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`}
             >
               Reset
             </button>

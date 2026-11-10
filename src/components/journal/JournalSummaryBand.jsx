@@ -3,8 +3,7 @@
  * Displays scope selector, hero cards, stats constellation, and mobile layout
  */
 
-import { useEffect, useState } from 'react';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useEffect, useId, useState } from 'react';
 import { CaretDown } from '@phosphor-icons/react';
 import { getCanonicalCard } from '../../lib/cardLookup';
 import {
@@ -19,6 +18,8 @@ import {
   JournalPlusCircleIcon,
   JournalRefreshIcon
 } from '../JournalIcons';
+import { META_LABEL_CLASS } from '../../styles/labelClasses';
+import { PRESSED_FORCED_COLORS_CLASS } from '../../styles/buttonClasses';
 
 export function JournalSummaryBand({
   summaryRef,
@@ -40,34 +41,30 @@ export function JournalSummaryBand({
   expandedCardIndex,
   onExpandedCardChange,
   onStartReading,
+  onSeeJourney,
   filtersActive,
   dataSource = 'client',
   embedded = false
 }) {
-  const prefersReducedMotion = useReducedMotion();
   const [isExpanded, setIsExpanded] = useState(!isMobileLayout);
-  const scopeChipLabel = analyticsScope === 'filters' && filtersActive ? 'Filtered' : (scopeLabel || 'Scope');
-  const sourceLabel = dataSource === 'server' ? 'D1' : 'Journal';
+  const latestInsightId = useId();
+  const sourceLabel = dataSource === 'server' ? 'Cloud journal' : 'This browser';
   const showDecorations = summaryInView && !embedded;
   const containerClass = `panel-mystic bg-gradient-ambient rounded-3xl ${
     embedded ? 'mb-0' : 'mb-6'
   }`;
   const paddingClass = embedded ? 'p-4 sm:p-5 lg:p-6' : 'p-5 sm:p-6 lg:p-8';
   const headerSpacingClass = embedded ? 'mb-3 space-y-1.5' : 'mb-5 lg:mb-4 space-y-2';
-  const pulseLabelClass = embedded
-    ? 'text-2xs uppercase tracking-[0.24em] text-muted-high'
-    : 'text-xs uppercase tracking-[0.2em] text-muted mb-1';
+  // Embedded in its "Practice snapshot" disclosure, a visible title would repeat
+  // the summary; the heading stays for screen-reader navigation.
   const pulseTitleClass = embedded
-    ? 'text-lg sm:text-xl font-serif text-main'
+    ? 'sr-only'
     : 'text-xl sm:text-2xl font-serif text-main';
   const scopeLabelClass = embedded
-    ? 'text-2xs uppercase tracking-[0.16em] text-muted'
-    : 'text-2xs uppercase tracking-[0.18em] text-muted';
+    ? `${META_LABEL_CLASS} text-muted`
+    : `${META_LABEL_CLASS} text-muted`;
   const scopeButtonSizeClass = embedded ? 'px-2.5 py-0.5 text-2xs' : 'px-3 py-1 text-2xs';
   const scopeSummaryClass = embedded ? 'text-2xs text-muted' : 'text-2xs text-muted';
-  const scopeChipClass = embedded
-    ? 'px-2 py-0.5 text-2xs font-semibold uppercase tracking-[0.14em] text-muted-high'
-    : 'px-2.5 py-0.5 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-high';
   const filterNoticeClass = embedded
     ? 'px-2.5 py-0.5 text-2xs text-muted-high'
     : 'px-3 py-1 text-2xs text-muted-high';
@@ -127,11 +124,8 @@ export function JournalSummaryBand({
         {/* Header - Clean and simple */}
         <div className={headerSpacingClass}>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className={pulseLabelClass}>Journal Pulse</p>
-              <h2 className={pulseTitleClass}>Practice snapshot</h2>
-            </div>
-            <div className="flex flex-col items-start gap-1 sm:items-end">
+            <h2 className={pulseTitleClass}>Practice snapshot</h2>
+            <div className={`flex flex-col items-start gap-1 ${embedded ? '' : 'sm:items-end'}`}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className={scopeLabelClass}>Scope</span>
                 {SCOPE_OPTIONS.map((option) => {
@@ -142,7 +136,7 @@ export function JournalSummaryBand({
                       type="button"
                       onClick={() => onScopeSelect(option.value)}
                       aria-pressed={isActive}
-                      className={`inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${
+                      className={`inline-flex min-h-touch min-w-touch items-center gap-1 rounded-full border ${scopeButtonSizeClass} font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) ${PRESSED_FORCED_COLORS_CLASS} ${
                         isActive
                           ? 'border-(--brand-primary) bg-(--accent-25) text-(--text-main) shadow-[0_8px_26px_-16px_var(--accent-45)]'
                           : 'border-(--border-warm-light) bg-(--border-warm-subtle) text-(--text-muted) hover:border-(--border-warm) hover:bg-(--border-warm-light)'
@@ -153,12 +147,10 @@ export function JournalSummaryBand({
                   );
                 })}
               </div>
+              {/* One line states the scope, its size and where the readings live. */}
               <p className={scopeSummaryClass}>
-                Active: {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'}
+                {scopeLabel} · {scopeEntryCount} entr{scopeEntryCount === 1 ? 'y' : 'ies'} · {sourceLabel}
               </p>
-              <span className={`inline-flex items-center gap-1 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) ${scopeChipClass}`}>
-                {scopeChipLabel} · {sourceLabel}
-              </span>
               {filtersActive && analyticsScope !== 'filters' && (
                 <div className={`flex flex-wrap items-center gap-2 rounded-full border border-(--border-warm) bg-(--accent-25) ${filterNoticeClass}`}>
                   <span>Filters not applied to insights</span>
@@ -205,8 +197,8 @@ export function JournalSummaryBand({
         <div className="lg:hidden space-y-4">
           {isExpanded && (
             <>
-              {/* Stats row - 2 clean cards */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Stats reflow to one column when enlarged text needs more room. */}
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-3">
                 {summaryCardData.slice(0, 2).map((stat) => {
                   const icon = stat.id === 'entries'
                     ? <JournalCardsAddIcon className="h-4 w-4" aria-hidden />
@@ -214,13 +206,13 @@ export function JournalSummaryBand({
                   return (
                     <div
                       key={stat.id}
-                      className="rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
+                      className="min-w-0 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-center"
                     >
                       <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-(--border-warm-subtle) text-accent">
                         {icon}
                       </div>
                       <p className="text-2xl font-serif text-main">{stat.value}</p>
-                      <p className="text-xs uppercase tracking-wide text-muted mt-1">{stat.label}</p>
+                      <p className="mt-1 wrap-break-word text-xs uppercase tracking-wide text-muted">{stat.label}</p>
                     </div>
                   );
                 })}
@@ -235,41 +227,43 @@ export function JournalSummaryBand({
                 const isCardExpanded = expandedCardIndex === 0;
 
                 return (
-                  <button
-                    type="button"
-                    onClick={() => onExpandedCardChange(isCardExpanded ? null : 0)}
-                    aria-expanded={isCardExpanded}
-                    aria-label={`${card.name}, ${card.orientation}. Tap for insight.`}
-                    className="w-full rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-3 text-left transition-[border-color,box-shadow,transform,translate,scale,rotate] duration-(--duration-medium) ease-(--ease-out) hover:border-(--border-warm) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Card thumbnail */}
-                      <div className="relative w-14 h-20 shrink-0 overflow-hidden rounded-lg border border-(--border-warm-light)">
-                        <img
-                          src={card.image}
-                          alt={card.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
+                  <div className="rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] transition-[border-color] duration-(--duration-medium) ease-(--ease-out) hover:border-(--border-warm)">
+                    <button
+                      type="button"
+                      onClick={() => onExpandedCardChange(isCardExpanded ? null : 0)}
+                      aria-expanded={isCardExpanded}
+                      aria-controls={isCardExpanded && meaning ? latestInsightId : undefined}
+                      className="w-full rounded-xl p-3 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                    >
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Card thumbnail; the name is in the text beside it. */}
+                        <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-(--border-warm-light)">
+                          <img
+                            src={card.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                        {/* Card info wraps below the thumbnail at enlarged text sizes. */}
+                        <div className="min-w-0 flex-[1_1_8rem]">
+                          <p className="mb-0.5 text-xs uppercase tracking-wide text-muted">Latest card</p>
+                          <p className="wrap-break-word font-serif text-base text-main">{card.name}</p>
+                          <p className="wrap-break-word text-xs text-muted">{card.orientation} · {heroDateLabel}</p>
+                        </div>
+                        {/* Chevron indicator */}
+                        <div className={`ms-auto shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
+                          <CaretDown className="h-5 w-5" aria-hidden />
+                        </div>
                       </div>
-                      {/* Card info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs uppercase tracking-wide text-muted mb-0.5">Latest card</p>
-                        <p className="font-serif text-base text-main truncate">{card.name}</p>
-                        <p className="text-xs text-muted">{card.orientation} · {heroDateLabel}</p>
-                      </div>
-                      {/* Chevron indicator */}
-                      <div className={`shrink-0 text-muted transition-transform ${isCardExpanded ? 'rotate-180' : ''}`}>
-                        <CaretDown className="h-5 w-5" aria-hidden />
-                      </div>
-                    </div>
-                    {/* Expandable insight */}
+                    </button>
+                    {/* The insight sits outside the toggle, so the toggle's name never hides it. */}
                     {isCardExpanded && meaning && (
-                      <div className="mt-3 pt-3 border-t border-(--border-warm-subtle)">
+                      <div id={latestInsightId} className="mx-3 mb-3 border-t border-(--border-warm-subtle) pt-3">
                         <p className="text-xs text-muted-high leading-relaxed">{meaning}</p>
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })()}
             </>
@@ -288,12 +282,7 @@ export function JournalSummaryBand({
             {isExpanded ? (
               <button
                 type="button"
-                onClick={() => {
-                  const journeySection = document.querySelector('[aria-label="Journal insights and journey"]');
-                  if (journeySection) {
-                    journeySection.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
-                  }
-                }}
+                onClick={onSeeJourney}
                 className="inline-flex min-h-touch w-full min-w-0 items-center justify-center gap-2 rounded-full border border-(--border-warm-light) bg-(--border-warm-subtle) px-4 py-3 text-sm font-medium text-(--text-main) transition-[background-color,border-color] duration-(--duration-normal) ease-(--ease-out) hover:bg-(--border-warm-light) hover:border-(--border-warm) sm:w-auto sm:flex-1"
               >
                 See Journey
@@ -313,7 +302,7 @@ export function JournalSummaryBand({
         </div>
 
         {/* Desktop: Keep expanded hero cards for larger screens */}
-        <div className="hidden lg:block">
+        <div className="journal-summary__desktop hidden lg:block">
           {heroEntry && heroCards.length > 0 && (
             <div className="mb-4 flex flex-wrap justify-center gap-2.5">
               {heroCards.map((card, index) => {
@@ -345,14 +334,15 @@ export function JournalSummaryBand({
                           loading="lazy"
                         />
                         <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/50 via-black/5 to-transparent" />
+                        {/* Over card art: an opaque surface keeps the date readable on any card. */}
                         {index === 0 && heroDateLabel && (
-                          <div className="absolute left-1.5 top-1.5 rounded-full bg-(--accent-25) px-1.5 py-0.5 text-2xs leading-none font-semibold text-main">
+                          <div className="absolute left-1.5 top-1.5 rounded-full border border-(--border-warm) bg-(--bg-surface) px-1.5 py-0.5 text-2xs leading-none font-semibold text-(--text-main) shadow-[0_2px_6px_-2px_rgba(0,0,0,0.5)]">
                             {heroDateLabel}
                           </div>
                         )}
                       </div>
                       <div className="px-2 pb-2 pt-1.5">
-                        <p className="font-serif text-xs text-main leading-tight truncate">{card.name}</p>
+                        <p className="font-serif text-xs text-main leading-tight wrap-break-word">{card.name}</p>
                         <p className="text-2xs text-muted">{card.orientation}</p>
                       </div>
                     </button>
@@ -383,8 +373,8 @@ export function JournalSummaryBand({
             </div>
           )}
 
-          {/* Desktop: Constellation layout - only visible on large screens */}
-          <div className="relative" style={{ height: '340px' }}>
+          {/* Desktop: Preserve the constellation while its fixed geometry fits. */}
+          <div className="journal-summary__constellation relative" style={{ height: '340px' }}>
             {/* SVG constellation lines */}
             <svg className="absolute inset-0 w-full h-full" aria-hidden="true">
               <defs>
@@ -617,7 +607,7 @@ export function JournalSummaryBand({
                             </div>
                             {/* Label at bottom like tarot card name */}
                             <div className="border-t border-(--border-warm-subtle) pt-1.5 w-full">
-                              <p className="text-2xs leading-none uppercase tracking-[0.2em] text-muted mb-0.5">{stat.label}</p>
+                              <p className={`${META_LABEL_CLASS} leading-none text-muted mb-0.5`}>{stat.label}</p>
                               <p className="font-serif text-lg text-main leading-tight">{stat.value}</p>
                             </div>
                           </>
@@ -633,7 +623,7 @@ export function JournalSummaryBand({
                             </div>
 
                             {/* Label */}
-                            <p className={`text-2xs uppercase tracking-[0.2em] mb-1.5 ${
+                            <p className={`${META_LABEL_CLASS} mb-1.5 ${
                               isHero ? 'text-(--text-accent)' : 'text-muted'
                             }`}>
                               {stat.label}
@@ -679,6 +669,20 @@ export function JournalSummaryBand({
               );
             })}
           </div>
+
+          {/* Enlarged text and narrower desktop containers use an unclipped flow. */}
+          <dl className="journal-summary__flow grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4">
+            {statNodes.map((stat) => (
+              <div
+                key={stat.id}
+                className="min-w-0 rounded-xl border border-(--border-warm-light) bg-[linear-gradient(180deg,var(--panel-dark-2),var(--panel-dark-1))] p-4"
+              >
+                <dt className="wrap-break-word text-xs uppercase tracking-[0.16em] text-muted">{stat.label}</dt>
+                <dd className="mt-2 wrap-break-word font-serif text-2xl text-main">{stat.value}</dd>
+                {stat.hint && <dd className="mt-1 wrap-break-word text-xs leading-relaxed text-muted-high">{stat.hint}</dd>}
+              </div>
+            ))}
+          </dl>
         </div>
       </div>
     </section>

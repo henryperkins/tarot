@@ -3,7 +3,11 @@ info:
   title: Tarot Reading API
   description: >
     API for generating personalized tarot readings through the deployed
-    tarot backend. This schema is designed for use as a custom GPT Action.
+    tarot backend. This schema covers synchronous direct/draw GPT Actions.
+    Job start/status/SSE/cancel endpoints are a separate contract documented in
+    docs/DEVELOPER_ONBOARDING.md (Reading Jobs) and docs/reading-context-inputs.md;
+    these Actions do not automatically use jobs. Reading prompt versions do not
+    change this API document version.
   version: "1.0.0"
 servers:
   - url: https://tarot.lakefrontdev.com
@@ -18,7 +22,9 @@ paths:
       description: >
         Creates a tarot reading synchronously. The request must include
         spread information and an array of cards with their positions,
-        names, orientations, and meanings. Optional user question,
+        names, exact Upright/Reversed orientations and nonempty meanings (required
+        for direct-request compatibility). The server resolves canonical catalog
+        meaning; a differing incoming meaning is separate caller interpretation. Optional user question,
         reflections, personalization, deck style, and location data may
         be included when available.
       security:
@@ -39,15 +45,15 @@ paths:
                   cardsInfo:
                     - position: Past
                       card: The Fool
-                      orientation: upright
+                      orientation: Upright
                       meaning: New beginnings, openness, and a willingness to take a leap.
                     - position: Present
                       card: The Magician
-                      orientation: upright
+                      orientation: Upright
                       meaning: Focused intention, resourcefulness, and creative power.
                     - position: Future
                       card: Six of Swords
-                      orientation: reversed
+                      orientation: Reversed
                       meaning: Resistance to transition or difficulty moving on.
                   userQuestion: What should I know about my career path?
                   reflectionsText: I am considering changing jobs soon.
@@ -194,14 +200,26 @@ components:
           type: array
           description: Cards in the order they appear in the spread.
           minItems: 1
+          maxItems: 78
           items:
-            $ref: "#/components/schemas/CardInfo"
+            $ref: "#/components/schemas/RequestCardInfo"
         userQuestion:
           type: string
+          maxLength: 2000
           description: Optional question or topic posed by the user.
         reflectionsText:
           type: string
-          description: Optional reflection or additional context from the user.
+          maxLength: 5000
+          description: Optional general notes from the user.
+        decisionPaths:
+          $ref: "#/components/schemas/DecisionPaths"
+        useSavedMemories:
+          type: boolean
+          default: true
+          description: >
+            False bypasses saved-memory candidate loading, selection and
+            initial-reading access writes. Applies to this reading only;
+            does not delete memories or change follow-up capture.
         reversalFrameworkOverride:
           type: string
           description: Optional override for the reversal interpretation framework.
@@ -242,10 +260,21 @@ components:
           $ref: "#/components/schemas/SpreadInfo"
         userQuestion:
           type: string
+          maxLength: 2000
           description: Optional question or topic posed by the user.
         reflectionsText:
           type: string
-          description: Optional reflection or additional context from the user.
+          maxLength: 5000
+          description: Optional general notes from the user.
+        decisionPaths:
+          $ref: "#/components/schemas/DecisionPaths"
+        useSavedMemories:
+          type: boolean
+          default: true
+          description: >
+            False bypasses saved-memory candidate loading, selection and
+            initial-reading access writes. Applies to this reading only;
+            does not delete memories or change follow-up capture.
         reversalFrameworkOverride:
           type: string
           description: Optional override for the reversal interpretation framework.
@@ -306,9 +335,10 @@ components:
           type: string
           description: Reading backend or provider used.
           examples:
+            - claude-api
+            - modal-qwen
+            - openai-native
             - local-composer
-            - openai-native
-            - openai-native
         requestId:
           type: string
           description: Unique request identifier.
@@ -359,6 +389,10 @@ components:
             - type: object
               additionalProperties: true
             - type: "null"
+        sourceUsage:
+          anyOf:
+            - $ref: "#/components/schemas/SourceUsage"
+            - type: "null"
         promptDebug:
           $ref: "#/components/schemas/PromptDebug"
     SpreadInfo:
@@ -386,6 +420,86 @@ components:
             - decision
             - relationship
             - celtic
+    DecisionPaths:
+      type: object
+      additionalProperties: false
+      description: >
+        Optional decision-spread labels. Empty string explicitly clears a label;
+        omission permits a legacy decision-position fallback. Null, nonstrings,
+        oversized strings and unknown keys are rejected. Other spreads ignore
+        these labels with not_applicable diagnostics. Original positions remain.
+      properties:
+        a:
+          type: string
+          maxLength: 80
+        b:
+          type: string
+          maxLength: 80
+    RequestCardInfo:
+      type: object
+      required:
+        - position
+        - card
+        - orientation
+        - meaning
+      additionalProperties: false
+      properties:
+        position:
+          type: string
+          description: Position of the card in the spread.
+          examples:
+            - Past
+            - Present
+            - Future
+        card:
+          type: string
+          description: Name of the tarot card.
+          examples:
+            - The Fool
+            - The Magician
+            - Six of Swords
+        orientation:
+          type: string
+          description: Exact normalized orientation (case-sensitive).
+          enum:
+            - Upright
+            - Reversed
+        meaning:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: >
+            Required nonempty legacy direct-request field (whitespace-only is
+            rejected after trimming). The server always resolves authoritative
+            upright/reversed catalog meaning. A differing input is derived as
+            separate untrusted callerMeaning; clients cannot submit that derived
+            field as trusted input. MCP supplied-card tools separately permit
+            omitted meaning; their adapter fills this direct-route requirement.
+        userReflection:
+          type: string
+          maxLength: 2000
+          description: Optional user note for this supplied card.
+        number:
+          type: integer
+          description: Optional card number if known.
+        suit:
+          type: string
+          description: Optional suit for minor arcana cards.
+          examples:
+            - Cups
+            - Pentacles
+            - Swords
+            - Wands
+        rank:
+          type: string
+          description: Optional rank name for minor arcana cards.
+          examples:
+            - Ace
+            - Two
+            - Queen
+        rankValue:
+          type: integer
+          description: Optional numeric rank value for minor arcana cards.
     CardInfo:
       type: object
       required:
@@ -411,15 +525,22 @@ components:
             - Six of Swords
         orientation:
           type: string
-          description: Orientation of the card. Prefer lowercase values.
+          description: Exact normalized orientation (case-sensitive).
           enum:
-            - upright
-            - reversed
             - Upright
             - Reversed
         meaning:
           type: string
-          description: Meaning or interpretation of the card in this position.
+          description: Server-resolved canonical upright or reversed catalog meaning.
+        callerMeaning:
+          type: string
+          maxLength: 1000
+          readOnly: true
+          description: Derived differing caller interpretation; separate untrusted personal context.
+        userReflection:
+          type: string
+          maxLength: 2000
+          description: User note preserved for the card, when present.
         number:
           type: integer
           description: Optional card number if known.
@@ -480,9 +601,12 @@ components:
             - deep
         focusAreas:
           type: array
-          description: Specific life areas or themes to emphasize.
+          maxItems: 12
+          description: Saved interests; current inputs take precedence.
           items:
             type: string
+            minLength: 1
+            maxLength: 40
           examples:
             - - career
               - relationships
@@ -529,9 +653,10 @@ components:
           type: string
           description: Reading backend or provider used.
           examples:
+            - claude-api
+            - modal-qwen
+            - openai-native
             - local-composer
-            - openai-native
-            - openai-native
         requestId:
           type: string
           description: Unique request identifier.
@@ -571,8 +696,67 @@ components:
             - type: object
               additionalProperties: true
             - type: "null"
+        sourceUsage:
+          anyOf:
+            - $ref: "#/components/schemas/SourceUsage"
+            - type: "null"
         promptDebug:
           $ref: "#/components/schemas/PromptDebug"
+    SourceUsage:
+      type: object
+      additionalProperties: true
+      description: >
+        Additive bounded diagnostics for the final accepted backend input or
+        deterministic content actually rendered. Inclusion does not establish
+        attention, reliance, accuracy or usefulness. Missing legacy fields stay
+        unknown; selected/discovered counts do not prove final retention.
+        No query/note/label text, names, memory IDs/text, embedding vectors/inputs,
+        credentials, private selection, receipt or run/attempt mapping is exposed.
+        A canned safety replacement has null sourceUsage. MCP uses a separate
+        compact outcome schema and does not return this full object.
+      properties:
+        memories:
+          type: object
+          additionalProperties: false
+          properties:
+            requested:
+              type: boolean
+            used:
+              type: boolean
+            candidatesProvided:
+              type: integer
+              minimum: 0
+              maximum: 100
+            memoriesSelected:
+              type: integer
+              minimum: 0
+              maximum: 3
+            memoriesUsedInPrompt:
+              type: integer
+              minimum: 0
+              maximum: 3
+            skippedReason:
+              type: [string, "null"]
+              description: Fixed reason code, or null when used; never private memory text or identity.
+        graphRAG:
+          type: object
+          additionalProperties: true
+          description: >
+            Bounded discovered/projected/scored/selected/retained counts,
+            selected-deck identity, final selected passage indices and fixed
+            scoring/fallback reasons. Summary-only material has zero full
+            passages; intermediate budgetTrimmedTo is not final retention.
+        userContext:
+          type: object
+          additionalProperties: true
+          description: >
+            Bounded retention by fixed source slots, including interpretation-0
+            through interpretation-77 separately from canonical card meaning and
+            reflections. Aggregate used includes interpretation-only retention.
+        patterns:
+          type: object
+          additionalProperties: true
+          description: Bounded provided/retained direct-highlight counts for actual backend use.
     PromptDebug:
       type: object
       additionalProperties: true
@@ -593,7 +777,8 @@ components:
           type: string
           description: Narrative backend that assembled the prompt.
           examples:
-            - openai-native
+            - claude-api
+            - modal-qwen
             - openai-native
         systemPrompt:
           type: string

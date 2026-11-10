@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from '@phosphor-icons/react';
-import { useModalA11y, createBackdropHandler } from '../hooks/useModalA11y';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { AmberStarfield } from './AmberStarfield';
+import { CloseButton } from './CloseButton';
 import { SavedIntentionsList } from './SavedIntentionsList.jsx';
 
 export function SavedIntentionsModal({ isOpen, onClose }) {
@@ -33,8 +33,9 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
   return createPortal(
     <div
       className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center bg-main/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4 pt-[max(0.75rem,var(--safe-pad-top))] pb-[max(0.75rem,var(--safe-pad-bottom))] pl-[max(0.75rem,var(--safe-pad-left))] pr-[max(0.75rem,var(--safe-pad-right))]"
-      onClick={createBackdropHandler(onClose)}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={modalRef}
         role="dialog"
@@ -47,15 +48,12 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
       >
         <AmberStarfield />
 
-        <button
+        <CloseButton
           ref={closeButtonRef}
-          type="button"
+          label="Close saved intentions"
           onClick={onClose}
-          className="absolute top-3 right-3 z-20 p-2 min-w-touch min-h-touch flex items-center justify-center text-muted hover:text-main hover:bg-surface-muted/60 rounded-full transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main touch-manipulation"
-          aria-label="Close saved intentions"
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </button>
+          className="absolute top-3 right-3 z-20"
+        />
 
         <div className="relative z-10 flex-1 overflow-y-auto p-5 sm:p-6 pr-14 sm:pr-16">
           <SavedIntentionsList

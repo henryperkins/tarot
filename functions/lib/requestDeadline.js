@@ -49,6 +49,9 @@ export function delayWithSignal(milliseconds, signal) {
   });
 }
 
+/** Each buffered (non-streamed) reading provider attempt gets at most this long. */
+export const READING_BUFFERED_ATTEMPT_MAX_MS = 90000;
+
 export function getTaskTimeoutMs(env, kind = 'text') {
   const reading = kind === 'reading';
   const configured = Number(reading ? env?.READING_TASK_TIMEOUT_MS : env?.TEXT_TASK_TIMEOUT_MS);

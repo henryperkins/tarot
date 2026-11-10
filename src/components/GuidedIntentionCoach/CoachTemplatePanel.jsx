@@ -1,5 +1,6 @@
 import { useId, useRef } from 'react';
-import { BookmarkSimple, ClockCounterClockwise, Sparkle, X } from '@phosphor-icons/react';
+import { BookmarkSimple, ClockCounterClockwise, Sparkle } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { TEMPLATE_LABEL_MAX_LENGTH } from '../../lib/coachConstants';
 
@@ -12,6 +13,8 @@ export function CoachTemplatePanel({
   newTemplateLabel,
   setNewTemplateLabel,
   templateStatus,
+  templateUndo,
+  handleUndoTemplateSave,
   handleSaveTemplate,
   handleApplyTemplate,
   handleDeleteTemplate,
@@ -31,10 +34,12 @@ export function CoachTemplatePanel({
   // A layer of its own: it owns Escape and Tab while open, returns focus to
   // whichever control opened it, and hides the coach behind it from assistive
   // tech. The coach already locks page scroll, and that lock is not reentrant.
+  // The coach's Back handler closes this panel first.
   useModalA11y(isOpen, {
     onClose,
     containerRef: panelRef,
     lockScroll: false,
+    closeOnBack: false,
     isolateBackground: true,
     initialFocusSelector: intent === 'save' ? '[data-initial-focus="save"]' : '[data-initial-focus="browse"]'
   });
@@ -55,42 +60,35 @@ export function CoachTemplatePanel({
   return (
     <div
       className={`absolute inset-0 z-sticky-elevated flex items-stretch bg-surface/70 backdrop-blur-sm ${prefersReducedMotion ? '' : 'animate-fade-in'}`}
-      onClick={onClose}
     >
+      {/* Pointer shortcut only: Escape and the close button serve everyone else. */}
+      <div data-modal-backdrop aria-hidden="true" className="absolute inset-0" onClick={onClose} />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
         tabIndex={-1}
-        className={`ml-auto h-full w-full sm:w-104 bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-(--ui-elevated-shadow) focus:outline-hidden ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
+        className={`relative ml-auto h-full w-full sm:w-104 bg-surface border-l border-accent/30 p-5 sm:p-6 overflow-y-auto overscroll-contain scrollbar-themed shadow-(--ui-elevated-shadow) focus:outline-hidden ${prefersReducedMotion ? '' : 'animate-slide-in-right'}`}
         onClick={event => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 id={headingId} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-secondary">
+            <h2 id={headingId} className="flex items-center gap-2 text-xs uppercase tracking-label-wide text-secondary">
               <BookmarkSimple className="h-4 w-4 text-secondary" aria-hidden="true" />
               Template library
             </h2>
             <p className="text-sm text-muted">
-              Save this configuration or reapply a favorite blend anytime.
+              Save this question or return to wording you have saved.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            data-initial-focus="browse"
-            className="inline-flex items-center justify-center rounded-full border border-secondary/40 p-1 min-h-touch min-w-touch text-secondary hover:bg-secondary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
-            aria-label="Close template panel"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <CloseButton label="Close template panel" size="sm" onClick={onClose} data-initial-focus="browse" />
         </div>
 
         <div className="mt-5 space-y-6">
           <section className="space-y-3" aria-labelledby={`${idPrefix}-save`}>
             <div className="flex flex-col gap-2">
-              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-[0.3em] text-accent">Save current setup</h3>
+              <h3 id={`${idPrefix}-save`} className="text-xs uppercase tracking-label-wide text-accent">Save current setup</h3>
               <form
                 className="flex flex-col gap-2 sm:flex-row"
                 onSubmit={event => {
@@ -109,7 +107,7 @@ export function CoachTemplatePanel({
                   autoComplete="off"
                   enterKeyHint="done"
                   data-initial-focus="save"
-                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-sm text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
+                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-base text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
                 />
                 <button
                   type="submit"
@@ -126,6 +124,9 @@ export function CoachTemplatePanel({
             {templateStatus && (
               <p className="text-xs text-secondary wrap-break-word">{templateStatus}</p>
             )}
+            {templateUndo && (
+              <button type="button" onClick={handleUndoTemplateSave} className="inline-flex min-h-touch min-w-touch items-center px-2 text-sm text-secondary underline underline-offset-4">Undo</button>
+            )}
             {/* Always mounted, and off screen so an empty region leaves no gap,
                 so screen readers hear each save, update, and removal. */}
             <p className="sr-only" role="status" aria-live="polite">
@@ -134,7 +135,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-saved`}>
-            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-[0.3em] text-accent">Saved templates</h3>
+            <h3 id={`${idPrefix}-saved`} className="text-xs uppercase tracking-label-wide text-accent">Saved templates</h3>
             {templates.length === 0 ? (
               <p className="text-xs text-muted">
                 Nothing saved yet. Create a label above to store this blend for later.
@@ -143,13 +144,15 @@ export function CoachTemplatePanel({
               <ul className="space-y-3">
                 {templates.map((template, index) => {
                   const summaryId = `${idPrefix}-template-${index}-summary`;
-                  const summary = [
-                    getTopicLabel(template.topic),
-                    getTimeframeLabel(template.timeframe),
-                    getDepthLabel(template.depth)
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'Custom mix';
+                  const summary = template.isManualQuestion
+                    ? 'Custom question'
+                    : [
+                      getTopicLabel(template.topic),
+                      getTimeframeLabel(template.timeframe),
+                      getDepthLabel(template.depth)
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'Custom mix';
                   return (
                     <li
                       key={template.id}
@@ -193,7 +196,7 @@ export function CoachTemplatePanel({
           </section>
 
           <section className="space-y-3" aria-labelledby={`${idPrefix}-recent`}>
-            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-accent">
+            <h3 id={`${idPrefix}-recent`} className="flex items-center gap-2 text-xs uppercase tracking-label-wide text-accent">
               <ClockCounterClockwise className="h-4 w-4 text-secondary" aria-hidden="true" />
               Recent questions
             </h3>

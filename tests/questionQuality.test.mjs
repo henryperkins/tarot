@@ -88,6 +88,15 @@ describe('Question nudge', () => {
     assert.equal(getQuestionNudge('What is guaranteed to happen in my career?'), 'fixed-outcome');
     assert.equal(getQuestionNudge('What am I destined for this year?'), 'fixed-outcome');
   });
+
+  it('keeps the guarantee warning when the wording otherwise scores highly', () => {
+    const question = 'What is the guaranteed outcome of my relationship this month?';
+    const result = scoreQuestion(question);
+    assert.equal(result.score, 90);
+    assert.ok(result.deterministicLanguage);
+    assert.ok(result.feedback.some(tip => /avoid fate\/guarantee/i.test(tip)));
+    assert.equal(getQuestionNudge(question), 'fixed-outcome');
+  });
 });
 
 describe('Question scripts and punctuation', () => {

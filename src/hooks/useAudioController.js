@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   speakText,
   pauseTTS,
@@ -7,72 +7,66 @@ import {
   subscribeToTTS,
   getCurrentTTSState,
   unlockAudio,
+  beginNarrationIntent,
   finalizeTTSStream,
   resetTTSStream,
   isTTSStreamActive,
   swellAmbience
 } from '../lib/audio';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { createNarrationCoordinator } from '../lib/narrationCoordinator.js';
 
 export function useAudioController() {
   const { voiceOn, setVoiceOn, ttsProvider, ttsSpeed, ambienceOn } = usePreferences();
-  const [ttsState, setTtsState] = useState(() => getCurrentTTSState());
-  const [ttsAnnouncement, setTtsAnnouncement] = useState('');
+  const [rawTtsState, setRawTtsState] = useState(() => getCurrentTTSState());
+  const [waiting, setWaiting] = useState(false);
+  const mountedRef = useRef(true);
+  const settingsRef = useRef({ voiceOn, ttsProvider });
+  useEffect(() => { settingsRef.current = { voiceOn, ttsProvider }; }, [voiceOn, ttsProvider]);
+  const [coordinator] = useState(() => createNarrationCoordinator({
+    speak: speakText,
+    onWaiting: setWaiting
+  }));
+  const ttsState = useMemo(() => waiting ? {
+    ...rawTtsState, status: 'loading', context: 'full-reading',
+    reason: 'waiting-for-card', message: 'Finishing card narration before your reading…'
+  } : rawTtsState, [waiting, rawTtsState]);
+  const announce = ttsState.context === 'full-reading' || ttsState.context === 'card-reveal';
+  const ttsAnnouncement = announce ? ttsState.message || '' : '';
   const [voicePromptRequested, setVoicePromptRequested] = useState(false);
   const showVoicePrompt = voicePromptRequested && !voiceOn;
 
   const previousProviderRef = useRef(ttsProvider);
 
-  // Subscribe to TTS state changes
+  // Feed raw outcomes to the coordinator before projecting queued feedback.
   useEffect(() => {
+    mountedRef.current = true;
     const unsubscribe = subscribeToTTS(state => {
-      setTtsState(state);
-
-      const isAnnounceContext =
-        state.context === 'full-reading' ||
-        state.context === 'card-reveal';
-
-      const baseMessage =
-        state.message ||
-        (state.status === 'completed'
-          ? (state.context === 'card-reveal'
-            ? 'Card narration finished.'
-            : 'Narration finished.')
-          : state.status === 'paused'
-            ? (state.context === 'card-reveal'
-              ? 'Card narration paused.'
-              : 'Narration paused.')
-            : state.status === 'playing'
-              ? (state.context === 'card-reveal'
-                ? 'Card narration playing.'
-                : 'Narration playing.')
-              : state.status === 'loading'
-                ? (state.context === 'card-reveal'
-                  ? 'Preparing card narration.'
-                  : 'Preparing narration.')
-                : state.status === 'stopped'
-                  ? 'Narration stopped.'
-                  : state.status === 'error'
-                    ? 'Narration unavailable.'
-                    : '');
-
-      const announcement = isAnnounceContext ? baseMessage : '';
-      setTtsAnnouncement(announcement);
+      coordinator.updateState(state);
+      setRawTtsState(state);
     });
-    return unsubscribe;
-  }, []);
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+      coordinator.cancelQueued();
+      stopTTS();
+    };
+  }, [coordinator]);
 
   useEffect(() => {
     if (!voiceOn || previousProviderRef.current !== ttsProvider) {
+      coordinator.cancelQueued();
       stopTTS();
-      resetTTSStream();
     }
     previousProviderRef.current = ttsProvider;
-  }, [voiceOn, ttsProvider]);
+  }, [voiceOn, ttsProvider, coordinator]);
 
   // /api/tts reader voice; the player applies the speed.
   const speak = useCallback(async (text, context = 'default', emotion = null) => {
-    await speakText({
+    if (!mountedRef.current || !settingsRef.current.voiceOn || settingsRef.current.ttsProvider !== ttsProvider) return;
+    const raw = getCurrentTTSState();
+    if (context === 'card-reveal' && raw.context === 'full-reading' && ['loading', 'playing', 'paused', 'synthesizing'].includes(raw.status)) return;
+    await coordinator.request({
       text,
       enabled: voiceOn,
       provider: ttsProvider,
@@ -82,7 +76,7 @@ export function useAudioController() {
       stream: context === 'full-reading',
       emotion
     });
-  }, [voiceOn, ttsSpeed, ttsProvider]);
+  }, [voiceOn, ttsSpeed, ttsProvider, coordinator]);
 
   // Wait for the completed, screened reading and narrate it in one request.
   // A client-controlled cross-request session could bypass the allowance.
@@ -93,8 +87,13 @@ export function useAudioController() {
   }, []);
 
   const resetNarrationStream = useCallback((options = {}) => {
+    // Starting interpretation prepares a new reading without interrupting its
+    // still-pending card synthesis. Explicit resets keep the normal cancel path.
+    if (options.preserveCardNarration && getCurrentTTSState().context === 'card-reveal') return;
+    coordinator.cancelQueued({ preserveActive: Boolean(options.preserveAudio) });
+    setWaiting(false);
     resetTTSStream(options);
-  }, []);
+  }, [coordinator]);
 
   const isNarrationStreamActive = useCallback(() => isTTSStreamActive(), []);
 
@@ -137,9 +136,10 @@ export function useAudioController() {
     const isNarrationAvailable = Boolean(fullReadingText);
     if (!isNarrationAvailable || isPersonalReadingError) return;
 
-    const isLoading = ttsState.status === 'loading' || ttsState.status === 'synthesizing';
-    const isPlaying = ttsState.status === 'playing';
-    const isPaused = ttsState.status === 'paused';
+    const isFullReading = ttsState.context === 'full-reading';
+    const isLoading = isFullReading && (ttsState.status === 'loading' || ttsState.status === 'synthesizing');
+    const isPlaying = isFullReading && ttsState.status === 'playing';
+    const isPaused = isFullReading && ttsState.status === 'paused';
 
     if (isLoading) return;
     if (isPlaying) {
@@ -147,8 +147,9 @@ export function useAudioController() {
       return;
     }
 
-    const unlocked = await unlockAudio();
-    if (!unlocked) {
+    const isCurrent = beginNarrationIntent();
+    const unlocked = await unlockAudio({ isCurrent });
+    if (!unlocked || !isCurrent()) {
       return;
     }
 
@@ -161,17 +162,20 @@ export function useAudioController() {
   }, [voiceOn, ttsState, speak]);
 
   const handleNarrationStop = useCallback(() => {
+    coordinator.cancelQueued();
+    setWaiting(false);
     stopTTS();
-    setTtsAnnouncement('Narration stopped.');
-  }, []);
+  }, [coordinator]);
 
   const handleVoicePromptEnable = useCallback(async (fullReadingText, emotion) => {
+    const isCurrent = beginNarrationIntent();
     setVoiceOn(true);
     setVoicePromptRequested(false);
     if (!fullReadingText) return;
-    const unlocked = await unlockAudio();
-    if (!unlocked) return;
+    const unlocked = await unlockAudio({ isCurrent });
+    if (!unlocked || !isCurrent()) return;
     setTimeout(() => {
+      if (!isCurrent()) return;
       // Enabling voice rerenders the hook; use the callback with that updated
       // preference rather than the muted callback captured by this click.
       void currentSpeakRef.current(fullReadingText, 'full-reading', emotion);

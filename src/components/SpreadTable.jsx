@@ -791,6 +791,19 @@ export function SpreadTable({
         ? 'w-20 h-[120px] xs:w-24 xs:h-[140px] sm:w-28 sm:h-[160px] md:w-32 md:h-[180px]'
         : 'w-14 h-[76px] xs:w-16 xs:h-[88px] sm:w-[72px] sm:h-24 md:w-20 md:h-28';
 
+  // Match the width classes above and the fitter's cap for each spread. A broad
+  // viewport estimate can otherwise preload full scans for tiny Celtic cards.
+  const imageWidth = width => maxCardWidth ? `min(${Math.ceil(maxCardWidth)}px, ${width})` : width;
+  const cardImageSizes = readingTable
+    ? `(max-width: 768px) ${imageWidth('clamp(3.5rem, 20vw, 8rem)')}, ${imageWidth('clamp(4rem, 11vw, 9rem)')}`
+    : compact
+      ? `(min-width: 640px) ${imageWidth('3.5rem')}, (min-width: 375px) ${imageWidth('3rem')}, ${imageWidth('2.75rem')}`
+      : usesCompactLayout
+        ? `(min-width: 640px) ${imageWidth('8rem')}, (min-width: 375px) ${imageWidth('6rem')}, ${imageWidth('4rem')}`
+        : size === 'large'
+          ? `(min-width: 768px) ${imageWidth('8rem')}, (min-width: 640px) ${imageWidth('7rem')}, (min-width: 375px) ${imageWidth('6rem')}, ${imageWidth('5rem')}`
+          : `(min-width: 768px) ${imageWidth('5rem')}, (min-width: 640px) ${imageWidth('4.5rem')}, (min-width: 375px) ${imageWidth('4rem')}, ${imageWidth('3.5rem')}`;
+
   useEffect(() => {
     if (!revealedIndices || !(revealedIndices instanceof Set)) return;
     if (revealedIndices.size === 0) {
@@ -887,6 +900,8 @@ export function SpreadTable({
 
       {/* Position placeholders */}
       {visibleLayout.map((pos, i) => {
+        const slotNumber = i + 1;
+        const cardLabelPrefix = readingTable ? `Position ${slotNumber}: ` : '';
         const card = cards?.[i];
         const isRevealed = revealedIndices?.has?.(i) || false;
         const isNext = i === nextDealIndex && !isRevealed;
@@ -909,7 +924,7 @@ export function SpreadTable({
             `}
             aria-hidden="true"
           >
-            {i + 1}
+            {slotNumber}
           </div>
         );
 
@@ -956,7 +971,7 @@ export function SpreadTable({
                   ...(cardSizeStyle || {})
                 }}
                 aria-label={
-                  readingTable ? `${positionLabel}: empty position` : isNext
+                  readingTable ? `${slotNumber}. ${positionLabel}: empty position` : isNext
                     ? MICROCOPY.revealPosition(shortLabel)
                     : i < nextDealIndex
                       ? `${positionLabel}: waiting for card`
@@ -978,6 +993,7 @@ export function SpreadTable({
                   scaleKeyframes={[1, 1, 1]}
                   reducedOpacity={0.5}
                 />
+                {' '}
                 <span className={`${compact ? 'text-2xs xs:text-2xs' : 'text-2xs xs:text-2xs sm:text-xs'} text-muted text-center px-1 leading-tight`}>
                   {isNext && !readingTable ? MICROCOPY.revealPosition(shortLabel) : shortLabel}
                 </span>
@@ -1060,10 +1076,10 @@ export function SpreadTable({
               dealOrder={i}
               ariaLabel={card
                 ? isRevealed
-                  ? `${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
+                  ? `${cardLabelPrefix}${card.name}${card.isReversed ? ', reversed' : ''}, in ${positionLabel} position. Click to view details.`
                   : disableReveal
-                    ? `${positionLabel} position. Draw from the deck to reveal.`
-                    : `Card in ${positionLabel} position. Click to reveal.`
+                    ? `${cardLabelPrefix}${positionLabel} position. Draw from the deck to reveal.`
+                    : `${cardLabelPrefix}Card in ${positionLabel} position. Click to reveal.`
                 : undefined
               }
             >
@@ -1101,7 +1117,7 @@ export function SpreadTable({
                         <img
                           src={displayImage}
                           srcSet={getCardThumbnailSrcSet(displayImage)}
-                          sizes="(max-width: 640px) 28vw, 160px"
+                          sizes={cardImageSizes}
                           alt={displayCard.name}
                           className="w-full h-full object-cover"
                           style={{

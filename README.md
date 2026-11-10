@@ -12,7 +12,7 @@ Tableu is an AI-powered tarot reading application built around a React web clien
 ## Core Features
 
 - Multiple spread types, including One-Card Insight, Three-Card Story, Five-Card Clarity, Decision/Two-Path, Relationship Snapshot, and Celtic Cross
-- LLM-generated readings with the configured provider order: `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `openai-native` (OpenAI Responses) → `local-composer`
+- LLM-generated readings with the configured provider order: `openai-native` (OpenAI Responses) → `claude-api` (Claude Opus 5.5 via the Anthropic API) → `modal-qwen` → `local-composer`
 - Knowledge-graph and GraphRAG-assisted narrative context
 - User-selectable ElevenLabs v4 (Sarah) or Deepgram Aura-2 (Cora) reading narration with a shared monthly allowance; see [narration safeguards](docs/narration-safeguards.md) for provider setup and selection
 - Journal, sharing, follow-ups, and subscription-aware feature gating
@@ -100,6 +100,17 @@ npm run deploy
 ```
 
 The deploy flow is managed by `scripts/deploy.js` and supports migrations, dry runs, and local migration application via the npm scripts in `package.json`.
+
+Application deployments validate Browserbase configuration before release QA and
+run the [guest UI smoke checks](docs/browserbase-smoke.md) after publication.
+Use `npm run test:e2e:browserbase -- --url <public-https-origin>` to check an
+existing preview or production deployment separately.
+
+Use `npm run deploy` (or `npm run deploy:skip-migrations`) for application releases. After fresh release QA, the script reads the existing Worker's settings with your current Wrangler login or configured Cloudflare credentials. It refreshes those settings immediately before each upload and creates a private temporary config beside `wrangler.jsonc`. Existing dashboard variables, including values that differ from checked-in defaults, are inherited; defaults are uploaded only for new names. Existing secret bindings are inherited without reading their values. Logs, traces, and Issues settings are carried through Wrangler's separate monitoring update. The temporary config is removed after the upload, including on failure.
+
+A failed or malformed settings read stops the release before remote migrations, as does a configured resource binding that would replace an existing variable or secret. The script pins the Worker/account/API target and refuses to upload if `wrangler.jsonc` changes during the release. Only Cloudflare's explicit Worker-not-found response allows a first deployment, which uses the checked-in defaults and enables Issues. After an upload, the script checks variable values, secret names/types, and monitoring settings again; a mismatch fails the release without attempting an automatic settings repair. Credential retrieval disables Wrangler's debug-file logging; credentials are kept in memory and dashboard values are not written to the temporary config. Dry runs and migration-only operations do not read or modify Worker settings.
+
+Dashboard values take precedence on subsequent releases. Change an existing production variable in the dashboard when its value should change; editing its local default affects only new Workers or new variable names. To retire a variable, remove both its local default and its dashboard binding; otherwise the next release recreates the missing name with its default. Avoid direct `wrangler deploy` for releases: `keep_vars` alone retains omitted variables but still allows explicitly configured values to replace dashboard values. Continue to verify the active Worker version and live assets separately after deployment.
 
 ## Documentation
 

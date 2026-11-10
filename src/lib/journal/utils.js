@@ -8,10 +8,40 @@ import { getTimestamp } from '../../../shared/journal/utils.js';
  * Get month header label for journal entry grouping
  */
 export function getMonthHeader(timestamp) {
-  if (!timestamp) return 'Undated';
+  if (timestamp == null) return 'Undated';
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return 'Undated';
   return date.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+}
+
+/** Index the whole matching history independently of its rendered prefix. */
+export function buildJournalMonthSections(entries, { consecutive = false } = {}) {
+  const sections = [];
+  const byMonth = new Map();
+  (Array.isArray(entries) ? entries : []).forEach((entry, index) => {
+    const timestamp = getTimestamp(entry);
+    const date = timestamp == null ? null : new Date(timestamp);
+    const dated = date && Number.isFinite(date.getTime());
+    const key = dated ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : 'undated';
+    const previous = sections[sections.length - 1];
+    let section = consecutive ? (previous?.key === key ? previous : null) : byMonth.get(key);
+    if (!section) {
+      section = {
+        key,
+        label: dated ? getMonthHeader(timestamp) : 'Undated',
+        shortLabel: dated ? date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Undated',
+        anchorId: `month-${key}${byMonth.has(key) ? `-${index}` : ''}`,
+        firstIndex: index,
+        items: [],
+        count: 0
+      };
+      sections.push(section);
+      byMonth.set(key, section);
+    }
+    section.items.push({ entry, index });
+    section.count += 1;
+  });
+  return sections;
 }
 
 /**
@@ -25,39 +55,32 @@ export function formatSummaryDate(timestamp) {
 }
 
 /**
- * Get the top context from stats breakdown
- */
-export function getTopContext(stats) {
-  if (!stats?.contextBreakdown?.length) return null;
-  return stats.contextBreakdown.slice().sort((a, b) => b.count - a.count)[0];
-}
-
-/**
- * Get current month's date window
+ * Get the current local calendar month, including the entire last day.
+ * All journal windows use inclusive instants; callers must not add another day.
  */
 export function getCurrentMonthWindow(now = new Date()) {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const end = new Date(new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime() - 1);
   return { start, end };
 }
 
 /**
- * Parse date input string to Date object
+ * Parse an HTML date input as a local calendar date, never UTC midnight.
  */
 export function parseDateInput(value) {
-  if (!value) return null;
-  const ts = Date.parse(value);
-  if (Number.isNaN(ts)) return null;
-  const date = new Date(ts);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  // Date constructors silently roll invalid inputs such as February 30 forward.
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
 }
 
 /**
- * Get date window for predefined timeframe filters
+ * Get inclusive instants for predefined timeframe filters. 30/90-day windows
+ * are rolling elapsed days, so their boundaries keep the same meaning at DST.
  */
-export function getTimeframeWindow(timeframe) {
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+export function getTimeframeWindow(timeframe, now = new Date()) {
+  const end = new Date(now);
   switch (timeframe) {
     case '30d': {
       const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -74,6 +97,18 @@ export function getTimeframeWindow(timeframe) {
     default:
       return null;
   }
+}
+
+/**
+ * Whether a saved card is reversed, including legacy cards that only carry `isReversed`.
+ */
+export function isReversedCard(card) {
+  if (card?.isReversed === true) return true;
+  return String(card?.orientation || '').toLowerCase().includes('reversed');
+}
+
+export function entryHasReversal(entry) {
+  return Array.isArray(entry?.cards) && entry.cards.some(isReversedCard);
 }
 
 /**
@@ -126,4 +161,19 @@ export function getLatestEntryTimestamp(entries) {
     if (!latest || ts > latest) return ts;
     return latest;
   }, null);
+}
+
+/**
+ * One sentence for the saved-readings list: what shows, what matches, and out
+ * of how many. `searched` is the number of readings a filter looked through.
+ */
+export function describeHistoryResults({ pending = false, visible = 0, matched = 0, searched = 0, filtersActive = false } = {}) {
+  const readings = (count) => `${count} ${count === 1 ? 'reading' : 'readings'}`;
+  if (pending) return `Showing ${visible} loaded ${visible === 1 ? 'reading' : 'readings'}`;
+  if (!filtersActive) {
+    return visible < matched ? `Showing ${visible} of ${readings(matched)}` : readings(matched);
+  }
+  if (matched === 0) return 'No readings match';
+  const match = `${matched} of ${readings(searched)} ${matched === 1 ? 'matches' : 'match'}`;
+  return visible < matched ? `${match} · showing ${visible}` : match;
 }

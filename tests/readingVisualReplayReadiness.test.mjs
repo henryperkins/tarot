@@ -1,3 +1,4 @@
+import { installJournalLocks } from './helpers/journalHookDriver.mjs';
 const modelClientEnv = { DEV: false, MODE: 'production', VITE_READING_ALIGNER_ENABLED: 'true', VITE_READING_MODEL_ANNOTATIONS: 'true' };
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -461,3 +462,5 @@ test('missing DO annotates original pending attachments while leaving complete, 
     assert.deepEqual(projectVisualReplayReadiness(terminal, {}), terminal);
   }
 });
+
+test.beforeEach(t => installJournalLocks(t));

@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { SPREADS } from '../../data/spreads';
 import { MAJOR_ARCANA } from '../../data/majorArcana';
 import { MINOR_ARCANA } from '../../data/minorArcana';
+import { toDeckCards } from '../../lib/journal/deckCards';
 
 // A neutral card back, never another card's art.
 const FALLBACK_IMAGE = '/images/cards/card-back.jpeg';
@@ -161,6 +162,8 @@ function NoteAvatars({ notes }) {
 
 export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelectPosition }) {
   const positions = useMemo(() => deriveSpreadPositions(entry), [entry]);
+  // The reading's own deck: its art and card names, meanings by canonical name.
+  const deckCards = useMemo(() => toDeckCards(entry?.cards, entry?.deckId), [entry]);
   const noteMap = useMemo(() => mapNotes(notes), [notes]);
   // Track which images have failed to prevent infinite error loops
   const failedImagesRef = useRef(new Set());
@@ -198,7 +201,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
   return (
     <div className="space-y-6">
       <ul className={`${gridClass} gap-4`} role="list" aria-label="Cards in this spread">
-        {entry.cards?.map((card, index) => {
+        {deckCards.map((card, index) => {
           const positionLabel = card.position || positions[index] || `Card ${index + 1}`;
           const positionKey = normalizePosition(positionLabel);
           const positionNotes = noteMap[positionKey] || [];
@@ -225,7 +228,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                   ${entry.spreadKey === 'celtic' ? 'modern-surface' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-[0.2em] text-secondary">{positionLabel}</p>
+                  <p className="text-xs uppercase tracking-label text-secondary">{positionLabel}</p>
                   {positionNotes.length > 0 && (
                     <span className="rounded-full bg-secondary/10 px-2 py-0.5 text-xs text-secondary">
                       {positionNotes.length} note{positionNotes.length === 1 ? '' : 's'}
@@ -245,7 +248,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
                     />
                   </div>
                   <p className="mt-3 font-serif text-lg text-main">{card.name}</p>
-                  <span className="text-xs uppercase tracking-[0.2em] text-secondary">{orientation}</span>
+                  <span className="text-xs uppercase tracking-label text-secondary">{orientation}</span>
                   <p className="mt-2 text-sm text-muted line-clamp-3">{meaning}</p>
                 </div>
 
@@ -269,7 +272,7 @@ export function SharedSpreadView({ entry, notes = [], selectedPosition, onSelect
           className="rounded-2xl border border-secondary/20 bg-surface/70 p-4 shadow-inner"
           aria-labelledby="general-notes-heading"
         >
-          <h3 id="general-notes-heading" className="text-xs uppercase tracking-[0.3em] text-secondary">
+          <h3 id="general-notes-heading" className="text-xs uppercase tracking-label-wide text-secondary">
             Whole spread reflections
           </h3>
           <div

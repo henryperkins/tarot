@@ -30,6 +30,21 @@ const SPINE_ELEMENTS = {
 };
 
 const MIN_SENTENCE_WORDS = 5;
+const UNSPACED_WORD_SCRIPTS = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+const WORD_CHARACTERS = /[\p{L}\p{N}]/u;
+const wordSegmenter = typeof Intl.Segmenter === 'function'
+  ? new Intl.Segmenter('und', { granularity: 'word' })
+  : null;
+
+function countSentenceWords(text) {
+  // Japanese and Chinese words need linguistic boundaries, not ASCII spaces.
+  // If segmentation is unavailable, keep the existing conservative word rule.
+  if (wordSegmenter && UNSPACED_WORD_SCRIPTS.test(text)) {
+    return [...wordSegmenter.segment(text)].filter(segment => segment.isWordLike).length;
+  }
+  return text.split(/\s+/).filter(word => WORD_CHARACTERS.test(word)).length;
+}
+
 // Match explicit card/position/spine headers - NOT generic colon sentences.
 // We extract the header text first, then apply strict heuristics to avoid false positives
 // like "You might experiment today:" while still catching "Card 1:" or "WHAT:".
@@ -63,7 +78,15 @@ const STRUCTURAL_HEADERS = new Set([
   'final thoughts',
   'closing thoughts',
   'invitation',
-  'final invitation'
+  'final invitation',
+  // Common Japanese opening, synthesis, next-step and closing headings.
+  'はじめに',
+  'はじまりに',
+  '全体の流れ',
+  'まとめ',
+  '小さな次の一歩',
+  'むすび',
+  'おわりに'
 ]);
 
 const STRUCTURAL_HEADER_PREFIXES = [
@@ -171,7 +194,7 @@ function isLikelyColonHeader(header = '') {
 function segmentSentences(text) {
   if (!text || typeof text !== 'string') return [];
   return text
-    .split(/(?<=[.!?])\s+|\n+/)
+    .split(/(?<=[.!?])\s+|(?<=[。！？])\s*|\n+/u)
     .map(sentence => sentence.trim())
     .filter(Boolean);
 }
@@ -250,7 +273,7 @@ function detectWhatClause(text, sentences, cardPattern = null) {
   return sentences.some(sentence => {
     const trimmed = sentence.trim();
     if (!trimmed) return false;
-    if (trimmed.split(/\s+/).length < MIN_SENTENCE_WORDS) return false;
+    if (countSentenceWords(trimmed) < MIN_SENTENCE_WORDS) return false;
     return CARD_CONTEXT_PATTERN.test(trimmed) && DESCRIPTIVE_VERB_PATTERN.test(trimmed);
   });
 }
@@ -567,7 +590,7 @@ export function validateReadingNarrative(readingText, options = {}) {
     // should not fail WHAT just because it shortens the card name.
     const headerNamesCard = isCard &&
       hasCardReference(section.header, cardPattern) &&
-      segmentSentences(section.content).some(sentence => sentence.split(/\s+/).length >= MIN_SENTENCE_WORDS);
+      segmentSentences(section.content).some(sentence => countSentenceWords(sentence) >= MIN_SENTENCE_WORDS);
     return {
       header: section.header,
       isCardSection: isCard,

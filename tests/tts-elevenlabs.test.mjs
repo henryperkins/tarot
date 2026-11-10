@@ -11,7 +11,7 @@ const configuration = { ELEVENLABS_API_KEY: TEST_KEY };
 const request = (body, { stream = false, signal } = {}) => new Request(`https://example.test/api/tts${stream ? '?stream=true' : ''}`, {
   method: 'POST',
   headers: { 'content-type': 'application/json', 'cf-connecting-ip': '192.0.2.51' },
-  body: JSON.stringify(body),
+  body: JSON.stringify({ provider: 'elevenlabs', ...body }),
   signal
 });
 const usage = DB => DB.rows('SELECT used, reserved FROM narration_monthly_usage');
@@ -42,9 +42,9 @@ function deferred() {
 
 test('ElevenLabs health reflects default and overridden server configuration without exposing its key', async () => {
   const defaults = await (await onRequestGet({ env: configuration })).json();
-  assert.equal(defaults.provider, 'elevenlabs');
-  assert.equal(defaults.model, DEFAULT_MODEL);
-  assert.equal(defaults.voice, DEFAULT_VOICE);
+  const elevenlabs = defaults.providers.find(provider => provider.id === 'elevenlabs');
+  assert.equal(elevenlabs.model, DEFAULT_MODEL);
+  assert.equal(elevenlabs.voice, DEFAULT_VOICE);
   assert.equal(defaults.format, 'mp3');
   assert.equal(defaults.maxCharacters, 64000);
   assert.ok(!JSON.stringify(defaults).includes(TEST_KEY));
@@ -54,8 +54,9 @@ test('ElevenLabs health reflects default and overridden server configuration wit
     ELEVENLABS_VOICE_ID: ' custom-voice ',
     ELEVENLABS_MODEL_ID: ' custom-model '
   } })).json();
-  assert.equal(override.voice, 'custom-voice');
-  assert.equal(override.model, 'custom-model');
+  const overridden = override.providers.find(provider => provider.id === 'elevenlabs');
+  assert.equal(overridden.voice, 'custom-voice');
+  assert.equal(overridden.model, 'custom-model');
 });
 
 test('narration health describes both choices and their configured availability without synthesis', async t => {
@@ -127,7 +128,7 @@ test('server voice and model overrides are used for synthesis', async t => {
 test('blank ElevenLabs configuration preserves Aura narration without outbound REST requests', async t => {
   const calls = mockProvider(t);
   const auraCalls = [];
-  const response = await onRequestPost({ request: request({ text: 'A reading.' }), env: {
+  const response = await onRequestPost({ request: request({ text: 'A reading.', provider: undefined }), env: {
     ELEVENLABS_API_KEY: '  ',
     DB: await createD1(),
     AI: { async run(model, input) { auraCalls.push({ model, input }); return new Response('Aura MP3').body; } }

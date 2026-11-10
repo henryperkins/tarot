@@ -101,7 +101,7 @@ export function WelcomeHero({ onNext, onSkip }) {
         {/* Key principles - horizontal scroll in landscape, grid in portrait */}
         {isLandscape ? (
           <div
-            className={`mt-3 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-none ${
+            className={`mt-3 flex gap-3 overflow-x-auto overscroll-x-contain pb-2 snap-x snap-mandatory scrollbar-none ${
               prefersReducedMotion ? '' : 'animate-fade-in-up'
             }`}
             style={{ animationDelay: '0.4s' }}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { getCardThumbnailSrcSet } from '../../../lib/cardLookup';
 
-export function ReadingCardFigure({ card, onSelectCard, compact = false, numbered = false, children }) {
+export function ReadingCardFigure({ card, onSelectCard, compact = false, numbered = false, imageSizes, children }) {
   const inspect = event => {
     onSelectCard?.(card.index, { triggerElement: event.currentTarget });
   };
@@ -10,11 +10,13 @@ export function ReadingCardFigure({ card, onSelectCard, compact = false, numbere
       aria-haspopup="dialog"
       aria-label={`${card.fullPositionLabel || card.positionLabel}: ${card.name}, ${card.isReversed ? 'reversed' : 'upright'}. Open card`}
       onClick={inspect} style={{ '--reading-card-ratio': (!compact && card.overviewFrame) || card.frame || '100 / 172' }}>
-      <img src={(!compact && card.overviewImage) || card.image} alt={card.name} className={card.isReversed ? 'reading-card__image--reversed' : ''}
-        srcSet={getCardThumbnailSrcSet((!compact && card.overviewImage) || card.image)}
-        sizes={compact ? '72px' : '(max-width: 640px) 30vw, 160px'}
-        loading="eager" decoding="async" />
-      {numbered && <span className="reading-card__number" aria-hidden="true">{card.index + 1}</span>}
+      <span className="reading-card__frame">
+        <img src={(!compact && card.overviewImage) || card.image} alt={card.name} className={card.isReversed ? 'reading-card__image--reversed' : ''}
+          srcSet={getCardThumbnailSrcSet((!compact && card.overviewImage) || card.image)}
+          sizes={imageSizes || (compact ? '72px' : '(max-width: 640px) 30vw, 160px')}
+          loading="eager" decoding="async" />
+        {numbered && <span className="reading-card__number" aria-hidden="true">{card.index + 1}</span>}
+      </span>
     </button>
     <figcaption>
       <span className="reading-card__position">{card.positionLabel}</span>
@@ -28,6 +30,14 @@ export function ReadingSpread({ cards = [], onSelectCard, spreadName, showSummar
   const [list, setList] = useState(false);
   if (!cards.length) return null;
   const celtic = cards.length === 10;
+  const smallImageSizes = cards.length === 1 ? '144px' : cards.length === 2
+    ? '(max-width: 363px) calc((100vw - 44px) / 2), 160px'
+    : '(max-width: 363px) calc((100vw - 44px) / 2), (max-width: 391px) 160px, (max-width: 535px) calc((100vw - 56px) / 3), 160px';
+  // The final card can grow to the 160px cap when it wraps onto its own row.
+  const finalSmallImageSizes = '(max-width: 391px) 160px, (max-width: 535px) calc((100vw - 56px) / 3), 160px';
+  const imageSizes = celtic && !list ? '(max-width: 410px) 19vw, 75px'
+    : list ? '64px' : cards.length > 3 ? '108px' : cards.length === 1 ? '144px'
+      : smallImageSizes;
   const reversed = cards.filter(card => card.isReversed).length;
   const majors = cards.filter(card => card.number !== null && card.number !== undefined).length;
 
@@ -38,7 +48,8 @@ export function ReadingSpread({ cards = [], onSelectCard, spreadName, showSummar
     </div>}
     <div className={`reading-spread__cards ${celtic && !list ? 'reading-spread__cards--celtic' : list ? 'reading-spread__cards--list' : cards.length > 3 ? 'reading-spread__cards--many' : 'reading-spread__cards--small'}`}
       data-card-count={cards.length}>
-      {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} numbered={celtic && !list} />)}
+      {cards.map((card, index) => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard}
+        imageSizes={cards.length === 3 && index === 2 ? finalSmallImageSizes : imageSizes} numbered={celtic && !list} />)}
     </div>
     {celtic && !list && <p className="reading-spread__hint">Tap a card to explore its position</p>}
     {cards.length > 3 && !celtic && <p className="reading-spread__hint">Scroll to see every card. Tap a card to explore it.</p>}
@@ -50,7 +61,7 @@ export function ReadingChapterCards({ cards, onSelectCard, children }) {
   return <div className="reading-chapter">
     {children}
     <div className="reading-chapter__cards">
-      {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} compact />)}
+      {cards.map(card => <ReadingCardFigure key={card.index} card={card} onSelectCard={onSelectCard} imageSizes="60px" compact />)}
     </div>
   </div>;
 }

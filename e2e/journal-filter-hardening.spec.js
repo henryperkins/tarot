@@ -27,7 +27,9 @@ for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const fixture = await openFilters(page);
     try {
-      const trigger = page.getByRole('button', { name: 'Timeframe', exact: true });
+      // The trigger's name carries its choice ("Timeframe: 30 days") and contains the visible text.
+      const trigger = page.getByRole('button', { name: /^Timeframe(: .+)?$/ });
+      await expect(trigger).toHaveAccessibleName('Timeframe');
       await trigger.press('Enter');
       const listbox = page.getByRole('listbox', { name: 'Timeframe', exact: true });
       await expect(listbox).toBeVisible();
@@ -43,6 +45,8 @@ for (const width of [320, 1440]) {
       await expect(listbox).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await expect(trigger).toContainText('30 days');
+      await expect(trigger).toHaveAccessibleName('Timeframe: 30 days');
+      await expect(trigger).not.toHaveAttribute('aria-pressed');
       await trigger.press('ArrowUp');
       await expect(listbox.getByRole('option', { name: '30 days', exact: true })).toBeFocused();
       await page.keyboard.press('Escape');
@@ -80,12 +84,12 @@ for (const theme of ['dark', 'light']) {
     const fixture = await openFilters(page, theme);
     try {
       await page.evaluate(() => document.fonts.ready);
-      const anyDate = page.getByText('Any date', { exact: true }).filter({ visible: true }).first();
+      const anyDate = page.getByRole('button', { name: 'Timeframe', exact: true });
       const ratios = await anyDate.evaluate(node => {
         const rgb = value => {
-          if (value.startsWith('#')) return [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16)).concat(1);
-          const parts = value.match(/[\d.]+/g).map(Number);
-          return parts.length === 3 ? [...parts, 1] : parts;
+          const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+          const context = canvas.getContext('2d'); context.fillStyle = value; context.fillRect(0, 0, 1, 1);
+          const color = [...context.getImageData(0, 0, 1, 1).data]; return [...color.slice(0, 3), color[3] / 255];
         };
         const composite = (front, back) => front.slice(0, 3).map((value, i) => value * front[3] + back[i] * (1 - front[3])).concat(1);
         const lum = color => color.slice(0, 3).map(v => v / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((total, v, i) => total + v * [0.2126, 0.7152, 0.0722][i], 0);

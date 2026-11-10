@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, startReading, QUESTION } from './helpers/narrativeFixtures.js';
 
@@ -61,7 +61,7 @@ for (const width of [320, 390, 1280]) {
         await expect(page.getByRole('heading', { name: 'A shared reading' })).toBeVisible();
         await screenshot(page, testInfo, 'share');
         await expectAccessible(page);
-        await expect(page.getByRole('link', { name: 'Account', exact: true })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
         const card = page.getByRole('button', { name: /Past: Queen of Cups/ }).filter({ visible: true });
         await expect(card).toHaveAttribute('aria-pressed', 'true');
         await card.click();
@@ -72,6 +72,7 @@ for (const width of [320, 390, 1280]) {
         await page.setViewportSize({ width, height: 900 });
         await prepare(page, theme);
         await page.goto('/');
+        await openAccountOptions(page);
         await page.getByRole('button', { name: 'Sign In', exact: true }).filter({ visible: true }).first().click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await screenshot(page, testInfo, 'auth');
@@ -87,7 +88,7 @@ for (const width of [320, 390, 1280]) {
           await page.locator('#question-input, #quick-intention').filter({ visible: true }).first().fill(QUESTION);
           await page.getByRole('button', { name: /^Draw cards$/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Deal spread/ }).filter({ visible: true }).first().click();
-          await page.getByRole('button', { name: /^Reveal all cards/ }).filter({ visible: true }).first().click();
+          await page.getByRole('button', { name: /^Reveal remaining cards/ }).filter({ visible: true }).first().click();
           await page.getByRole('button', { name: /^Interpret cards/ }).filter({ visible: true }).first().click();
           await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
           await expect(page.locator('[data-scene="interlude"]')).toBeVisible();
@@ -154,8 +155,12 @@ for (const width of [320, 390, 1280]) {
       await page.goto('/journal');
       // Deferred journey controls and scroll-triggered controls must exist before
       // recording the page's natural Tab destinations.
+      const journeyDisclosure = page.locator('summary').filter({ hasText: /Your reading journey/i });
+      if (width < 1024) await journeyDisclosure.click();
       await expect(page.getByRole('heading', { name: /^Your (Reading )?Journey/ }).filter({ visible: true }).first()).toBeVisible();
-      const trigger = page.getByRole('button', { name: 'Open entry actions', exact: true }).filter({ visible: true }).first();
+      // Entry actions belong to the open reading.
+      await page.getByTitle('Expand entry', { exact: true }).first().click();
+      const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
       await trigger.scrollIntoViewIfNeeded();
       await trigger.focus();
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -168,6 +173,7 @@ for (const width of [320, 390, 1280]) {
       await page.keyboard.press('Enter');
       await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
       await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
@@ -182,12 +188,14 @@ for (const width of [320, 390, 1280]) {
       await page.keyboard.press('Shift+Tab');
       await expect(page.getByRole('menu')).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => document.activeElement === window.__beforeEntryActions)).toBe(true);
-      const expand = page.getByTitle('Expand entry', { exact: true }).first();
-      await expand.click();
-      const collapse = page.getByTitle('Collapse entry', { exact: true }).first();
-      await expect(collapse).toBeFocused();
-      await collapse.click();
-      await expect(expand).toBeFocused();
+      // Toggling keeps focus on the reading's own toggle, closed and open.
+      const toggle = page.locator('#history article').first().locator('[data-journal-entry-toggle]');
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('title', 'Expand entry');
+      await expect(toggle).toBeFocused();
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('title', 'Collapse entry');
+      await expect(toggle).toBeFocused();
     });
   });
 }
@@ -253,7 +261,8 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
     await route.fulfill({ json: { ok: true } });
   });
   await page.goto('/journal');
-  const trigger = page.getByRole('button', { name: 'Open entry actions', exact: true }).filter({ visible: true }).first();
+  await page.getByTitle('Expand entry', { exact: true }).first().click();
+  const trigger = page.getByRole('button', { name: /^Open entry actions for / }).filter({ visible: true }).first();
   await trigger.click();
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   const removeLink = page.getByRole('menuitem', { name: 'Delete', exact: true });
@@ -264,7 +273,7 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
   await page.keyboard.press('End');
   await expect(removeLink).toBeFocused();
   await page.keyboard.press('ArrowUp');
-  await expect(page.getByRole('menuitem', { name: 'Copy', exact: true })).toBeFocused();
+  await expect(page.getByRole('menuitem', { name: 'Copy link', exact: true })).toBeFocused();
   await page.keyboard.press('Home');
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -273,11 +282,22 @@ test('active share links remain reachable with menu arrow keys', async ({ page }
   await expect(page.getByRole('menuitem', { name: 'Copy CSV' })).toBeFocused();
   await page.keyboard.press('End');
   await expect(removeLink).toBeFocused();
+  // Deleting a link asks first: focus moves to the safe choice, and Escape
+  // backs out of the question without closing the menu.
+  await page.keyboard.press('Enter');
+  const keepLink = page.getByRole('menuitem', { name: 'Keep link', exact: true });
+  await expect(keepLink).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(removeLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(keepLink).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('menuitem', { name: 'Delete link', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(trigger).toBeFocused();
   finishDeletion();
-  await expect(page.getByText('Share link removed.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Deleted “Shared reflection”. It no longer opens.', { exact: true })).toBeVisible();
   await expect(trigger).toBeFocused();
 });
 
@@ -293,13 +313,13 @@ test('route navigation updates titles, focuses content and announces the destina
     await route.continue();
   });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Journal', exact: true }).filter({ visible: true }).first().click();
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Journal', exact: true }).filter({ visible: true }).first().click();
   await requestStarted;
   releaseJournal();
   await expect(page).toHaveTitle('Journal — Tableu');
   await expect(page.locator('#main-content')).toBeFocused();
   await expect(page.getByRole('status').filter({ hasText: 'Journal page loaded' })).toBeAttached();
-  const reading = page.getByRole('button', { name: 'Reading', exact: true }).filter({ visible: true }).first();
+  const reading = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).filter({ visible: true }).first();
   await reading.focus();
   await page.evaluate(() => {
     history.pushState(null, '', '/journal?view=cards');

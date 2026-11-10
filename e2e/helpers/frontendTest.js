@@ -1,6 +1,23 @@
 import { test as base, expect } from '@playwright/test';
 
 export { expect };
+
+/** Open the shared guest disclosure without toggling an already-open panel. */
+export async function openAccountOptions(page) {
+  await page.locator('[data-app-header] .guest-signin-button, summary[aria-label="Account options"]').first().waitFor();
+  const directSignIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+  if (await directSignIn.count()) {
+    await expect(directSignIn).toBeVisible();
+    return directSignIn;
+  }
+  const summary = page.locator('summary[aria-label="Account options"]');
+  await expect(summary).toBeVisible();
+  const disclosure = summary.locator('..');
+  if (!await disclosure.evaluate(element => element.open)) await summary.click();
+  await expect(disclosure).toHaveAttribute('open', '');
+  return summary;
+}
+
 export const test = base.extend({
   verifiedMotion: [async ({ page, context, contextOptions }, use, testInfo) => {
     const expected = contextOptions.reducedMotion || 'no-preference';

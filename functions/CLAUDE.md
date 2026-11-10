@@ -18,9 +18,13 @@ steps. CI uses Node 24 and root tests cover Worker MCP.
   request ids, tokens or timestamps. Map plan and limit errors to neutral text.
 - Personal HTTP journal saves keep seed deduplication; MCP saves use the reading
   request identity. Preserve atomic SQL admission and compare-and-swap writes.
-- HTTP reflections retain append/replace, repeated append, and `entry.id`; MCP
-  reflections are append-only with exact retry deduplication. Select policy only
-  in the trusted caller, never from request JSON. Preserve raw text in both.
+- HTTP reflections retain append/replace, repeated append, and `entry.id`, plus
+  `remove` for the journal editor; MCP reflections are append-only with exact
+  retry deduplication. Select policy only in the trusted caller, never from
+  request JSON. Preserve raw text in both.
+- The journal editor supplies an optional HTTP append `expectedText` precondition
+  to recognize an uncertain save's retry. Keep ordinary repeated appends intact
+  when it is absent, and reject conflicting edits without replacing other notes.
 - Keep canonical card identity for images and deck-specific display labels.
   Reusable Thoth labels must resolve to the same card when a tool call is retried.
 - Personal journal routes reject `GPT_SERVICE_TOKEN` and `GPT_OWNER_TOKEN` with
@@ -30,8 +34,8 @@ steps. CI uses Node 24 and root tests cover Worker MCP.
 
 Use `.dev.vars` locally and `wrangler secret put <NAME> --config wrangler.jsonc`
 for separately authorized remote configuration. Never log values or user data.
-- `OPENAI_API_KEY` — OpenAI native Responses API key; provider selection follows the configured backend.
-- `ANTHROPIC_API_KEY` — Claude Messages API key. When set, Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`) is the first provider for readings, follow-up answers and journal summaries; `TEXT_PROVIDER=claude-code` still overrides it. Suggested questions don't use it: they run on Workers AI (`QUESTION_MODEL`, default `@cf/zai-org/glm-5.3`, at `QUESTION_REASONING_EFFORT` `high`) and fall back to the spread-aware local templates.
+- `OPENAI_API_KEY` — OpenAI native Responses API key. When set, the Responses API (`OPENAI_MODEL`) is the first provider for readings; follow-up answers and journal summaries try it after Claude.
+- `ANTHROPIC_API_KEY` — Claude Messages API key. When set, Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`) is the first provider for follow-up answers and journal summaries, and the next reading provider after the Responses API; `TEXT_PROVIDER=claude-code` still overrides it. Suggested questions don't use it: they run on Workers AI (`QUESTION_MODEL`, default `@cf/zai-org/glm-5.3`, at `QUESTION_REASONING_EFFORT` `high`) and fall back to the spread-aware local templates.
 - `VISION_PROOF_SECRET`
 - `EMAIL` `send_email` binding (Cloudflare Email Service) — email delivery for auth, billing and alerts, sent from `ALERT_EMAIL_FROM`; `RESEND_API_KEY` is only a fallback when the binding is absent
 - `ADMIN_API_KEY` — Admin endpoints

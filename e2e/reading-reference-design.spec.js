@@ -24,6 +24,49 @@ test('reading overview, contents and journal actions preserve the complete origi
   }
 });
 
+test('Save and Ask stay in the first screen on a 900px desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const fixture = await createNarrativeFixture(page, { narrative: 'The Star asks for one quiet, repeatable step.' });
+  try {
+    await startReading(page, fixture);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByRole('button', { name: 'Save to journal', exact: true }).filter({ visible: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true })).toBeInViewport();
+  } finally {
+    await fixture.close();
+  }
+});
+
+for (const textScale of [100, 200]) {
+  test(`desktop reading actions keep keyboard-focused prose clear at ${textScale}% text`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const narrative = Array.from({ length: 12 }, (_, index) => `## Reflection ${index + 1}\n\nNotice what helps you return to a steadier rhythm. Choose one small action you can keep. [Reflection guide ${index + 1}](https://example.invalid/guide-${index + 1})`).join('\n\n');
+    const fixture = await createNarrativeFixture(page, { narrative });
+    try {
+      await startReading(page, fixture, { complete: false });
+      await fixture.emit('reading', 'done', { fullText: narrative, provider: 'fixture', requestId: 'reading-actions-focus' });
+      const actions = page.locator('.reading-completion-actions');
+      await expect(actions).toBeVisible();
+      if (textScale === 200) await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+      const target = page.getByRole('link', { name: 'Reflection guide 7', exact: true });
+      const previous = page.getByRole('link', { name: 'Reflection guide 6', exact: true });
+      const actionBox = await actions.boundingBox();
+      // Reproduce native Tab navigation to content that starts behind the row.
+      await target.evaluate((element, y) => window.scrollBy(0, element.getBoundingClientRect().top - y), actionBox.y + 8);
+      await previous.evaluate(element => element.focus({ preventScroll: true }));
+      await page.keyboard.press('Tab');
+      await expect(target).toBeFocused();
+      await expect.poll(() => target.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return box.top >= 0 && box.bottom <= innerHeight
+          && element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+      })).toBe(true);
+    } finally {
+      await fixture.close();
+    }
+  });
+}
+
 test('setext reading headings render and their contents links reach the original source destinations', async ({ page }) => {
   const narrative = 'Opening\n=======\n\nA quiet beginning.\n\nClosing\n=======\n\nAn ending worth keeping.';
   const fixture = await createNarrativeFixture(page, { narrative });
@@ -50,7 +93,8 @@ test('Celtic Cross spread, card list and inspection retain ten original occurren
     await openSetup(page);
     await page.getByRole('radio', { name: /Celtic Cross/ }).click();
     await startReading(page, fixture, { setup: false, complete: false });
-    await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+    const fullSpread = page.locator('details.reading-preparation__spread > summary');
+    await fullSpread.click();
     const overview = page.locator('[data-reading-overview]');
     await expect(overview.locator('img')).toHaveCount(10);
     const names = await overview.locator('img').evaluateAll(images => images.map(image => image.alt));
@@ -66,7 +110,7 @@ test('Celtic Cross spread, card list and inspection retain ten original occurren
     await expect(overview.locator('.reading-spread__cards--list')).toBeVisible();
     expect(await overview.locator('img').evaluateAll(images => images.map(image => image.alt))).toEqual(names);
     await expectNoHorizontalOverflow(page, '.reading-screen');
-    await page.getByRole('button', { name: 'View reading status', exact: true }).click();
+    await fullSpread.click();
     await fixture.emit('reading', 'done', { provider: 'fixture', requestId: 'reference-celtic', fullText:
       `## Opening\n\nA reflection on your question.\n\n## The Heart of It\n\n**${names[0]}** and **${names[1]}** invite you to consider what is happening now.\n\n## Closing\n\nTake one useful reflection with you.` });
     await expect(page.locator('.reading-chapter__cards img')).toHaveCount(2);
@@ -123,19 +167,19 @@ test('larger text and light theme keep the last section above the dock and contr
     await startReading(page, fixture);
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
     await page.getByRole('button', { name: /^Contents/ }).click();
-    await expect.poll(() => page.locator('.reading-wayfinding').evaluate(toolbar => ({
-      position: getComputedStyle(toolbar).position,
-      gap: toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
-    }))).toMatchObject({ position: 'static', gap: expect.any(Number) });
-    const gap = await page.locator('.reading-wayfinding').evaluate(toolbar =>
-      toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom);
-    expect(gap).toBeGreaterThanOrEqual(0);
+    // The shared chrome coordinator releases the toolbar into normal flow.
+    // Its unpinned rule uses relative positioning with no positional offset.
+    await expect(page.locator('.reading-wayfinding')).toHaveAttribute('data-chrome-pinned', 'false');
+    await expect(page.locator('.reading-wayfinding')).toHaveCSS('position', 'relative');
+    await expect.poll(() => page.locator('.reading-wayfinding').evaluate(toolbar =>
+      toolbar.closest('.reading-screen__column').querySelector('[data-reading-section]').getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom
+    )).toBeGreaterThanOrEqual(0);
     await page.getByRole('navigation', { name: 'Reading contents' }).getByRole('link', { name: 'Reflection', exact: true }).click();
     const last = page.getByText('What would enough look like today? Use what resonates, and set aside what does not.', { exact: true });
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
     await expectNoHorizontalOverflow(page, '.reading-screen');
-    const accessibility = await new AxeBuilder({ page }).include('.reading-screen').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+    const accessibility = await new AxeBuilder({ page }).include('.reading-screen').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     expect(accessibility.violations).toEqual([]);
   } finally {
     await fixture.close();
@@ -147,17 +191,11 @@ test('preparation can show the drawn cards and cancel without replacing the spre
   try {
     await startReading(page, fixture, { complete: false });
     await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+    await page.locator('details.reading-preparation__spread > summary').click();
     await expect(page.locator('[data-reading-overview] img')).toHaveCount(3);
-    await page.getByRole('button', { name: 'View reading status', exact: true }).click();
-    let cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
-    if (page.viewportSize().width < 769) {
-      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
-      const settings = page.getByRole('dialog').filter({ visible: true });
-      await expect(settings).toBeVisible();
-      cancel = settings.getByRole('button', { name: 'Cancel generation', exact: true });
-      await expect(cancel).toBeEnabled();
-    }
+    const cancel = page.getByRole('button', { name: 'Cancel generation', exact: true });
+    await expect(page.locator('.reading-preparation__status')).toBeVisible();
+    await expect(cancel).toBeEnabled();
     const cancelRequest = page.waitForRequest(request => request.url().endsWith('/cancel') && request.method() === 'POST');
     await cancel.click();
     await cancelRequest;
@@ -175,9 +213,10 @@ test.describe('reading with normal motion', () => {
     const fixture = await createNarrativeFixture(page);
     try {
       await startReading(page, fixture, { complete: false });
-      await page.getByRole('button', { name: 'View drawn cards', exact: true }).click();
+      const fullSpread = page.locator('details.reading-preparation__spread > summary');
+      await fullSpread.click();
       const names = await page.locator('[data-reading-overview] img').evaluateAll(images => images.map(image => image.alt));
-      await page.getByRole('button', { name: 'View reading status', exact: true }).click();
+      await fullSpread.click();
       const fullText = '## Opening\n\nA quiet beginning.\n\n## The Story\n\n### The Past: ' + names[0]
         + ' Upright\n\nA place to begin.\n\n### The Present: ' + names[1]
         + ' Reversed\n\nA moment to notice.\n\n### The Future: ' + names[2]

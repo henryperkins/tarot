@@ -11,14 +11,22 @@
 // It can be extended in the future to attach richer retrieval metadata
 // (e.g., external passages keyed by pattern id) without changing callers.
 
+import { groupGraphCardIdentities } from './graphCardMembership.js';
 import { detectAllPatterns, getPriorityPatternNarratives } from './knowledgeGraph.js';
 
-function buildGraphKeys(patterns) {
+function buildGraphKeys(patterns, cardsInfo, deckStyle) {
     if (!patterns || typeof patterns !== 'object') {
         return null;
     }
 
-    const keys = {};
+    const majorCards = groupGraphCardIdentities(cardsInfo, { deckStyle }).members.map(member => member.card).filter((card) => Number.isInteger(card?.number)
+        && card.number >= 0 && card.number <= 21);
+    const majorNumbers = [...new Set(majorCards.map((card) => card.number))].sort((a, b) => a - b);
+
+    const keys = {
+        totalMajors: majorNumbers.length,
+        majorNumbers
+    };
 
     // Fool's Journey: expose both the human-friendly stage label and the
     // underlying key used in FOOLS_JOURNEY so retrieval/training can use
@@ -27,11 +35,7 @@ function buildGraphKeys(patterns) {
         keys.foolsJourneyStageKey = patterns.foolsJourney.stageKey || null;
         keys.foolsJourneyStage = patterns.foolsJourney.stage || null;
         keys.foolsJourneySignificance = patterns.foolsJourney.significance || null;
-        keys.totalMajors = typeof patterns.foolsJourney.totalMajors === 'number'
-            ? patterns.foolsJourney.totalMajors
-            : null;
-
-        if (patterns.foolsJourney.totalMajors === 1) {
+        if (keys.totalMajors === 1) {
             const singleMajor = Array.isArray(patterns.foolsJourney.cards)
                 ? patterns.foolsJourney.cards[0]
                 : null;
@@ -59,6 +63,14 @@ function buildGraphKeys(patterns) {
         keys.completeTriadIds = [];
     }
 
+    keys.partialTriads = (patterns.triads || [])
+        .filter((triad) => !triad.isComplete)
+        .map((triad) => ({
+            id: triad.id,
+            matchedCards: [...triad.matchedCards],
+            missingCards: [...triad.missingCards]
+        }));
+
     // Dyads: capture numeric card pairs plus semantic category and significance.
     if (Array.isArray(patterns.dyads) && patterns.dyads.length > 0) {
         keys.dyadPairs = patterns.dyads.map((dyad) => ({
@@ -75,7 +87,9 @@ function buildGraphKeys(patterns) {
         keys.suitProgressions = patterns.suitProgressions.map((prog) => ({
             suit: prog.suit,
             stage: prog.stage,
-            significance: prog.significance
+            significance: prog.significance,
+            matchedCardKeys: groupGraphCardIdentities(prog.stageCards, { deckStyle }).members.map(member => member.canonicalKey),
+            matchedCardIndices: [...prog.matchedCardIndices]
         }));
     } else {
         keys.suitProgressions = [];
@@ -85,7 +99,9 @@ function buildGraphKeys(patterns) {
     if (Array.isArray(patterns.courtLineages) && patterns.courtLineages.length > 0) {
         keys.courtLineages = patterns.courtLineages.map((lineage) => ({
             suit: lineage.suit,
-            significance: lineage.significance
+            significance: lineage.significance,
+            matchedCardKeys: groupGraphCardIdentities(lineage.cards, { deckStyle }).members.map(member => member.canonicalKey),
+            matchedCardIndices: [...lineage.matchedCardIndices]
         }));
     } else {
         keys.courtLineages = [];
@@ -115,8 +131,8 @@ function buildGraphKeys(patterns) {
  * @param {string} [options.deckStyle='rws-1909'] - Deck style key used for
  *   deck-aware naming and pattern selection.
  * @returns {Object|null} An object with the detected `patterns`,
- *   `narrativeHighlights`, and stable `graphKeys`, or null when no patterns
- *   are found.
+ *   `narrativeHighlights`, and stable `graphKeys`, or null for empty input.
+ *   Nonempty spreads retain graph facts even without a pattern.
  */
 export function buildGraphContext(cardsInfo, options = {}) {
     const deckStyle = options.deckStyle || 'rws-1909';
@@ -125,13 +141,10 @@ export function buildGraphContext(cardsInfo, options = {}) {
         return null;
     }
 
-    const patterns = detectAllPatterns(cardsInfo, { deckStyle });
-    if (!patterns) {
-        return null;
-    }
+    const patterns = detectAllPatterns(cardsInfo, { deckStyle }) || {};
 
     const narrativeHighlights = getPriorityPatternNarratives(patterns, deckStyle) || [];
-    const graphKeys = buildGraphKeys(patterns);
+    const graphKeys = buildGraphKeys(patterns, cardsInfo, deckStyle);
 
     return {
         patterns,

@@ -18,6 +18,7 @@ import { parseMinorName } from './minorMeta.js';
 import { sanitizeReadingCard } from './readingCardContext.js';
 import { getLeadingKeys, getUniqueLeader } from '../../shared/utils.js';
 import { getDeckSuitAlias } from '../../shared/vision/deckAssets.js';
+import { usesThreeCardTimeline } from './spreadContracts.js';
 
 /**
  * Traditional elemental correspondences for Major Arcana
@@ -222,6 +223,29 @@ export function getCardElement(cardName, cardNumber, cardSuit) {
 }
 
 /**
+ * Name the drawn cards behind each reversal and element total, counting each
+ * position once with the same rules as analyzeSpreadThemes. Readings that had
+ * to count these themselves have miscounted reversals and missed Major
+ * elemental associations (The Hermit is Earth).
+ *
+ * @param {Array} cardsInfo - Drawn cards with card, orientation and number/suit
+ * @returns {{ total: number, reversed: string[], elements: Object<string, string[]>, unmapped: string[] }}
+ */
+export function getDrawnCardTallies(cardsInfo) {
+  const tallies = { total: 0, reversed: [], elements: { Fire: [], Water: [], Air: [], Earth: [] }, unmapped: [] };
+  for (const card of Array.isArray(cardsInfo) ? cardsInfo : []) {
+    if (!card || typeof card !== 'object') continue;
+    const name = typeof card.card === 'string' ? card.card : '';
+    tallies.total += 1;
+    if (String(card.orientation || '').toLowerCase() === 'reversed') tallies.reversed.push(name);
+    const element = getCardElement(card.card, getCardNumber(card), card.suit);
+    if (element && tallies.elements[element]) tallies.elements[element].push(name);
+    else tallies.unmapped.push(name);
+  }
+  return tallies;
+}
+
+/**
  * Analyze elemental dignity (interaction between two cards)
  *
  * Traditional elemental dignities:
@@ -322,6 +346,8 @@ export function analyzeElementalDignity(card1, card2) {
  * @param {string} [options.reversalFrameworkOverride] - Force specific reversal framework
  * @param {boolean} [options.enableKnowledgeGraph=true] - Enable knowledge graph pattern detection
  * @param {Object} [options.env] - Environment object for Workers (used for feature flags)
+ * @param {Function} [options.onKnowledgeGraphError] - Called with the error when pattern
+ *   detection or the passage preview fails; the result then has no knowledge graph
  * @returns {Promise<Object>} Theme analysis results
  */
 export async function analyzeSpreadThemes(cardsInfo, options = {}) {
@@ -481,7 +507,9 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
           // Retrieve passages for frontend display
           const passages = retrievePassages(graphContext.graphKeys, {
             maxPassages: 5,
-            includeMetadata: true
+            includeMetadata: true,
+            deckStyle,
+            questionContext: options.questionContext || options.contextSelection?.graphRAGContext || 'general'
           });
           themes.knowledgeGraph.retrievedPassages = passages;
         }
@@ -490,6 +518,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
       console.error('Knowledge graph detection failed:', err);
       // Graceful degradation: continue without patterns
       themes.knowledgeGraph = null;
+      options.onKnowledgeGraphError?.(err);
     }
   }
 
@@ -716,6 +745,44 @@ function formatNameList(names) {
   if (names.length <= 1) return names.join('');
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+
+// Card meanings and dignity descriptions have no closing punctuation. End each
+// embedded fragment as a sentence so the text after it does not run on.
+function asSentence(text) {
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  if (!trimmed || /[.!?…]["'”’)\]]*$/.test(trimmed)) return trimmed;
+  const body = trimmed.replace(/[\s,;:]+$/, '');
+  return body ? `${body}.` : '';
+}
+
+// Dignity descriptions open with an element name or "Both". After a lead-in such
+// as "With your card," only "Both" is lowercased; element names stay capitalized.
+function continueSentence(description) {
+  return description.replace(/^Both\b/, 'both');
+}
+
+/**
+ * One sentence per elemental bridge to a shared card. When both bridges have the
+ * same description, because the two other cards share an element, a single
+ * sentence covers both instead of repeating it.
+ *
+ * @param {[string, Object|null]} first - Lead-in and dignity, e.g. ['With your card', youBridge]
+ * @param {[string, Object|null]} second - Lead-in and dignity for the other card
+ * @param {string} sharedLeadIn - Lead-in naming both, e.g. 'With your card and theirs alike'
+ * @returns {string[]} Zero to two sentences
+ */
+function describeBridges([firstLeadIn, firstBridge], [secondLeadIn, secondBridge], sharedLeadIn) {
+  const firstText = firstBridge?.description;
+  const secondText = secondBridge?.description;
+  if (firstText && firstText === secondText) {
+    // Matching amplified bridges mean all three cards share one element.
+    const text = firstBridge.relationship === 'amplified' ? firstText.replace(/^Both\b/, 'all three') : firstText;
+    return [`${sharedLeadIn}, ${text}.`];
+  }
+  return [[firstLeadIn, firstText], [secondLeadIn, secondText]]
+    .filter(([, text]) => text)
+    .map(([leadIn, text]) => `${leadIn}, ${continueSentence(text)}.`);
 }
 
 /**
@@ -1079,24 +1146,24 @@ function analyzeTimeline(past, present, future) {
   const presentToFuture = analyzeElementalDignity(present, future);
   const pastToFuture = analyzeElementalDignity(past, future);
 
-  let causality = `${past.card} in the past has led to ${present.card} in the present.`;
+  let causality = `The symbolic timeline relates ${past.card} in the Past position to ${present.card} in the Present position.`;
 
   if (pastToPresent.relationship === 'tension') {
-    causality += ` The transition from past to present involved friction and adjustment.`;
+    causality += ` These two cards have elemental tension, which can be explored as a symbolic contrast.`;
   } else if (pastToPresent.relationship === 'supportive') {
-    causality += ` The past supports and flows naturally into the present state.`;
+    causality += ` The two card themes are elementally supportive.`;
   } else if (pastToPresent.relationship === 'amplified') {
-    causality += ` The same elemental theme persists from past into present.`;
+    causality += ` The two cards share the same elemental theme.`;
   }
 
-  causality += ` This is developing toward ${future.card} in the near future.`;
+  causality += ` The Future position contributes ${future.card} as a possible direction for reflection.`;
 
   if (presentToFuture.relationship === 'tension') {
-    causality += ` Moving forward will require navigating elemental tension.`;
+    causality += ` The Present and Future cards form an elemental contrast.`;
   } else if (presentToFuture.relationship === 'supportive') {
-    causality += ` The trajectory ahead is supported by current energies.`;
+    causality += ` The Present and Future card themes support each other.`;
   } else if (presentToFuture.relationship === 'amplified') {
-    causality += ` The elemental energy intensifies as you move forward.`;
+    causality += ` The Present and Future cards share an elemental theme.`;
   }
 
   return {
@@ -1139,22 +1206,23 @@ function analyzeConsciousness(subconscious, present, conscious) {
       alignment = 'complex';
   }
 
-  let synthesis = `Hidden beneath awareness: ${subconscious.card} ${subconscious.orientation}. `;
-  synthesis += `Conscious goal or aspiration: ${conscious.card} ${conscious.orientation}. `;
+  let synthesis = `Subconscious: ${subconscious.card} ${subconscious.orientation}; `;
+  synthesis += `Conscious: ${conscious.card} ${conscious.orientation}. `;
 
   switch (alignment) {
     case 'aligned':
-      synthesis += `Your subconscious drives and conscious goals are working together harmoniously.`;
+      synthesis += `Supportive symbolic card themes for reflection.`;
       break;
     case 'conflicted':
-      synthesis += `There is tension between what you want consciously and what drives you beneath awareness. Integration is needed.`;
+      synthesis += `Contrasting symbolic card themes for examining supplied aims.`;
       break;
     case 'intensely unified':
-      synthesis += `Your inner depths and conscious mind are unified around the same ${belowToAbove.element} theme.`;
+      synthesis += `A shared ${belowToAbove.element} theme to explore symbolically.`;
       break;
     default:
-      synthesis += `Your inner and outer goals show nuanced dynamics worth exploring.`;
+      synthesis += `Different symbolic perspectives to explore.`;
   }
+  synthesis += ` Neither establishes unstated goals or hidden motives.`;
 
   return {
     theme: 'Consciousness Flow (Vertical Axis)',
@@ -1187,16 +1255,16 @@ function analyzeStaff(self, external, hopesFears, outcome) {
   let adviceImpact;
   switch (adviceToOutcome.relationship) {
     case 'supportive':
-      adviceImpact = `Following the guidance of ${self.card} actively supports and harmonizes with the likely outcome of ${outcome.card}.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): supportive symbolic themes for optional next steps.`;
       break;
     case 'tension':
-      adviceImpact = `Acting on ${self.card} creates dynamic tension with the trajectory toward ${outcome.card}, requiring skillful navigation.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): contrasting symbolic themes for exploring choices.`;
       break;
     case 'amplified':
-      adviceImpact = `The advice (${self.card}) and outcome (${outcome.card}) share the same ${adviceToOutcome.element} energy, creating a unified path forward.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): a shared ${adviceToOutcome.element} theme to explore symbolically for optional actions.`;
       break;
     default:
-      adviceImpact = `The relationship between the advice of ${self.card} and the outcome shows subtle complexity.`;
+      adviceImpact = `Advice (${self.card}) and Outcome (${outcome.card}): different symbolic perspectives on choices.`;
   }
 
   return {
@@ -1263,7 +1331,7 @@ function buildCrossCheckSummary(crossCheck) {
 
   // Add elemental description if available
   if (elementalRelationship?.description) {
-    summary += elementalRelationship.description + ' ';
+    summary += `${asSentence(elementalRelationship.description)} `;
   }
 
   // Add alignment-based insight
@@ -1354,7 +1422,10 @@ export function analyzeThreeCard(cardsInfo) {
   const secondToThird = analyzeElementalDignity(second, third);
   const firstToThird = analyzeElementalDignity(first, third);
 
-  const narrative = buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird);
+  const timeline = usesThreeCardTimeline(cardsInfo);
+  const narrative = timeline
+    ? buildThreeCardNarrative(first, second, third, firstToSecond, secondToThird)
+    : `Consider ${first.card} in ${first.position}, ${second.card} in ${second.position}, and ${third.card} in ${third.position} together. Their elemental relationships describe symbolic support or tension between the supplied roles, not a chronology.`;
 
   return {
     version: '1.0.0',
@@ -1371,11 +1442,11 @@ export function analyzeThreeCard(cardsInfo) {
         ]
       }
     ],
-    positionNotes: [
+    positionNotes: timeline ? [
       { index: 0, label: 'Past', notes: ['Foundation / cause.'] },
       { index: 1, label: 'Present', notes: ['Current state shaped by past.'] },
       { index: 2, label: 'Future', notes: ['Trajectory if nothing shifts.'] }
-    ],
+    ] : [first, second, third].map((card, index) => ({ index, label: card.position, notes: ['Interpret this supplied role without assigning a temporal position.'] })),
     flow: {
       first: first.card,
       second: second.card,
@@ -1461,7 +1532,7 @@ export function analyzeFiveCard(cardsInfo) {
         type: 'axis',
         axis: 'Core vs Challenge',
         summary:
-          coreVsChallenge.description ||
+          asSentence(coreVsChallenge.description) ||
           'Tension or harmony between core and challenge frames the heart of this spread.',
         positions: [0, 1],
         cards: [
@@ -1473,7 +1544,7 @@ export function analyzeFiveCard(cardsInfo) {
         type: 'axis',
         axis: 'Support vs Direction',
         summary:
-          supportVsDirection.description ||
+          asSentence(supportVsDirection.description) ||
           'Supportive energies shape how the likely direction can be navigated.',
         positions: [3, 4],
         cards: [
@@ -1529,9 +1600,8 @@ export function analyzeRelationship(cardsInfo) {
 
   const connectionSummaryParts = [
     `${connection.card} ${connection.orientation} anchors the shared lesson between you.`,
-    connection.meaning ? connection.meaning : null,
-    youBridge?.description ? `With your card, ${youBridge.description}.` : null,
-    themBridge?.description ? `With their card, ${themBridge.description}.` : null
+    asSentence(connection.meaning),
+    ...describeBridges(['With your card', youBridge], ['With their card', themBridge], 'With your card and theirs alike')
   ].filter(Boolean);
 
   const relationships = [];
@@ -1541,7 +1611,7 @@ export function analyzeRelationship(cardsInfo) {
     let summary = `${youLabel} (${you.card} ${you.orientation}) and ${themLabel} (${them.card} ${them.orientation}): `;
 
     if (youVsThem.elementalRelationship?.description) {
-      summary += youVsThem.elementalRelationship.description;
+      summary += asSentence(youVsThem.elementalRelationship.description);
     } else {
       switch (youVsThem.alignmentType) {
         case 'unified':
@@ -1586,8 +1656,8 @@ export function analyzeRelationship(cardsInfo) {
     const dynamicsBridge = analyzeElementalDignity(connection, dynamics);
     const summaryParts = [
       `${dynamics.card} ${dynamics.orientation} offers guidance on how to work with the dynamic in real time.`,
-      dynamics.meaning || null,
-      dynamicsBridge?.description ? `In relation to the shared lesson, ${dynamicsBridge.description}.` : null
+      asSentence(dynamics.meaning),
+      dynamicsBridge?.description ? `In relation to the shared lesson, ${continueSentence(dynamicsBridge.description)}.` : null
     ].filter(Boolean);
 
     relationships.push({
@@ -1608,9 +1678,12 @@ export function analyzeRelationship(cardsInfo) {
       : null;
     const summaryParts = [
       `${outcome.card} ${outcome.orientation} sketches a likely trajectory for what this connection can become if current patterns continue.`,
-      outcome.meaning || null,
-      connectionToOutcome?.description ? `Relative to the shared lesson, ${connectionToOutcome.description}.` : null,
-      dynamicsToOutcome?.description ? `Relative to current guidance, ${dynamicsToOutcome.description}.` : null
+      asSentence(outcome.meaning),
+      ...describeBridges(
+        ['Relative to the shared lesson', connectionToOutcome],
+        ['Relative to current guidance', dynamicsToOutcome],
+        'Relative to the shared lesson and current guidance alike'
+      )
     ].filter(Boolean);
 
     relationships.push({
@@ -1631,7 +1704,7 @@ export function analyzeRelationship(cardsInfo) {
     relationships,
     positionNotes: [
       { index: 0, label: 'You / your energy', notes: ['How you are currently showing up.'] },
-      { index: 1, label: 'Them / their energy', notes: ['How they are approaching the connection.'] },
+      { index: 1, label: 'Them / their energy', notes: ['A symbolic possibility about their side of the dynamic, to compare with anything actually observed.'] },
       { index: 2, label: 'The connection / shared lesson', notes: ['The third energy between you—what the bond is asking from both sides.'] },
       ...(dynamics ? [{ index: 3, label: dynamicsLabel, notes: ['Clarifying guidance on how to engage the dynamic.'] }] : []),
       ...(outcome ? [{ index: 4, label: outcomeLabel, notes: ['Likely trajectory if current relational dynamics continue.'] }] : [])
@@ -1696,9 +1769,7 @@ export function analyzeSingleCard(cardsInfo) {
   const orientationGuidance = orientationLower === 'reversed'
     ? 'Treat this as inward-facing energy that benefits from reflection before action.'
     : 'Treat this as active energy you can translate into one grounded next step.';
-  const meaningText = card.meaning
-    ? `${card.meaning.trim()}`
-    : 'This card is the central lens for interpreting the current moment.';
+  const meaningText = asSentence(card.meaning) || 'This card is the central lens for interpreting the current moment.';
   const synthesis = `${card.card} ${orientationLabel} frames the reading through "${positionLabel}". ${meaningText} ${orientationGuidance}`;
 
   return {
@@ -1745,8 +1816,10 @@ export function analyzeDecision(cardsInfo) {
   }
 
   const heartLabel = heart.position || 'Heart of the decision';
-  const pathALabel = pathA.position || 'Path A — energy & likely outcome';
-  const pathBLabel = pathB.position || 'Path B — energy & likely outcome';
+  // Named facts have their own bounded context fields. Derived relationships
+  // retain stable position roles so explicit overrides and clears remain effective.
+  const pathALabel = 'Path A — energy & likely outcome';
+  const pathBLabel = 'Path B — energy & likely outcome';
   const clarifierLabel = clarifier?.position || 'What clarifies the best path';
   const freeWillLabel = freeWill?.position || 'What to remember about your free will';
 
@@ -1761,7 +1834,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathALabel} (${pathA.card} ${pathA.orientation}): `;
 
     if (heartVsA.elementalRelationship?.description) {
-      summary += heartVsA.elementalRelationship.description;
+      summary += asSentence(heartVsA.elementalRelationship.description);
     } else {
       switch (heartVsA.alignmentType) {
         case 'unified':
@@ -1794,7 +1867,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${heartLabel} (${heart.card} ${heart.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
 
     if (heartVsB.elementalRelationship?.description) {
-      summary += heartVsB.elementalRelationship.description;
+      summary += asSentence(heartVsB.elementalRelationship.description);
     } else {
       switch (heartVsB.alignmentType) {
         case 'unified':
@@ -1827,7 +1900,7 @@ export function analyzeDecision(cardsInfo) {
     let summary = `${pathALabel} (${pathA.card} ${pathA.orientation}) and ${pathBLabel} (${pathB.card} ${pathB.orientation}): `;
 
     if (pathAVsB.elementalRelationship?.description) {
-      summary += pathAVsB.elementalRelationship.description;
+      summary += asSentence(pathAVsB.elementalRelationship.description);
     } else {
       if (pathAVsB.alignmentType === 'unified') {
         summary += `These paths share similar energies.`;
@@ -1876,8 +1949,8 @@ export function analyzeDecision(cardsInfo) {
     relationships,
     positionNotes: [
       { index: 0, label: 'Heart of the decision', notes: ['Core desire or non-negotiable value.'] },
-      { index: 1, label: 'Path A — energy & likely outcome', notes: ['Trajectory if you commit to Path A.'] },
-      { index: 2, label: 'Path B — energy & likely outcome', notes: ['Trajectory if you commit to Path B.'] },
+      { index: 1, label: 'Path A — energy & likely outcome', notes: ['Symbolic perspective for evaluating Path A and optional actions, not a forecast.'] },
+      { index: 2, label: 'Path B — energy & likely outcome', notes: ['Symbolic perspective for evaluating Path B and optional actions, not a forecast.'] },
       { index: 3, label: 'What clarifies the best path', notes: ['Insight that helps you evaluate the options.'] },
       { index: 4, label: 'What to remember about your free will', notes: ['Agency reminder; how you shape the outcome.'] }
     ],

@@ -1,7 +1,8 @@
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Info, X } from '@phosphor-icons/react';
+import { Info, Flame, Drop, Wind, Leaf } from '@phosphor-icons/react';
+import { CloseButton } from './CloseButton';
 import { buildCardInsights } from '../lib/cardInsights';
 import { titleCase } from '../lib/textUtils';
 import { getElementForSymbolFamily } from '../lib/symbolElementBridge';
@@ -10,33 +11,22 @@ import { getSymbolFamily } from '../../shared/symbols/symbolIndex';
 // Element icons and colors for badges
 const ELEMENT_BADGE_CONFIG = {
   Fire: {
-    icon: '🔥',
-    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-wands border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
+    icon: Flame,
+    className: 'bg-[color-mix(in_srgb,var(--color-wands)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-wands)_32%,transparent)]'
   },
   Water: {
-    icon: '💧',
-    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-cups border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
+    icon: Drop,
+    className: 'bg-[color-mix(in_srgb,var(--color-cups)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-cups)_32%,transparent)]'
   },
   Air: {
-    icon: '💨',
-    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-swords border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
+    icon: Wind,
+    className: 'bg-[color-mix(in_srgb,var(--color-swords)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-swords)_32%,transparent)]'
   },
   Earth: {
-    icon: '🌍',
-    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-pentacles border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
+    icon: Leaf,
+    className: 'bg-[color-mix(in_srgb,var(--color-pentacles)_16%,transparent)] text-main border border-[color-mix(in_srgb,var(--color-pentacles)_32%,transparent)]'
   }
 };
-
-// Focusable element selectors for focus trap
-const FOCUSABLE_SELECTORS = [
-  'a[href]',
-  'button:not([disabled])',
-  'textarea:not([disabled])',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  '[contenteditable]'
-].join(', ');
 
 function mergeClassNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -52,7 +42,7 @@ function useIsMobile(breakpoint = 640, debounceMs = 100) {
     let timeoutId = null;
 
     function checkMobile() {
-      setIsMobile(window.innerWidth < breakpoint);
+      setIsMobile(window.innerWidth < breakpoint || window.matchMedia('(hover: none), (pointer: coarse)').matches);
     }
 
     function handleResize() {
@@ -80,7 +70,7 @@ function useIsMobile(breakpoint = 640, debounceMs = 100) {
 /**
  * Symbol content display - shared between tooltip and bottom sheet
  */
-function SymbolContent({ insights, onClose, showCloseButton = false }) {
+function SymbolContent({ insights, onClose, showCloseButton = false, inline = false }) {
   const orientationLabel = insights.isReversed ? 'Reversed' : 'Upright';
   const keywordsPreview = insights.keywords.slice(0, 3).join(', ');
 
@@ -88,61 +78,54 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
     <div className="text-left">
       {showCloseButton && (
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-main">
+          <p className="text-base font-semibold text-main">
             {insights.name}
-            <span className="ml-2 text-xs uppercase tracking-widest text-secondary/80">
+            <span className="ml-2 text-sm text-muted">
               {orientationLabel}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-touch min-w-touch -mr-2 flex items-center justify-center rounded-full text-secondary hover:bg-secondary/10 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70"
-            aria-label="Close symbol insights"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <CloseButton label="Close symbol insights" onClick={onClose} className="-mr-2" />
         </div>
       )}
-      {!showCloseButton && (
-        <p className="text-sm font-semibold text-main">
+      {!showCloseButton && !inline && (
+        <p className="text-base font-semibold text-main">
           {insights.name}
-          <span className="ml-2 text-xs uppercase tracking-widest text-secondary/80">
+          <span className="ml-2 text-sm text-muted">
             {orientationLabel}
           </span>
         </p>
       )}
-      {keywordsPreview && (
-        <p className="mt-1 text-xs text-accent/80">
+      {keywordsPreview && !inline && (
+        <p className="mt-1 text-base text-muted">
           <span className="font-medium">Keywords:</span> {keywordsPreview}
         </p>
       )}
       {insights.archetype && (
-        <p className="mt-2 text-xs text-secondary/80">
+        <p className="mt-2 text-base text-muted">
           <span className="font-medium">Archetype:</span> {insights.archetype}
         </p>
       )}
       {insights.symbols.length > 0 && (
         <div className="mt-3">
-          <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Symbols</h4>
-          <ul className="mt-2 space-y-2 text-xs text-main/90" role="list">
+          <h4 className="text-base font-semibold text-main">Symbols</h4>
+          <ul className="mt-2 space-y-2 text-base text-main" role="list">
             {insights.symbols.map((symbol, index) => {
               const family = getSymbolFamily(symbol.object);
               const element = getElementForSymbolFamily(family);
               const badge = element ? ELEMENT_BADGE_CONFIG[element] : null;
               return (
                 <li key={`${symbol.object}-${index}`} className="flex flex-col">
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-semibold text-accent">{titleCase(symbol.object)}</span>
-                    {symbol.position && (
-                      <span className="text-accent/60">({symbol.position})</span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-main">{titleCase(symbol.object)}</span>
+                    {symbol.position && !insights.isReversed && (
+                      <span className="text-muted">({symbol.position})</span>
                     )}
                     {badge && (
                       <span
-                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-2xs ${badge.className}`}
+                        className={`ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm ${badge.className}`}
                         title={`${element} element`}
                       >
-                        <span aria-hidden="true">{badge.icon}</span>
+                        <badge.icon className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>{element}</span>
                       </span>
                     )}
@@ -156,12 +139,12 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
       )}
       {insights.colors.length > 0 && (
         <div className="mt-3">
-          <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-accent/80">Palette</h4>
-          <ul className="mt-2 space-y-1 text-xs text-muted" role="list">
+          <h4 className="text-base font-semibold text-main">Palette</h4>
+          <ul className="mt-2 space-y-1 text-base text-muted" role="list">
             {insights.colors.map((color, index) => (
               <li key={`${color.color}-${index}`}>
-                <span className="font-semibold text-secondary">{color.color}</span>
-                <span className="ml-1 text-accent/70">— {color.meaning}</span>
+                <span className="font-semibold text-main">{color.color}</span>
+                <span className="ml-1 text-muted">— {color.meaning}</span>
               </li>
             ))}
           </ul>
@@ -174,65 +157,28 @@ function SymbolContent({ insights, onClose, showCloseButton = false }) {
 /**
  * Mobile bottom sheet for symbol insights
  */
-function BottomSheet({ isOpen, onClose, children }) {
+function BottomSheet({ isOpen, onClose, nested = false, children }) {
   const sheetRef = useRef(null);
-  const previousFocusRef = useRef(null);
 
-  // Use shared scroll lock hook
-  useBodyScrollLock(isOpen, { strategy: 'simple' });
-
-  // Focus management
-  useEffect(() => {
-    if (isOpen) {
-      previousFocusRef.current = document.activeElement;
-      requestAnimationFrame(() => {
-        sheetRef.current?.focus();
-      });
-    } else {
-      if (previousFocusRef.current?.focus) {
-        previousFocusRef.current.focus();
-      }
-    }
-  }, [isOpen]);
-
-  // Keyboard handling with focus trap
-  const handleKeyDown = useCallback((event) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      onClose();
-      return;
-    }
-
-    // Focus trap on Tab key
-    if (event.key === 'Tab' && sheetRef.current) {
-      const focusable = sheetRef.current.querySelectorAll(FOCUSABLE_SELECTORS);
-      if (!focusable.length) {
-        event.preventDefault();
-        sheetRef.current.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-
-      if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      }
-    }
-  }, [onClose]);
+  // A layer of the shared modal stack, so it owns Escape, Tab and Back while
+  // open (each closes the sheet before a card dialog underneath) and returns
+  // focus to its opener. Inside the card dialog, which already locks the page,
+  // it takes no lock of its own: two locks released together froze the page.
+  useModalA11y(isOpen, {
+    onClose,
+    containerRef: sheetRef,
+    scrollLockStrategy: 'simple',
+    lockScroll: !nested,
+    backGuardId: 'symbolSheet'
+  });
 
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
 
+  // The card dialog layer (z-toast) or above, so the modal stack ranks the
+  // sheet on top of the card it opens from.
   const sheetMarkup = (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onKeyDown={handleKeyDown}
-    >
+    <div className="fixed inset-0 z-toast flex items-end justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-main/70 backdrop-blur-sm motion-safe:animate-fade-in"
@@ -249,8 +195,6 @@ function BottomSheet({ isOpen, onClose, children }) {
         className="relative z-10 w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-t-3xl border-t border-x border-secondary/30 bg-surface p-5 pb-[max(1.25rem,var(--safe-pad-bottom))] shadow-2xl motion-safe:animate-slide-up focus:outline-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drag handle indicator */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-secondary/30" aria-hidden="true" />
         <div className="mt-2">
           {children}
         </div>
@@ -259,6 +203,12 @@ function BottomSheet({ isOpen, onClose, children }) {
   );
 
   return createPortal(sheetMarkup, document.body);
+}
+
+/** Details embedded in an inspector share its focus, history and scroll owner. */
+export function CardSymbolDetails({ card }) {
+  const insights = useMemo(() => buildCardInsights(card, { includeAllSymbols: true }), [card]);
+  return insights ? <SymbolContent insights={insights} inline /> : null;
 }
 
 export function CardSymbolInsights({
@@ -270,7 +220,9 @@ export function CardSymbolInsights({
   triggerClassName,
   triggerProps,
   triggerRef,
-  openOnHover = true
+  openOnHover = true,
+  // Opened from inside another dialog that already locks page scroll.
+  nested = false
 }) {
   const insights = useMemo(() => buildCardInsights(card), [card]);
   const [isOpen, setIsOpen] = useState(false);
@@ -433,7 +385,7 @@ export function CardSymbolInsights({
     return (
       <>
         {triggerButton}
-        <BottomSheet isOpen={isOpen} onClose={handleCloseImmediate}>
+        <BottomSheet isOpen={isOpen} onClose={handleCloseImmediate} nested={nested}>
           <SymbolContent
             insights={insights}
             onClose={handleCloseImmediate}
@@ -470,15 +422,7 @@ export function CardSymbolInsights({
             : 'opacity-0 -translate-y-2 invisible pointer-events-none'
           }`}
       >
-        <button
-          type="button"
-          onClick={handleCloseImmediate}
-          className="absolute top-2 right-2 text-secondary hover:text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 rounded-full"
-          aria-label="Close symbol insights"
-        >
-          ×
-        </button>
-        <SymbolContent insights={insights} />
+        <SymbolContent insights={insights} onClose={handleCloseImmediate} showCloseButton />
       </div>
     </div>
   );

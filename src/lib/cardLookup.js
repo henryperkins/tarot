@@ -58,6 +58,41 @@ export function getCardThumbnailSrcSet(src) {
   return `/images/cards/w360/${match[1]}.webp 360w, ${src} 825w`;
 }
 
+/** Gallery tiles use WebP renditions only; the original stays in card details. */
+export function getCardGallerySrcSet(src) {
+  const match = typeof src === 'string' ? RWS_SCAN.exec(src) : null;
+  if (!match) return undefined;
+  return `/images/cards/w360/${match[1]}.webp 360w, /images/cards/w720/${match[1]}.webp 720w`;
+}
+
+// 120 px WebP renditions of all three decks (scripts/assets/generate-card-thumbnails.mjs).
+const TINY_IMAGES = [
+  [/^\/images\/cards\/(RWS1909_-_[^/]+)\.jpe?g$/i, '/images/cards/w120/$1.webp'],
+  [/^\/images\/cards\/thoth\/([^/]+)\.png$/i, '/images/cards/w120/thoth/$1.webp'],
+  [/^\/images\/cards\/marseille\/([^/]+)\.jpe?g$/i, '/images/cards/w120/marseille/$1.webp']
+];
+
+/**
+ * The 120 px rendition of a card image, for art shown about 30–40 CSS px wide
+ * (the journal's collapsed rows): a few KB instead of a 60–280 KB image.
+ * @param {string} src - Card image path (getCardImage)
+ * @returns {string|null} null when the image has no small rendition
+ */
+export function getCardTinyImage(src) {
+  if (typeof src !== 'string') return null;
+  for (const [pattern, replacement] of TINY_IMAGES) {
+    if (pattern.test(src)) return src.replace(pattern, replacement);
+  }
+  return null;
+}
+
+/** The selected card's small artwork while its full scan is loading. */
+export function getCardPreviewImage(card) {
+  const image = getCardImage(card);
+  const match = RWS_SCAN.exec(image);
+  return match ? `/images/cards/w360/${match[1]}.webp` : image;
+}
+
 /**
  * Get the canonical card data from the lookup table
  * @param {Object|string} card - Card object or name

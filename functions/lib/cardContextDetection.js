@@ -74,7 +74,7 @@ export const TAROT_TERMINOLOGY_EXCLUSIONS = [
  * @param {string} name - The card name to look for
  * @returns {boolean} True if explicit card context is found
  */
-export function hasExplicitCardContext(text = '', name = '') {
+export function hasExplicitCardContext(text = '', name = '', occurrence = null) {
   if (!text || !name) return false;
 
   const namePattern = escapeRegex(name);
@@ -109,7 +109,14 @@ export function hasExplicitCardContext(text = '', name = '') {
     new RegExp(`\\b${namePattern}\\s+(?:in\\s+(?:the\\s+)?)?(?:present|past|future|challenge|outcome|advice|anchor)\\s+position\\b`, 'i')
   ];
 
-  return patterns.some((regex) => regex.test(text));
+  return patterns.some((regex) => {
+    if (!occurrence) return regex.test(text);
+    // Context belongs to this occurrence, never every matching word in the text.
+    return Array.from(text.matchAll(new RegExp(regex.source, 'gi'))).some((match) => {
+      const offset = match[0].toLowerCase().indexOf(name.toLowerCase());
+      return offset >= 0 && match.index + offset === occurrence.start;
+    });
+  });
 }
 
 /**

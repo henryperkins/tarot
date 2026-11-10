@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { safeParseReadingRequest } from '../shared/contracts/readingSchema.js';
 import { MAJOR_ARCANA } from '../src/data/majorArcana.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts/buildEnhancedClaudePrompt.js';
 import {
   estimateTokenCount,
@@ -11,6 +12,12 @@ import {
 } from '../functions/lib/narrative/prompts/budgeting.js';
 import { parseUserContext } from '../functions/lib/narrative/prompts/userContext.js';
 import { runNarrativeBackend } from '../functions/lib/narrativeBackends.js';
+import { performSpreadAnalysis } from '../functions/lib/spreadAnalysisOrchestrator.js';
+import { resolveReadingCards } from '../functions/lib/readingCardResolution.js';
+import { resolveContextSelection } from '../functions/lib/contextDetection.js';
+import { parseMemoryBlocks } from '../functions/lib/userMemory.js';
+import { claudeSseResponse } from './helpers/claudeSse.mjs';
+import { modelReadingForRequest } from './helpers/canonicalScenes.mjs';
 
 const constrainedEnv = {
   ENABLE_PROMPT_SLIMMING: 'true',
@@ -46,7 +53,7 @@ describe('Modal prompt budgeting', () => {
     let body;
     t.mock.method(globalThis, 'fetch', async (_url, options) => {
       body = JSON.parse(options.body);
-      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'A complete reading.' } }] });
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: modelReadingForRequest(body, 'A complete reading.') } }] });
     });
     const input = acceptedLongContext();
     const result = await runNarrativeBackend('modal-qwen', {
@@ -122,3 +129,60 @@ describe('Modal prompt budgeting', () => {
     });
   }
 });
+
+for (const scenario of ['ten-card-japanese', '78-card-custom']) {
+  for (const provider of ['claude-api', 'openai-native', 'modal-qwen']) {
+    for (const slimming of ['false', 'true']) {
+      it(`${scenario} ${provider} slimming=${slimming} captures honest final references and atomic memories`, async t => {
+        for (const method of ['log', 'warn']) t.mock.method(console, method, () => {});
+        const count = scenario === 'ten-card-japanese' ? 10 : 78;
+        const input = safeParseReadingRequest({
+          spreadInfo: { key: count === 10 ? 'celtic' : 'custom', name: count === 10 ? 'Celtic Cross (Classic 10-Card)' : 'Custom Spread' },
+          cardsInfo: [...MAJOR_ARCANA, ...MINOR_ARCANA].slice(0, count).map((card, index) => ({ card: card.name, ...(Number.isInteger(card.number) ? { number: card.number } : {}), meaning: index % 3 ? card.upright : card.reversed, position: `Focus ${index + 1}`, orientation: index % 3 ? 'Upright' : 'Reversed', userReflection: 'このカードを見ると、長い通勤と子どもたちとの夜を思い出します。'.repeat(100).slice(0, count === 10 ? 1000 : 2000) })),
+          userQuestion: 'What supports a career transition?',
+          reflectionsText: count === 78 ? 'I am considering a career transition with care. '.repeat(110).slice(0, 5000) : ''
+        });
+        assert.equal(input.success, true, input.error);
+        const env = { GRAPHRAG_ENABLED: 'true', ENABLE_SEMANTIC_SCORING: 'false', ENABLE_PROMPT_SLIMMING: slimming, ANTHROPIC_API_KEY: 'synthetic', OPENAI_API_KEY: 'synthetic', MODAL_ENDPOINT_URL: 'https://modal.test', MODAL_PROXY_TOKEN: 'synthetic', MODAL_STREAM: 'false' };
+        const cardsInfo = resolveReadingCards(input.data.cardsInfo);
+        const contextSelection = resolveContextSelection({ ...input.data, cardsInfo }, input.data.spreadInfo.key);
+        const analysis = await performSpreadAnalysis(input.data.spreadInfo, cardsInfo, { ...input.data, contextSelection, subscriptionTier: 'pro' }, 'budget-matrix', env);
+        const payload = { ...input.data, cardsInfo, contextSelection, analysis, subscriptionTier: 'pro', memories: [{ id: 'private-budget-note', text: 'Prefers concise practical advice', category: 'communication' }] };
+        let sent;
+        t.mock.method(globalThis, 'fetch', async (_url, init) => {
+          sent = JSON.parse(init.body);
+          const text = modelReadingForRequest(sent, 'A synthetic reading.');
+          if (provider === 'claude-api') return claudeSseResponse(text);
+          if (provider === 'modal-qwen') return Response.json({ choices: [{ finish_reason: 'stop', message: { content: text } }] });
+          return Response.json({ output_text: text });
+        });
+        const result = await runNarrativeBackend(provider, env, payload, 'budget-matrix');
+        const user = provider === 'openai-native' ? sent.input : sent.messages.at(-1).content;
+        const system = provider === 'openai-native' ? sent.instructions : sent.system || sent.messages.find(message => message.role === 'system').content;
+        assert.equal(typeof user, 'string');
+        assert.equal(typeof system, 'string');
+        const usage = result.promptMeta.sourceUsage;
+        const graph = usage.graphRAG;
+        assert.equal(graph.passagesUsedInPrompt, graph.passageIndices.length);
+        assert.equal(graph.retainedPassageCount, graph.passageIndices.length);
+        for (const index of graph.passageIndices) assert.ok(user.includes(analysis.graphRAGPayload.passages[index].promptText));
+        const blocks = parseMemoryBlocks(user);
+        assert.equal(usage.memories.memoriesUsedInPrompt, blocks.size);
+        assert.deepEqual(payload.memoryRetention.retainedSlots, [...blocks.keys()]);
+        assert.equal((user.match(/<reading_memory\b/g) || []).length, blocks.size);
+        assert.equal((user.match(/<\/reading_memory>/g) || []).length, blocks.size);
+        assert.doesNotMatch(JSON.stringify({ sent, meta: result.promptMeta }), /private-budget-note/);
+        if (provider === 'modal-qwen') {
+          assert.equal(result.promptMeta.slimmingEnabled, false);
+          assert.equal(parseUserContext(user).get(`card-${count - 1}`), cardsInfo[count - 1].userReflection);
+          assert.equal(blocks.size, 1);
+        } else {
+          assert.ok(estimateTokenCount(system) + estimateTokenCount(user) <= (provider === 'claude-api' ? 25000 : 20000));
+          if (count === 78) {
+            assert.equal(graph.used, false);
+          }
+        }
+      });
+    }
+  }
+}

@@ -4,8 +4,17 @@ import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
 import { initAudio, cleanupAudio, stopTTS, toggleAmbience, normalizeTtsProvider } from '../lib/audio';
 import { safeStorage } from '../lib/safeStorage';
-import { migrateLegacyPersonalization, safeSessionStorage } from '../lib/preferenceStorage';
+import { migrateLegacyPersonalization, REVERSAL_FRAMEWORK_KEYS, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
+import {
+  accountPayloadKey,
+  buildAccountPreferencesPayload,
+  fetchAccountPreferences,
+  loadAccountPreferenceOrigins,
+  mergeAccountPersonalization,
+  saveAccountPreferenceOrigins,
+  saveAccountPreferences
+} from '../lib/accountPreferences';
 import {
   DEFAULT_PERSONALIZATION,
   PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH,
@@ -24,11 +33,9 @@ const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
 const LOCATION_JOURNAL_CONSENT_KEY = 'tarot-location-journal-consent';
+// Setup's one remaining disclosure; the ritual moved to the reading table.
 const DEFAULT_PREPARE_SECTIONS = {
-  intention: false,
-  experience: false,
-  ritual: false,
-  audio: false
+  deck: false
 };
 const PERSONALIZATION_REQUEST_FIELD_SET = new Set(PERSONALIZATION_REQUEST_FIELDS);
 
@@ -121,7 +128,7 @@ export function PreferencesProvider({ children }) {
     safeStorage.setItem('tarot-auto-narrate', autoNarrate.toString());
   }, [autoNarrate]);
 
-  // Older saved engines migrate to ElevenLabs. Keep the safe
+  // Retired saved engines migrate to the default narrator. Keep the safe
   // storage wrapper: blocked localStorage must not break preferences.
   const [ttsProviderState, setTtsProviderState] = useState(() => {
     return normalizeTtsProvider(safeStorage.getItem('tarot-tts-provider'));
@@ -188,7 +195,15 @@ export function PreferencesProvider({ children }) {
   }, [deckStyleId]);
 
   // --- Deck Scope & Composition ---
-  const [includeMinors, setIncludeMinors] = useState(true); // Default to full 78 cards
+  // Device-scoped: survives reload and is labelled "Device only" in settings.
+  const [includeMinors, setIncludeMinors] = useState(() => {
+    const stored = safeStorage.getItem('tarot-include-minors');
+    return stored === null ? true : stored !== 'false'; // Default to full 78 cards
+  });
+
+  useEffect(() => {
+    safeStorage.setItem('tarot-include-minors', includeMinors.toString());
+  }, [includeMinors]);
 
   // Computed deck properties
   const { deckSize, minorsDataIncomplete } = useMemo(() => {
@@ -200,8 +215,20 @@ export function PreferencesProvider({ children }) {
   }, [includeMinors]);
 
   // --- Reversal Framework ---
-  // Not persisted by default in original code, but kept as state
-  const [reversalFramework, setReversalFramework] = useState(null);
+  // Device-scoped. `null` means "Auto"; every other value is a named lens.
+  const [reversalFramework, setReversalFramework] = useState(() => {
+    const stored = safeStorage.getItem('tarot-reversal-framework');
+    if (!stored || stored === 'auto') return null;
+    return REVERSAL_FRAMEWORK_KEYS.includes(stored) ? stored : null;
+  });
+
+  useEffect(() => {
+    if (reversalFramework) {
+      safeStorage.setItem('tarot-reversal-framework', reversalFramework);
+    } else {
+      safeStorage.removeItem('tarot-reversal-framework');
+    }
+  }, [reversalFramework]);
 
   // --- Personalization Preferences ---
   const [personalization, setPersonalizationState] = useState(() =>
@@ -214,6 +241,9 @@ export function PreferencesProvider({ children }) {
     if (storedFields.length > 0) return storedFields;
     return derivePersonalizationExplicitFields(loadPersonalizationFromStorage(personalizationStorageKey, safeStorage));
   });
+  const [accountPreferenceOrigins, setAccountPreferenceOrigins] = useState(() =>
+    loadAccountPreferenceOrigins(personalizationStorageKey, safeStorage)
+  );
 
   // Handle auth transitions + migrate legacy device-scoped personalization storage.
   useEffect(() => {
@@ -229,6 +259,7 @@ export function PreferencesProvider({ children }) {
       const loadedPersonalization = migrated || loadPersonalizationFromStorage(nextKey, safeStorage);
       const loadedExplicitFields = loadPersonalizationExplicitFields(nextKey, safeStorage);
       setPersonalizationState(loadedPersonalization);
+      setAccountPreferenceOrigins(loadAccountPreferenceOrigins(nextKey, safeStorage));
       setPersonalizationExplicitFields(
         loadedExplicitFields.length > 0
           ? loadedExplicitFields
@@ -253,9 +284,15 @@ export function PreferencesProvider({ children }) {
     savePersonalizationExplicitFields(personalizationKeyRef.current, personalizationExplicitFields, safeStorage);
   }, [authLoading, loadedPersonalizationKey, personalizationExplicitFields, personalizationStorageKey]);
 
+  useEffect(() => {
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey) return;
+    saveAccountPreferenceOrigins(personalizationKeyRef.current, accountPreferenceOrigins, safeStorage);
+  }, [authLoading, loadedPersonalizationKey, accountPreferenceOrigins, personalizationStorageKey]);
+
   const resetPersonalization = useCallback(() => {
     setPersonalizationState({ ...DEFAULT_PERSONALIZATION });
     setPersonalizationExplicitFields([]);
+    setAccountPreferenceOrigins({ inheritedFields: [], resetPending: true });
     safeStorage.removeItem(personalizationKeyRef.current);
   }, []);
 
@@ -265,6 +302,12 @@ export function PreferencesProvider({ children }) {
       : [];
 
     if (touchedFields.length === 0) return;
+
+    // Choosing the same value is still an explicit local choice.
+    setAccountPreferenceOrigins(current => ({
+      ...current,
+      inheritedFields: current.inheritedFields.filter(field => !touchedFields.includes(field))
+    }));
 
     setPersonalizationExplicitFields((current) => {
       const merged = new Set(current);
@@ -365,6 +408,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Onboarding State ---
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
+  const onboardingMutationEpochRef = useRef(0);
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
 
@@ -379,6 +423,7 @@ export function PreferencesProvider({ children }) {
   });
 
   const setOnboardingComplete = (value) => {
+    onboardingMutationEpochRef.current += 1;
     setOnboardingCompleteState(value);
     safeStorage.setItem(ONBOARDING_STORAGE_KEY, value.toString());
   };
@@ -388,6 +433,175 @@ export function PreferencesProvider({ children }) {
     setOnboardingComplete(false);
     setOnboardingSpreadKey(null);
   };
+
+  // --- Account continuity (signed-in readers) ---
+  // Personalization and finished onboarding live on this device; a signed-in
+  // reader's account keeps a copy, so another device opens on their own setup
+  // instead of first-run onboarding. Read once per account per page load, after
+  // this device's choices for that account are loaded.
+  const [accountSync, setAccountSync] = useState({ userId: null, status: 'idle' });
+  const accountRequestedForRef = useRef(null);
+  const accountRequestEpochRef = useRef(0);
+  const accountPushKeyRef = useRef(null);
+  const accountConfirmedKeyRef = useRef(null);
+  const accountDesiredKeyRef = useRef(null);
+  const accountReadyForRef = useRef(null);
+  const accountSaveQueueRef = useRef({ inFlight: null, pending: null });
+  const explicitFieldsRef = useRef(personalizationExplicitFields);
+  const accountOriginsRef = useRef(accountPreferenceOrigins);
+  useEffect(() => {
+    explicitFieldsRef.current = personalizationExplicitFields;
+    accountOriginsRef.current = accountPreferenceOrigins;
+  }, [personalizationExplicitFields, accountPreferenceOrigins]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId) {
+      accountRequestEpochRef.current += 1;
+      accountRequestedForRef.current = null;
+      accountPushKeyRef.current = null;
+      accountConfirmedKeyRef.current = null;
+      accountDesiredKeyRef.current = null;
+      accountReadyForRef.current = null;
+      accountSaveQueueRef.current.pending = null;
+      return;
+    }
+    if (loadedPersonalizationKey !== personalizationStorageKey) {
+      accountRequestEpochRef.current += 1;
+      accountRequestedForRef.current = null;
+      accountReadyForRef.current = null;
+      accountConfirmedKeyRef.current = null;
+      accountDesiredKeyRef.current = null;
+      accountSaveQueueRef.current.pending = null;
+      return;
+    }
+    if (accountRequestedForRef.current === userId) return;
+    const requestEpoch = ++accountRequestEpochRef.current;
+    const onboardingEpoch = onboardingMutationEpochRef.current;
+    accountRequestedForRef.current = userId;
+    accountReadyForRef.current = null;
+    accountConfirmedKeyRef.current = null;
+    accountDesiredKeyRef.current = null;
+    // A prior login's PUT may commit after this GET takes its snapshot. Keep
+    // this fact even if that PUT finishes before the GET response arrives.
+    const readOverlapsSave = accountSaveQueueRef.current.inFlight?.userId === userId;
+    fetchAccountPreferences()
+      .then((data) => {
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
+        if (data?.available === false) {
+          setAccountSync({ userId, status: 'unavailable' });
+          return;
+        }
+        const remote = data?.preferences || null;
+        const origins = accountOriginsRef.current;
+        const { adopted, adoptedFields, clearedFields } = mergeAccountPersonalization({
+          explicitFields: explicitFieldsRef.current,
+          inheritedFields: origins.inheritedFields,
+          // A reset made here must reach the account even when its GET was
+          // still in flight, or the page reloaded before the PUT completed.
+          remote: origins.resetPending ? null : remote
+        });
+        if (adoptedFields.length > 0 || clearedFields.length > 0) {
+          setPersonalizationState(prev => sanitizePersonalization({ ...prev, ...adopted }));
+          setPersonalizationExplicitFields(prev => Array.from(new Set([
+            ...prev.filter(field => !clearedFields.includes(field)), ...adoptedFields
+          ])));
+        }
+        setAccountPreferenceOrigins(current => ({ ...current, inheritedFields: adoptedFields }));
+        if (remote?.onboardingCompletedAt && onboardingMutationEpochRef.current === onboardingEpoch) {
+          setOnboardingCompleteState(true);
+          safeStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+        }
+        // An overlapping read cannot confirm a reset or suppress a corrective
+        // save. The queue will reassert this login's choices after the old PUT.
+        accountPushKeyRef.current = readOverlapsSave ? null : accountPayloadKey(buildAccountPreferencesPayload({
+          personalization: remote?.personalization || {},
+          explicitFields: remote?.explicitFields || [],
+          onboardingComplete: Boolean(remote?.onboardingCompletedAt)
+        }));
+        accountConfirmedKeyRef.current = accountPushKeyRef.current;
+        accountReadyForRef.current = userId;
+        setAccountSync({ userId, status: 'ready' });
+      })
+      .catch(() => {
+        if (accountRequestedForRef.current === userId && accountRequestEpochRef.current === requestEpoch) {
+          setAccountSync({ userId, status: 'error' });
+        }
+      });
+  }, [authLoading, userId, loadedPersonalizationKey, personalizationStorageKey]);
+
+  // 'signed-out' | 'loading' | 'ready' | 'unavailable' | 'error'
+  const accountPreferencesStatus = !userId
+    ? 'signed-out'
+    : accountSync.userId === userId ? accountSync.status : 'loading';
+
+  // Send this device's choices back whenever they differ from the account copy.
+  useEffect(() => {
+    if (authLoading || loadedPersonalizationKey !== personalizationStorageKey
+      || !userId || accountReadyForRef.current !== userId
+      || accountSync.userId !== userId || accountSync.status !== 'ready') return undefined;
+    const payload = buildAccountPreferencesPayload({
+      personalization,
+      explicitFields: personalizationExplicitFields,
+      onboardingComplete
+    });
+    const key = accountPayloadKey(payload);
+    const requestEpoch = accountRequestEpochRef.current;
+    accountDesiredKeyRef.current = key;
+    const queue = accountSaveQueueRef.current;
+    // A newer edit supersedes queued work immediately, even while its debounce
+    // is still pending. The request already in flight must finish first.
+    if (queue.pending?.key !== key) queue.pending = null;
+    if (key === accountPushKeyRef.current) {
+      // The account may already be empty (for example after a reset elsewhere).
+      // A confirmed matching copy also acknowledges this device's pending reset.
+      if (accountPreferenceOrigins.resetPending && key === accountConfirmedKeyRef.current) queueMicrotask(() => {
+        if (accountRequestedForRef.current !== userId || accountRequestEpochRef.current !== requestEpoch) return;
+        setAccountPreferenceOrigins(current => current === accountPreferenceOrigins
+          ? { ...current, resetPending: false } : current);
+      });
+      return undefined;
+    }
+    const drainQueue = () => {
+      if (queue.inFlight || !queue.pending) return;
+      const next = queue.pending;
+      queue.pending = null;
+      const isCurrent = () => accountRequestedForRef.current === next.userId
+        && accountRequestEpochRef.current === next.requestEpoch;
+      if (!isCurrent() || accountReadyForRef.current !== next.userId
+        || accountDesiredKeyRef.current !== next.key) return;
+      queue.inFlight = next;
+      accountPushKeyRef.current = next.key;
+      saveAccountPreferences(next.payload).then(() => {
+        if (!isCurrent()) return;
+        accountConfirmedKeyRef.current = next.key;
+        if (accountDesiredKeyRef.current === next.key) {
+          // Repeating the same reset while its request is in flight has the
+          // same intended payload and is acknowledged by this success too.
+          setAccountPreferenceOrigins(current => current.resetPending
+            ? { ...current, resetPending: false } : current);
+        }
+      }).catch((error) => {
+        if (!isCurrent()) return;
+        if (error?.code === 'preferences_unavailable') {
+          accountReadyForRef.current = null;
+          setAccountSync({ userId: next.userId, status: 'unavailable' });
+        } else if (accountPushKeyRef.current === next.key) {
+          // Let the next change try again.
+          accountPushKeyRef.current = null;
+        }
+      }).finally(() => {
+        queue.inFlight = null;
+        drainQueue();
+      });
+    };
+    const timer = setTimeout(() => {
+      if (key === accountPushKeyRef.current) return;
+      queue.pending = { payload, key, userId, requestEpoch };
+      drainQueue();
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [authLoading, loadedPersonalizationKey, personalizationStorageKey, userId, accountSync, personalization, personalizationExplicitFields, onboardingComplete, accountPreferenceOrigins]);
 
   // --- Nudge State (Contextual Discovery) ---
   const [nudgeState, setNudgeStateInternal] = useState(() => {
@@ -511,6 +725,7 @@ export function PreferencesProvider({ children }) {
     // Onboarding
     onboardingComplete,
     setOnboardingComplete,
+    accountPreferencesStatus,
     onboardingSpreadKey,
     setOnboardingSpreadKey,
     resetOnboarding,

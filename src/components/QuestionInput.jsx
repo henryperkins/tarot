@@ -13,6 +13,7 @@ import {
   isExampleQuestion
 } from './questionField';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { useSavedIntentions } from '../hooks/useSavedIntentions';
 import { useAutoGrow } from '../hooks/useAutoGrow';
 import { useSettledValue } from '../hooks/useSettledValue';
 import { USER_QUESTION_MAX_LENGTH } from '../../shared/contracts/readingRequestLimits.js';
@@ -30,6 +31,14 @@ export function QuestionInput({
   const clarityId = useId();
   const { personalization } = usePreferences();
   const textareaRef = useAutoGrow(userQuestion, 1, 4);
+  const [lastIntention] = useSavedIntentions(1);
+  // The reader's own last intention fills the field; continue there, at its end.
+  const focusFieldAtEnd = () => requestAnimationFrame(() => {
+    const field = textareaRef.current;
+    if (!field) return;
+    field.focus();
+    field.setSelectionRange?.(field.value.length, field.value.length);
+  });
   const isExperienced = personalization?.tarotExperience === 'experienced';
   const isNewbie = personalization?.tarotExperience === 'newbie';
   const displayName = personalization?.displayName?.trim();
@@ -64,7 +73,11 @@ export function QuestionInput({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="space-y-3">
+    <div
+      tabIndex={-1}
+      data-coach-fallback-focus
+      className="space-y-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+    >
       <div className="flex flex-col gap-2 xs:flex-row xs:items-start xs:justify-between">
         <div className="min-w-0 space-y-1">
           <label htmlFor="question-input" className="block font-serif text-base sm:text-lg leading-snug text-main text-balance">
@@ -107,7 +120,12 @@ export function QuestionInput({
       <QuestionNudge id={nudgeId} kind={nudgeKind} onOpenCoach={canLaunchCoach ? onLaunchCoach : undefined} />
       {(!trimmedQuestion || isExampleQuestion(trimmedQuestion)) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <QuestionExamples value={userQuestion} onChange={setUserQuestion} />
+          <QuestionExamples
+            value={userQuestion}
+            onChange={setUserQuestion}
+            lastIntention={lastIntention}
+            onIntentionUsed={focusFieldAtEnd}
+          />
           {isNewbie && !trimmedQuestion && canLaunchCoach && (
             <p className="text-xs text-muted">Or let the guided coach shape one with you.</p>
           )}

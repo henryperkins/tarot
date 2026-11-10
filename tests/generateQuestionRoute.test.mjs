@@ -316,3 +316,19 @@ test('free questions use the spread-shaped local template without calling Worker
   assert.equal(ai.calls.length, 0);
   assert.deepEqual(usageStates(env), []);
 });
+
+test('refinement failures and free-tier fallback preserve the exact current question', async () => {
+  const questionText = 'What can help me speak more openly with my sister before November 2?';
+  const body = { ...BODY, metadata: { ...BODY.metadata, questionText } };
+  for (const tier of ['plus', 'free']) {
+    const ai = fakeAI(() => { throw new Error('Workers AI unavailable'); });
+    const env = await setup({ tier, AI: ai });
+    const response = await ask(env, body);
+    assert.equal(response.status, 200);
+    assert.equal(response.body.question, questionText);
+    assert.equal(response.body.provider, 'local-preserved');
+    assert.equal(response.body.model, null);
+    assert.equal(ai.calls.length, tier === 'free' ? 0 : 1);
+    assert.deepEqual(usageStates(env), tier === 'free' ? [] : ['released']);
+  }
+});

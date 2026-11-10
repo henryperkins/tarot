@@ -3,32 +3,33 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { useLocalCalendarDate } from './useLocalCalendarDate';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { computeJournalStats, formatContextName } from '../lib/journalInsights';
 import { getCardImage } from '../lib/cardLookup';
+import { toDeckCards } from '../lib/journal/deckCards';
 import {
   EMPTY_STATS,
   CARD_NODE_POSITIONS,
   CARD_NODE_FALLBACK
 } from '../lib/journal/constants';
 import {
-  getTopContext,
   getCurrentMonthWindow,
   parseDateInput,
-  getTimeframeWindow,
   filterEntriesToWindow,
   formatWindowLabel,
   getAllTimeWindow,
   getLatestEntryTimestamp,
   formatSummaryDate
 } from '../lib/journal/utils';
+import { findLeaders } from '../lib/journal/leaders';
 
-export function useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary = false } = {}) {
+export function useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary = false, timeframeWindow = null } = {}) {
+  const calendarDate = useLocalCalendarDate();
   // Scope selection state
   const [analyticsScope, setAnalyticsScope] = useState('month');
   const [customScope, setCustomScope] = useState({ start: '', end: '' });
   const [hasUserSelectedScope, setHasUserSelectedScope] = useState(false);
-  const [scopeError, setScopeError] = useState('');
   const [expandedCardIndex, setExpandedCardIndex] = useState(null);
 
   const filtersActive = Boolean(filters.query?.trim()) ||
@@ -64,40 +65,30 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   }
 
   // Compute date windows
-  const monthWindow = useMemo(() => getCurrentMonthWindow(), []);
-  const timeframeWindow = useMemo(
-    () => (filters.timeframe !== 'all' ? getTimeframeWindow(filters.timeframe) : null),
-    [filters.timeframe]
-  );
+  const monthWindow = useMemo(() => getCurrentMonthWindow(calendarDate), [calendarDate]);
   const allTimeWindow = useMemo(() => getAllTimeWindow(entries), [entries]);
   const customWindow = useMemo(() => {
     if (analyticsScope !== 'custom') return null;
     const start = parseDateInput(customScope.start);
     const end = parseDateInput(customScope.end);
-    if (!start || !end) return null;
-    const normalizedEnd = end.getTime() < start.getTime() ? start : end;
-    return { start, end: normalizedEnd };
+    if (!start || !end || end < start) return null;
+    // Calendar arithmetic includes 23/25-hour days across DST changes.
+    return { start, end: new Date(new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1).getTime() - 1) };
   }, [analyticsScope, customScope]);
 
   // Compute scope error as derived state (avoids setState in useEffect)
-  const computedScopeError = useMemo(() => {
+  const scopeError = useMemo(() => {
     if (analyticsScope !== 'custom') {
       return '';
     }
     const start = parseDateInput(customScope.start);
     const end = parseDateInput(customScope.end);
-    if (start && end) {
-      return '';
-    } else if (customScope.start || customScope.end) {
+    if (!start || !end) {
       return 'Select a valid start and end date for custom scope.';
     }
+    if (end < start) return 'The end date must be on or after the start date.';
     return '';
   }, [analyticsScope, customScope]);
-
-  // Update scopeError state when computed value changes (render-time pattern)
-  if (scopeError !== computedScopeError) {
-    setScopeError(computedScopeError);
-  }
 
   // Determine active scope window
   const scopeWindow = useMemo(() => {
@@ -105,6 +96,7 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
       case 'month':
         return monthWindow;
       case 'filters':
+        // Use the exact window that selected filteredEntries.
         return timeframeWindow;
       case 'custom':
         return customWindow;
@@ -117,16 +109,17 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
 
   // Compute scoped entries for stats
   const scopedStatsEntries = useMemo(() => {
+    if (analyticsScope === 'custom' && !customWindow) return [];
     if (analyticsScope === 'filters' && filtersActive) {
       return filteredEntries;
     }
     return filterEntriesToWindow(entries, scopeWindow);
-  }, [analyticsScope, filtersActive, filteredEntries, entries, scopeWindow]);
+  }, [analyticsScope, customWindow, filtersActive, filteredEntries, entries, scopeWindow]);
 
   // Compute stats
   const scopeStats = useMemo(
-    () => computeJournalStats(scopedStatsEntries) ?? EMPTY_STATS,
-    [scopedStatsEntries]
+    () => computeJournalStats(scopedStatsEntries, { dateWindow: scopeWindow }) ?? EMPTY_STATS,
+    [scopedStatsEntries, scopeWindow]
   );
   const baselineStats = useMemo(
     () => computeJournalStats(entries) ?? EMPTY_STATS,
@@ -134,7 +127,9 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   );
 
   // Derived values
-  const topContextScope = useMemo(() => getTopContext(scopeStats), [scopeStats]);
+  // A context is the top one only when it repeated and leads alone; ties are shown together.
+  const contextLeaders = useMemo(() => findLeaders(scopeStats?.contextBreakdown), [scopeStats]);
+  const topContextScope = contextLeaders.length === 1 ? contextLeaders[0] : null;
   const latestScopeEntryTs = useMemo(
     () => getLatestEntryTimestamp(scopedStatsEntries),
     [scopedStatsEntries]
@@ -184,11 +179,13 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
   const heroCardLimit = isSmallSummary ? 1 : 3;
   const heroCards = useMemo(() => {
     if (!heroEntry || !Array.isArray(heroEntry.cards)) return [];
-    return heroEntry.cards.slice(0, heroCardLimit).map((card, index) => ({
-      id: `${card.name || 'card'}-${index}`,
-      name: card.name || 'Card',
-      position: card.position || `Card ${index + 1}`,
-      orientation: card.orientation || (card.isReversed ? 'Reversed' : 'Upright'),
+    // Shown in the reading's own deck; meanings still resolve by canonical name.
+    return toDeckCards(heroEntry.cards.slice(0, heroCardLimit), heroEntry.deckId).map((card, index) => ({
+      id: `${card?.canonicalName || card?.name || 'card'}-${index}`,
+      name: card?.name || 'Card',
+      canonicalName: card?.canonicalName || card?.name || null,
+      position: card?.position || `Card ${index + 1}`,
+      orientation: card?.orientation || (card?.isReversed ? 'Reversed' : 'Upright'),
       image: getCardImage(card)
     }));
   }, [heroEntry, heroCardLimit]);
@@ -206,18 +203,27 @@ export function useJournalAnalytics(entries, filteredEntries, filters, { isSmall
     ? `Journal avg ${baselineStats?.reversalRate ?? 0}%`
     : 'Log cards to see insights';
 
+  const contextTie = contextLeaders.length > 1;
   const topContextLabel = topContextScope
     ? formatContextName(topContextScope.name)
-    : scopeEntryCount > 0
-      ? 'No context yet'
-      : filtersActive
-        ? 'No match'
-        : 'No entries';
+    : contextTie
+      ? (contextLeaders.length <= 3
+        ? contextLeaders.map((context) => formatContextName(context.name)).join(' · ')
+        : 'Several contexts')
+      : scopeEntryCount > 0
+        ? 'Not yet clear'
+        : filtersActive
+          ? 'No match'
+          : 'No entries';
   const topContextSecondary = topContextScope
     ? scopeLabel
-    : entries.length > 0
-      ? `${overallTotalEntries} entries`
-      : 'Log a reading';
+    : contextTie
+      ? `Tied · ${contextLeaders[0].count} readings each`
+      : scopeEntryCount > 0
+        ? 'No context has repeated yet'
+        : entries.length > 0
+          ? `${overallTotalEntries} entries`
+          : 'Log a reading';
 
   const summaryLastEntryLabel = isFilteredEmpty
     ? 'No matches'

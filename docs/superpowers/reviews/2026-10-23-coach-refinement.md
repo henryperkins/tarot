@@ -1,0 +1,35 @@
+# Coach refinement verification — 2026-10-23
+
+The approved coach remediation is implemented in the primary checkout and retained in the isolated `codex/coach-refinement-20261023` worktree, based on `4f36850546c36502e6846b5a60634e202f035609`. At completion of the implementation verification, changes were local, uncommitted, and undeployed.
+
+Existing reading-page wording now opens **Review your question** verbatim. Empty entry follows Topic → Timeframe → Depth → Review. Templates, suggestions, and recent questions open review with their exact previewed text. The editor appears first; **Use this question** exists on review and applies its exact contents, including line breaks. **Start fresh** remains secondary, and the original stays recoverable.
+
+Coach grades were replaced with **Question framing**, containing at most two optional suggestions. Narrow English phrasing checks abstain on unknown, mixed, or unsupported wording; Latin script alone does not trigger assessment. Timeframes are optional and framing never prevents applying valid text. The non-AI career refinement can produce “What can help me understand and work with self-doubt in my career?” without inventing a deadline. Other unfamiliar local wording is preserved rather than broadly rewritten.
+
+Setting/detail changes preserve manually edited and explicitly selected questions. **Generate new wording** is explicit, **Restore my wording** recovers the prior version, and **Restore original question** retains the entry text even after Start fresh. AI refinement receives the visible question, including repeated refinements and questions created through the wizard. Edits, selections, settings changes, and ownership changes invalidate pending responses. Invalid response shapes preserve the input and show fallback status.
+
+Template replacement now identifies the replaced item truthfully and provides Undo. Recovery verifies the owner, token identity, and exact post-save snapshot. UI save, delete, and Undo share an owner-scoped Web Lock so an overlapping tab cannot be overwritten. Unavailable locks or failed persistence return an error without performing the mutation.
+
+Compact layout uses fixed insets, refits the textarea after typography changes, and returns the footer to normal flow when it consumes more than one quarter of the dialog. Radio arrows select normally. Review entry brings its heading/editor into view; setting shortcuts focus the selected radio. Gesture handling is limited to the dedicated drag handle. Final rendered checks also corrected a duplicate banner landmark and the named settings group's missing role.
+
+| Verification | Result | Evidence |
+| --- | --- | --- |
+| Full root Node suite | 4,581 passed; 2 skipped; 0 failures (4,583 total, 536 suites) | `output/coach-refinement-20261023/verified-unit.log` in the isolated worktree |
+| Final coach browser run | 88/88 passed; 0 skipped/flaky; every retry index 0; one uninterrupted run | `output/coach-refinement-20261023/verified-browser.log` and `final-results.json` in the isolated worktree |
+| Browser breakdown | 30 new acceptance cases across Chromium and mobile WebKit; 38 existing Chromium and 20 existing mobile WebKit cases | `output/coach-refinement-20261023/playwright.final.config.mjs` in the isolated worktree |
+| Existing entry/overlay coverage | 18/18 passed in a separate focused run | `output/coach-legacy-20261023/entry-and-overlay-run.log` in the isolated worktree |
+| Primary production build | Passed after final ARIA role change | `output/playwright/coach-refinement-20261023/build.log` |
+| Changed-file ESLint | Exit 0 across 20 JavaScript/JSX/MJS files after final ARIA change | `output/playwright/coach-refinement-20261023/lint.log`; process exit recorded in session |
+| Static accessibility checks | 24/24 theme-token contrast checks; 0 analyzer errors, 1,071 repository-wide warnings | `output/coach-refinement-20261023/final-a11y.log` in the isolated worktree |
+| Impeccable source detector | No deterministic findings | `output/playwright/coach-refinement-20261023/detector.json` |
+| Final rendered guest and real Pro check | Passed; zero definite Axe violations in checked desktop/compact states; contrast checks remain incomplete | `output/playwright/coach-refinement-20261023/local-review.json` and `local-review.log` |
+
+The 88-case browser run preceded the final named-settings `role="group"` adjustment. The rebuilt primary app and fresh guest/Pro rendered checks verify that last semantic change; the entire browser suite was not repeated afterward. The full Node suite required adding the new framing module and coach CSS to the existing explicit reading-cue source snapshot allowlist; its 15 runtime tests and final full suite passed.
+
+The new acceptance cases cover career and dated-question handoff, original recovery through Start fresh, Review before Apply, sister wording across settings, prior restoration, exact Apply, guarantee guidance, Spanish abstention, exact template/recent/suggestion entry, replacement with Undo, malformed output fallback, pending-response cancellation, repeated/wizard refinement input, and enlarged 320 × 568 editing. Independent code review identified the cross-tab Undo race, omitted visible input in some AI requests, and an overly broad guarantee exception. Each was corrected with a failing regression followed by a passing run.
+
+Real local authentication was verified separately from fixtures: guest `/api/auth/me` returned 401; the reviewer authenticated as active Pro with `/api/auth/me` 200; logout returned 200 and the subsequent identity check returned 401. Browser contexts were closed. Generation used controlled responses and other non-auth API calls were blocked; no live model output was qualified. At 320 × 568 with the root font doubled to 32 px, both guest and Pro editors were 284 px wide, had matching 232 px client/scroll heights, no horizontal document overflow, and a static footer. Desktop dark and phone light screenshots were inspected.
+
+Evidence limits: mobile WebKit is browser emulation, not physical-device testing. Physical keyboards, browser chrome, screen readers, and device pinch/gesture behavior remain unqualified. Automated contrast checks do not resolve the incomplete rendered contrast results on layered surfaces. The language checks intentionally miss unfamiliar English rather than assess uncertain language. Real signed-in review covers active Pro, while subscription fixtures cover relevant client branches; this is not full billing-state qualification. The separate reading-page question grader is outside the coach remediation.
+
+All 79 pre-existing dirty/untracked baseline files were verified byte-for-byte. Only task-owned paths were copied back, with before/after hashes and recovery copies under `/home/ubuntu/.cache/tableu-coach-refinement-20261023/`. A tool-added Impeccable hook block was removed only after the resulting file matched the exact baseline hash. The two owned development process groups were stopped after verification. The implementation verification phase performed no commit, push, deployment, or live generation.

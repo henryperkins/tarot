@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { CaretDown } from '@phosphor-icons/react';
 import { StreamingNarrative } from '../../StreamingNarrative';
 import { NarrativeSafetyNotice } from '../../NarrativeSafetyNotice';
 import { NarrativePanelHeader } from './NarrativePanelHeader';
 import { ReadingSpread, ReadingCardFigure, ReadingChapterCards } from './ReadingSpread';
 import { ReadingContents } from './ReadingContents';
 import { ReadingCompletionActions } from '../complete/ReadingCompletionActions';
+import { ClampedQuestion } from '../ClampedQuestion';
 import { getReadingSections, getSectionKeyFromHeading, getReadingChapterCards } from '../../../lib/narrativeSections';
 
 const EMPTY_CARDS = [];
@@ -13,6 +15,7 @@ const nodeText = node => node.value ?? node.children?.map(nodeText).join('') ?? 
 
 export function ReadingDocument({ model, callbacks }) {
   const root = useRef(null);
+  const [hasViewedOverview, setHasViewedOverview] = useState(false);
   const sections = useMemo(() => getReadingSections(model.narrativeText), [model.narrativeText]);
   const starts = useMemo(() => new Set(sections.filter(section => section.depth !== null).map(section => section.headingStart)), [sections]);
   const cards = model.displayCards || model.spreadCards || EMPTY_CARDS;
@@ -37,9 +40,9 @@ export function ReadingDocument({ model, callbacks }) {
 
   return <div className="reading-screen__column" ref={root}>
     <NarrativePanelHeader />
-    {model.question && <div className="reading-question"><span>Your question</span><p>{model.question}</p></div>}
+    {model.question && <div className="reading-question"><span>Your question</span><ClampedQuestion text={model.question} /></div>}
     {Object.values(model.originalContext?.reflections || {}).some(value => typeof value === 'string' && value.trim())
-      && <details className="reading-options"><summary>Your notes</summary>
+      && <details className="reading-options"><summary>Your notes<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
         {Object.entries(model.originalContext.reflections).filter(([, value]) => typeof value === 'string' && value.trim()).map(([key, value]) => {
           const card = /^\d+$/.test(key) ? cards.find(card => card.index === Number(key)) : null;
           return <div key={key} className="mb-4">
@@ -48,12 +51,14 @@ export function ReadingDocument({ model, callbacks }) {
           </div>;
         })}
       </details>}
-    {cards.length <= 3 ? <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} /> : <details className="reading-spread-disclosure">
-      <summary>View drawn cards <span>{cards.length} cards</span></summary>
-      <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />
+    {cards.length <= 3 ? <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} /> : <details className="reading-spread-disclosure"
+      onToggle={event => { if (event.currentTarget.open) setHasViewedOverview(true); }}>
+      <summary>View drawn cards <span>{cards.length} cards</span><CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary>
+      {hasViewedOverview && <ReadingSpread cards={cards} onSelectCard={callbacks.onSelectCard} showSummary />}
     </details>}
     <ReadingContents sections={sections} readingRef={root} controlsModel={model.controlsModel}
-      onNarrate={callbacks.onNarrationStart} onStopNarration={callbacks.onStopNarration} compactTabs={cards.length <= 3} />
+      onNarrate={callbacks.onNarrationStart} onStopNarration={callbacks.onStopNarration} compactTabs={cards.length <= 3}
+      showReadingActions={model.isHandset && !model.isReadingStreaming && Boolean(model.saveController)} />
     {sections[0]?.depth === null && (sections.length > 1 ? <h3 id={sections[0].id} data-reading-section tabIndex={-1}
       className="reading-screen__section-title">{sections[0].title}</h3> : <div id={sections[0].id} data-reading-section tabIndex={-1} />)}
     <div className="reading-prose">
@@ -65,7 +70,8 @@ export function ReadingDocument({ model, callbacks }) {
         cardLinks={model.gestureStudyEnabled && model.personalReading?.hasMarkdown ? model.cardLinkCatalog : null}
         gestureSource={model.gestureSource} getHeadingProps={headingProps} renderHeadingLead={headingLead} />
     </div>
-    {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions">
+    {!model.isHandset && !model.isReadingStreaming && <div className="reading-completion-actions"
+      data-app-secondary="3" data-chrome-placement="bottom">
       {model.saveController ? <ReadingCompletionActions saveController={model.saveController}
         onViewJournalEntry={callbacks.onViewJournalEntry} onOpenFollowUp={callbacks.onOpenFollowUp} /> : <>
       <button type="button" className="reading-screen__primary" disabled={model.controlsModel?.isSaving}
@@ -75,7 +81,7 @@ export function ReadingDocument({ model, callbacks }) {
       {callbacks.onOpenFollowUp && <button type="button" className="reading-screen__secondary" onClick={callbacks.onOpenFollowUp}>Ask about this reading</button>}
       </>}
     </div>}
-    <details className="reading-about"><summary>About this reading</summary><NarrativeSafetyNotice compact />
+    <details className="reading-about"><summary>About this reading<CaretDown className="reading-disclosure__icon" aria-hidden="true" /></summary><NarrativeSafetyNotice compact />
       {model.focusToggleAvailable && <button type="button" className="min-h-touch text-sm" aria-pressed={model.isNarrativeFocus}
         onClick={callbacks.onToggleNarrativeFocus}>Hide extra panels: {model.isNarrativeFocus ? 'on' : 'off'}</button>}
     </details>

@@ -1,5 +1,9 @@
+import { prepareReadingContextSources } from '../lib/readingContextSources.js';
+import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
+import { persistReadingMemoryAccess } from '../lib/userMemory.js';
+import { decisionPathRoleCards, resolveDecisionPathContext } from '../lib/decisionPathContext.js';
 import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
-import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
+import { READING_BUFFERED_ATTEMPT_MAX_MS, createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
  * Cloudflare Pages Function for generating a personalized tarot reading.
  *
@@ -22,6 +26,7 @@ import { buildVisionEvidencePackets } from '../lib/visionEvidence.js';
 import {
   buildPromptEngineeringPayload,
   buildReadingRedactionOptions,
+  buildMemoryCandidateRedactionNames,
   shouldAllowUnredactedPromptStorage,
   shouldPersistPrompts
 } from '../lib/promptEngineering.js';
@@ -39,7 +44,7 @@ import { applyGraphRAGAlerts } from '../lib/graphRAGAlerts.js';
 import { getUserFromRequest, loadActiveUserById } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { buildTierLimitedPayload, getSubscriptionContext } from '../lib/entitlements.js';
-import { resolveReadingPersonalizationContext } from '../lib/userPersonalization.js';
+import { loadReadingMemoryCandidates, resolveReadingPreferencesContext } from '../lib/userPersonalization.js';
 import { canonicalCardKey } from '../../shared/vision/cardNameMapping.js';
 import { ReadingCardResolutionError, resolveReadingCards } from '../lib/readingCardResolution.js';
 import { collectQuerentReflections } from '../lib/querentReflections.js';
@@ -87,6 +92,7 @@ import {
 import { getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
 import { streamCodexSubscription } from '../lib/codexSubscription.js';
 import { createCodexReadingStream } from '../lib/codexReadingStream.js';
+import { getCanonicalSceneFacts, renderCanonicalSceneReading } from '../lib/canonicalSceneEvidence.js';
 import { createReadingPassageGuard } from '../lib/readingPassageGuard.js';
 import {
   getSpreadDefinition,
@@ -96,7 +102,8 @@ import {
   annotateVisionInsights,
   buildVisionMetrics,
   resolveVisionPromptThresholds,
-  persistReadingMetrics
+  persistReadingMetrics,
+  summarizeRejectedNarrative
 } from '../lib/readingQuality.js';
 import { buildMetricsPayload } from '../lib/telemetrySchema.js';
 import {
@@ -107,6 +114,7 @@ import {
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
 import { getReadingPromptVersion } from '../lib/promptVersioning.js';
+import { STREAMING_QUALITY_NOTICE_REASON } from '../lib/mcp/readingOutcome.js';
 
 function parseBooleanLike(value, defaultValue = false) {
   if (value === undefined || value === null) return defaultValue;
@@ -187,6 +195,15 @@ export function resolvePromptDebugAccess({ env, user, requested } = {}) {
  * prompts together must leave ample headroom.
  */
 export const PROMPT_DEBUG_MAX_PROMPT_CHARS = 15000;
+
+/**
+ * Modal's thinking model occasionally returns a degenerate answer that fails
+ * the quality gate (one reading about undrawn cards in 18 generations), while a
+ * fresh attempt with the same prompt passes. It gets one retry when enough of
+ * the task budget remains for a full attempt plus the later fallbacks.
+ */
+const QUALITY_RETRY_BACKENDS = new Set(['modal-qwen']);
+const QUALITY_RETRY_MIN_REMAINING_MS = 120000;
 
 function truncateForPromptDebug(text) {
   if (typeof text !== 'string' || !text) return { text: text || null, truncated: false };
@@ -312,6 +329,7 @@ function evaluateQualityGate({ readingText, cardsInfo, deckStyle, analysis, requ
   const spreadKey = analysis?.spreadKey || null;
   const qualityMetrics = buildNarrativeMetrics(text, safeCards, deckStyle);
   const qualityIssues = [];
+  if (qualityMetrics.undrawnCardAssertions.length > 0) qualityIssues.push('undrawn_card_assertion');
   for (const mismatch of qualityMetrics.suitCountMismatches) {
     qualityIssues.push(`incorrect ${mismatch.suit} count (${mismatch.claimed} claimed; ${mismatch.actual} drawn)`);
   }
@@ -411,6 +429,7 @@ async function finalizeReading({
   capturedReasoningSummary = null,
   waitUntil,
   personalization,
+  candidateNameHints = [],
   backendErrors = [],
   acceptedQualityMetrics = null,
   allowGateBlocking = true,
@@ -466,14 +485,19 @@ async function finalizeReading({
     personalization,
     userQuestion,
     reflectionsText,
-    memories: narrativePayload.memories
+    memories: narrativePayload.memories,
+    candidateNameHints,
+    cardsInfo,
+    decisionPaths: narrativePayload.decisionPaths
   });
 
   const evalParams = {
     signal: narrativePayload.signal,
+    decisionPaths: narrativePayload.decisionPaths,
     reading: originalReading,
     userQuestion,
     cardsInfo,
+    deckStyle,
     spreadKey: analysis.spreadKey,
     requestId,
     displayName: personalization?.displayName,
@@ -607,9 +631,12 @@ async function finalizeReading({
         systemPrompt: capturedPrompts.system,
         userPrompt: capturedPrompts.user,
         response: finalReading,
+        decisionPaths: narrativePayload.decisionPaths,
         userQuestion,
         reflectionsText,
         personalization,
+        redactionOptions: readingRedactionOptions,
+        candidateNameHints,
         skipPIIRedaction
       });
     } catch (err) {
@@ -725,6 +752,25 @@ async function finalizeReading({
     }
   }
 
+  narrativePayload.signal?.throwIfAborted();
+  if (!wasGateBlocked && finalProvider !== 'safe-fallback' && narrativePayload.memoryAccessOwnerId
+    && narrativePayload.memoryAttemptId && narrativePayload.acceptedMemoryAttemptId === narrativePayload.memoryAttemptId) {
+    const retention = narrativePayload.memoryRetention;
+    const selectedIds = new Set((narrativePayload.memories || []).map(memory => memory.id).filter(Boolean));
+    const ids = [...new Set((retention?.retainedSlots || []).map(slot => retention.slotToId?.[slot]).filter(id => selectedIds.has(id)))];
+    if (ids.length) {
+      const usage = Object.freeze({ userId: narrativePayload.memoryAccessOwnerId, ids: Object.freeze(ids.slice(0, 3)), completedAt: Date.now(), requestId, attemptId: narrativePayload.acceptedMemoryAttemptId });
+      if (typeof narrativePayload.onReadingMemoryUsage === 'function') {
+        // Durable jobs commit only after their own cancellation/terminal guard.
+        narrativePayload.onReadingMemoryUsage(usage);
+      } else {
+        const accessPromise = persistReadingMemoryAccess(env.DB, usage);
+        if (typeof waitUntil === 'function') waitUntil(accessPromise);
+        else await accessPromise;
+      }
+    }
+  }
+
   return {
     responsePayload,
     evalGateResult,
@@ -745,6 +791,13 @@ export const onRequestGet = async ({ env }) => {
   });
 };
 
+/** Private identity and retention belong to one attempt, never its predecessor. */
+function beginMemoryAttempt(payload) {
+  payload.memoryAttemptId = crypto.randomUUID();
+  payload.acceptedMemoryAttemptId = null;
+  payload.memoryRetention = { retainedSlots: [], slotToId: {} };
+}
+
 /**
  * Resolve the caller for a reading.
  *
@@ -764,7 +817,7 @@ export async function resolveReadingUser({ request, env, principal }) {
   return { user: await getUserFromRequest(request, env), unauthorized: false };
 }
 
-export const onRequestPost = async ({ request, env, waitUntil, principal = null }) => {
+export const onRequestPost = async ({ request, env, waitUntil, principal = null, onReadingMemoryUsage = null }) => {
   const startTime = Date.now();
   const taskDeadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env, 'reading') });
   const taskSignal = taskDeadline.signal;
@@ -798,6 +851,8 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       cardsInfo: rawCardsInfo,
       userQuestion,
       reflectionsText,
+      decisionPaths: rawDecisionPaths,
+      useSavedMemories = true,
       reversalFrameworkOverride,
       visionProof,
       deckStyle: requestDeckStyle,
@@ -808,8 +863,14 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     } = normalizedPayload;
     // Inspect original, schema-validated notes before card resolution strips
     // prompt instructions: a crisis disclosure can occur after the stripped text.
+    const decisionPathContext = resolveDecisionPathContext({
+      spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
+      cardsInfo: rawCardsInfo,
+      decisionPaths: rawDecisionPaths
+    });
+    const decisionPaths = decisionPathContext.decisionPaths;
     const crisisCheck = detectCrisisSignals([
-      userQuestion, collectQuerentReflections(reflectionsText, rawCardsInfo)
+      userQuestion, collectQuerentReflections(reflectionsText, rawCardsInfo), decisionPathContext.rawSafetyText
     ].filter(Boolean).join(' '));
     const deckStyle = requestDeckStyle || spreadInfo?.deckStyle || 'rws-1909';
     let cardsInfo;
@@ -819,9 +880,12 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       if (!(error instanceof ReadingCardResolutionError)) throw error;
       return jsonResponse({ error: error.message, code: error.code }, { status: 400 });
     }
-    // Combine general notes with sanitized card reflections for context
-    // inference; the prompt renders the two separately.
-    const querentReflections = collectQuerentReflections(reflectionsText, cardsInfo);
+    // Raw crisis screening above retains every original label. Later checks
+    // use stable roles so cleared/replaced path labels cannot return via notes.
+    const querentReflections = collectQuerentReflections(
+      reflectionsText,
+      getSpreadKey(spreadInfo?.name, spreadInfo?.key) === 'decision' ? decisionPathRoleCards(cardsInfo) : cardsInfo
+    );
 
     // Sanitize location: validate ranges, strip excess fields, keep only needed data
     let sanitizedLocation = null;
@@ -852,7 +916,9 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
       locationTimezone: sanitizedLocation?.timezone || null
     });
 
-    const validationError = validatePayload({ ...normalizedPayload, cardsInfo });
+    // Crisis support takes precedence when filtering empties a custom position.
+    // Schema and canonical identity were already validated; no reading is generated.
+    const validationError = crisisCheck.matched ? null : validatePayload({ ...normalizedPayload, cardsInfo });
     if (validationError) {
       console.error(`[${requestId}] Validation failed:`, validationError);
       return jsonResponse(
@@ -885,15 +951,21 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
 
     const {
       personalization,
-      storedPersonalization,
-      memories
-    } = await resolveReadingPersonalizationContext(env?.DB, user?.id, requestPersonalization);
-    const contextDiagnostics = [];
+      storedPersonalization
+    } = await resolveReadingPreferencesContext(env?.DB, user?.id, requestPersonalization);
+    const contextDiagnostics = [...decisionPathContext.diagnostics];
     const contextSources = {
+      spreadKey: getSpreadKey(spreadInfo?.name, spreadInfo?.key),
+      decisionPaths,
       userQuestion,
-      reflectionsText: querentReflections,
+      reflectionsText,
+      cardsInfo,
       focusAreas: personalization?.focusAreas
     };
+    const preparedContextSources = prepareReadingContextSources(contextSources);
+    const contextSelection = resolveContextSelection({ sources: preparedContextSources }, contextSources.spreadKey, {
+      onUnknown: (message) => contextDiagnostics.push(message)
+    });
     const contextInputText = buildContextInferenceInput(contextSources);
 
     console.log(`[${requestId}] Subscription context:`, {
@@ -905,8 +977,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null 
     console.log(`[${requestId}] Personalization context resolved`, {
       hasRequestPersonalization: Boolean(requestPersonalization),
       hasStoredPersonalization: Boolean(storedPersonalization),
-      effectiveFocusAreas: Array.isArray(personalization?.focusAreas) ? personalization.focusAreas.length : 0,
-      memoryCount: Array.isArray(memories) ? memories.length : 0
+      effectiveFocusAreas: Array.isArray(personalization?.focusAreas) ? personalization.focusAreas.length : 0
     });
     console.log(`[${requestId}] Context inference input prepared`, {
       hasContextInput: Boolean(contextInputText),
@@ -1110,18 +1181,45 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
     readingReservation = readingLimitResult.reservation || null;
 
+    // Preferences inform context before safety/entitlement exits; memory storage
+    // is touched only after those exits and only when reuse is enabled.
+    const memoryCandidates = await loadReadingMemoryCandidates(env?.DB, user?.id, { useSavedMemories });
+    // Persistence-only hints stay outside the frozen generation selection and
+    // narrative payload. Explicit opt-out performs neither reads nor extraction.
+    const candidateNameHints = useSavedMemories === false
+      ? []
+      : buildMemoryCandidateRedactionNames(memoryCandidates);
+    const memorySelection = useSavedMemories === false
+      ? Object.freeze({
+        memories: Object.freeze([]), selectedIds: Object.freeze([]),
+        candidateCount: 0, selectedCount: 0, exclusionReasons: Object.freeze({}),
+        stats: Object.freeze({ candidateCount: 0, selectedCount: 0, exclusionReasons: Object.freeze({}) }),
+        disabledByRequest: true, referenceTime: startTime
+      })
+      : selectMemoriesForReading(memoryCandidates, {
+        sources: preparedContextSources, contextSelection,
+        displayName: personalization?.displayName, personalization,
+        userId: user?.id, referenceTime: startTime
+      });
+    const memories = memorySelection.memories;
+    console.log(`[${requestId}] Memory candidates selected`, { selectedCount: memories.length });
+
     // STEP 1: Comprehensive spread analysis
+    taskSignal.throwIfAborted();
     console.log(`[${requestId}] Starting spread analysis...`);
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
+      signal: taskSignal,
       reversalFrameworkOverride,
       deckStyle,
       userQuestion,
       contextInputText,
       contextSources,
+      contextSelection,
       subscriptionTier,
       location: sanitizedLocation
     }, requestId, env);
+    taskSignal.throwIfAborted();
     const analysisTime = Date.now() - analysisStart;
     console.log(`[${requestId}] Spread analysis completed in ${analysisTime}ms:`, {
       spreadKey: analysis.spreadKey,
@@ -1130,9 +1228,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       reversalFramework: analysis.themes?.reversalFramework
     });
 
-    const contextSelection = resolveContextSelection(contextSources, analysis.spreadKey, {
-      onUnknown: (message) => contextDiagnostics.push(message)
-    });
     const context = contextSelection.context;
     console.log(`[${requestId}] Context inferred: ${context} (source: ${contextSelection.source})`);
     analysis.reasoning = buildReadingReasoning(
@@ -1144,12 +1239,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     );
     const localComposerLanguageSupport = getLocalComposerLanguageSupport({
       userQuestion,
-      reflectionsText: querentReflections
+      reflectionsText: querentReflections,
+      decisionPaths
     });
     const evalGatePolicy = buildSelectiveEvalGatePolicy({
       env,
       context,
       languageSupport: localComposerLanguageSupport,
+      decisionPaths,
       userQuestion,
       reflectionsText: querentReflections
     });
@@ -1174,17 +1271,19 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle
     );
     const narrativePayload = {
-      userContextInputStats: Object.fromEntries([
+      userContextInputStats: { ...decisionPathContext.inputStats, ...Object.fromEntries([
         ['question', { originalLength: userQuestion?.length || 0 }],
         ['reflections', { originalLength: reflectionsText?.length || 0 }],
         ...rawCardsInfo.map((card, index) => [`card-${index}`, getReadingContextInputStats(card.userReflection, cardsInfo[index].userReflection)])
-      ]),
+      ]) },
+      decisionPaths,
       spreadInfo,
       cardsInfo,
       userQuestion,
       reflectionsText,
       analysis,
       context,
+      contextSelection,
       contextInputText,
       contextDiagnostics: [...baseContextDiagnostics],
       visionInsights: sanitizedVisionInsights,
@@ -1192,6 +1291,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle,
       personalization: personalization || null,
       memories,
+      memorySelection,
+      useSavedMemories,
+      memoryAccessOwnerId: user?.id || null,
+      onReadingMemoryUsage,
       subscriptionTier,
       narrativeEnhancements: [],
       graphRAGPayload: analysis.graphRAGPayload || null,
@@ -1204,8 +1307,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const codexLiveEnabled = useStreaming
       && getAvailableNarrativeBackends(env)[0]?.id === 'codex-subscription'
       && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
+      && getCanonicalSceneFacts(cardsInfo, deckStyle).length === 0
       && !evalGatePolicy.effectiveEvalGateEnabled;
     if (codexLiveEnabled) {
+      beginMemoryAttempt(narrativePayload);
+      let acceptedMemoryUsage = null;
+      // Final checking can still be cancelled. Commit only when the stream
+      // accepts its terminal done event, after that last abort check.
+      narrativePayload.onReadingMemoryUsage = usage => { acceptedMemoryUsage = usage; };
       const streamProvider = 'codex-subscription';
       const { assignment: attemptAssignment, variantPromptOverrides } = resolveAttemptABAssignment(requestId, activeExperiments, {
         spreadKey: analysis.spreadKey, provider: streamProvider
@@ -1245,12 +1354,13 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             throw error;
           }
           narrativePayload.signal = signal;
+          narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
           narrativePayload.promptMeta.inference = { provider: streamProvider, model: result.model, modelSource: result.modelSource };
           const { responsePayload } = await taskDeadline.run(() => finalizeReading({
             env, requestId, startTime, reading: result.text, provider: streamProvider, deckStyle, analysis,
             narrativePayload, contextDiagnostics, cardsInfo, userQuestion, reflectionsText: querentReflections,
             context, visionMetrics, abAssignment: attemptAssignment, capturedPrompts, capturedUsage: result.usage,
-            waitUntil, personalization, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
+            waitUntil, personalization, candidateNameHints, backendErrors: [], acceptedQualityMetrics: qualityMetrics,
             allowGateBlocking: true, rejectGateBlocked: true, evalGateEnv, evalGatePolicy,
             promptDebugAllowed: promptDebugAccess.allowed
           }));
@@ -1260,6 +1370,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           streamState = 'accepted';
           streamReason = null;
           return { requestId, model: result.model, modelSource: result.modelSource, usage: result.usage, gateBlocked: false, gateReason: null };
+        },
+        onAccepted: () => {
+          if (!acceptedMemoryUsage) return;
+          if (typeof onReadingMemoryUsage === 'function') onReadingMemoryUsage(acceptedMemoryUsage);
+          else {
+            const accessPromise = persistReadingMemoryAccess(env.DB, acceptedMemoryUsage);
+            if (typeof waitUntil === 'function') waitUntil(accessPromise);
+            else return accessPromise;
+          }
         },
         onError: async error => {
           streamState = error?.code === 'reading_stream_rejected' ? 'rejected' : 'failed';
@@ -1338,6 +1457,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     if (canUseOpenAIStreaming) {
       const streamProvider = 'openai-native';
+      beginMemoryAttempt(narrativePayload);
 
       // A/B Testing: assign per-provider so targeting is accurate
       const {
@@ -1367,6 +1487,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
       if (!streamingFallback) {
         applyGraphRAGAlerts(narrativePayload, requestId, streamProvider);
+        const sceneContract = narrativePayload.promptMeta?.canonicalSceneFacts;
+        const requiresSceneRendering = sceneContract?.required === true;
 
         const effectiveModel = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
         const reasoningEffort = getReasoningEffort(env, effectiveModel);
@@ -1397,6 +1519,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           instructions: systemPrompt,
           input: userPrompt,
           maxTokens: null,
+          requestId,
           signal: taskSignal,
           reasoningEffort,
           reasoningSummary: 'auto',
@@ -1405,7 +1528,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         const transformedStream = transformOpenAIStream(openaiStream);
 
-        if (shouldBufferStreaming) {
+        if (shouldBufferStreaming || requiresSceneRendering) {
           // Buffer streamed output so the eval gate can block before we emit SSE.
           const collected = await collectSSEStreamText(transformedStream);
           streamModel = collected.donePayload?.model || collected.errorPayload?.model || null;
@@ -1414,7 +1537,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
             throw Object.assign(new Error('Streaming provider returned an error.'), { code: collected.errorPayload?.code, model: streamModel, usage: streamUsage });
           }
 
-          const finalText = (collected.fullText || '').trim();
+          const finalText = renderCanonicalSceneReading((collected.fullText || '').trim(), {
+            cardsInfo, deckStyle: narrativePayload.promptMeta?.deckStyle || deckStyle,
+            allowedFactIds: sceneContract?.providedIds || [], required: requiresSceneRendering
+          }).reading;
           if (!finalText) {
             throw new Error('Streaming provider returned empty reading text.');
           }
@@ -1429,16 +1555,17 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
           if (qualityIssues.length > 0) {
             console.warn(`[${requestId}] Streaming backend ${streamProvider} failed quality gate: ${qualityIssues.join('; ')}`);
+            console.warn(`[${requestId}] Streaming backend ${streamProvider} rejected output: ${JSON.stringify(summarizeRejectedNarrative(finalText, cardsInfo, qualityMetrics, streamUsage))}`);
             const qualityError = new Error('Narrative failed quality checks.');
             qualityError.qualityIssues = qualityIssues;
             streamState = 'rejected';
             streamReason = 'quality_rejected';
             backendErrors.push(buildPublicBackendError(streamProvider, qualityError));
             streamingFallback = true;
-            streamingGateNotice = {
-              blocked: true,
-              reason: 'quality_gate_streaming'
-            };
+            // A buffered provider replaces the draft, and its reading must pass its
+            // own checks, so this is a notice and never a withholding reason. The
+            // draft's specific issues stay in backendErrors.
+            streamingGateNotice = { blocked: true, reason: STREAMING_QUALITY_NOTICE_REASON };
           }
 
           if (streamingFallback) {
@@ -1447,6 +1574,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           } else {
             streamState = 'accepted';
             streamReason = null;
+            narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
             narrativePayload.promptMeta.inference = { provider: streamProvider, model: streamModel };
             let gateOverride = null;
             if (shouldSafetyScanStreaming) {
@@ -1486,6 +1614,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               capturedUsage: streamUsage,
               waitUntil,
               personalization,
+              candidateNameHints,
               backendErrors: [],
               acceptedQualityMetrics: qualityMetrics,
               allowGateBlocking: true,
@@ -1509,7 +1638,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         if (streamingFallback) {
           // Skip live streaming when we need to fall back to buffered backends.
-        } else if (!shouldBufferStreaming) {
+        } else if (!shouldBufferStreaming && !requiresSceneRendering) {
           // Use promptMeta.graphRAG directly (set by buildOpenAIResponsesPrompts)
           const graphRAGStats = narrativePayload.promptMeta?.graphRAG || null;
           const finalContextDiagnostics = Array.isArray(narrativePayload.contextDiagnostics)
@@ -1576,6 +1705,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 capturedUsage: null,
                 waitUntil,
                 personalization,
+                candidateNameHints,
                 backendErrors: [],
                 acceptedQualityMetrics: null,
                 allowGateBlocking: false,
@@ -1626,6 +1756,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let capturedPrompts = null;
     let capturedUsage = null;
     let capturedReasoningSummary = null;
+    const qualityRetried = new Set();
 
     for (const backend of backendsToTry) {
       taskSignal.throwIfAborted();
@@ -1642,6 +1773,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         continue;
       }
       console.log(`[${requestId}] Attempting narrative backend ${backendProvider} (${backend.label})...`);
+      beginMemoryAttempt(narrativePayload);
       narrativePayload.narrativeEnhancements = [];
       narrativePayload.promptMeta = null;
       // Reset diagnostics each attempt to avoid carrying alerts across backends
@@ -1658,7 +1790,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
       const attemptDeadline = createDeadline({
         signal: taskSignal,
-        timeoutMs: Math.min(90000, taskDeadline.remainingMs() || 1)
+        timeoutMs: Math.min(READING_BUFFERED_ATTEMPT_MAX_MS, taskDeadline.remainingMs() || 1)
       });
       narrativePayload.signal = attemptDeadline.signal;
       let backendResult = null;
@@ -1706,12 +1838,14 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
         if (qualityIssues.length > 0) {
           console.warn(`[${requestId}] Backend ${backendProvider} failed quality gate: ${qualityIssues.join('; ')}`);
+          console.warn(`[${requestId}] Backend ${backendProvider} rejected output: ${JSON.stringify(summarizeRejectedNarrative(result, cardsInfo, qualityMetrics, attemptUsage))}`);
           const qualityError = new Error(`Narrative failed quality checks: ${qualityIssues.join('; ')}`);
           qualityError.qualityIssues = qualityIssues;
           throw qualityError;
         }
 
         // Associate captured prompts/usage with the accepted backend attempt only.
+        narrativePayload.acceptedMemoryAttemptId = narrativePayload.memoryAttemptId;
         capturedPrompts = attemptPrompts;
         capturedUsage = attemptUsage;
         capturedReasoningSummary = attemptReasoningSummary;
@@ -1736,6 +1870,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.error(`[${requestId}] Backend ${backendProvider} failed:`, err.message);
         backendErrors.push(buildPublicBackendError(backendProvider, err));
         taskSignal.throwIfAborted();
+        if (err.qualityIssues && QUALITY_RETRY_BACKENDS.has(backendProvider) && !qualityRetried.has(backendProvider)
+          && taskDeadline.remainingMs() >= QUALITY_RETRY_MIN_REMAINING_MS) {
+          qualityRetried.add(backendProvider);
+          backendsToTry.splice(backendsToTry.indexOf(backend) + 1, 0, backend);
+          console.warn(`[${requestId}] Retrying ${backendProvider} once after its output failed the quality gate`);
+        }
       } finally {
         attemptDeadline.dispose();
         narrativePayload.signal = taskSignal;
@@ -1816,6 +1956,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       capturedReasoningSummary,
       waitUntil,
       personalization,
+      candidateNameHints,
       backendErrors,
       acceptedQualityMetrics,
       gateNotice: streamingGateNotice,

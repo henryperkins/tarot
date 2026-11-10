@@ -1,0 +1,245 @@
+import { getPassagesForPattern, listKnowledgeBasePassages } from './knowledgeBase.js';
+import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
+import { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance } from './graphRAGLexical.js';
+import { rankQualifiedPatterns, getPassageRankingScore } from './graphRAGRanking.js';
+export { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance };
+
+/** Priority of per-card Majors that only multi-Major spreads make eligible. */
+export const SUPPLEMENTAL_MAJOR_PRIORITY = 7;
+
+/** Admission policy for semantic-only supplemental Majors; see topicCorroboratedMajorId. */
+export const MAJOR_TOPIC_CORROBORATION_POLICY_ID = 'major-topic-corroboration-v1';
+
+/**
+ * Canonical topic descriptor for a Major: the registry theme plus the tags of
+ * its hand-written general passage. Enrichment variants never contribute, so
+ * this text is stable registry data, independent of deck projection.
+ */
+export function getMajorTopicDescriptor(cardNumber) {
+  if (typeof cardNumber !== 'number' && (typeof cardNumber !== 'string' || !cardNumber.trim())) return null;
+  const number = Number(cardNumber);
+  if (!Number.isInteger(number) || number < 0 || number > 21) return null;
+  const entry = getPassagesForPattern('major-arcana', number);
+  const canonical = entry?.passages?.find(passage => (passage.context || 'general') === 'general' && !passage.isEnriched);
+  if (typeof entry?.theme !== 'string' || !entry.theme.trim() || !Array.isArray(canonical?.tags) || !canonical.tags.length) return null;
+  return `${entry.theme}. ${canonical.tags.join(', ')}`;
+}
+
+const CONTEXT_ALIASES = {
+  grief: ['grief', 'loss', 'mourning', 'bereavement'],
+  relationship: ['relationship', 'relationships', 'romantic', 'romance', 'love', 'partnership', 'marriage', 'dating'],
+  career: ['career', 'work', 'job', 'professional', 'business', 'leadership'],
+  health: ['health', 'healing', 'wellbeing', 'wellness', 'therapy', 'recovery', 'self-care'],
+  spiritual: ['spiritual', 'spirit', 'soul', 'intuition', 'mystic', 'divine', 'ritual', 'meditation'],
+  transition: ['transition', 'change', 'shift', 'crossroads', 'ending', 'beginning', 'threshold'],
+  shadow: ['shadow', 'trauma', 'addiction', 'compulsion', 'habit', 'inner child', 'subconscious']
+};
+
+export function passageContextMatch(passage, questionContext = '') {
+  const context = typeof questionContext === 'string' ? questionContext.trim().toLowerCase() : '';
+  const candidates = CONTEXT_ALIASES[context] || Object.values(CONTEXT_ALIASES).find((values) => values.includes(context)) || [context];
+  const passageContext = passage.context || 'general';
+  return candidates.includes(passageContext) ? 2 : passageContext === 'general' ? 1 : 0;
+}
+
+export function isValidPassageLimit(limit) {
+  return Number.isInteger(limit) && limit > 0;
+}
+
+function withStats(passages, stats) {
+  Object.defineProperty(passages, 'retrievalStats', { value: stats });
+  return passages;
+}
+
+/** Enumerate all variants once; this is the single dispatch for pattern families. */
+export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', includeMetadata = false } = {}) {
+  const candidates = [];
+  const stats = { registryPassageCount: listKnowledgeBasePassages().length, candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
+  if (!graphKeys || typeof graphKeys !== 'object') return withStats(candidates, stats);
+  const identities = new Set();
+  const add = (type, patternId, priority, extra = {}, metadata = {}, entry = getPassagesForPattern(type, patternId)) => {
+    for (const passage of entry?.passages || []) {
+      const identity = JSON.stringify([type, String(patternId), passage.context || 'general', passage.sourceId || passage.text, extra.matchedCardKeys || extra.matchedCards || null]);
+      if (identities.has(identity)) continue;
+      identities.add(identity);
+      stats.candidatesDiscovered += 1;
+      const patternInput = {
+        ...passage, type, patternId: String(patternId), priority,
+        title: entry.title, theme: entry.theme, ...extra,
+        ...(includeMetadata ? { metadata } : {})
+      };
+      const patternProjected = projectPassageForPattern(patternInput);
+      const projected = patternProjected && projectPassageForDeck(patternProjected, deckStyle);
+      if (!projected) {
+        stats.projectionRejected += 1;
+        const reason = getPassageProjectionRejectionReason(patternInput, deckStyle) || 'projection_unavailable';
+        stats.projectionRejectedReasons[reason] = (stats.projectionRejectedReasons[reason] || 0) + 1;
+        continue;
+      }
+      candidates.push(projected);
+    }
+  };
+  const complete = new Set(Array.isArray(graphKeys.completeTriadIds) ? graphKeys.completeTriadIds : []);
+  for (const id of complete) add('triad', id, 1, {}, { triadId: id, isComplete: true });
+  const isValidMajorNumber = (value) => Number.isInteger(value) && value >= 0 && value <= 21;
+  const resolvedMajorNumbers = Object.hasOwn(graphKeys, 'majorNumbers')
+    ? (Array.isArray(graphKeys.majorNumbers)
+      ? [...new Set(graphKeys.majorNumbers.filter(isValidMajorNumber))].sort((a, b) => a - b)
+      : [])
+    : (graphKeys.totalMajors === 1 && isValidMajorNumber(graphKeys.singleMajorNumber)
+      ? [graphKeys.singleMajorNumber]
+      : []);
+  const single = graphKeys.totalMajors === 1 && resolvedMajorNumbers.length === 1;
+  if (single) {
+    const majorNumber = resolvedMajorNumbers[0];
+    add('major-arcana', majorNumber, 2, {
+      cardNumber: majorNumber,
+      cardName: (majorNumber === graphKeys.singleMajorNumber ? graphKeys.singleMajorName : null) || getPassagesForPattern('major-arcana', majorNumber)?.title
+    }, { cardNumber: majorNumber });
+  }
+  if (graphKeys.foolsJourneyStageKey) {
+    const entry = getPassagesForPattern('fools-journey', graphKeys.foolsJourneyStageKey);
+    add('fools-journey', graphKeys.foolsJourneyStageKey, single ? 3 : 2, { stage: entry?.stage }, { stageKey: graphKeys.foolsJourneyStageKey }, entry);
+  }
+  for (const dyad of Array.isArray(graphKeys.dyadPairs) ? graphKeys.dyadPairs : []) {
+    const priority = { high: 3, 'medium-high': 4, medium: 5 }[dyad?.significance];
+    if (!priority || !Array.isArray(dyad.cards)) continue;
+    const keys = [dyad.cards.join('-'), [...dyad.cards].reverse().join('-'), [...dyad.cards].sort((a, b) => a - b).join('-')];
+    const key = keys.find((id) => getPassagesForPattern('dyad', id));
+    const entry = key && getPassagesForPattern('dyad', key);
+    if (!entry) continue;
+    const names = new Map((entry.cards || []).map((number, index) => [number, entry.names?.[index]]));
+    add('dyad', key, priority, { cardNumbers: [...dyad.cards], cardNames: dyad.cards.map((number) => names.get(number)).filter(Boolean) }, { cards: dyad.cards, category: dyad.category }, entry);
+  }
+  for (const progression of Array.isArray(graphKeys.suitProgressions) ? graphKeys.suitProgressions : []) {
+    const priority = { 'strong-progression': 4, 'emerging-progression': 5 }[progression?.significance];
+    if (!priority) continue;
+    add('suit-progression', `${progression.suit}:${progression.stage}`, priority, {
+      suit: progression.suit, stage: progression.stage, matchedCardKeys: progression.matchedCardKeys || [], matchedCardIndices: progression.matchedCardIndices || []
+    }, { suit: progression.suit, stage: progression.stage });
+  }
+  for (const lineage of Array.isArray(graphKeys.courtLineages) ? graphKeys.courtLineages : []) {
+    add('court-lineage', `${lineage.suit}:${lineage.significance}`, 5, {
+      suit: lineage.suit, significance: lineage.significance, matchedCardKeys: lineage.matchedCardKeys || [], matchedCardIndices: lineage.matchedCardIndices || []
+    }, { suit: lineage.suit, significance: lineage.significance });
+  }
+  for (const [type, keys] of [['thoth-suit', graphKeys.thothSuits], ['marseille-numerology', graphKeys.marseilleRanks]]) {
+    for (const id of Array.isArray(keys) ? keys : []) add(type, id, 3);
+  }
+  for (const id of Array.isArray(graphKeys.triadIds) ? graphKeys.triadIds : []) {
+    if (complete.has(id)) continue;
+    const partial = (Array.isArray(graphKeys.partialTriads) ? graphKeys.partialTriads : []).find((entry) => entry?.id === id);
+    add('triad', id, 6, {
+      isPartialPattern: true,
+      ...(Array.isArray(partial?.matchedCards) && Array.isArray(partial?.missingCards) ? { matchedCards: [...partial.matchedCards], missingCards: [...partial.missingCards] } : {})
+    }, { triadId: id, isComplete: false });
+  }
+  if (!single) {
+    for (const majorNumber of resolvedMajorNumbers) {
+      add('major-arcana', majorNumber, SUPPLEMENTAL_MAJOR_PRIORITY, {
+        cardNumber: majorNumber,
+        cardName: getPassagesForPattern('major-arcana', majorNumber)?.title
+      }, { cardNumber: majorNumber });
+    }
+  }
+  stats.candidatesProjected = candidates.length;
+  return withStats(candidates, stats);
+}
+
+export const normalizePassageText = (text) => text.normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
+
+/** Resolve precedence before choosing any retrieval/scoring helper. */
+export function resolveRetrievalMode({ graphEnabled = true, qualityFilteringDisabled = false, semanticRequested = false, keywordQuery = '' } = {}) {
+  if (!graphEnabled) return 'disabled';
+  if (qualityFilteringDisabled) return 'bypassed';
+  if (semanticRequested) return 'semantic';
+  return retrievalQueryTerms(keywordQuery).length ? 'keyword' : 'priority';
+}
+
+function isSupplementalMajor(candidate) {
+  return candidate.type === 'major-arcana' && candidate.priority === SUPPLEMENTAL_MAJOR_PRIORITY;
+}
+
+// Measured bge-m3 cosines of unrelated passages reach the threshold band, so a
+// supplemental Major needs shared question terms before it counts as relevant.
+function lacksLexicalSupport(candidate) {
+  return isSupplementalMajor(candidate) && !(candidate.relevance > 0);
+}
+
+const byScoreThenId = (a, b) => (Number.isFinite(b.relevanceScore) ? b.relevanceScore : -Infinity) - (Number.isFinite(a.relevanceScore) ? a.relevanceScore : -Infinity)
+  || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0);
+
+/**
+ * One semantic-only supplemental Major may count as relevant without shared
+ * question terms when all of these hold: it is the strongest supplemental
+ * Major among the eligible candidates, the query independently clears the
+ * same relevance threshold against its canonical topic descriptor
+ * (_supplementalMajorTopicScore, attached by the semantic scoring layer),
+ * and it is pivotal — no other pattern qualifies, or it outranks every
+ * qualified non-Major pattern. Anything else keeps the lexical safeguard,
+ * including missing or invalid descriptor evidence.
+ */
+function topicCorroboratedMajorId(eligible, minRelevanceScore) {
+  const top = eligible.filter(isSupplementalMajor).sort(byScoreThenId)[0];
+  if (!top || !lacksLexicalSupport(top) || top._semanticScoringSucceeded !== true) return null;
+  if (!Number.isFinite(top._supplementalMajorTopicScore) || top._supplementalMajorTopicScore <= minRelevanceScore) return null;
+  const qualifiedOthers = eligible.filter(candidate => !isSupplementalMajor(candidate)
+    && Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore);
+  if (qualifiedOthers.length && !qualifiedOthers.every(candidate => top.relevanceScore > candidate.relevanceScore)) return null;
+  return top.candidateId;
+}
+
+function compareCandidates(a, b) {
+  const priorityOnly = a._priorityOnly && b._priorityOnly;
+  if (!priorityOnly && (a.relevanceScore ?? 0) !== (b.relevanceScore ?? 0)) return (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
+  if ((a._contextMatch || 0) !== (b._contextMatch || 0)) return (b._contextMatch || 0) - (a._contextMatch || 0);
+  if ((a.priority ?? Infinity) !== (b.priority ?? Infinity)) return (a.priority ?? Infinity) - (b.priority ?? Infinity);
+  return a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0;
+}
+
+/** Pure final selection: variant choice, full-text dedup, threshold/floor, cap. */
+export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5, minRelevanceScore = 0.3, enableDeduplication = true, qualityFilteringDisabled = false, enablePatternRanking = true } = {}) {
+  if (!isValidPassageLimit(maxPassages)) return [];
+  const stats = { ...(scoredCandidates.retrievalStats || {}), variantsRemoved: 0, contextVariantsGated: 0, deduplicatedCandidates: 0, thresholdRejected: 0, finalSelectedCount: 0 };
+  const patterns = new Set();
+  const texts = new Set();
+  const eligible = [];
+  const valid = [...scoredCandidates].filter(entry => entry && typeof entry.candidateId === 'string' && typeof entry.patternKey === 'string' && typeof entry.promptText === 'string' && entry.promptText.trim());
+  // A context-specific variant (grief, addiction, ...) speaks to that situation.
+  // It competes only when the question's context matches; otherwise its pattern's
+  // general variant stands alone, so an unrelated question never inherits that
+  // framing. Patterns without a general variant keep every variant.
+  const generalPatterns = new Set(valid.filter(entry => (entry.context || 'general') === 'general').map(entry => entry.patternKey));
+  const sorted = valid.sort(qualityFilteringDisabled || scoredCandidates.every(entry => entry?._priorityOnly)
+    ? (a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity) || (b._contextMatch || 0) - (a._contextMatch || 0) || (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0)
+    : compareCandidates);
+  for (const candidate of sorted) {
+    if ((candidate.context || 'general') !== 'general' && candidate._contextMatch !== 2 && generalPatterns.has(candidate.patternKey)) { stats.contextVariantsGated++; continue; }
+    if (patterns.has(candidate.patternKey)) { stats.variantsRemoved++; continue; }
+    const key = enableDeduplication && !qualityFilteringDisabled ? normalizePassageText(candidate.promptText) : null;
+    if (key !== null && texts.has(key)) { stats.deduplicatedCandidates++; continue; }
+    // Reserve a pattern only after its variant adds distinct text. A duplicate
+    // top variant must leave the next variant free to compete globally.
+    patterns.add(candidate.patternKey);
+    if (key !== null) texts.add(key);
+    eligible.push(candidate);
+  }
+  stats.patternsRepresented = patterns.size;
+  const corroboratedMajorId = qualityFilteringDisabled ? null : topicCorroboratedMajorId(eligible, minRelevanceScore);
+  let retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly
+    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore
+    && (!lacksLexicalSupport(candidate) || candidate.candidateId === corroboratedMajorId));
+  stats.thresholdRejected = eligible.length - retained.length;
+  // Rank only after every passage independently passes the existing gates.
+  // Keep variant choice, duplicate suppression and weak-floor selection local
+  // to the actual passage; a sibling's affinity grants none of those permissions.
+  if (!qualityFilteringDisabled && enablePatternRanking && retained.length) {
+    retained = rankQualifiedPatterns(retained, valid).sort((a, b) =>
+      getPassageRankingScore(b) - getPassageRankingScore(a) || compareCandidates(a, b));
+  }
+  // The weak floor keeps a pre-existing pattern ahead of an unsupported supplemental Major.
+  if (!retained.length && eligible.length) retained.push({ ...(eligible.find(candidate => !lacksLexicalSupport(candidate)) || eligible[0]), belowRelevanceThreshold: true });
+  const selected = retained.slice(0, maxPassages);
+  stats.finalSelectedCount = selected.length;
+  return withStats(selected, stats);
+}
