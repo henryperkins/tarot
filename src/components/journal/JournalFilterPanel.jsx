@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 import { useModalA11y } from '../../hooks/useModalA11y';
@@ -55,6 +55,59 @@ export function JournalFilterPanel({
     backGuardId: 'journal-filters'
   });
 
+  useLayoutEffect(() => {
+    if (!isOpen || isCompact) return undefined;
+    const panel = panelRef.current;
+    const anchor = panel?.parentElement;
+    if (!panel || !anchor) return undefined;
+    const page = anchor.closest('[data-app-chrome]');
+    const header = page?.querySelector('[data-app-header]');
+    const dock = page?.querySelector('[data-app-bottom-region]');
+    let frame = null;
+    const position = () => {
+      frame = null;
+      const viewport = window.visualViewport;
+      const rootStyle = getComputedStyle(document.documentElement);
+      const rem = parseFloat(rootStyle.fontSize);
+      const viewportTop = viewport?.offsetTop || 0;
+      const topEdge = viewportTop + (parseFloat(rootStyle.getPropertyValue('--pinned-header-height')) || 0) + 8;
+      const bottomEdge = viewportTop + (viewport?.height || window.innerHeight)
+        - (parseFloat(rootStyle.getPropertyValue('--app-bottom-height')) || 0) - 8;
+      const anchorBottom = anchor.getBoundingClientRect().bottom;
+      const chromeHeight = panel.firstElementChild.getBoundingClientRect().height
+        + panel.lastElementChild.getBoundingClientRect().height;
+      // Keep the footer outside the scrolling choices. When the anchor is low,
+      // move the panel up to preserve room for choices and both footer actions.
+      const height = Math.max(0, Math.min(42 * rem, bottomEdge - topEdge,
+        Math.max(chromeHeight + 5 * rem, bottomEdge - anchorBottom - 8)));
+      const top = Math.max(topEdge, Math.min(anchorBottom + 8, bottomEdge - height));
+      panel.style.setProperty('--journal-filter-offset', `${top - anchorBottom}px`);
+      panel.style.setProperty('--journal-filter-height', `${height}px`);
+    };
+    const schedule = () => {
+      if (frame === null) frame = requestAnimationFrame(position);
+    };
+    const observer = new ResizeObserver(schedule);
+    for (const element of [anchor, panel, panel.firstElementChild, panel.lastElementChild, header, dock]) {
+      if (element) observer.observe(element);
+    }
+    window.addEventListener('resize', schedule);
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.visualViewport?.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('scroll', schedule);
+    position();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('scroll', schedule);
+      panel.style.removeProperty('--journal-filter-offset');
+      panel.style.removeProperty('--journal-filter-height');
+    };
+  }, [isOpen, isCompact]);
+
   useEffect(() => {
     if (!isOpen || isCompact) return undefined;
     // Non-modal on desktop: tabbing or clicking elsewhere dismisses the panel
@@ -89,7 +142,7 @@ export function JournalFilterPanel({
       aria-labelledby={headingId} tabIndex={-1}
       className={`flex min-h-0 flex-col border border-(--border-warm) bg-(--bg-surface) shadow-(--ui-elevated-shadow) ${isCompact
         ? 'relative max-h-[85dvh] w-full rounded-t-3xl'
-        : 'absolute right-0 top-full z-50 mt-2 max-h-[min(42rem,75dvh)] w-[min(34rem,calc(100vw-3rem))] rounded-2xl'}`}>
+        : 'absolute right-0 top-[calc(100%+var(--journal-filter-offset,0.5rem))] z-50 max-h-(--journal-filter-height) w-[min(34rem,calc(100vw-3rem))] rounded-2xl'}`}>
       <div className="flex shrink-0 items-center justify-between border-b border-(--border-warm-light) px-4 py-3 sm:px-5">
         <h3 id={headingId} className="font-serif text-xl text-main">Filter saved readings</h3>
         <button ref={closeRef} type="button" onClick={dismiss} aria-label="Close filters"

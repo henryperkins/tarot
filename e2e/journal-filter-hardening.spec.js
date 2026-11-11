@@ -52,7 +52,8 @@ for (const width of [320, 1440]) {
       await expect(trigger).toBeFocused();
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
       await expect(trigger).toHaveAccessibleName('Filters, 1 active');
-      await expect(page.getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Journal filters', exact: true })
+        .getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
       await trigger.press('Enter');
       await expect(thirtyDays).toBeChecked();
       await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
@@ -84,8 +85,17 @@ test('journal multi-select preserves its choices and desktop popover closes when
     await search.focus();
     await expect(panel).toHaveCount(0);
     await expect(search).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Remove Love filter', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Remove Career filter', exact: true })).toBeVisible();
+    const chip = page.getByRole('region', { name: 'Journal filters', exact: true })
+      .getByRole('button', { name: 'Remove 2 contexts filter', exact: true });
+    await expect(chip).toBeVisible();
+    await openJournalFilters(page);
+    await expect(love).toBeChecked();
+    await expect(career).toBeChecked();
+    await page.keyboard.press('Escape');
+    await chip.click();
+    await openJournalFilters(page);
+    await expect(love).not.toBeChecked();
+    await expect(career).not.toBeChecked();
   } finally {
     await fixture.close();
   }

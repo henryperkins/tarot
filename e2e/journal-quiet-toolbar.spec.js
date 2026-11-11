@@ -86,7 +86,40 @@ function readingToggle(page, question) {
   return page.getByRole('article', { name: question, exact: true }).locator('[data-journal-entry-toggle]');
 }
 
-for (const width of [320, 390, 1280]) {
+async function expectSortLabelFits(select) {
+  const size = await select.evaluate(async element => {
+    await document.fonts.ready;
+    const style = getComputedStyle(element);
+    const label = document.createElement('span');
+    label.textContent = element.selectedOptions[0].text;
+    for (const property of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontStretch', 'fontVariant',
+      'letterSpacing', 'fontFeatureSettings', 'fontVariationSettings']) label.style[property] = style[property];
+    Object.assign(label.style, { position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap' });
+    document.body.append(label);
+    const textWidth = label.getBoundingClientRect().width;
+    label.remove();
+    return {
+      label: element.selectedOptions[0].text,
+      textWidth,
+      available: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    };
+  });
+  expect(size.available, `The full ${size.label} label must fit beside its caret`).toBeGreaterThanOrEqual(size.textWidth);
+}
+
+async function expectFilterFooterInViewport(panel) {
+  for (const name of ['Clear filters', 'Show readings']) {
+    const button = panel.getByRole('button', { name, exact: true });
+    await expect(button).toBeInViewport({ ratio: 1 });
+    await expect.poll(() => button.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      const target = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return target === element || element.contains(target);
+    }), { message: `${name} must stay clear of clipping and fixed navigation` }).toBe(true);
+  }
+}
+
+for (const width of [320, 390, 768, 1280]) {
   test.describe(`quiet toolbar at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
 
@@ -99,6 +132,7 @@ for (const width of [320, 390, 1280]) {
       const display = region.getByRole('button', { name: /^Display/ });
       await expect(search).toBeVisible();
       await expect(sort).toHaveValue('newest');
+      await expectSortLabelFits(sort);
       await expect(filters).toHaveAttribute('aria-expanded', 'false');
       await expect(display).toHaveAttribute('aria-expanded', 'false');
       await expect(page.getByRole('dialog', { name: 'Filter saved readings', exact: true })).toHaveCount(0);
@@ -120,6 +154,45 @@ for (const width of [320, 390, 1280]) {
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
+
+    test('both sort labels remain readable with active filters', async ({ page }) => {
+      await page.clock.setFixedTime(new Date('2026-11-10T12:00:00Z'));
+      await openJournal(page);
+      const region = toolbar(page);
+      await region.getByRole('button', { name: 'Filters', exact: true }).click();
+      const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+      await panel.getByRole('radio', { name: 'Last 30 days', exact: true }).check();
+      await panel.getByRole('checkbox', { name: 'Love', exact: true }).check();
+      await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
+      await expect(region.getByRole('button', { name: 'Filters, 2 active', exact: true })).toBeVisible();
+      const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+      for (const order of ['oldest', 'newest']) {
+        await sort.selectOption(order);
+        await expectSortLabelFits(sort);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+  });
+}
+
+for (const width of [320, 390]) {
+  test(`sort labels and controls fit at 200% text on a ${width}px phone`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await openJournal(page);
+    await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+    const region = toolbar(page);
+    const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+    for (const order of ['newest', 'oldest']) {
+      await sort.selectOption(order);
+      await expectSortLabelFits(sort);
+    }
+    for (const control of await region.locator('input, select, button').all()) {
+      const box = await control.boundingBox();
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   });
 }
 
@@ -315,35 +388,65 @@ test('saving and cancelling a view restore trigger focus without losing saved va
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_saved_views_guest')).views)).toEqual(stored);
 });
 
-test('desktop filter footer stays hit-testable and usable after matches shrink to zero', async ({ page }) => {
-  // Keep the complete popup inside the viewport, so scrolling an overflow-hidden
-  // ancestor cannot accidentally conceal the clipping regression under test.
-  await page.setViewportSize({ width: 1280, height: 1200 });
-  await openJournal(page, { values: [entries[0]] });
+for (const viewport of [{ width: 1280, height: 900 }, { width: 1280, height: 600 }, { width: 768, height: 900 }]) {
+  test(`desktop filter footer stays usable after zero matches at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await openJournal(page, { values: [entries[0]] });
+    const trigger = toolbar(page).getByRole('button', { name: /^Filters/ });
+    await trigger.click();
+    const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+    // Check before an action's automatic scrolling could hide the regression.
+    await expectFilterFooterInViewport(panel);
+    await panel.getByRole('group', { name: 'Context', exact: true })
+      .getByRole('checkbox', { name: 'Career', exact: true }).check();
+    await expect(page.locator('#history article')).toHaveCount(0);
+    await expect(page.getByText('No readings match', { exact: true })).toBeVisible();
+
+    const show = panel.getByRole('button', { name: 'Show readings', exact: true });
+    await expectFilterFooterInViewport(panel);
+    const hit = await show.evaluate(button => {
+      const box = button.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      const target = document.elementFromPoint(x, y);
+      return { x, y, receivesPointer: target === button || button.contains(target) };
+    });
+    expect(hit.receivesPointer, 'The filter footer must not be clipped by the shrunken history shell').toBe(true);
+    await page.mouse.click(hit.x, hit.y);
+    await expect(panel).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(toolbar(page).getByRole('button', { name: 'Remove Career filter', exact: true })).toBeVisible();
+    await toolbar(page).getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(page.locator('#history article')).toHaveCount(1);
+  });
+}
+
+test('desktop filter footer stays reachable through internal scrolling, resizing and enlarged text', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openJournal(page);
   const trigger = toolbar(page).getByRole('button', { name: /^Filters/ });
   await trigger.click();
   const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
-  await panel.getByRole('group', { name: 'Context', exact: true })
-    .getByRole('checkbox', { name: 'Career', exact: true }).check();
-  await expect(page.locator('#history article')).toHaveCount(0);
-  await expect(page.getByText('No readings match', { exact: true })).toBeVisible();
-
-  const show = panel.getByRole('button', { name: 'Show readings', exact: true });
-  await expect(show).toBeInViewport();
-  const hit = await show.evaluate(button => {
-    const box = button.getBoundingClientRect();
-    const x = box.left + box.width / 2;
-    const y = box.top + box.height / 2;
-    const target = document.elementFromPoint(x, y);
-    return { x, y, receivesPointer: target === button || button.contains(target) };
-  });
-  expect(hit.receivesPointer, 'The filter footer must not be clipped by the shrunken history shell').toBe(true);
-  await page.mouse.click(hit.x, hit.y);
+  await expectFilterFooterInViewport(panel);
+  const scrollY = await page.evaluate(() => window.scrollY);
+  const choices = panel.locator(':scope > .overflow-y-auto');
+  await choices.hover();
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(() => choices.evaluate(element => element.scrollTop + element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
+  await expectFilterFooterInViewport(panel);
+  await panel.getByRole('checkbox', { name: 'Contains reversed cards', exact: true }).check();
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await expectFilterFooterInViewport(panel);
+  await page.evaluate(() => window.scrollBy(0, 80));
+  await expectFilterFooterInViewport(panel);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  await expectFilterFooterInViewport(panel);
+  await expect(panel.getByRole('checkbox', { name: 'Contains reversed cards', exact: true })).toBeChecked();
+  await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   await expect(trigger).toBeFocused();
-  await expect(toolbar(page).getByRole('button', { name: 'Remove Career filter', exact: true })).toBeVisible();
-  await toolbar(page).getByRole('button', { name: 'Clear filters', exact: true }).click();
-  await expect(page.locator('#history article')).toHaveCount(1);
 });
 
 test('sorting the same filtered readings does not rewrite the journey summary', async ({ page }) => {

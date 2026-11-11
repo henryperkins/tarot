@@ -203,7 +203,8 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     await expect(option30d).toBeChecked();
     await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
     await expect(page.locator('[id^="journal-entry-mock-entry-"]')).toHaveCount(5);
-    await expect(page.getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Journal filters', exact: true })
+      .getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
     await openJournalFilters(page);
     await expect(option30d).toBeChecked();
   });

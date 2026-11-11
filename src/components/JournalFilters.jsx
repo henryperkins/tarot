@@ -19,6 +19,12 @@ const DISPLAY_OPTIONS = [
   { value: 'compact', label: 'Compact', icon: ListBullets }
 ];
 
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' }
+];
+const SORT_SIZE_CLASS = 'col-start-1 row-start-1 border pl-2 pr-6 py-2 text-sm-mobile sm:text-xs-plus font-semibold';
+
 const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-semibold transition-all ${FOCUS_RING_DEFAULT}`;
 const OUTLINE_FILTER_IDLE = 'border-(--border-warm-light) text-muted hover:border-(--border-warm) hover:text-main';
 const OUTLINE_FILTER_ACTIVE = 'border-(--brand-primary) bg-(--ui-selected-bg) text-main shadow-(--ui-selected-shadow-strong)';
@@ -282,14 +288,18 @@ export function JournalFilters({
     onRemoveFilter?.(key);
   };
   const sortControl = onSortOrderChange ? (
-    <div key="sort" className={`relative ${isCompact ? 'flex-1' : ''}`}>
+    <div key="sort" className={`relative grid min-w-max ${isCompact ? 'flex-1' : ''}`}>
+      {/* Size the native select from both labels and its caret space, including
+          enlarged text. The toolbar can wrap before a selected label clips. */}
+      {SORT_OPTIONS.map(option => (
+        <span key={option.value} aria-hidden="true" className={`invisible whitespace-nowrap ${SORT_SIZE_CLASS}`}>{option.label}</span>
+      ))}
       <select aria-label="Sort readings" value={sortOrder}
         onChange={event => onSortOrderChange(event.target.value)}
-        className={`min-h-touch w-full appearance-none rounded-xl border border-(--border-warm-light) bg-(--bg-surface) pl-2.5 pr-7 py-2 text-sm-mobile sm:text-xs-plus font-semibold text-main ${FOCUS_RING_DEFAULT}`}>
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
+        className={`min-h-touch min-w-0 w-full appearance-none rounded-xl border-(--border-warm-light) bg-(--bg-surface) bg-none text-main ${SORT_SIZE_CLASS} ${FOCUS_RING_DEFAULT}`}>
+        {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
-      <CaretDown className="pointer-events-none absolute right-2.5 top-4 h-3 w-3 text-muted" aria-hidden="true" />
+      <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted" aria-hidden="true" />
     </div>
   ) : null;
   const filtersControl = (
