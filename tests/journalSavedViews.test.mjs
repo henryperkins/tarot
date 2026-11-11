@@ -68,3 +68,73 @@ test('confirmed account deletion purges only that owner saved views and fences s
   assert.equal(readSavedViews(storage, 'retained-view-owner').length, 1);
   assert.equal(writeSavedViews(storage, 'deleted-view-owner', [view]).success, false);
 });
+
+test('saved views round-trip presentation order separately from filter values without mutating inputs', () => {
+  const storage = fixture();
+  const oldestView = Object.freeze({ ...view, sortOrder: 'oldest', values: Object.freeze({ query: 'Older questions', contexts: ['love'] }) });
+  const legacyView = Object.freeze({ ...view, id: 'default-order', name: 'Default order' });
+  const input = Object.freeze([oldestView, legacyView]);
+  const result = writeSavedViews(storage, 'sorted-owner', input);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(result.views.map(item => item.sortOrder), ['oldest', 'newest']);
+  assert.deepEqual(readSavedViews(storage, 'sorted-owner'), result.views);
+  assert.deepEqual(result.views[0].values, oldestView.values);
+  assert.equal(Object.hasOwn(result.views[0].values, 'sortOrder'), false);
+  assert.equal(Object.hasOwn(legacyView, 'sortOrder'), false);
+  assert.deepEqual(readSavedViews(storage, 'another-sorted-owner'), []);
+});
+
+test('pre-sort owner buckets default to newest when read without rewriting stored bytes', () => {
+  const storage = fixture();
+  const key = 'tarot_saved_views_user_existing-owner';
+  const raw = JSON.stringify({ views: [view], legacyImported: true });
+  storage.setItem(key, raw);
+
+  const stored = readSavedViews(storage, 'existing-owner');
+  assert.equal(stored[0].sortOrder, 'newest');
+  assert.deepEqual(stored[0].values, view.values);
+  assert.equal(storage.getItem(key), raw);
+});
+
+test('legacy import defaults missing order to newest while preserving the unknown-owner source', () => {
+  const storage = fixture();
+  const raw = JSON.stringify([view, { ...view, id: 'oldest-view', name: 'Oldest', sortOrder: 'oldest' }]);
+  storage.setItem('journal_saved_filters_v1', raw);
+
+  const result = importLegacySavedViews(storage, 'ordered-import-owner');
+  assert.equal(result.success, true);
+  assert.deepEqual(result.views.map(item => item.sortOrder), ['newest', 'oldest']);
+  assert.deepEqual(readSavedViews(storage, 'ordered-import-owner'), result.views);
+  assert.equal(storage.getItem('journal_saved_filters_v1'), raw);
+});
+
+test('invalid explicit saved sort orders are rejected without replacing valid owner views', () => {
+  const storage = fixture();
+  const existing = { ...view, sortOrder: 'oldest' };
+  assert.equal(writeSavedViews(storage, 'invalid-sort-owner', [existing]).success, true);
+  const key = 'tarot_saved_views_user_invalid-sort-owner';
+  const before = storage.getItem(key);
+
+  for (const sortOrder of ['relevance', '', null, 1, {}, []]) {
+    assert.equal(writeSavedViews(storage, 'invalid-sort-owner', [{ ...view, sortOrder }]).success, false);
+    assert.equal(storage.getItem(key), before);
+    assert.equal(readSavedViews(storage, 'invalid-sort-owner')[0].sortOrder, 'oldest');
+  }
+});
+
+test('invalid stored and legacy sort orders remain untouched and cannot enter active views', () => {
+  const storage = fixture();
+  const invalid = { ...view, sortOrder: { direction: 'oldest' } };
+  const key = 'tarot_saved_views_user_invalid-stored-order';
+  const ownerRaw = JSON.stringify({ views: [invalid] });
+  const legacyRaw = JSON.stringify([invalid]);
+  storage.setItem(key, ownerRaw);
+  storage.setItem('journal_saved_filters_v1', legacyRaw);
+
+  assert.deepEqual(readSavedViews(storage, 'invalid-stored-order'), []);
+  assert.equal(storage.getItem(key), ownerRaw);
+  assert.equal(importLegacySavedViews(storage, 'invalid-import-order').success, false);
+  assert.equal(storage.getItem('journal_saved_filters_v1'), legacyRaw);
+  assert.equal(hasLegacySavedViews(storage, 'invalid-import-order'), true);
+});

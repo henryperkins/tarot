@@ -126,9 +126,10 @@ test('saved follow-up answers match chat size and the upgrade link keeps a 44px 
   await openJournal(page, { owner: 'owner-a', tier: 'free', fixtureEntries: [entry] });
   await page.getByRole('heading', { name: 'What can I keep this week?', exact: true }).click();
   const article = page.getByRole('article').first();
-  const answer = article.locator('.journal-narrative-prose p', { hasText: 'Protect ten quiet minutes today.' });
+  // Wait for the parsed paragraph; Suspense can temporarily retain the hidden
+  // fallback containing this answer together with its unparsed blockquote.
+  const answer = article.getByText('Protect ten quiet minutes today.', { exact: true });
   await expect(answer).toBeVisible();
-  // Suspense can replace the readable fallback between locating and measuring it.
   await expect.poll(() => answer.evaluate(element => getComputedStyle(element).fontSize)).toBe('16px');
   const upgrade = article.getByRole('link', { name: 'Upgrade to Plus for 3 follow-ups', exact: true });
   await expect(upgrade).toBeVisible();
@@ -272,7 +273,7 @@ test('filter reset uses the full touch target and restores results', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await openJournal(page);
   await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('unmatched-word');
-  const reset = page.getByRole('button', { name: 'Reset view', exact: true });
+  const reset = page.locator('#journal-history-filters').getByRole('button', { name: 'Clear filters', exact: true });
   await expect(reset).toBeEnabled();
   expect((await reset.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await reset.click();

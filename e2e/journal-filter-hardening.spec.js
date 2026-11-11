@@ -1,6 +1,7 @@
 import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture } from './helpers/narrativeFixtures.js';
+import { openJournalFilters } from './helpers/journalControls.js';
 
 const entry = {
   id: 'filter-hardening', ts: Date.now(), spread: 'Three-Card Story', spreadKey: 'threeCard',
@@ -15,64 +16,86 @@ async function openFilters(page, theme = 'dark') {
     localStorage.setItem('tarot-onboarding-complete', 'true');
     localStorage.setItem('tarot_journal', JSON.stringify([value]));
     localStorage.setItem('tarot-theme', theme);
-    localStorage.setItem('journal_filters_advanced_v1', 'true');
   }, { value: entry, theme });
   await page.goto('/journal');
-  await expect(page.getByRole('button', { name: 'Timeframe', exact: true })).toBeVisible();
+  await openJournalFilters(page);
   return fixture;
 }
 
 for (const width of [320, 1440]) {
-  test(`journal filters have a named listbox and keyboard selection at ${width}px`, async ({ page }) => {
+  test(`journal filters have named native groups and keyboard selection at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const fixture = await openFilters(page);
     try {
-      // The trigger's name carries its choice ("Timeframe: 30 days") and contains the visible text.
-      const trigger = page.getByRole('button', { name: /^Timeframe(: .+)?$/ });
-      await expect(trigger).toHaveAccessibleName('Timeframe');
-      await trigger.press('Enter');
-      const listbox = page.getByRole('listbox', { name: 'Timeframe', exact: true });
-      await expect(listbox).toBeVisible();
-      await expect(listbox.getByRole('option', { name: 'All time', exact: true })).toBeFocused();
+      const trigger = page.locator('#journal-history-filters').getByRole('button', { name: /^Filters/ });
+      const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+      const group = panel.getByRole('group', { name: 'Timeframe', exact: true });
+      const allTime = group.getByRole('radio', { name: 'All time', exact: true });
+      const thirtyDays = group.getByRole('radio', { name: 'Last 30 days', exact: true });
+      const ninetyDays = group.getByRole('radio', { name: 'Last 90 days', exact: true });
+      await expect(group).toBeVisible();
+      await expect(allTime).toBeChecked();
+      await allTime.focus();
+      // Native radios follow arrow-key selection rather than custom listbox Home/End rules.
       await page.keyboard.press('ArrowDown');
-      await expect(listbox.getByRole('option', { name: '30 days', exact: true })).toBeFocused();
-      await page.keyboard.press('End');
-      await expect(listbox.getByRole('option', { name: 'This year', exact: true })).toBeFocused();
-      await page.keyboard.press('Home');
-      await expect(listbox.getByRole('option', { name: 'All time', exact: true })).toBeFocused();
+      await expect(thirtyDays).toBeFocused();
+      await expect(thirtyDays).toBeChecked();
+      await expect(allTime).not.toBeChecked();
       await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Enter');
-      await expect(listbox).toHaveCount(0);
-      await expect(trigger).toBeFocused();
-      await expect(trigger).toContainText('30 days');
-      await expect(trigger).toHaveAccessibleName('Timeframe: 30 days');
-      await expect(trigger).not.toHaveAttribute('aria-pressed');
-      await trigger.press('ArrowUp');
-      await expect(listbox.getByRole('option', { name: '30 days', exact: true })).toBeFocused();
+      await expect(ninetyDays).toBeFocused();
+      await expect(ninetyDays).toBeChecked();
+      await page.keyboard.press('ArrowUp');
+      await expect(thirtyDays).toBeFocused();
+      await expect(thirtyDays).toBeChecked();
       await page.keyboard.press('Escape');
+      await expect(panel).toHaveCount(0);
       await expect(trigger).toBeFocused();
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      await expect(trigger).toHaveAccessibleName('Filters, 1 active');
+      await expect(page.getByRole('region', { name: 'Journal filters', exact: true })
+        .getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
+      await trigger.press('Enter');
+      await expect(thirtyDays).toBeChecked();
+      await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
+      await expect(trigger).toBeFocused();
     } finally {
       await fixture.close();
     }
   });
 }
 
-test('journal multi-select preserves its open list and closes on focus leaving', async ({ page }) => {
+test('journal multi-select preserves its choices and desktop popover closes when focus leaves', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const fixture = await openFilters(page);
   try {
-    const trigger = page.getByRole('button', { name: 'Context', exact: true });
-    await trigger.press('Enter');
-    const listbox = page.getByRole('listbox', { name: 'Context', exact: true });
-    await expect(listbox).toBeVisible();
-    const option = listbox.getByRole('option').first();
-    await option.press('Space');
-    await expect(option).toHaveAttribute('aria-selected', 'true');
-    await expect(listbox).toBeVisible();
+    const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+    const group = panel.getByRole('group', { name: 'Context', exact: true });
+    const love = group.getByRole('checkbox', { name: 'Love', exact: true });
+    const career = group.getByRole('checkbox', { name: 'Career', exact: true });
+    await love.press('Space');
+    await expect(love).toBeChecked();
+    await expect(panel).toBeVisible();
     await page.keyboard.press('Tab');
-    await expect(listbox).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Spread', exact: true })).toBeFocused();
+    await expect(career).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(career).toBeChecked();
+    await expect(love).toBeChecked();
+    await expect(panel).toBeVisible();
+    const search = page.getByRole('searchbox', { name: 'Search journal entries' });
+    await search.focus();
+    await expect(panel).toHaveCount(0);
+    await expect(search).toBeFocused();
+    const chip = page.getByRole('region', { name: 'Journal filters', exact: true })
+      .getByRole('button', { name: 'Remove 2 contexts filter', exact: true });
+    await expect(chip).toBeVisible();
+    await openJournalFilters(page);
+    await expect(love).toBeChecked();
+    await expect(career).toBeChecked();
+    await page.keyboard.press('Escape');
+    await chip.click();
+    await openJournalFilters(page);
+    await expect(love).not.toBeChecked();
+    await expect(career).not.toBeChecked();
   } finally {
     await fixture.close();
   }
@@ -84,8 +107,7 @@ for (const theme of ['dark', 'light']) {
     const fixture = await openFilters(page, theme);
     try {
       await page.evaluate(() => document.fonts.ready);
-      const anyDate = page.getByRole('button', { name: 'Timeframe', exact: true });
-      const ratios = await anyDate.evaluate(node => {
+      const measureContrast = (surface, selector) => surface.evaluate((node, selector) => {
         const rgb = value => {
           const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
           const context = canvas.getContext('2d'); context.fillStyle = value; context.fillRect(0, 0, 1, 1);
@@ -95,20 +117,32 @@ for (const theme of ['dark', 'light']) {
         const lum = color => color.slice(0, 3).map(v => v / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((total, v, i) => total + v * [0.2126, 0.7152, 0.0722][i], 0);
         const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
         const root = getComputedStyle(document.documentElement);
-        const cardBackground = rgb(root.getPropertyValue('--bg-surface').trim());
-        const group = document.querySelector('[aria-label="List view mode"]');
-        // Test the text against each actual theme gradient endpoint beneath the group.
+        // Composite translucent selection/overlay fills against every theme
+        // gradient endpoint beneath them, including both selected and idle text.
         const panelColors = ['--panel-dark-1', '--panel-dark-2', '--panel-dark-3'].map(name => rgb(root.getPropertyValue(name).trim()));
-        const groupBackground = rgb(getComputedStyle(group).backgroundColor);
-        return [ratio(rgb(getComputedStyle(node).color), cardBackground), ...[...group.querySelectorAll('button')].flatMap(button => panelColors.map(panel => {
-          const background = composite(rgb(getComputedStyle(button).backgroundColor), composite(groupBackground, panel));
-          return ratio(rgb(getComputedStyle(button).color), background);
-        }))];
-      });
+        const surfaceBackground = rgb(getComputedStyle(node).backgroundColor);
+        return [...node.querySelectorAll(selector)].flatMap(choice => panelColors.map(panel => {
+          const style = getComputedStyle(choice);
+          const background = composite(rgb(style.backgroundColor), composite(surfaceBackground, panel));
+          return ratio(composite(rgb(style.color), background), background);
+        }));
+      }, selector);
+      const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+      const ratios = await measureContrast(panel, 'label');
+      expect(ratios.length).toBeGreaterThan(0);
       expect(Math.min(...ratios)).toBeGreaterThanOrEqual(4.5);
-      await page.getByRole('button', { name: 'Timeframe', exact: true }).press('Enter');
-      const result = await new AxeBuilder({ page }).include('[role="listbox"]').withRules(['aria-input-field-name']).analyze();
-      expect(result.violations).toEqual([]);
+      const filterResult = await new AxeBuilder({ page }).include('[role="dialog"]')
+        .withRules(['aria-dialog-name', 'label']).analyze();
+      expect(filterResult.violations).toEqual([]);
+      await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
+      await page.getByRole('button', { name: /^View:/ }).click();
+      const display = page.getByRole('listbox', { name: 'View', exact: true });
+      const displayRatios = await measureContrast(display, '[role="option"]');
+      expect(displayRatios.length).toBeGreaterThan(0);
+      expect(Math.min(...displayRatios)).toBeGreaterThanOrEqual(4.5);
+      const displayResult = await new AxeBuilder({ page }).include('[role="listbox"]')
+        .withRules(['aria-input-field-name']).analyze();
+      expect(displayResult.violations).toEqual([]);
     } finally {
       await fixture.close();
     }

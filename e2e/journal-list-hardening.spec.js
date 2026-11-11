@@ -1,4 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
+import { selectJournalDensity } from './helpers/journalControls.js';
 
 const FIRST_QUESTION = 'What deserves a quieter place in my week? 🌿 安心';
 const cards = [
@@ -117,7 +118,7 @@ test('both list densities expose exact semantic dates and handle an undated read
   await openList(page, { values: [entries[0], { ...entries[1], id: 'undated-reading', ts: null }] });
   const date = page.locator('#history article').first().locator('time');
   for (const density of ['Comfortable', 'Compact']) {
-    await page.getByRole('button', { name: density, exact: true }).click();
+    await selectJournalDensity(page, density);
     await expect(date).toHaveAttribute('datetime', '2026-10-25T12:00:00.000Z');
     await expect(date).toContainText('Oct 25, 2026');
     await expect(date).toContainText('12:00 PM');
@@ -133,11 +134,7 @@ for (const width of [1280, 390]) {
     for (const density of ['Comfortable', 'Compact']) {
       test(`${density} keeps keyboard focus through repeated expansion and collapse`, async ({ page }) => {
         await openList(page, { values: entries.slice(0, 2) });
-        const densityButton = page.getByRole('button', { name: density, exact: true });
-        if (!await densityButton.isVisible()) {
-          await page.getByRole('region', { name: 'Journal filters' }).getByRole('button', { name: /^Filters/ }).click();
-        }
-        await densityButton.click();
+        await selectJournalDensity(page, density);
         const article = page.locator('#history article').first();
         const opener = toggle(article);
         await opener.focus();
@@ -220,7 +217,7 @@ test.describe('localized exact dates', () => {
   test('uses the reader locale and timezone in both densities', async ({ page }) => {
     await openList(page, { values: [entries[0]] });
     for (const density of ['Comfortable', 'Compact']) {
-      await page.getByRole('button', { name: density, exact: true }).click();
+      await selectJournalDensity(page, density);
       await expect(page.locator('#history article time')).toHaveText('25. Okt. 2026, 13:00');
     }
   });
