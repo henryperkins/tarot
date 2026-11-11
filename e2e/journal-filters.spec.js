@@ -168,11 +168,12 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     await expect(filters).toBeVisible();
     await expect(filters).toHaveAttribute('aria-haspopup', 'dialog');
     await expect(filters).toHaveAttribute('aria-expanded', 'false');
-    await expect(mainFilters.getByRole('combobox', { name: 'Sort readings', exact: true })).toBeVisible();
-    await expect(mainFilters.getByRole('button', { name: /^Display:/ })).toBeVisible();
+    await expect(mainFilters.getByRole('button', { name: /^Sort readings:/ })).toBeVisible();
+    await expect(mainFilters.getByRole('button', { name: /^View:/ })).toBeVisible();
   });
 
   test('Filters reveals the grouped mobile sheet and returns focus on dismissal', async ({ page }) => {
+    await page.clock.install();
     await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
     await page.getByRole('button', { name: 'Jump to journal filters' }).click();
 
@@ -187,6 +188,8 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     }
     await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
     await expect(panel).toHaveCount(0);
+    // A deferred focus from the preceding jump must not steal the restored focus.
+    await page.clock.runFor(300);
     await expect(filters).toBeFocused();
     await expect(filters).toHaveAttribute('aria-expanded', 'false');
   });

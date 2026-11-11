@@ -135,8 +135,8 @@ for (const theme of ['dark', 'light']) {
         .withRules(['aria-dialog-name', 'label']).analyze();
       expect(filterResult.violations).toEqual([]);
       await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
-      await page.getByRole('button', { name: /^Display:/ }).click();
-      const display = page.getByRole('listbox', { name: 'Display', exact: true });
+      await page.getByRole('button', { name: /^View:/ }).click();
+      const display = page.getByRole('listbox', { name: 'View', exact: true });
       const displayRatios = await measureContrast(display, '[role="option"]');
       expect(displayRatios.length).toBeGreaterThan(0);
       expect(Math.min(...displayRatios)).toBeGreaterThanOrEqual(4.5);

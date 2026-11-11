@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CaretLeft, Warning } from '@phosphor-icons/react';
+import { CaretDown, CaretLeft, Warning } from '@phosphor-icons/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { AppBottomRegion } from './AppBottomRegion';
@@ -54,6 +54,7 @@ const LIST_DENSITY_KEY = 'journal_list_density_v1';
 export default function Journal() {
   // Context hooks
   const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const journalOwnerId = isAuthenticated ? user?.id ?? null : null;
   const { canUseCloudJournal, canUseAdvancedInsights } = useSubscription();
   const { shouldShowAccountNudge, dismissAccountNudge, personalization } = usePreferences();
   const { publish: showToast } = useToast();
@@ -119,8 +120,12 @@ export default function Journal() {
 
   // Presentation order belongs to this list, not shared storage or search.
   // Keep every index-based navigation path on the same ordered projection.
-  const [sortOrder, setSortOrder] = useState('newest');
-  const handleSortOrderChange = useCallback(order => setSortOrder(normalizeJournalSortOrder(order)), []);
+  const [orderState, setOrderState] = useState(() => ({ ownerId: journalOwnerId, order: 'newest' }));
+  // Reset before rendering another owner's list, including a mounted sign-out.
+  if (orderState.ownerId !== journalOwnerId) setOrderState({ ownerId: journalOwnerId, order: 'newest' });
+  const sortOrder = orderState.ownerId === journalOwnerId ? orderState.order : 'newest';
+  const handleSortOrderChange = useCallback(order => setOrderState(previous => previous.ownerId === journalOwnerId
+    ? { ownerId: journalOwnerId, order: normalizeJournalSortOrder(order) } : previous), [journalOwnerId]);
   const filteredEntries = useMemo(() => sortJournalEntries(matchingEntries, sortOrder), [matchingEntries, sortOrder]);
   const filterSignature = useMemo(() => JSON.stringify([matchSignature, sortOrder]), [matchSignature, sortOrder]);
 
@@ -371,9 +376,12 @@ export default function Journal() {
     if (!target) return;
     target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
     if (typeof window === 'undefined') return;
+    const initiatingFocus = document.activeElement;
     window.setTimeout(() => {
       const input = searchInputRef.current;
-      if (!input) return;
+      // A reader may already have opened or closed Filters during the scroll.
+      // Finish the jump only while it still owns focus.
+      if (!input || document.activeElement !== initiatingFocus) return;
       input.focus();
       if (typeof input.select === 'function') {
         input.select();
@@ -1050,12 +1058,12 @@ export default function Journal() {
                       <AmberStarfield />
                     </div>
                     <div className="relative z-10 space-y-5">
-                      {/* One row at a stable 44px: the month picker can come and go
-                          with a search without moving the search field under it. */}
+                      {/* Keep a 44px minimum; allow wrapping on narrow screens
+                          and with enlarged text so neither label is clipped. */}
                       <div className="flex min-h-touch flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-2xl font-serif text-main">Saved readings</h2>
+                        <h2 className="text-xl font-serif text-main sm:text-2xl">Saved readings</h2>
                         {monthSections.length > 1 && (
-                          <div className="flex min-w-0 max-w-full items-center">
+                          <div className="relative flex min-w-0 max-w-full items-center">
                             {/* Navigation is separate from sorting and date filtering. */}
                             <label htmlFor="jump-to-month" className="sr-only">
                               Jump to month
@@ -1066,7 +1074,7 @@ export default function Journal() {
                               onChange={handleMonthJump}
                               disabled={historyPending}
                               aria-describedby={historyPending ? 'journal-history-progress' : undefined}
-                              className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                              className="min-h-touch max-w-full appearance-none rounded-full border border-secondary/20 bg-surface-muted/40 bg-none pl-3 pr-8 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                             >
                               <option value="">Jump to month</option>
                               {monthSections.map((section) => (
@@ -1075,6 +1083,7 @@ export default function Journal() {
                                 </option>
                               ))}
                             </select>
+                            <CaretDown className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-muted" aria-hidden="true" />
                           </div>
                         )}
                       </div>
@@ -1145,7 +1154,7 @@ export default function Journal() {
                           <fieldset disabled={historyPending} aria-describedby={historyPending ? 'journal-history-progress' : undefined} className="min-w-0">
                             <legend className="sr-only">Search, sort and filter saved readings</legend>
                             <JournalFilters
-                              ownerId={isAuthenticated ? user?.id : null}
+                              ownerId={journalOwnerId}
                               storageReady={!authLoading}
                               filters={filters}
                               onChange={setFilters}

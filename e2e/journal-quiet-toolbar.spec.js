@@ -1,4 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
+import { selectJournalSort } from './helpers/journalControls.js';
 
 // Synthetic guest/cloud fixtures exercise presentation and local saved views.
 // They do not qualify real authentication, subscriptions, or the search backend.
@@ -74,7 +75,7 @@ async function openJournal(page, {
   await page.goto('/journal');
   await expect(page.getByRole('heading', { name: 'Saved readings', exact: true })).toBeVisible();
   await expect(page.locator('#history article')).toHaveCount(Math.min(10, values.length));
-  if (!holdHistory) await expect(page.getByRole('combobox', { name: 'Sort readings', exact: true })).toBeEnabled();
+  if (!holdHistory) await expect(page.getByRole('button', { name: /^Sort readings:/ })).toBeEnabled();
   return state;
 }
 
@@ -86,25 +87,19 @@ function readingToggle(page, question) {
   return page.getByRole('article', { name: question, exact: true }).locator('[data-journal-entry-toggle]');
 }
 
-async function expectSortLabelFits(select) {
-  const size = await select.evaluate(async element => {
+async function expectSortLabelFits(trigger) {
+  const size = await trigger.evaluate(async element => {
     await document.fonts.ready;
-    const style = getComputedStyle(element);
-    const label = document.createElement('span');
-    label.textContent = element.selectedOptions[0].text;
-    for (const property of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontStretch', 'fontVariant',
-      'letterSpacing', 'fontFeatureSettings', 'fontVariationSettings']) label.style[property] = style[property];
-    Object.assign(label.style, { position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap' });
-    document.body.append(label);
-    const textWidth = label.getBoundingClientRect().width;
-    label.remove();
+    const label = element.querySelector('span');
+    const caret = element.querySelector('svg');
+    const labelBox = label.getBoundingClientRect();
     return {
-      label: element.selectedOptions[0].text,
-      textWidth,
-      available: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      label: label.textContent, textWidth: label.scrollWidth, available: label.clientWidth,
+      labelRight: labelBox.right, caretLeft: caret.getBoundingClientRect().left
     };
   });
-  expect(size.available, `The full ${size.label} label must fit beside its caret`).toBeGreaterThanOrEqual(size.textWidth);
+  expect(size.available, `The full ${size.label} label must fit`).toBeGreaterThanOrEqual(size.textWidth);
+  expect(size.labelRight, 'The caret must not overlap the label').toBeLessThanOrEqual(size.caretLeft);
 }
 
 async function expectFilterFooterInViewport(panel) {
@@ -123,15 +118,15 @@ for (const width of [320, 390, 768, 1280]) {
   test.describe(`quiet toolbar at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
 
-    test('shows search, sort, Filters and Display without exposing the filter wall', async ({ page }) => {
+    test('shows search, sort, Filters and View without exposing the filter wall', async ({ page }) => {
       await openJournal(page);
       const region = toolbar(page);
       const search = region.getByRole('searchbox', { name: 'Search journal entries' });
-      const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+      const sort = region.getByRole('button', { name: /^Sort readings:/ });
       const filters = region.getByRole('button', { name: 'Filters', exact: true });
-      const display = region.getByRole('button', { name: /^Display/ });
+      const display = region.getByRole('button', { name: /^View/ });
       await expect(search).toBeVisible();
-      await expect(sort).toHaveValue('newest');
+      await expect(sort).toHaveAccessibleName('Sort readings: Newest first');
       await expectSortLabelFits(sort);
       await expect(filters).toHaveAttribute('aria-expanded', 'false');
       await expect(display).toHaveAttribute('aria-expanded', 'false');
@@ -149,6 +144,9 @@ for (const width of [320, 390, 768, 1280]) {
         const regionBox = await region.boundingBox();
         expect(bounds[0].width).toBeCloseTo(regionBox.width, 0);
         for (const box of bounds.slice(1)) expect(box.y).toBeGreaterThanOrEqual(bounds[0].y + bounds[0].height);
+        if (width === 390) {
+          for (const box of bounds.slice(2)) expect(Math.abs(box.y - bounds[1].y)).toBeLessThanOrEqual(1);
+        }
       } else {
         for (const box of bounds.slice(1)) expect(Math.abs(box.y - bounds[0].y)).toBeLessThanOrEqual(2);
       }
@@ -165,10 +163,17 @@ for (const width of [320, 390, 768, 1280]) {
       await panel.getByRole('checkbox', { name: 'Love', exact: true }).check();
       await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
       await expect(region.getByRole('button', { name: 'Filters, 2 active', exact: true })).toBeVisible();
-      const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+      const sort = region.getByRole('button', { name: /^Sort readings:/ });
       for (const order of ['oldest', 'newest']) {
-        await sort.selectOption(order);
+        await selectJournalSort(page, order);
         await expectSortLabelFits(sort);
+      }
+      if (width === 390) {
+        const boxes = await Promise.all([
+          region.getByRole('button', { name: /^Filters/ }), sort,
+          region.getByRole('button', { name: /^View:/ })
+        ].map(control => control.boundingBox()));
+        for (const box of boxes.slice(1)) expect(Math.abs(box.y - boxes[0].y)).toBeLessThanOrEqual(1);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     });
@@ -181,9 +186,9 @@ for (const width of [320, 390]) {
     await openJournal(page);
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
     const region = toolbar(page);
-    const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+    const sort = region.getByRole('button', { name: /^Sort readings:/ });
     for (const order of ['newest', 'oldest']) {
-      await sort.selectOption(order);
+      await selectJournalSort(page, order);
       await expectSortLabelFits(sort);
     }
     for (const control of await region.locator('input, select, button').all()) {
@@ -200,17 +205,17 @@ for (const width of [390, 1280]) {
   test.describe(`quiet toolbar disclosures at ${width}px`, () => {
     test.use({ viewport: { width, height: 900 } });
 
-    test('Display has named keyboard choices, restores focus, and remembers density without changing matches', async ({ page }) => {
+    test('View has named keyboard choices, restores focus, and remembers density without changing matches', async ({ page }) => {
       await openJournal(page);
       const region = toolbar(page);
       const search = region.getByRole('searchbox', { name: 'Search journal entries' });
-      const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+      const sort = region.getByRole('button', { name: /^Sort readings:/ });
       await search.fill('Reflection 1-');
-      await sort.selectOption('oldest');
-      const trigger = region.getByRole('button', { name: /^Display/ });
-      await expect(trigger).toHaveAccessibleName('Display: Comfortable');
+      await selectJournalSort(page, 'oldest');
+      const trigger = region.getByRole('button', { name: /^View/ });
+      await expect(trigger).toHaveAccessibleName('View: Comfortable');
       await trigger.press('ArrowDown');
-      const choices = page.getByRole('listbox', { name: 'Display', exact: true });
+      const choices = page.getByRole('listbox', { name: 'View', exact: true });
       await expect(choices).toBeVisible();
       await expect(choices.getByRole('option', { name: 'Comfortable', exact: true })).toBeFocused();
       await expect(choices.getByRole('option', { name: 'Comfortable', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -219,21 +224,21 @@ for (const width of [390, 1280]) {
       await page.keyboard.press('Escape');
       await expect(choices).toHaveCount(0);
       await expect(trigger).toBeFocused();
-      await expect(trigger).toHaveAccessibleName('Display: Comfortable');
+      await expect(trigger).toHaveAccessibleName('View: Comfortable');
 
       await trigger.press('Enter');
       await choices.getByRole('option', { name: 'Compact', exact: true }).press('Enter');
       await expect(choices).toHaveCount(0);
       await expect(trigger).toBeFocused();
-      await expect(trigger).toHaveAccessibleName('Display: Compact');
+      await expect(trigger).toHaveAccessibleName('View: Compact');
       await expect(search).toHaveValue('Reflection 1-');
-      await expect(sort).toHaveValue('oldest');
+      await expect(sort).toHaveAccessibleName('Sort readings: Oldest first');
       await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 1-9');
       await expect(page.getByText('10 of 35 readings match', { exact: true })).toBeVisible();
       expect(await page.evaluate(() => localStorage.getItem('journal_list_density_v1'))).toBe('compact');
 
       await page.reload();
-      await expect(trigger).toHaveAccessibleName('Display: Compact');
+      await expect(trigger).toHaveAccessibleName('View: Compact');
       await trigger.press('Enter');
       await expect(choices.getByRole('option', { name: 'Compact', exact: true })).toHaveAttribute('aria-selected', 'true');
       await page.keyboard.press('Escape');
@@ -283,7 +288,7 @@ for (const width of [390, 1280]) {
 
 test('sort resets the visible batch and month selection without changing the matching set', async ({ page }) => {
   await openJournal(page);
-  const sort = page.getByRole('combobox', { name: 'Sort readings', exact: true });
+  const sort = page.getByRole('button', { name: /^Sort readings:/ });
   const months = page.getByRole('combobox', { name: 'Jump to month', exact: true });
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 0-0');
   await page.getByRole('button', { name: 'Load 10 more', exact: true }).press('Enter');
@@ -294,7 +299,7 @@ test('sort resets the visible batch and month selection without changing the mat
   await expect(months).toHaveValue('2026-07');
 
   await sort.focus();
-  await sort.selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await expect(page.locator('#history article')).toHaveCount(10);
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 3-5');
   await expect(months).toHaveValue('');
@@ -305,14 +310,14 @@ test('sort resets the visible batch and month selection without changing the mat
   await expect(toolbar(page).getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
   await expect(toolbar(page).getByRole('group', { name: 'Active filters', exact: true })).toHaveCount(0);
 
-  await sort.selectOption('newest');
+  await selectJournalSort(page, 'newest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 0-0');
   await expect(page.locator('#history article')).toHaveCount(10);
 });
 
 test('oldest-first month navigation and keyboard pagination focus the actual sorted destination', async ({ page }) => {
   await openJournal(page);
-  await page.getByRole('combobox', { name: 'Sort readings', exact: true }).selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await page.getByRole('button', { name: 'Load 10 more', exact: true }).press('Enter');
   await expect(readingToggle(page, 'Reflection 2-5')).toBeFocused();
   await expect(readingToggle(page, 'Reflection 2-5')).toBeInViewport();
@@ -332,9 +337,9 @@ test('saved views round-trip the selected ordering, while Clear filters preserve
   await openJournal(page);
   const region = toolbar(page);
   const search = region.getByRole('searchbox', { name: 'Search journal entries' });
-  const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+  const sort = region.getByRole('button', { name: /^Sort readings:/ });
   await search.fill('Reflection 1-');
-  await sort.selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 1-9');
   await region.getByRole('button', { name: 'Save this view', exact: true }).click();
   await region.getByRole('textbox', { name: 'Name for saved filter view', exact: true }).fill('September, oldest first');
@@ -346,13 +351,13 @@ test('saved views round-trip the selected ordering, while Clear filters preserve
 
   await region.getByRole('button', { name: 'Clear filters', exact: true }).click();
   await expect(search).toHaveValue('');
-  await expect(sort).toHaveValue('oldest');
+  await expect(sort).toHaveAccessibleName('Sort readings: Oldest first');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 3-5');
-  await sort.selectOption('newest');
+  await selectJournalSort(page, 'newest');
   await page.reload();
   await region.getByRole('button', { name: 'September, oldest first', exact: true }).click();
   await expect(search).toHaveValue('Reflection 1-');
-  await expect(sort).toHaveValue('oldest');
+  await expect(sort).toHaveAccessibleName('Sort readings: Oldest first');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 1-9');
   await expect(page.getByText('10 of 35 readings match', { exact: true })).toBeVisible();
 });
@@ -361,11 +366,11 @@ test('saving and cancelling a view restore trigger focus without losing saved va
   await openJournal(page);
   const region = toolbar(page);
   const search = region.getByRole('searchbox', { name: 'Search journal entries' });
-  const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+  const sort = region.getByRole('button', { name: /^Sort readings:/ });
   const save = region.getByRole('button', { name: 'Save this view', exact: true });
   const name = region.getByRole('textbox', { name: 'Name for saved filter view', exact: true });
   await search.fill('Reflection 1-');
-  await sort.selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await save.press('Enter');
   await expect(name).toBeFocused();
   await name.fill('September reflections');
@@ -384,7 +389,7 @@ test('saving and cancelling a view restore trigger focus without losing saved va
   await expect(name).toHaveCount(0);
   await expect(save).toBeFocused();
   await expect(search).toHaveValue('Reflection 1-');
-  await expect(sort).toHaveValue('oldest');
+  await expect(sort).toHaveAccessibleName('Sort readings: Oldest first');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tarot_saved_views_guest')).views)).toEqual(stored);
 });
 
@@ -460,11 +465,10 @@ test('sorting the same filtered readings does not rewrite the journey summary', 
   await expect(narrative).toBeVisible();
   const original = await narrative.innerText();
   expect(original.trim().length).toBeGreaterThan(0);
-  const sort = page.getByRole('combobox', { name: 'Sort readings', exact: true });
-  await sort.selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 0-8');
   await expect(narrative).toHaveText(original);
-  await sort.selectOption('newest');
+  await selectJournalSort(page, 'newest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 0-0');
   await expect(narrative).toHaveText(original);
 });
@@ -474,10 +478,10 @@ test('legacy saved views default to newest, expose removable chips, and keep que
     query: 'Reflection', contexts: ['love'], spreads: [], decks: [], timeframe: 'all', onlyReversals: false, journeyFilter: null
   } }] });
   const region = toolbar(page);
-  const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
-  await sort.selectOption('oldest');
+  const sort = region.getByRole('button', { name: /^Sort readings:/ });
+  await selectJournalSort(page, 'oldest');
   await region.getByRole('button', { name: 'Earlier love view', exact: true }).click();
-  await expect(sort).toHaveValue('newest');
+  await expect(sort).toHaveAccessibleName('Sort readings: Newest first');
   await expect(region.getByRole('searchbox', { name: 'Search journal entries' })).toHaveValue('Reflection');
   await expect(region.getByRole('button', { name: 'Filters, 1 active', exact: true })).toBeVisible();
   await expect(region.getByRole('button', { name: 'Remove Love filter', exact: true })).toBeVisible();
@@ -491,17 +495,17 @@ test('legacy saved views default to newest, expose removable chips, and keep que
 test('incomplete cloud history disables sorting until all history is available', async ({ page }) => {
   const state = await openJournal(page, { owner: true, holdHistory: true });
   const region = toolbar(page);
-  const sort = region.getByRole('combobox', { name: 'Sort readings', exact: true });
+  const sort = region.getByRole('button', { name: /^Sort readings:/ });
   try {
     await expect(sort).toBeDisabled();
     await expect(region.getByRole('searchbox', { name: 'Search journal entries' })).toBeDisabled();
     await expect(region.getByRole('button', { name: 'Filters', exact: true })).toBeDisabled();
-    await expect(region.getByRole('button', { name: /^Display/ })).toBeDisabled();
+    await expect(region.getByRole('button', { name: /^View/ })).toBeDisabled();
     await expect(page.getByText('Loading your complete history', { exact: true })).toBeVisible();
     await expect.poll(() => Boolean(state.releaseHistory)).toBe(true);
     state.releaseHistory();
     await expect(sort).toBeEnabled();
-    await sort.selectOption('oldest');
+    await selectJournalSort(page, 'oldest');
     await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 3-5');
     await expect(page.getByText('Showing 10 of 35 readings', { exact: true })).toBeVisible();
     expect(state.journalRequests).toHaveLength(2);
@@ -520,13 +524,211 @@ test('sorting semantic matches keeps their mode, coverage explanation and reques
   await expect(page.getByRole('button', { name: 'Show exact matches', exact: true })).toBeVisible();
   await expect.poll(() => state.searchRequests.length).toBe(1);
   const requestIdentity = [...state.searchRequests];
-  await page.getByRole('combobox', { name: 'Sort readings', exact: true }).selectOption('oldest');
+  await selectJournalSort(page, 'oldest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName(matches[2].question);
   await expect(page.getByRole('searchbox', { name: 'Search journal entries' })).toHaveValue('quieter connection');
   await expect(page.getByRole('button', { name: 'Show exact matches', exact: true })).toBeVisible();
   await expect(page.getByText(/Searching your recent analyzed readings by meaning/)).toBeVisible();
-  await page.getByRole('combobox', { name: 'Sort readings', exact: true }).selectOption('newest');
+  await selectJournalSort(page, 'newest');
   await expect(page.locator('#history article').first()).toHaveAccessibleName(matches[0].question);
   expect(state.searchRequests).toEqual(requestIdentity);
   expect(new URLSearchParams(state.searchRequests[0]).get('mode')).toBe('semantic');
+});
+
+for (const width of [390, 1280]) {
+  test(`sort choices support keyboard selection, dismissal and focus at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openJournal(page);
+    const trigger = toolbar(page).getByRole('button', { name: /^Sort readings:/ });
+    const choices = page.getByRole('listbox', { name: 'Sort readings', exact: true });
+    await trigger.press('ArrowDown');
+    await expect(choices.getByRole('option', { name: 'Newest first', exact: true })).toBeFocused();
+    await expect(choices.getByRole('option', { name: 'Newest first', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('End');
+    await expect(choices.getByRole('option', { name: 'Oldest first', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(choices).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAccessibleName('Sort readings: Oldest first');
+    await expect(page.locator('#history article').first()).toHaveAccessibleName('Reflection 3-5');
+    await trigger.press('ArrowUp');
+    await expect(choices.getByRole('option', { name: 'Oldest first', exact: true })).toBeFocused();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Escape');
+    await expect(choices).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAccessibleName('Sort readings: Oldest first');
+    await trigger.click();
+    await toolbar(page).getByRole('searchbox').click();
+    await expect(choices).toHaveCount(0);
+    await expect(toolbar(page).getByRole('searchbox')).toBeFocused();
+  });
+
+  test(`panel clearing preserves search and order at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openJournal(page);
+    const region = toolbar(page);
+    const search = region.getByRole('searchbox');
+    await search.fill('Reflection 1-');
+    await selectJournalSort(page, 'oldest');
+    const trigger = region.getByRole('button', { name: 'Filters', exact: true });
+    await trigger.click();
+    const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+    const clear = panel.getByRole('button', { name: 'Clear filters', exact: true });
+    await expect(clear).toBeDisabled();
+    await panel.getByRole('checkbox', { name: 'Love', exact: true }).check();
+    await expect(clear).toBeEnabled();
+    await clear.click();
+    await expect(clear).toBeDisabled();
+    await expect(panel.getByRole('checkbox', { name: 'Love', exact: true })).not.toBeChecked();
+    await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
+    await expect(search).toHaveValue('Reflection 1-');
+    await expect(region.getByRole('button', { name: /^Sort readings:/ })).toHaveAccessibleName('Sort readings: Oldest first');
+    await expect(page.getByText('10 of 35 readings match', { exact: true })).toBeVisible();
+    await expect(trigger).toBeVisible();
+    await region.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(search).toHaveValue('');
+    await expect(page.getByText('Showing 10 of 35 readings', { exact: true })).toBeVisible();
+  });
+}
+
+for (const theme of ['dark', 'light']) {
+  test(`toolbar controls match and filter indicators have contrast in ${theme}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await openJournal(page);
+    await page.evaluate(theme => document.documentElement.classList.toggle('light', theme === 'light'), theme);
+    const region = toolbar(page);
+    const controls = [
+      region.getByRole('button', { name: 'Filters', exact: true }),
+      region.getByRole('button', { name: /^Sort readings:/ }),
+      region.getByRole('button', { name: /^View:/ })
+    ];
+    const styles = await Promise.all(controls.map(control => control.evaluate(element => {
+      const style = getComputedStyle(element);
+      return [style.fontSize, style.fontWeight, style.color, style.backgroundColor, style.borderColor];
+    })));
+    expect(styles[1]).toEqual(styles[0]);
+    expect(styles[2]).toEqual(styles[0]);
+    expect(styles[0][0]).toBe('14px');
+    await controls[0].click();
+    const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+    const radio = panel.getByRole('radio', { name: 'All time', exact: true });
+    const checkbox = panel.getByRole('checkbox', { name: 'Love', exact: true });
+    await checkbox.check();
+    for (const control of [radio, checkbox]) {
+      await expect(control).toBeChecked();
+      const measured = await control.evaluate(input => {
+        const indicator = input.nextElementSibling;
+        const style = getComputedStyle(indicator);
+        const inputStyle = getComputedStyle(input);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        const luminance = color => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = color;
+          context.fillRect(0, 0, 1, 1);
+          const channels = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map(channel => {
+            const c = channel / 255;
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+          });
+          return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+        };
+        const foreground = luminance(style.color);
+        const background = luminance(style.backgroundColor);
+        return {
+          width: indicator.getBoundingClientRect().width, height: indicator.getBoundingClientRect().height,
+          targetHeight: input.closest('label').getBoundingClientRect().height,
+          inputPosition: inputStyle.position, inputOpacity: inputStyle.opacity,
+          inputHeight: input.getBoundingClientRect().height,
+          ratio: (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05),
+          selectedShape: Boolean(indicator.querySelector('svg'))
+        };
+      });
+      expect(measured.width).toBe(16);
+      expect(measured.height).toBe(16);
+      expect(measured.targetHeight).toBeGreaterThanOrEqual(44);
+      expect(measured.inputPosition).toBe('absolute');
+      expect(measured.inputOpacity).toBe('0');
+      expect(measured.inputHeight).toBeGreaterThanOrEqual(42);
+      expect(measured.ratio).toBeGreaterThanOrEqual(3);
+      expect(measured.selectedShape).toBe(true);
+    }
+    await radio.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(panel.getByRole('radio', { name: 'Last 30 days', exact: true })).toBeChecked();
+    await checkbox.focus();
+    await page.keyboard.press('Space');
+    await expect(checkbox).not.toBeChecked();
+    await expect(checkbox.locator('..').locator('input + span svg')).toHaveCount(0);
+    await expect(checkbox.locator('..')).not.toHaveCSS('box-shadow', 'none');
+  });
+}
+
+test('month label has its own caret space at narrow and wide widths', async ({ page }) => {
+  await openJournal(page);
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const month = page.getByRole('combobox', { name: 'Jump to month', exact: true });
+    const measured = await month.evaluate(async select => {
+      await document.fonts.ready;
+      const style = getComputedStyle(select);
+      const span = document.createElement('span');
+      span.textContent = select.selectedOptions[0].text;
+      Object.assign(span.style, { position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap' });
+      for (const property of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontStretch', 'fontVariant',
+        'letterSpacing', 'fontFeatureSettings', 'fontVariationSettings']) span.style[property] = style[property];
+      document.body.append(span);
+      const labelWidth = span.getBoundingClientRect().width;
+      span.remove();
+      const box = select.getBoundingClientRect();
+      const caret = select.parentElement.querySelector('svg').getBoundingClientRect();
+      return { image: style.backgroundImage, labelRight: box.left + parseFloat(style.borderLeftWidth)
+        + parseFloat(style.paddingLeft) + labelWidth, caretLeft: caret.left, right: box.right };
+    });
+    expect(measured.image).toBe('none');
+    expect(measured.labelRight).toBeLessThan(measured.caretLeft);
+    expect(measured.right).toBeLessThanOrEqual(width);
+  }
+});
+
+test('desktop panel stays inside its toolbar and returns backward focus to Filters', async ({ page }) => {
+  await openJournal(page);
+  const trigger = toolbar(page).getByRole('button', { name: /^Filters/ });
+  const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+  for (const [width, fontSize] of [[1024, 100], [1024, 120], [1100, 120], [1280, 150]]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(size => document.documentElement.style.fontSize = `${size}%`, fontSize);
+    await trigger.click();
+    await expect(panel).toBeVisible();
+    const [anchorBox, panelBox] = await Promise.all([toolbar(page).boundingBox(), panel.boundingBox()]);
+    expect(panelBox.x).toBeGreaterThanOrEqual(anchorBox.x - 1);
+    expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(anchorBox.x + anchorBox.width + 1);
+    await expectFilterFooterInViewport(panel);
+    await expect(panel.getByRole('button', { name: 'Close filters', exact: true })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(trigger).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(toolbar(page).getByRole('button', { name: /^Sort readings:/ })).toBeFocused();
+    await expect(panel).toHaveCount(0);
+  }
+});
+
+test('Sort and View menus stay inside phone viewports with enlarged text', async ({ page }) => {
+  await openJournal(page);
+  for (const [width, fontSize] of [[320, 100], [390, 100], [320, 200], [390, 200]]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(size => document.documentElement.style.fontSize = `${size}%`, fontSize);
+    for (const name of [/^Sort readings:/, /^View:/]) {
+      const trigger = toolbar(page).getByRole('button', { name });
+      await trigger.click();
+      const menu = toolbar(page).getByRole('listbox');
+      await expect(menu).toBeVisible();
+      const box = await menu.boundingBox();
+      expect(box.x).toBeGreaterThanOrEqual(15);
+      expect(box.x + box.width).toBeLessThanOrEqual(width - 15);
+      await page.keyboard.press('Escape');
+      await expect(trigger).toBeFocused();
+    }
+  }
 });

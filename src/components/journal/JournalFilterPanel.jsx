@@ -1,6 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from '@phosphor-icons/react';
+import { Check, Circle } from '@phosphor-icons/react';
+import { CloseButton } from '../CloseButton';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../../styles/focusClasses';
 
@@ -10,6 +11,24 @@ const TIMEFRAMES = [
   { value: '90d', label: 'Last 90 days' },
   { value: 'ytd', label: 'This year' }
 ];
+
+function FilterChoice({ label, selected, multiple = false, name, value, onChange }) {
+  return (
+    <label className={`relative flex min-h-touch min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm leading-snug text-main transition-colors has-focus-visible:ring-2 has-focus-visible:ring-(--focus-ring-color) ${selected ? 'border-(--brand-primary) bg-(--ui-selected-bg)' : 'border-(--border-warm-light) hover:border-(--border-warm)'}`}>
+      {/* The transparent native control covers its label's touch target. Important
+          dimensions override global checkbox rules; the indicator supplies the art. */}
+      <input type={multiple ? 'checkbox' : 'radio'} name={name} value={value} checked={selected}
+        className="absolute! inset-0! z-10 m-0! h-full! w-full! cursor-pointer opacity-0" onChange={onChange} />
+      <span aria-hidden="true"
+        className={`flex h-4 w-4 shrink-0 items-center justify-center border ${multiple ? 'rounded-sm' : 'rounded-full'} ${selected ? 'border-(--brand-primary) bg-(--brand-primary) text-(--text-on-brand)' : 'border-current text-muted-high'}`}>
+        {selected && (multiple
+          ? <Check className="h-3 w-3" weight="bold" />
+          : <Circle className="h-2 w-2" weight="fill" />)}
+      </span>
+      <span className="min-w-0 wrap-anywhere">{label}</span>
+    </label>
+  );
+}
 
 function FilterChoices({ label, options, value, onChange, multiple = false }) {
   const groupId = useId();
@@ -21,15 +40,11 @@ function FilterChoices({ label, options, value, onChange, multiple = false }) {
         {options.map(option => {
           const selected = multiple ? (value || []).includes(option.value) : value === option.value;
           return (
-            <label key={option.value}
-              className={`flex min-h-touch min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm leading-snug text-main transition-colors focus-within:ring-2 focus-within:ring-(--focus-ring-color) ${selected ? 'border-(--brand-primary) bg-(--ui-selected-bg)' : 'border-(--border-warm-light) hover:border-(--border-warm)'}`}>
-              <input type={multiple ? 'checkbox' : 'radio'} name={groupId} value={option.value} checked={selected}
-                className="h-4 w-4 shrink-0 accent-(--brand-primary)"
-                onChange={() => onChange(multiple
-                  ? selected ? value.filter(item => item !== option.value) : [...(value || []), option.value]
-                  : option.value)} />
-              <span className="min-w-0 wrap-anywhere">{option.label}</span>
-            </label>
+            <FilterChoice key={option.value} label={option.label} selected={selected}
+              multiple={multiple} name={groupId} value={option.value}
+              onChange={() => onChange(multiple
+                ? selected ? value.filter(item => item !== option.value) : [...(value || []), option.value]
+                : option.value)} />
           );
         })}
       </div>
@@ -58,7 +73,7 @@ export function JournalFilterPanel({
   useLayoutEffect(() => {
     if (!isOpen || isCompact) return undefined;
     const panel = panelRef.current;
-    const anchor = panel?.parentElement;
+    const anchor = panel?.closest('[data-journal-toolbar]');
     if (!panel || !anchor) return undefined;
     const page = anchor.closest('[data-app-chrome]');
     const header = page?.querySelector('[data-app-header]');
@@ -142,13 +157,10 @@ export function JournalFilterPanel({
       aria-labelledby={headingId} tabIndex={-1}
       className={`flex min-h-0 flex-col border border-(--border-warm) bg-(--bg-surface) shadow-(--ui-elevated-shadow) ${isCompact
         ? 'relative max-h-[85dvh] w-full rounded-t-3xl'
-        : 'absolute right-0 top-[calc(100%+var(--journal-filter-offset,0.5rem))] z-50 max-h-(--journal-filter-height) w-[min(34rem,calc(100vw-3rem))] rounded-2xl'}`}>
+        : 'absolute right-0 top-[calc(100%+var(--journal-filter-offset,0.5rem))] z-50 max-h-(--journal-filter-height) w-[min(34rem,100%)] rounded-2xl'}`}>
       <div className="flex shrink-0 items-center justify-between border-b border-(--border-warm-light) px-4 py-3 sm:px-5">
         <h3 id={headingId} className="font-serif text-xl text-main">Filter saved readings</h3>
-        <button ref={closeRef} type="button" onClick={dismiss} aria-label="Close filters"
-          className={`inline-flex min-h-touch min-w-touch items-center justify-center rounded-xl text-muted hover:text-main ${FOCUS_RING_DEFAULT}`}>
-          <X className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <CloseButton ref={closeRef} onClick={dismiss} label="Close filters" />
       </div>
       <div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
         <FilterChoices label="Timeframe" options={TIMEFRAMES} value={filters.timeframe}
@@ -159,12 +171,8 @@ export function JournalFilterPanel({
           onChange={value => onChange({ ...filters, spreads: value })} />
         <FilterChoices label="Deck" options={decks} value={filters.decks} multiple
           onChange={value => onChange({ ...filters, decks: value })} />
-        <label className="flex min-h-touch cursor-pointer items-center gap-3 text-sm text-main">
-          <input type="checkbox" checked={filters.onlyReversals}
-            onChange={event => onChange({ ...filters, onlyReversals: event.target.checked })}
-            className="h-4 w-4 accent-(--brand-primary)" />
-          Contains reversed cards
-        </label>
+        <FilterChoice label="Contains reversed cards" selected={filters.onlyReversals} multiple
+          onChange={event => onChange({ ...filters, onlyReversals: event.target.checked })} />
       </div>
       <div className={`flex shrink-0 items-center justify-between gap-3 border-t border-(--border-warm-light) px-4 py-3 sm:px-5 ${isCompact ? 'pb-[max(0.75rem,var(--safe-pad-bottom))]' : ''}`}>
         <button type="button" disabled={!canClear} onClick={() => { onClear(); closeRef.current?.focus({ preventScroll: true }); }}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId, useCallback } from 'react';
+import { Fragment, useState, useRef, useEffect, useLayoutEffect, useId, useCallback } from 'react';
 import {
   CaretDown,
   Check,
@@ -23,15 +23,15 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
   { value: 'oldest', label: 'Oldest first' }
 ];
-const SORT_SIZE_CLASS = 'col-start-1 row-start-1 border pl-2 pr-6 py-2 text-sm-mobile sm:text-xs-plus font-semibold';
-
-const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-semibold transition-all ${FOCUS_RING_DEFAULT}`;
+// Buttons keep the 14px control role despite the global mobile button inherit
+// rule; native search inputs retain their 16px size to avoid focus zoom.
+const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-1 whitespace-nowrap rounded-xl border px-1.5 py-2 text-xs-plus! font-medium transition-all sm:gap-2 sm:px-2.5 ${FOCUS_RING_DEFAULT}`;
 const OUTLINE_FILTER_IDLE = 'border-(--border-warm-light) text-muted hover:border-(--border-warm) hover:text-main';
 const OUTLINE_FILTER_ACTIVE = 'border-(--brand-primary) bg-(--ui-selected-bg) text-main shadow-(--ui-selected-shadow-strong)';
 
-function FilterDropdown({ label, options, value, onChange, fixedLabel = false, multiple = false, buttonRef: externalButtonRef }) {
+function FilterDropdown({ label, options, value, onChange, fixedLabel = false, multiple = false, quiet = false, icon: Icon, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [alignRight, setAlignRight] = useState(false);
+  const [menuLeft, setMenuLeft] = useState(0);
   const [focusedOptionIndex, setFocusedOptionIndex] = useState(0);
   const containerRef = useRef(null);
   const internalButtonRef = useRef(null);
@@ -58,14 +58,33 @@ function FilterDropdown({ label, options, value, onChange, fixedLabel = false, m
     };
   }, []);
 
-  const computeAlignRight = () => {
-    if (typeof window === 'undefined') return false;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return false;
-    const menuWidth = 256;
-    const margin = 16;
-    return rect.left + menuWidth > window.innerWidth - margin;
-  };
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const container = containerRef.current;
+    const menu = container.querySelector('[role="listbox"]');
+    const position = () => {
+      const anchor = container.getBoundingClientRect();
+      // Opening scale animations must not make the measured menu seem narrower.
+      const width = menu.offsetWidth;
+      const viewport = window.visualViewport;
+      const leftEdge = (viewport?.offsetLeft || 0) + 16;
+      const rightEdge = leftEdge + (viewport?.width || window.innerWidth) - 32;
+      setMenuLeft(Math.max(leftEdge, Math.min(anchor.left, rightEdge - width)) - anchor.left);
+    };
+    const observer = new ResizeObserver(position);
+    observer.observe(container);
+    observer.observe(menu);
+    window.addEventListener('resize', position);
+    window.visualViewport?.addEventListener('resize', position);
+    window.visualViewport?.addEventListener('scroll', position);
+    position();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.visualViewport?.removeEventListener('resize', position);
+      window.visualViewport?.removeEventListener('scroll', position);
+    };
+  }, [isOpen]);
 
   const focusOption = (index) => {
     const items = containerRef.current?.querySelectorAll('[data-dropdown-option="true"]');
@@ -73,19 +92,17 @@ function FilterDropdown({ label, options, value, onChange, fixedLabel = false, m
   };
 
   const openMenu = (preferLast = false) => {
-    setAlignRight(computeAlignRight());
     setIsOpen(true);
     const selectedIndex = options.findIndex(option => isSelected(option.value));
     const nextIndex = selectedIndex >= 0 ? selectedIndex : preferLast ? options.length - 1 : 0;
     setFocusedOptionIndex(nextIndex);
-    if (typeof window === 'undefined') return;
-    const schedule = typeof window.requestAnimationFrame === 'function'
-      ? window.requestAnimationFrame
-      : (cb) => setTimeout(cb, 0);
-    schedule(() => {
-      focusOption(nextIndex);
-    });
   };
+
+  // Focus during the opening commit. A queued animation frame can otherwise
+  // steal focus from a reader who has already moved to a different option.
+  useLayoutEffect(() => {
+    if (isOpen) focusOption(focusedOptionIndex);
+  }, [isOpen, focusedOptionIndex]);
 
   const handleButtonKeyDown = (event) => {
     if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
@@ -131,7 +148,7 @@ function FilterDropdown({ label, options, value, onChange, fixedLabel = false, m
     return value === optionValue;
   };
 
-  const activeCount = fixedLabel ? 0 : multiple ? (value || []).length : (value && value !== 'all' ? 1 : 0);
+  const activeCount = fixedLabel || quiet ? 0 : multiple ? (value || []).length : (value && value !== 'all' ? 1 : 0);
 
   let displayLabel = label;
   if (!multiple && value && value !== 'all') {
@@ -156,15 +173,16 @@ function FilterDropdown({ label, options, value, onChange, fixedLabel = false, m
         aria-controls={isOpen ? menuId : undefined}
         aria-label={accessibleName}
       >
+        {Icon && <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden="true" />}
         {multiple && <span>{label}</span>}
-        {!multiple && <span className={!fixedLabel && value !== 'all' ? 'text-(--brand-primary)' : ''}>{fixedLabel ? label : displayLabel}</span>}
+        {!multiple && <span className={!fixedLabel && !quiet && value !== 'all' ? 'text-(--brand-primary)' : ''}>{fixedLabel ? label : displayLabel}</span>}
 
         {multiple && activeCount > 0 && (
           <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs">
             {activeCount}
           </span>
         )}
-        <CaretDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <CaretDown className={`h-3 w-3 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 
       {isOpen && (
@@ -173,9 +191,8 @@ function FilterDropdown({ label, options, value, onChange, fixedLabel = false, m
           role="listbox"
           aria-label={label}
           aria-multiselectable={multiple || undefined}
-          className={`absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] ${
-            alignRight ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
-          } rounded-xl border border-(--border-warm) bg-(--ui-overlay-strong) p-1.5 shadow-(--ui-elevated-shadow) ring-1 ring-(--border-warm-light) backdrop-blur-xl backdrop-saturate-150 animate-in fade-in zoom-in-95 duration-100`}
+          style={{ left: menuLeft }}
+          className="absolute top-full z-50 mt-2 w-[min(16rem,calc(100vw-2rem))] origin-top-left rounded-xl border border-(--border-warm) bg-(--ui-overlay-strong) p-1.5 shadow-(--ui-elevated-shadow) ring-1 ring-(--border-warm-light) backdrop-blur-xl backdrop-saturate-150 transition-none animate-in fade-in zoom-in-95 duration-100"
           onKeyDown={handleMenuKeyDown}
         >
           <div className="max-h-64 overflow-y-auto py-1">
@@ -215,7 +232,7 @@ export function JournalFilters({
   const isCompact = variant === 'compact';
   const loadViews = () => ({ ownerId, ready: storageReady,
     views: storageReady && typeof localStorage !== 'undefined' ? readSavedViews(localStorage, ownerId) : [],
-    name: '', saveOpen: false, importOpen: false, error: null });
+    name: '', saveOpen: false, importOpen: false, filtersOpen: false, error: null });
   const [viewState, setViewState] = useState(loadViews);
   // Reset before painting a new owner; an effect alone would expose the previous query/name.
   if (viewState.ownerId !== ownerId || viewState.ready !== storageReady) setViewState(loadViews());
@@ -223,8 +240,9 @@ export function JournalFilters({
   const updateViews = patch => setViewState(previous => previous.ownerId === ownerId && previous.ready === storageReady
     ? { ...previous, ...patch } : previous);
   // Overlays are opened deliberately, never restored over the journal on load.
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const closeFilters = useCallback(() => setFiltersOpen(false), []);
+  const filtersOpen = current.filtersOpen;
+  const closeFilters = useCallback(() => setViewState(previous => ({ ...previous, filtersOpen: false })), []);
+  const disclosureKey = JSON.stringify([ownerId, storageReady]);
   const filtersPanelId = useId();
   const searchHelpId = useId();
   const searchInputRef = useRef(null);
@@ -237,8 +255,9 @@ export function JournalFilters({
   const savedFilters = current.views;
   const snapshot = () => ({ ...DEFAULT_FILTERS, ...filters,
     contexts: [...(filters.contexts || [])], spreads: [...(filters.spreads || [])], decks: [...(filters.decks || [])] });
-  const activeFilters = Boolean(filters.query?.trim() || filters.contexts?.length || filters.spreads?.length
+  const panelFiltersActive = Boolean(filters.contexts?.length || filters.spreads?.length
     || filters.decks?.length || filters.timeframe !== 'all' || filters.onlyReversals || filters.journeyFilter);
+  const activeFilters = Boolean(filters.query?.trim() || panelFiltersActive);
   const canSaveView = activeFilters || sortOrder !== 'newest';
   // The search box shows its own words, so the chips name everything else.
   const filterChips = (Array.isArray(activeFilterChips) ? activeFilterChips : []).filter(chip => chip.key !== 'query');
@@ -288,38 +307,38 @@ export function JournalFilters({
     onRemoveFilter?.(key);
   };
   const sortControl = onSortOrderChange ? (
-    <div key="sort" className={`relative grid min-w-max ${isCompact ? 'flex-1' : ''}`}>
-      {/* Size the native select from both labels and its caret space, including
-          enlarged text. The toolbar can wrap before a selected label clips. */}
-      {SORT_OPTIONS.map(option => (
-        <span key={option.value} aria-hidden="true" className={`invisible whitespace-nowrap ${SORT_SIZE_CLASS}`}>{option.label}</span>
-      ))}
-      <select aria-label="Sort readings" value={sortOrder}
-        onChange={event => onSortOrderChange(event.target.value)}
-        className={`min-h-touch min-w-0 w-full appearance-none rounded-xl border-(--border-warm-light) bg-(--bg-surface) bg-none text-main ${SORT_SIZE_CLASS} ${FOCUS_RING_DEFAULT}`}>
-        {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-      <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted" aria-hidden="true" />
-    </div>
+    <FilterDropdown key={`sort-${disclosureKey}`} label="Sort readings" quiet
+      options={SORT_OPTIONS} value={sortOrder} onChange={onSortOrderChange} />
   ) : null;
   const filtersControl = (
-    <button key="filters" ref={filtersToggleRef} type="button" onClick={() => setFiltersOpen(open => !open)}
-      aria-haspopup="dialog" aria-expanded={filtersOpen && !disabled} aria-controls={filtersOpen && !disabled ? filtersPanelId : undefined}
-      aria-label={filterChips.length > 0 ? `Filters, ${filterChips.length} active` : 'Filters'}
-      className={`${OUTLINE_FILTER_BASE} ${filterChips.length > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>
-      <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
-      <span>Filters</span>
-      {filterChips.length > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs tabular-nums">
-          {filterChips.length}
-        </span>
-      )}
-    </button>
+    <Fragment key="filters">
+      <button ref={filtersToggleRef} type="button" onClick={() => updateViews({ filtersOpen: !filtersOpen })}
+        aria-haspopup="dialog" aria-expanded={filtersOpen && !disabled} aria-controls={filtersOpen && !disabled ? filtersPanelId : undefined}
+        aria-label={filterChips.length > 0 ? `Filters, ${filterChips.length} active` : 'Filters'}
+        className={`${OUTLINE_FILTER_BASE} ${filterChips.length > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>
+        <JournalSlidersIcon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden="true" />
+        <span>Filters</span>
+        {filterChips.length > 0 && (
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs tabular-nums">
+            {filterChips.length}
+          </span>
+        )}
+        <CaretDown className={`h-3 w-3 shrink-0 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+      {/* The first panel control follows its trigger in desktop tab order. */}
+      <JournalFilterPanel id={filtersPanelId} isOpen={filtersOpen && !disabled} isCompact={isCompact}
+        filters={filters} onChange={onChange} contexts={contexts} spreads={spreads} decks={decks}
+        onClose={closeFilters} triggerRef={filtersToggleRef} canClear={panelFiltersActive}
+        onClear={() => {
+          updateViews({ name: '', saveOpen: false });
+          onChange({ ...DEFAULT_FILTERS, query: filters.query });
+        }} />
+    </Fragment>
   );
 
   return (
     <section aria-label="Journal filters" className="relative space-y-3">
-      <div className="relative flex flex-wrap items-center gap-2">
+      <div data-journal-toolbar className="relative flex flex-wrap items-center gap-2">
         <div className={`relative min-w-0 ${isCompact ? 'basis-full' : 'flex-[1_1_14rem]'}`}>
           <JournalSearchIcon className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" aria-hidden="true" />
           <input ref={searchInputRef} type="search" value={filters.query}
@@ -331,14 +350,9 @@ export function JournalFilters({
         <div className={`flex min-w-0 flex-wrap items-center gap-2 ${isCompact ? 'basis-full' : ''}`}>
           {/* DOM order follows the visual order, including handset keyboard use. */}
           {isCompact ? [filtersControl, sortControl] : [sortControl, filtersControl]}
-          {onViewModeChange && <div>
-            <FilterDropdown label="Display" fixedLabel options={DISPLAY_OPTIONS} value={viewMode} onChange={onViewModeChange} />
-          </div>}
+          {onViewModeChange && <FilterDropdown key={`view-${disclosureKey}`} label="View" fixedLabel icon={ListBullets}
+            options={DISPLAY_OPTIONS} value={viewMode} onChange={onViewModeChange} />}
         </div>
-        <JournalFilterPanel id={filtersPanelId} isOpen={filtersOpen && !disabled} isCompact={isCompact}
-          filters={filters} onChange={onChange} contexts={contexts} spreads={spreads} decks={decks}
-          onClose={closeFilters} triggerRef={filtersToggleRef} canClear={activeFilters}
-          onClear={() => { updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS }); }} />
       </div>
 
       {canSaveView && (
