@@ -1,4 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
+import { openJournalFilters, selectJournalFilter } from './helpers/journalControls.js';
 
 /**
  * Journal Filters E2E Tests
@@ -6,15 +7,19 @@ import { test, expect } from './helpers/frontendTest.js';
  * Verifies:
  * - Desktop: filters appear in Journal History and are reachable via "Jump to journal filters" + a floating "Filters" button
  * - Desktop: sticky rail (Reading Journey) stays visible while scrolling
- * - Mobile: filters render in Journal History (compact) and "More filters" reveals filter-map shortcuts
+ * - Mobile: compact controls open a named filter sheet with usable grouped choices
  * - Filter functionality: context/spread/deck/timeframe/reversal/search
  * - Entry counts update correctly
  * - Load more works after filtering
  */
 
+test.beforeEach(async ({ page }) => {
+  // The entry ages below are anchored to this date; keep native timers running.
+  await page.clock.setFixedTime(new Date('2026-10-08T12:00:00Z'));
+});
+
 // Helper to seed localStorage with mock journal entries
 async function seedJournalEntries(page, entries) {
-  await page.clock.install({ time: new Date('2026-10-08T12:00:00Z') });
   await page.addInitScript((entriesJson) => {
     localStorage.setItem('tarot_journal', entriesJson);
   }, JSON.stringify(entries));
@@ -159,41 +164,48 @@ test.describe('Journal Filters - Mobile @mobile', () => {
     const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
     await expect(mainFilters).toBeVisible();
 
-    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
-    await expect(advancedToggle).toBeVisible();
+    const filters = mainFilters.getByRole('button', { name: 'Filters', exact: true });
+    await expect(filters).toBeVisible();
+    await expect(filters).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(filters).toHaveAttribute('aria-expanded', 'false');
+    await expect(mainFilters.getByRole('combobox', { name: 'Sort readings', exact: true })).toBeVisible();
+    await expect(mainFilters.getByRole('button', { name: /^Display:/ })).toBeVisible();
   });
 
-  test('more filters reveals filter map shortcuts', async ({ page }) => {
+  test('Filters reveals the grouped mobile sheet and returns focus on dismissal', async ({ page }) => {
     await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
     await page.getByRole('button', { name: 'Jump to journal filters' }).click();
 
     const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
-    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
-
-    await advancedToggle.click();
-    await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
-
-    const timeframeShortcut = mainFilters.getByRole('button', { name: 'Edit Timeframe filter' });
-    await expect(timeframeShortcut).toBeVisible();
+    const filters = mainFilters.getByRole('button', { name: 'Filters', exact: true });
+    await filters.click();
+    const panel = page.getByRole('dialog', { name: 'Filter saved readings', exact: true });
+    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('aria-modal', 'true');
+    for (const label of ['Timeframe', 'Context', 'Spread', 'Deck']) {
+      await expect(panel.getByRole('group', { name: label, exact: true })).toBeVisible();
+    }
+    await panel.getByRole('button', { name: 'Close filters', exact: true }).click();
+    await expect(panel).toHaveCount(0);
+    await expect(filters).toBeFocused();
+    await expect(filters).toHaveAttribute('aria-expanded', 'false');
   });
 
-  test('filter map can open the timeframe dropdown', async ({ page }) => {
+  test('mobile timeframe choices filter readings and retain their selection', async ({ page }) => {
     await page.evaluate(() => window.scrollTo({ top: 2500, behavior: 'instant' }));
     await page.getByRole('button', { name: 'Jump to journal filters' }).click();
 
-    const mainFilters = page.locator('#history section[aria-label="Journal filters"]');
-    const advancedToggle = mainFilters.getByRole('button', { name: /more filters/i });
-
-    await advancedToggle.click();
-    await expect(advancedToggle).toHaveAttribute('aria-expanded', 'true');
-
-    const timeframeShortcut = mainFilters.getByRole('button', { name: 'Edit Timeframe filter' });
-    await timeframeShortcut.click();
-
-    const option30d = page.getByRole('option', { name: '30 days' });
+    const panel = await openJournalFilters(page);
+    const option30d = panel.getByRole('group', { name: 'Timeframe', exact: true })
+      .getByRole('radio', { name: 'Last 30 days', exact: true });
     await expect(option30d).toBeVisible();
-    await option30d.click();
+    await option30d.check();
+    await expect(option30d).toBeChecked();
+    await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
     await expect(page.locator('[id^="journal-entry-mock-entry-"]')).toHaveCount(5);
+    await expect(page.getByRole('button', { name: 'Remove Last 30 days filter', exact: true })).toBeVisible();
+    await openJournalFilters(page);
+    await expect(option30d).toBeChecked();
   });
 });
 
@@ -214,22 +226,11 @@ test.describe('Filter Functionality @desktop', () => {
     await expect(page.getByText(`${ids.length} of 15 readings ${ids.length === 1 ? 'matches' : 'match'}`, { exact: true })).toBeVisible();
     await expect(page.getByText(/^Loaded:|Searching latest/)).toHaveCount(0);
   };
-  // The filter controls open on request from the search row.
-  const openFilters = async page => {
-    const toggle = page.locator('#history').getByRole('button', { name: /^Filters/ });
-    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-  };
-  const select = async (page, label, option) => {
-    await openFilters(page);
-    await page.locator('#history').getByRole('button', { name: label, exact: true }).click();
-    await page.getByRole('option', { name: option, exact: true }).click();
-    await page.keyboard.press('Escape');
-  };
 
   test('entry count badge updates when filtering', async ({ page }) => {
     await expect(page.getByText('Showing 10 of 15 readings', { exact: true })).toBeVisible();
     await expect(articles(page)).toHaveCount(10);
-    await select(page, 'Context', 'Love');
+    await selectJournalFilter(page, 'Context', 'Love');
     await expectIds(page, [0, 6, 12]);
   });
 
@@ -243,25 +244,28 @@ test.describe('Filter Functionality @desktop', () => {
   });
 
   test('timeframe filter works', async ({ page }) => {
-    await select(page, 'Timeframe', '30 days');
+    await selectJournalFilter(page, 'Timeframe', 'Last 30 days');
     await expectIds(page, [0, 1, 2, 3, 4]);
   });
 
   test('reversals toggle filter works', async ({ page }) => {
-    await openFilters(page);
-    const reversals = page.locator('#history').getByRole('button', { name: 'Reversals', exact: true });
-    await reversals.click();
-    await expect(reversals).toHaveAttribute('aria-pressed', 'true');
+    const panel = await openJournalFilters(page);
+    const reversals = panel.getByRole('checkbox', { name: 'Contains reversed cards', exact: true });
+    await reversals.check();
+    await expect(reversals).toBeChecked();
+    await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
     await expectIds(page, [0, 4, 8, 12]);
   });
 
   test('reset clears all filters', async ({ page }) => {
-    await select(page, 'Context', 'Love');
-    await select(page, 'Timeframe', '30 days');
-    await page.getByRole('button', { name: 'Reversals', exact: true }).click();
+    await selectJournalFilter(page, 'Context', 'Love');
+    await selectJournalFilter(page, 'Timeframe', 'Last 30 days');
+    const panel = await openJournalFilters(page);
+    await panel.getByRole('checkbox', { name: 'Contains reversed cards', exact: true }).check();
+    await panel.getByRole('button', { name: 'Show readings', exact: true }).click();
     await expectIds(page, [0]);
     await page.getByPlaceholder('Search readings...').fill('test');
-    await page.locator('#history').getByRole('button', { name: 'Reset view', exact: true }).click();
+    await page.locator('#history').getByRole('button', { name: 'Clear filters', exact: true }).click();
     await expect(page.getByPlaceholder('Search readings...')).toHaveValue('');
     await expect(page.getByText('Showing 10 of 15 readings', { exact: true })).toBeVisible();
     await expect(articles(page)).toHaveCount(10);
@@ -277,9 +281,9 @@ test.describe('Filter Functionality @desktop', () => {
     await expect(articles(page)).toHaveCount(10);
     await page.getByRole('button', { name: 'Load 5 more', exact: true }).click();
     await expect(articles(page)).toHaveCount(15);
-    await select(page, 'Context', 'Love');
+    await selectJournalFilter(page, 'Context', 'Love');
     await expectIds(page, [0, 6, 12]);
-    await page.locator('#history').getByRole('button', { name: 'Reset view', exact: true }).click();
+    await page.locator('#history').getByRole('button', { name: 'Clear filters', exact: true }).click();
     await expect(articles(page)).toHaveCount(10);
   });
 });
@@ -293,12 +297,8 @@ test.describe('Filter State Persistence @desktop', () => {
     await page.goto('/journal');
     await page.waitForSelector('[id="history"]', { timeout: 10000 });
 
-    // Apply a filter first (the filter controls open from the search row)
-    await page.locator('#history').getByRole('button', { name: /^Filters/ }).click();
-    const contextDropdown = page.locator('#history').getByRole('button', { name: 'Context', exact: true });
-    await contextDropdown.click();
-    await page.getByRole('option', { name: 'Love' }).click();
-    await page.keyboard.press('Escape');
+    // Apply a filter first (the filter controls open from the search row).
+    await selectJournalFilter(page, 'Context', 'Love');
 
     const saveViewButton = page.locator('#history').getByRole('button', { name: /save this view/i });
     await expect(saveViewButton).toBeVisible();

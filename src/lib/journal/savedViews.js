@@ -1,4 +1,5 @@
 import { isDeletedAccount } from '../deletedAccountStorage.js';
+import { normalizeJournalSortOrder } from './listOrder.js';
 
 const LEGACY_KEY = 'journal_saved_filters_v1';
 const storageKey = ownerId => ownerId ? `tarot_saved_views_user_${ownerId}` : 'tarot_saved_views_guest';
@@ -6,6 +7,7 @@ const storageKey = ownerId => ownerId ? `tarot_saved_views_user_${ownerId}` : 't
 function parseViews(views) {
   if (!Array.isArray(views) || views.some(view => !view || typeof view.id !== 'string'
     || typeof view.name !== 'string' || !view.values || typeof view.values !== 'object' || Array.isArray(view.values)
+    || (view.sortOrder !== undefined && !['newest', 'oldest'].includes(view.sortOrder))
     || (view.values.query !== undefined && typeof view.values.query !== 'string')
     || (view.values.timeframe !== undefined && typeof view.values.timeframe !== 'string')
     || (view.values.onlyReversals !== undefined && typeof view.values.onlyReversals !== 'boolean')
@@ -13,7 +15,9 @@ function parseViews(views) {
       && (!Array.isArray(view.values[key]) || view.values[key].some(value => typeof value !== 'string'))))) {
     throw new Error('Unreadable saved views.');
   }
-  return views;
+  // Older views have no presentation order. Normalize the returned copy without
+  // rewriting either their owner bucket or the unknown-owner legacy source.
+  return views.map(view => ({ ...view, sortOrder: normalizeJournalSortOrder(view.sortOrder) }));
 }
 
 function readBucket(storage, ownerId) {
@@ -37,7 +41,8 @@ export function writeSavedViews(storage, ownerId, views, { legacyImported } = {}
   try {
     if (isDeletedAccount(ownerId, { storage })) throw new Error('This account is no longer available.');
     const previous = readBucket(storage, ownerId);
-    const value = JSON.stringify({ views: parseViews(views), legacyImported: legacyImported ?? previous.legacyImported });
+    const normalizedViews = parseViews(views);
+    const value = JSON.stringify({ views: normalizedViews, legacyImported: legacyImported ?? previous.legacyImported });
     const key = storageKey(ownerId);
     storage.setItem(key, value);
     if (storage.getItem(key) !== value) throw new Error('The browser did not retain the saved view.');
@@ -45,7 +50,7 @@ export function writeSavedViews(storage, ownerId, views, { legacyImported } = {}
       storage.removeItem(key);
       throw new Error('This account is no longer available.');
     }
-    return { success: true, views };
+    return { success: true, views: normalizedViews };
   } catch {
     return { success: false, error: 'Your browser could not save this view. Existing saved views have been kept.' };
   }

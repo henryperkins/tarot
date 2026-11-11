@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { selectJournalFilter } from './helpers/journalControls.js';
 
 const HARNESS = `<!doctype html><html><body><div id="root"></div><script type="module">
   import RefreshRuntime from '/@react-refresh';
@@ -233,10 +234,8 @@ test.describe('DST relative-filter exports', () => {
       entry('outside-timeframe', '2026-02-28T23:29:59-08:00'),
       entry('boundary-reading', '2026-02-28T23:45:00-08:00'), entry('recent-reading', '2026-03-30T12:00:00-07:00'),
     ] });
-    await page.addInitScript(() => localStorage.setItem('journal_filters_advanced_v1', 'true'));
     await page.goto('/journal');
-    await page.getByRole('button', { name: 'Timeframe', exact: true }).click();
-    await page.getByRole('option', { name: '30 days', exact: true }).click();
+    await selectJournalFilter(page, 'Timeframe', 'Last 30 days');
     await expect(page.locator('[id^="journal-entry-"]')).toHaveCount(2);
     await expect(page.getByText(/In your February–March readings, Strength appeared 2x/)).toBeVisible();
     await page.getByRole('button', { name: 'Patterns & Themes', exact: true }).click();

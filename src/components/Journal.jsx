@@ -24,6 +24,7 @@ import { useToast } from '../contexts/ToastContext.jsx';
 import AuthModal from './AuthModal';
 import { getTimestamp } from '../../shared/journal/utils.js';
 import { useJournalFilters } from '../hooks/useJournalFilters';
+import { normalizeJournalSortOrder, sortJournalEntries } from '../lib/journal/listOrder.js';
 import { useJournalAnalytics } from '../hooks/useJournalAnalytics';
 import { useJournalSharing } from '../hooks/useJournalSharing';
 import { AmberStarfield } from './AmberStarfield';
@@ -102,8 +103,8 @@ export default function Journal() {
   const {
     filters,
     setFilters,
-    filterSignature,
-    filteredEntries,
+    filterSignature: matchSignature,
+    filteredEntries: matchingEntries,
     timeframeWindow,
     filtersActive,
     activeFilterChips,
@@ -115,6 +116,13 @@ export default function Journal() {
     requestSemanticSearch,
     clearSemanticSearch
   } = useJournalFilters(entries, { isAuthenticated, canUseCloudJournal, userId: user?.id, completeHistory: syncSource === 'api' });
+
+  // Presentation order belongs to this list, not shared storage or search.
+  // Keep every index-based navigation path on the same ordered projection.
+  const [sortOrder, setSortOrder] = useState('newest');
+  const handleSortOrderChange = useCallback(order => setSortOrder(normalizeJournalSortOrder(order)), []);
+  const filteredEntries = useMemo(() => sortJournalEntries(matchingEntries, sortOrder), [matchingEntries, sortOrder]);
+  const filterSignature = useMemo(() => JSON.stringify([matchSignature, sortOrder]), [matchSignature, sortOrder]);
 
   const {
     analyticsScope,
@@ -135,7 +143,7 @@ export default function Journal() {
     statNodeMap,
     scopedStatsEntries,
     journeyFiltersActive
-  } = useJournalAnalytics(entries, filteredEntries, filters, { isSmallSummary, timeframeWindow });
+  } = useJournalAnalytics(entries, matchingEntries, filters, { isSmallSummary, timeframeWindow });
 
   const {
     shareLinks,
@@ -789,7 +797,7 @@ export default function Journal() {
           <ReadingJourney
             journalSummary={journalSummary}
             entries={entries}
-            filteredEntries={filteredEntries}
+            filteredEntries={matchingEntries}
             filtersActive={journeyFiltersActive}
             filtersApplied={filtersActive}
             scopeEntries={scopedStatsEntries}
@@ -893,7 +901,7 @@ export default function Journal() {
         <ReadingJourney
           journalSummary={journalSummary}
           entries={entries}
-          filteredEntries={filteredEntries}
+          filteredEntries={matchingEntries}
           filtersActive={journeyFiltersActive}
           filtersApplied={filtersActive}
           scopeEntries={scopedStatsEntries}
@@ -1036,7 +1044,7 @@ export default function Journal() {
               {/* Let the rail move below history when enlarged text needs more room. */}
               <div className="min-w-0 flex-[999_1_32rem] space-y-8">
                 {hasEntries || historyPending ? (
-                  <section id="history" className={`${shellClass} p-[min(1.25rem,4vw)] space-y-5`}>
+                  <section id="history" className={`${shellClass} overflow-visible! p-[min(1.25rem,4vw)] space-y-5`}>
                     {/* Keep decorative orbs from becoming native focus-scroll space. */}
                     <div className="pointer-events-none absolute inset-0 overflow-clip rounded-[inherit]" aria-hidden="true">
                       <AmberStarfield />
@@ -1048,7 +1056,7 @@ export default function Journal() {
                         <h2 className="text-2xl font-serif text-main">Saved readings</h2>
                         {monthSections.length > 1 && (
                           <div className="flex min-w-0 max-w-full items-center">
-                            {/* Visible as the picker's first option ("Month" on phones). */}
+                            {/* Navigation is separate from sorting and date filtering. */}
                             <label htmlFor="jump-to-month" className="sr-only">
                               Jump to month
                             </label>
@@ -1060,9 +1068,7 @@ export default function Journal() {
                               aria-describedby={historyPending ? 'journal-history-progress' : undefined}
                               className="min-h-touch max-w-full rounded-full border border-secondary/20 bg-surface-muted/40 px-3 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                             >
-                              {/* Short on phones so the picker shares the heading's row;
-                                  its label keeps the full name for assistive tech. */}
-                              <option value="">{isMobileLayout ? 'Month' : 'Jump to month'}</option>
+                              <option value="">Jump to month</option>
                               {monthSections.map((section) => (
                                 <option key={section.key} value={section.key}>
                                   {isMobileLayout ? section.shortLabel : section.label} ({section.count})
@@ -1137,12 +1143,15 @@ export default function Journal() {
                           className="scroll-mt-24"
                         >
                           <fieldset disabled={historyPending} aria-describedby={historyPending ? 'journal-history-progress' : undefined} className="min-w-0">
-                            <legend className="sr-only">Search and filter saved readings</legend>
+                            <legend className="sr-only">Search, sort and filter saved readings</legend>
                             <JournalFilters
                               ownerId={isAuthenticated ? user?.id : null}
                               storageReady={!authLoading}
                               filters={filters}
                               onChange={setFilters}
+                              sortOrder={sortOrder}
+                              onSortOrderChange={handleSortOrderChange}
+                              disabled={historyPending}
                               contexts={CONTEXT_FILTERS}
                               spreads={SPREAD_FILTERS}
                               decks={DECK_FILTERS}

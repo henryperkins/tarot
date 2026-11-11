@@ -272,7 +272,7 @@ test('filter reset uses the full touch target and restores results', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 });
   await openJournal(page);
   await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('unmatched-word');
-  const reset = page.getByRole('button', { name: 'Reset view', exact: true });
+  const reset = page.locator('#journal-history-filters').getByRole('button', { name: 'Clear filters', exact: true });
   await expect(reset).toBeEnabled();
   expect((await reset.boundingBox()).height).toBeGreaterThanOrEqual(44);
   await reset.click();

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from 'react';
+import { useState, useRef, useEffect, useId, useCallback } from 'react';
 import {
   CaretDown,
   Check,
@@ -6,25 +6,24 @@ import {
   Rows,
   X
 } from '@phosphor-icons/react';
-import { JournalBookmarkIcon, JournalRefreshIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
+import { JournalBookmarkIcon, JournalSearchIcon, JournalSlidersIcon } from './JournalIcons';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
-import { PRESSED_FORCED_COLORS_CLASS } from '../styles/buttonClasses';
 import { ConfirmModal } from './ConfirmModal';
+import { JournalFilterPanel } from './journal/JournalFilterPanel';
 import { readSavedViews, writeSavedViews, importLegacySavedViews, hasLegacySavedViews } from '../lib/journal/savedViews.js';
+import { normalizeJournalSortOrder } from '../lib/journal/listOrder.js';
 import { DEFAULT_FILTERS } from '../lib/journal/constants';
 
-const TIMEFRAME_OPTIONS = [
-  { value: 'all', label: 'All time' },
-  { value: '30d', label: '30 days' },
-  { value: '90d', label: '90 days' },
-  { value: 'ytd', label: 'This year' }
+const DISPLAY_OPTIONS = [
+  { value: 'comfortable', label: 'Comfortable', icon: Rows },
+  { value: 'compact', label: 'Compact', icon: ListBullets }
 ];
 
 const OUTLINE_FILTER_BASE = `flex min-h-touch items-center gap-2 rounded-xl border px-2.5 py-2 text-xs-plus font-semibold transition-all ${FOCUS_RING_DEFAULT}`;
 const OUTLINE_FILTER_IDLE = 'border-(--border-warm-light) text-muted hover:border-(--border-warm) hover:text-main';
 const OUTLINE_FILTER_ACTIVE = 'border-(--brand-primary) bg-(--ui-selected-bg) text-main shadow-(--ui-selected-shadow-strong)';
 
-function FilterDropdown({ label, options, value, onChange, multiple = false, buttonRef: externalButtonRef }) {
+function FilterDropdown({ label, options, value, onChange, fixedLabel = false, multiple = false, buttonRef: externalButtonRef }) {
   const [isOpen, setIsOpen] = useState(false);
   const [alignRight, setAlignRight] = useState(false);
   const [focusedOptionIndex, setFocusedOptionIndex] = useState(0);
@@ -126,7 +125,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
     return value === optionValue;
   };
 
-  const activeCount = multiple ? (value || []).length : (value && value !== 'all' ? 1 : 0);
+  const activeCount = fixedLabel ? 0 : multiple ? (value || []).length : (value && value !== 'all' ? 1 : 0);
 
   let displayLabel = label;
   if (!multiple && value && value !== 'all') {
@@ -152,7 +151,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
         aria-label={accessibleName}
       >
         {multiple && <span>{label}</span>}
-        {!multiple && <span className={value !== 'all' ? 'text-(--brand-primary)' : ''}>{displayLabel}</span>}
+        {!multiple && <span className={!fixedLabel && value !== 'all' ? 'text-(--brand-primary)' : ''}>{fixedLabel ? label : displayLabel}</span>}
 
         {multiple && activeCount > 0 && (
           <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs">
@@ -186,7 +185,10 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
                 onFocus={() => setFocusedOptionIndex(index)}
                 className={`flex min-h-touch w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs-plus text-muted hover:bg-(--ui-selected-bg-subtle) hover:text-accent transition-colors focus:outline-hidden ${FOCUS_RING_DEFAULT}`}
               >
-                <span>{option.label}</span>
+                <span className="flex items-center gap-2">
+                  {option.icon && <option.icon className="h-4 w-4" aria-hidden="true" />}
+                  {option.label}
+                </span>
                 {isSelected(option.value) && <Check className="h-3.5 w-3.5 text-(--brand-primary)" />}
               </button>
             ))}
@@ -200,6 +202,7 @@ function FilterDropdown({ label, options, value, onChange, multiple = false, but
 export function JournalFilters({
   filters, onChange, contexts = [], spreads = [], decks = [], variant = 'full',
   viewMode = 'comfortable', onViewModeChange, resultsLabel,
+  sortOrder = 'newest', onSortOrderChange, disabled = false,
   searchCoverageLabel, searchScopeLabel, onSearchRef, ownerId = null, storageReady = true,
   activeFilterChips = [], onRemoveFilter
 }) {
@@ -213,14 +216,16 @@ export function JournalFilters({
   const current = viewState.ownerId === ownerId && viewState.ready === storageReady ? viewState : loadViews();
   const updateViews = patch => setViewState(previous => previous.ownerId === ownerId && previous.ready === storageReady
     ? { ...previous, ...patch } : previous);
-  // The filter controls open on request; the reader's last choice is remembered.
-  const [filtersOpen, setFiltersOpen] = useState(() => {
-    try { return localStorage.getItem('journal_filters_advanced_v1') === 'true'; } catch { return false; }
-  });
+  // Overlays are opened deliberately, never restored over the journal on load.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
   const filtersPanelId = useId();
+  const searchHelpId = useId();
   const searchInputRef = useRef(null);
   const filtersToggleRef = useRef(null);
   const saveNameInputRef = useRef(null);
+  const saveTriggerRef = useRef(null);
+  const pendingSaveFocusRef = useRef(false);
   const chipButtonRefs = useRef(new Map());
   const pendingFocusRef = useRef(null);
   const savedFilters = current.views;
@@ -228,6 +233,7 @@ export function JournalFilters({
     contexts: [...(filters.contexts || [])], spreads: [...(filters.spreads || [])], decks: [...(filters.decks || [])] });
   const activeFilters = Boolean(filters.query?.trim() || filters.contexts?.length || filters.spreads?.length
     || filters.decks?.length || filters.timeframe !== 'all' || filters.onlyReversals || filters.journeyFilter);
+  const canSaveView = activeFilters || sortOrder !== 'newest';
   // The search box shows its own words, so the chips name everything else.
   const filterChips = (Array.isArray(activeFilterChips) ? activeFilterChips : []).filter(chip => chip.key !== 'query');
   const chipSignature = filterChips.map(chip => chip.key).join('|');
@@ -239,6 +245,10 @@ export function JournalFilters({
   }, [onSearchRef]);
   useEffect(() => {
     if (current.saveOpen) saveNameInputRef.current?.focus();
+    else if (pendingSaveFocusRef.current) {
+      pendingSaveFocusRef.current = false;
+      (saveTriggerRef.current || searchInputRef.current)?.focus();
+    }
   }, [current.saveOpen]);
   // A control that removes itself hands focus on: the next filter chip, else search.
   useEffect(() => {
@@ -248,17 +258,18 @@ export function JournalFilters({
     (chipButtonRefs.current.get(target) || searchInputRef.current)?.focus();
   }, [chipSignature, activeFilters]);
 
-  const persistSavedFilters = next => {
+  const persistSavedFilters = (next, restoreSaveFocus = false) => {
     if (!storageReady || typeof localStorage === 'undefined') return;
     const result = writeSavedViews(localStorage, ownerId, next);
-    updateViews(result.success ? { views: next, name: '', saveOpen: false, error: null } : { error: result.error });
+    if (result.success && restoreSaveFocus) pendingSaveFocusRef.current = true;
+    updateViews(result.success ? { views: result.views, name: '', saveOpen: false, error: null } : { error: result.error });
   };
   const handleSaveCurrent = () => {
     const name = current.name.trim();
-    if (!name || !activeFilters) return;
+    if (!name || !canSaveView) return;
     const existing = savedFilters.find(view => view.name.toLowerCase() === name.toLowerCase());
-    const view = { id: existing?.id || `saved-${Date.now()}`, name, values: snapshot() };
-    persistSavedFilters(existing ? savedFilters.map(item => item.id === existing.id ? view : item) : [view, ...savedFilters]);
+    const view = { id: existing?.id || `saved-${Date.now()}`, name, values: snapshot(), sortOrder };
+    persistSavedFilters(existing ? savedFilters.map(item => item.id === existing.id ? view : item) : [view, ...savedFilters], true);
   };
   const clearFilters = () => {
     pendingFocusRef.current = 'search';
@@ -270,70 +281,58 @@ export function JournalFilters({
     pendingFocusRef.current = remaining[index]?.key || remaining[index - 1]?.key || 'search';
     onRemoveFilter?.(key);
   };
-  const toggleFilters = () => {
-    const open = !filtersOpen;
-    setFiltersOpen(open);
-    try { localStorage.setItem('journal_filters_advanced_v1', String(open)); } catch { /* Optional presentation preference. */ }
-  };
-
-  const viewModeSwitch = onViewModeChange ? (
-    <div className="inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-(--border-warm-light) p-1" role="group" aria-label="List view mode">
-      {/* One name at every width; forced colors mark the chosen view with Highlight. */}
-      {[['comfortable', Rows, 'Comfortable'], ['compact', ListBullets, 'Compact']].map(([mode, Icon, label]) => (
-        <button key={mode} type="button" onClick={() => onViewModeChange(mode)} aria-pressed={viewMode === mode}
-          title={mode === 'compact' ? 'Compact view - shows more entries' : 'Comfortable view - shows more details'}
-          className={`inline-flex min-h-touch items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs-plus font-semibold text-main transition-colors ${viewMode === mode ? 'bg-(--ui-selected-bg) ring-1 ring-inset ring-(--brand-primary)/45' : 'hover:bg-(--border-warm-subtle)'} ${PRESSED_FORCED_COLORS_CLASS} ${FOCUS_RING_DEFAULT}`}>
-          <Icon className="h-4 w-4" aria-hidden="true" />{label}
-        </button>
-      ))}
+  const sortControl = onSortOrderChange ? (
+    <div key="sort" className={`relative ${isCompact ? 'flex-1' : ''}`}>
+      <select aria-label="Sort readings" value={sortOrder}
+        onChange={event => onSortOrderChange(event.target.value)}
+        className={`min-h-touch w-full appearance-none rounded-xl border border-(--border-warm-light) bg-(--bg-surface) pl-2.5 pr-7 py-2 text-sm-mobile sm:text-xs-plus font-semibold text-main ${FOCUS_RING_DEFAULT}`}>
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+      <CaretDown className="pointer-events-none absolute right-2.5 top-4 h-3 w-3 text-muted" aria-hidden="true" />
     </div>
   ) : null;
+  const filtersControl = (
+    <button key="filters" ref={filtersToggleRef} type="button" onClick={() => setFiltersOpen(open => !open)}
+      aria-haspopup="dialog" aria-expanded={filtersOpen && !disabled} aria-controls={filtersOpen && !disabled ? filtersPanelId : undefined}
+      aria-label={filterChips.length > 0 ? `Filters, ${filterChips.length} active` : 'Filters'}
+      className={`${OUTLINE_FILTER_BASE} ${filterChips.length > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>
+      <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
+      <span>Filters</span>
+      {filterChips.length > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs tabular-nums">
+          {filterChips.length}
+        </span>
+      )}
+    </button>
+  );
 
   return (
     <section aria-label="Journal filters" className="relative space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-[1_1_11rem]">
+      <div className="relative flex flex-wrap items-center gap-2">
+        <div className={`relative min-w-0 ${isCompact ? 'basis-full' : 'flex-[1_1_14rem]'}`}>
           <JournalSearchIcon className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" aria-hidden="true" />
           <input ref={searchInputRef} type="search" value={filters.query}
             onChange={event => onChange({ ...filters, query: event.target.value })}
-            placeholder="Search readings..." aria-label="Search journal entries"
+            placeholder="Search readings..." aria-label="Search journal entries" aria-describedby={searchHelpId}
             className={`w-full min-h-touch rounded-xl border border-(--border-warm) bg-(--bg-main) pl-9 pr-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`} />
+          <span id={searchHelpId} className="sr-only">Search questions, card names and positions, reading narratives, reflections, spreads, and contexts.</span>
         </div>
-        <button ref={filtersToggleRef} type="button" onClick={toggleFilters}
-          aria-expanded={filtersOpen} aria-controls={filtersPanelId}
-          aria-label={filterChips.length > 0 ? `Filters, ${filterChips.length} active` : 'Filters'}
-          className={`${OUTLINE_FILTER_BASE} ${filterChips.length > 0 ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>
-          <JournalSlidersIcon className="h-4 w-4" aria-hidden="true" />
-          <span>Filters</span>
-          {filterChips.length > 0 && (
-            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-(--ui-selected-bg-strong) px-1 text-2xs tabular-nums">
-              {filterChips.length}
-            </span>
-          )}
-          <CaretDown className={`h-3 w-3 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </button>
-        {/* Phones keep search and Filters on one row; the view switch waits in the panel. */}
-        {!isCompact && viewModeSwitch}
+        <div className={`flex min-w-0 flex-wrap items-center gap-2 ${isCompact ? 'basis-full' : ''}`}>
+          {/* DOM order follows the visual order, including handset keyboard use. */}
+          {isCompact ? [filtersControl, sortControl] : [sortControl, filtersControl]}
+          {onViewModeChange && <div>
+            <FilterDropdown label="Display" fixedLabel options={DISPLAY_OPTIONS} value={viewMode} onChange={onViewModeChange} />
+          </div>}
+        </div>
+        <JournalFilterPanel id={filtersPanelId} isOpen={filtersOpen && !disabled} isCompact={isCompact}
+          filters={filters} onChange={onChange} contexts={contexts} spreads={spreads} decks={decks}
+          onClose={closeFilters} triggerRef={filtersToggleRef} canClear={activeFilters}
+          onClear={() => { updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS }); }} />
       </div>
 
-      {filtersOpen && (
-        <div id={filtersPanelId} role="group" aria-label="Filter saved readings" className="flex flex-wrap items-center gap-2">
-          <FilterDropdown label="Timeframe" options={TIMEFRAME_OPTIONS} value={filters.timeframe} onChange={value => onChange({ ...filters, timeframe: value })} />
-          {contexts.length > 0 && <FilterDropdown label="Context" options={contexts} value={filters.contexts} multiple onChange={value => onChange({ ...filters, contexts: value })} />}
-          {spreads.length > 0 && <FilterDropdown label="Spread" options={spreads} value={filters.spreads} multiple onChange={value => onChange({ ...filters, spreads: value })} />}
-          {decks.length > 0 && <FilterDropdown label="Deck" options={decks} value={filters.decks} multiple onChange={value => onChange({ ...filters, decks: value })} />}
-          <button type="button" aria-pressed={filters.onlyReversals} onClick={() => onChange({ ...filters, onlyReversals: !filters.onlyReversals })}
-            className={`${OUTLINE_FILTER_BASE} ${filters.onlyReversals ? OUTLINE_FILTER_ACTIVE : OUTLINE_FILTER_IDLE}`}>Reversals</button>
-          {isCompact && viewModeSwitch}
-          <details className="basis-full text-xs text-muted">
-            <summary className={`min-h-touch content-center cursor-pointer rounded-lg ${FOCUS_RING_DEFAULT}`}>What fields are searched?</summary>
-            <p className="pt-1 leading-relaxed">Search your questions, card names and positions, reading narratives, reflections, spreads, and contexts.</p>
-          </details>
-        </div>
-      )}
-
-      {activeFilters && (
-        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Active filters">
+      {canSaveView && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={activeFilters ? 'Active filters' : 'Current view'}>
           {filterChips.map(chip => (
             <button key={chip.key} type="button"
               ref={node => { if (node) chipButtonRefs.current.set(chip.key, node); else chipButtonRefs.current.delete(chip.key); }}
@@ -343,12 +342,12 @@ export function JournalFilters({
               <X className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
             </button>
           ))}
-          <button type="button" onClick={clearFilters}
+          {activeFilters && <button type="button" onClick={clearFilters}
             className={`inline-flex min-h-touch items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-accent underline-offset-4 hover:underline ${FOCUS_RING_DEFAULT}`}>
-            <JournalRefreshIcon className="h-3.5 w-3.5" aria-hidden="true" />Reset view
-          </button>
+            Clear filters
+          </button>}
           {!current.saveOpen ? (
-            <button type="button" disabled={!storageReady} onClick={() => updateViews({ saveOpen: true })}
+            <button ref={saveTriggerRef} type="button" disabled={!storageReady} onClick={() => updateViews({ saveOpen: true })}
               className={`inline-flex min-h-touch items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-main hover:text-accent disabled:opacity-50 ${FOCUS_RING_DEFAULT}`}>
               <JournalBookmarkIcon className="h-3.5 w-3.5" aria-hidden="true" />Save this view
             </button>
@@ -358,7 +357,7 @@ export function JournalFilters({
                 placeholder="Name this view" aria-label="Name for saved filter view"
                 className={`min-h-touch min-w-0 flex-[1_1_12rem] rounded-xl border border-(--border-warm) bg-(--bg-main) px-3 py-2 text-sm-mobile text-main ${FOCUS_RING_DEFAULT}`} />
               <button type="button" disabled={!current.name.trim()} onClick={handleSaveCurrent} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE} disabled:opacity-50`}>Save current</button>
-              <button type="button" onClick={() => updateViews({ name: '', saveOpen: false })} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}>Cancel</button>
+              <button type="button" onClick={() => { pendingSaveFocusRef.current = true; updateViews({ name: '', saveOpen: false }); }} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}>Cancel</button>
             </div>
           )}
         </div>
@@ -374,7 +373,11 @@ export function JournalFilters({
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Saved views">
           {savedFilters.map(saved => (
             <div key={saved.id} className="inline-flex max-w-full items-center rounded-xl border border-(--border-warm-light)">
-              <button type="button" onClick={() => { updateViews({ name: '', saveOpen: false }); onChange({ ...DEFAULT_FILTERS, ...saved.values }); }}
+              <button type="button" onClick={() => {
+                updateViews({ name: '', saveOpen: false });
+                onChange({ ...DEFAULT_FILTERS, ...saved.values });
+                onSortOrderChange?.(normalizeJournalSortOrder(saved.sortOrder));
+              }}
                 className={`min-h-touch min-w-0 px-3 py-2 text-left text-sm text-main wrap-anywhere ${FOCUS_RING_DEFAULT}`}>{saved.name}</button>
               <button type="button" aria-label={`Delete saved filter ${saved.name}`} onClick={() => persistSavedFilters(savedFilters.filter(item => item.id !== saved.id))}
                 className={`min-h-touch min-w-touch rounded-xl text-muted hover:text-error ${FOCUS_RING_DEFAULT}`}><span aria-hidden="true">×</span></button>

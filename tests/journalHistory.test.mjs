@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildJournalMonthSections } from '../src/lib/journal/utils.js';
+import { sortJournalEntries } from '../src/lib/journal/listOrder.js';
 
 test('month sections retain full totals and the first entry index for navigation', () => {
   const values = [
@@ -60,4 +61,53 @@ test('rendering consecutive month sections preserves source order and unique anc
     'first-oct', 'second-sep', 'third-oct'
   ]);
   assert.deepEqual(result.map(section => section.anchorId), ['month-2026-10', 'month-2026-09', 'month-2026-10-2']);
+});
+
+test('month navigation follows the selected date order with undated readings last', () => {
+  const values = [
+    { id: 'nov-latest', ts: new Date(2026, 10, 8, 12).getTime() },
+    { id: 'undated' },
+    { id: 'sep-only', ts: new Date(2026, 8, 20, 12).getTime() },
+    { id: 'nov-earliest', ts: new Date(2026, 10, 1, 12).getTime() }
+  ];
+  for (const [order, expected] of [
+    ['newest', [
+      { key: '2026-11', count: 2, firstIndex: 0 },
+      { key: '2026-09', count: 1, firstIndex: 2 },
+      { key: 'undated', count: 1, firstIndex: 3 }
+    ]],
+    ['oldest', [
+      { key: '2026-09', count: 1, firstIndex: 0 },
+      { key: '2026-11', count: 2, firstIndex: 1 },
+      { key: 'undated', count: 1, firstIndex: 3 }
+    ]]
+  ]) {
+    const sorted = sortJournalEntries(values, order);
+    const sections = buildJournalMonthSections(sorted);
+    assert.deepEqual(sections.map(({ key, count, firstIndex }) => ({ key, count, firstIndex })), expected);
+    assert.deepEqual(sections.flatMap(section => section.items.map(({ entry }) => entry.id)), sorted.map(entry => entry.id));
+    for (const section of sections) assert.equal(sorted[section.firstIndex], section.items[0].entry);
+  }
+});
+
+test('oldest-first rendering keeps full month totals and reveals later jump destinations by batch', () => {
+  const values = [
+    { id: 'nov-2', ts: new Date(2026, 10, 8, 12).getTime() },
+    { id: 'nov-1', ts: new Date(2026, 10, 1, 12).getTime() },
+    ...Array.from({ length: 12 }, (_, index) => ({ id: `sep-${index}`, ts: new Date(2026, 8, 20 - index, 12).getTime() }))
+  ];
+  const sorted = sortJournalEntries(values, 'oldest');
+  const sections = buildJournalMonthSections(sorted);
+  assert.deepEqual(sections.map(({ key, count, firstIndex }) => ({ key, count, firstIndex })), [
+    { key: '2026-09', count: 12, firstIndex: 0 },
+    { key: '2026-11', count: 2, firstIndex: 12 }
+  ]);
+  assert.equal(buildJournalMonthSections(sorted.slice(0, 10), { consecutive: true })[0].count, 10);
+  const target = sections[1];
+  const visibleCount = Math.ceil((target.firstIndex + 1) / 10) * 10;
+  const visible = sorted.slice(0, visibleCount);
+  assert.equal(visible[target.firstIndex].id, 'nov-1');
+  assert.deepEqual(buildJournalMonthSections(visible, { consecutive: true }).map(section => section.anchorId), [
+    'month-2026-09', 'month-2026-11'
+  ]);
 });

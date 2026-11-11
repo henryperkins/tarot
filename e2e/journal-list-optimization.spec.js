@@ -1,4 +1,5 @@
 import { test, expect } from './helpers/frontendTest.js';
+import { selectJournalDensity } from './helpers/journalControls.js';
 
 const values = Array.from({ length: 300 }, (_, index) => ({
   id: `optimized-${index}`, readingResultId: `optimized-result-${index}`, ts: Date.UTC(2026, 9, 25) - index * 86400000,
@@ -142,7 +143,7 @@ test('search and density changes do not reparse the unchanged local history', as
   await page.evaluate(() => { window.__largeJournalParses = 0; });
   await page.getByRole('searchbox', { name: 'Search journal entries' }).fill('silver orchard');
   await expect(page.locator('#history article')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Compact', exact: true }).click();
+  await selectJournalDensity(page, 'Compact');
   expect(await page.evaluate(() => window.__largeJournalParses)).toBe(0);
 });
 

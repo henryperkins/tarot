@@ -257,7 +257,7 @@ for (const scenario of [
       await page.getByRole('button', { name: 'Open journal', exact: true }).click();
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(scenario.matching);
       await expect(page.getByRole('searchbox', { name: 'Search journal entries' })).toHaveValue('');
-      await page.getByRole('button', { name: 'Reset view', exact: true }).first().click();
+      await page.locator('#journal-history-filters').getByRole('button', { name: 'Clear filters', exact: true }).click();
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(scenario.count);
     } finally { await fixture.close(); }
   });
@@ -401,7 +401,7 @@ for (const mobile of [false, true]) {
       await expect(page.locator('#journal-entry-entry-1')).toBeVisible();
       await expect(page.getByRole('searchbox', { name: 'Search journal entries' })).toBeFocused();
       await expect(page.getByRole('searchbox', { name: 'Search journal entries' })).toHaveValue('');
-      await page.getByRole('button', { name: 'Reset view', exact: true }).first().click();
+      await page.locator('#journal-history-filters').getByRole('button', { name: 'Clear filters', exact: true }).click();
       await expect(page.locator('[id^="journal-entry-entry-"]')).toHaveCount(4);
     } finally { await fixture.close(); }
   });
