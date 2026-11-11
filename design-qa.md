@@ -1,6 +1,6 @@
 # Journal quiet toolbar — implementation and design QA
 
-**Result: BLOCKED — draft for review, not visually qualified.**
+**Final result: blocked — draft for review, not visually qualified.**
 
 Date: 2026-11-10 (America/Chicago). Base: `e1f526a3691547ef46c6cd733a9842f077d2f4a4` on `master`. Review branch: `feat/journal-quiet-toolbar`. No merge or deployment was performed.
 
@@ -32,6 +32,26 @@ Intentional differences from the concept board: **Display** replaces its ambiguo
 5. The four other failures were reproduced against the exact unchanged base in a separate clean worktree. Two assume a missing `/tmp/opencode` parent; two require an absent Chromium headless-shell executable. The baseline failed-file run reported 19 tests: 15 passed, 4 failed.
 6. Final production build and focused checks passed. The final complete suite reported **6,507 tests: 6,500 passed, 4 failed, 3 skipped** (291.55 seconds, exit 1). The four failures are the same setup failures reproduced on the unchanged base; no source-allowlist failures remain.
 7. Cloud-browser navigation to the local review harness returned `upstream connect error or disconnect/reset before headers; reset reason: connection termination`. The scratch preview initially also encountered `uv_interface_addresses` / `EPERM` on a wildcard bind. A safer loopback preview started, but was not reachable through the browser's preview route. No permission, security or network-isolation bypass was attempted. Owned preview processes were stopped.
+8. After the reader explicitly authorized local Playwright verification, `npx playwright install chromium` under Playwright **1.62.1** exited 1. The official Chromium ZIP URL returned HTTP 200 with `Content-Type: text/html`, 195 bytes, and a "Site Unavailable / Unable to access this site" page instead of an archive. This response does not distinguish upstream unavailability from destination policy.
+9. A normally configured launch using the existing `/usr/bin/chromium` (**Chromium 156.0.8078.79**) failed before page creation: `process_singleton_posix.cc:297 — socket() failed: Operation not permitted (1)`, followed by a ptrace denial. Execution stopped at that runtime permission boundary without additional browser flags, privilege escalation, sandbox changes, mirrors, or proxy changes. **Zero E2E cases executed.**
+10. The missing `/tmp/opencode` parent was created as test setup. The earlier full-suite and baseline counts above predate that setup change; they were not presented as new post-setup results. Application source and tests were unchanged during this verification attempt.
+
+Exact local browser launch preflight (this failed before opening a page):
+
+```js
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch({
+  executablePath: '/usr/bin/chromium',
+  headless: true
+});
+const page = await browser.newPage();
+await page.setContent('<h1>Local browser smoke check</h1>');
+console.log(JSON.stringify({
+  version: browser.version(),
+  heading: await page.getByRole('heading').innerText()
+}));
+await browser.close();
+```
 
 ## Check results
 
@@ -45,6 +65,7 @@ Intentional differences from the concept board: **Display** replaces its ambiguo
 | `git diff --check` | Pass |
 | Final `npm test` | 6,500 passed, 4 baseline-reproduced setup failures, 3 skipped; exit 1 |
 | New and updated Playwright specs | 16 new cases plus updates to 7 existing specs; statically checked, **not executed** |
+| Approved local Playwright retry | Blocked before page creation by Chromium socket permission failure; **0 E2E cases executed** |
 | Real authenticated local reviewer account | Not exercised |
 | Deployment / merge | Not performed |
 
@@ -65,4 +86,6 @@ Required viewports: **320 × 844**, **390 × 844**, **768 × 900**, **1280 × 90
 | Sort, month jump, pagination and saved views | Execute the new quiet-toolbar regression suite and related updated specs |
 | Console and network | Capture actual app errors; distinguish explicit synthetic fixture refusals from app failures |
 
-Do not mark this design QA **passed**, promote the draft as ready, merge or deploy until the rendered comparison and browser interaction checks are complete.
+Do not mark this design QA **passed**, promote the draft as ready, merge or deploy until the rendered comparison and browser interaction checks are complete. The remaining prerequisite is a browser-capable environment with permission to launch Chromium, plus access to the matching Playwright browser distribution if the bundled engine is used. The user has already authorized local Playwright; another generic approval to run tests does not resolve this environment limitation.
+
+final result: blocked
