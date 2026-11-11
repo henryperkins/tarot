@@ -85,11 +85,18 @@ test('pointer pagination preserves the current scroll position', async ({ page }
   await openList(page);
   const load = page.getByRole('button', { name: 'Load 10 more', exact: true });
   await load.scrollIntoViewIfNeeded();
-  const before = await page.evaluate(() => scrollY);
+  // Locator.click can scroll again while the app chrome settles. Measure at
+  // pointer-down so this assertion covers pagination, not Playwright's positioning.
+  await load.evaluate(button => {
+    button.addEventListener('pointerdown', () => {
+      window.__journalPointerScrollY = window.scrollY;
+    }, { once: true });
+  });
   await load.click();
   await expect(page.locator('#history article')).toHaveCount(20);
   await expect(toggle(page.locator('#history article').nth(10))).not.toBeFocused();
-  expect(await page.evaluate(() => scrollY)).toBeCloseTo(before, 0);
+  const scroll = await page.evaluate(() => ({ before: window.__journalPointerScrollY, after: scrollY }));
+  expect(scroll.after).toBeCloseTo(scroll.before, 0);
 });
 
 test('row actions identify their reading and articles expose the reading heading', async ({ page }) => {
@@ -118,6 +125,95 @@ test('both list densities expose exact semantic dates and handle an undated read
     await expect(page.locator('#history article').nth(1).locator('time')).toHaveCount(0);
   }
 });
+
+for (const width of [1280, 390]) {
+  test.describe(`entry header interactions at ${width}px`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width === 390 });
+
+    for (const density of ['Comfortable', 'Compact']) {
+      test(`${density} keeps keyboard focus through repeated expansion and collapse`, async ({ page }) => {
+        await openList(page, { values: entries.slice(0, 2) });
+        const densityButton = page.getByRole('button', { name: density, exact: true });
+        if (!await densityButton.isVisible()) {
+          await page.getByRole('region', { name: 'Journal filters' }).getByRole('button', { name: /^Filters/ }).click();
+        }
+        await densityButton.click();
+        const article = page.locator('#history article').first();
+        const opener = toggle(article);
+        await opener.focus();
+
+        // Use the active element, so a lost focus cannot be masked by a locator
+        // that silently refocuses a replacement button before the next keypress.
+        for (const key of ['Enter', 'Space']) {
+          await page.keyboard.press(key);
+          await expect(opener).toHaveAttribute('aria-expanded', 'true');
+          await expect(opener).toBeFocused();
+          await expect(page.locator('#history [data-journal-entry-toggle][aria-expanded="true"]')).toHaveCount(1);
+          await page.keyboard.press(key);
+          await expect(opener).toHaveAttribute('aria-expanded', 'false');
+          await expect(opener).toBeFocused();
+        }
+
+        // Expanding must keep the header's natural Tab order and action-menu return focus.
+        await page.keyboard.press('Enter');
+        await page.keyboard.press('Tab');
+        await expect(article.getByRole('button', { name: /^Copy summary for / })).toBeFocused();
+        await page.keyboard.press('Tab');
+        const menuButton = article.getByRole('button', { name: /^Open entry actions for / });
+        await expect(menuButton).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('menu')).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(menuButton).toBeFocused();
+        await expect(opener).toHaveAttribute('aria-expanded', 'true');
+      });
+    }
+
+    test('artwork and the extra-card badge open only their own reading', async ({ page }) => {
+      const drawnCards = [
+        ...cards,
+        { name: 'The Star', number: 17, position: 'Future', orientation: 'Upright' },
+        { name: 'The Fool', number: 0, position: 'Advice', orientation: 'Upright' },
+        { name: 'The Sun', number: 19, position: 'Outcome', orientation: 'Upright' }
+      ];
+      await openList(page, { values: [1, 3, 5].map((count, index) => ({
+        ...entries[index], cards: drawnCards.slice(0, count)
+      })) });
+
+      const activatePoint = ({ x, y }) => width === 390
+        ? page.touchscreen.tap(x, y)
+        : page.mouse.click(x, y);
+
+      for (const article of await page.locator('#history article').all()) {
+        const opener = toggle(article);
+        const artwork = article.locator('img');
+        const shown = await artwork.count();
+        for (let index = 0; index < shown; index += 1) {
+          const image = artwork.nth(index);
+          await image.scrollIntoViewIfNeeded();
+          const box = await image.boundingBox();
+          // Hit the exposed face of each overlapping card, including reversed cards.
+          // Coordinate input exercises the reader's click/tap through decorative art.
+          await activatePoint({ x: box.x + box.width * (index === shown - 1 ? 0.5 : 0.2), y: box.y + box.height / 2 });
+          await expect(opener).toHaveAttribute('aria-expanded', 'true');
+          await expect(page.locator('#history [data-journal-entry-toggle][aria-expanded="true"]')).toHaveCount(1);
+          await opener.click();
+        }
+
+        const extraBadge = article.getByText('+2', { exact: true });
+        if (await extraBadge.count()) {
+          await extraBadge.scrollIntoViewIfNeeded();
+          const box = await extraBadge.boundingBox();
+          await activatePoint({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+          await expect(opener).toHaveAttribute('aria-expanded', 'true');
+          await expect(page.locator('#history [data-journal-entry-toggle][aria-expanded="true"]')).toHaveCount(1);
+          await opener.click();
+        }
+        await expect(opener).toHaveAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+}
 
 test.describe('localized exact dates', () => {
   test.use({ locale: 'de-DE', timezoneId: 'Europe/Berlin' });

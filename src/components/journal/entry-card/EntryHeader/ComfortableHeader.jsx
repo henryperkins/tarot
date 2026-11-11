@@ -147,13 +147,16 @@ export const ComfortableHeader = memo(function ComfortableHeader({
 
   const Caret = isExpanded ? CaretUp : CaretDown;
 
+  // Keep the title's keyed ancestors and nesting the same in all three layouts.
+  // React can then retain the focused toggle when an entry expands or collapses.
+
   // Compact collapsed row: flat hairlined ledger item.
   if (isCompactView) {
     return (
       <div className="relative z-10 min-h-touch px-2 py-2.5 sm:px-3">
         <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+          <div key="title-content" className="min-w-0 flex-1">
+            <div key="title-row" className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
               {/* Source Serif keeps normal leading so glyphs never clip at 200% text. */}
               <h3
                 id={entryHeadingId}
@@ -208,7 +211,7 @@ export const ComfortableHeader = memo(function ComfortableHeader({
     return (
       <div className="relative z-10 border-b border-(--border-warm-subtle) px-[min(1rem,4vw)] py-4 sm:px-5 sm:py-5">
         <div className="flex flex-wrap items-start gap-3.5 sm:gap-4">
-          <div className="min-w-0 flex-[1_1_14rem]">
+          <div key="title-content" className="min-w-0 flex-[1_1_14rem]">
             {/* rounded-xl reads as a pill on one line and stays a soft box when large text wraps it. */}
             <div className="mb-1 flex flex-wrap items-center gap-2 text-2xs uppercase tracking-label-wide text-(--text-muted)">
               {formattedTimestamp && (
@@ -226,22 +229,24 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               )}
             </div>
 
-            <h3
-              id={entryHeadingId}
-              className="min-w-0 wrap-break-word text-balance font-serif text-lg font-semibold leading-normal text-(--text-main)"
-            >
-              <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={true}
-                aria-controls={entryContentId}
-                data-journal-entry-toggle
-                title="Collapse entry"
-                className="block w-full min-w-0 text-left focus-visible:outline-hidden after:absolute after:inset-1 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-(--focus-ring-color)"
+            <div key="title-row">
+              <h3
+                id={entryHeadingId}
+                className="min-w-0 wrap-break-word text-balance font-serif text-lg font-semibold leading-normal text-(--text-main)"
               >
-                {questionTitle || spreadTitle}
-              </button>
-            </h3>
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  aria-expanded={true}
+                  aria-controls={entryContentId}
+                  data-journal-entry-toggle
+                  title="Collapse entry"
+                  className="block w-full min-w-0 text-left focus-visible:outline-hidden after:absolute after:inset-1 after:rounded-xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-(--focus-ring-color)"
+                >
+                  {questionTitle || spreadTitle}
+                </button>
+              </h3>
+            </div>
 
             {questionTitle && (
               <p className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">{spreadTitle}</p>
@@ -338,9 +343,9 @@ export const ComfortableHeader = memo(function ComfortableHeader({
           <EntryArtStrip cards={cards} cardWidth={44} fixedColumn className="mt-0.5" />
         )}
 
-        <div className="min-w-0 flex-1">
+        <div key="title-content" className="min-w-0 flex-1">
           {/* Pairing the chevron with the heading frees the full card width underneath on phones. */}
-          <div className="flex items-start justify-between gap-3">
+          <div key="title-row" className="flex items-start justify-between gap-3">
             <h3
               id={entryHeadingId}
               className="min-w-0 flex-1 wrap-break-word text-balance font-serif text-lg font-semibold leading-normal text-(--text-main)"

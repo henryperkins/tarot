@@ -3,7 +3,7 @@
  * A collapsed Comfortable entry's cards, rendered as a tactile dealt hand from
  * the reading's own deck (120px renditions; reversed cards are turned).
  * Decorative: the toggle's description names the cards and their orientation,
- * so screen readers skip the stack.
+ * so screen readers skip the stack and pointer input passes to the entry toggle.
  */
 import { memo } from 'react';
 import { REVERSED_PATTERN } from '../../../../lib/journalInsights';
@@ -42,7 +42,7 @@ export const EntryArtStrip = memo(function EntryArtStrip({
   return (
     <div
       aria-hidden="true"
-      className={cn('relative shrink-0', className)}
+      className={cn('pointer-events-none relative shrink-0', className)}
       style={{ width: containerWidth, height: size.height + padY * 2 }}
     >
       {shown.map((card, index) => {
