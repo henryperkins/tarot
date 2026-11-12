@@ -89,7 +89,7 @@ import {
   buildOpenAIResponsesPrompts,
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
-import { getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
+import { getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
 import { streamCodexSubscription } from '../lib/codexSubscription.js';
 import { createCodexReadingStream } from '../lib/codexReadingStream.js';
 import { getCanonicalSceneFacts, renderCanonicalSceneReading } from '../lib/canonicalSceneEvidence.js';
@@ -932,6 +932,7 @@ export const onRequestPost = async ({ request, env, waitUntil, principal = null,
     if (unauthorized) {
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
+    env = resolvePersonalTextProviderEnv(env, user);
     const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     const subscription = getSubscriptionContext(user);

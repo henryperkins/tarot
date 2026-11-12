@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 const input = { task: 'reading', systemPrompt: 'Interpret the spread.', messages: [{ role: 'user', content: 'A personal question' }] };
 
-async function fixture(t, { status = 'Logged in using ChatGPT', block = false, output } = {}) {
+async function fixture(t, { status = 'Logged in using ChatGPT', version = '0.167.2', block = false, output } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), 'codex-runner-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const executable = path.join(dir, 'codex.mjs');
@@ -18,7 +18,7 @@ async function fixture(t, { status = 'Logged in using ChatGPT', block = false, o
   ];
   await writeFile(executable, `#!${process.execPath}\nimport fs from 'node:fs';
 const args=process.argv.slice(2);let prompt='';process.stdin.setEncoding('utf8');process.stdin.on('data',c=>prompt+=c);process.stdin.on('end',()=>{
-if(args.includes('--version')) { console.log('codex-cli 0.162.0'); }
+if(args.includes('--version')) { console.log(${JSON.stringify(`codex-cli ${version}`)}); }
 else if(args.includes('status')) { process.stderr.write(${JSON.stringify(status)}); }
 else if(args.includes('models')) { console.log(JSON.stringify({models:[{slug:'gpt-6.1-sol',shell_type:'unified_exec',apply_patch_tool_type:'freeform',experimental_supported_tools:['clock'],base_instructions:'Host instructions'}]})); }
 else {const setting=(key)=>JSON.parse(args.find(x=>x.startsWith(key+'=')).slice(key.length+1));
@@ -55,6 +55,13 @@ test('API-key sign-in is rejected before any generation begins', async t => {
   const { runCodexSubscription } = await import('../services/codex-subscription/runner.mjs');
   const f = await fixture(t, { status: 'Logged in using an API key' });
   await assert.rejects(runCodexSubscription(input, { hostEnv: f.hostEnv }), /ChatGPT subscription/);
+  await assert.rejects(access(f.record));
+});
+
+test('an unqualified CLI version cannot begin subscription generation', async t => {
+  const { runCodexSubscription } = await import('../services/codex-subscription/runner.mjs');
+  const f = await fixture(t, { version: '0.999.0' });
+  await assert.rejects(runCodexSubscription(input, { hostEnv: f.hostEnv }), /revalidate tool isolation/);
   await assert.rejects(access(f.record));
 });
 

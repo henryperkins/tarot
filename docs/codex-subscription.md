@@ -2,7 +2,7 @@
 
 Type: runbook
 Status: active reference
-Last reviewed: 2026-10-23
+Last reviewed: 2026-11-12
 
 Tableu can use the host's signed-in Codex CLI for personal reading generation,
 follow-ups (including their structured memory decisions and repairs), and journal
@@ -13,7 +13,7 @@ prompt or consume this provider.
 
 ## Local reading beta
 
-With Node 24 and Codex CLI **0.162.0** installed, run `codex login` on the service host.
+With Node 24 and Codex CLI **0.167.2** installed, run `codex login` on the service host.
 `codex login status` must report a ChatGPT login. Then, from this worktree:
 
 ```bash
@@ -65,6 +65,40 @@ The gateway defaults to `127.0.0.1:8789`. Both `GET /healthz` and
 not an inference or subscription-availability guarantee. Do not reuse a ChatGPT
 credential as the gateway token or expose the gateway as a public shared service.
 
+## Owner routing on a shared deployment
+
+Keep `TEXT_PROVIDER=legacy` so other accounts retain the configured API providers.
+Enable the separate owner override only after the private gateway is reachable:
+
+```dotenv
+TEXT_PROVIDER=legacy
+CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED=true
+CODEX_SUBSCRIPTION_OWNER_USER_ID=your-existing-tableu-user-id
+CODEX_SUBSCRIPTION_GATEWAY_URL=https://your-private-gateway.example.com
+CODEX_SUBSCRIPTION_GATEWAY_TOKEN=the-gateway-token-stored-as-a-worker-secret
+CODEX_SUBSCRIPTION_TIMEOUT_MS=300000
+CODEX_SUBSCRIPTION_STREAMING_ENABLED=true
+```
+
+Reading, follow-up and journal-summary routes resolve the authenticated user
+before selecting the provider. Only the configured, non-service owner receives
+the Codex provider. This also covers readings started by the owner's connected
+Tableu MCP account. Guest and other-account requests keep their existing routing.
+The override uses request-local bindings and cannot change another request's
+provider. Explicit `TEXT_PROVIDER=claude-code` or `codex-subscription` modes retain
+their existing environment-wide behavior and owner restrictions.
+
+The owner's subscription path never falls through to a paid provider. Existing
+reading/summary local fallbacks and subscription entitlements still apply.
+Set `CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED=false` to return the owner to the
+regular API path without changing any other user's configuration.
+
+Run the gateway and HTTPS tunnel under a process supervisor on the host. Pin
+`CODEX_SUBSCRIPTION_EXECUTABLE` to a preserved, qualified CLI installation; Node
+version managers can put an older npm-installed Codex ahead of the signed-in CLI
+on `PATH`. Credentials remain in private host files, never in the repository or
+process command-line arguments. Health checks require the gateway bearer token.
+
 ## Execution contract
 
 The provider uses Codex's supported noninteractive CLI and stored ChatGPT login,
@@ -95,9 +129,20 @@ the pinned model as `modelSource: configured`, rather than claiming it was repor
 by the response. Output has a byte limit and each gateway request has a deadline;
 this CLI path does not promise a token-count cap.
 
-The default is `gpt-6.1-sol` with `high` reasoning. Set
+The default is `gpt-6.1-sol` with `xhigh` reasoning. Set
 `CODEX_SUBSCRIPTION_MODEL` and `CODEX_SUBSCRIPTION_EFFORT` on the service host to
 change them.
+
+To qualify the same executable that the service will use:
+
+```bash
+CODEX_SUBSCRIPTION_EXECUTABLE=/absolute/path/to/qualified/codex \
+  TABLEU_CODEX_CLI_CHECK=1 node --test tests/codexSubscriptionIsolation.test.mjs
+```
+
+The 0.167.2 isolation checks cover buffered and streaming execution. This CLI can
+repeat the application's base instructions; the checks validate every input
+message's content and still reject host context, tools, hooks and MCP execution.
 
 ## Live reading delivery
 
@@ -121,15 +166,17 @@ does not append a fallback or replay a completed reading. The independent visual
 observer receives those same delivered passages without delaying text. Visual cues
 can still arrive after the passage or after completion.
 
-No production deployment, tunnel or remote credentials are configured by this
-change. A deployed Worker needs a separately provisioned private HTTPS gateway;
-it cannot reach this machine's loopback service. Repository release qualification
-continues to use its established Claude subscription policy.
+A deployed Worker needs a separately provisioned private HTTPS gateway; it cannot
+reach this machine's loopback service. Enabling the owner override does not change
+release qualification: the release gate continues to evaluate the public primary
+provider through the OpenAI Responses API. Standalone narrative evaluation retains
+its existing Claude subscription default.
 
 ## Verification on 2026-10-09
 
-The recorded live checks below used `medium` reasoning, before the default
-changed to `high`. Their timings do not establish latency at `high`.
+The recorded live checks below used `medium` reasoning, before later increases
+to `high` and then `xhigh`. Their timings do not establish latency at the current
+default.
 
 - Root Node suite: 3,280 passed, zero failures; two installed-CLI checks are
   opt-in and skipped in the ordinary suite. Both passed separately with

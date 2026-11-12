@@ -11,7 +11,7 @@ import {
 
 // Tool suppression is qualified against this CLI version. New versions must pass
 // the installed-CLI isolation check before joining this allowlist.
-export const CODEX_SUBSCRIPTION_CLI_VERSION = '0.162.0';
+export const CODEX_SUBSCRIPTION_CLI_VERSION = '0.167.2';
 const DISABLED_FEATURES = Object.freeze([
   'shell_tool', 'unified_exec', 'apps', 'plugins', 'remote_plugin', 'hooks', 'memories',
   'multi_agent', 'multi_agent_v2', 'shell_snapshot', 'browser_use', 'browser_use_external',

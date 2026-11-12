@@ -32,7 +32,7 @@ import { MEMORY_TOOL_OPENAI_RESPONSES_FORMAT, handleMemoryToolCall } from '../li
 import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
 import { detectHallucinatedCards } from '../lib/readingQuality.js';
-import { getPersonalTextProvider, callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
+import { getPersonalTextProvider, callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
 import { generatePersonalFollowUp } from '../lib/personalFollowUp.js';
 import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 import { generateClaudeApiFollowUp } from '../lib/claudeApiFollowUp.js';
@@ -375,6 +375,7 @@ export const onRequestPost = async ({ request, env, ctx }) => {
       console.log(`[${requestId}] Unauthenticated request`);
       return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
     }
+    env = resolvePersonalTextProviderEnv(env, user);
     const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
     

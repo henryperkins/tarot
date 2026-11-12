@@ -16,7 +16,7 @@ import { buildTierLimitedPayload, isEntitled } from '../lib/entitlements.js';
 import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
 import { callOpenAIResponses } from '../lib/openaiResponses.js';
-import { callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled } from '../lib/personalTextProvider.js';
+import { callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
 import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
 import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 
@@ -198,7 +198,8 @@ async function generateLLMSummary(env, entries, signal, requestId) {
 }
 
 export async function onRequestPost(context) {
-  const { request, env } = context;
+  const { request } = context;
+  let { env } = context;
   const deadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env) });
   const requestId = crypto.randomUUID();
   let reservationId = null;
@@ -215,6 +216,7 @@ export async function onRequestPost(context) {
         { status: 401 }
       );
     }
+    env = resolvePersonalTextProviderEnv(env, user);
     const personalAccessError = getPersonalTextAccessError(env, user);
     if (personalAccessError) return jsonResponse(personalAccessError, { status: personalAccessError.status });
 

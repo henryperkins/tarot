@@ -72,6 +72,9 @@
     // Codex uses matching CODEX_SUBSCRIPTION_* keys; see docs/codex-subscription.md.
     // Workers AI inference is independent of this text-provider setting.
     "TEXT_PROVIDER": "legacy",
+    // Optional owner override: configure the CODEX_SUBSCRIPTION gateway and owner,
+    // then enable this in live settings. Other users retain the API provider order.
+    "CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED": "false",
     // The OpenAI Responses API (OPENAI_MODEL below) is the first reading provider
     // whenever OPENAI_API_KEY is set. Claude through the Anthropic API comes next
     // for readings and first for follow-up answers and journal summaries whenever

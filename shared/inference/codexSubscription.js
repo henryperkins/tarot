@@ -1,7 +1,7 @@
 import { Validator } from '@cfworker/json-schema';
 
 export const CODEX_SUBSCRIPTION_DEFAULT_MODEL = 'gpt-6.1-sol';
-export const CODEX_SUBSCRIPTION_DEFAULT_EFFORT = 'high';
+export const CODEX_SUBSCRIPTION_DEFAULT_EFFORT = 'xhigh';
 export const CODEX_SUBSCRIPTION_TASKS = Object.freeze(['reading', 'followup', 'followup-repair', 'question', 'journal-summary']);
 export const CODEX_SUBSCRIPTION_MAX_BODY_BYTES = 262144;
 export const CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES = 2097152;

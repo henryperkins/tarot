@@ -162,6 +162,57 @@ const liveReading = ['### Opening', 'There is room to begin with what you have.'
   'The Star invites you to bring patient attention to your creative practice. Its quiet renewal suggests that hope becomes useful when you give it a small, repeatable shape. For your painting, try setting out one brush and one color before work ends. The Star asks you to notice what restores your interest, and to build from that experience at a pace you can sustain. You can choose which steps fit your energy and resources.',
   '### Guidance', 'Set aside ten minutes for one color study and notice whether the practice gives you room to breathe.',
   '### Closing', 'You can begin gently and decide what to keep after trying it.'].join('\n\n');
+
+test('live owner routing uses Codex for readings, follow-ups and summaries while other users keep the API', async t => {
+  const configured = { ...await setup(), TEXT_PROVIDER: 'legacy',
+    CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED: 'true', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+  const tasks = [];
+  const apiCalls = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === 'https://codex.example.test/v1/generate') {
+      const input = JSON.parse(options.body);
+      tasks.push(input.task);
+      return Response.json(input.task === 'followup'
+        ? completion('', { response: answer, memory: null })
+        : completion(input.task === 'reading' ? liveReading : 'Your journal invites a gentler pace.'));
+    }
+    assert.equal(url, 'https://openai.test/v1/responses');
+    apiCalls.push(url);
+    return Response.json({ model: 'api-test', output: [{ type: 'message', role: 'assistant',
+      content: [{ type: 'output_text', text: liveReading }] }], usage: { input_tokens: 20, output_tokens: 40 } });
+  });
+  for (const [route, name, body] of [[readingRoute, 'tarot-reading', readingInput],
+    [followupRoute, 'reading-followup', followupInput], [summaryRoute, 'journal-summary', {}]]) {
+    const response = await route({ env: configured, request: request(name, body) });
+    assert.equal(response.status, 200, name);
+    assert.match(await response.text(), /codex-subscription/, name);
+    assert.equal(configured.TEXT_PROVIDER, 'legacy', 'owner selection is request-scoped');
+  }
+  const principalReading = await readingRoute({ env: configured,
+    request: jsonRequest('https://tableu.test/api/tarot-reading', { body: readingInput }), principal: { userId: 'owner' } });
+  assert.equal(principalReading.status, 200);
+  assert.equal((await principalReading.json()).provider, 'codex-subscription');
+  assert.deepEqual(tasks, ['reading', 'followup', 'journal-summary', 'reading']);
+  assert.equal(apiCalls.length, 0);
+  const other = await readingRoute({ env: configured, request: request('tarot-reading', readingInput, 'other') });
+  assert.equal(other.status, 200);
+  assert.equal((await other.json()).provider, 'openai-native');
+  assert.equal(apiCalls.length, 1);
+  assert.equal(tasks.length, 4, 'other users never reach the owner gateway');
+});
+
+test('owner-specific subscription failure never falls through to a paid API', async t => {
+  const configured = { ...await setup(), TEXT_PROVIDER: 'legacy', CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED: 'true' };
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async url => {
+    urls.push(url);
+    return new Response(null, { status: 429 });
+  });
+  const response = await followupRoute({ env: configured, request: request('reading-followup', followupInput) });
+  assert.equal(response.status, 503);
+  assert.deepEqual(urls, ['https://codex.example.test/v1/generate']);
+  assert.equal(configured.DB.rows('SELECT * FROM follow_up_usage').length, 0);
+});
 const encodeEvent = (type, data) => new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
 const parseEvent = bytes => {
   const text = new TextDecoder().decode(bytes);

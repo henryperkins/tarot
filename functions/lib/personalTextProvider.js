@@ -9,6 +9,15 @@ export function getPersonalTextProvider(env) {
   throw new Error('Invalid TEXT_PROVIDER configuration.');
 }
 
+/** Select the owner's host subscription without changing shared Worker bindings. */
+export function resolvePersonalTextProviderEnv(env, user) {
+  if (getPersonalTextProvider(env)
+    || ![true, 'true'].includes(env?.CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED)) return env;
+  const owner = String(env?.CODEX_SUBSCRIPTION_OWNER_USER_ID || '').trim();
+  if (!owner || !user?.id || String(user.id) !== owner || user.auth_provider === 'service') return env;
+  return { ...env, TEXT_PROVIDER: 'codex-subscription' };
+}
+
 export function isPersonalTextProviderEnabled(env) {
   return getPersonalTextProvider(env) !== null;
 }

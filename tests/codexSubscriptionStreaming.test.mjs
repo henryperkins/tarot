@@ -13,7 +13,7 @@ async function fixture(t, { mismatch = false, fail = false } = {}) {
   await writeFile(executable, `#!${process.execPath}
 import readline from 'node:readline';
 const args=process.argv.slice(2);const send=x=>console.log(JSON.stringify(x));
-if(args.includes('--version'))console.log('codex-cli 0.162.0');
+if(args.includes('--version'))console.log('codex-cli 0.167.2');
 else if(args.includes('status'))console.error('Logged in using ChatGPT');
 else if(args.includes('models'))send({models:[{slug:'gpt-6.1-sol'}]});
 else if(args.includes('app-server')) {

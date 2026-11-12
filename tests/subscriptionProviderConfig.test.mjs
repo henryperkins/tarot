@@ -49,3 +49,17 @@ test('configuration check rejects an unknown TEXT_PROVIDER instead of announcing
   assert.match(result.stderr, /Invalid TEXT_PROVIDER/);
   assert.doesNotMatch(`${result.stdout}${result.stderr}`, /private-fixture-key/);
 });
+
+test('owner routing validates private gateway settings while retaining the public API configuration', () => {
+  const configured = { TEXT_PROVIDER: 'legacy', CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED: 'true',
+    CODEX_SUBSCRIPTION_GATEWAY_URL: 'https://codex.example.test', CODEX_SUBSCRIPTION_GATEWAY_TOKEN: 'private-fixture-token',
+    CODEX_SUBSCRIPTION_OWNER_USER_ID: 'private-fixture-owner', OPENAI_API_KEY: 'private-api-fixture' };
+  const valid = check(configured);
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.match(valid.stdout, /owner.*codex-subscription/i);
+  for (const suffix of ['OWNER_USER_ID', 'GATEWAY_TOKEN', 'GATEWAY_URL']) {
+    const result = check({ ...configured, [`CODEX_SUBSCRIPTION_${suffix}`]: '' });
+    assert.equal(result.status, 1, suffix);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /private-fixture|private-api-fixture/);
+  }
+});

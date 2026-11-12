@@ -265,15 +265,18 @@ function run() {
     process.exitCode = 1;
     return;
   }
-  if (personalProvider) {
-    const prefix = personalProvider === 'claude-code' ? 'CLAUDE_CODE' : 'CODEX_SUBSCRIPTION';
+  const ownerRouting = !personalProvider
+    && resolveValue('CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED', process.env, fileVars, wranglerVars) === 'true';
+  const subscriptionProvider = personalProvider || (ownerRouting ? 'codex-subscription' : null);
+  if (subscriptionProvider) {
+    const prefix = subscriptionProvider === 'claude-code' ? 'CLAUDE_CODE' : 'CODEX_SUBSCRIPTION';
     const personalEnv = {};
     for (const suffix of ['GATEWAY_URL', 'GATEWAY_TOKEN', 'OWNER_USER_ID', 'TIMEOUT_MS']) {
       const key = `${prefix}_${suffix}`;
       personalEnv[key] = resolveValue(key, process.env, fileVars, wranglerVars);
     }
     try {
-      const validate = personalProvider === 'claude-code' ? ensureClaudeCodeConfig : ensureCodexSubscriptionConfig;
+      const validate = subscriptionProvider === 'claude-code' ? ensureClaudeCodeConfig : ensureCodexSubscriptionConfig;
       validate(personalEnv);
       if (!personalEnv[`${prefix}_OWNER_USER_ID`]?.trim()) throw new Error(`${prefix}_OWNER_USER_ID is required.`);
       if (isTruthyFlag(resolveValue('VITE_ENABLE_VISION_RESEARCH', process.env, fileVars, wranglerVars))
@@ -285,9 +288,11 @@ function run() {
       process.exitCode = 1;
       return;
     }
-    console.log(`Personal inference settings are valid (${personalProvider}). Paid API backends are disabled for this selection.`);
+    console.log(ownerRouting
+      ? 'Owner inference settings are valid (codex-subscription). Checking public API providers separately.'
+      : `Personal inference settings are valid (${personalProvider}). Paid API backends are disabled for this selection.`);
     console.log('Gateway availability and subscription login are not checked by this configuration-only command.');
-    return;
+    if (personalProvider) return;
   }
 
   const modalInputs = {};
