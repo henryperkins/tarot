@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { runClaudeCode } from '../services/claude-code/runner.mjs';
 import * as runner from '../services/claude-code/runner.mjs';
+import { installNodeCliFixture, nodeCliPreload } from './helpers/nodeCliFixture.mjs';
 
 const input = { task: 'question', systemPrompt: 'Ask a question.', messages: [{ role: 'user', content: 'Career' }] };
 const authenticated = { loggedIn: true, authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' };
@@ -41,8 +42,7 @@ async function fakeCli(t, { status = authenticated, block = false, descendant = 
   const startedPath = path.join(directory, 'started.json');
   const authPath = path.join(directory, 'auth');
   const childSource = "process.on('SIGTERM', () => {}); process.send('ready'); setInterval(() => {}, 1000);";
-  await writeFile(executable, `#!${process.execPath}
-import { writeFileSync } from 'node:fs';
+  await writeFile(executable, `import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 process.stdin.resume();
 if (process.argv.includes('status')) {
@@ -73,7 +73,9 @@ if (process.argv.includes('status')) {
     }
     await rm(directory, { recursive: true, force: true });
   });
+  t.after(installNodeCliFixture(executable));
   return {
+    executable,
     hostEnv: { HOME: directory, PATH: process.env.PATH, CLAUDE_CODE_EXECUTABLE: executable },
     authPath,
     startedPath,
@@ -204,7 +206,8 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
     await once(reservation, 'listening');
     const port = reservation.address().port;
     await new Promise(resolve => reservation.close(resolve));
-    const service = spawn(process.execPath, [fileURLToPath(new URL('../services/claude-code/server.mjs', import.meta.url))], {
+    const preload = 'data:text/javascript,' + encodeURIComponent(nodeCliPreload(fixture.executable));
+    const service = spawn(process.execPath, ['--import', preload, fileURLToPath(new URL('../services/claude-code/server.mjs', import.meta.url))], {
       env: { ...fixture.hostEnv, CLAUDE_CODE_GATEWAY_TOKEN: token, CLAUDE_CODE_PORT: String(port) },
       stdio: ['ignore', 'pipe', 'pipe']
     });

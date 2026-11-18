@@ -1,12 +1,44 @@
 // Fail-closed preflight for explicitly invoked real Pro application probes
 // (remediation Task 8). Any missing opt-in, private configuration, semantic
 // eligibility or same-round allowance means the probe makes zero calls.
+import { execFile } from 'node:child_process';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { DEFAULT_CUE_CANDIDATES } from '../evaluation/lib/visualCueEvaluationHarness.mjs';
 
 const PROTECTED_PORTS = new Set([8787, 5175, 8789, 9235]);
 const PORT_KEYS = ['worker', 'frontend', 'gateway', 'inspector'];
+const execute = promisify(execFile);
+
+// Use the same handle for the DACL and the contents. GetAccessRules can omit
+// ACE types this preflight does not understand, so examine the raw DACL.
+const readPrivateWindowsFile = String.raw`
+$ErrorActionPreference = 'Stop'
+$location = $env:TABLEU_CUE_PRIVATE_FILE
+$item = Get-Item -LiteralPath $location -Force
+if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { exit 12 }
+$file = [IO.File]::Open($location, 'Open', 'Read', 'Read')
+try {
+  $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+  $bytes = $file.GetAccessControl().GetSecurityDescriptorBinaryForm()
+  $descriptor = [Security.AccessControl.RawSecurityDescriptor]::new($bytes, 0)
+  if ($descriptor.Owner.Value -ne $owner) { exit 10 }
+  if ($null -eq $descriptor.DiscretionaryAcl) { exit 11 }
+  $ownerCanRead = $false
+  foreach ($entry in $descriptor.DiscretionaryAcl) {
+    if ($entry.AceType -eq 'AccessDenied') { continue }
+    if ($entry.AceType -ne 'AccessAllowed' -or $entry.SecurityIdentifier.Value -ne $owner) { exit 11 }
+    if ($entry.AccessMask -band [int][Security.AccessControl.FileSystemRights]::ReadData) { $ownerCanRead = $true }
+  }
+  if (!$ownerCanRead) { exit 11 }
+  [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+  $reader = [IO.StreamReader]::new($file)
+  [Console]::Out.Write($reader.ReadToEnd())
+} finally {
+  $file.Dispose()
+}
+`;
 
 function validIsolation(isolation) {
   const ports = PORT_KEYS.map(key => isolation?.ports?.[key]);
@@ -19,9 +51,24 @@ async function privateJson(file, { fs, uid }) {
   if (typeof file !== 'string' || !path.isAbsolute(file)) return { reason: 'absent' };
   const info = await fs.lstat(file).catch(() => null);
   if (!info?.isFile()) return { reason: 'not-regular-file' };
-  if ((info.mode & 0o077) !== 0) return { reason: 'permissions' };
-  if (Number.isInteger(uid) && info.uid !== uid) return { reason: 'owner' };
-  try { return { value: JSON.parse(await fs.readFile(file, 'utf8')) }; } catch { return { reason: 'invalid-json' }; }
+  let contents;
+  if (process.platform === 'win32') {
+    const systemRoot = process.env.SystemRoot;
+    if (!systemRoot || !path.isAbsolute(systemRoot)) return { reason: 'permissions' };
+    try {
+      const powershell = path.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+      ({ stdout: contents } = await execute(powershell, ['-NoProfile', '-NonInteractive', '-Command', readPrivateWindowsFile], {
+        env: { SystemRoot: systemRoot, TABLEU_CUE_PRIVATE_FILE: file }, windowsHide: true, timeout: 10000
+      }));
+    } catch (error) {
+      return { reason: error.code === 10 ? 'owner' : error.code === 12 ? 'not-regular-file' : 'permissions' };
+    }
+  } else {
+    if ((info.mode & 0o077) !== 0) return { reason: 'permissions' };
+    if (Number.isInteger(uid) && info.uid !== uid) return { reason: 'owner' };
+    try { contents = await fs.readFile(file, 'utf8'); } catch { return { reason: 'invalid-json' }; }
+  }
+  try { return { value: JSON.parse(contents) }; } catch { return { reason: 'invalid-json' }; }
 }
 
 /**

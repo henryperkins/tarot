@@ -3,6 +3,7 @@ import { mkdtemp, writeFile, readFile, rm, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { installNodeCliFixture } from './helpers/nodeCliFixture.mjs';
 
 const input = { task: 'reading', systemPrompt: 'Interpret the spread.', messages: [{ role: 'user', content: 'A personal question' }] };
 
@@ -16,7 +17,7 @@ async function fixture(t, { status = 'Logged in using ChatGPT', version = '0.167
     { type: 'item.completed', item: { id: 'one', type: 'agent_message', text: 'A thoughtful reading.' } },
     { type: 'turn.completed', usage: { input_tokens: 10, cached_input_tokens: 2, output_tokens: 5 } }
   ];
-  await writeFile(executable, `#!${process.execPath}\nimport fs from 'node:fs';
+  await writeFile(executable, `import fs from 'node:fs';
 const args=process.argv.slice(2);let prompt='';process.stdin.setEncoding('utf8');process.stdin.on('data',c=>prompt+=c);process.stdin.on('end',()=>{
 if(args.includes('--version')) { console.log(${JSON.stringify(`codex-cli ${version}`)}); }
 else if(args.includes('status')) { process.stderr.write(${JSON.stringify(status)}); }
@@ -26,6 +27,7 @@ const catalog=JSON.parse(fs.readFileSync(setting('model_catalog_json'),'utf8'));
 fs.writeFileSync(${JSON.stringify(record)},JSON.stringify({args,env:process.env,cwd:process.cwd(),prompt,catalog,system,pid:process.pid}));
 ${block ? "setInterval(()=>{},1000);" : `for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`}}
 });`, { mode: 0o700 });
+  t.after(installNodeCliFixture(executable));
   return { record, hostEnv: { HOME: process.env.HOME, PATH: process.env.PATH, CODEX_SUBSCRIPTION_EXECUTABLE: executable, OPENAI_API_KEY: 'must-not-pass', CODEX_API_KEY: 'must-not-pass', NODE_OPTIONS: '--bad-option', CODEX_HOME: '/must-not-override', CODEX_BASE_URL: 'https://must-not-pass' } };
 }
 

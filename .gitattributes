@@ -1,0 +1,24 @@
+# Qualification identities also hash source files, migrations and build configuration.
+/e2e/helpers/** text=auto eol=lf
+/functions/** text=auto eol=lf
+/migrations/*.sql text eol=lf
+/public/** text=auto eol=lf
+/scripts/** text=auto eol=lf
+/shared/** text=auto eol=lf
+/src/** text=auto eol=lf
+/tests/helpers/** text=auto eol=lf
+/index.html text eol=lf
+/jsconfig.json text eol=lf
+/package*.json text eol=lf
+/postcss.config.cjs text eol=lf
+/tailwind.config.js text eol=lf
+/theme.json text eol=lf
+/vite.config.js text eol=lf
+/wrangler.jsonc text eol=lf
+
+# Evaluation corpora and artwork metadata are verified by raw byte hashes.
+/data/evaluations/narrative-samples.json text eol=lf
+/output/reading-motion/fixtures/*.json text eol=lf
+/public/images/cards/rws-vector/manifest.json text eol=lf
+/scripts/evaluation/fixtures/**/*.json text eol=lf
+/tests/fixtures/*.json text eol=lf

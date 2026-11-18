@@ -1,6 +1,6 @@
 /** Independent cue qualification through production provider, prompt, job scheduler and ledger. */
 import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve, join, relative } from 'node:path';
+import { dirname, resolve, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -398,7 +398,7 @@ async function runtimeFileDigests(root, seedPaths) {
   }
   return Object.fromEntries([...digests].map(([path, digest]) => {
     const local = relative(root, path);
-    return [local.startsWith('..') ? path : local, digest];
+    return [local.startsWith('..') ? path : local.split(sep).join('/'), digest];
   }).sort(([left], [right]) => left.localeCompare(right)));
 }
 export async function createCueRunIdentity({ cases, phase, candidates = DEFAULT_CUE_CANDIDATES, repeats = 2, live = false,

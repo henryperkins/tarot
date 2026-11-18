@@ -1,6 +1,6 @@
 import { fork, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, rmdir, symlink, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,7 +16,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const protectedPorts = new Set([8787, 5175, 8789, 9235]);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const privateName = /(?:^|\/)(?:\.[^/]+|[^/]*\.(?:pem|crt|key)|(?:auth|credentials|sessions|logs|state))(?:\/|$)/i;
-const within = (parent, child) => child === path.resolve(parent) || child.startsWith(path.resolve(parent) + path.sep);
+const within = (parent, child) => {
+  const relative = path.relative(parent, child);
+  return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
+};
 
 export function validationEnvironment(directory, source = process.env) {
   return { PATH: source.PATH || '/usr/bin:/bin', NODE_ENV: 'development', CI: 'true', NO_COLOR: '1',
@@ -40,13 +43,38 @@ function validateOptions({ host, ports, privateDirectory, sourceHead, live, expl
 
 async function assertNoLinks(location) {
   const absolute = path.resolve(location);
-  const segments = absolute.split(path.sep).filter(Boolean);
   let current = path.parse(absolute).root;
+  const segments = absolute.slice(current.length).split(path.sep).filter(Boolean);
   for (const segment of segments) {
     current = path.join(current, segment);
     const metadata = await lstat(current).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
     if (metadata?.isSymbolicLink()) throw new Error('Symlinked source/private path rejected.');
   }
+}
+
+function restrictWindowsDirectory(directory) {
+  const systemRoot = process.env.SystemRoot;
+  if (!systemRoot || !path.isAbsolute(systemRoot)) throw new Error('Windows directory ACL verification is unavailable.');
+  const powershell = path.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+  const script = String.raw`
+$ErrorActionPreference = 'Stop'
+$location = $env:TABLEU_CUE_VALIDATION_DIRECTORY
+$item = Get-Item -LiteralPath $location -Force
+if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { exit 1 }
+$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
+$current = Get-Acl -LiteralPath $location
+if ($current.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { exit 1 }
+$acl = [Security.AccessControl.DirectorySecurity]::new()
+$acl.SetAccessRuleProtection($true, $false)
+$rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+$acl.AddAccessRule($rule)
+Set-Acl -LiteralPath $location -AclObject $acl
+`;
+  const result = spawnSync(powershell, ['-NoProfile', '-NonInteractive', '-Command', script], {
+    env: { SystemRoot: systemRoot, TABLEU_CUE_VALIDATION_DIRECTORY: directory },
+    windowsHide: true, timeout: 10000, stdio: 'ignore'
+  });
+  if (result.status !== 0) throw new Error('Unable to set an owner-only ACL on the Windows validation directory.');
 }
 
 /** Explicit enumerated paths only: no glob, recursive source copy, dotenv or symlink following. */
@@ -156,8 +184,9 @@ async function terminateChild(child) {
 }
 
 export async function startReadingCueValidation({ host = '127.0.0.1', ports, privateDirectory, sourceHead,
-  live = false, explicitProviders = null, budget = null } = {}) {
+  live = false, explicitProviders = null, budget = null, signal } = {}) {
   validateOptions({ host, ports, privateDirectory, sourceHead, live, explicitProviders, budget });
+  signal?.throwIfAborted();
   const actualHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH } });
   if (actualHead.status !== 0 || actualHead.stdout.trim() !== sourceHead) throw new Error('Expected source HEAD is stale.');
   const directory = path.resolve(privateDirectory); const dependencies = await realpath(path.join(root, 'node_modules'));
@@ -168,7 +197,8 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
   const existing = await lstat(directory).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
   if (existing && (!existing.isDirectory() || (await readdir(directory)).length)) throw new Error('Private directory must be new or empty.');
   await preflight(ports, host);
-  const runId = randomUUID(); let child; let snapshot; let runnerSnapshot; let owned = false; let closing; let runtimeFailure = null; let outputFiles; let outputCompromised = false;
+  signal?.throwIfAborted();
+  const runId = randomUUID(); let child; let snapshot; let runnerSnapshot; let created = false; let owned = false; let closing; let runtimeFailure = null; let outputFiles; let outputCompromised = false;
   const controller = new AbortController(); let starting = true; let finishStartup;
   const startupFinished = new Promise(resolve => { finishStartup = resolve; });
   const close = () => {
@@ -177,6 +207,7 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
       controller.abort();
       if (starting) await startupFinished;
       process.removeListener('SIGINT', onSignal); process.removeListener('SIGTERM', onSignal);
+      signal?.removeEventListener('abort', onSignal);
       const childExited = await terminateChild(child);
       let sourceIntegrity = true;
       for (const [folder, captured] of [['source', snapshot], ['runner', runnerSnapshot]]) if (captured) for (const file of captured.files) {
@@ -195,11 +226,17 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
   };
   const onSignal = () => { void close().catch(() => { process.exitCode = 1; }); };
   try {
-    if (!existing) await mkdir(directory, { mode: 0o700 });
+    if (!existing) {
+      await mkdir(directory, { mode: 0o700 });
+      created = true;
+    }
+    if (process.platform === 'win32') restrictWindowsDirectory(directory);
     await chmod(directory, 0o700);
     await writeFile(path.join(directory, '.owner.json'), JSON.stringify({ runId }), { mode: 0o600, flag: 'wx' });
     owned = true;
     process.once('SIGINT', onSignal); process.once('SIGTERM', onSignal);
+    signal?.addEventListener('abort', onSignal, { once: true });
+    if (signal?.aborted) onSignal();
     for (const name of ['config', 'state', 'home/config', 'home/cache', 'home/data', 'home/state', 'tmp', 'logs', 'vite-cache', 'build']) {
       await mkdir(path.join(directory, name), { recursive: true, mode: 0o700 });
     }
@@ -207,12 +244,12 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
     snapshot = await captureValidationSource({ root, destination: path.join(directory, 'source'), signal: controller.signal });
     controller.signal.throwIfAborted();
     await chmod(path.join(directory, 'source'), 0o700);
-    await symlink(dependencies, path.join(directory, 'source', 'node_modules'), 'dir');
+    await symlink(dependencies, path.join(directory, 'source', 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     await chmod(path.join(directory, 'source'), 0o555);
     runnerSnapshot = await captureValidationSource({ root, destination: path.join(directory, 'runner'),
       paths: ['scripts/lib/readingCueValidationChild.mjs', 'scripts/lib/developmentServerSecurity.mjs', 'scripts/lib/readingCueOutputIntegrity.mjs'], signal: controller.signal });
     await chmod(path.join(directory, 'runner'), 0o700);
-    await symlink(dependencies, path.join(directory, 'runner/node_modules'), 'dir');
+    await symlink(dependencies, path.join(directory, 'runner/node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     await chmod(path.join(directory, 'runner'), 0o555);
     const capturedHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH } });
     if (capturedHead.status !== 0 || capturedHead.stdout.trim() !== sourceHead) throw new Error('Source HEAD changed during capture.');
@@ -258,7 +295,12 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
       database: { provisioned: true, usedByBrowser: false, persistence: 'private-local-d1', remote: false } };
     controller.signal.throwIfAborted(); starting = false; finishStartup();
     return { origins: buildIdentity.origins, buildIdentity, ownedResources, close };
-  } catch (error) { starting = false; finishStartup(); await close(); throw error; }
+  } catch (error) {
+    starting = false; finishStartup();
+    await close();
+    if (created && !owned) await rmdir(directory).catch(() => {});
+    throw error;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

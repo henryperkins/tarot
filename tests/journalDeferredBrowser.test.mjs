@@ -5,6 +5,7 @@ import { build } from 'esbuild';
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createVisualCueLedger } from '../shared/reading/visualCueLedger.js';
 
@@ -39,7 +40,7 @@ function App() {
 createRoot(document.getElementById('root')).render(<AuthProvider><SubscriptionProvider><App /></SubscriptionProvider></AuthProvider>);`;
 
 test('optimized Journal defers rendering and keeps recovery usable when its gesture chunk fails', { timeout: 60000 }, async t => {
-  const outdir = await mkdtemp('/tmp/opencode/tableu-journal-deferred-');
+  const outdir = await mkdtemp(path.join(tmpdir(), 'tableu-journal-deferred-'));
   let browser;
   let server;
   try {

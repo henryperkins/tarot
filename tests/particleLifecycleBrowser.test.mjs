@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium, webkit } from 'playwright';
 import sharp from 'sharp';
@@ -18,8 +19,17 @@ import { ParticleLayer } from '/src/components/ParticleLayer.jsx';
 import { createParticleSession } from '/src/lib/particleLifecycle.js';
 const root = createRoot(document.querySelector('#root'));
 let generation = 0;
+let failedLoads = 0;
 window.particleTest = {
   engine: tsParticles,
+  get failedLoads() { return failedLoads; },
+  observeFailedLoads() {
+    const load = tsParticles.load.bind(tsParticles);
+    tsParticles.load = async (...args) => {
+      try { return await load(...args); }
+      catch (error) { failedLoads++; throw error; }
+    };
+  },
   render(preset) {
     generation += 1;
     root.render(React.createElement(StrictMode, null,
@@ -55,7 +65,7 @@ window.particleTest = {
 </script></body></html>`;
 
 test('real particle engine paints presets and releases every canvas owner', { timeout: 90000 }, async t => {
-  const cacheDir = await mkdtemp('/tmp/opencode/tableu-particle-browser-');
+  const cacheDir = await mkdtemp(path.join(tmpdir(), 'tableu-particle-browser-'));
   let server;
   try {
     server = await createServer({
@@ -80,7 +90,7 @@ test('real particle engine paints presets and releases every canvas owner', { ti
     await server.listen();
     const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
     for (const [name, browserType] of [['chromium', chromium], ['webkit', webkit]]) {
-      await t.test(name, async () => {
+      await t.test(name, async t => {
         const browser = await browserType.launch({ headless: true });
         try {
           const page = await browser.newPage({ viewport: { width: 900, height: 650 }, reducedMotion: 'no-preference' });
@@ -90,6 +100,18 @@ test('real particle engine paints presets and releases every canvas owner', { ti
           await page.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
           await page.goto(`${origin}${fixturePath}`);
           await page.waitForFunction(() => Boolean(window.particleTest));
+          if (!await page.evaluate(() => typeof globalThis.OffscreenCanvas === 'function')) {
+            t.diagnostic('OffscreenCanvas is unavailable. Checking decorative fallback.');
+            await page.evaluate(() => window.particleTest.observeFailedLoads());
+            for (const [index, preset] of ['idle', 'shuffle'].entries()) {
+              await page.evaluate(value => window.particleTest.render(value), preset);
+              await page.waitForFunction(attempts => window.particleTest.failedLoads >= attempts
+                && window.particleTest.engine.items.length === 0 && !document.querySelector('canvas'), index + 1);
+            }
+            await page.evaluate(() => window.particleTest.dispose());
+            assert.deepEqual(errors, []);
+            return;
+          }
           for (const preset of ['idle', 'shuffle', 'deal-trail', 'element-ambient', 'narrative-glow', 'idle']) {
             const generation = await page.evaluate(value => window.particleTest.render(value), preset);
             await page.waitForFunction(value => {

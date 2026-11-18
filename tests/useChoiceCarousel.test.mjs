@@ -6,7 +6,7 @@ import { test } from 'node:test';
 // are irrelevant here; refs represent the focusable radios it acts upon.
 async function carousel() {
   const source = await readFile(new URL('../src/hooks/useChoiceCarousel.js', import.meta.url), 'utf8');
-  const program = source.replace(/^import .*?;\n/, '').replace('export function useChoiceCarousel', 'function useChoiceCarousel');
+  const program = source.replace(/^import .*?;\r?\n/, '').replace('export function useChoiceCarousel', 'function useChoiceCarousel');
   const noop = () => {};
   const hook = new Function('useCallback', 'useEffect', 'useLayoutEffect', 'useRef', 'useState', `${program}; return useChoiceCarousel;`)(
     callback => callback, noop, noop, current => ({ current }), initial => [initial, noop]

@@ -71,7 +71,9 @@ test('multi-detail composition follows artwork metadata and short screens retain
 // frame point and centred in the art box. Desktop shows the whole card.
 async function compactStages() {
   const css = await readFile(new URL('../src/styles/narrative-card-touch.css', import.meta.url), 'utf8');
-  const compact = css.slice(css.indexOf('@media (max-width: 1023px) {\n  .narrative-panel__layout:has(.gesture-companion)'));
+  const compactStart = css.search(/@media \(max-width: 1023px\) \{\r?\n {2}\.narrative-panel__layout:has\(\.gesture-companion\)/);
+  assert.notEqual(compactStart, -1, 'compact stage CSS exists');
+  const compact = css.slice(compactStart);
   assert.match(compact, /\.gesture-window \{ height: 106px; \}/);
   assert.match(compact, /\.gesture-focus-card \{ max-width: 232px; \}/);
   assert.match(compact, /\.gesture-focus-layer \{ gap: 10px; \}/);

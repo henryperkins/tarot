@@ -4,7 +4,7 @@ import { chmod, lstat, readFile, readdir, realpath, writeFile } from 'node:fs/pr
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { secureDevelopmentServer, PRIVATE_FILE_DENIES } from './developmentServerSecurity.mjs';
 
 import { freezeOutput, hashOutputFiles, verifyOutputIntegrity } from './readingCueOutputIntegrity.mjs';
@@ -85,7 +85,7 @@ export async function runOwnedValidation(configPath) {
     await proxy.env.DB.prepare('CREATE TABLE runtime_identity (run_id TEXT PRIMARY KEY)').run();
     await proxy.env.DB.prepare('INSERT INTO runtime_identity (run_id) VALUES (?)').bind(buildIdentity.runId).run();
     const { createServer, build } = await import('vite');
-    const { default: base } = await import(path.join(source, 'vite.config.js'));
+    const { default: base } = await import(pathToFileURL(path.join(source, 'vite.config.js')).href);
     const security = secureDevelopmentServer({ middlewareMode: true, hmr: false, strictPort: true, port: ports.frontend,
       proxy: {}, watch: null, fs: { allow: [source, dependencies, path.join(directory, 'vite-cache')],
         deny: [...PRIVATE_FILE_DENIES, '**/.npmrc', '**/.netrc', '**/*.{key,p12,pfx}', directory + '/config/**', directory + '/state/**', directory + '/logs/**'] } });
@@ -141,7 +141,10 @@ export async function runOwnedValidation(configPath) {
       if (!pathname.startsWith('/@fs/') && unsafeName.test(pathname)) return false;
       if (['/', '/index.html', '/@vite/client', '/@react-refresh'].includes(pathname) || pathname.startsWith('/@id/')) return true;
       let location;
-      if (pathname.startsWith('/@fs/')) location = pathname.slice(4);
+      if (pathname.startsWith('/@fs/')) {
+        location = pathname.slice('/@fs'.length);
+        if (process.platform === 'win32' && /^\/[a-z]:\//i.test(location)) location = location.slice(1);
+      }
       else if (pathname.startsWith('/node_modules/') || sourceFiles.has(path.join(source, pathname))) location = path.join(source, pathname);
       else location = path.join(source, 'public', pathname);
       try {

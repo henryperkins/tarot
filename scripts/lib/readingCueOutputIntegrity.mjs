@@ -3,10 +3,12 @@ import { chmod, lstat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+// Windows stat reports the read-only attribute without POSIX execute bits.
+const frozenDirectoryMode = process.platform === 'win32' ? 0o444 : 0o555;
 
 export async function hashOutputFiles(directory, prefix = '', requireFrozen = false) {
   const metadata = await lstat(directory);
-  if (!metadata.isDirectory() || metadata.isSymbolicLink() || (requireFrozen && (metadata.mode & 0o777) !== 0o555)) throw new Error('Invalid optimized output directory.');
+  if (!metadata.isDirectory() || metadata.isSymbolicLink() || (requireFrozen && (metadata.mode & 0o777) !== frozenDirectoryMode)) throw new Error('Invalid optimized output directory.');
   const files = [];
   for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
     const relative = prefix + entry.name;

@@ -162,7 +162,8 @@ test('persistent initial reservations atomically bound independent handles and r
     [candidate, DEFAULT_CUE_CANDIDATES[2]].map(selected => [selected.model,
       JSON.parse(initialVisualLimits({ VISUAL_CUE_PROVIDER: 'workers-ai', VISUAL_CUE_MODEL: selected.model }, { globalTotalLimit: 1 }))])) };
   for (const outcome of ['failed', 'undispatched']) {
-    const configuration = { path: join(await temporary(), 'initial-concurrency.json'), roundId: `initial-${outcome}`, mode: 'live', maxCalls: 10, maxEstimatedUsd: 3 };
+    // Allow either model to win the race without hitting the outer cost cap on its own.
+    const configuration = { path: join(await temporary(), 'initial-concurrency.json'), roundId: `initial-${outcome}`, mode: 'live', maxCalls: 10, maxEstimatedUsd: 15 };
     const first = await openCueRoundBudget(configuration);
     const other = await openCueRoundBudget(configuration);
     await first.bindInitialAdmission(initialAdmission);
