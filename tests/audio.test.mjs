@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { cleanupAudio, initAudio, playFlip, toggleAmbience } from '../src/lib/audio.js';
+import { decodeMp3, measureLoop } from '../scripts/lib/audioLevels.mjs';
 
 const originalAudio = globalThis.Audio;
 let players;
@@ -56,7 +58,7 @@ test('ambience can start before initialization, pause, and resume the same loop'
   toggleAmbience(true);
   assert.equal(players.length, 1);
   const player = players[0];
-  assert.equal(player.src, '/sounds/ambience.mp3');
+  assert.equal(player.src, '/sounds/ambience.mp3?v=2');
   assert.equal(player.loop, true);
   assert.equal(player.volume, 0.2);
   initAudio();
@@ -97,4 +99,44 @@ test('sound actions safely do nothing when the browser Audio API is unavailable'
     toggleAmbience(true);
     toggleAmbience(false);
   });
+});
+
+// The mix plays at about -44 dBFS RMS (20 Hz-20 kHz) once the player applies
+// its base volume. Three decibels either way keeps it audible on small
+// speakers and at least 15 dB under narration at the loudest reading swell.
+// The track this replaced played at -66.5 dBFS, nearly all of it below 20 Hz.
+const AMBIENCE_PLAYED_DBFS = -44;
+const AMBIENCE_TOLERANCE_DB = 3;
+let decodedAmbience;
+
+// Measures the file the player requests, at the volume the player sets.
+async function playedAmbience() {
+  toggleAmbience(true);
+  const player = players.at(-1);
+  const file = new URL(`../public${new URL(player.src, 'https://tableu.test').pathname}`, import.meta.url);
+  decodedAmbience ??= decodeMp3(new Uint8Array(await readFile(file))).then(({ samples, sampleRate }) => measureLoop(samples, sampleRate));
+  const loop = await decodedAmbience;
+  return { loop, playedDbfs: loop.audibleDbfs + 20 * Math.log10(player.volume) };
+}
+
+test('the ambience loop is audible at the volume the player sets', async () => {
+  const { playedDbfs } = await playedAmbience();
+  assert.ok(Math.abs(playedDbfs - AMBIENCE_PLAYED_DBFS) <= AMBIENCE_TOLERANCE_DB,
+    `20 Hz-20 kHz content plays at ${playedDbfs.toFixed(1)} dBFS RMS; expected ${AMBIENCE_PLAYED_DBFS} within ${AMBIENCE_TOLERANCE_DB} dB`);
+});
+
+test('the ambience loop carries no subsonic energy or DC offset', async () => {
+  const { loop } = await playedAmbience();
+  assert.ok(loop.subsonicShare < 0.01, `${(loop.subsonicShare * 100).toFixed(2)}% of the energy is below 20 Hz`);
+  assert.ok(Math.abs(loop.dcOffset) < 0.001, `DC offset is ${loop.dcOffset.toFixed(4)}`);
+});
+
+test('the ambience loop restarts at the level it ends on', async () => {
+  const { loop } = await playedAmbience();
+  for (const [edge, level] of [['first', loop.headDbfs], ['last', loop.tailDbfs]]) {
+    assert.ok(Math.abs(level - loop.audibleDbfs) <= 6,
+      `the ${edge} 20 ms sit at ${level.toFixed(1)} dBFS against ${loop.audibleDbfs.toFixed(1)} dBFS for the loop`);
+  }
+  assert.ok(loop.joinStep <= 5 * loop.typicalStep,
+    `the join steps ${loop.joinStep.toExponential(2)} against a typical ${loop.typicalStep.toExponential(2)}`);
 });

@@ -8,6 +8,9 @@ export { normalizeTtsProvider };
 
 let flipAudio = null;
 let ambienceAudio = null;
+// Bump the version whenever the mix changes: the file keeps its path, and a
+// new URL is what makes a returning browser fetch the new bytes.
+const AMBIENCE_URL = '/sounds/ambience.mp3?v=2';
 const AMBIENCE_BASE_VOLUME = 0.2;
 let ambienceSwellTimer = null;
 let ambienceVolumeRaf = null;
@@ -162,7 +165,7 @@ export function toggleAmbience(on) {
   try {
     ensureGlobalCleanupListeners();
     if (!ambienceAudio) {
-      ambienceAudio = new Audio('/sounds/ambience.mp3');
+      ambienceAudio = new Audio(AMBIENCE_URL);
       ambienceAudio.loop = true;
       ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
     }

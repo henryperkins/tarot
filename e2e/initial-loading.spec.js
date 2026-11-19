@@ -175,8 +175,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
       const sounds = [];
       page.on('request', request => {
-        const path = new URL(request.url()).pathname;
-        if (path.startsWith('/sounds/')) sounds.push(path);
+        const { pathname, search } = new URL(request.url());
+        if (pathname.startsWith('/sounds/')) sounds.push(pathname + search);
       });
       try {
         await page.goto('/account');
@@ -186,7 +186,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         expect(sounds).toEqual([]);
         await ambience.click();
         await expect(ambience).toHaveAttribute('aria-checked', 'true');
-        await expect.poll(() => sounds.includes('/sounds/ambience.mp3')).toBe(true);
+        // A versioned URL is what moves a returning browser off its cached copy of an older mix.
+        await expect.poll(() => sounds.some(sound => /^\/sounds\/ambience\.mp3\?v=\w+$/.test(sound))).toBe(true);
         expect(sounds).not.toContain('/sounds/flip.mp3');
         await ambience.click();
         await expect(ambience).toHaveAttribute('aria-checked', 'false');
