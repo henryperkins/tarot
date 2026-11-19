@@ -154,9 +154,11 @@ test('cold startup serves callable development JSX after the production build, w
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-cold-jsx-test-')); const ports = await freePorts();
   const privateDirectory = path.join(dir, 'run');
   await missing(path.join(privateDirectory, 'vite-cache'));
-  const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
-  let startupError; let startupSettled = false;
-  void started.then(() => { startupSettled = true; }, error => { startupError = error; startupSettled = true; });
+  const started = runtime.startReadingCueValidation({ ...options(privateDirectory, ports), signal: t.signal });
+  const startupFailure = new AbortController();
+  const observerSignal = AbortSignal.any([t.signal, startupFailure.signal]);
+  let startupSettled = false;
+  void started.then(() => { startupSettled = true; }, error => startupFailure.abort(error));
   t.after(async () => {
     try { const owned = await started.catch(() => null); await owned?.close(); }
     finally { await rm(dir, { recursive: true, force: true }); }
@@ -169,13 +171,15 @@ test('cold startup serves callable development JSX after the production build, w
   let observerClockAdvanced = false;
   let firstFrontendIdentity;
   while (firstFrontendIdentity === undefined) {
-    if (startupError) throw startupError;
+    observerSignal.throwIfAborted();
     const startupWasSettled = startupSettled;
     try {
-      const response = await fetch(`${origin}/__cue_validation_identity`, { signal: AbortSignal.timeout(5000) });
+      // The first accepted request verifies the whole build. Keep it alive
+      // until that response, a startup failure, or the test's own deadline.
+      const response = await fetch(`${origin}/__cue_validation_identity`, { signal: observerSignal });
       firstFrontendIdentity = { status: response.status, body: await response.json() };
     } catch (error) {
-      if (startupError) throw startupError;
+      observerSignal.throwIfAborted();
       // Readiness can overtake a refusal from a probe begun during startup.
       if (startupWasSettled) throw error;
       // Exercise startup beyond the observer's old 60-second cutoff without
