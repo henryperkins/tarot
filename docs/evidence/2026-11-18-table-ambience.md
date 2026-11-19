@@ -111,7 +111,7 @@ An eighth change, taking the value from the event instead of reading the store, 
 
 The same nine ambience cases pass on the development server in Chromium, where React mounts the provider twice.
 
-### WebKit and Safari: pending
+## WebKit and Safari: pending
 
 WebKit 26.5 as shipped by Playwright for Windows cannot play MP3 on this host, as the review found. A muted control clip (`/sounds/flip.mp3`) and the ambience loop both stay at `readyState` 0 and `networkState` 2 with `play()` unsettled after three seconds, although `canPlayType('audio/mpeg')` answers `probably`. The five cases that read the loop's clock detect this with the control clip and skip in the WebKit project here, so there is no WebKit playback result yet. Where an engine does not refuse autoplay itself, the cases apply the same rule from the page's activation state so the recovery path is still exercised.
 
@@ -121,6 +121,14 @@ Still to run:
 
 - The WebKit project on a host whose WebKit plays the control clip (`npm run test:e2e:production -- --project=webkit --grep ambience`).
 - A physical iPhone in Safari: a fresh visit with saved On, playback starting on the first tap, audible looping, and mute. Record the device and iOS version with the result.
+
+## Guest settings copy
+
+The guest banner on `/account` now reads “Your theme and audio preferences stay on this device, even when you’re signed in.” The line it replaces ended “until you sign in”, which promised a sync that does not exist and contradicted the “Device only” label on the Audio section below it.
+
+- The account payload carries six personalization fields: `displayName`, `readingTone`, `spiritualFrame`, `tarotExperience`, `preferredSpreadDepth` and `focusAreas`. `tests/accountPreferencesClient.test.mjs` now also hands the payload builder theme and audio settings and checks that none is sent. Adding `ambienceOn` to the supported fields makes that test fail.
+- The guest account test (`guest section navigation only offers existing settings targets`) asserts the new sentence and the Audio section’s “Device only” label. It failed against the old copy and passes now, in Chromium on the development server.
+- In a production build at 390 px in both themes, and at 320 px with 200% text, the sentence wraps inside the banner with no horizontal overflow, and the Audio section shows “Device only” beside its heading.
 
 ## Automated checks
 

@@ -58,6 +58,9 @@ test.describe('Account and plan hardening', () => {
     const sections = page.getByRole('navigation', { name: 'Jump to section' });
     await expect(sections).toBeVisible();
     await expect(sections.getByRole('link', { name: 'Profile', exact: true })).toHaveCount(0);
+    // The banner must agree with the label on the Audio section: signing in does not move these settings.
+    await expect(page.getByText('Your theme and audio preferences stay on this device, even when you’re signed in.', { exact: true })).toBeVisible();
+    await expect(page.locator('#audio').getByText('Device only', { exact: true })).toBeVisible();
     const links = await sections.getByRole('link').all();
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) {

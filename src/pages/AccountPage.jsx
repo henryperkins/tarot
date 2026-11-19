@@ -1418,7 +1418,7 @@ export default function AccountPage() {
               Sign in to sync your journal, subscription, and analytics.
             </p>
             <p className="text-xs text-muted mt-1">
-              Your theme and audio preferences stay on this device until you sign in.
+              Your theme and audio preferences stay on this device, even when you’re signed in.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 mt-3">
               <button
