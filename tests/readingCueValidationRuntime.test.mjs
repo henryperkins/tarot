@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chmod, access, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, access, copyFile, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
@@ -32,6 +33,35 @@ async function freePorts() {
 }
 const options = (privateDirectory, ports) => ({ privateDirectory, ports, sourceHead });
 const missing = async file => assert.rejects(access(file), { code: 'ENOENT' });
+const viteFileUrl = file => '/@fs/' + file.split(path.sep).join('/').replace(/^\//, '');
+const windows = process.platform === 'win32';
+const frozenDirectoryMode = windows ? 0o444 : 0o555;
+const powershell = (command, env = {}) => spawnSync(
+  path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+  ['-NoProfile', '-NonInteractive', '-Command', command],
+  { env: { SystemRoot: process.env.SystemRoot, ...env }, encoding: 'utf8', windowsHide: true, timeout: 10000 }
+);
+
+function assertPrivateWindowsDirectory(directory) {
+  const result = powershell(String.raw`
+$ErrorActionPreference = 'Stop'
+$location = $env:TABLEU_CUE_VALIDATION_DIRECTORY
+$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$sidType = [Security.Principal.SecurityIdentifier]
+$directory = Get-Acl -LiteralPath $location
+if (!$directory.AreAccessRulesProtected) { exit 1 }
+foreach ($acl in @($directory, (Get-Acl -LiteralPath (Join-Path $location 'config/runtime.json')))) {
+  $rules = $acl.GetAccessRules($true, $true, $sidType)
+  if ($acl.GetOwner($sidType).Value -ne $sid) { exit 1 }
+  $userRules = @($rules | Where-Object { $_.IdentityReference.Value -eq $sid })
+  if ($userRules.Count -ne 1 -or $userRules[0].FileSystemRights -ne 'FullControl') { exit 1 }
+  foreach ($rule in $rules) {
+    if ($rule.IdentityReference.Value -ne $sid -and !($rule.IdentityReference.Value -eq 'S-1-3-4' -and $rule.FileSystemRights -eq 'Synchronize')) { exit 1 }
+  }
+}
+`, { TABLEU_CUE_VALIDATION_DIRECTORY: directory });
+  assert.equal(result.status, 0, result.stderr || 'validation state and inherited config are accessible only to their owner');
+}
 
 test('the launcher exports an import-inert offline runtime', () => {
   assert.equal(typeof runtime?.startReadingCueValidation, 'function', 'the authorized offline runtime is missing');
@@ -44,7 +74,7 @@ test('strict options reject implicit, protected, duplicated and nonlocal listene
     { ports: { ...ports, api: 8787 } }, { ports: { ...ports, api: 5175 } },
     { ports: { ...ports, api: 8789 } }, { ports: { ...ports, api: 9235 } },
     { ports: { ...ports, api: 5317 } }, { ports: { ...ports, api: '8817' } },
-    { host: '0.0.0.0' }, { sourceHead: 'stale' }, { live: true, explicitProviders: {}, budget: {} }]) {
+    { host: '0.0.0.0' }, { sourceHead: 'stale' }, { live: true, explicitProviders: {}, budget: {} }, { signal: AbortSignal.abort() }]) {
     const privateDirectory = path.join(parent, 'run');
     await assert.rejects(runtime.startReadingCueValidation({ ...options(privateDirectory, ports), ...change }));
     await missing(privateDirectory);
@@ -52,12 +82,13 @@ test('strict options reject implicit, protected, duplicated and nonlocal listene
 });
 
 test('environment construction drops host providers, dotenv controls, proxies and arbitrary Vite fields', () => {
-  const env = runtime.validationEnvironment('/private', { PATH: '/usr/bin', HOME: '/host',
+  const directory = path.resolve('/private');
+  const env = runtime.validationEnvironment(directory, { PATH: '/usr/bin', HOME: '/host',
     NODE_OPTIONS: '--require /host/malicious.js', VITE_CANARY: 'host-canary', ANTHROPIC_API_KEY: 'synthetic',
     CLOUDFLARE_API_TOKEN: 'synthetic', HTTPS_PROXY: 'https://example.invalid', XDG_CONFIG_HOME: '/host/config' });
-  assert.equal(env.HOME, '/private/home');
-  assert.equal(env.XDG_CONFIG_HOME, '/private/home/config');
-  assert.equal(env.TMPDIR, '/private/tmp');
+  assert.equal(env.HOME, path.join(directory, 'home'));
+  assert.equal(env.XDG_CONFIG_HOME, path.join(directory, 'home/config'));
+  assert.equal(env.TMPDIR, path.join(directory, 'tmp'));
   assert.equal(env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV, 'false');
   assert.equal(env.VITE_READING_GESTURES, 'true');
   for (const key of ['NODE_OPTIONS', 'VITE_CANARY', 'ANTHROPIC_API_KEY', 'CLOUDFLARE_API_TOKEN', 'HTTPS_PROXY']) assert.equal(env[key], undefined);
@@ -75,7 +106,7 @@ test('source capture copies only enumerated files, rejects links/private names a
   assert.equal(await readFile(path.join(snapshot, 'src', 'main.jsx'), 'utf8'), 'dirty-source');
   await missing(path.join(snapshot, 'ignored-secret.json'));
   assert.equal((await stat(path.join(snapshot, 'src', 'main.jsx'))).mode & 0o777, 0o444);
-  assert.equal((await stat(snapshot)).mode & 0o777, 0o555);
+  assert.equal((await stat(snapshot)).mode & 0o777, frozenDirectoryMode);
   assert.equal(result.files.length, 2);
   await assert.rejects(runtime.captureValidationSource({ root: source, destination: path.join(dir, 'deny'), paths: ['.env'] }));
   await symlink(path.join(source, 'ignored-secret.json'), path.join(source, 'src', 'link.js'));
@@ -94,13 +125,40 @@ test('occupied caller-owned port refuses startup without killing the foreign lis
   await missing(privateDirectory);
 });
 
+test('snapshot identity reports modified and untracked allowlisted files in a disposable repository', async t => {
+  const dir = await temporary(t);
+  const source = path.join(dir, 'repo');
+  const destination = path.join(dir, 'snapshot');
+  await mkdir(source);
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: source, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git('init', '--quiet');
+  await writeFile(path.join(source, 'clean.js'), 'original');
+  await writeFile(path.join(source, 'changed.js'), 'original');
+  git('add', 'clean.js', 'changed.js');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false', 'commit', '-qm', 'fixture');
+  const head = git('rev-parse', 'HEAD');
+  await writeFile(path.join(source, 'changed.js'), 'edited');
+  await writeFile(path.join(source, 'new.js'), 'new');
+  try {
+    const { files } = await runtime.captureValidationSource({ root: source, destination, paths: ['clean.js', 'changed.js', 'new.js'] });
+    await writeFile(path.join(source, 'changed.js'), 'original');
+    assert.deepEqual(runtime.dirtyValidationPaths(source, head, files), ['changed.js', 'new.js']);
+  } finally { await runtime.removeValidationDirectory(destination); }
+});
+
 test('cold startup serves callable development JSX after the production build, with optimized DEV false', { timeout: 180000 }, async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-cold-jsx-test-')); const ports = await freePorts();
   const privateDirectory = path.join(dir, 'run');
   await missing(path.join(privateDirectory, 'vite-cache'));
-  const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
-  let startupError; let startupSettled = false;
-  void started.then(() => { startupSettled = true; }, error => { startupError = error; startupSettled = true; });
+  const started = runtime.startReadingCueValidation({ ...options(privateDirectory, ports), signal: t.signal });
+  const startupFailure = new AbortController();
+  const observerSignal = AbortSignal.any([t.signal, startupFailure.signal]);
+  let startupSettled = false;
+  void started.then(() => { startupSettled = true; }, error => startupFailure.abort(error));
   t.after(async () => {
     try { const owned = await started.catch(() => null); await owned?.close(); }
     finally { await rm(dir, { recursive: true, force: true }); }
@@ -113,13 +171,15 @@ test('cold startup serves callable development JSX after the production build, w
   let observerClockAdvanced = false;
   let firstFrontendIdentity;
   while (firstFrontendIdentity === undefined) {
-    if (startupError) throw startupError;
+    observerSignal.throwIfAborted();
     const startupWasSettled = startupSettled;
     try {
-      const response = await fetch(`${origin}/__cue_validation_identity`, { signal: AbortSignal.timeout(5000) });
+      // The first accepted request verifies the whole build. Keep it alive
+      // until that response, a startup failure, or the test's own deadline.
+      const response = await fetch(`${origin}/__cue_validation_identity`, { signal: observerSignal });
       firstFrontendIdentity = { status: response.status, body: await response.json() };
     } catch (error) {
-      if (startupError) throw startupError;
+      observerSignal.throwIfAborted();
       // Readiness can overtake a refusal from a probe begun during startup.
       if (startupWasSettled) throw error;
       // Exercise startup beyond the observer's old 60-second cutoff without
@@ -145,7 +205,7 @@ test('cold startup serves callable development JSX after the production build, w
   const captureDependency = async dependencyUrl => {
     const url = new URL(dependencyUrl, origin);
     assert.equal(url.origin, origin);
-    assert.ok(url.pathname.startsWith(`/@fs${privateDirectory}/vite-cache/deps/`), url.pathname);
+    assert.ok(decodeURIComponent(url.pathname).startsWith(viteFileUrl(path.join(privateDirectory, 'vite-cache/deps')) + '/'), url.pathname);
     const filename = path.basename(url.pathname);
     assert.match(filename, /\.js$/);
     if (modules.has(url.href)) return;
@@ -231,7 +291,8 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   assert.equal(owned.buildIdentity.expectedHead, sourceHead);
   assert.equal(owned.ownedResources.database.provisioned, true);
   assert.equal(owned.ownedResources.database.usedByBrowser, false);
-  assert.equal((await stat(privateDirectory)).mode & 0o777, 0o700);
+  if (windows) assertPrivateWindowsDirectory(privateDirectory);
+  else assert.equal((await stat(privateDirectory)).mode & 0o777, 0o700);
   const dbFiles = async directory => {
     const files = [];
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -272,10 +333,15 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   // assertion must not depend on which files happen to be dirty today. Hash the
   // captured snapshot, not the live tree, so a concurrent edit cannot fail it.
   const allowlist = JSON.parse(await readFile(path.join(root, 'scripts/lib/readingCueValidationSource.json'), 'utf8')).paths;
-  const git = args => spawnSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).stdout;
-  const headBlobs = new Map(git(['ls-tree', '-z', '--full-tree', '-r', 'HEAD', '--', ...allowlist]).split('\0').filter(Boolean)
+  const git = (args, input) => {
+    const result = spawnSync('git', args, { cwd: root, input, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    assert.equal(result.status, 0, result.error?.message || result.stderr);
+    return result.stdout;
+  };
+  const headBlobs = new Map(git(['ls-tree', '-z', '--full-tree', '-r', 'HEAD']).split('\0').filter(Boolean)
     .map(entry => [entry.slice(entry.indexOf('\t') + 1), entry.slice(0, entry.indexOf('\t')).split(' ')[2]]));
-  const rawBlobs = git(['hash-object', '--no-filters', '--', ...allowlist.map(file => path.join(privateDirectory, 'source', file))]).trim().split('\n').filter(Boolean);
+  const filenames = allowlist.map(file => path.join(privateDirectory, 'source', file));
+  const rawBlobs = git(['hash-object', '--no-filters', '--stdin-paths'], filenames.join('\n') + '\n').trim().split('\n').filter(Boolean);
   assert.equal(rawBlobs.length, allowlist.length);
   assert.deepEqual([...owned.buildIdentity.dirtyPaths].sort(), allowlist.filter((file, index) => headBlobs.get(file) !== rawBlobs[index]).sort());
   const envModule = await (await fetch(`${owned.origins.frontend}/src/lib/readingGestureSettings.js`)).text();
@@ -292,7 +358,7 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   assert.equal((await fetch(`${owned.origins.frontend}/src/main.jsx`)).status, 200);
   const dependencyRoot = await realpath(path.join(root, 'node_modules'));
   const font = '/@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2';
-  for (const url of [`/node_modules${font}`, `/@fs${dependencyRoot}${font}`]) {
+  for (const url of [`/node_modules${font}`, viteFileUrl(path.join(dependencyRoot, font))]) {
     const response = await fetch(owned.origins.frontend + url);
     assert.equal(response.status, 200, `allowed dependency ${url}`);
     assert.ok((await response.arrayBuffer()).byteLength > 1000);
@@ -308,8 +374,9 @@ test('owned runtime serves frozen allowlisted source, fails APIs closed, provisi
   assert.match(optimized, /assets\/app-/);
   for (const origin of [owned.origins.frontend, owned.origins.optimized]) {
     for (const url of ['/.env?raw', '/.npmrc', '/.git/config', '/.dev.vars?import', '/%2eenv', '/private/config/runtime.json',
-      `/@fs${path.join(privateDirectory, 'config', 'runtime.json')}?raw`, `/@fs${path.join(root, 'src', 'main.jsx')}?import`, '/__e2e/not-a-source-file.js', '/cue-private-ignored.json', '/cue-private-link.txt', `/@fs${outside}?raw`,
-      `/@fs${path.join(root, '.env.local')}?import&raw`, '/%2eenv?raw', '/.npmrc?url']) {
+      viteFileUrl(path.join(privateDirectory, 'config', 'runtime.json')) + '?raw', viteFileUrl(path.join(root, 'src', 'main.jsx')) + '?import',
+      '/__e2e/not-a-source-file.js', '/cue-private-ignored.json', '/cue-private-link.txt', viteFileUrl(outside) + '?raw',
+      viteFileUrl(path.join(root, '.env.local')) + '?import&raw', '/%2eenv?raw', '/.npmrc?url']) {
       const response = await fetch(origin + url);
       assert.notEqual(response.status, 200, `${origin}${url}`);
       const body = await response.text(); assert.ok(!body.includes('synthetic-host-canary')); assert.ok(!body.includes(canary));
@@ -337,12 +404,20 @@ test('private ownership rejects nonempty paths and symlinked ancestors without d
   await writeFile(path.join(nonempty, 'sentinel'), 'foreign-keep');
   await assert.rejects(runtime.startReadingCueValidation(options(nonempty, ports)), /new or empty/);
   assert.equal(await readFile(path.join(nonempty, 'sentinel'), 'utf8'), 'foreign-keep');
-  await symlink(nonempty, path.join(dir, 'link'));
+  await symlink(nonempty, path.join(dir, 'link'), process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(runtime.startReadingCueValidation(options(path.join(dir, 'link/run'), ports)), /Symlink/);
-  await assert.rejects(async () => {
-    const unexpected = await runtime.startReadingCueValidation(options(path.join(root, 'private-state'), ports));
-    await unexpected.close();
-  }, /outside/);
+  const protectedPaths = process.platform === 'win32' ? [root, root.toUpperCase()] : [root];
+  for (const protectedPath of protectedPaths) {
+    await assert.rejects(async () => {
+      const unexpected = await runtime.startReadingCueValidation(options(path.join(protectedPath, 'private-state'), ports));
+      await unexpected.close();
+    }, /outside/);
+  }
+  // A linked worktree can live on another drive from the main checkout.
+  const list = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd: root, encoding: 'utf8' });
+  assert.equal(list.status, 0);
+  const primary = list.stdout.split('\0')[0].slice('worktree '.length);
+  await assert.rejects(runtime.startReadingCueValidation(options(primary, ports)), /outside/);
   await assert.rejects(runtime.startReadingCueValidation({ ...options(path.join(dir, 'stale'), ports), sourceHead: '0'.repeat(40) }), /stale/);
   await missing(path.join(dir, 'stale'));
 });
@@ -371,11 +446,18 @@ test('a late racing optimized bind failure closes previously acquired processes/
   }
 });
 
-for (const signal of ['SIGINT', 'SIGTERM']) test(`${signal} during acquired startup closes owned process groups and private state within its deadline`, { timeout: 60000 }, async t => {
+const startupCancellation = process.platform === 'win32' ? ['AbortSignal'] : ['SIGINT', 'SIGTERM'];
+for (const signal of startupCancellation) test(`${signal} during acquired startup closes owned processes and private state within its deadline`, { timeout: 60000 }, async t => {
   const dir = await temporary(t); const ports = await freePorts(); const privateDirectory = path.join(dir, 'run');
+  const useIpc = signal === 'AbortSignal';
   const script = `import { startReadingCueValidation } from ${JSON.stringify(new URL('../scripts/dev-reading-cue-validation.mjs', import.meta.url).href)};
-    try { await startReadingCueValidation(${JSON.stringify(options(privateDirectory, ports))}); } catch { console.log('startup cancelled'); }`;
-  const harness = spawn(process.execPath, ['--input-type=module', '-e', script], { cwd: root, env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const controller = new AbortController();
+    if (process.connected) process.once('message', () => controller.abort());
+    try { await startReadingCueValidation({ ...${JSON.stringify(options(privateDirectory, ports))}, signal: controller.signal }); }
+    catch (error) { if (!/startup cancelled/.test(error?.message || '')) throw error; }
+    finally { if (process.connected) process.disconnect(); }`;
+  const stdio = useIpc ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'];
+  const harness = spawn(process.execPath, ['--input-type=module', '-e', script], { cwd: root, env: { PATH: process.env.PATH }, stdio });
   let exited = false; const exit = new Promise(resolve => harness.once('exit', (code, signal) => { exited = true; resolve({ code, signal }); }));
   t.after(async () => { if (!exited) { harness.kill('SIGTERM'); await exit; } });
   harness.stdout.resume(); harness.stderr.resume();
@@ -385,7 +467,9 @@ for (const signal of ['SIGINT', 'SIGTERM']) test(`${signal} during acquired star
     if (Date.now() > deadline || exited) throw new Error('Disposable harness failed before owned acquisition');
     await new Promise(resolve => setTimeout(resolve, 10));
   }
-  const started = Date.now(); harness.kill(signal);
+  const started = Date.now();
+  if (useIpc) harness.send('abort');
+  else harness.kill(signal);
   let timer;
   try {
     const result = await Promise.race([exit, new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error('Signal cleanup exceeded 15 seconds')), 15000); })]);
@@ -401,13 +485,64 @@ for (const signal of ['SIGINT', 'SIGTERM']) test(`${signal} during acquired star
 test('premature child death closes its descendants and retained ownership before removing private state', { timeout: 180000 }, async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-child-death-test-')); const ports = await freePorts();
   const privateDirectory = path.join(dir, 'run');
-  const owned = await runtime.startReadingCueValidation(options(privateDirectory, ports));
-  t.after(async () => { await owned.close(); await rm(dir, { recursive: true, force: true }); });
+  const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
+  t.after(async () => {
+    const owned = await started.catch(() => null);
+    await owned?.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+  const owned = await started;
+  let descendants = [];
+  if (windows) {
+    const result = powershell(
+      `Get-CimInstance -ClassName Win32_Process -Filter 'ParentProcessId = ${owned.ownedResources.pid}' | Select-Object Name,ProcessId | ConvertTo-Json -Compress`
+    );
+    assert.equal(result.status, 0, result.stderr);
+    descendants = [JSON.parse(result.stdout)].flat();
+    assert.ok(descendants.some(child => child.Name === 'workerd.exe'), 'the owned D1 platform process is running');
+  }
   process.kill(owned.ownedResources.pid, 'SIGKILL');
   const evidence = await owned.close();
   assert.equal(evidence.childExited, true); assert.equal(evidence.stateRemoved, true);
   await missing(privateDirectory);
   if (owned.ownedResources.processGroup) assert.throws(() => process.kill(-owned.ownedResources.processGroup, 0), { code: 'ESRCH' });
+  for (const child of descendants) {
+    assert.throws(() => process.kill(child.ProcessId, 0), { code: 'ESRCH' }, `${child.Name} survived owner exit`);
+  }
+});
+
+test('Windows job drains a detached grandchild after both ancestors exit', { skip: !windows, timeout: 30000 }, async t => {
+  const directory = await temporary(t);
+  const lib = path.join(directory, 'runner/scripts/lib');
+  await mkdir(lib, { recursive: true });
+  await mkdir(path.join(directory, 'tmp'));
+  await copyFile(new URL('../scripts/lib/readingCueWindowsJob.cs', import.meta.url), path.join(lib, 'readingCueWindowsJob.cs'));
+  const intermediate = `const { spawn } = require('node:child_process');
+    const leaf = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 45000)'], { detached: true, stdio: 'ignore' });
+    console.log(leaf.pid);
+    leaf.unref();`;
+  const fixture = `import { windowsJobAssigned } from ${JSON.stringify(new URL('../scripts/lib/readingCueValidationChild.mjs', import.meta.url))};
+    import { execFileSync } from 'node:child_process';
+    if (await windowsJobAssigned()) {
+      const pid = Number(execFileSync(process.execPath, ['-e', ${JSON.stringify(intermediate)}], { encoding: 'utf8' }).trim());
+      process.send(pid);
+      setTimeout(() => {}, 45000);
+    }`;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', fixture], { stdio: ['pipe', 'pipe', 'ignore', 'ipc'] });
+  const exit = once(child, 'exit');
+  const closeJob = runtime.watchWindowsJob(child, directory);
+  try {
+    const [grandchild] = await Promise.race([once(child, 'message'), exit.then(() => { throw new Error('Job fixture exited before creating its grandchild'); })]);
+    assert.ok(Number.isInteger(grandchild) && grandchild > 0);
+    child.kill();
+    await exit;
+    process.kill(grandchild, 0);
+    await closeJob();
+    assert.throws(() => process.kill(grandchild, 0), { code: 'ESRCH' });
+  } finally {
+    child.kill();
+    await closeJob();
+  }
 });
 
 test('a change during source capture rejects the entire snapshot before it can be served', { timeout: 30000 }, async t => {
@@ -434,7 +569,8 @@ for (const damage of ['mutation', 'deletion']) test(`optimized output ${damage} 
   const fileMode = (await stat(location)).mode & 0o777;
   const directoryMode = (await stat(path.dirname(location))).mode & 0o777;
   // Simulate owner/root tampering despite filesystem write protection.
-  if (damage === 'mutation') { await chmod(location, 0o644); await writeFile(location, '/* synthetic-output-mutation */'); await chmod(location, 0o444); }
+  await chmod(location, 0o644);
+  if (damage === 'mutation') { await writeFile(location, '/* synthetic-output-mutation */'); await chmod(location, 0o444); }
   else { await chmod(path.dirname(location), 0o755); await rm(location); }
   assert.notEqual((await fetch(owned.origins.optimized + '/' + entry.path)).status, 200);
   for (const origin of [owned.origins.frontend, owned.origins.optimized]) {
@@ -451,7 +587,7 @@ for (const damage of ['mutation', 'deletion']) test(`optimized output ${damage} 
   assert.equal(before.outputIntegrity, true);
   assert.deepEqual(before.optimizedFlags, {dev:false,prod:true,mode:'reading-cue-validation'});
   assert.equal(fileMode, 0o444);
-  assert.equal(directoryMode, 0o555);
+  assert.equal(directoryMode, frozenDirectoryMode);
   const cleanup = await owned.close();
   assert.equal(cleanup.outputIntegrity, false); assert.match(cleanup.runtimeFailure, /output-integrity/);
   assert.equal(cleanup.sourceIntegrity, true); assert.equal(cleanup.childExited, true); assert.equal(cleanup.stateRemoved, true);

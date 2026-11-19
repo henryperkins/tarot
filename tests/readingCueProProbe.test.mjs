@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { access, chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,10 +9,17 @@ import { openCueRoundBudget } from '../scripts/evaluation/lib/visualCueEvaluatio
 
 const DEFINITION = 'a'.repeat(64);
 const CANDIDATE = 'glm-5.3-flash-low';
+const windows = process.platform === 'win32';
+const systemTool = name => path.join(process.env.SystemRoot, 'System32', name);
+const setTestAcl = (...args) => execFileSync(systemTool('icacls.exe'), args, { windowsHide: true });
+const currentSid = windows
+  ? execFileSync(systemTool('whoami.exe'), ['/user', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true }).match(/S-1-(?:\d+-)+\d+/)[0]
+  : null;
 
 async function privateFiles(t, { config = {}, eligibility = {} } = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-pro-probe-test-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
+  if (windows) setTestAcl(dir, '/inheritance:r', '/grant:r', `*${currentSid}:(OI)(CI)F`);
   const eligibilityPath = path.join(dir, 'eligibility.json');
   await writeFile(eligibilityPath, JSON.stringify({ semanticEligible: true, runIdentityDigest: DEFINITION, candidateId: CANDIDATE, ...eligibility }), { mode: 0o600 });
   await writeFile(path.join(dir, 'round.json'), '{}', { mode: 0o600 });
@@ -22,6 +30,7 @@ async function privateFiles(t, { config = {}, eligibility = {} } = {}) {
     eligibilityRecordPath: eligibilityPath,
     isolation: { ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 }, privateDirectory: path.join(dir, 'runtime') },
     ...config }), { mode: 0o600 });
+  if (windows) setTestAcl(dir, '/setowner', '*' + currentSid, '/T');
   return { dir, configPath, eligibilityPath };
 }
 const budget = (snapshot = {}, decision = { allowed: true, reservedUsd: 0.2, remainingUsd: 3, reason: null }) => async () => ({
@@ -43,14 +52,19 @@ test('without explicit opt-in nothing is read and no ledger is touched', async t
   assert.deepEqual(missing.reasons, ['private-config-absent', 'eligibility-record-absent', 'round-budget-unavailable']);
 });
 
-test('private configuration must be an owned 0600 regular file', async t => {
+test('private configuration must be an owner-only regular file', async t => {
   const { dir, configPath } = await privateFiles(t);
-  await chmod(configPath, 0o644);
+  if (windows) setTestAcl(configPath, '/grant', '*S-1-1-0:R');
+  else await chmod(configPath, 0o644);
   assert.ok((await preflightRealProProbes({ env: env(configPath), openBudget: budget() })).reasons.includes('private-config-permissions'));
-  await chmod(configPath, 0o600);
+  if (windows) setTestAcl(configPath, '/remove:g', '*S-1-1-0');
+  else {
+    await chmod(configPath, 0o600);
+    assert.ok((await preflightRealProProbes({ env: env(configPath), uid: 1, openBudget: budget() })).reasons.includes('private-config-owner'));
+  }
+  assert.equal((await preflightRealProProbes({ env: env(configPath), openBudget: budget() })).allowed, true);
   const link = path.join(dir, 'link.json'); await symlink(configPath, link);
   assert.ok((await preflightRealProProbes({ env: env(link), openBudget: budget() })).reasons.includes('private-config-not-regular-file'));
-  assert.ok((await preflightRealProProbes({ env: env(configPath), uid: 1, openBudget: budget() })).reasons.includes('private-config-owner'));
   assert.ok((await preflightRealProProbes({ env: env('relative.json'), openBudget: budget() })).reasons.includes('private-config-absent'));
 });
 
@@ -104,7 +118,7 @@ test('an absent, non-canonical or linked ledger path is never opened', async t =
   await rm(path.join(dir, 'round.json'));
   assert.deepEqual((await preflightRealProProbes({ env: env(configPath), openBudget: counting })).reasons, ['round-budget-unavailable']);
   await mkdir(path.join(dir, 'real')); await writeFile(path.join(dir, 'real', 'round.json'), '{}', { mode: 0o600 });
-  await symlink(path.join(dir, 'real'), path.join(dir, 'link'));
+  await symlink(path.join(dir, 'real'), path.join(dir, 'link'), windows ? 'junction' : 'dir');
   for (const roundBudgetPath of [path.join(dir, 'link', 'round.json'), `${dir}/real/../real/round.json`, 'round.json', 42]) {
     const linked = await privateFiles(t, { config: { roundBudgetPath } });
     assert.deepEqual((await preflightRealProProbes({ env: env(linked.configPath), openBudget: counting })).reasons, ['round-budget-unavailable'], String(roundBudgetPath));

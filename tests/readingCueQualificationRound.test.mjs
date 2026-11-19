@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { runCueQualificationRound, parseCueQualificationRoundArgs, main, createCueRoundOwnership, createBlindedCuePackets, verifyCueLivePreflight, verifyCueLiveCatalog } from '../scripts/evaluation/runReadingCueQualificationRound.mjs';
 import { openCueRoundBudget, DEFAULT_CUE_CANDIDATES } from '../scripts/evaluation/lib/visualCueEvaluationHarness.mjs';
 import { initialVisualLimits } from './helpers/visualInitialAdmissionFixtures.mjs';
@@ -187,7 +188,8 @@ test('owned cleanup cancels active work, drains delayed settlement and closes on
   owner.dispose();
 });
 
-test('SIGTERM invokes owned settlement/cleanup before child exit and leaves unrelated listener intact', async () => {
+const windows = process.platform === 'win32';
+test(`${windows ? 'Cooperative cancellation' : 'SIGTERM'} completes owned settlement before child exit and leaves unrelated listener intact`, async () => {
   const { createServer } = await import('node:http');
   const listener = createServer((_q, response) => response.end('unrelated'));
   await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
@@ -195,13 +197,35 @@ test('SIGTERM invokes owned settlement/cleanup before child exit and leaves unre
   const path = join(directory, 'terminal.json');
   const module = new URL('../scripts/evaluation/runReadingCueQualificationRound.mjs', import.meta.url).href;
   const fixture = join(directory, 'child.mjs');
-  await writeFile(fixture, `import { createCueRoundOwnership } from ${JSON.stringify(module)}; import { writeFile } from 'node:fs/promises'; const owner=createCueRoundOwnership(); owner.own({cancel:async()=>{},finish:async()=>{await new Promise(r=>setTimeout(r,20));await writeFile(process.argv[2],JSON.stringify({settled:true}));}},'session'); process.stdout.write('ready\\n'); const timer=setInterval(()=>{},1000); owner.signal.addEventListener('abort',()=>owner.stop('SIGTERM').then(()=>{clearInterval(timer);owner.dispose();}));`);
-  const child = spawn(process.execPath, [fixture, path], { stdio: ['ignore', 'pipe', 'pipe'] });
+  await writeFile(fixture, `
+    import { createCueRoundOwnership } from ${JSON.stringify(module)};
+    import { writeFile } from 'node:fs/promises';
+    const owner = createCueRoundOwnership();
+    owner.own({
+      cancel: async () => {},
+      finish: async () => {
+        await new Promise(resolve => setTimeout(resolve, 20));
+        await writeFile(process.argv[2], JSON.stringify({ settled: true }));
+      }
+    }, 'session');
+    if (process.connected) process.once('message', () => { void owner.stop('abort'); });
+    const timer = setInterval(() => {}, 1000);
+    owner.signal.addEventListener('abort', async () => {
+      await owner.stop();
+      clearInterval(timer);
+      owner.dispose();
+      if (process.connected) process.disconnect();
+    }, { once: true });
+    process.stdout.write('ready\\n');
+  `);
+  const stdio = windows ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'];
+  const child = spawn(process.execPath, [fixture, path], { stdio });
   let stderr = ''; child.stderr.on('data', chunk => { stderr += chunk; });
   const exited = new Promise(resolve => child.once('exit', (code, signal) => resolve({ code, signal })));
   try {
     await new Promise((resolve, reject) => { child.stdout.once('data', resolve); child.once('error', reject); });
-    child.kill('SIGTERM');
+    if (windows) child.send('abort');
+    else child.kill('SIGTERM');
     assert.deepEqual(await exited, { code: 0, signal: null }, stderr);
     assert.deepEqual(JSON.parse(await readFile(path, 'utf8')), { settled: true });
     assert.equal(await (await fetch(`http://127.0.0.1:${listener.address().port}`)).text(), 'unrelated');
@@ -212,7 +236,7 @@ test('standalone offline driver ignores ambient secrets and never opens a privat
   const config = await options('semantic');
   const path = join(config.outputDir, '..', 'manifest.json'); await writeFile(path, JSON.stringify(subset));
   const script = new URL('../scripts/evaluation/runReadingCueQualificationRound.mjs', import.meta.url);
-  const result = await promisify(execFile)(process.execPath, [script.pathname, '--dry-run', '--phase', 'semantic', '--manifest', path,
+  const result = await promisify(execFile)(process.execPath, [fileURLToPath(script), '--dry-run', '--phase', 'semantic', '--manifest', path,
     '--candidate', candidate.id, '--output', config.outputDir, '--round-id', config.roundId, '--round-budget', config.roundBudgetPath],
   { env: { PATH: process.env.PATH, CLOUDFLARE_API_TOKEN: 'ambient-must-not-escape', PRIVATE_CONFIG: '/not-to-read' } });
   const summary = JSON.parse(result.stdout);

@@ -75,9 +75,10 @@ test('development children exclude paid credentials and host overrides', () => {
 test('generated config isolates storage and production config remains unchanged', async () => {
   const base = parseJsoncConfig(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
   const before = JSON.stringify(base);
+  const root = path.resolve('/worktree');
   const config = developmentConfig({ ...base, vars: { ...base.vars, ANTHROPIC_API_KEY: 'paid', GPT_SERVICE_TOKEN: 'shared' },
     services: [{ binding: 'REMOTE', service: 'production' }], routes: ['example.com/*'] },
-  { root: '/worktree', ownerUserId: 'local-owner', accountId: 'account' });
+  { root, ownerUserId: 'local-owner', accountId: 'account' });
   assert.equal(JSON.stringify(base), before);
   assert.equal(config.vars.TEXT_PROVIDER, 'claude-code');
   assert.equal(config.vars.CLAUDE_CODE_OWNER_USER_ID, 'local-owner');
@@ -86,12 +87,12 @@ test('generated config isolates storage and production config remains unchanged'
   assert.equal(config.vars.ANTHROPIC_API_KEY, undefined);
   assert.equal(config.vars.GPT_SERVICE_TOKEN, undefined);
   assert.equal(config.vars.CLAUDE_CODE_GATEWAY_TOKEN, undefined);
-  assert.equal(config.main, '/worktree/src/worker/index.js');
-  assert.equal(config.assets.directory, '/worktree/dist');
+  assert.equal(config.main, path.join(root, 'src/worker/index.js'));
+  assert.equal(config.assets.directory, path.join(root, 'dist'));
   assert.equal(config.ai.remote, true);
   assert.equal(config.d1_databases[0].database_id, LOCAL_DATABASE_ID);
   assert.notEqual(config.d1_databases[0].database_id, base.d1_databases[0].database_id);
-  assert.equal(config.d1_databases[0].migrations_dir, '/worktree/migrations');
+  assert.equal(config.d1_databases[0].migrations_dir, path.join(root, 'migrations'));
   for (const binding of [...config.d1_databases, ...config.kv_namespaces, ...config.r2_buckets]) assert.equal(binding.remote, false);
   assert.ok(config.durable_objects.bindings.every(binding => !binding.script_name));
   for (const name of ['routes', 'services', 'env', 'triggers', 'tail_consumers', 'send_email']) assert.equal(config[name], undefined);
@@ -99,7 +100,7 @@ test('generated config isolates storage and production config remains unchanged'
 
 test('isolated launches require four explicit owned ports and a private directory, never beta defaults', () => {
   const isolation = { ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 },
-    privateDirectory: '/private/cue-pro', databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' };
+    privateDirectory: path.resolve('/private/cue-pro'), databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' };
   assert.deepEqual(validateIsolation(isolation), isolation);
   for (const ports of [{ ...isolation.ports, worker: 8787 }, { ...isolation.ports, frontend: 5175 }, { ...isolation.ports, gateway: 8789 },
     { ...isolation.ports, inspector: 9235 }, { ...isolation.ports, frontend: 41001 }, { ...isolation.ports, gateway: 80 }, { ...isolation.ports, worker: '41001' }]) {
@@ -107,18 +108,21 @@ test('isolated launches require four explicit owned ports and a private director
   }
   assert.throws(() => validateIsolation({ ...isolation, privateDirectory: 'relative' }), /absolute private directory/);
   for (const databaseId of [LOCAL_DATABASE_ID, 'not-a-uuid', undefined]) assert.throws(() => validateIsolation({ ...isolation, databaseId }), /database/);
-  assert.deepEqual(parseDevelopmentOptions(['--isolated', '/private/options.json']),
-    { check: false, provider: 'claude-code', ownerEmail: null, isolated: '/private/options.json' });
-  for (const argv of [['--isolated'], ['--isolated', 'relative.json'], ['--isolated', '/a.json', '--isolated', '/b.json']]) {
+  const optionsPath = path.resolve('/private/options.json');
+  assert.deepEqual(parseDevelopmentOptions(['--isolated', optionsPath]),
+    { check: false, provider: 'claude-code', ownerEmail: null, isolated: optionsPath });
+  for (const argv of [['--isolated'], ['--isolated', 'relative.json'], ['--isolated', optionsPath, '--isolated', path.resolve('/b.json')]]) {
     assert.throws(() => parseDevelopmentOptions(argv));
   }
 });
 
 test('isolated config uses its own ports, database and paths with no unbudgeted Workers AI or visual dispatch', async () => {
   const base = parseJsoncConfig(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
+  const root = path.resolve('/worktree');
+  const privateDirectory = path.resolve('/private/cue-pro');
   const isolation = validateIsolation({ ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 },
-    privateDirectory: '/private/cue-pro', databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' });
-  const config = developmentConfig(base, { root: '/worktree', ownerUserId: 'local-owner', accountId: 'account',
+    privateDirectory, databaseId: '7b2f9a4e-1c3d-4e5f-8a9b-0c1d2e3f4a5b' });
+  const config = developmentConfig(base, { root, ownerUserId: 'local-owner', accountId: 'account',
     provider: 'codex-subscription', isolation });
   assert.equal(config.dev.port, 41001);
   assert.equal(config.dev.inspector_port, 41004);
@@ -130,9 +134,9 @@ test('isolated config uses its own ports, database and paths with no unbudgeted 
   // transport exists the isolated runtime has no Workers AI binding at all.
   assert.equal(config.ai, undefined);
   for (const name of ['VISUAL_CUE_PROVIDER', 'VISUAL_CUE_MODEL', 'VISUAL_CUE_REASONING_EFFORT']) assert.equal(config.vars[name], undefined);
-  const paths = developmentPaths('/worktree', isolation);
-  assert.equal(paths.directory, '/private/cue-pro');
-  assert.equal(paths.state, '/private/cue-pro/state');
+  const paths = developmentPaths(root, isolation);
+  assert.equal(paths.directory, privateDirectory);
+  assert.equal(paths.state, path.join(privateDirectory, 'state'));
   const args = workerArguments(paths, isolation);
   assert.equal(args[args.indexOf('--port') + 1], '41001');
   assert.equal(developmentViteConfig({ server: {} }, { privateDirectory: paths.directory, port: 41002 }).server.port, 41002);
@@ -147,12 +151,14 @@ test('isolated config uses its own ports, database and paths with no unbudgeted 
   }
   assert.equal(baseViteConfig.server.proxy['/api'].target, 'http://localhost:8787');
   // The ordinary beta keeps its exact defaults.
-  const beta = developmentConfig(base, { root: '/worktree', ownerUserId: 'local-owner', accountId: 'account' });
+  const beta = developmentConfig(base, { root, ownerUserId: 'local-owner', accountId: 'account' });
   assert.equal(beta.dev.port, 8787);
   assert.equal(beta.vars.VISUAL_CUE_PROVIDER, 'workers-ai');
   assert.equal(beta.ai.remote, true);
-  assert.equal(developmentPaths('/worktree').directory, '/worktree/.wrangler/reading-gestures-beta');
-  assert.equal(workerArguments(developmentPaths('/worktree'))[workerArguments(developmentPaths('/worktree')).indexOf('--port') + 1], '8787');
+  const betaPaths = developmentPaths(root);
+  assert.equal(betaPaths.directory, path.join(root, '.wrangler/reading-gestures-beta'));
+  const betaArgs = workerArguments(betaPaths);
+  assert.equal(betaArgs[betaArgs.indexOf('--port') + 1], '8787');
   assert.equal(developmentViteConfig({ server: {} }, { privateDirectory: '/x' }).server.port, 5175);
   assert.equal(developmentViteConfig(baseViteConfig, { privateDirectory: '/x' }).server.proxy['/api'].target, 'http://localhost:8787');
 });
@@ -173,12 +179,13 @@ test('an isolated launch stops before reading credentials until it is fully isol
 });
 
 test('migration commands can only target isolated local persistence', () => {
-  const paths = developmentPaths('/worktree');
+  const root = path.resolve('/worktree');
+  const paths = developmentPaths(root);
   const args = localMigrationArguments(paths);
   assert.ok(args.includes('--local'));
   assert.ok(!args.includes('--remote'));
-  assert.equal(args[args.indexOf('--persist-to') + 1], '/worktree/.wrangler/reading-gestures-beta/state');
-  assert.equal(args[args.indexOf('--config') + 1], '/worktree/.wrangler/reading-gestures-beta/wrangler.json');
+  assert.equal(args[args.indexOf('--persist-to') + 1], path.join(root, '.wrangler/reading-gestures-beta/state'));
+  assert.equal(args[args.indexOf('--config') + 1], path.join(root, '.wrangler/reading-gestures-beta/wrangler.json'));
   assert.ok(!workerArguments(paths).includes('--remote'));
   assert.ok(!workerArguments(paths).includes('--local'), 'AI alone must remain available remotely');
 });

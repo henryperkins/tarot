@@ -1,6 +1,7 @@
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions, Log, LogLevel } from 'miniflare';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
 // No .dev.vars, remote bindings, credentials or external provider traffic.
 export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
@@ -11,6 +12,7 @@ export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
   let observed = 0;
   let bodyController;
   const headers = Promise.withResolvers();
+  const abort = Promise.withResolvers();
   const provider = {
     get calls() { return calls; },
     get observed() { return observed; },
@@ -32,6 +34,11 @@ export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
     stdin: { contents: `
       import { onRequestPost } from './functions/api/tts.js';
       export default { async fetch(request, env, ctx) {
+        if (request.headers.has('x-fixture-abort')) {
+          const controller = new AbortController();
+          ctx.waitUntil(env.ABORT.fetch('https://fixture.invalid/abort').then(() => controller.abort()));
+          request = new Request(request, { signal: controller.signal });
+        }
         const observe = body => {
           const reader = body.getReader();
           return new ReadableStream({
@@ -55,7 +62,7 @@ export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
           return fake();
         };
         return onRequestPost({ request, env: { ...env, AI: { run: async () => (await fake()).body } }, waitUntil: ctx.waitUntil.bind(ctx) });
-      } };`, resolveDir: new URL('../../', import.meta.url).pathname },
+      } };`, resolveDir: fileURLToPath(new URL('../../', import.meta.url)) },
     bundle: true, write: false, platform: 'browser', format: 'esm', target: 'es2022',
     logLevel: 'silent', external: ['cloudflare:*', 'node:*'], conditions: ['workerd', 'worker', 'browser']
   });
@@ -64,7 +71,11 @@ export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
     compatibilityDate, compatibilityFlags, host: '127.0.0.1', port: 0,
     unsafeDirectSockets: [{ entrypoint: 'default', host: '127.0.0.1', port: 0 }],
     d1Databases: ['DB'], bindings: { ELEVENLABS_API_KEY: 'fixture-not-a-credential' },
-    serviceBindings: { PROVIDER: () => provider.fetch(), OBSERVED: () => { observed++; return new Response(null, { status: 204 }); } },
+    serviceBindings: {
+      PROVIDER: () => provider.fetch(),
+      OBSERVED: () => { observed++; return new Response(null, { status: 204 }); },
+      ABORT: async () => { await abort.promise; return new Response(null, { status: 204 }); }
+    },
     outboundService: () => { throw new Error('External network blocked'); },
     log: new Log(LogLevel.NONE)
   }));
@@ -89,6 +100,8 @@ export async function createNarrationWorkerFixture({ mode = 'headers' } = {}) {
         statement = ''; trigger = false;
       }
     }
-    return { url, db, provider, async close() { provider.releaseHeaders(); provider.finish(); await mf.dispose(); } };
+    return { url, db, provider, abort: abort.resolve, async close() {
+      abort.resolve(); provider.releaseHeaders(); provider.finish(); await mf.dispose();
+    } };
   } catch (error) { await mf.dispose(); throw error; }
 }

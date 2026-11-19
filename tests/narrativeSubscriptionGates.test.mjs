@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
 import {
@@ -17,6 +18,7 @@ import { buildOpenAIResponsesPrompts } from '../functions/lib/narrativeBackends.
 import { createClaudeCodeServer } from '../services/claude-code/server.mjs';
 import { parseClaudeOutput } from '../services/claude-code/runner.mjs';
 import { once } from 'node:events';
+import { installNodeCliFixture, nodeCliPreload } from './helpers/nodeCliFixture.mjs';
 
 const apiSettings = {
   TEXT_PROVIDER: 'legacy', ANTHROPIC_API_KEY: 'must-not-use', OPENAI_API_KEY: 'must-not-use',
@@ -83,7 +85,7 @@ globalThis.fetch = async (url, options = {}) => {
 };
 `);
   const result = spawnSync(process.execPath, [
-    '--import', guard, 'scripts/evaluation/runNarrativeSamples.js',
+    '--import', pathToFileURL(guard).href, 'scripts/evaluation/runNarrativeSamples.js',
     '--backend', 'openai-native', '--env-profile', 'production', '--sample', 'single-new-role', '--out', output
   ], { encoding: 'utf8', timeout: 60000, env: { HOME: directory, PATH: process.env.PATH, ...env } });
   const requests = await readFile(capture, 'utf8').then(JSON.parse, () => []);
@@ -125,11 +127,11 @@ async function cliFixture(t, { authenticated = true, authMethod = 'claude.ai', f
   const output = path.join(directory, 'samples.json');
   const network = path.join(directory, 'network.txt');
   const guard = path.join(directory, 'guard.mjs');
-  await writeFile(guard, `import { writeFileSync } from 'node:fs';
+  await writeFile(guard, `${nodeCliPreload(executable)}
+import { writeFileSync } from 'node:fs';
 globalThis.fetch = () => { writeFileSync(${JSON.stringify(network)}, 'attempted'); throw new Error('PAID_NETWORK_DISABLED'); };
 `);
-  await writeFile(executable, `#!${process.execPath}
-import { writeFileSync } from 'node:fs';
+  await writeFile(executable, `import { writeFileSync } from 'node:fs';
 const args = process.argv.slice(2);
 if (args.includes('status')) {
   console.log(JSON.stringify({ loggedIn: ${authenticated}, authMethod: ${JSON.stringify(authMethod)}, apiProvider: 'firstParty', subscriptionType: 'max' }));
@@ -150,7 +152,7 @@ if (args.includes('status')) {
   const env = { HOME: directory, PATH: process.env.PATH, CLAUDE_CODE_EXECUTABLE: executable,
     CLAUDE_CODE_TIMEOUT_MS: block ? '1000' : '30000', ...apiSettings };
   const result = spawnSync(process.execPath, [
-    '--import', guard, 'scripts/evaluation/runNarrativeSamples.js',
+    '--import', pathToFileURL(guard).href, 'scripts/evaluation/runNarrativeSamples.js',
     '--env-profile', 'shell', '--sample', 'single-new-role', '--out', output
   ], {
     encoding: 'utf8', timeout: 30000,
@@ -231,6 +233,7 @@ async function narrativePayload() {
 test('cancellation during CLI cleanup cannot qualify a completed response', async t => {
   const fixture = await cliFixture(t);
   assert.equal(fixture.status, 0, fixture.stderr);
+  t.after(installNodeCliFixture(fixture.env.CLAUDE_CODE_EXECUTABLE));
   const controller = new AbortController();
   const originalRm = fs.rm;
   t.mock.method(fs, 'rm', async (directory, options) => {

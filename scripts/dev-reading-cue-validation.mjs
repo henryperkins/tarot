@@ -1,9 +1,10 @@
-import { fork, spawnSync } from 'node:child_process';
+import { fork, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, readFile, readdir, realpath, rm, rmdir, symlink, writeFile } from 'node:fs/promises';
 import net from 'node:net';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { verifyOutputIntegrity } from './lib/readingCueOutputIntegrity.mjs';
 
@@ -16,7 +17,10 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const protectedPorts = new Set([8787, 5175, 8789, 9235]);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const privateName = /(?:^|\/)(?:\.[^/]+|[^/]*\.(?:pem|crt|key)|(?:auth|credentials|sessions|logs|state))(?:\/|$)/i;
-const within = (parent, child) => child === path.resolve(parent) || child.startsWith(path.resolve(parent) + path.sep);
+const within = (parent, child) => {
+  const relative = path.relative(parent, child);
+  return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
+};
 
 export function validationEnvironment(directory, source = process.env) {
   return { PATH: source.PATH || '/usr/bin:/bin', NODE_ENV: 'development', CI: 'true', NO_COLOR: '1',
@@ -40,13 +44,51 @@ function validateOptions({ host, ports, privateDirectory, sourceHead, live, expl
 
 async function assertNoLinks(location) {
   const absolute = path.resolve(location);
-  const segments = absolute.split(path.sep).filter(Boolean);
   let current = path.parse(absolute).root;
+  const segments = absolute.slice(current.length).split(path.sep).filter(Boolean);
   for (const segment of segments) {
     current = path.join(current, segment);
     const metadata = await lstat(current).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
     if (metadata?.isSymbolicLink()) throw new Error('Symlinked source/private path rejected.');
   }
+}
+
+function restrictWindowsDirectory(directory, created) {
+  const systemRoot = process.env.SystemRoot;
+  if (!systemRoot || !path.isAbsolute(systemRoot)) throw new Error('Windows directory ACL verification is unavailable.');
+  const powershell = path.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
+  const script = String.raw`
+$ErrorActionPreference = 'Stop'
+$location = $env:TABLEU_CUE_VALIDATION_DIRECTORY
+$item = Get-Item -LiteralPath $location -Force
+if (!$item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { exit 1 }
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$sid = $identity.User
+$owner = (Get-Acl -LiteralPath $location).GetOwner([Security.Principal.SecurityIdentifier])
+# Elevated tokens can default new objects to the Administrators group.
+# Only the directory exclusively created by this run may change ownership.
+if ($owner.Value -ne $sid.Value -and !($env:TABLEU_CUE_CREATED -eq '1' -and $owner.IsWellKnown('BuiltinAdministratorsSid'))) { exit 1 }
+$acl = [Security.AccessControl.DirectorySecurity]::new()
+$acl.SetOwner($sid)
+$acl.SetAccessRuleProtection($true, $false)
+$rule = [Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+$acl.AddAccessRule($rule)
+if ($identity.Owner.Value -ne $sid.Value) {
+  # An elevated token can also make the group owner of newly created files.
+  # An OWNER RIGHTS ACE suppresses the owner's implicit right to rewrite the DACL.
+  $ownerRights = [Security.Principal.SecurityIdentifier]::new('S-1-3-4')
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($ownerRights, 'Synchronize', 'ContainerInherit,ObjectInherit', 'InheritOnly', 'Allow'))
+}
+Set-Acl -LiteralPath $location -AclObject $acl
+if ((Get-Acl -LiteralPath $location).GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { exit 1 }
+if ($identity.Owner.Value -ne $sid.Value) { [Console]::Write($sid.Value) }
+`;
+  const result = spawnSync(powershell, ['-NoProfile', '-NonInteractive', '-Command', script], {
+    env: { SystemRoot: systemRoot, TABLEU_CUE_VALIDATION_DIRECTORY: directory, TABLEU_CUE_CREATED: created ? '1' : '0' },
+    windowsHide: true, timeout: 10000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']
+  });
+  if (result.status !== 0) throw new Error('Unable to set an owner-only ACL on the Windows validation directory.');
+  return result.stdout.trim();
 }
 
 /** Explicit enumerated paths only: no glob, recursive source copy, dotenv or symlink following. */
@@ -79,6 +121,18 @@ export async function captureValidationSource({ root: sourceRoot, destination, p
   }
   await freezeDirectories(destination);
   return { files, digest: hash(JSON.stringify(files)) };
+}
+
+export function dirtyValidationPaths(sourceRoot, sourceHead, files) {
+  const tree = spawnSync('git', ['ls-tree', '--full-tree', '-rz', sourceHead], {
+    cwd: sourceRoot, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, env: { PATH: process.env.PATH }
+  });
+  if (tree.status !== 0) throw new Error('Unable to identify HEAD source bytes.');
+  const headBlobs = new Map(tree.stdout.split('\0').filter(Boolean).map(entry => {
+    const tab = entry.indexOf('\t');
+    return [entry.slice(tab + 1), entry.slice(0, tab).split(' ')[2]];
+  }));
+  return files.filter(file => headBlobs.get(file.path) !== file.gitBlobSha1).map(file => file.path);
 }
 
 async function freezeDirectories(directory) {
@@ -120,14 +174,18 @@ async function preflight(ports, host) {
 
 async function terminateChild(child) {
   if (!child) return true;
+  if (!child.pid) return true; // A failed spawn never acquired a process.
   let exited = child.exitCode !== null || child.signalCode !== null;
   const exit = exited ? Promise.resolve(true) : new Promise(resolve => child.once('exit', () => { exited = true; resolve(true); }));
   const signal = value => {
-    try { process.kill(process.platform === 'win32' ? child.pid : -child.pid, value); }
+    try {
+      if (process.platform === 'win32') child.kill(value);
+      else process.kill(-child.pid, value);
+    }
     catch (error) { if (error.code !== 'ESRCH') throw error; }
   };
   const groupExists = () => {
-    if (process.platform === 'win32') return !exited;
+    if (process.platform === 'win32') return false; // The Windows job is drained separately.
     try { process.kill(-child.pid, 0); return true; } catch (error) { if (error.code === 'ESRCH') return false; throw error; }
   };
   const boundedExit = async delay => {
@@ -155,20 +213,61 @@ async function terminateChild(child) {
   return true;
 }
 
+// The guard pins the fork's process handle, confirms its identity over the
+// fork's pipes, then assigns it to a job before it can start any descendants.
+export function watchWindowsJob(child, directory) {
+  const systemRoot = process.env.SystemRoot;
+  const guard = spawn(path.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+    ['-NoProfile', '-NonInteractive', '-Command',
+      "$ErrorActionPreference = 'Stop'; Add-Type -Path $env:TABLEU_CUE_JOB_SOURCE; exit ([ReadingCueJob]::Watch([int]$env:TABLEU_CUE_CHILD_PID))"], {
+      windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'],
+      env: { SystemRoot: systemRoot, TEMP: path.join(directory, 'tmp'), TMP: path.join(directory, 'tmp'),
+        TABLEU_CUE_JOB_SOURCE: path.join(directory, 'runner/scripts/lib/readingCueWindowsJob.cs'), TABLEU_CUE_CHILD_PID: String(child.pid) }
+    });
+  // Either peer may already have exited when the other closes its pipe.
+  child.stdin.on('error', () => {});
+  guard.stdin.on('error', () => {});
+  let assigned = false;
+  createInterface({ input: guard.stdout }).on('line', line => {
+    if (line === 'identify') child.stdin.write('identify\n');
+    if (line === 'assigned') { assigned = true; child.stdin.end('assigned\n'); }
+  });
+  child.stdout.once('data', bytes => {
+    if (bytes.toString() === '!') guard.stdin.write('identified\n');
+  });
+  const finished = new Promise(resolve => {
+    guard.once('error', () => resolve(false));
+    guard.once('close', code => { if (!assigned) child.stdin.end(); resolve(code === 0); });
+  });
+  return async () => {
+    guard.stdin.end();
+    const timeout = setTimeout(() => guard.kill(), 10000);
+    try {
+      if (!await finished && assigned) throw new Error('Windows job shutdown could not be verified; private state retained.');
+    } finally { clearTimeout(timeout); }
+  };
+}
+
 export async function startReadingCueValidation({ host = '127.0.0.1', ports, privateDirectory, sourceHead,
-  live = false, explicitProviders = null, budget = null } = {}) {
+  live = false, explicitProviders = null, budget = null, signal } = {}) {
   validateOptions({ host, ports, privateDirectory, sourceHead, live, explicitProviders, budget });
+  signal?.throwIfAborted();
   const actualHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH } });
   if (actualHead.status !== 0 || actualHead.stdout.trim() !== sourceHead) throw new Error('Expected source HEAD is stale.');
   const directory = path.resolve(privateDirectory); const dependencies = await realpath(path.join(root, 'node_modules'));
-  if ([root, dependencies, '/home/ubuntu/tarot'].some(protectedRoot => within(protectedRoot, directory))) {
+  const worktrees = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH } });
+  const primary = worktrees.stdout?.split('\0')[0];
+  if (worktrees.status !== 0 || !primary?.startsWith('worktree ')) throw new Error('Unable to locate the primary checkout.');
+  if ([root, dependencies, primary.slice('worktree '.length), '/home/ubuntu/tarot'].some(protectedRoot => within(protectedRoot, directory))) {
     throw new Error('Private state must be outside source, dependencies and the primary checkout.');
   }
   await assertNoLinks(directory);
   const existing = await lstat(directory).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
   if (existing && (!existing.isDirectory() || (await readdir(directory)).length)) throw new Error('Private directory must be new or empty.');
   await preflight(ports, host);
-  const runId = randomUUID(); let child; let snapshot; let runnerSnapshot; let owned = false; let closing; let runtimeFailure = null; let outputFiles; let outputCompromised = false;
+  signal?.throwIfAborted();
+  const runId = randomUUID(); let child; let snapshot; let runnerSnapshot; let created = false; let owned = false; let closing; let runtimeFailure = null; let outputFiles; let outputCompromised = false;
+  let closeWindowsJob;
   const controller = new AbortController(); let starting = true; let finishStartup;
   const startupFinished = new Promise(resolve => { finishStartup = resolve; });
   const close = () => {
@@ -177,7 +276,10 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
       controller.abort();
       if (starting) await startupFinished;
       process.removeListener('SIGINT', onSignal); process.removeListener('SIGTERM', onSignal);
-      const childExited = await terminateChild(child);
+      signal?.removeEventListener('abort', onSignal);
+      let childExited;
+      try { childExited = await terminateChild(child); }
+      finally { await closeWindowsJob?.(); }
       let sourceIntegrity = true;
       for (const [folder, captured] of [['source', snapshot], ['runner', runnerSnapshot]]) if (captured) for (const file of captured.files) {
         try { if (hash(await readFile(path.join(directory, folder, file.path))) !== file.sha256) sourceIntegrity = false; } catch { sourceIntegrity = false; }
@@ -195,11 +297,17 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
   };
   const onSignal = () => { void close().catch(() => { process.exitCode = 1; }); };
   try {
-    if (!existing) await mkdir(directory, { mode: 0o700 });
+    if (!existing) {
+      await mkdir(directory, { mode: 0o700 });
+      created = true;
+    }
+    const explicitFileOwner = process.platform === 'win32' && restrictWindowsDirectory(directory, created);
     await chmod(directory, 0o700);
     await writeFile(path.join(directory, '.owner.json'), JSON.stringify({ runId }), { mode: 0o600, flag: 'wx' });
     owned = true;
     process.once('SIGINT', onSignal); process.once('SIGTERM', onSignal);
+    signal?.addEventListener('abort', onSignal, { once: true });
+    if (signal?.aborted) onSignal();
     for (const name of ['config', 'state', 'home/config', 'home/cache', 'home/data', 'home/state', 'tmp', 'logs', 'vite-cache', 'build']) {
       await mkdir(path.join(directory, name), { recursive: true, mode: 0o700 });
     }
@@ -207,31 +315,36 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
     snapshot = await captureValidationSource({ root, destination: path.join(directory, 'source'), signal: controller.signal });
     controller.signal.throwIfAborted();
     await chmod(path.join(directory, 'source'), 0o700);
-    await symlink(dependencies, path.join(directory, 'source', 'node_modules'), 'dir');
+    await symlink(dependencies, path.join(directory, 'source', 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     await chmod(path.join(directory, 'source'), 0o555);
-    runnerSnapshot = await captureValidationSource({ root, destination: path.join(directory, 'runner'),
-      paths: ['scripts/lib/readingCueValidationChild.mjs', 'scripts/lib/developmentServerSecurity.mjs', 'scripts/lib/readingCueOutputIntegrity.mjs'], signal: controller.signal });
+    const runnerPaths = ['scripts/lib/readingCueValidationChild.mjs', 'scripts/lib/developmentServerSecurity.mjs', 'scripts/lib/readingCueOutputIntegrity.mjs'];
+    if (process.platform === 'win32') runnerPaths.push('scripts/lib/readingCueWindowsJob.cs');
+    runnerSnapshot = await captureValidationSource({ root, destination: path.join(directory, 'runner'), paths: runnerPaths, signal: controller.signal });
     await chmod(path.join(directory, 'runner'), 0o700);
-    await symlink(dependencies, path.join(directory, 'runner/node_modules'), 'dir');
+    await symlink(dependencies, path.join(directory, 'runner/node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
     await chmod(path.join(directory, 'runner'), 0o555);
     const capturedHead = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH } });
     if (capturedHead.status !== 0 || capturedHead.stdout.trim() !== sourceHead) throw new Error('Source HEAD changed during capture.');
-    const tree = spawnSync('git', ['ls-tree', '--full-tree', '-rz', 'HEAD'], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, env: { PATH: process.env.PATH } });
-    if (tree.status !== 0) throw new Error('Unable to identify HEAD source bytes.');
-    const headBlobs = new Map(tree.stdout.split('\0').filter(Boolean).map(line => { const [meta, filename] = line.split('\t'); return [filename, meta.split(' ')[2]]; }));
     const buildIdentity = { runId, expectedHead: sourceHead, actualHead: actualHead.stdout.trim(),
-      dirtyPaths: snapshot.files.filter(file => headBlobs.get(file.path) !== file.gitBlobSha1).map(file => file.path), snapshotDigest: snapshot.digest, sourceFiles: snapshot.files,
+      dirtyPaths: dirtyValidationPaths(root, sourceHead, snapshot.files), snapshotDigest: snapshot.digest, sourceFiles: snapshot.files,
       lockfileSha256: snapshot.files.find(file => file.path === 'package-lock.json').sha256,
       runtimeSourceHashes: { entrypointSha256: loadedEntrypointSha256, runnerFiles: runnerSnapshot.files },
       sourceAllowlistVersion: sourceManifest.version, sourceAllowlistSha256: hash(sourceManifestBytes), sourceScope: sourceManifest.scope,
       mode: 'reading-cue-validation', dev: false, minify: 'esbuild', apiMode: 'offline-fail-closed',
       dataIdentity: 'unconfigured-offline-api', origins: Object.fromEntries(['frontend', 'api', 'optimized'].map(key => [key, `http://${host}:${ports[key]}`])) };
     const config = { directory, dependencies, ports, host, buildIdentity };
-    await writeFile(path.join(directory, 'config/runtime.json'), JSON.stringify(config), { mode: 0o600, flag: 'wx' });
+    const configPath = path.join(directory, 'config/runtime.json');
+    await writeFile(configPath, JSON.stringify(config), { mode: 0o600, flag: 'wx' });
+    if (explicitFileOwner) {
+      const result = spawnSync(path.join(process.env.SystemRoot, 'System32/icacls.exe'), [configPath, '/setowner', '*' + explicitFileOwner],
+        { windowsHide: true, timeout: 10000, stdio: 'ignore' });
+      if (result.status !== 0) throw new Error('Unable to set the Windows runtime configuration owner.');
+    }
     controller.signal.throwIfAborted();
-    child = fork(path.join(directory, 'runner/scripts/lib/readingCueValidationChild.mjs'), [path.join(directory, 'config/runtime.json')],
+    child = fork(path.join(directory, 'runner/scripts/lib/readingCueValidationChild.mjs'), [configPath],
       { cwd: path.join(directory, 'source'), detached: process.platform !== 'win32', execArgv: [],
         env: validationEnvironment(directory), silent: true });
+    if (process.platform === 'win32' && child.pid) closeWindowsJob = watchWindowsJob(child, directory);
     // Bounded private log tail. Never embed private child output in public exceptions.
     let log = '';
     const append = chunk => { log = (log + chunk.toString()).slice(-65536); };
@@ -258,7 +371,12 @@ export async function startReadingCueValidation({ host = '127.0.0.1', ports, pri
       database: { provisioned: true, usedByBrowser: false, persistence: 'private-local-d1', remote: false } };
     controller.signal.throwIfAborted(); starting = false; finishStartup();
     return { origins: buildIdentity.origins, buildIdentity, ownedResources, close };
-  } catch (error) { starting = false; finishStartup(); await close(); throw error; }
+  } catch (error) {
+    starting = false; finishStartup();
+    await close();
+    if (created && !owned) await rmdir(directory).catch(() => {});
+    throw error;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

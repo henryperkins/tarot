@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve, relative } from 'node:path';
+import { dirname, join, resolve, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getVectorGestureDetails } from '../../src/data/cardGestureArtwork.js';
 import { loadReadingCueRecordedCorpus } from './lib/readingCueQualification.mjs';
@@ -26,13 +26,14 @@ const edition = 'rws-immanuelle-vector';
 const digest = value => createHash('sha256').update(value).digest('hex');
 const ratio = (numerator, denominator) => denominator ? Number((numerator / denominator).toFixed(4)) : null;
 const sum = (values, field) => values.reduce((total, value) => total + value[field], 0);
+const relativePath = (from, to) => relative(from, to).split(sep).join('/');
 const sourceHashes = alignerPath => Object.fromEntries([
   alignerPath,
   join(dirname(alignerPath), '../data/cardGestureDetails/majors.js'),
   join(dirname(alignerPath), '../data/cardGestureDetails/cupsPentacles.js'),
   join(dirname(alignerPath), '../data/cardGestureDetails/wandsSwords.js'),
   join(dirname(alignerPath), '../data/cardGestureArtwork.js')
-].map(path => [relative(resolve(dirname(alignerPath), '..'), path), digest(readFileSync(path))]));
+].map(path => [relativePath(resolve(dirname(alignerPath), '..'), path), digest(readFileSync(path))]));
 
 function expectedMentions(sample) {
   return (corpus.recorded[sample.id] || []).map(([card, detailId, quote]) => {
@@ -135,8 +136,8 @@ const report = {
   generatedAt: new Date().toISOString(),
   worktreeHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
   sourceRevisionNote: 'Working-tree files may differ from HEAD; sourceHashes identify the actual evaluated implementations.',
-  provenance: { recordedPath: relative(root, samplePath), recordedGeneratedAt: recorded.generatedAt, recordedSha256: recordedSource.sha256,
-    corpusPath: relative(root, corpusPath), corpusSha256: digest(readFileSync(corpusPath)), method: corpus.method },
+  provenance: { recordedPath: relativePath(root, samplePath), recordedGeneratedAt: recorded.generatedAt, recordedSha256: recordedSource.sha256,
+    corpusPath: relativePath(root, corpusPath), corpusSha256: digest(readFileSync(corpusPath)), method: corpus.method },
   interpretationPolicy: 'Current dynamic fallback is intentionally literal/identity-only. Zero interpretation or personal-context associations is not evidence that the full semantic product requirement is fulfilled; generated association documents need their own evaluation.',
   limitations: [
     'Recorded gold is a selected set of supported physical-detail mentions, not an exhaustive literal or interpretation annotation. Unadjudicated outputs are listed, not counted automatically as false positives.',
@@ -152,4 +153,4 @@ const report = {
 const output = resolve(root, options.get('--output') || 'output/reading-motion/evidence/remediation-2026-10-09/alignment-evaluation.json');
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
-console.log(JSON.stringify({ output: relative(root, output), current: current.summary, ...(baseline ? { baseline: baseline.summary } : {}) }, null, 2));
+console.log(JSON.stringify({ output: relativePath(root, output), current: current.summary, ...(baseline ? { baseline: baseline.summary } : {}) }, null, 2));

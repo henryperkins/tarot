@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { access, readFile, stat } from 'node:fs/promises';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { getAllCards, getCardGallerySrcSet, getCardImage, getCardPreviewImage } from '../src/lib/cardLookup.js';
 
@@ -21,7 +22,7 @@ test('every Gallery card has both renditions at their declared widths', async t 
       const [src, descriptor] = source.split(' ');
       const file = new URL(`../public${src}`, import.meta.url);
       await access(file);
-      const metadata = await sharp(file.pathname).metadata();
+      const metadata = await sharp(fileURLToPath(file)).metadata();
       assert.equal(metadata.width, Number.parseInt(descriptor, 10), `${card.name} ${descriptor}`);
       assert.equal(metadata.format, 'webp');
       if (descriptor === '360w') thumbnailBytes += (await stat(file)).size;

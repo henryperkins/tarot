@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { runCodexSubscription } from '../services/codex-subscription/runner.mjs';
+import { installNodeCliFixture } from './helpers/nodeCliFixture.mjs';
 
 const input = { task: 'reading', systemPrompt: 'Read the card.', messages: [{ role: 'user', content: 'The Star.' }] };
 async function fixture(t, { mismatch = false, fail = false } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'codex-stream-test-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const executable = path.join(directory, 'codex.mjs');
-  await writeFile(executable, `#!${process.execPath}
-import readline from 'node:readline';
+  await writeFile(executable, `import readline from 'node:readline';
 const args=process.argv.slice(2);const send=x=>console.log(JSON.stringify(x));
 if(args.includes('--version'))console.log('codex-cli 0.167.2');
 else if(args.includes('status'))console.error('Logged in using ChatGPT');
@@ -41,6 +41,7 @@ ${fail ? "send({method:'turn/completed',params:{threadId:'thread',turn:{id:'turn
 });
 }else process.exit(4);
 `, { mode: 0o700 });
+  t.after(installNodeCliFixture(executable));
   return { HOME: process.env.HOME, PATH: process.env.PATH, CODEX_SUBSCRIPTION_EXECUTABLE: executable };
 }
 
