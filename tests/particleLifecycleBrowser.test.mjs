@@ -1,10 +1,10 @@
-/* global window, document, requestAnimationFrame */
+/* global window, document */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { chromium, webkit } from 'playwright';
+import { chromium, expect, webkit } from '@playwright/test';
 import sharp from 'sharp';
 import { createServer } from 'vite';
 
@@ -72,7 +72,7 @@ test('real particle engine paints presets and releases every canvas owner', { ti
       configFile: path.resolve('vite.config.js'),
       cacheDir,
       logLevel: 'error',
-      optimizeDeps: { entries: [], include: ['react', 'react-dom/client', '@tsparticles/engine', '@tsparticles/slim'] },
+      optimizeDeps: { noDiscovery: true, include: ['react', 'react-dom/client', 'react/jsx-dev-runtime', '@tsparticles/engine', '@tsparticles/slim'] },
       server: { host: '127.0.0.1', port: 0, strictPort: true, open: false },
       plugins: [{
         name: 'particle-compatibility-fixture',
@@ -98,8 +98,8 @@ test('real particle engine paints presets and releases every canvas owner', { ti
           const errors = [];
           page.on('pageerror', error => errors.push(error.message));
           await page.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
-          await page.goto(`${origin}${fixturePath}`);
-          await page.waitForFunction(() => Boolean(window.particleTest));
+          await page.goto(`${origin}${fixturePath}`, { waitUntil: 'commit', timeout: 30000 });
+          await page.waitForFunction(() => Boolean(window.particleTest), undefined, { timeout: 30000 });
           if (!await page.evaluate(() => typeof globalThis.OffscreenCanvas === 'function')) {
             t.diagnostic('OffscreenCanvas is unavailable. Checking decorative fallback.');
             await page.evaluate(() => window.particleTest.observeFailedLoads());
@@ -119,15 +119,12 @@ test('real particle engine paints presets and releases every canvas owner', { ti
               const containers = window.particleTest.engine.items;
               return Boolean(canvas?.width && canvas.height && containers.length === 1 && containers[0].started);
             }, generation);
-            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-            // v4 may transfer its canvas to a worker; inspect rendered pixels rather than getContext().
-            const screenshot = await page.locator('canvas').screenshot();
-            const { data, info } = await sharp(screenshot).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-            let painted = false;
-            for (let i = 0; i < data.length; i += info.channels) {
-              if (data[i] > 30 || data[i + 1] > 30 || data[i + 2] > 30) { painted = true; break; }
-            }
-            assert.ok(painted, `${preset} must paint visible particles`);
+            // Worker paint can arrive after the main thread has advanced several frames.
+            const canvas = page.locator(`[data-generation="${generation}"] canvas`);
+            await expect.poll(async () => {
+              const { channels } = await sharp(await canvas.screenshot()).stats();
+              return channels.slice(0, 3).some(channel => channel.max > 30);
+            }, { timeout: 10000, message: `${preset} must paint visible particles` }).toBe(true);
           }
           await page.emulateMedia({ reducedMotion: 'reduce' });
           await page.waitForFunction(() => !document.querySelector('canvas') && window.particleTest.engine.items.length === 0);
