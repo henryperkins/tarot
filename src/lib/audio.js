@@ -12,6 +12,12 @@ let ambienceAudio = null;
 // new URL is what makes a returning browser fetch the new bytes.
 const AMBIENCE_URL = '/sounds/ambience.mp3?v=2';
 const AMBIENCE_BASE_VOLUME = 0.2;
+// Interactions a browser accepts as permission to start audible playback.
+const AMBIENCE_RETRY_EVENTS = ['click', 'touchend', 'keydown'];
+// Identifies the latest start or stop. A play() promise from an earlier one
+// can settle afterwards and must not change what the later one decided.
+let ambienceAttempt = 0;
+let ambienceRetryListener = null;
 let ambienceSwellTimer = null;
 let ambienceVolumeRaf = null;
 let ttsAudio = null;
@@ -160,20 +166,71 @@ export function playFlip() {
   }
 }
 
-export function toggleAmbience(on) {
-  if (typeof Audio === 'undefined' || (!on && !ambienceAudio)) return;
+function clearAmbienceRetry() {
+  if (!ambienceRetryListener) return;
+  if (typeof window !== 'undefined') {
+    AMBIENCE_RETRY_EVENTS.forEach(type => {
+      window.removeEventListener(type, ambienceRetryListener, { capture: true });
+    });
+  }
+  ambienceRetryListener = null;
+}
+
+// Autoplay was refused. Keep the intent and start the same loop inside the
+// reader's next interaction. The loop's own play() has to run there: the
+// silent unlock clip does not start it, and Safari grants playback to the
+// element played during the interaction rather than to the page.
+function awaitAmbienceInteraction() {
+  if (ambienceRetryListener || typeof window === 'undefined') return;
+  ambienceRetryListener = () => startAmbiencePlayback();
+  AMBIENCE_RETRY_EVENTS.forEach(type => {
+    window.addEventListener(type, ambienceRetryListener, { capture: true, passive: true });
+  });
+}
+
+function startAmbiencePlayback() {
+  const audio = ambienceAudio;
+  if (!audio) return;
+  const attempt = ++ambienceAttempt;
+  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
+  let started;
   try {
+    started = audio.play();
+  } catch (error) {
+    started = Promise.reject(error);
+  }
+  Promise.resolve(started).then(() => {
+    if (isCurrent()) clearAmbienceRetry();
+  }, error => {
+    if (!isCurrent()) return;
+    // Only a refusal for lack of interaction is worth another try. An
+    // interrupted or unplayable loop would fail again on every tap.
+    if (error?.name === 'NotAllowedError') awaitAmbienceInteraction();
+    else clearAmbienceRetry();
+  });
+}
+
+/**
+ * Start or stop the ambience loop. Call it for On from inside the interaction
+ * that asked for it. When the browser refuses the start (a saved preference
+ * restored on page load), the loop starts on the next click, tap or keypress.
+ */
+export function toggleAmbience(on) {
+  if (typeof Audio === 'undefined') return;
+  try {
+    if (!on) {
+      ambienceAttempt++;
+      clearAmbienceRetry();
+      ambienceAudio?.pause();
+      return;
+    }
     ensureGlobalCleanupListeners();
     if (!ambienceAudio) {
       ambienceAudio = new Audio(AMBIENCE_URL);
       ambienceAudio.loop = true;
       ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
     }
-    if (on) {
-      ambienceAudio.play()?.catch(() => {});
-    } else {
-      ambienceAudio.pause();
-    }
+    startAmbiencePlayback();
   } catch {
     // ignore autoplay / interruption errors
   }
@@ -1078,6 +1135,8 @@ export function cleanupAudio() {
       flipAudio.pause();
       flipAudio = null;
     }
+    ambienceAttempt++;
+    clearAmbienceRetry();
     if (ambienceAudio) {
       ambienceAudio.pause();
       ambienceAudio = null;

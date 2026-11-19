@@ -4,13 +4,34 @@ import { readFile } from 'node:fs/promises';
 import { cleanupAudio, initAudio, playFlip, toggleAmbience } from '../src/lib/audio.js';
 import { decodeMp3, measureLoop } from '../scripts/lib/audioLevels.mjs';
 
+// Interaction listeners attach to window. This one also reports how many are
+// attached, because a listener left behind is otherwise invisible.
+class ListeningWindow extends EventTarget {
+  #listeners = new Map();
+  addEventListener(type, listener, options) {
+    this.#listeners.set(type, (this.#listeners.get(type) ?? new Set()).add(listener));
+    super.addEventListener(type, listener, options);
+  }
+  removeEventListener(type, listener, options) {
+    this.#listeners.get(type)?.delete(listener);
+    super.removeEventListener(type, listener, options);
+  }
+  listening(type) { return this.#listeners.get(type)?.size ?? 0; }
+}
+
 const originalAudio = globalThis.Audio;
+const originalWindow = globalThis.window;
 let players;
-let rejectPlayback;
+// Returns the error a browser refuses a start with, or nothing to accept it.
+let refusePlayback;
+// Returns the promise of an accepted start for the test to settle, or nothing.
+let delayPlayback;
 
 beforeEach(() => {
   players = [];
-  rejectPlayback = false;
+  refusePlayback = null;
+  delayPlayback = null;
+  globalThis.window = new ListeningWindow();
   globalThis.Audio = class {
     constructor(src) {
       this.src = src;
@@ -21,8 +42,12 @@ beforeEach(() => {
     }
     play() {
       this.playCount++;
+      // A refused start leaves the element paused. An accepted one plays,
+      // even when it is interrupted afterwards.
+      const refusal = refusePlayback?.(this);
+      if (refusal) return Promise.reject(refusal);
       this.paused = false;
-      return rejectPlayback ? Promise.reject(new Error('Playback interrupted')) : Promise.resolve();
+      return delayPlayback?.(this) ?? Promise.resolve();
     }
     pause() { this.paused = true; }
   };
@@ -32,6 +57,8 @@ afterEach(() => {
   cleanupAudio();
   if (originalAudio === undefined) delete globalThis.Audio;
   else globalThis.Audio = originalAudio;
+  if (originalWindow === undefined) delete globalThis.window;
+  else globalThis.window = originalWindow;
 });
 
 test('initialization and disabled ambience do not create or fetch sound players', () => {
@@ -84,7 +111,7 @@ test('cleanup releases sound players and later interactions can recreate them', 
 });
 
 test('interrupted playback is handled without an unhandled promise rejection', async () => {
-  rejectPlayback = true;
+  delayPlayback = () => Promise.reject(new Error('Playback interrupted'));
   playFlip();
   toggleAmbience(true);
   await new Promise(resolve => setImmediate(resolve));
@@ -99,6 +126,180 @@ test('sound actions safely do nothing when the browser Audio API is unavailable'
     toggleAmbience(true);
     toggleAmbience(false);
   });
+});
+
+// --- Ambience start, autoplay denial and gesture retry ------------------------
+
+const autoplayDenied = () => new DOMException("play() failed because the user didn't interact with the document first.", 'NotAllowedError');
+const settle = () => new Promise(resolve => setImmediate(resolve));
+const gesture = (type = 'click') => globalThis.window.dispatchEvent(new Event(type));
+// How many listeners wait for each interaction that can start the loop.
+const waitingFor = () => ['click', 'touchend', 'keydown'].map(type => globalThis.window.listening(type));
+
+// A blocked start followed by the given interaction, on one player.
+async function blockedStart() {
+  refusePlayback = autoplayDenied;
+  toggleAmbience(true);
+  await settle();
+  refusePlayback = null;
+  return players.at(-1);
+}
+
+for (const type of ['click', 'touchend', 'keydown']) {
+  test(`a blocked ambience start plays the same loop on the next ${type}`, async () => {
+    const player = await blockedStart();
+    assert.equal(player.paused, true, 'a refused start must not look like playback');
+    assert.deepEqual(waitingFor(), [1, 1, 1]);
+    gesture(type);
+    assert.equal(player.playCount, 2, 'the retry must call play() inside the interaction');
+    assert.equal(player.paused, false);
+    assert.equal(players.length, 1);
+  });
+}
+
+test('a started ambience loop stops listening for interactions', async () => {
+  const player = await blockedStart();
+  gesture();
+  await settle();
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  gesture('keydown');
+  assert.equal(player.playCount, 2);
+});
+
+test('an interaction the browser still refuses keeps the ambience retry for the next one', async () => {
+  refusePlayback = autoplayDenied;
+  toggleAmbience(true);
+  await settle();
+  const player = players.at(-1);
+  gesture('keydown');
+  await settle();
+  assert.equal(player.paused, true);
+  assert.deepEqual(waitingFor(), [1, 1, 1], 'still waiting, without a second set of listeners');
+  refusePlayback = null;
+  gesture('click');
+  assert.equal(player.playCount, 3);
+  assert.equal(player.paused, false);
+});
+
+test('turning ambience off before any interaction cancels the pending start', async () => {
+  const player = await blockedStart();
+  toggleAmbience(false);
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  gesture('keydown');
+  assert.equal(player.playCount, 1);
+  assert.equal(player.paused, true);
+});
+
+test('a refusal that lands after ambience was turned off does not wait for an interaction', async () => {
+  refusePlayback = autoplayDenied;
+  toggleAmbience(true);
+  // The refusal is delivered asynchronously; Off gets in first.
+  toggleAmbience(false);
+  await settle();
+  refusePlayback = null;
+  gesture();
+  assert.equal(players.at(-1).playCount, 1);
+});
+
+test('rapid off and on leaves one playing loop and ignores the interrupted start', async () => {
+  const interrupted = Promise.withResolvers();
+  let starts = 0;
+  delayPlayback = () => (++starts === 1 ? interrupted.promise : null);
+  toggleAmbience(true);
+  toggleAmbience(false);
+  toggleAmbience(true);
+  interrupted.reject(new DOMException('The play() request was interrupted by a call to pause().', 'AbortError'));
+  await settle();
+  const [player] = players;
+  assert.equal(players.length, 1);
+  assert.equal(player.paused, false);
+  gesture();
+  assert.equal(player.playCount, 2, 'an interrupted start is not an autoplay denial');
+});
+
+test('a refusal from an earlier start cannot re-arm the retry once a later start is playing', async () => {
+  const earlier = Promise.withResolvers();
+  let starts = 0;
+  delayPlayback = () => (++starts === 1 ? earlier.promise : null);
+  toggleAmbience(true);
+  toggleAmbience(false);
+  toggleAmbience(true);
+  await settle();
+  earlier.reject(autoplayDenied());
+  await settle();
+  const [player] = players;
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  assert.equal(player.playCount, 2);
+  assert.equal(player.paused, false);
+});
+
+test('a start that settles late cannot cancel the retry a later start is waiting on', async () => {
+  const earlier = Promise.withResolvers();
+  let starts = 0;
+  delayPlayback = () => (++starts === 1 ? earlier.promise : null);
+  toggleAmbience(true);
+  toggleAmbience(false);
+  refusePlayback = autoplayDenied;
+  toggleAmbience(true);
+  await settle();
+  earlier.resolve();
+  await settle();
+  refusePlayback = null;
+  assert.deepEqual(waitingFor(), [1, 1, 1]);
+  gesture();
+  assert.equal(players[0].paused, false);
+});
+
+for (const name of ['AbortError', 'NotSupportedError']) {
+  test(`a start that fails with ${name} is not retried on later interactions`, async () => {
+    refusePlayback = () => new DOMException('The element has no supported sources.', name);
+    toggleAmbience(true);
+    await settle();
+    refusePlayback = null;
+    gesture();
+    gesture('keydown');
+    assert.equal(players.at(-1).playCount, 1);
+  });
+}
+
+test('cleanup drops a pending ambience start and a remount retries once on its own loop', async () => {
+  const first = await blockedStart();
+  cleanupAudio();
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  assert.equal(first.playCount, 1, 'a released loop must not start');
+  const second = await blockedStart();
+  assert.notEqual(second, first);
+  assert.deepEqual(waitingFor(), [1, 1, 1]);
+  gesture();
+  assert.equal(second.playCount, 2, 'one interaction, one retry');
+  assert.equal(first.playCount, 1);
+  assert.equal(second.paused, false);
+});
+
+test('the ambience retry does not depend on the narration unlock listeners', async () => {
+  const audio = await import('../src/lib/audio.js?unlocked-before-ambience');
+  try {
+    audio.initAudio();
+    gesture();
+    await settle();
+    // The silent unlock clip has played and its listeners are gone.
+    const unlockClips = players.length;
+    refusePlayback = autoplayDenied;
+    audio.toggleAmbience(true);
+    await settle();
+    refusePlayback = null;
+    const player = players.at(-1);
+    gesture();
+    assert.equal(players.length, unlockClips + 1, 'no further unlock clip is needed');
+    assert.equal(player.playCount, 2);
+    assert.equal(player.paused, false);
+  } finally {
+    audio.cleanupAudio();
+  }
 });
 
 // The mix plays at about -44 dBFS RMS (20 Hz-20 kHz) once the player applies

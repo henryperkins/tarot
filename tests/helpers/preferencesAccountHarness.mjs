@@ -11,7 +11,9 @@ function deferred() {
 // Run the production provider with deterministic hooks/timers, as the tarot
 // state harness does. Only React scheduling, auth and browser/service I/O are
 // controlled; account reconciliation and persistence use the real modules.
-export async function preferencesAccountHarness({ owner = 'owner-a', values = new Map(), sourceOverride } = {}) {
+// `overrides` replaces any of the controlled dependencies below by name (and
+// can add a `window`), for tests that watch one of them.
+export async function preferencesAccountHarness({ owner = 'owner-a', values = new Map(), sourceOverride, overrides = {} } = {}) {
   const url = new URL('../../src/contexts/PreferencesContext.jsx', import.meta.url);
   const source = sourceOverride ?? await readFile(url, 'utf8');
   const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
@@ -78,7 +80,8 @@ export async function preferencesAccountHarness({ owner = 'owner-a', values = ne
     },
     queueMicrotask: run => microtasks.push(run),
     setTimeout(run, delay) { const id = ++timerId; timers.set(id, { run, delay }); return id; },
-    clearTimeout: id => timers.delete(id)
+    clearTimeout: id => timers.delete(id),
+    ...overrides
   };
   const changes = [];
   for (const node of ast.program.body) {

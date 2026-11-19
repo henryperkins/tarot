@@ -1,5 +1,17 @@
 import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, QUESTION } from './helpers/narrativeFixtures.js';
+import { ambiencePlayer, ambiencePlayers, canPlayMp3, requireInteractionForPlayback, trackPlayers } from './helpers/ambiencePlayer.js';
+
+// Opens Settings for a guest in a fresh tab, where the browser refuses
+// playback until an interaction, with the app's real players observable.
+async function openSettingsWithAmbience(page, browserName, saved) {
+  test.skip(!await canPlayMp3(page), 'This browser build cannot play MP3 audio; run the real-media checks on one that can.');
+  await requireInteractionForPlayback(page, browserName);
+  await trackPlayers(page);
+  if (saved !== undefined) await page.addInitScript(value => localStorage.setItem('tarot-ambience-enabled', value), saved);
+  await page.goto('/account');
+  return page.locator('#ambience-toggle');
+}
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Initial loading — ${platform}`, () => {
@@ -191,6 +203,68 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         expect(sounds).not.toContain('/sounds/flip.mp3');
         await ambience.click();
         await expect(ambience).toHaveAttribute('aria-checked', 'false');
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('a saved ambience preference starts playing on the first interaction', async ({ page, browserName }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        const ambience = await openSettingsWithAmbience(page, browserName, 'true');
+        await expect(ambience).toHaveAttribute('aria-checked', 'true');
+        // The restored preference was tried and refused: loaded, not running.
+        await expect.poll(async () => (await ambiencePlayer(page))?.paused).toBe(true);
+        expect((await ambiencePlayer(page)).currentTime).toBe(0);
+        // A development build mounts twice and releases its first loop.
+        const loops = (await ambiencePlayers(page)).length;
+
+        // An ordinary interaction, away from the audio controls.
+        await page.getByRole('heading', { level: 1, name: 'Settings', exact: true }).click();
+        await expect.poll(async () => (await ambiencePlayer(page)).currentTime).toBeGreaterThan(0);
+        // The loop that was refused is the one that plays; nothing else does.
+        const played = await ambiencePlayers(page);
+        expect(played).toHaveLength(loops);
+        expect(played.slice(0, -1).filter(loop => !loop.paused || loop.currentTime > 0)).toEqual([]);
+        await expect(ambience).toHaveAttribute('aria-checked', 'true');
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('a keyboard toggle to Off pauses ambience and stops its clock', async ({ page, browserName }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        const ambience = await openSettingsWithAmbience(page, browserName, 'true');
+        await page.getByRole('heading', { level: 1, name: 'Settings', exact: true }).click();
+        await expect.poll(async () => (await ambiencePlayer(page))?.currentTime ?? 0).toBeGreaterThan(0);
+
+        await ambience.focus();
+        await page.keyboard.press('Space');
+        await expect(ambience).toHaveAttribute('aria-checked', 'false');
+        expect((await ambiencePlayer(page)).paused).toBe(true);
+        const stoppedAt = (await ambiencePlayer(page)).currentTime;
+        await page.waitForTimeout(600);
+        expect((await ambiencePlayer(page)).currentTime).toBe(stoppedAt);
+        // Later interactions must not bring it back.
+        await page.getByRole('heading', { level: 1, name: 'Settings', exact: true }).click();
+        await page.waitForTimeout(300);
+        expect(await ambiencePlayer(page)).toEqual({ paused: true, currentTime: stoppedAt });
+      } finally {
+        await fixture.close();
+      }
+    });
+
+    test('turning ambience on with the switch starts playing inside that interaction', async ({ page, browserName }) => {
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        const ambience = await openSettingsWithAmbience(page, browserName);
+        await expect(ambience).toHaveAttribute('aria-checked', 'false');
+        expect(await ambiencePlayer(page)).toBeNull();
+        await ambience.focus();
+        await page.keyboard.press('Enter');
+        await expect(ambience).toHaveAttribute('aria-checked', 'true');
+        await expect.poll(async () => (await ambiencePlayer(page))?.currentTime ?? 0).toBeGreaterThan(0);
       } finally {
         await fixture.close();
       }

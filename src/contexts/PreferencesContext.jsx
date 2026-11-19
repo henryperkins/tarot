@@ -33,6 +33,7 @@ const ONBOARDING_STORAGE_KEY = 'tarot-onboarding-complete';
 const PERSONALIZATION_BANNER_KEY = 'tarot-personalization-banner';
 const NUDGE_STATE_STORAGE_KEY = 'tarot-nudge-state';
 const LOCATION_JOURNAL_CONSENT_KEY = 'tarot-location-journal-consent';
+const AMBIENCE_STORAGE_KEY = 'tarot-ambience-enabled';
 // Setup's one remaining disclosure; the ritual moved to the reading table.
 const DEFAULT_PREPARE_SECTIONS = {
   deck: false
@@ -169,19 +170,25 @@ export function PreferencesProvider({ children }) {
   }, [ttsSpeed]);
 
   // --- Audio: Ambience ---
-  const [ambienceOn, setAmbienceOn] = useState(() => safeStorage.getItem('tarot-ambience-enabled') === 'true');
+  const [ambienceOn, setAmbienceOnState] = useState(() => safeStorage.getItem(AMBIENCE_STORAGE_KEY) === 'true');
+  const ambienceOnRef = useRef(ambienceOn);
 
-  // Persist ambience setting and toggle audio
-  useEffect(() => {
-    safeStorage.setItem('tarot-ambience-enabled', ambienceOn.toString());
-    toggleAmbience(ambienceOn);
-  }, [ambienceOn]);
+  // A choice made in this tab. The player starts or stops here, inside the
+  // interaction: browsers only allow audible playback that begins with one,
+  // and an effect after the next render can come too late.
+  const setAmbienceOn = useCallback((value) => {
+    const next = Boolean(value);
+    ambienceOnRef.current = next;
+    safeStorage.setItem(AMBIENCE_STORAGE_KEY, next.toString());
+    toggleAmbience(next);
+    setAmbienceOnState(next);
+  }, []);
 
-  // Initialize audio on mount
+  // Initialize audio on mount. A saved On preference gets one start attempt;
+  // if the browser refuses it, the player starts on the next interaction.
   useEffect(() => {
     initAudio();
-    // We don't cleanup here because this context wraps the app and we might want audio to persist
-    // or we rely on app unmount. However, standard practice is usually cleanup on unmount.
+    if (ambienceOnRef.current) toggleAmbience(true);
     return () => {
       cleanupAudio();
     };
