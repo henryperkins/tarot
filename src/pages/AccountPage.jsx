@@ -216,6 +216,7 @@ export default function AccountPage() {
     setAutoNarrate,
     ambienceOn,
     setAmbienceOn,
+    ambienceError,
     ttsProvider,
     setTtsProvider,
     ttsSpeed,
@@ -2178,8 +2179,9 @@ export default function AccountPage() {
             <SettingsToggle
               id="ambience-toggle"
               label="Table Ambience"
-              description="Soft shuffle, candle crackle, and mystic room tone"
+              description="Card sounds, reading chimes, and a soft candlelit room tone"
               enabled={ambienceOn}
+              error={ambienceOn && ambienceError}
               onChange={() => setAmbienceOn(!ambienceOn)}
             />
           </div>

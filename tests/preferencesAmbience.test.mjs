@@ -20,7 +20,7 @@ test('a saved On preference gets one start attempt when the app opens', async ()
   const { harness, player, state } = await open({ saved: 'true' });
   harness.render();
   assert.equal(state.ambienceOn, true);
-  assert.deepEqual(player, [[true]]);
+  assert.deepEqual(player, [[true, { restored: true }]]);
 });
 
 test('a saved Off preference leaves the player alone when the app opens', async () => {
@@ -40,9 +40,9 @@ test('turning ambience on starts the player inside the interaction', async () =>
 test('turning ambience off stops the player inside the interaction', async () => {
   const { harness, player, state } = await open({ saved: 'true' });
   state.setAmbienceOn(false);
-  assert.deepEqual(player, [[true], [false]]);
+  assert.deepEqual(player, [[true, { restored: true }], [false]]);
   assert.equal(harness.render().ambienceOn, false);
-  assert.deepEqual(player, [[true], [false]]);
+  assert.deepEqual(player, [[true, { restored: true }], [false]]);
 });
 
 // --- Choices made in another tab ----------------------------------------------

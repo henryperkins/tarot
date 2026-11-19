@@ -10,7 +10,7 @@ import { handleRadioGroupKeyDown } from '../lib/radioGroupKeyboard.js';
  * Groups Voice (TTS) and Ambience controls together
  */
 export function AudioControls({ className = '' }) {
-  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider, ttsSpeed, setTtsSpeed } = usePreferences();
+  const { voiceOn, setVoiceOn, ambienceOn, setAmbienceOn, ambienceError, autoNarrate, setAutoNarrate, ttsProvider, setTtsProvider, ttsSpeed, setTtsSpeed } = usePreferences();
 
   const controlShellClass =
     'rounded-3xl border border-secondary/25 bg-surface/80 p-3 xs:p-4 sm:p-5 shadow-md shadow-secondary/15 backdrop-blur-lg';
@@ -67,9 +67,10 @@ export function AudioControls({ className = '' }) {
       id: 'ambience-toggle',
       label: 'Table ambience',
       tooltipContent:
-        'Soft shuffle, candle crackle, and mystic room tone beneath your reading.',
+        'Card sounds, reading chimes, and a soft candlelit room tone.',
       tooltipAria: 'About ambience soundscape',
-      srDescription: 'Play soft background ambience sound during readings.',
+      srDescription: 'Play card sounds and background ambience during readings.',
+      error: ambienceOn && ambienceError,
       active: ambienceOn,
       Icon: MusicNotes,
       onMessage: 'Ambient table sounds are playing.',
@@ -132,6 +133,7 @@ export function AudioControls({ className = '' }) {
                 <span id={descriptionId} className="sr-only">
                   {item.srDescription}
                 </span>
+                {item.error && <p id={`${item.id}-error`} role="alert" className="text-xs text-error">{item.error}</p>}
               </div>
 
               <GlowToggle
@@ -139,7 +141,7 @@ export function AudioControls({ className = '' }) {
                 onChange={item.onToggle}
                 disabled={item.disabled}
                 labelId={labelId}
-                describedBy={descriptionId}
+                describedBy={item.error ? `${descriptionId} ${item.id}-error` : descriptionId}
               />
             </div>
           );

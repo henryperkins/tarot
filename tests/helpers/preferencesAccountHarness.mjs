@@ -37,6 +37,9 @@ export async function preferencesAccountHarness({ owner = 'owner-a', values = ne
   const dependencies = {
     createContext: () => ({}),
     useContext: noop,
+    useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
+    subscribeToAmbience: noop,
+    getAmbienceError: () => null,
     useState(initial) {
       const index = cursor++;
       if (!(index in cells)) cells[index] = typeof initial === 'function' ? initial() : initial;
