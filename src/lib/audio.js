@@ -176,10 +176,11 @@ function clearAmbienceRetry() {
   ambienceRetryListener = null;
 }
 
-// Autoplay was refused. Keep the intent and start the same loop inside the
-// reader's next interaction. The loop's own play() has to run there: the
-// silent unlock clip does not start it, and Safari grants playback to the
-// element played during the interaction rather than to the page.
+// Start the loop inside the reader's next interaction: after the browser
+// refused a start, or for a choice that arrived from another tab. The loop's
+// own play() has to run there: the silent unlock clip does not start it, and
+// Safari grants playback to the element played during the interaction rather
+// than to the page.
 function awaitAmbienceInteraction() {
   if (ambienceRetryListener || typeof window === 'undefined') return;
   ambienceRetryListener = () => startAmbiencePlayback();
@@ -188,17 +189,28 @@ function awaitAmbienceInteraction() {
   });
 }
 
+// The loop is created on first use, so the file is not requested while
+// ambience is off or still waiting for an interaction.
+function ambienceLoop() {
+  if (!ambienceAudio) {
+    ambienceAudio = new Audio(AMBIENCE_URL);
+    ambienceAudio.loop = true;
+    ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
+  }
+  return ambienceAudio;
+}
+
 function startAmbiencePlayback() {
-  const audio = ambienceAudio;
-  if (!audio) return;
   const attempt = ++ambienceAttempt;
-  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
+  let audio = null;
   let started;
   try {
+    audio = ambienceLoop();
     started = audio.play();
   } catch (error) {
     started = Promise.reject(error);
   }
+  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
   Promise.resolve(started).then(() => {
     if (isCurrent()) clearAmbienceRetry();
   }, error => {
@@ -214,8 +226,12 @@ function startAmbiencePlayback() {
  * Start or stop the ambience loop. Call it for On from inside the interaction
  * that asked for it. When the browser refuses the start (a saved preference
  * restored on page load), the loop starts on the next click, tap or keypress.
+ *
+ * Pass `waitForInteraction` for an On that no interaction in this tab asked
+ * for, such as a choice made in another tab. Nothing is loaded or played
+ * until the reader's next click, tap or keypress here.
  */
-export function toggleAmbience(on) {
+export function toggleAmbience(on, { waitForInteraction = false } = {}) {
   if (typeof Audio === 'undefined') return;
   try {
     if (!on) {
@@ -225,12 +241,8 @@ export function toggleAmbience(on) {
       return;
     }
     ensureGlobalCleanupListeners();
-    if (!ambienceAudio) {
-      ambienceAudio = new Audio(AMBIENCE_URL);
-      ambienceAudio.loop = true;
-      ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
-    }
-    startAmbiencePlayback();
+    if (!waitForInteraction) startAmbiencePlayback();
+    else if (!ambienceAudio || ambienceAudio.paused) awaitAmbienceInteraction();
   } catch {
     // ignore autoplay / interruption errors
   }

@@ -194,6 +194,26 @@ export function PreferencesProvider({ children }) {
     };
   }, []);
 
+  // A choice made in another tab. It is already saved, so it is applied here
+  // and never written back. On waits for an interaction in this tab rather
+  // than starting a second loop in the background.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const applySavedAmbience = (event) => {
+      // A null key means the whole store was cleared.
+      if (event.key !== null && event.key !== AMBIENCE_STORAGE_KEY) return;
+      // The store can be newer than the event, so the store decides. A removed
+      // or cleared value reads as Off.
+      const next = safeStorage.getItem(AMBIENCE_STORAGE_KEY) === 'true';
+      if (next === ambienceOnRef.current) return;
+      ambienceOnRef.current = next;
+      toggleAmbience(next, { waitForInteraction: true });
+      setAmbienceOnState(next);
+    };
+    window.addEventListener('storage', applySavedAmbience);
+    return () => window.removeEventListener('storage', applySavedAmbience);
+  }, []);
+
   // --- Deck Style ---
   const [deckStyleId, setDeckStyleId] = useState(() => safeStorage.getItem('tarot-deck-style') || 'rws-1909');
 

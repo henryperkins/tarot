@@ -302,6 +302,54 @@ test('the ambience retry does not depend on the narration unlock listeners', asy
   }
 });
 
+// --- Ambience turned on from another tab --------------------------------------
+
+test('ambience turned on from another tab neither loads nor plays until this tab is interacted with', async () => {
+  toggleAmbience(true, { waitForInteraction: true });
+  await settle();
+  assert.deepEqual(players, [], 'a background tab must not fetch or start the loop');
+  assert.deepEqual(waitingFor(), [1, 1, 1]);
+  gesture();
+  assert.equal(players.length, 1);
+  assert.equal(players[0].src, '/sounds/ambience.mp3?v=2');
+  assert.equal(players[0].loop, true);
+  assert.equal(players[0].volume, 0.2);
+  assert.equal(players[0].paused, false);
+  await settle();
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+});
+
+test('turning ambience off cancels a start that was waiting for this tab to be interacted with', async () => {
+  toggleAmbience(true, { waitForInteraction: true });
+  toggleAmbience(false);
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  gesture('keydown');
+  assert.deepEqual(players, []);
+});
+
+test('a paused loop turned on from another tab resumes only on an interaction', async () => {
+  toggleAmbience(true);
+  toggleAmbience(false);
+  const [player] = players;
+  toggleAmbience(true, { waitForInteraction: true });
+  await settle();
+  assert.equal(player.paused, true);
+  assert.equal(player.playCount, 1);
+  gesture('touchend');
+  assert.equal(player.paused, false);
+  assert.equal(players.length, 1);
+});
+
+test('a loop that is already playing does not wait for an interaction', async () => {
+  toggleAmbience(true);
+  await settle();
+  toggleAmbience(true, { waitForInteraction: true });
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  assert.equal(players[0].playCount, 1);
+});
+
 // The mix plays at about -44 dBFS RMS (20 Hz-20 kHz) once the player applies
 // its base volume. Three decibels either way keeps it audible on small
 // speakers and at least 15 dB under narration at the loudest reading swell.

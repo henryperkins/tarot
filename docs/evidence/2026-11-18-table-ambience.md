@@ -74,9 +74,48 @@ The old-build rows reproduce the review. The browsers ran headless and muted.
 
 The production browser suite now holds three cases for this (`a saved ambience preference starts playing on the first interaction`, `a keyboard toggle to Off pauses ambience and stops its clock`, `turning ambience on with the switch starts playing inside that interaction`). In Chromium they run under the browser's own policy; the first two fail against the `d4b79797` build with the clock at 0 and pass against the new build, including on the development server, where React mounts twice and the first loop is released without playing. The third also passes on the old build, where Chromium ran the start inside the keypress.
 
+## Mute across tabs
+
+Tabs of one browser profile share `tarot-ambience-enabled`. A tab now applies a choice made in another when the browser's `storage` event arrives: it reads the saved value, moves its own switch, and stops or arms its own player. It does not write the value back. A removed key or cleared storage reads as Off.
+
+- Off stops a playing loop and cancels a start that was waiting for an interaction.
+- On moves the switch but starts nothing. The receiving tab creates and plays its loop on the reader's next click, tap or keypress there, so enabling ambience in one tab does not start a second loop behind it. Until then that tab does not request the file.
+
+The production browser suite checks this with two pages in one Playwright context. The second page's own switch does the writing, so the first page receives real `storage` events, and each page's real `Audio` elements are read directly.
+
+| Case | `d4b79797` build, Chromium | New build, Chromium | New build, WebKit |
+|---|---|---|---|
+| `an ambience choice made in another tab moves the switch here without saving it again` | fails: the first tab's switch stays Off | passes | passes |
+| `ambience turned on in another tab is not loaded here until an interaction` | fails: the switch stays Off | passes | passes |
+| `ambience muted in another tab stops here, and turned back on there it waits for an interaction here` | fails: the first tab stays On after the second mutes | passes | skipped, no MP3 playback |
+| `ambience muted in another tab cancels a start that was waiting for an interaction here` | fails: the first tab stays On | passes | skipped, no MP3 playback |
+| `the ambience switch still works when the browser blocks storage` | passes | passes | passes |
+
+The third case is the review's reproduction: enable in one tab, mute in the other, and the first still shows On. On the new build both switches show Off, the first tab's clock stops and stays stopped through a later click, and after the second tab turns ambience back on the first shows On with its loop still paused until it is clicked. The fourth case repeats this with the first tab's saved preference refused on load and still waiting: the mute cancels that wait, and the click it was waiting for leaves the loop at 0.
+
+The first case also removes the key and clears storage from the second tab (both turn the first tab's switch Off) and confirms the first tab never wrote the setting itself. The last case makes `window.localStorage` throw, as a browser with site data blocked does, and passed on the old build too: it guards the new code rather than reproducing a fault.
+
+Each guard was removed in turn, the app rebuilt, and the five cases rerun in Chromium:
+
+| Change to the new code | Case that fails |
+|---|---|
+| Off no longer cancels a waiting start | the fourth: the loop starts on the next click |
+| A received On starts playing at once | the second, third and fourth |
+| A received On creates the loop before an interaction | the second |
+| A received choice is written back | the first |
+| Cleared storage is ignored | the first |
+| A received Off moves the switch but leaves the player alone | the third and fourth |
+| The switch gives up when storage refuses the write | the fifth |
+
+An eighth change, taking the value from the event instead of reading the store, passes all five: in a browser the two agree. The unit test that delivers an event older than the saved value catches it.
+
+The same nine ambience cases pass on the development server in Chromium, where React mounts the provider twice.
+
 ### WebKit and Safari: pending
 
-WebKit 26.5 as shipped by Playwright for Windows cannot play MP3 on this host, as the review found. A muted control clip (`/sounds/flip.mp3`) and the ambience loop both stay at `readyState` 0 and `networkState` 2 with `play()` unsettled after three seconds, although `canPlayType('audio/mpeg')` answers `probably`. The three real-media cases detect this with the control clip and skip in the WebKit project here, so there is no WebKit playback result yet. Where an engine does not refuse autoplay itself, the cases apply the same rule from the page's activation state so the recovery path is still exercised.
+WebKit 26.5 as shipped by Playwright for Windows cannot play MP3 on this host, as the review found. A muted control clip (`/sounds/flip.mp3`) and the ambience loop both stay at `readyState` 0 and `networkState` 2 with `play()` unsettled after three seconds, although `canPlayType('audio/mpeg')` answers `probably`. The five cases that read the loop's clock detect this with the control clip and skip in the WebKit project here, so there is no WebKit playback result yet. Where an engine does not refuse autoplay itself, the cases apply the same rule from the page's activation state so the recovery path is still exercised.
+
+The three cases that need no playback (the switch following another tab, nothing loaded before an interaction, and blocked storage) run and pass in WebKit here.
 
 Still to run:
 
@@ -86,6 +125,7 @@ Still to run:
 ## Automated checks
 
 - `tests/audio.test.mjs` covers the player's recovery with a corrected audio double (a refused start now leaves it paused): a blocked start followed by a click, tap or keypress on the same loop; an interaction the browser still refuses; Off before the interaction; a refusal delivered after Off; rapid Off and On; late results from an earlier start; `AbortError` and `NotSupportedError`, which are not retried; and cleanup followed by a remount. Each guard was removed in turn to confirm a test fails without it. `tests/preferencesAmbience.test.mjs` runs the real provider and checks that a local choice starts or stops the player inside the call, before the next render.
+- For choices made in another tab, `tests/preferencesAmbience.test.mjs` sends the provider `storage` events: Off, On, a removed key, cleared storage, an event older than the saved value, and a change to an unrelated key. It checks that nothing is written back and that the local switch still works when storage refuses the write. `tests/audio.test.mjs` checks that an On which waits for an interaction creates no player and plays nothing until one arrives, that Off cancels the wait, and that a loop already playing is left alone. Eleven changes to the new code were each caught by a test.
 - `tests/audio.test.mjs` decodes the asset and asserts the played level (−44 dBFS ± 3 dB at the volume the player sets), a subsonic share under 1% with no DC offset, and a loop that starts and ends at its own level. All three failed against the previous track (−66.5 dBFS played, 99.93% subsonic, and a first 20 ms at −67.4 dBFS against −52.6 dBFS for the loop); the third also failed against the new mix with its Info frame removed (first 20 ms at −82.6 dBFS).
 - The production activation test now expects a versioned ambience request. It failed against the `d4b79797` build and passes against the new one. Sound files are still requested only after the switch is turned on.
 - The narration specs that use this MP3 as fixture audio pass in Chromium with the new file (22 of 22, as before).
