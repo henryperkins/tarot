@@ -1,10 +1,22 @@
 # Table Ambience — measurements and browser checks
 
 Type: evidence
-Status: measured and browser-tested locally; listening pass, WebKit playback and iPhone checks pending
-Updated: 2026-11-18 UTC
+Status: Playback verified in Chromium and Linux WebKit. Listening on physical speakers, headphones and iPhone Safari is pending.
+Updated: 2026-11-19 UTC
 
-This records the checks behind the Table Ambience remediation plan (`docs/superpowers/plans/2026-11-18-table-ambience.md`, reviewed at `d4b79797`). The work is on `fix/table-ambience`, run on a Windows 11 host with Node 24.15, Playwright 1.62.1, Chromium 151.0.7922.34 and WebKit 26.5.
+The November 18 checks for the Table Ambience remediation plan (`docs/superpowers/plans/2026-11-18-table-ambience.md`, reviewed at `d4b79797`) ran on `fix/table-ambience` on a Windows 11 host with Node 24.15, Playwright 1.62.1, Chromium 151.0.7922.34 and WebKit 26.5.
+
+## November 19 follow-up
+
+Table Ambience now controls the room loop, card sounds, scene transitions and reading chimes. Reader Voice controls speech independently. Settings keeps the saved On choice and displays a playback error beside the switch when the loop fails. A reconnect retries the loop. An On choice received from another tab waits for input in the receiving tab. [Offline Settings screenshot](2026-11-19-table-ambience-retry.png)
+
+The cue file contains eight sounds in 11.2 seconds of decoded audio and weighs 180,139 bytes. The browser requests it on the first enabled cue. At the scene's 0.08 gain, the sustained reading tone measures −47.0 dBFS RMS alongside the room loop at −44.0 dBFS. Regeneration reproduced both files byte for byte. [Cue generator](../../scripts/audio/generateCinematicSprite.mjs) · [Cue player](../../src/lib/SoundManager.js)
+
+All 35 production browser cases passed in Windows Chromium and all 35 passed in Linux WebKit using the iPhone 13 profile. The checks included actual MP3 playback, cue offsets in the decoded sprite, a failed download followed by reconnection, muting across tabs during a reading, and completion after text streamed in. Windows Playwright WebKit left a standalone MP3 at zero elapsed time and exposed no Web Audio context. [Production cases](../../e2e/initial-loading.spec.js)
+
+All 101 focused audio, preference and account checks passed. The full Windows Node suite passed 6,412 tests and skipped 32. Its 67 failures matched the pre-change run by test name and source location. Returning guests loaded 1,049,626 decoded JavaScript bytes in Chromium, and new guests loaded 1,112,870. Both passed the 1,180,000-byte startup budget. [Startup budget test](../../e2e/initial-loading.spec.js)
+
+All 35 Chromium narration checks passed on rerun. Windows WebKit had 10 narration failures per profile on desktop and emulated iPhone. Its particle-canvas check also failed on both the pre-change and current builds. [Narration suite](../../playwright.narration.config.js)
 
 ## The loop
 
@@ -160,7 +172,7 @@ Every failure above also fails at `d4b79797` on this host:
 
 The first `npm test` run of this set had one more failure: the Chromium half of `tests/particleLifecycleBrowser.test.mjs` timed out after 10 seconds loading its page. That test starts its own Vite server and loads none of the files changed here. Run alone straight afterwards it timed out the same way once, then passed, and it passed in the rerun reported above.
 
-## Not shown here
+## Scope limits of the November 18 checks
 
 - How the mix sounds. Nobody has listened to it.
 - Playback in WebKit or Safari on any device, and the level on an iPhone.

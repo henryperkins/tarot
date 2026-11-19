@@ -16,7 +16,6 @@ import { AppBottomRegion } from './components/AppBottomRegion';
 import { StepProgress } from './components/StepProgress';
 import { Gear, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { InstallFooter } from './components/InstallFooter';
-import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { LazyLoadBoundary } from './components/LazyLoadBoundary';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -57,6 +56,7 @@ const loadReadingDisplay = () => import('./components/ReadingDisplay');
 const ReadingDisplay = lazy(() => loadReadingDisplay().then(module => ({ default: module.ReadingDisplay })));
 const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
 const GuidedIntentionCoach = lazy(() => import('./components/GuidedIntentionCoach').then(module => ({ default: module.GuidedIntentionCoach })));
+const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard').then(module => ({ default: module.OnboardingWizard })));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -1425,14 +1425,19 @@ export default function TarotReading() {
         />
       )}
 
-      {/* Onboarding wizard for first-time visitors */}
-      <OnboardingWizard
-        isOpen={isOnboardingOpen}
-        onComplete={handleOnboardingComplete}
-        onSelectSpread={handleOnboardingSpreadSelect}
-        initialSpread={selectedSpread}
-        initialQuestion={userQuestion}
-      />
+      {isOnboardingOpen && (
+        <DeferredDialog
+          component={OnboardingWizard}
+          title="tutorial"
+          isOpen
+          onClose={() => setOnboardingDeferred(true)}
+          fallbackFocusRef={spreadSectionRef}
+          onComplete={handleOnboardingComplete}
+          onSelectSpread={handleOnboardingSpreadSelect}
+          initialSpread={selectedSpread}
+          initialQuestion={userQuestion}
+        />
+      )}
 
       </div>
     </div>

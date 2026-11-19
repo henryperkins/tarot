@@ -1,4 +1,4 @@
-const DEFAULT_SPRITE_URL = '/audio/cinematic-sprite.mp3';
+const DEFAULT_SPRITE_URL = '/audio/cinematic-sprite.mp3?v=2';
 
 const DEFAULT_SPRITE_MAP = {
   knock: { start: 0, duration: 0.28, essential: true },
@@ -6,7 +6,8 @@ const DEFAULT_SPRITE_MAP = {
   deal: { start: 1.0, duration: 0.42, essential: true },
   flip: { start: 1.46, duration: 0.38, essential: true },
   'reveal-bloom': { start: 1.9, duration: 0.78, essential: true },
-  'narrative-ambient': { start: 2.74, duration: 6.2, essential: false, loop: true },
+  // The decoded reading tone at this gain sits about 3 dB below the room loop.
+  'narrative-ambient': { start: 2.74, duration: 6.2, essential: false, loop: true, volume: 0.08 },
   'phase-transition': { start: 9.04, duration: 0.9, essential: false },
   'complete-chime': { start: 10.0, duration: 1.12, essential: true }
 };
@@ -26,7 +27,11 @@ function createAudioContext() {
   if (typeof window === 'undefined') return null;
   const Context = window.AudioContext || window.webkitAudioContext;
   if (!Context) return null;
-  return new Context();
+  try {
+    return new Context();
+  } catch {
+    return null;
+  }
 }
 
 function clampVolume(value) {
@@ -37,7 +42,8 @@ function clampVolume(value) {
 export class SoundManager {
   constructor({
     spriteUrl = DEFAULT_SPRITE_URL,
-    spriteMap = DEFAULT_SPRITE_MAP
+    spriteMap = DEFAULT_SPRITE_MAP,
+    muted = false
   } = {}) {
     this.spriteUrl = spriteUrl;
     this.spriteMap = spriteMap;
@@ -47,9 +53,11 @@ export class SoundManager {
     this.loadPromise = null;
     this.spriteLoadFailed = false;
     this.volume = 1;
-    this.muted = false;
+    this.muted = muted;
     this.reducedMotion = false;
     this.activeSources = new Map();
+    // The latest play() of each cue that has not produced a source yet.
+    this.pendingStarts = new Map();
   }
 
   ensureContext() {
@@ -87,6 +95,11 @@ export class SoundManager {
       return decoded;
     })().catch((err) => {
       this.spriteLoadFailed = true;
+      // Use the synth fallback for this outage. A reconnect permits the next
+      // requested cue to fetch the sprite again, even if this tab stayed open.
+      if (typeof window !== 'undefined') {
+        window.addEventListener?.('online', () => { this.spriteLoadFailed = false; }, { once: true });
+      }
       console.warn('[SoundManager] preload failed:', err);
       return null;
     });
@@ -114,6 +127,10 @@ export class SoundManager {
     if (this.masterGain) {
       this.masterGain.gain.value = this.muted ? 0 : this.volume;
     }
+    if (this.muted) {
+      this.pendingStarts.clear();
+      for (const key of this.activeSources.keys()) this.stop(key);
+    }
   }
 
   playSynthCue(name, cue, opts = {}) {
@@ -131,7 +148,7 @@ export class SoundManager {
     const now = this.context.currentTime;
     const source = this.context.createOscillator();
     const gainNode = this.context.createGain();
-    const level = clampVolume(opts.volume ?? 1) * profile.gain;
+    const level = clampVolume(opts.volume ?? cue.volume ?? 1) * profile.gain;
     const attack = Math.max(0.002, profile.attack || 0.01);
     const release = Math.max(0.04, profile.release || duration);
     const endTime = now + duration;
@@ -181,6 +198,8 @@ export class SoundManager {
 
   stop(name) {
     const key = String(name || '');
+    // A start that is still loading must not begin after this.
+    this.pendingStarts.delete(key);
     const active = this.activeSources.get(key);
     if (!active?.source) return;
     try {
@@ -202,16 +221,26 @@ export class SoundManager {
       return null;
     }
 
-    const buffer = this.audioBuffer || await this.preload();
-    if (!this.context || !this.masterGain) return null;
-
-    if (this.context.state === 'suspended') {
-      try {
-        await this.context.resume();
-      } catch {
-        // no-op
-      }
+    // `restart: false` keeps a cue going: one that is playing, or about to,
+    // is left alone instead of being started a second time. A second copy
+    // would replace the first in activeSources, and stop() could then never
+    // reach the first.
+    if (opts.restart === false && (this.activeSources.has(key) || this.pendingStarts.has(key))) {
+      return this.activeSources.get(key) || null;
     }
+    if (!this.ensureContext()) return null;
+    const request = {};
+    this.pendingStarts.set(key, request);
+
+    // Request the context during the user's gesture, before the asset fetch.
+    const resuming = this.context.state === 'suspended' ? this.context.resume().catch(() => {}) : null;
+    const buffer = this.audioBuffer || await this.preload();
+    if (resuming) await resuming;
+
+    // stop(), or a later play() of this cue, arrived while this one loaded.
+    if (this.pendingStarts.get(key) !== request) return null;
+    this.pendingStarts.delete(key);
+    if (!this.context || !this.masterGain) return null;
 
     if (opts.restart !== false) {
       this.stop(key);
@@ -226,7 +255,7 @@ export class SoundManager {
     source.buffer = buffer;
     source.connect(gainNode);
     gainNode.connect(this.masterGain);
-    gainNode.gain.value = clampVolume(opts.volume ?? 1);
+    gainNode.gain.value = clampVolume(opts.volume ?? cue.volume ?? 1);
 
     const start = Math.max(0, cue.start || 0);
     const duration = Math.max(0.01, opts.duration ?? cue.duration ?? 0.1);
@@ -265,4 +294,4 @@ export class SoundManager {
   }
 }
 
-export const cinematicSoundManager = new SoundManager();
+export const cinematicSoundManager = new SoundManager({ muted: true });

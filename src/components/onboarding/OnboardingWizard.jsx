@@ -1,19 +1,10 @@
-import { useState, useRef, useId, useMemo, useEffect, useCallback } from 'react';
+import { lazy, useState, useRef, useId, useMemo, useEffect, useCallback } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLandscape } from '../../hooks/useLandscape';
 import { useSmallScreen } from '../../hooks/useSmallScreen';
 import { useSwipeNavigation } from '../../hooks/useSwipeNavigation';
-// Control variant components (7 steps)
-import { WelcomeHero } from './WelcomeHero';
-import { SpreadEducation } from './SpreadEducation';
-import { QuestionCrafting } from './QuestionCrafting';
-import { RitualIntro } from './RitualIntro';
-import { AccountSetup } from './AccountSetup';
-import { JournalIntro } from './JournalIntro';
-import { JourneyBegin } from './JourneyBegin';
-// Trimmed variant components (4 steps)
 import { WelcomeStep, SpreadStep, IntentionStep, BeginStep } from './trimmed';
 import { OnboardingProgress } from './OnboardingProgress';
 import { CloseButton } from '../CloseButton';
@@ -23,6 +14,8 @@ import { getOnboardingVariant, getStepLabels, getTotalSteps } from '../../lib/on
 import { startOnboardingTimer } from '../../lib/onboardingMetrics';
 import { safeStorage } from '../../lib/safeStorage';
 import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
+
+const OnboardingControlStep = lazy(() => import('./OnboardingControlStep'));
 
 /**
  * OnboardingWizard - Multi-step onboarding flow for new users
@@ -42,14 +35,16 @@ import { BADGE_LABEL_CLASS } from '../../styles/labelClasses';
  * @param {string} initialSpread - Pre-selected spread key for replay (default: 'single')
  * @param {string} initialQuestion - Pre-filled question for replay (default: '')
  */
-export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSpread = 'single', initialQuestion = '' }) {
+export function OnboardingWizard({
+  isOpen, onComplete, onSelectSpread, initialSpread = 'single', initialQuestion = '', returnFocusRef
+}) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSpread, setSelectedSpread] = useState(initialSpread || 'single');
   const [question, setQuestion] = useState(initialQuestion || '');
   const [exitIntent, setExitIntent] = useState(null);
 
-  // Track previous isOpen to detect open transitions
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  // A freshly loaded wizard mounts open. Restore saved progress on that first open too.
+  const [prevIsOpen, setPrevIsOpen] = useState(false);
 
   // A/B test variant - determined once and cached
   const variant = useMemo(() => getOnboardingVariant(), []);
@@ -129,6 +124,7 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     containerRef: modalRef,
     trapFocus: false, // Disabled - FocusTrap library handles focus trapping
     initialFocusRef: closeButtonRef,
+    returnFocusRef,
     // Replay opens through a confirmation whose button disappears. Return to
     // the stable header opener when that transient activation target is gone.
     fallbackFocusSelector: '.guest-signin-button, .reading-settings, .guest-account__trigger, [aria-label="Replay tutorial"], .account-trigger[aria-haspopup="menu"]',
@@ -295,71 +291,6 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
     return null;
   }
 
-  // Render control variant (7 steps)
-  const renderControlStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <WelcomeHero
-            onNext={handleNext}
-            onSkip={handleSkipRequest}
-          />
-        );
-      case 2:
-        return (
-          <AccountSetup
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 3:
-        return (
-          <SpreadEducation
-            selectedSpread={selectedSpread}
-            onSelectSpread={handleSpreadSelect}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 4:
-        return (
-          <QuestionCrafting
-            question={question}
-            onQuestionChange={handleQuestionChange}
-            onNext={handleNext}
-            onBack={handleBack}
-          />
-        );
-      case 5:
-        return (
-          <RitualIntro
-            onNext={handleNext}
-            onBack={handleBack}
-            onSkipRitual={handleSkipRitual}
-          />
-        );
-      case 6:
-        return (
-          <JournalIntro
-            onNext={handleNext}
-            onBack={handleBack}
-            onGoToStep={handleStepSelect}
-          />
-        );
-      case 7:
-        return (
-          <JourneyBegin
-            selectedSpread={selectedSpread}
-            question={question}
-            onBegin={handleBegin}
-            onBack={handleBack}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   // Render trimmed variant (4 steps)
   const renderTrimmedStep = () => {
     switch (currentStep) {
@@ -396,9 +327,6 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
         return null;
     }
   };
-
-  // Select render function based on variant
-  const renderStep = variant === 'trimmed' ? renderTrimmedStep : renderControlStep;
 
   const exitTitle = exitIntent === 'resume' ? 'Save and resume later?' : 'Skip onboarding?';
   const exitMessage = exitIntent === 'resume'
@@ -509,7 +437,21 @@ export function OnboardingWizard({ isOpen, onComplete, onSelectSpread, initialSp
               {...swipeHandlers}
             >
               <div className={`w-full max-w-3xl mx-auto min-h-full ${isLandscape ? 'px-2 xxs:px-3 py-2 sm:px-4' : 'px-3 xxs:px-4 md:px-6 py-4 xs:py-5 md:py-8'}`}>
-                {renderStep()}
+                {variant === 'trimmed' ? renderTrimmedStep() : (
+                  <OnboardingControlStep
+                    step={currentStep}
+                    selectedSpread={selectedSpread}
+                    question={question}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    onSkip={handleSkipRequest}
+                    onSelectSpread={handleSpreadSelect}
+                    onQuestionChange={handleQuestionChange}
+                    onSkipRitual={handleSkipRitual}
+                    onGoToStep={handleStepSelect}
+                    onBegin={handleBegin}
+                  />
+                )}
               </div>
             </div>
           </div>

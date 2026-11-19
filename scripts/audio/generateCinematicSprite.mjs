@@ -2,12 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import lamejs from 'lamejs';
-
-const { Mp3Encoder } = lamejs;
+import { encodeMonoMp3 } from '../lib/encodeMonoMp3.mjs';
 
 const SAMPLE_RATE = 44100;
-const BITRATE_KBPS = 128;
 const TOTAL_DURATION_SECONDS = 11.2;
 const TOTAL_SAMPLES = Math.ceil(TOTAL_DURATION_SECONDS * SAMPLE_RATE);
 
@@ -37,10 +34,6 @@ const random = mulberry32(0x7A2F9E1B);
 
 function toSampleIndex(seconds) {
   return Math.max(0, Math.floor(seconds * SAMPLE_RATE));
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
 }
 
 function envelope(sampleIndex, totalSamples, attackSeconds, releaseSeconds) {
@@ -386,35 +379,8 @@ function finalizeMix(floatBuffer) {
   const targetPeak = 0.94;
   const scale = peak > targetPeak ? (targetPeak / peak) : 1;
 
-  const pcm = new Int16Array(floatBuffer.length);
-  for (let i = 0; i < floatBuffer.length; i += 1) {
-    const sample = clamp(floatBuffer[i] * scale, -1, 1);
-    pcm[i] = sample < 0
-      ? Math.round(sample * 32768)
-      : Math.round(sample * 32767);
-  }
-  return pcm;
-}
-
-function encodeMp3(monoPcm) {
-  const encoder = new Mp3Encoder(1, SAMPLE_RATE, BITRATE_KBPS);
-  const blockSize = 1152;
-  const chunks = [];
-
-  for (let offset = 0; offset < monoPcm.length; offset += blockSize) {
-    const sampleChunk = monoPcm.subarray(offset, offset + blockSize);
-    const encoded = encoder.encodeBuffer(sampleChunk);
-    if (encoded.length > 0) {
-      chunks.push(Buffer.from(encoded));
-    }
-  }
-
-  const flushed = encoder.flush();
-  if (flushed.length > 0) {
-    chunks.push(Buffer.from(flushed));
-  }
-
-  return Buffer.concat(chunks);
+  for (let i = 0; i < floatBuffer.length; i++) floatBuffer[i] *= scale;
+  return floatBuffer;
 }
 
 function resolveOutputPath() {
@@ -429,8 +395,7 @@ function resolveOutputPath() {
 function main() {
   const outputPath = resolveOutputPath();
   const mix = composeSprite();
-  const pcm = finalizeMix(mix);
-  const mp3 = encodeMp3(pcm);
+  const mp3 = encodeMonoMp3(finalizeMix(mix));
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, mp3);
