@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chmod, access, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, access, copyFile, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
 import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
@@ -51,7 +52,12 @@ $directory = Get-Acl -LiteralPath $location
 if (!$directory.AreAccessRulesProtected) { exit 1 }
 foreach ($acl in @($directory, (Get-Acl -LiteralPath (Join-Path $location 'config/runtime.json')))) {
   $rules = $acl.GetAccessRules($true, $true, $sidType)
-  if ($acl.GetOwner($sidType).Value -ne $sid -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid) { exit 1 }
+  if ($acl.GetOwner($sidType).Value -ne $sid) { exit 1 }
+  $userRules = @($rules | Where-Object { $_.IdentityReference.Value -eq $sid })
+  if ($userRules.Count -ne 1 -or $userRules[0].FileSystemRights -ne 'FullControl') { exit 1 }
+  foreach ($rule in $rules) {
+    if ($rule.IdentityReference.Value -ne $sid -and !($rule.IdentityReference.Value -eq 'S-1-3-4' -and $rule.FileSystemRights -eq 'Synchronize')) { exit 1 }
+  }
 }
 `, { TABLEU_CUE_VALIDATION_DIRECTORY: directory });
   assert.equal(result.status, 0, result.stderr || 'validation state and inherited config are accessible only to their owner');
@@ -117,6 +123,31 @@ test('occupied caller-owned port refuses startup without killing the foreign lis
   await assert.rejects(runtime.startReadingCueValidation(options(privateDirectory, ports)), /port|listen|EADDRINUSE/i);
   assert.equal(await (await fetch(`http://127.0.0.1:${ports.api}`)).text(), 'foreign-control');
   await missing(privateDirectory);
+});
+
+test('snapshot identity reports modified and untracked allowlisted files in a disposable repository', async t => {
+  const dir = await temporary(t);
+  const source = path.join(dir, 'repo');
+  const destination = path.join(dir, 'snapshot');
+  await mkdir(source);
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: source, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git('init', '--quiet');
+  await writeFile(path.join(source, 'clean.js'), 'original');
+  await writeFile(path.join(source, 'changed.js'), 'original');
+  git('add', 'clean.js', 'changed.js');
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgSign=false', 'commit', '-qm', 'fixture');
+  const head = git('rev-parse', 'HEAD');
+  await writeFile(path.join(source, 'changed.js'), 'edited');
+  await writeFile(path.join(source, 'new.js'), 'new');
+  try {
+    const { files } = await runtime.captureValidationSource({ root: source, destination, paths: ['clean.js', 'changed.js', 'new.js'] });
+    await writeFile(path.join(source, 'changed.js'), 'original');
+    assert.deepEqual(runtime.dirtyValidationPaths(source, head, files), ['changed.js', 'new.js']);
+  } finally { await runtime.removeValidationDirectory(destination); }
 });
 
 test('cold startup serves callable development JSX after the production build, with optimized DEV false', { timeout: 180000 }, async t => {
@@ -378,6 +409,11 @@ test('private ownership rejects nonempty paths and symlinked ancestors without d
       await unexpected.close();
     }, /outside/);
   }
+  // A linked worktree can live on another drive from the main checkout.
+  const list = spawnSync('git', ['worktree', 'list', '--porcelain', '-z'], { cwd: root, encoding: 'utf8' });
+  assert.equal(list.status, 0);
+  const primary = list.stdout.split('\0')[0].slice('worktree '.length);
+  await assert.rejects(runtime.startReadingCueValidation(options(primary, ports)), /outside/);
   await assert.rejects(runtime.startReadingCueValidation({ ...options(path.join(dir, 'stale'), ports), sourceHead: '0'.repeat(40) }), /stale/);
   await missing(path.join(dir, 'stale'));
 });
@@ -414,7 +450,7 @@ for (const signal of startupCancellation) test(`${signal} during acquired startu
     const controller = new AbortController();
     if (process.connected) process.once('message', () => controller.abort());
     try { await startReadingCueValidation({ ...${JSON.stringify(options(privateDirectory, ports))}, signal: controller.signal }); }
-    catch (error) { if (!/startup cancelled/.test(error.message)) throw error; }
+    catch (error) { if (!/startup cancelled/.test(error?.message || '')) throw error; }
     finally { if (process.connected) process.disconnect(); }`;
   const stdio = useIpc ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'];
   const harness = spawn(process.execPath, ['--input-type=module', '-e', script], { cwd: root, env: { PATH: process.env.PATH }, stdio });
@@ -445,8 +481,13 @@ for (const signal of startupCancellation) test(`${signal} during acquired startu
 test('premature child death closes its descendants and retained ownership before removing private state', { timeout: 180000 }, async t => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'cue-child-death-test-')); const ports = await freePorts();
   const privateDirectory = path.join(dir, 'run');
-  const owned = await runtime.startReadingCueValidation(options(privateDirectory, ports));
-  t.after(async () => { await owned.close(); await rm(dir, { recursive: true, force: true }); });
+  const started = runtime.startReadingCueValidation(options(privateDirectory, ports));
+  t.after(async () => {
+    const owned = await started.catch(() => null);
+    await owned?.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+  const owned = await started;
   let descendants = [];
   if (windows) {
     const result = powershell(
@@ -463,6 +504,40 @@ test('premature child death closes its descendants and retained ownership before
   if (owned.ownedResources.processGroup) assert.throws(() => process.kill(-owned.ownedResources.processGroup, 0), { code: 'ESRCH' });
   for (const child of descendants) {
     assert.throws(() => process.kill(child.ProcessId, 0), { code: 'ESRCH' }, `${child.Name} survived owner exit`);
+  }
+});
+
+test('Windows job drains a detached grandchild after both ancestors exit', { skip: !windows, timeout: 30000 }, async t => {
+  const directory = await temporary(t);
+  const lib = path.join(directory, 'runner/scripts/lib');
+  await mkdir(lib, { recursive: true });
+  await mkdir(path.join(directory, 'tmp'));
+  await copyFile(new URL('../scripts/lib/readingCueWindowsJob.cs', import.meta.url), path.join(lib, 'readingCueWindowsJob.cs'));
+  const intermediate = `const { spawn } = require('node:child_process');
+    const leaf = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 45000)'], { detached: true, stdio: 'ignore' });
+    console.log(leaf.pid);
+    leaf.unref();`;
+  const fixture = `import { windowsJobAssigned } from ${JSON.stringify(new URL('../scripts/lib/readingCueValidationChild.mjs', import.meta.url))};
+    import { execFileSync } from 'node:child_process';
+    if (await windowsJobAssigned()) {
+      const pid = Number(execFileSync(process.execPath, ['-e', ${JSON.stringify(intermediate)}], { encoding: 'utf8' }).trim());
+      process.send(pid);
+      setTimeout(() => {}, 45000);
+    }`;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', fixture], { stdio: ['pipe', 'pipe', 'ignore', 'ipc'] });
+  const exit = once(child, 'exit');
+  const closeJob = runtime.watchWindowsJob(child, directory);
+  try {
+    const [grandchild] = await Promise.race([once(child, 'message'), exit.then(() => { throw new Error('Job fixture exited before creating its grandchild'); })]);
+    assert.ok(Number.isInteger(grandchild) && grandchild > 0);
+    child.kill();
+    await exit;
+    process.kill(grandchild, 0);
+    await closeJob();
+    assert.throws(() => process.kill(grandchild, 0), { code: 'ESRCH' });
+  } finally {
+    child.kill();
+    await closeJob();
   }
 });
 

@@ -61,7 +61,7 @@ async function privateJson(file, { fs, uid }) {
         env: { SystemRoot: systemRoot, TABLEU_CUE_PRIVATE_FILE: file }, windowsHide: true, timeout: 10000
       }));
     } catch (error) {
-      return { reason: error.code === 10 ? 'owner' : error.code === 12 ? 'not-regular-file' : 'permissions' };
+      return { reason: error?.code === 10 ? 'owner' : error?.code === 12 ? 'not-regular-file' : 'permissions' };
     }
   } else {
     if ((info.mode & 0o077) !== 0) return { reason: 'permissions' };

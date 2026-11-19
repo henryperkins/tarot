@@ -30,6 +30,7 @@ async function privateFiles(t, { config = {}, eligibility = {} } = {}) {
     eligibilityRecordPath: eligibilityPath,
     isolation: { ports: { worker: 41001, frontend: 41002, gateway: 41003, inspector: 41004 }, privateDirectory: path.join(dir, 'runtime') },
     ...config }), { mode: 0o600 });
+  if (windows) setTestAcl(dir, '/setowner', '*' + currentSid, '/T');
   return { dir, configPath, eligibilityPath };
 }
 const budget = (snapshot = {}, decision = { allowed: true, reservedUsd: 0.2, remainingUsd: 3, reason: null }) => async () => ({

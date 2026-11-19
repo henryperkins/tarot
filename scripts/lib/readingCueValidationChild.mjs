@@ -4,6 +4,7 @@ import { chmod, lstat, readFile, readdir, realpath, writeFile } from 'node:fs/pr
 import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { secureDevelopmentServer, PRIVATE_FILE_DENIES } from './developmentServerSecurity.mjs';
 
@@ -231,6 +232,18 @@ export async function runOwnedValidation(configPath) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export async function windowsJobAssigned() {
+  const input = createInterface({ input: process.stdin });
+  try {
+    for await (const line of input) {
+      if (line === 'identify') process.stdout.write('!');
+      else return line === 'assigned';
+    }
+    return false;
+  } finally { input.close(); }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  && (process.platform !== 'win32' || await windowsJobAssigned())) {
   await runOwnedValidation(process.argv[2]).catch(() => { process.exitCode = 1; });
 }
