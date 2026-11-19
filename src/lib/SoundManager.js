@@ -56,6 +56,7 @@ export class SoundManager {
     this.muted = muted;
     this.reducedMotion = false;
     this.activeSources = new Map();
+    this.scheduledStarts = new Map();
     // The latest play() of each cue that has not produced a source yet.
     this.pendingStarts = new Map();
   }
@@ -77,13 +78,18 @@ export class SoundManager {
     if (this.audioBuffer) return this.audioBuffer;
     if (this.spriteLoadFailed) return null;
     if (this.loadPromise) return this.loadPromise;
+    if (!this.ensureContext()) return null;
 
+    // A reconnect can precede the rejection from the old connection. In
+    // either order, allow one new download when a cue is next requested.
+    let reconnected = false;
+    const onReconnect = () => {
+      reconnected = true;
+      this.spriteLoadFailed = false;
+    };
+    const networkEvents = globalThis.window;
+    networkEvents?.addEventListener?.('online', onReconnect, { once: true });
     this.loadPromise = (async () => {
-      if (!this.ensureContext()) {
-        this.loadPromise = null;
-        return null;
-      }
-
       const response = await fetch(this.spriteUrl, { cache: 'force-cache' });
       if (!response.ok) {
         throw new Error(`Failed to load cinematic sprite: ${response.status}`);
@@ -92,23 +98,16 @@ export class SoundManager {
       const bytes = await response.arrayBuffer();
       const decoded = await this.context.decodeAudioData(bytes);
       this.audioBuffer = decoded;
+      networkEvents?.removeEventListener?.('online', onReconnect);
       return decoded;
     })().catch((err) => {
-      this.spriteLoadFailed = true;
-      // Use the synth fallback for this outage. A reconnect permits the next
-      // requested cue to fetch the sprite again, even if this tab stayed open.
-      if (typeof window !== 'undefined') {
-        window.addEventListener?.('online', () => { this.spriteLoadFailed = false; }, { once: true });
-      }
+      this.spriteLoadFailed = !reconnected;
       console.warn('[SoundManager] preload failed:', err);
       return null;
-    });
-
-    const result = await this.loadPromise;
-    if (!result) {
+    }).finally(() => {
       this.loadPromise = null;
-    }
-    return result;
+    });
+    return this.loadPromise;
   }
 
   setReducedMotion(value) {
@@ -127,10 +126,32 @@ export class SoundManager {
     if (this.masterGain) {
       this.masterGain.gain.value = this.muted ? 0 : this.volume;
     }
-    if (this.muted) {
-      this.pendingStarts.clear();
-      for (const key of this.activeSources.keys()) this.stop(key);
-    }
+    if (this.muted) this.stopAll();
+  }
+
+  schedule(name, delayMs, opts) {
+    if (this.muted || !this.spriteMap[name]) return () => {};
+    const timer = setTimeout(() => {
+      this.scheduledStarts.delete(timer);
+      void this.play(name, opts);
+    }, delayMs);
+    this.scheduledStarts.set(timer, name);
+    return () => this.cancelScheduled(timer);
+  }
+
+  cancelScheduled(timer) {
+    if (this.scheduledStarts.delete(timer)) clearTimeout(timer);
+  }
+
+  stopActive(key) {
+    this.activeSources.get(key)?.stop();
+    this.activeSources.delete(key);
+  }
+
+  stopAll() {
+    for (const timer of this.scheduledStarts.keys()) this.cancelScheduled(timer);
+    this.pendingStarts.clear();
+    for (const key of this.activeSources.keys()) this.stopActive(key);
   }
 
   playSynthCue(name, cue, opts = {}) {
@@ -198,16 +219,11 @@ export class SoundManager {
 
   stop(name) {
     const key = String(name || '');
-    // A start that is still loading must not begin after this.
-    this.pendingStarts.delete(key);
-    const active = this.activeSources.get(key);
-    if (!active?.source) return;
-    try {
-      active.source.stop();
-    } catch {
-      // no-op
+    for (const [timer, scheduledName] of this.scheduledStarts) {
+      if (scheduledName === key) this.cancelScheduled(timer);
     }
-    this.activeSources.delete(key);
+    this.pendingStarts.delete(key);
+    this.stopActive(key);
   }
 
   async play(name, opts = {}) {
@@ -243,7 +259,7 @@ export class SoundManager {
     if (!this.context || !this.masterGain) return null;
 
     if (opts.restart !== false) {
-      this.stop(key);
+      this.stopActive(key);
     }
 
     if (!buffer) {

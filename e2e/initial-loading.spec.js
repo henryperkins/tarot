@@ -5,6 +5,7 @@ import {
 } from './helpers/ambiencePlayer.js';
 
 const AMBIENCE_KEY = 'tarot-ambience-enabled';
+const STARTUP_JS_BUDGET_BYTES = 1_180_000;
 
 // Checks that read the loop's clock need a browser build that plays MP3.
 async function requirePlayableMp3(page) {
@@ -84,8 +85,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       test(`production ${mode} stays within its startup JavaScript budget`, async ({ page }) => {
         const fixture = await createNarrativeFixture(page, { signedOut: true });
         try {
-          if (mode === 'setup') await openSetup(page);
-          else await page.goto('/');
+          if (mode === 'setup') {
+            await openSetup(page);
+          } else {
+            await page.goto('/');
+            await expect(page.getByRole('heading', { level: 2, name: 'Welcome to Tableu', exact: true })).toBeVisible();
+          }
           const isBuild = await page.locator('script[type="module"][src^="/assets/"]').count();
           test.skip(!isBuild, 'JavaScript budgets apply to the production build.');
           await page.waitForLoadState('networkidle');
@@ -93,7 +98,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             .filter(entry => /\.js(?:\?|$)/.test(entry.name))
             .reduce((total, entry) => total + entry.decodedBodySize, 0));
           expect(scriptBytes).toBeGreaterThan(0);
-          expect(scriptBytes).toBeLessThan(mode === 'onboarding' ? 1_500_000 : 1_400_000);
+          expect(scriptBytes).toBeLessThan(STARTUP_JS_BUDGET_BYTES);
           const readingOnlyScripts = await page.evaluate(() => performance.getEntriesByType('resource')
             .filter(entry => /\/(ReadingDisplay|CardModal|markdown)-[^/]+\.js(?:\?|$)/.test(entry.name))
             .map(entry => entry.name));
@@ -104,6 +109,40 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         }
       });
     }
+
+    test('confirming Replay Tutorial reopens a tutorial whose loader was dismissed', async ({ page }) => {
+      const fixture = await createNarrativeFixture(page);
+      const download = Promise.withResolvers();
+      await page.route('**/assets/OnboardingWizard-*.js', async route => {
+        await download.promise;
+        await route.continue();
+      });
+      const replay = async () => {
+        await page.getByRole('button', { name: /Account menu/ }).click();
+        await page.getByRole('menuitem', { name: 'Replay Tutorial' }).click();
+        const confirm = page.getByRole('dialog', { name: 'Replay tutorial?' }).getByRole('button', { name: 'Replay tutorial', exact: true });
+        await expect(confirm).toBeVisible();
+        await confirm.press('Enter');
+      };
+      try {
+        await openSetup(page);
+        test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk timing.');
+        await replay();
+        const pending = page.getByRole('dialog', { name: 'Opening tutorial…' });
+        await pending.getByRole('button', { name: 'Close' }).click();
+        await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+        const finished = page.waitForEvent('requestfinished', request => /\/assets\/OnboardingWizard-/.test(request.url()));
+        download.resolve();
+        await finished;
+        await expect(pending).toHaveCount(0);
+        await replay();
+        const wizard = page.getByRole('dialog', { name: 'Welcome to Tableu' });
+        await expect(wizard.getByRole('heading', { name: 'Welcome to Tableu', level: 2 })).toBeVisible();
+      } finally {
+        download.resolve();
+        await fixture.close();
+      }
+    });
 
     test('mobile Journal defers Journey and chart chunks until their disclosures request them', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });
@@ -619,6 +658,88 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expect.poll(() => loopingTones(page)).toBe(0);
       } finally {
         await settings?.close();
+        await fixture.close();
+      }
+    });
+
+    test('muting during a Celtic Cross reveal cancels the rest of the deal sounds across tabs', async ({ page }) => {
+      await requirePlayableMp3(page);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.clock.install();
+      await trackTones(page);
+      await page.addInitScript(key => {
+        localStorage.setItem(key, 'true');
+        window.addEventListener('storage', event => { if (event.key === key) window.__sharedAmbience = event.newValue; });
+      }, AMBIENCE_KEY);
+      const fixture = await createNarrativeFixture(page);
+      const dealCount = () => page.evaluate(() => window.__tones.filter(tone => tone.offset === 1).length);
+      let settings;
+      try {
+        await openSetup(page);
+        await page.getByRole('radio', { name: /Celtic Cross/ }).click();
+        await page.locator('#question-input').fill(QUESTION);
+        await page.getByRole('button', { name: /^Draw cards$/ }).click();
+        await page.getByRole('button', { name: /^Deal spread/ }).click();
+        await page.getByRole('button', { name: /^Reveal next:/ }).click();
+        await expect.poll(dealCount).toBe(1);
+        settings = await openSecondSettingsTab(page);
+        await expect(settings.ambience).toHaveAttribute('aria-checked', 'true');
+        await settings.ambience.focus();
+        await page.bringToFront();
+        await page.getByRole('button', { name: /^Reveal remaining cards/ }).focus();
+        await page.clock.pauseAt(new Date(await page.evaluate(() => Date.now()) + 1000));
+        await page.keyboard.press('Enter');
+        await page.clock.runFor(32);
+        await expect.poll(dealCount).toBe(2);
+        await settings.tab.keyboard.press('Enter');
+        await expect.poll(() => page.evaluate(() => window.__sharedAmbience)).toBe('false');
+        await settings.tab.keyboard.press('Enter');
+        await expect.poll(() => page.evaluate(() => window.__sharedAmbience)).toBe('true');
+        await page.keyboard.press('Shift');
+        await page.clock.runFor(1200);
+        expect(await dealCount()).toBe(2);
+      } finally {
+        await settings?.close();
+        await fixture.close();
+      }
+    });
+
+    test('leaving the reading cancels one-shot cues waiting for the sprite', async ({ page }) => {
+      await requirePlayableMp3(page);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await trackTones(page);
+      await trackPlayers(page);
+      await page.addInitScript(key => localStorage.setItem(key, 'true'), AMBIENCE_KEY);
+      const download = Promise.withResolvers();
+      const requested = Promise.withResolvers();
+      await page.route('**/audio/cinematic-sprite.mp3*', async route => {
+        requested.resolve();
+        await download.promise;
+        await route.continue();
+      });
+      await page.route('**/sounds/flip.mp3', async route => {
+        await download.promise;
+        await route.continue();
+      });
+      const fixture = await createNarrativeFixture(page, { signedOut: true });
+      try {
+        await openSetup(page);
+        await page.locator('#question-input').fill(QUESTION);
+        await page.getByRole('button', { name: /^Draw cards$/ }).click();
+        await page.getByRole('button', { name: /^Deal spread/ }).click();
+        await page.getByRole('button', { name: /^Reveal next:/ }).click();
+        await requested.promise;
+        await page.getByRole('link', { name: 'Settings', exact: true }).first().click();
+        await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+        expect(await page.evaluate(() => window.__players.filter(p => p.src.endsWith('/sounds/flip.mp3')).map(p => p.paused))).toEqual([true]);
+        download.resolve();
+        await expect.poll(() => page.evaluate(() => window.__decodedAudioBuffers)).toBe(1);
+        expect(await page.evaluate(() => window.__tones)).toEqual([]);
+        expect((await ambiencePlayer(page)).paused).toBe(false);
+      } finally {
+        download.resolve();
         await fixture.close();
       }
     });

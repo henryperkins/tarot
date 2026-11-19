@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { afterEach, beforeEach, mock, test } from 'node:test';
+import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import { SoundManager } from '../src/lib/SoundManager.js';
 import { decodeMp3 } from '../scripts/lib/audioLevels.mjs';
 
@@ -123,6 +123,53 @@ test('muting stops active cues and cancels pending starts even after a quick unm
   assert.equal(sounding(manager), 1);
 });
 
+describe('scheduled table cues', () => {
+  test('a component can cancel one timer and stop can cancel all timers for one cue', t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const manager = new SoundManager();
+    const played = [];
+    t.mock.method(manager, 'play', name => played.push(name));
+    const cancel = manager.schedule('flip', 10);
+    manager.schedule('flip', 20);
+    manager.schedule('deal', 30);
+    manager.schedule('deal', 40);
+    cancel();
+    manager.stop('deal');
+    t.mock.timers.tick(50);
+    assert.deepEqual(played, ['flip']);
+  });
+
+  test('muting discards scheduled cues and sounds requested while muted', t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const manager = new SoundManager();
+    const played = [];
+    t.mock.method(manager, 'play', name => played.push(name));
+    manager.schedule('deal', 90);
+    manager.mute();
+    manager.schedule('shuffle', 40);
+    manager.mute(false);
+    manager.schedule('knock', 20);
+    t.mock.timers.tick(100);
+    assert.deepEqual(played, ['knock']);
+  });
+
+  test('leaving the table stops active, scheduled and loading cues and permits the next reading', async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const manager = new SoundManager();
+    await manager.play('flip');
+    await manager.play(...AMBIENT);
+    const pending = manager.play('deal');
+    manager.schedule('shuffle', 90);
+    manager.stopAll();
+    t.mock.timers.tick(100);
+    assert.equal(await pending, null);
+    assert.equal(sounding(manager), 0);
+    assert.equal(manager.context.oscillators.length, 2);
+    await manager.play('deal');
+    assert.equal(sounding(manager), 1);
+  });
+});
+
 test('the versioned table sprite decodes and contains sound at every published cue offset', async () => {
   const manager = new SoundManager();
   const assets = new URL('../public/audio/', import.meta.url);
@@ -164,4 +211,27 @@ test('the sprite falls back once during an outage and retries on demand after re
   manager.context.decodeAudioData = async () => decoded;
   assert.equal(await manager.preload(), decoded);
   assert.equal(requests, 2);
+});
+
+test('a reconnect before the sprite download fails leaves the next enabled cue retryable', async () => {
+  globalThis.window = Object.assign(new EventTarget(), { AudioContext: FakeContext });
+  const download = Promise.withResolvers();
+  const decoded = { duration: 11.2 };
+  let requests = 0;
+  globalThis.fetch = async () => ++requests === 1
+    ? download.promise
+    : { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+  const manager = new SoundManager();
+  const pending = manager.play('shuffle');
+  manager.mute();
+  globalThis.window.dispatchEvent(new Event('online'));
+  download.reject(new Error('Connection lost during download'));
+  assert.equal(await pending, null);
+  assert.equal(await manager.play('deal'), null);
+  assert.equal(requests, 1, 'reconnecting or requesting a muted cue must not fetch');
+  manager.mute(false);
+  manager.context.decodeAudioData = async () => decoded;
+  const buffers = await Promise.all([manager.preload(), manager.preload()]);
+  assert.deepEqual(buffers, [decoded, decoded]);
+  assert.equal(requests, 2, 'concurrent requests share the retry');
 });

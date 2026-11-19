@@ -399,7 +399,7 @@ test('a failed loop reports its state and retries once when the connection retur
     assert.equal(players[1].paused, false);
     assert.equal(getAmbienceError(), null);
     assert.equal(changes.at(-1), null);
-    assert.equal(globalThis.window.listening('online'), 0);
+    assert.equal(globalThis.window.listening('online'), 1, 'keep observing reconnects during playback');
     gesture('online');
     assert.equal(players[1].playCount, 1);
   } finally {
@@ -446,6 +446,31 @@ test('a reconnect that arrives before the outstanding play promise rejects still
   assert.equal(players[0].paused, true);
   assert.equal(players[1].playCount, 1);
   assert.equal(getAmbienceError(), null);
+});
+
+test('a delayed mid-playback error consumes a reconnect once and keeps the alert until recovery', async () => {
+  toggleAmbience(true);
+  await settle();
+  const first = players[0];
+  const retry = Promise.withResolvers();
+  delayPlayback = () => retry.promise;
+  gesture('online');
+  assert.equal(players.length, 1, 'a healthy loop keeps playing on reconnect');
+  first.error = { code: 2 };
+  const staleError = first.onerror;
+  staleError();
+  assert.equal(players.length, 2, 'the delayed error reuses the observed reconnect');
+  assert.ok(getAmbienceError(), 'a pending replacement has yet to recover playback');
+  gesture('online');
+  staleError();
+  assert.equal(players.length, 2, 'a pending retry is shared');
+  retry.resolve();
+  await settle();
+  assert.equal(getAmbienceError(), null);
+  toggleAmbience(false);
+  assert.equal(globalThis.window.listening('online'), 0);
+  gesture('online');
+  assert.equal(players.length, 2);
 });
 
 test('a remote On in a quiet tab waits for a local gesture even if the network returns', async () => {

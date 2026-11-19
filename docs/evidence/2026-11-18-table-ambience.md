@@ -18,6 +18,16 @@ All 101 focused audio, preference and account checks passed. The full Windows No
 
 All 35 Chromium narration checks passed on rerun. Windows WebKit had 10 narration failures per profile on desktop and emulated iPhone. Its particle-canvas check also failed on both the pre-change and current builds. [Narration suite](../../playwright.narration.config.js)
 
+### PR review verification
+
+Three production tests failed on `7d430b72`. Replay Tutorial stayed closed after its loading dialog was dismissed, a Celtic Cross reveal played the remaining deals after another tab muted and unmuted the table, and pending cues started in Settings after the reader left the table. The tests hold the tutorial or audio download open, or advance the deal timers, to exercise each sequence. With the fixes, all 38 production cases passed in Windows Chromium and all 38 passed in Linux WebKit with the iPhone 13 profile. [Production regressions](../../e2e/initial-loading.spec.js)
+
+The room loop and the cue player now handle a reconnect arriving on either side of a media failure. The loop retries automatically, and the cue file retries when the next enabled cue requests it. All 115 focused tests passed. All 24 onboarding exit tests passed across Chromium, desktop WebKit and the iPhone WebKit profile, including focus returning to the button that opened a canceled confirmation. [Room loop tests](../../tests/audio.test.mjs) · [Cue tests](../../tests/soundManager.test.mjs) · [Onboarding exit tests](../../e2e/onboarding-exit-focus.spec.js)
+
+Chromium loaded 1,112,764 decoded JavaScript bytes for a new guest and 1,049,423 for a returning guest. Both paths enforce the same limit of less than 1,180,000 bytes. Adding 150,000 bytes to the onboarding chunk in a test build passed the old check. The corrected check rejected the final padded build at 1,262,764 bytes. [Startup budget tests](../../e2e/initial-loading.spec.js)
+
+The full Windows Node suite passed 6,417 tests, skipped 32 and failed 67. Running the affected files on the original PR commit with the same fixture bytes reproduced all 67 failures by test name and source location.
+
 ## The loop
 
 `public/sounds/ambience.mp3` is now rendered by `node scripts/audio/generateAmbience.mjs`. The script synthesizes a low-mid room tone, three card-handling sounds (a riffle and bridge at 6.6 s, an overhand shuffle at 16.9 s, two cards dealt at 24.6 s) and about eleven small clusters of candle crackle, with a short room reverb on the table sounds. It is seeded, and a rerun reproduced the committed file byte for byte. The format matches the track it replaces: MPEG-1 Layer III, mono, 44.1 kHz, 128 kbps.

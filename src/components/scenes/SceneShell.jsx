@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { animate } from '../../lib/motionAdapter';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSounds } from '../../hooks/useSounds';
@@ -170,11 +170,8 @@ export function SceneShell({
     return undefined;
   }, [activeScene, tableSoundsEnabled, prefersReducedMotion, sounds]);
 
-  useEffect(() => {
-    return () => {
-      sounds.stop('narrative-ambient');
-    };
-  }, [sounds]);
+  // Leaving the reading also invalidates cues still waiting for their first download.
+  useLayoutEffect(() => () => sounds.stopAll(), [sounds]);
 
   const ActiveScene = scenes[activeScene] || scenes.idle || null;
   const particlePreset = transitionMeta?.particlePreset

@@ -109,6 +109,7 @@ export function OnboardingWizard({
 
   const modalRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const exitOpenerRef = useRef(null);
   const stepContentRef = useRef(null);
   const focusedStepRef = useRef({ isOpen: false, step: null });
   const titleId = useId();
@@ -133,7 +134,9 @@ export function OnboardingWizard({
     isolateBackground: true,
     // Back asks before leaving onboarding; the guard keeps its history entry
     // while onboarding stays open and removes it once onboarding closes.
-    onBack: () => setExitIntent(intent => intent || 'resume'),
+    onBack: () => {
+      if (!isExitConfirmOpen) handleResumeRequest();
+    },
     backGuardId: 'onboarding',
   });
 
@@ -201,15 +204,17 @@ export function OnboardingWizard({
     });
   }, [currentStep, onComplete, question, selectedSpread, variant]);
 
-  const handleSkipRequest = useCallback(() => {
+  const handleSkipRequest = useCallback((event) => {
     if (isSmallScreen) {
+      exitOpenerRef.current = event?.currentTarget ?? null;
       setExitIntent('skip');
       return;
     }
     handleSkip();
   }, [handleSkip, isSmallScreen]);
 
-  const handleResumeRequest = useCallback(() => {
+  const handleResumeRequest = useCallback((event) => {
+    exitOpenerRef.current = event?.currentTarget ?? null;
     setExitIntent('resume');
   }, []);
 
@@ -466,6 +471,7 @@ export function OnboardingWizard({
         message={exitMessage}
         confirmText={exitConfirmText}
         cancelText="Stay here"
+        returnFocusRef={exitOpenerRef}
         fallbackFocusSelector='.guest-signin-button, .reading-settings, .guest-account__trigger, [aria-label="Replay tutorial"], .account-trigger[aria-haspopup="menu"]'
         closeOnBack={false}
       />

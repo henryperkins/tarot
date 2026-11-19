@@ -99,8 +99,15 @@ export function ambienceLoadFailed(page) {
 export function trackTones(target) {
   return target.addInitScript(() => {
     window.__tones = [];
+    window.__decodedAudioBuffers = 0;
     const Context = window.AudioContext || window.webkitAudioContext;
     if (!Context) return;
+    const decode = Context.prototype.decodeAudioData;
+    Context.prototype.decodeAudioData = function (...args) {
+      const result = decode.apply(this, args);
+      result.then(() => { window.__decodedAudioBuffers++; }, () => {});
+      return result;
+    };
     for (const method of ['createBufferSource', 'createOscillator']) {
       const create = Context.prototype[method];
       Context.prototype[method] = function (...args) {

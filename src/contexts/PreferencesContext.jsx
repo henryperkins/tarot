@@ -436,6 +436,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Onboarding State ---
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
+  const [onboardingReplayId, setOnboardingReplayId] = useState(0);
   const onboardingMutationEpochRef = useRef(0);
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
@@ -457,9 +458,10 @@ export function PreferencesProvider({ children }) {
   };
 
   const resetOnboarding = () => {
-    // Variant is memoized per wizard mount; reset here just clears progress/state.
     setOnboardingComplete(false);
     setOnboardingSpreadKey(null);
+    setShowPersonalizationBanner(false);
+    setOnboardingReplayId(id => id + 1);
   };
 
   // --- Account continuity (signed-in readers) ---
@@ -753,6 +755,7 @@ export function PreferencesProvider({ children }) {
     toggleFocusArea,
     // Onboarding
     onboardingComplete,
+    onboardingReplayId,
     setOnboardingComplete,
     accountPreferencesStatus,
     onboardingSpreadKey,

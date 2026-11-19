@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { cinematicSoundManager } from '../lib/SoundManager';
-import { canPlayTableSounds, subscribeToAmbience } from '../lib/audio';
+import { canPlayTableSounds, stopFlip, subscribeToAmbience } from '../lib/audio';
 import { useReducedMotion } from './useReducedMotion';
 
 // The cue player is loaded with the reading scenes. All cards share one
@@ -28,7 +28,12 @@ export function useSounds() {
   return useMemo(() => ({
     preload: () => canPlayTableSounds() ? cinematicSoundManager.preload() : Promise.resolve(null),
     play: (name, opts) => cinematicSoundManager.play(name, opts),
+    schedule: (name, delayMs, opts) => cinematicSoundManager.schedule(name, delayMs, opts),
     stop: (name) => cinematicSoundManager.stop(name),
+    stopAll: () => {
+      cinematicSoundManager.stopAll();
+      stopFlip();
+    },
     setVolume: (value) => cinematicSoundManager.setVolume(value),
     mute: (value = true) => cinematicSoundManager.mute(value || !canPlayTableSounds())
   }), []);

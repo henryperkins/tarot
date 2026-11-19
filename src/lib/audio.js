@@ -18,9 +18,9 @@ const AMBIENCE_RETRY_EVENTS = ['click', 'touchend', 'keydown'];
 // can settle afterwards and must not change what the later one decided.
 let ambienceAttempt = 0;
 let ambienceRetryListener = null;
+let ambienceReconnectListener = null;
 let ambienceLoadFailed = false;
 let tableCuesEnabled = false;
-let ambienceReconnects = 0;
 const ambienceListeners = new Set();
 let ambienceSwellTimer = null;
 let ambienceVolumeRaf = null;
@@ -170,6 +170,10 @@ export function playFlip() {
   }
 }
 
+export function stopFlip() {
+  flipAudio?.pause();
+}
+
 export function canPlayTableSounds() {
   return tableCuesEnabled;
 }
@@ -189,19 +193,13 @@ function setAmbienceState({ cuesEnabled = tableCuesEnabled, loadFailed = false }
   if (cuesEnabled === tableCuesEnabled && loadFailed === ambienceLoadFailed) return;
   if (cuesEnabled !== tableCuesEnabled) {
     tableCuesEnabled = cuesEnabled;
-    if (!cuesEnabled) flipAudio?.pause();
+    if (!cuesEnabled) stopFlip();
   }
   ambienceLoadFailed = loadFailed;
   for (const listener of ambienceListeners) listener();
 }
 
-function retryAmbienceOnline() {
-  ambienceReconnects++;
-  if (ambienceLoadFailed && tableCuesEnabled) startAmbiencePlayback();
-}
-
-function clearAmbienceRetry() {
-  if (typeof window !== 'undefined') window.removeEventListener('online', retryAmbienceOnline);
+function clearAmbienceInteraction() {
   if (!ambienceRetryListener) return;
   if (typeof window !== 'undefined') {
     AMBIENCE_RETRY_EVENTS.forEach(type => {
@@ -209,6 +207,14 @@ function clearAmbienceRetry() {
     });
   }
   ambienceRetryListener = null;
+}
+
+function clearAmbienceRetry() {
+  clearAmbienceInteraction();
+  if (ambienceReconnectListener) {
+    window.removeEventListener('online', ambienceReconnectListener);
+    ambienceReconnectListener = null;
+  }
 }
 
 // Start the loop inside the reader's next interaction: after the browser
@@ -243,25 +249,33 @@ function ambienceLoop(retryFailedLoad) {
 }
 
 function startAmbiencePlayback({ retryOnInteraction = false } = {}) {
+  clearAmbienceRetry();
   const attempt = ++ambienceAttempt;
-  let reconnectsAtStart = ambienceReconnects;
+  let reconnected = false;
+  let failedThisAttempt = false;
   let audio = null;
   let started;
   const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
   const failed = () => {
     if (!isCurrent()) return;
+    failedThisAttempt = true;
     setAmbienceState({ loadFailed: true });
     // A saved On can receive the media error before the autoplay decision.
     // Give this restore one gesture retry even when no NotAllowedError arrives.
     if (retryOnInteraction) awaitAmbienceInteraction();
-    if (typeof window !== 'undefined') window.addEventListener('online', retryAmbienceOnline);
-    // The connection can return before the old request delivers its error.
-    if (tableCuesEnabled && ambienceReconnects !== reconnectsAtStart) startAmbiencePlayback();
+    if (reconnected && tableCuesEnabled) startAmbiencePlayback();
   };
+  // Keep observing after play() resolves: a playing loop can report a media
+  // error after the network has already come back. Each retry gets a fresh listener.
+  if (typeof window !== 'undefined') {
+    ambienceReconnectListener = () => {
+      reconnected = true;
+      if (failedThisAttempt && tableCuesEnabled) startAmbiencePlayback();
+    };
+    window.addEventListener('online', ambienceReconnectListener);
+  }
   const retryFailedLoad = ambienceLoadFailed;
-  clearAmbienceRetry();
-  if (typeof window !== 'undefined') window.addEventListener('online', retryAmbienceOnline);
-  setAmbienceState({ cuesEnabled: true });
+  setAmbienceState({ cuesEnabled: true, loadFailed: retryFailedLoad });
   try {
     audio = ambienceLoop(retryFailedLoad);
     audio.onerror = failed;
@@ -272,8 +286,8 @@ function startAmbiencePlayback({ retryOnInteraction = false } = {}) {
   Promise.resolve(started).then(() => {
     if (isCurrent() && !audio?.error) {
       retryOnInteraction = false;
-      reconnectsAtStart = ambienceReconnects;
-      clearAmbienceRetry();
+      failedThisAttempt = false;
+      clearAmbienceInteraction();
       setAmbienceState({ cuesEnabled: true });
     }
   }, error => {

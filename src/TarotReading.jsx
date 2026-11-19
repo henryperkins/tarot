@@ -98,6 +98,7 @@ export default function TarotReading() {
     togglePrepareSection,
     // Onboarding
     onboardingComplete,
+    onboardingReplayId,
     setOnboardingComplete,
     setOnboardingSpreadKey,
     showPersonalizationBanner,
@@ -191,8 +192,10 @@ export default function TarotReading() {
   const [followUpIntent, setFollowUpIntent] = useState('continue');
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
-  const [onboardingDeferred, setOnboardingDeferred] = useState(false);
-  const onboardingDue = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
+  // Closing the loader or saving for later defers this opening. An explicit
+  // replay can open the wizard again without leaving the reading page.
+  const [deferredReplayId, setDeferredReplayId] = useState(null);
+  const onboardingDue = !onboardingComplete && !showPersonalizationBanner && deferredReplayId !== onboardingReplayId;
   // A signed-in reader may have finished onboarding on another device: wait for
   // the account (PreferencesContext) before choosing between welcome and setup.
   const onboardingDecisionPending = onboardingDue
@@ -827,17 +830,17 @@ export default function TarotReading() {
     safeStorage.removeItem('tarot-personalization-banner');
     setShowPersonalizationBanner(false);
     setOnboardingComplete(false);
-    setOnboardingDeferred(false);
-  }, [setShowPersonalizationBanner, setOnboardingComplete, setOnboardingDeferred]);
+    setDeferredReplayId(null);
+  }, [setShowPersonalizationBanner, setOnboardingComplete]);
 
   // --- Onboarding Handler ---
 
   const handleOnboardingComplete = useCallback((selections) => {
     if (selections?.resumeLater) {
-      setOnboardingDeferred(true);
+      setDeferredReplayId(onboardingReplayId);
     } else {
       setOnboardingComplete(true);
-      setOnboardingDeferred(false);
+      setDeferredReplayId(null);
     }
     if (selections?.selectedSpread) {
       setOnboardingSpreadKey(selections.selectedSpread);
@@ -846,7 +849,7 @@ export default function TarotReading() {
     if (selections?.question) {
       setUserQuestion(selections.question);
     }
-  }, [selectSpread, setOnboardingComplete, setOnboardingDeferred, setOnboardingSpreadKey, setUserQuestion]);
+  }, [onboardingReplayId, selectSpread, setOnboardingComplete, setOnboardingSpreadKey, setUserQuestion]);
 
   const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
     setOnboardingSpreadKey(spreadKey);
@@ -1430,7 +1433,7 @@ export default function TarotReading() {
           component={OnboardingWizard}
           title="tutorial"
           isOpen
-          onClose={() => setOnboardingDeferred(true)}
+          onClose={() => setDeferredReplayId(onboardingReplayId)}
           fallbackFocusRef={spreadSectionRef}
           onComplete={handleOnboardingComplete}
           onSelectSpread={handleOnboardingSpreadSelect}

@@ -20,15 +20,12 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await fixture.close();
     });
 
-    test('closed features stay out of the production startup budget', async ({ page }) => {
+    test('returning guests load closed features only on demand', async ({ page }) => {
       await openSetup(page);
       test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production bundle check.');
       await page.waitForLoadState('networkidle');
-      const resources = await page.evaluate(() => performance.getEntriesByType('resource')
-        .filter(entry => /\.js(?:\?|$)/.test(entry.name))
-        .map(entry => ({ name: entry.name, bytes: entry.decodedBodySize })));
-      expect(resources.reduce((total, entry) => total + entry.bytes, 0)).toBeLessThan(1_180_000);
-      expect(resources.filter(entry => /\/(GuidedIntentionCoach|AuthModal|OnboardingWizard|OnboardingControlStep|readingSchema)-/.test(entry.name))).toEqual([]);
+      const scripts = await page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
+      expect(scripts.filter(name => /\/(GuidedIntentionCoach|AuthModal|OnboardingWizard|OnboardingControlStep|readingSchema)-[^/]+\.js(?:\?|$)/.test(name))).toEqual([]);
     });
 
     test('a slow tutorial restores the saved step, spread and question when it opens', async ({ page }) => {
