@@ -351,8 +351,10 @@ test('a loop that is already playing does not wait for an interaction', async ()
 });
 
 // The mix plays at about -44 dBFS RMS (20 Hz-20 kHz) once the player applies
-// its base volume. Three decibels either way keeps it audible on small
-// speakers and at least 15 dB under narration at the loudest reading swell.
+// its base volume. The three-decibel tolerance is set around that target, not
+// around a listening-tested mix: retune both constants when the mix changes.
+// Narration level was not measured. If it sits near -20 dBFS RMS, the loudest
+// mix this allows stays about 16 dB under it at the loudest reading swell.
 // The track this replaced played at -66.5 dBFS, nearly all of it below 20 Hz.
 const AMBIENCE_PLAYED_DBFS = -44;
 const AMBIENCE_TOLERANCE_DB = 3;

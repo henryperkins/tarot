@@ -1,7 +1,7 @@
 # Table Ambience — measurements and browser checks
 
 Type: evidence
-Status: measured and browser-tested locally; listening pass and Safari checks pending
+Status: measured and browser-tested locally; listening pass, WebKit playback and iPhone checks pending
 Updated: 2026-11-18 UTC
 
 This records the checks behind the Table Ambience remediation plan (`docs/superpowers/plans/2026-11-18-table-ambience.md`, reviewed at `d4b79797`). The work is on `fix/table-ambience`, run on a Windows 11 host with Node 24.15, Playwright 1.62.1, Chromium 151.0.7922.34 and WebKit 26.5.
@@ -35,6 +35,7 @@ Nobody has listened to this mix. It was built from measurements and spectrograms
 
 1. Play two full loops at a fixed volume on speakers, then on headphones. The room tone, card sounds and crackle should each be recognizable, and the repeat every 30 seconds should not draw attention.
 2. Play a spoken passage over the loudest reading swell (0.36). Every word should be easy to follow.
+3. On an iPhone, check the level in particular. iOS Safari treats an audio element's `volume` as read-only ([WebKit bug 241657](https://bugs.webkit.org/show_bug.cgi?id=241657); reported again on iOS 17.4.1 in [media-chrome discussion 913](https://github.com/muxinc/media-chrome/discussions/913)). If that still holds, the player's 0.2 base volume and the reading swells do nothing there, and the loop plays at the file's own level: −30 dBFS RMS, 14 dB above what a desktop browser plays, with crackle peaks at −7.6 dBFS. The previous track was close to silent on a phone either way. This was not measured on a device.
 
 The −44 dBFS target is the plan's starting value, and the unit test's ±3 dB tolerance is derived from that target rather than from a listening-tested mix. If the listening pass changes the mix, adjust the constants at the top of the generator, rerun it, bump the `v=` query in `src/lib/audio.js`, and update `AMBIENCE_PLAYED_DBFS` in `tests/audio.test.mjs` to the new measured level.
 
@@ -109,7 +110,7 @@ Each guard was removed in turn, the app rebuilt, and the five cases rerun in Chr
 
 An eighth change, taking the value from the event instead of reading the store, passes all five: in a browser the two agree. The unit test that delivers an event older than the saved value catches it.
 
-The same nine ambience cases pass on the development server in Chromium, where React mounts the provider twice.
+The same nine ambience cases pass on the development server in Chromium, where React mounts the provider twice. They also pass in installed Google Chrome 157.0.8103.79 and Microsoft Edge 158.0.4370.26, run headless against the production build with a copy of the production configuration that selects the browser channel.
 
 ## WebKit and Safari: pending
 
@@ -137,3 +138,34 @@ The guest banner on `/account` now reads “Your theme and audio preferences sta
 - `tests/audio.test.mjs` decodes the asset and asserts the played level (−44 dBFS ± 3 dB at the volume the player sets), a subsonic share under 1% with no DC offset, and a loop that starts and ends at its own level. All three failed against the previous track (−66.5 dBFS played, 99.93% subsonic, and a first 20 ms at −67.4 dBFS against −52.6 dBFS for the loop); the third also failed against the new mix with its Info frame removed (first 20 ms at −82.6 dBFS).
 - The production activation test now expects a versioned ambience request. It failed against the `d4b79797` build and passes against the new one. Sound files are still requested only after the switch is turned on.
 - The narration specs that use this MP3 as fixture audio pass in Chromium with the new file (22 of 22, as before).
+
+## Verification run
+
+The plan's six commands, run from the repository root at `82c40d30`. Other jobs were using the machine during the last two, with the processor near 90%.
+
+| Command | Result |
+|---|---|
+| `node --test tests/audio.test.mjs tests/audioLifecycle.test.mjs tests/audioReliability.test.mjs tests/accountPreferencesClient.test.mjs` | 66 of 66 pass |
+| `npm run build:frontend` | builds |
+| `npm run test:e2e:production -- --grep ambience` | Chromium: 9 of 9 pass. WebKit: 3 pass, 5 skipped, 1 fails |
+| `npm run test:e2e -- e2e/account-plan-hardening.spec.js --project=chromium --grep "guest section navigation"` | 1 of 1 passes |
+| `npx playwright test --config playwright.narration.config.js e2e/narration-cancellation.spec.js e2e/narration-lifecycle.spec.js` | Chromium: 22 of 22 pass. WebKit desktop: 12 pass, 10 fail. WebKit iPhone: 12 pass, 10 fail |
+| `npm test` | 6,476 tests: 6,321 pass, 131 fail, 24 skipped |
+
+Every failure above also fails at `d4b79797` on this host:
+
+- The WebKit failure in the production suite is `ambience is fetched on activation and the setting can be switched off again`. This host's WebKit never requests the MP3. The five skipped cases are the ones that read the loop's clock.
+- The 20 narration failures are the same 20 WebKit tests as before the change.
+- The 131 unit failures are the same 131 as before the change, in 23 files, none of them audio, preference or account tests.
+
+The first `npm test` run of this set had one more failure: the Chromium half of `tests/particleLifecycleBrowser.test.mjs` timed out after 10 seconds loading its page. That test starts its own Vite server and loads none of the files changed here. Run alone straight afterwards it timed out the same way once, then passed, and it passed in the rerun reported above.
+
+## Not shown here
+
+- How the mix sounds. Nobody has listened to it.
+- Playback in WebKit or Safari on any device, and the level on an iPhone.
+- Firefox, in any respect.
+- The cache headers production sends for `/sounds/`.
+- Narration level against the loop at its loudest swell. The 16 dB figure assumes narration near −20 dBFS RMS.
+- A page restored from the browser's back/forward cache. It receives no `storage` event for a change made while it was frozen, so its switch can be stale until the setting changes again or the page reloads. Playwright runs Chromium with that cache disabled.
+- Two tabs that have both been interacted with while ambience is on. Each plays its own loop, as before this work; turning ambience off in either now stops both.
