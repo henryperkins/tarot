@@ -2,7 +2,7 @@ import { Component, Suspense, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useModalA11y } from '../hooks/useModalA11y';
 
-function DialogLoadState({ title, onClose, returnFocusRef, failed = false }) {
+function DialogLoadState({ title, onClose, returnFocusRef, fallbackFocusRef, failed = false }) {
   const containerRef = useRef(null);
   const headingRef = useRef(null);
   const titleId = useId();
@@ -11,6 +11,7 @@ function DialogLoadState({ title, onClose, returnFocusRef, failed = false }) {
     containerRef,
     initialFocusRef: headingRef,
     returnFocusRef,
+    fallbackFocusRef,
     isolateBackground: true
   });
 
@@ -58,7 +59,7 @@ class DialogLoadBoundary extends Component {
 /** Mount only while open; preserve the opener across loading and the real dialog. */
 export function DeferredDialog({ component: Dialog, title, onClose, ...props }) {
   const returnFocusRef = useRef(typeof document === 'undefined' ? null : document.activeElement);
-  const loadStateProps = { title, onClose, returnFocusRef };
+  const loadStateProps = { title, onClose, returnFocusRef, fallbackFocusRef: props.fallbackFocusRef };
   return (
     <DialogLoadBoundary fallback={<DialogLoadState {...loadStateProps} failed />}>
       <Suspense fallback={<DialogLoadState {...loadStateProps} />}>

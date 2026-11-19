@@ -4,6 +4,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, expectTarget, openSetup, QUESTION, startReading } from './helpers/narrativeFixtures.js';
 
 const COACH_NAME = 'Shape a question with clarity';
+const ONBOARDING_CHUNK = /\/assets\/OnboardingWizard-[^/]+\.js(?:\?|$)/;
+const CONTROL_STEP_CHUNK = /\/assets\/OnboardingControlStep-[^/]+\.js(?:\?|$)/;
 
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Startup optimization and deck polish — ${platform}`, () => {
@@ -26,8 +28,81 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         .filter(entry => /\.js(?:\?|$)/.test(entry.name))
         .map(entry => ({ name: entry.name, bytes: entry.decodedBodySize })));
       expect(resources.reduce((total, entry) => total + entry.bytes, 0)).toBeLessThan(1_180_000);
-      expect(resources.filter(entry => /\/(GuidedIntentionCoach|AuthModal|readingSchema)-/.test(entry.name))).toEqual([]);
+      expect(resources.filter(entry => /\/(GuidedIntentionCoach|AuthModal|OnboardingWizard|OnboardingControlStep|readingSchema)-/.test(entry.name))).toEqual([]);
     });
+
+    test('a slow tutorial restores the saved step, spread and question when it opens', async ({ page }) => {
+      await page.addInitScript(progress => localStorage.setItem('tableau-onboarding-progress', JSON.stringify(progress)),
+        { step: 3, selectedSpread: 'single', question: QUESTION, variant: 'trimmed' });
+      let release;
+      const held = new Promise(resolve => { release = resolve; });
+      await page.route(ONBOARDING_CHUNK, async route => {
+        await held;
+        await route.continue();
+      });
+      try {
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk timing.');
+        const pending = page.getByRole('dialog', { name: 'Opening tutorial…', exact: true });
+        await expect(pending.getByRole('heading')).toBeFocused();
+        release();
+        const wizard = page.getByRole('dialog', { name: 'Welcome to Tableu', exact: true });
+        await expect(wizard.getByRole('textbox', { name: 'Your question or intention' })).toHaveValue(QUESTION);
+        await wizard.getByRole('button', { name: 'Go back', exact: true }).click();
+        await expect(wizard.getByRole('button', { name: /One Card/ })).toHaveAttribute('aria-pressed', 'true');
+      } finally {
+        release();
+      }
+    });
+
+    test('the seven-step tutorial loads only for its variant and can finish a reading setup', async ({ page }) => {
+      let controlRequested = false;
+      page.on('request', request => { if (CONTROL_STEP_CHUNK.test(request.url())) controlRequested = true; });
+      await page.goto('/');
+      test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk timing.');
+      const wizard = page.getByRole('dialog', { name: 'Welcome to Tableu', exact: true });
+      await expect(wizard.getByRole('heading', { level: 2, name: 'Welcome to Tableu' })).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      expect(controlRequested).toBe(false);
+
+      await page.goto('/?onboarding=control');
+      const next = wizard.getByRole('button', { name: 'Continue', exact: true });
+      await next.click();
+      expect(controlRequested).toBe(true);
+      await wizard.getByRole('button', { name: 'Skip', exact: true }).click();
+      await next.click();
+      await wizard.getByRole('textbox').fill(QUESTION);
+      await next.click();
+      await wizard.getByRole('button', { name: /I understand.*continue/i }).click();
+      await next.click();
+      await wizard.getByRole('button', { name: 'Begin Your Reading', exact: true }).click();
+      await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+      await expect(page.locator('#question-input, #quick-intention').filter({ visible: true }).first()).toHaveValue(QUESTION);
+    });
+
+    for (const [asset, path, chunk] of [
+      ['wizard', '/', ONBOARDING_CHUNK],
+      ['focus dependency', '/', /\/assets\/focus-trap-react-[^/]+\.js(?:\?|$)/],
+      ['seven-step module', '/?onboarding=control', CONTROL_STEP_CHUNK]
+    ]) {
+      test(`the tutorial can be dismissed and retried when its ${asset} fails to load`, async ({ page }, testInfo) => {
+        const preview = await createChunkFailurePreview(testInfo.project.use.baseURL, chunk);
+        try {
+          await page.goto(new URL(path, preview.origin).href);
+          test.skip(!await page.locator('script[type="module"][src^="/assets/"]').count(), 'Production chunk failure.');
+          const failed = page.getByRole('dialog', { name: 'Unable to open tutorial', exact: true });
+          await expect(failed.getByRole('alert')).toContainText('Check your connection');
+          await failed.getByRole('button', { name: 'Close' }).click();
+          await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+          await expect(page.locator('#step-spread')).toBeFocused();
+          await page.reload();
+          await expect(page.getByRole('heading', { name: 'Welcome to Tableu', level: 2 })).toBeVisible();
+          expect(preview.failures()).toBe(1);
+        } finally {
+          await preview.close();
+        }
+      });
+    }
 
     for (const feature of ['sign in', 'question coach']) {
       test(`a slow ${feature} keeps focus, can be canceled, and restores its available trigger`, async ({ page }, testInfo) => {

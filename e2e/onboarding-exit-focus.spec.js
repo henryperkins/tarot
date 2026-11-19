@@ -1,4 +1,4 @@
-import { test, expect, openAccountOptions } from './helpers/frontendTest.js';
+import { test, expect } from './helpers/frontendTest.js';
 
 test.describe('Onboarding exit focus', () => {
   for (const width of [390, 1280]) {
@@ -59,17 +59,17 @@ test.describe('Onboarding exit focus', () => {
           expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tableau-onboarding-progress')))).toEqual(progress);
           return;
         }
-        const accountOptions = await openAccountOptions(page);
-        const replay = page.getByRole('button', { name: 'Replay tutorial', exact: true });
+        await page.goto('/account');
+        const replay = page.locator('#actions').getByRole('button', { name: 'Replay Tutorial', exact: true });
         await replay.focus();
-        const scroll = await page.evaluate(() => window.scrollY);
         await replay.press('Enter');
         await page.getByRole('dialog', { name: 'Replay tutorial?', exact: true }).getByRole('button', { name: 'Replay tutorial', exact: true }).click();
         await expect(wizard).toBeVisible();
+        const scroll = await page.evaluate(() => window.scrollY);
         await wizard.getByRole('button', { name: 'Skip onboarding', exact: true }).click();
         await page.getByRole('button', { name: 'Skip now', exact: true }).click();
         await expect(wizard).toBeHidden();
-        await expect(accountOptions).toBeFocused();
+        await expect(page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true })).toBeFocused();
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(scroll);
       });
     }

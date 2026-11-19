@@ -929,6 +929,7 @@
     "src/components/onboarding/AccountSetup.jsx",
     "src/components/onboarding/JournalIntro.jsx",
     "src/components/onboarding/JourneyBegin.jsx",
+    "src/components/onboarding/OnboardingControlStep.jsx",
     "src/components/onboarding/OnboardingProgress.jsx",
     "src/components/onboarding/OnboardingWizard.jsx",
     "src/components/onboarding/QuestionCrafting.jsx",
