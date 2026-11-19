@@ -8,7 +8,16 @@ export { normalizeTtsProvider };
 
 let flipAudio = null;
 let ambienceAudio = null;
+// Bump the version whenever the mix changes: the file keeps its path, and a
+// new URL is what makes a returning browser fetch the new bytes.
+const AMBIENCE_URL = '/sounds/ambience.mp3?v=2';
 const AMBIENCE_BASE_VOLUME = 0.2;
+// Interactions a browser accepts as permission to start audible playback.
+const AMBIENCE_RETRY_EVENTS = ['click', 'touchend', 'keydown'];
+// Identifies the latest start or stop. A play() promise from an earlier one
+// can settle afterwards and must not change what the later one decided.
+let ambienceAttempt = 0;
+let ambienceRetryListener = null;
 let ambienceSwellTimer = null;
 let ambienceVolumeRaf = null;
 let ttsAudio = null;
@@ -157,20 +166,83 @@ export function playFlip() {
   }
 }
 
-export function toggleAmbience(on) {
-  if (typeof Audio === 'undefined' || (!on && !ambienceAudio)) return;
+function clearAmbienceRetry() {
+  if (!ambienceRetryListener) return;
+  if (typeof window !== 'undefined') {
+    AMBIENCE_RETRY_EVENTS.forEach(type => {
+      window.removeEventListener(type, ambienceRetryListener, { capture: true });
+    });
+  }
+  ambienceRetryListener = null;
+}
+
+// Start the loop inside the reader's next interaction: after the browser
+// refused a start, or for a choice that arrived from another tab. The loop's
+// own play() has to run there: the silent unlock clip does not start it, and
+// Safari grants playback to the element played during the interaction rather
+// than to the page.
+function awaitAmbienceInteraction() {
+  if (ambienceRetryListener || typeof window === 'undefined') return;
+  ambienceRetryListener = () => startAmbiencePlayback();
+  AMBIENCE_RETRY_EVENTS.forEach(type => {
+    window.addEventListener(type, ambienceRetryListener, { capture: true, passive: true });
+  });
+}
+
+// The loop is created on first use, so the file is not requested while
+// ambience is off or still waiting for an interaction.
+function ambienceLoop() {
+  if (!ambienceAudio) {
+    ambienceAudio = new Audio(AMBIENCE_URL);
+    ambienceAudio.loop = true;
+    ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
+  }
+  return ambienceAudio;
+}
+
+function startAmbiencePlayback() {
+  const attempt = ++ambienceAttempt;
+  let audio = null;
+  let started;
   try {
+    audio = ambienceLoop();
+    started = audio.play();
+  } catch (error) {
+    started = Promise.reject(error);
+  }
+  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
+  Promise.resolve(started).then(() => {
+    if (isCurrent()) clearAmbienceRetry();
+  }, error => {
+    if (!isCurrent()) return;
+    // Only a refusal for lack of interaction is worth another try. An
+    // interrupted or unplayable loop would fail again on every tap.
+    if (error?.name === 'NotAllowedError') awaitAmbienceInteraction();
+    else clearAmbienceRetry();
+  });
+}
+
+/**
+ * Start or stop the ambience loop. Call it for On from inside the interaction
+ * that asked for it. When the browser refuses the start (a saved preference
+ * restored on page load), the loop starts on the next click, tap or keypress.
+ *
+ * Pass `waitForInteraction` for an On that no interaction in this tab asked
+ * for, such as a choice made in another tab. Nothing is loaded or played
+ * until the reader's next click, tap or keypress here.
+ */
+export function toggleAmbience(on, { waitForInteraction = false } = {}) {
+  if (typeof Audio === 'undefined') return;
+  try {
+    if (!on) {
+      ambienceAttempt++;
+      clearAmbienceRetry();
+      ambienceAudio?.pause();
+      return;
+    }
     ensureGlobalCleanupListeners();
-    if (!ambienceAudio) {
-      ambienceAudio = new Audio('/sounds/ambience.mp3');
-      ambienceAudio.loop = true;
-      ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
-    }
-    if (on) {
-      ambienceAudio.play()?.catch(() => {});
-    } else {
-      ambienceAudio.pause();
-    }
+    if (!waitForInteraction) startAmbiencePlayback();
+    else if (!ambienceAudio || ambienceAudio.paused) awaitAmbienceInteraction();
   } catch {
     // ignore autoplay / interruption errors
   }
@@ -1075,6 +1147,8 @@ export function cleanupAudio() {
       flipAudio.pause();
       flipAudio = null;
     }
+    ambienceAttempt++;
+    clearAmbienceRetry();
     if (ambienceAudio) {
       ambienceAudio.pause();
       ambienceAudio = null;

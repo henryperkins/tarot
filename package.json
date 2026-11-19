@@ -152,6 +152,7 @@
     "js-yaml": "^4.3.2",
     "lamejs": "^1.2.1",
     "miniflare": "5.20260926.0-alpha",
+    "mpg123-decoder": "^1.0.3",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.5",
     "sharp": "0.35.5",

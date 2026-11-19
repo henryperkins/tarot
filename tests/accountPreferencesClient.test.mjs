@@ -22,6 +22,21 @@ describe('account preferences client', () => {
     });
   });
 
+  // Settings tells guests these stay on the device even when signed in.
+  it('never sends theme or audio preferences to the account', () => {
+    const deviceOnly = { theme: 'light', voiceOn: true, autoNarrate: false, ambienceOn: true, ttsProvider: 'default', ttsSpeed: 1.15 };
+    const payload = buildAccountPreferencesPayload({
+      personalization: { displayName: 'Henry', ...deviceOnly },
+      explicitFields: ['displayName', ...Object.keys(deviceOnly)],
+      onboardingComplete: false
+    });
+    assert.deepEqual(payload, {
+      personalization: { displayName: 'Henry' },
+      explicitFields: ['displayName'],
+      onboardingCompleted: false
+    });
+  });
+
   it('fills only what this device has not chosen', () => {
     const { adopted, adoptedFields } = mergeAccountPersonalization({
       explicitFields: ['readingTone'],
