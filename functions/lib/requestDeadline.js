@@ -49,8 +49,15 @@ export function delayWithSignal(milliseconds, signal) {
   });
 }
 
-/** Each buffered (non-streamed) reading provider attempt gets at most this long. */
+/** Default cap for buffered reading providers. */
 export const READING_BUFFERED_ATTEMPT_MAX_MS = 90000;
+
+export function getBufferedReadingAttemptTimeoutMs(provider, remainingMs) {
+  if (provider !== 'codex-subscription') return Math.min(READING_BUFFERED_ATTEMPT_MAX_MS, remainingMs || 1);
+  // Leave time for the reading's quality checks, fallback and response finalization.
+  const reserveMs = Math.min(30000, Math.floor(remainingMs / 4));
+  return Math.max(1, Math.min(210000, remainingMs - reserveMs));
+}
 
 export function getTaskTimeoutMs(env, kind = 'text') {
   const reading = kind === 'reading';

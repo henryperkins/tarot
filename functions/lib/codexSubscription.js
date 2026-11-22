@@ -100,7 +100,7 @@ export async function callCodexSubscription(env, { signal: callerSignal, ...inpu
 }
 
 /** Yield authentic gateway deltas; done must confirm the same immutable source. */
-export async function* streamCodexSubscription(env, { signal: callerSignal, ...input }) {
+export async function* streamCodexSubscription(env, { signal: callerSignal, ...input }, { buffered = false } = {}) {
   validateCodexRequest(input);
   const { url, token, timeoutMs } = ensureCodexSubscriptionConfig(env);
   const controller = new AbortController();
@@ -122,7 +122,10 @@ export async function* streamCodexSubscription(env, { signal: callerSignal, ...i
     if (controller.signal.aborted) await cancelled;
     const response = await Promise.race([fetch(url, {
       method: 'POST', redirect: 'manual', signal: controller.signal,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      headers: {
+        Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
+        Accept: buffered ? 'text/event-stream; mode=buffered' : 'text/event-stream'
+      },
       body: JSON.stringify(input)
     }), cancelled]);
     if (!response.ok || !response.body || !response.headers.get('Content-Type')?.startsWith('text/event-stream')) {
@@ -181,4 +184,12 @@ export async function* streamCodexSubscription(env, { signal: callerSignal, ...i
     await reader?.cancel().catch(() => {});
     reader?.releaseLock();
   }
+}
+
+/** Keep the gateway connection active while the Worker waits for the whole reading. */
+export async function completeBufferedCodexReading(env, input) {
+  for await (const event of streamCodexSubscription(env, input, { buffered: true })) {
+    if (event.type === 'done') return event.result;
+  }
+  throw new Error('Codex stream ended without completion.');
 }

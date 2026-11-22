@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { test } from 'node:test';
-import { validateCodexModelList } from '../shared/inference/codexSubscription.js';
+import { CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES, validateCodexModelList } from '../shared/inference/codexSubscription.js';
 
 const token = 'codex-test-token-that-is-at-least-32-characters';
 const input = { task: 'reading', systemPrompt: 'Interpret.', messages: [{ role: 'user', content: 'The Star.' }] };
@@ -128,4 +128,63 @@ test('SSE gateway ends with a sanitized error after partial generation fails', a
   assert.match(body, /event: delta/);
   assert.match(body, /event: error/);
   assert.doesNotMatch(body, /event: done|private provider detail/);
+});
+
+for (const buffered of [true, false]) {
+  test(`gateway sends heartbeats before ${buffered ? 'buffered' : 'streamed'} reading text and delivers the exact final source`, { timeout: 10000 }, async t => {
+    t.mock.timers.enable({ apis: ['setInterval'] });
+    const { createCodexSubscriptionServer } = await import('../services/codex-subscription/server.mjs');
+    const { promise, resolve: finish } = Promise.withResolvers();
+    const server = createCodexSubscriptionServer({ token, run: async (_input, { onDelta }) => {
+      assert.equal(typeof onDelta, buffered ? 'undefined' : 'function');
+      await promise;
+      onDelta?.(result.text);
+      return result;
+    } });
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    t.after(() => { finish(); return server.shutdown(); });
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/v1/generate`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: buffered ? 'text/event-stream; mode=buffered' : 'text/event-stream' },
+      body: JSON.stringify(input)
+    });
+    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+    let body = (await reader.read()).value;
+    assert.match(body, /event: meta/);
+    for (let i = 0; i < 2; i++) {
+      t.mock.timers.tick(10000);
+      assert.equal((await reader.read()).value, ': keepalive\n\n');
+    }
+    assert.doesNotMatch(body, /event: delta|event: done/);
+    finish();
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      body += chunk.value;
+    }
+    const frames = body.trim().split('\n\n');
+    assert.deepEqual(frames.slice(1), [
+      `event: delta\ndata: ${JSON.stringify({ text: result.text })}`,
+      `event: done\ndata: ${JSON.stringify(result)}`
+    ]);
+  });
+}
+
+test('buffered SSE rejects structured requests and withholds invalid or oversized terminal text', async t => {
+  const { createCodexSubscriptionServer } = await import('../services/codex-subscription/server.mjs');
+  const responses = [{ ...result, model: '', text: 'private' }, { ...result, text: 'a'.repeat(CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES + 1) }];
+  const server = createCodexSubscriptionServer({ token, run: async () => responses.shift() });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => server.shutdown());
+  const post = body => fetch(`http://127.0.0.1:${server.address().port}/v1/generate`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream; mode=buffered' }, body: JSON.stringify(body)
+  });
+  assert.equal((await post({ ...input, responseSchema: { type: 'object' } })).status, 400);
+  assert.equal(responses.length, 2);
+  for (let i = 0; i < 2; i++) {
+    const body = await (await post(input)).text();
+    assert.match(body, /event: error/);
+    assert.doesNotMatch(body, /event: delta|event: done|private/);
+  }
 });

@@ -52,9 +52,13 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
     if (!listingModels && (request.method !== 'POST' || request.url !== '/v1/generate')) { reply(response, 404, { error: 'Not found' }); return; }
     const controller = new AbortController();
     let finish;
+    let heartbeat;
     requests.set(controller, new Promise(resolve => { finish = resolve; }));
     const onClose = () => { if (!response.writableEnded) controller.abort(); };
-    const onAbort = () => { if (!request.complete) request.destroy(); };
+    const onAbort = () => {
+      clearInterval(heartbeat);
+      if (!request.complete) request.destroy();
+    };
     response.on('close', onClose);
     controller.signal.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), listingModels ? Math.min(timeoutMs, 10000) : timeoutMs);
@@ -84,25 +88,32 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
       let input;
       try { input = validateCodexRequest(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
       catch { reply(response, 400, { error: 'Invalid inference request' }); return; }
-      const wantsStream = String(request.headers.accept || '').split(',').some(value => value.trim().split(';')[0] === 'text/event-stream');
-      if (wantsStream && input.responseSchema) { reply(response, 400, { error: 'Structured output is not streamed.' }); return; }
+      const streamType = String(request.headers.accept || '').toLowerCase().split(',')
+        .map(value => value.trim().split(/\s*;\s*/)).find(([type]) => type === 'text/event-stream');
+      const bufferedStream = streamType?.includes('mode=buffered');
+      if (streamType && input.responseSchema) { reply(response, 400, { error: 'Structured output is not streamed.' }); return; }
       await take(controller.signal);
       admitted = true;
-      if (wantsStream) {
+      if (streamType) {
         streaming = true;
         response.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
         event('meta', { provider: 'codex-subscription' });
+        heartbeat = setInterval(() => {
+          if (!response.destroyed && !response.writableEnded && !response.writableNeedDrain) response.write(': keepalive\n\n');
+        }, 10000);
       }
-      const onDelta = streaming ? text => {
+      const writeDelta = text => {
         if (controller.signal.aborted || typeof text !== 'string') throw new Error('cancelled');
         streamedText += text;
         if (Buffer.byteLength(streamedText) > CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES) throw new Error('Output too large');
         if (text) event('delta', { text });
-      } : undefined;
-      const result = await run(input, { signal: controller.signal, ...(onDelta ? { onDelta } : {}) });
+      };
+      // Buffered readers keep the CLI's final-source semantics over a live HTTP response.
+      const result = await run(input, { signal: controller.signal, ...(streaming && !bufferedStream ? { onDelta: writeDelta } : {}) });
       if (controller.signal.aborted) throw new Error('cancelled');
       if (streaming) {
         validateCodexResult(result);
+        if (bufferedStream) writeDelta(result.text);
         if (result.text !== streamedText) throw new Error('Inconsistent stream');
         event('done', result);
         response.end();
@@ -117,6 +128,7 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
       } else reply(response, status, body);
     } finally {
       clearTimeout(timer);
+      clearInterval(heartbeat);
       response.removeListener('close', onClose);
       controller.signal.removeEventListener('abort', onAbort);
       if (admitted) release();

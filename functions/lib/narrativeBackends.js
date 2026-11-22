@@ -32,6 +32,7 @@ import { enhanceSection } from './narrativeSpine.js';
 import { callOpenAIResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './openaiResponses.js';
 import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
 import { callPersonalTextProvider, getPersonalTextProvider } from './personalTextProvider.js';
+import { completeBufferedCodexReading } from './codexSubscription.js';
 import { callClaudeMessages, isAnthropicConfigured, resolveAnthropicSettings } from './anthropicMessages.js';
 import {
   buildReasoningAwareOpening,
@@ -1616,7 +1617,8 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
           backendId, providerLabel: NARRATIVE_BACKENDS[backendId].label,
           budgetTarget: backendId === 'claude-code' ? 'claude' : 'openai'
         });
-        const completion = await callPersonalTextProvider(env, {
+        const generate = backendId === 'codex-subscription' ? completeBufferedCodexReading : callPersonalTextProvider;
+        const completion = await generate(env, {
           ...(backendId === 'codex-subscription' && payload.personalReadingModel && { model: payload.personalReadingModel }),
           task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal: payload.signal
         });

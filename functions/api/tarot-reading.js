@@ -4,7 +4,7 @@ import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
 import { persistReadingMemoryAccess } from '../lib/userMemory.js';
 import { decisionPathRoleCards, resolveDecisionPathContext } from '../lib/decisionPathContext.js';
 import { recordInferenceAttempt, inferAttemptReason } from '../lib/inferenceAttempts.js';
-import { READING_BUFFERED_ATTEMPT_MAX_MS, createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
+import { createDeadline, getBufferedReadingAttemptTimeoutMs, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 /**
  * Cloudflare Pages Function for generating a personalized tarot reading.
  *
@@ -1850,7 +1850,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       narrativePayload.variantPromptOverrides = variantPromptOverrides;
       const attemptDeadline = createDeadline({
         signal: taskSignal,
-        timeoutMs: Math.min(READING_BUFFERED_ATTEMPT_MAX_MS, taskDeadline.remainingMs() || 1)
+        timeoutMs: getBufferedReadingAttemptTimeoutMs(backend.id, taskDeadline.remainingMs())
       });
       narrativePayload.signal = attemptDeadline.signal;
       let backendResult = null;

@@ -21,6 +21,18 @@ const env = {
   FEATURE_FOLLOW_UP_ENABLED: 'true', FEATURE_FOLLOW_UP_JOURNAL_CONTEXT: 'false'
 };
 const completion = (text, structured = null) => ({ provider: 'codex-subscription', text, structured, model: 'codex-test', modelSource: 'configured', usage: { input_tokens: 42, output_tokens: 12 } });
+const encodeEvent = (type, data) => new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+const bufferedAccept = 'text/event-stream; mode=buffered';
+function completedResponse(options, result) {
+  if (options.headers.Accept !== bufferedAccept) return Response.json(result);
+  return new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(encodeEvent('delta', { text: result.text }));
+      controller.enqueue(encodeEvent('done', result));
+      controller.close();
+    }
+  }), { headers: { 'Content-Type': 'text/event-stream' } });
+}
 const answer = 'The Star in your Theme position invites you to take a small creative step. You can choose ten minutes of painting and notice how it feels.';
 const memory = { text: 'User prefers concrete creative steps.', category: 'communication', keywords: ['creative', 'steps'] };
 const readingInput = {
@@ -54,7 +66,7 @@ function responses(t, values) {
     inputs.push(JSON.parse(options.body));
     assert.ok(values.length, 'unexpected inference call');
     const next = values.shift();
-    return next instanceof Response ? next : Response.json(next);
+    return next instanceof Response ? next : completedResponse(options, next);
   });
   return inputs;
 }
@@ -185,7 +197,7 @@ test('owner Readings use the saved Codex model while follow-ups, summaries and p
       const result = input.task === 'followup'
         ? completion('', { response: answer, memory: null })
         : completion(input.task === 'reading' ? liveReading : 'Your journal invites a gentler pace.');
-      return Response.json(input.model ? { ...result, model: input.model } : result);
+      return completedResponse(options, input.model ? { ...result, model: input.model } : result);
     }
     assert.equal(url, 'https://openai.test/v1/responses');
     assert.notEqual(JSON.parse(options.body).model, model);
@@ -245,7 +257,7 @@ test('the portal link selects both subscriptions for signed-in owner routes only
     assert.ok(provider, 'only the selected private gateway may handle owner inference');
     const { task } = JSON.parse(options.body);
     tasks.push([provider, task]);
-    return Response.json({ ...completion(task === 'reading' ? liveReading : answer,
+    return completedResponse(options, { ...completion(task === 'reading' ? liveReading : answer,
       task === 'followup' ? { response: answer, memory: null } : null), provider });
   });
   let revision = 0;
@@ -288,7 +300,6 @@ test('owner-specific subscription failure never falls through to a paid API', as
   assert.deepEqual(urls, ['https://codex.example.test/v1/generate']);
   assert.equal(configured.DB.rows('SELECT * FROM follow_up_usage').length, 0);
 });
-const encodeEvent = (type, data) => new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
 const parseEvent = bytes => {
   const text = new TextDecoder().decode(bytes);
   return { type: text.match(/^event: (.+)/m)[1], data: JSON.parse(text.match(/^data: (.+)/m)[1]) };
@@ -396,6 +407,47 @@ test('live body keeps the request deadline active after the route returns', asyn
   assert.equal(live.configured.DB.rows('SELECT readings_count FROM usage_tracking')[0]?.readings_count, 0);
 });
 
+test('a protected personal reading can complete on Codex after the former 90-second cutoff', async t => {
+  const configured = { ...await setup(), CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true',
+    EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+  const card = { card: 'The Hermit', position: 'Theme', orientation: 'Reversed', meaning: 'Reflection' };
+  const narrative = JSON.stringify({ format: 'card-scenes-v1',
+    blocks: [{ type: 'prose', text: liveReading.replaceAll('The Star', 'The Hermit') }] });
+  const opened = Promise.withResolvers();
+  let calls = 0;
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: Date.now() });
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    calls++;
+    assert.equal(options.headers.Accept, bufferedAccept, 'canonical scenes need whole-reading processing');
+    opened.resolve(options.signal);
+    return new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(': keepalive\n\n'));
+        setTimeout(() => {
+          controller.enqueue(encodeEvent('delta', { text: narrative }));
+          controller.enqueue(encodeEvent('done', completion(narrative)));
+          controller.close();
+        }, 135000);
+      }
+    }), { headers: { 'Content-Type': 'text/event-stream' } });
+  });
+  const responsePromise = readingRoute({ env: configured, request: request('tarot-reading?stream=true', {
+    ...readingInput, cardsInfo: [card]
+  }) });
+  const signal = await Promise.race([
+    opened.promise,
+    responsePromise.then(response => assert.fail(`Reading returned early with status ${response.status}`))
+  ]);
+  t.mock.timers.tick(135000);
+  assert.equal(signal.aborted, false);
+  const response = await responsePromise;
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /codex-subscription/);
+  assert.equal(calls, 1);
+  assert.deepEqual(configured.DB.rows('SELECT provider, state, latency_ms FROM inference_attempts'),
+    [{ provider: 'codex-subscription', state: 'accepted', latency_ms: 135000 }]);
+});
+
 for (const policy of ['global', 'restricted']) {
   test(`Codex live opt-in preserves the complete-reading ${policy} evaluation gate`, async t => {
     const configured = { ...await setup(), CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true',
@@ -403,13 +455,13 @@ for (const policy of ['global', 'restricted']) {
     const requests = [];
     t.mock.method(globalThis, 'fetch', async (_url, options) => {
       requests.push(options.headers.Accept || 'application/json');
-      return Response.json(completion(liveReading));
+      return completedResponse(options, completion(liveReading));
     });
     const response = await readingRoute({ env: configured, request: request('tarot-reading?stream=true', {
       ...readingInput, ...(policy === 'restricted' ? { userQuestion: 'How can I reflect on my medication concerns?' } : {})
     }) });
     await response.text();
-    assert.deepEqual(requests, ['application/json']);
+    assert.deepEqual(requests, [bufferedAccept]);
     if (policy === 'restricted') assert.equal(response.status, 503, 'missing required model assessment must not become a live reading');
   });
 }

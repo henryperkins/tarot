@@ -177,6 +177,12 @@ whole-reading model assessment: requests requiring that assessment, including th
 existing restricted-topic and unsupported-language policy, retain buffered delivery.
 Enabling the global evaluation gate also retains buffering.
 
+Buffered personal readings give Codex up to 210 seconds within the reading
+deadline, with time reserved for final checks and the local fallback. The
+Worker receives a complete CLI result over a gateway event stream. The gateway
+sends a keepalive every ten seconds while it waits. Update the gateway alongside
+the Worker so buffered requests use this transport.
+
 Delivered prose is immutable: the final source must exactly equal the joined
 deltas, including whitespace. A provider error, failed quality check, timeout or
 cancellation terminates the live attempt and releases its quota reservation; it
