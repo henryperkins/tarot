@@ -1,6 +1,50 @@
 import { expect, test } from '@playwright/test';
 import { ADMIN_FIXTURE_KEY, createAiConfigWorker } from '../tests/helpers/aiConfigWorker.mjs';
 
+async function serveDashboard(page, worker, baseURL) {
+  // Keep the real Origin and reader cookie on the disposable Worker.
+  await page.route('**/*', async route => {
+    const { origin, pathname, search } = new URL(route.request().url());
+    if (origin !== worker.url) return route.abort();
+    if (pathname.startsWith('/api/')) return route.continue();
+    const response = await route.fetch({ url: new URL(pathname + search, baseURL).href });
+    return route.fulfill({ response });
+  });
+  await page.addInitScript(key => sessionStorage.setItem('admin_api_key', key), ADMIN_FIXTURE_KEY);
+}
+
+// Hold exactly one real Worker request or response. Follow-up status checks pass through.
+async function holdOwnerRequest(page, url, method, phase = 'after') {
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const settled = Promise.withResolvers();
+  let held;
+  const onSettled = request => {
+    if (request !== held) return;
+    page.off('requestfinished', onSettled);
+    page.off('requestfailed', onSettled);
+    settled.resolve();
+  };
+  page.on('requestfinished', onSettled);
+  page.on('requestfailed', onSettled);
+  await page.route(url, async route => {
+    if (held || route.request().method() !== method) return route.fallback();
+    held = route.request();
+    if (phase === 'before') {
+      entered.resolve();
+      await release.promise;
+    }
+    const response = await route.fetch();
+    if (phase === 'after') {
+      entered.resolve(await response.json());
+      await release.promise;
+    }
+    // A reader change may already have cancelled this request in the page.
+    await route.fulfill({ response }).catch(() => {});
+  });
+  return { entered: entered.promise, release: release.resolve, settled: settled.promise };
+}
+
 test('links a reader and shows owner sample provenance for each subscription', async ({ page, baseURL }) => {
   test.setTimeout(120000);
   const email = 'owner@example.test';
@@ -30,16 +74,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
     }
   });
   try {
-    // Use the browser's real Origin, Tableu login endpoints, and session cookie
-    // against the disposable Worker. Only frontend assets come from Vite.
-    await page.route('**/*', async route => {
-      const { origin, pathname, search } = new URL(route.request().url());
-      if (origin !== worker.url) return route.abort();
-      if (pathname.startsWith('/api/')) return route.continue();
-      const response = await route.fetch({ url: new URL(pathname + search, baseURL).href });
-      return route.fulfill({ response });
-    });
-    await page.addInitScript(key => sessionStorage.setItem('admin_api_key', key), ADMIN_FIXTURE_KEY);
+    await serveDashboard(page, worker, baseURL);
     const dashboard = worker.url + '/admin/ai-configuration';
     await page.goto(dashboard);
     await page.getByLabel('Reasoning effort').selectOption('low');
@@ -80,8 +115,17 @@ test('links a reader and shows owner sample provenance for each subscription', a
     const personalModel = panel.getByLabel('Personal Readings model');
     await expect(personalModel.getByRole('option', { name: 'Owner model · owner-model' })).toHaveCount(1);
     await personalModel.selectOption('owner-model');
-    // Leaving and returning to the tab keeps the fetched list and the unsaved choice.
-    await returnToTab();
+    // Keep the unsaved choice while the tab verifies which reader still owns it.
+    const verifyReader = await holdOwnerRequest(page, statusUrl, 'GET');
+    try {
+      await becomeVisible();
+      await verifyReader.entered;
+      await expect(button('Save personal model')).toBeDisabled();
+      await expect(button('Unlink account')).toBeDisabled();
+    } finally { verifyReader.release(); }
+    await verifyReader.settled;
+    await expect(button('Save personal model')).toBeEnabled();
+    await expect(button('Unlink account')).toBeEnabled();
     await expect(personalModel).toHaveValue('owner-model');
     await button('Save personal model').click();
     await expect(panel.getByText('Personal Readings model saved.')).toBeVisible();
@@ -106,24 +150,22 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await expect(claudeChoice).toBeChecked();
 
     // A recheck that read the link before a save must not replace the saved view.
-    const staleRead = Promise.withResolvers();
-    const saved = Promise.withResolvers();
-    const delivered = Promise.withResolvers();
-    await page.route(statusUrl, async route => {
-      if (route.request().method() !== 'GET') return route.fallback();
-      const response = await route.fetch();
-      staleRead.resolve();
-      await saved.promise;
-      // The page may already have cancelled the recheck that the save superseded.
-      await route.fulfill({ response }).catch(() => {});
-      delivered.resolve();
-    });
-    await becomeVisible();
-    await staleRead.promise;
-    await button('Save provider').click();
-    await expect(panel.getByText('Owner subscription saved.')).toBeVisible();
-    saved.resolve();
-    await delivered.promise;
+    const save = await holdOwnerRequest(page, statusUrl, 'PUT', 'before');
+    const recheck = await holdOwnerRequest(page, statusUrl, 'GET');
+    try {
+      await button('Save provider').click();
+      await save.entered;
+      await becomeVisible();
+      expect((await recheck.entered).link.providerId).toBe('codex-subscription');
+      save.release();
+      await save.settled;
+      recheck.release();
+      await recheck.settled;
+      await expect(panel.getByText('Owner subscription saved.')).toBeVisible();
+    } finally {
+      save.release();
+      recheck.release();
+    }
     await page.unroute(statusUrl);
     await expect(claudeChoice).toBeChecked();
     await expect(button('Save provider')).toHaveCount(0);
@@ -177,3 +219,69 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await worker.close();
   }
 });
+
+for (const first of ['save', 'recheck']) {
+  test(`switching readers during a provider save keeps the current reader when ${first} returns first`, async ({ page, baseURL }) => {
+    test.setTimeout(60000);
+    const worker = await createAiConfigWorker({
+      bindings: { AI_CONFIG_ENVIRONMENT: 'local', LOCAL_OWNER_HOST_SECRET: 'x'.repeat(32), OWNER_HOST_INSTANCE: crypto.randomUUID(),
+        OWNER_HOST_CODEX_URL: 'http://127.0.0.1:12345', OWNER_HOST_CLAUDE_URL: 'http://127.0.0.1:12346' },
+      ownerGatewayStub: (_request, provider) => Response.json({ provider, ready: true })
+    });
+    const owner = 'owner@example.test';
+    const other = 'other@example.test';
+    const statusUrl = worker.url + '/api/admin/ai-configuration/owner-subscription';
+    const register = async (email, username) => {
+      const result = await page.request.post(worker.url + '/api/auth/register', {
+        data: { email, username, password: 'isolated reader fixture' }
+      });
+      expect(result.status()).toBe(201);
+    };
+    let save, recheck;
+    try {
+      await serveDashboard(page, worker, baseURL);
+      await register(owner, 'fixture_owner');
+      const linked = await page.request.put(statusUrl, {
+        headers: { Origin: worker.url, Authorization: 'Bearer ' + ADMIN_FIXTURE_KEY },
+        data: { providerId: 'codex-subscription', baseRevision: 0 }
+      });
+      expect(linked.status()).toBe(200);
+      await page.goto(worker.url + '/admin/ai-configuration?tab=connections');
+      const panel = page.getByRole('region', { name: 'Owner subscription', exact: true });
+      await expect(panel.getByText(owner, { exact: false })).toBeVisible();
+      await panel.getByRole('radio', { name: /Claude Code/ }).check();
+      save = await holdOwnerRequest(page, statusUrl, 'PUT');
+      recheck = await holdOwnerRequest(page, statusUrl, 'GET');
+      await panel.getByRole('button', { name: 'Save provider', exact: true }).click();
+      expect((await save.entered).reader.label).toBe(owner);
+
+      // Registering through the shared cookie jar simulates changing readers in another tab.
+      await register(other, 'fixture_other');
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      expect((await recheck.entered).reader.label).toBe(other);
+      if (first === 'save') {
+        save.release();
+        await save.settled;
+        await expect(panel.getByRole('button', { name: 'Saving…', exact: true })).toHaveCount(0);
+        recheck.release();
+      } else {
+        recheck.release();
+        await expect(panel.getByText(other, { exact: false })).toBeVisible();
+        save.release();
+      }
+      await Promise.all([save.settled, recheck.settled]);
+      // Let React paint any late response before checking the final identity.
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await expect(panel.getByText(other, { exact: false })).toBeVisible();
+      await expect(panel.getByText(/A different reader is linked/)).toBeVisible();
+      await expect(panel.getByText(owner, { exact: false })).toHaveCount(0);
+      await expect(panel.getByRole('button', { name: 'Unlink account' })).toHaveCount(0);
+      await expect(panel.getByRole('button', { name: 'Run owner sample' })).toHaveCount(0);
+    } finally {
+      save?.release();
+      recheck?.release();
+      await page.unrouteAll({ behavior: 'wait' });
+      await worker.close();
+    }
+  });
+}
