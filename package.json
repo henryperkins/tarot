@@ -92,7 +92,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "@cfworker/json-schema": "^4.1.1",
+    "@cfworker/json-schema": "^4.1.6",
     "@cloudflare/workers-oauth-provider": "0.10.3",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/source-serif-4": "^5.2.9",
