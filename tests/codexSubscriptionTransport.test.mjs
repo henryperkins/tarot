@@ -110,3 +110,9 @@ test('Codex structured responses are validated before application tool execution
   t.mock.method(globalThis, 'fetch', async () => Response.json({ ...result, structured: { command: 'unexpected' } }));
   await assert.rejects(callCodexSubscription(env, { ...input, responseSchema }), /structured/);
 });
+
+test('a gateway must acknowledge the explicitly selected personal Readings model', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json(result));
+  assert.equal((await callCodexSubscription(env, { ...input, model: result.model })).model, result.model);
+  await assert.rejects(callCodexSubscription(env, { ...input, model: 'personal-test' }), /different model/);
+});

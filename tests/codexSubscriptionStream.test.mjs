@@ -60,6 +60,17 @@ test('Codex transport fails on truncated and explicit error streams without synt
   }
 });
 
+test('a different personal Readings model cannot complete an explicit selection stream', async t => {
+  t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({ start(controller) {
+    controller.enqueue(event('delta', { text: 'The Star.' }));
+    controller.enqueue(event('done', result('The Star.')));
+    controller.close();
+  } }), { headers: { 'Content-Type': 'text/event-stream' } }));
+  const events = streamCodexSubscription(env, { ...input, model: 'personal-test' });
+  assert.equal((await events.next()).value.type, 'delta');
+  await assert.rejects(events.next(), /different model/);
+});
+
 test('Codex transport aborts an in-progress body and cancels when its consumer stops early', async t => {
   for (const mode of ['abort', 'return']) {
     const controller = new AbortController();

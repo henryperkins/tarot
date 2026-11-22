@@ -33,6 +33,14 @@ export function ensureCodexSubscriptionConfig(env) {
   return { url: url.toString(), token, timeoutMs };
 }
 
+function validateGatewayResult(value, input) {
+  const result = validateCodexResult(value, input.responseSchema);
+  if (input.task === 'reading' && input.model && result.model !== input.model) {
+    throw new Error('Codex returned a different model from the selected Readings model.');
+  }
+  return result;
+}
+
 export async function callCodexSubscription(env, { signal: callerSignal, ...input }) {
   validateCodexRequest(input);
   const { url, token, timeoutMs } = ensureCodexSubscriptionConfig(env);
@@ -82,7 +90,7 @@ export async function callCodexSubscription(env, { signal: callerSignal, ...inpu
     body += decoder.decode();
     let result;
     try { result = JSON.parse(body); } catch { throw new Error('Codex returned an invalid response.'); }
-    return validateCodexResult(result, input.responseSchema);
+    return validateGatewayResult(result, input);
   } finally {
     clearTimeout(timer);
     callerSignal?.removeEventListener('abort', onAbort);
@@ -157,7 +165,7 @@ export async function* streamCodexSubscription(env, { signal: callerSignal, ...i
           text += data.text;
           yield { type: 'delta', text: data.text };
         } else if (type === 'done') {
-          const result = validateCodexResult(data, input.responseSchema);
+          const result = validateGatewayResult(data, input);
           if (!text || result.text !== text) throw new Error('Codex final source does not match delivered deltas.');
           yield { type: 'done', result };
           return;
