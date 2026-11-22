@@ -128,6 +128,7 @@ test('fetches the ChatGPT subscription catalog on demand and retries a failed re
 test('saves and clears only the personal Readings model and reloads a concurrent change', async ({ page }) => {
   await openEditor(page);
   let selection = { modelId: 'retired-model', revision: 2, baseToken: 'token-2' };
+  let models = [{ id: 'personal-one', label: 'Personal One' }, { id: 'personal-two', label: 'Personal Two' }];
   const writes = [];
   await page.route('**' + base + '/connections/codex-subscription/models', route => {
     if (route.request().method() === 'PUT') {
@@ -136,12 +137,14 @@ test('saves and clears only the personal Readings model and reloads a concurrent
       if (input.baseToken !== selection.baseToken || input.baseRevision !== selection.revision) {
         return route.fulfill({ status: 409, json: { error: 'Selection changed.' } });
       }
+      if (input.modelId && !models.some(model => model.id === input.modelId)) {
+        return route.fulfill({ status: 422, json: { code: 'personal_model_unavailable', error: 'Model unavailable.' } });
+      }
       const revision = selection.revision + 1;
       selection = { modelId: input.modelId, revision, baseToken: 'token-' + revision };
       return route.fulfill({ json: { selection } });
     }
-    return route.fulfill({ json: { provider: 'codex-subscription', editable: true, selection,
-      models: [{ id: 'personal-one', label: 'Personal One' }, { id: 'personal-two', label: 'Personal Two' }] } });
+    return route.fulfill({ json: { provider: 'codex-subscription', editable: true, selection, models } });
   });
   await page.getByRole('tab', { name: 'Provider connections' }).click();
   const panel = page.getByRole('region', { name: 'ChatGPT subscription models' });
@@ -164,10 +167,17 @@ test('saves and clears only the personal Readings model and reloads a concurrent
   await panel.getByRole('button', { name: 'Refresh models' }).click();
   await expect(model).toHaveValue('');
   await expect(save).toBeDisabled();
+  await model.selectOption('personal-two');
+  models = models.filter(item => item.id !== 'personal-two');
+  await save.click();
+  await expect(panel.getByRole('alert')).toContainText('That model is no longer available');
+  await expect(model).toHaveValue('');
+  await expect(model.locator('option[value="personal-two"]')).toHaveCount(0);
   expect(writes).toEqual([
     { modelId: 'personal-one', baseRevision: 2, baseToken: 'token-2' },
     { modelId: 'personal-one', baseRevision: 3, baseToken: 'token-3' },
-    { modelId: null, baseRevision: 4, baseToken: 'token-4' }
+    { modelId: null, baseRevision: 4, baseToken: 'token-4' },
+    { modelId: 'personal-two', baseRevision: 5, baseToken: 'token-5' }
   ]);
   await page.getByRole('tab', { name: 'Feature models' }).click();
   await expect(page.getByRole('region', { name: 'Primary model' }).getByLabel(/^Model/)).toHaveValue('gpt-6.1-sol');

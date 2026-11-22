@@ -24,6 +24,25 @@ export default function SubscriptionModels({ request, endpoint, onAccessChange }
     setDraft(result.selection?.modelId ?? null);
   }
 
+  async function saveSelection(signal) {
+    const { revision, baseToken } = catalog.selection;
+    try {
+      const { selection } = await request(endpoint, { method: 'PUT', signal,
+        body: { modelId: draft, baseRevision: revision, baseToken } });
+      if (signal.aborted) return;
+      setCatalog(current => ({ ...current, selection }));
+      setDraft(selection.modelId);
+      setNotice(selection.modelId ? 'Personal Readings model saved.' : 'Personal Readings will use the subscription default.');
+    } catch (err) {
+      const retired = err.code === 'personal_model_unavailable';
+      if (signal.aborted || (err.status !== 409 && !retired)) throw err;
+      setCatalog(null);
+      await readCatalog(signal);
+      if (!signal.aborted) setError(retired ? 'That model is no longer available. Choose from the refreshed list.'
+        : 'The subscription or saved model changed. Review the latest selection before saving again.');
+    }
+  }
+
   async function submit(action) {
     if (pendingRequest.current) return;
     const controller = new AbortController();
@@ -37,20 +56,7 @@ export default function SubscriptionModels({ request, endpoint, onAccessChange }
         setCatalog(null);
         await readCatalog(signal);
       } else {
-        const { revision, baseToken } = catalog.selection;
-        try {
-          const { selection } = await request(endpoint, { method: 'PUT', signal,
-            body: { modelId: draft, baseRevision: revision, baseToken } });
-          if (signal.aborted) return;
-          setCatalog(current => ({ ...current, selection }));
-          setDraft(selection.modelId);
-          setNotice(selection.modelId ? 'Personal Readings model saved.' : 'Personal Readings will use the subscription default.');
-        } catch (err) {
-          if (err.status !== 409 || signal.aborted) throw err;
-          setCatalog(null);
-          await readCatalog(signal);
-          if (!signal.aborted) setError('The subscription or saved model changed. Review the latest selection before saving again.');
-        }
+        await saveSelection(signal);
       }
     } catch (err) {
       if (signal.aborted) return;
