@@ -2,17 +2,18 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { buildCodexAppServerArgs, runCodexAppServer } from './app-server.mjs';
 import {
   CODEX_SUBSCRIPTION_DEFAULT_MODEL, CODEX_SUBSCRIPTION_DEFAULT_EFFORT,
   CODEX_SUBSCRIPTION_EFFORTS, CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES,
-  validateCodexRequest, validateCodexResult
+  validateCodexModelList, validateCodexRequest, validateCodexResult
 } from '../../shared/inference/codexSubscription.js';
 
 // Tool suppression is qualified against this CLI version. New versions must pass
 // the installed-CLI isolation check before joining this allowlist.
 export const CODEX_SUBSCRIPTION_CLI_VERSION = '0.167.2';
-const QUALIFIED_VERSIONS = [CODEX_SUBSCRIPTION_CLI_VERSION, '0.170.0'];
+const QUALIFIED_VERSIONS = [CODEX_SUBSCRIPTION_CLI_VERSION, '0.170.0', '0.171.0'];
 const DISABLED_FEATURES = Object.freeze([
   'shell_tool', 'unified_exec', 'apps', 'plugins', 'remote_plugin', 'hooks', 'memories',
   'multi_agent', 'multi_agent_v2', 'shell_snapshot', 'browser_use', 'browser_use_external',
@@ -124,6 +125,34 @@ export async function verifyCodexSubscriptionLogin({ signal, hostEnv = process.e
   }
 }
 
+async function readSubscriptionCatalog(executable, options) {
+  // Setting an explicit catalog URL disables the CLI's fallback to bundled models.
+  // A private provider name prevents inheriting extra host-configured auth settings.
+  const provider = 'tableu_catalog_' + randomUUID().replaceAll('-', '');
+  const baseUrl = 'https://chatgpt.com/backend-api/codex';
+  const args = ['debug', 'models', '-c', 'forced_login_method="chatgpt"',
+    '-c', `model_provider="${provider}"`, '-c', `model_providers.${provider}={name="ChatGPT",wire_api="responses",`
+    + `requires_openai_auth=true,base_url="${baseUrl}",model_catalog_url="${baseUrl}/models"}`];
+  const raw = await runProcess(executable, args, options);
+  let entries;
+  try { entries = JSON.parse(raw).models; } catch { /* Omit upstream diagnostics. */ }
+  if (!Array.isArray(entries) || !entries.length) throw new Error('ChatGPT subscription catalog is unavailable.');
+  return entries.filter(entry => entry?.visibility === 'list');
+}
+
+export async function listCodexSubscriptionModels({ signal, hostEnv = process.env } = {}) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'tableu-codex-models-'));
+  try {
+    await verifyCodexSubscriptionLogin({ signal, hostEnv, cwd: directory });
+    const entries = await readSubscriptionCatalog(hostEnv.CODEX_SUBSCRIPTION_EXECUTABLE || 'codex',
+      { env: buildCodexSubscriptionEnv(hostEnv), cwd: directory, signal });
+    const models = entries.map(entry => ({ id: entry.slug, label: entry.display_name || entry.slug }));
+    return validateCodexModelList({ provider: 'codex-subscription', models });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 export function buildCodexExecArgs({ model, effort, catalogPath, systemPath, responseSchemaPath, directory }) {
   const config = {
     model_provider: 'openai', forced_login_method: 'chatgpt', model_catalog_json: catalogPath,
@@ -153,6 +182,10 @@ export function createCodexModelCatalog(raw, model) {
   let source;
   try { source = JSON.parse(raw).models.find(entry => entry.slug === model); } catch { /* fail closed */ }
   if (!source) throw new Error('Requested Codex model is absent from the validated CLI catalog.');
+  return sanitizedModelCatalog(source);
+}
+
+function sanitizedModelCatalog(source) {
   return { models: [{ ...source, shell_type: 'disabled', apply_patch_tool_type: null,
     experimental_supported_tools: [], include_skills_usage_instructions: false,
     include_plugin_usage_instructions: false, include_apps_usage_instructions: false,
@@ -166,7 +199,7 @@ export async function runCodexSubscription(input, { signal, hostEnv = process.en
   }
   const modelKey = `CODEX_SUBSCRIPTION_${input.task.replaceAll('-', '_').toUpperCase()}_MODEL`;
   const model = input.model || hostEnv[modelKey] || hostEnv.CODEX_SUBSCRIPTION_MODEL || CODEX_SUBSCRIPTION_DEFAULT_MODEL;
-  const effort = input.effort || hostEnv.CODEX_SUBSCRIPTION_EFFORT || CODEX_SUBSCRIPTION_DEFAULT_EFFORT;
+  let effort = input.effort || hostEnv.CODEX_SUBSCRIPTION_EFFORT || CODEX_SUBSCRIPTION_DEFAULT_EFFORT;
   validateCodexRequest({ ...input, model, effort });
   if (!CODEX_SUBSCRIPTION_EFFORTS.includes(effort)) throw new Error('Invalid Codex reasoning effort.');
   const directory = await mkdtemp(path.join(tmpdir(), 'tableu-codex-'));
@@ -174,8 +207,21 @@ export async function runCodexSubscription(input, { signal, hostEnv = process.en
     await verifyCodexSubscriptionLogin({ signal, hostEnv, cwd: directory });
     const executable = hostEnv.CODEX_SUBSCRIPTION_EXECUTABLE || 'codex';
     const env = buildCodexSubscriptionEnv(hostEnv);
-    const raw = await runProcess(executable, ['debug', 'models', '--bundled'], { env, cwd: directory, signal });
-    const catalog = createCodexModelCatalog(raw, model);
+    const options = { env, cwd: directory, signal };
+    let catalog;
+    if (input.task === 'reading' && input.model) {
+      const entries = await readSubscriptionCatalog(executable, options);
+      const selected = entries.find(entry => entry.slug === model);
+      if (!selected) throw new Error('Requested model is unavailable on the ChatGPT subscription.');
+      const supported = selected.supported_reasoning_levels?.map(level => level.effort) || [];
+      if (!input.effort && !supported.includes(effort) && CODEX_SUBSCRIPTION_EFFORTS.includes(selected.default_reasoning_level)) {
+        effort = selected.default_reasoning_level;
+      }
+      catalog = sanitizedModelCatalog(selected);
+    } else {
+      const raw = await runProcess(executable, ['debug', 'models', '--bundled'], options);
+      catalog = createCodexModelCatalog(raw, model);
+    }
     const catalogPath = path.join(directory, 'models.json');
     const systemPath = path.join(directory, 'system.txt');
     const responseSchemaPath = input.responseSchema ? path.join(directory, 'schema.json') : undefined;

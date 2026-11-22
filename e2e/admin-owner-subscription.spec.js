@@ -6,6 +6,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
   const email = 'owner@example.test';
   const password = 'isolated reader fixture';
   const calls = [];
+  let modelReads = 0;
   let codexReady = false;
   const worker = await createAiConfigWorker({
     bindings: { AI_CONFIG_ENVIRONMENT: 'local', LOCAL_OWNER_HOST_SECRET: 'x'.repeat(32), OWNER_HOST_INSTANCE: crypto.randomUUID(),
@@ -15,6 +16,11 @@ test('links a reader and shows owner sample provenance for each subscription', a
       const codex = provider === 'codex-subscription';
       if (new URL(request.url).pathname === '/v1/subscription-status') {
         return Response.json({ provider, ready: !codex || codexReady, ...(!codexReady && codex && { reason: 'login_required' }) });
+      }
+      if (new URL(request.url).pathname === '/v1/models') {
+        expect(provider).toBe('codex-subscription');
+        modelReads += 1;
+        return Response.json({ provider, models: [{ id: 'owner-model', label: 'Owner model' }] });
       }
       calls.push(provider);
       return Response.json({ provider, text: 'A fixed ' + provider + ' fixture reading reflects on each card.',
@@ -39,6 +45,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await connections.click();
     const panel = page.getByRole('region', { name: 'Owner subscription', exact: true });
     const button = (name) => panel.getByRole('button', { name, exact: true });
+    await expect(page.getByRole('button', { name: 'Fetch models' })).toHaveCount(0);
     await button('Create reader account').click();
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: /Google/ }).click();
@@ -59,6 +66,17 @@ test('links a reader and shows owner sample provenance for each subscription', a
 
     codexReady = true;
     await button('Refresh subscription status').click();
+    await button('Fetch models').click();
+    const personalModel = panel.getByLabel('Personal Readings model');
+    await expect(personalModel.getByRole('option', { name: 'Owner model · owner-model' })).toHaveCount(1);
+    await personalModel.selectOption('owner-model');
+    await button('Save personal model').click();
+    await expect(panel.getByText('Personal Readings model saved.')).toBeVisible();
+    await button('Refresh models').click();
+    await expect(personalModel).toHaveValue('owner-model');
+    await personalModel.selectOption('');
+    await button('Save personal model').click();
+    await expect(panel.getByText('Personal Readings will use the subscription default.')).toBeVisible();
     await button('Run owner sample').click();
     await expect(panel.getByText('Codex / ChatGPT answered')).toBeVisible();
     await expect(panel.getByText(/did not report the answering model/)).toContainText('Configured model · gpt-6.1-sol');
@@ -68,6 +86,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await connections.click();
     await expect(panel.getByText('Codex / ChatGPT answered')).toBeVisible();
     await panel.getByRole('radio', { name: /Claude Code/ }).check();
+    await expect(button('Fetch models')).toHaveCount(0);
     await expect(button('Run owner sample')).toBeDisabled();
     await button('Save provider').click();
     await expect(panel.getByText('Codex / ChatGPT answered')).toHaveCount(0);
@@ -85,6 +104,8 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await expect(connections).toHaveAttribute('aria-selected', 'true');
     await expect(panel.getByText(/A different reader is linked/)).toBeVisible();
     await expect(button('Run owner sample')).toHaveCount(0);
+    await expect(panel.getByText('owner-model')).toHaveCount(0);
+    await expect(button('Fetch models')).toHaveCount(0);
     await expect(panel.getByText(email)).toHaveCount(0);
     await expect(panel.getByText(/fixture reading/)).toHaveCount(0);
     await button('Sign in with another reader account').click();
@@ -98,6 +119,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await expect(button('Link reader account')).toBeVisible();
     await expect(button('Run owner sample')).toHaveCount(0);
     expect(calls).toEqual(['codex-subscription', 'claude-code']);
+    expect(modelReads).toBeGreaterThanOrEqual(2);
     expect(worker.outboundOrigins).toEqual([]);
   } finally {
     await page.unrouteAll({ behavior: 'wait' });

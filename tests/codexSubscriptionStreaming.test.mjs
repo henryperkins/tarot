@@ -15,7 +15,8 @@ async function fixture(t, { mismatch = false, fail = false } = {}) {
 const args=process.argv.slice(2);const send=x=>console.log(JSON.stringify(x));
 if(args.includes('--version'))console.log('codex-cli 0.167.2');
 else if(args.includes('status'))console.error('Logged in using ChatGPT');
-else if(args.includes('models'))send({models:[{slug:'gpt-6.1-sol'}]});
+else if(args.includes('--bundled'))send({models:[{slug:'gpt-6.1-sol'}]});
+else if(args.includes('models'))send({models:[{slug:'personal-test',visibility:'list'}]});
 else if(args.includes('app-server')) {
 if(!args.includes('openai_base_url="https://chatgpt.com/backend-api/codex"'))process.exit(5);
 readline.createInterface({input:process.stdin}).on('line',line=>{
@@ -24,7 +25,8 @@ if(e.method==='initialize')reply({});
 if(e.method==='config/read')reply({config:{mcp_servers:{'dotted.hostile':{command:'must-not-run',args:null}}}});
 if(e.method==='thread/start'){
 if(e.params.config.mcp_servers['dotted.hostile'].enabled!==false||'args' in e.params.config.mcp_servers['dotted.hostile']||e.params.environments.length||!e.params.ephemeral)process.exit(3);
-reply({thread:{id:'thread'},model:'gpt-6.1-sol'});
+if(e.params.allowProviderModelFallback!==false)process.exit(6);
+reply({thread:{id:'thread'},model:e.params.model});
 }
 if(e.method==='turn/start'){
 reply({turn:{id:'turn'}});
@@ -65,6 +67,16 @@ test('mismatched authoritative text rejects a streamed reading instead of rewrit
   const deltas = [];
   await assert.rejects(runCodexSubscription(input, { hostEnv, onDelta: text => deltas.push(text) }), /stream|incomplete|match/i);
   assert.equal(deltas.join(''), '  First. Second.  ');
+});
+
+test('subscription streaming requests the selected account model and disables provider model fallback', async t => {
+  const hostEnv = await fixture(t);
+  const deltas = [];
+  const result = await runCodexSubscription({ ...input, model: 'personal-test' }, {
+    hostEnv, onDelta: text => deltas.push(text)
+  });
+  assert.equal(result.model, 'personal-test');
+  assert.equal(result.text, deltas.join(''));
 });
 
 test('failure after the first delta is terminal and never exposes upstream error details', async t => {

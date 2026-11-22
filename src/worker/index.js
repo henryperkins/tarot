@@ -95,7 +95,7 @@ import * as readingVisualJob from '../../functions/api/reading-visual-job.js';
 // Admin handlers
 import * as adminQualityStats from '../../functions/api/admin/quality-stats.js';
 import * as adminAiConfig from '../../functions/api/admin/ai-configuration.js';
-import { ownerSubscription, ownerSample, ownerReceipt } from '../../functions/api/admin/owner-subscription.js';
+import { ownerSubscription, ownerModels, ownerSample, ownerReceipt } from '../../functions/api/admin/owner-subscription.js';
 import { localAccess } from '../../functions/api/admin/local-access.js';
 import { AdminAiSamples as AdminAiSamplesBase } from './adminAiSamples.js';
 import * as adminReadingJobRetention from '../../functions/api/admin/reading-job-retention.js';
@@ -301,8 +301,10 @@ const routes = [
   // Admin endpoints
   { pattern: /^\/api\/admin\/ai-configuration(?:\/(?:history|connections|release-settings))?\/?$/, handlers: adminAiConfig.overview },
   { pattern: /^\/api\/admin\/ai-configuration\/owner-subscription\/?$/, handlers: ownerSubscription },
+  { pattern: /^\/api\/admin\/ai-configuration\/owner-subscription\/models\/?$/, handlers: ownerModels },
   { pattern: /^\/api\/admin\/ai-configuration\/owner-subscription\/samples\/?$/, handlers: ownerSample },
   { pattern: /^\/api\/admin\/ai-configuration\/owner-subscription\/samples\/([\w-]+)\/?$/, handlers: ownerReceipt, params: ['runId'] },
+  { pattern: /^\/api\/admin\/ai-configuration\/connections\/codex-subscription\/models\/?$/, handlers: adminAiConfig.subscriptionModels },
   { pattern: /^\/api\/admin\/ai-configuration\/connections\/([\w-]+)$/, handlers: adminAiConfig.connection, params: ['providerId'] },
   { pattern: /^\/api\/admin\/local-access$/, handlers: localAccess },
   { pattern: /^\/api\/admin\/ai-configuration\/features\/([\w-]+)$/, handlers: adminAiConfig.assignment, params: ['id'] },

@@ -200,7 +200,7 @@ function EditorSession({ catalog, feature, request, onSelect, onSaved, onLogout,
         </div>
       </div>
       <div role="tabpanel" aria-labelledby="ai-tab-1" id="ai-panel-1" hidden={tab !== 1}>
-        <ProviderConnections active={tab === 1} local={catalog.environment === 'local'} request={request} features={catalog.features} refreshReadiness={refreshReadiness} />
+        <ProviderConnections active={tab === 1} environment={catalog.environment} request={request} features={catalog.features} refreshReadiness={refreshReadiness} />
       </div>
       <div role="tabpanel" aria-labelledby="ai-tab-2" id="ai-panel-2" hidden={tab !== 2}>
         {tab === 2 && <ChangeHistory key={feature.revision} request={request} features={catalog.features} />}

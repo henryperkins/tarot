@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import AuthModal from '../AuthModal.jsx';
+import SubscriptionModels from './SubscriptionModels.jsx';
 
 const endpoint = '/owner-subscription';
 
@@ -150,6 +151,8 @@ function Settings({ status, request, fixture, onChange, onAccessChange, onRefres
         <button type="button" className="ai-button" disabled={saving} onClick={() => setConfirmUnlink(false)}>Cancel</button></div>
     </div>}
     {error && <p role="alert" className="ai-error">{error}</p>}
+    {saved?.id === 'codex-subscription' && !dirty && !saving && !confirmUnlink &&
+      <SubscriptionModels request={request} endpoint={endpoint + '/models'} onAccessChange={onAccessChange} />}
     {saved && <Sample reader={reader} link={link} provider={saved} fixture={fixture} request={request}
       disabled={dirty || saving || confirmUnlink} onAccessChange={onAccessChange} />}
     {saved && dirty && <p className="ai-meta">Save the provider choice to test it.</p>}

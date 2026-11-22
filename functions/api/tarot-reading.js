@@ -90,7 +90,8 @@ import {
   buildOpenAIResponsesPrompts,
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
-import { getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
+import { getPersonalTextAccessError, getPersonalTextProvider, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
+import { resolvePersonalReadingModel } from '../lib/personalReadingModel.js';
 import { resolveOwnerSubscriptionEnv } from '../lib/ownerSubscription.js';
 import { streamCodexSubscription } from '../lib/codexSubscription.js';
 import { createCodexReadingStream } from '../lib/codexReadingStream.js';
@@ -1187,10 +1188,16 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     // The sample runner has already resolved the connections before isolating storage.
     // Keep crisis responses independent of configuration storage.
-    if (!sampleRun && !isPersonalTextProviderEnabled(env)) {
+    let personalReadingModel = null;
+    if (!sampleRun) {
       try {
         env = await resolveOwnerSubscriptionEnv(env, user);
-        if (!isPersonalTextProviderEnabled(env)) env = await resolveProviderEnvironment(env);
+        const personalProvider = getPersonalTextProvider(env);
+        if (personalProvider === 'codex-subscription') {
+          personalReadingModel = await resolvePersonalReadingModel(env, user.id);
+        } else if (!personalProvider) {
+          env = await resolveProviderEnvironment(env);
+        }
       } catch {
         return jsonResponse({ error: 'Reading configuration unavailable.', code: 'reading_configuration_unavailable' }, { status: 503 });
       }
@@ -1317,6 +1324,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     );
     const narrativePayload = {
       isAdminSample: Boolean(sampleRun),
+      personalReadingModel,
       userContextInputStats: { ...decisionPathContext.inputStats, ...Object.fromEntries([
         ['question', { originalLength: userQuestion?.length || 0 }],
         ['reflections', { originalLength: reflectionsText?.length || 0 }],
@@ -1390,7 +1398,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       const stream = createCodexReadingStream({
         signal: taskSignal, waitUntil, meta: streamMeta,
         guard: createReadingPassageGuard({ cardsInfo, spreadKey: analysis.spreadKey, deckStyle }),
-        source: signal => streamCodexSubscription(env, { task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal }),
+        source: signal => streamCodexSubscription(env, {
+          task: 'reading', ...(personalReadingModel && { model: personalReadingModel }),
+          systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal
+        }),
         onComplete: async (result, signal) => {
           streamResult = result;
           const { qualityMetrics, qualityIssues } = evaluateQualityGate({ readingText: result.text, cardsInfo, deckStyle, analysis, requestId });
@@ -1435,7 +1446,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           try {
             await recordInferenceAttempt(env, {
               requestId, task: 'reading', provider: streamProvider,
-              requestedModel: streamResult?.modelSource === 'configured' ? streamResult.model : null,
+              requestedModel: personalReadingModel || (streamResult?.modelSource === 'configured' ? streamResult.model : null),
               model: streamResult?.modelSource === 'reported' ? streamResult.model : null,
               usage: streamResult?.usage || null, state: streamState, reason: streamReason,
               startedAtMs: streamStartedAt, finishedAtMs: Date.now()
@@ -1937,7 +1948,8 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
           model: backendResult?.modelSource === 'configured' ? null : backendResult?.model || attemptError?.model || null,
           usage: backendResult?.usage || attemptError?.usage || null,
-          requestedModel: backendResult?.modelSource === 'configured' ? backendResult.model
+          requestedModel: backend.id === 'codex-subscription' && personalReadingModel ? personalReadingModel
+            : backendResult?.modelSource === 'configured' ? backendResult.model
             : backend.id === 'claude-api' ? env.ANTHROPIC_MODEL || 'claude-opus-5-5'
             : backend.id === 'modal-qwen' ? env.MODAL_MODEL || 'Qwen/Qwen3.8-Max-VL-Thinking'
             : backend.id === 'openai-native' ? env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL

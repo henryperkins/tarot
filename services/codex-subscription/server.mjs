@@ -1,8 +1,8 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { CODEX_SUBSCRIPTION_MAX_BODY_BYTES, CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES, validateCodexRequest, validateCodexResult } from '../../shared/inference/codexSubscription.js';
-import { runCodexSubscription, verifyCodexSubscriptionLogin } from './runner.mjs';
+import { CODEX_SUBSCRIPTION_MAX_BODY_BYTES, CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES, validateCodexModelList, validateCodexRequest, validateCodexResult } from '../../shared/inference/codexSubscription.js';
+import { listCodexSubscriptionModels, runCodexSubscription, verifyCodexSubscriptionLogin } from './runner.mjs';
 import { createSubscriptionStatus } from '../subscription-status.mjs';
 
 function authorized(header, token) {
@@ -17,7 +17,7 @@ function reply(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-export function createCodexSubscriptionServer({ token, run = runCodexSubscription, checkLogin = verifyCodexSubscriptionLogin, concurrency = 1, maxQueue = 8, timeoutMs = 300000, queueTimeoutMs = 60000, maxBodyBytes = CODEX_SUBSCRIPTION_MAX_BODY_BYTES } = {}) {
+export function createCodexSubscriptionServer({ token, run = runCodexSubscription, checkLogin = verifyCodexSubscriptionLogin, listModels = listCodexSubscriptionModels, concurrency = 1, maxQueue = 8, timeoutMs = 300000, queueTimeoutMs = 60000, maxBodyBytes = CODEX_SUBSCRIPTION_MAX_BODY_BYTES } = {}) {
   if (typeof token !== 'string' || token.length < 32 || /\s/.test(token)) throw new Error('Set a random CODEX_SUBSCRIPTION_GATEWAY_TOKEN of at least 32 characters.');
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4 || !Number.isInteger(maxQueue) || maxQueue < 0 || maxQueue > 100) throw new Error('Invalid Codex concurrency or queue limit.');
   let active = 0;
@@ -45,7 +45,8 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
     if (!authorized(request.headers.authorization, token)) { reply(response, 401, { error: 'Unauthorized' }); return; }
     if (request.method === 'GET' && request.url === '/healthz') { reply(response, 200, { status: 'ok', provider: 'codex-subscription', active, queued: queue.length }); return; }
     if (request.method === 'GET' && request.url === '/v1/subscription-status') { reply(response, 200, await subscription.read()); return; }
-    if (request.method !== 'POST' || request.url !== '/v1/generate') { reply(response, 404, { error: 'Not found' }); return; }
+    const listingModels = request.method === 'GET' && request.url === '/v1/models';
+    if (!listingModels && (request.method !== 'POST' || request.url !== '/v1/generate')) { reply(response, 404, { error: 'Not found' }); return; }
     const controller = new AbortController();
     let finish;
     requests.set(controller, new Promise(resolve => { finish = resolve; }));
@@ -53,7 +54,7 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
     const onAbort = () => { if (!request.complete) request.destroy(); };
     response.on('close', onClose);
     controller.signal.addEventListener('abort', onAbort, { once: true });
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), listingModels ? Math.min(timeoutMs, 10000) : timeoutMs);
     let admitted = false;
     let streaming = false;
     let streamedText = '';
@@ -62,6 +63,14 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
       response.write(`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`);
     };
     try {
+      if (listingModels) {
+        await take(controller.signal);
+        admitted = true;
+        const catalog = await listModels({ signal: controller.signal });
+        controller.signal.throwIfAborted();
+        reply(response, 200, validateCodexModelList(catalog));
+        return;
+      }
       const chunks = [];
       let bytes = 0;
       for await (const chunk of request) {
@@ -97,7 +106,9 @@ export function createCodexSubscriptionServer({ token, run = runCodexSubscriptio
       } else reply(response, 200, result);
     } catch (error) {
       const status = error.status === 429 ? 429 : controller.signal.aborted ? 504 : 503;
-      const body = { error: status === 429 ? 'Codex service is busy. Try again shortly.' : 'Codex inference is unavailable. Check the service login and subscription limits.' };
+      const body = { error: status === 429 ? 'Codex service is busy. Try again shortly.'
+        : listingModels ? 'ChatGPT subscription models are unavailable. Check the Codex login on the gateway host.'
+          : 'Codex inference is unavailable. Check the service login and subscription limits.' };
       if (streaming) {
         if (!response.destroyed && !response.writableEnded) { event('error', body); response.end(); }
       } else reply(response, status, body);

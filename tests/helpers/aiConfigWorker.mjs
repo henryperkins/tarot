@@ -57,8 +57,11 @@ export async function createAiConfigWorker({ openAIStub, workersAiStub, ownerGat
     d1Databases: ['DB'],
     outboundService: request => {
       const { hostname, origin, pathname } = new URL(request.url);
+      if (ownerGatewayStub && hostname === 'codex-gateway.invalid' && pathname === '/subscription/v1/models') {
+        return ownerGatewayStub(request, 'codex-subscription');
+      }
       if (ownerGatewayStub && hostname === '127.0.0.1' &&
-          ['/v1/subscription-status', '/v1/generate', '/v1/generate/stream'].includes(pathname)) {
+          ['/v1/subscription-status', '/v1/models', '/v1/generate', '/v1/generate/stream'].includes(pathname)) {
         if (origin === bindings.OWNER_HOST_CODEX_URL) return ownerGatewayStub(request, 'codex-subscription');
         if (origin === bindings.OWNER_HOST_CLAUDE_URL) return ownerGatewayStub(request, 'claude-code');
       }

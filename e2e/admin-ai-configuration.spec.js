@@ -83,6 +83,96 @@ async function openEditor(page, { deferSave, deferReceipt, conflictOnce = false,
   return entries;
 }
 
+test('fetches the ChatGPT subscription catalog on demand and retries a failed request', async ({ page }) => {
+  await openEditor(page);
+  let requests = 0;
+  let finishFirst;
+  const firstResponse = new Promise(resolve => { finishFirst = resolve; });
+  await page.route('**' + base + '/connections/codex-subscription/models', async route => {
+    expect(route.request().method()).toBe('GET');
+    expect(route.request().headers().authorization).toBe('Bearer local-browser-fixture');
+    requests += 1;
+    if (requests === 1) {
+      await firstResponse;
+      return route.fulfill({ status: 503, json: { error: 'Subscription gateway unavailable.' } });
+    }
+    return route.fulfill({ json: { provider: 'codex-subscription', editable: false, selection: null,
+      readOnlyReason: 'Configure an owner to save a personal model.', models: requests === 2 ? [] : [
+      { id: 'subscription-fixture', label: 'Subscription fixture' }
+    ] } });
+  });
+  await page.getByRole('tab', { name: 'Provider connections' }).click();
+  const panel = page.getByRole('region', { name: 'ChatGPT subscription models' });
+  const fetchModels = panel.getByRole('button', { name: 'Fetch models' });
+  await expect(fetchModels).toBeVisible();
+  expect(requests).toBe(0);
+  await fetchModels.click();
+  try {
+    await expect(panel.getByRole('button', { name: 'Fetching models…' })).toBeDisabled();
+  } finally {
+    finishFirst();
+  }
+  await expect(panel.getByRole('alert')).toHaveText('Subscription gateway unavailable.');
+  await fetchModels.click();
+  await expect(panel.getByText('The subscription returned no available models.')).toBeVisible();
+  await panel.getByRole('button', { name: 'Refresh models' }).click();
+  await expect(panel.getByRole('listitem')).toHaveText('Subscription fixture · subscription-fixture');
+  await expect(panel.getByText('Configure an owner to save a personal model.')).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Save personal model' })).toHaveCount(0);
+  await expect(panel.getByRole('alert')).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Feature models' }).click();
+  await expect(page.getByRole('option', { name: 'Subscription fixture' })).toHaveCount(0);
+  expect(requests).toBe(3);
+});
+
+test('saves and clears only the personal Readings model and reloads a concurrent change', async ({ page }) => {
+  await openEditor(page);
+  let selection = { modelId: 'retired-model', revision: 2, baseToken: 'token-2' };
+  const writes = [];
+  await page.route('**' + base + '/connections/codex-subscription/models', route => {
+    if (route.request().method() === 'PUT') {
+      const input = route.request().postDataJSON();
+      writes.push(input);
+      if (input.baseToken !== selection.baseToken || input.baseRevision !== selection.revision) {
+        return route.fulfill({ status: 409, json: { error: 'Selection changed.' } });
+      }
+      const revision = selection.revision + 1;
+      selection = { modelId: input.modelId, revision, baseToken: 'token-' + revision };
+      return route.fulfill({ json: { selection } });
+    }
+    return route.fulfill({ json: { provider: 'codex-subscription', editable: true, selection,
+      models: [{ id: 'personal-one', label: 'Personal One' }, { id: 'personal-two', label: 'Personal Two' }] } });
+  });
+  await page.getByRole('tab', { name: 'Provider connections' }).click();
+  const panel = page.getByRole('region', { name: 'ChatGPT subscription models' });
+  await panel.getByRole('button', { name: 'Fetch models' }).click();
+  const model = panel.getByLabel('Personal Readings model');
+  const save = panel.getByRole('button', { name: 'Save personal model' });
+  await expect(model).toHaveValue('retired-model');
+  await expect(model.getByRole('option', { name: 'retired-model (saved, unavailable)' })).toHaveJSProperty('disabled', true);
+  await model.selectOption('personal-one');
+  selection = { modelId: 'personal-two', revision: 3, baseToken: 'token-3' };
+  await save.click();
+  await expect(panel.getByRole('alert')).toContainText('Review the latest selection');
+  await expect(model).toHaveValue('personal-two');
+  await model.selectOption('personal-one');
+  await save.click();
+  await expect(panel.getByRole('status')).toHaveText('Personal Readings model saved.');
+  await model.selectOption('');
+  await save.click();
+  await expect(panel.getByRole('status')).toHaveText('Personal Readings will use the subscription default.');
+  await panel.getByRole('button', { name: 'Refresh models' }).click();
+  await expect(model).toHaveValue('');
+  await expect(save).toBeDisabled();
+  expect(writes).toEqual([
+    { modelId: 'personal-one', baseRevision: 2, baseToken: 'token-2' },
+    { modelId: 'personal-one', baseRevision: 3, baseToken: 'token-3' },
+    { modelId: null, baseRevision: 4, baseToken: 'token-4' }
+  ]);
+  await page.getByRole('tab', { name: 'Feature models' }).click();
+  await expect(page.getByRole('region', { name: 'Primary model' }).getByLabel(/^Model/)).toHaveValue('gpt-6.1-sol');
+});
+
 test('shows saved, tested and edited reading settings and saves only the draft', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 853 });
   await openEditor(page);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import OwnerSubscription from './OwnerSubscription.jsx';
+import SubscriptionModels from './SubscriptionModels.jsx';
 
 const sources = {
   deployment: 'Deployment settings', portal: 'Portal settings', disconnected: 'Disconnected in portal',
@@ -95,7 +96,8 @@ function ProviderRow({ connection, featureLabels, editor, pending, onEdit, onSav
   </li>;
 }
 
-export default function ProviderConnections({ active, local, request, features, refreshReadiness }) {
+export default function ProviderConnections({ active, environment, request, features, refreshReadiness }) {
+  const local = environment === 'local';
   const [connections, setConnections] = useState(null);
   const [editor, setEditor] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -167,6 +169,8 @@ export default function ProviderConnections({ active, local, request, features, 
   return <section className="ai-records" aria-label="Provider connections">
     <h2>Provider connections</h2>
     {local && <OwnerSubscription request={request} fixture={features.find(item => item.id === 'readings')?.fixture} />}
+    {['preview', 'production'].includes(environment) &&
+      <SubscriptionModels request={request} endpoint="/connections/codex-subscription/models" />}
     {local && <h3>Feature providers</h3>}
     <p className="ai-meta">Status shows whether the connection has the settings it needs. Feature samples can test a model response.</p>
     {error && <div className="ai-error" role="alert">{error} <button className="ai-button" type="button" onClick={refresh}>Refresh status</button></div>}

@@ -9,6 +9,24 @@ export const CODEX_SUBSCRIPTION_EFFORTS = Object.freeze(['low', 'medium', 'high'
 // Model ids become CLI arguments, so they may not start with a dash.
 const MODEL_ID = /^[a-z0-9][a-z0-9.-]{0,99}$/i;
 
+export const CODEX_SUBSCRIPTION_MAX_MODELS = 256;
+
+export function validateCodexModelList(value) {
+  const invalid = () => new Error('Invalid ChatGPT subscription model catalog.');
+  if (value?.provider !== 'codex-subscription' || !Array.isArray(value.models)
+    || value.models.length > CODEX_SUBSCRIPTION_MAX_MODELS) throw invalid();
+  const ids = new Set();
+  const models = value.models.map(entry => {
+    const { id, label } = entry || {};
+    if (typeof id !== 'string' || !MODEL_ID.test(id) || ids.has(id)
+      || typeof label !== 'string' || !label.trim() || label.length > 160
+      || /\p{Cc}|\p{Cf}/u.test(label)) throw invalid();
+    ids.add(id);
+    return { id, label: label.trim() };
+  });
+  return { provider: 'codex-subscription', models };
+}
+
 export function validateCodexRequest(value) {
   if (!value || !CODEX_SUBSCRIPTION_TASKS.includes(value.task)
     || typeof value.systemPrompt !== 'string' || !value.systemPrompt.trim()

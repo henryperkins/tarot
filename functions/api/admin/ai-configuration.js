@@ -3,6 +3,8 @@ import { describeFeature, listHistory, savePolicy } from '../../lib/aiConfigStor
 import { sha256Hex, timingSafeEqual } from '../../lib/crypto.js';
 import { describeReleaseReading } from '../../lib/aiConfigRelease.js';
 import { listManagedConnections, resolveProviderEnvironment, saveConnection } from '../../lib/providerConnections.js';
+import { fetchCodexSubscriptionModels } from '../../lib/codexSubscriptionModels.js';
+import { describePersonalReadingSelection, PERSONAL_MODEL_FIELDS, savePersonalReadingModel } from '../../lib/personalReadingModel.js';
 import { isLocalAdminOrigin, isLocalAdminSession } from './local-access.js';
 
 const prefix = '/api/admin/ai-configuration';
@@ -44,6 +46,14 @@ async function adminConfig({ request, env, params }) {
     if (!sharedAccess) {
       if (!env.ADMIN_API_KEY && !isLocalAdminOrigin(request, env)) return json({ error: 'Admin authentication is not configured.', code: 'admin_unavailable' }, 503);
       if (path === prefix + '/release-settings' || !await isLocalAdminSession(request, env)) return json({ error: 'Unauthorized', code: 'unauthorized' }, 401);
+    }
+    if (path === prefix + '/connections/codex-subscription/models') {
+      if (!['preview', 'production'].includes(configEnvironment(env))) {
+        throw new ConfigError(403, 'hosted_only', 'Use the linked reader’s owner subscription to fetch models on the local Worker.');
+      }
+      if (request.method === 'PUT') return json(await savePersonalReadingModel(env, await input(request, PERSONAL_MODEL_FIELDS), request.signal));
+      const [catalog, preference] = await Promise.all([fetchCodexSubscriptionModels(env, request.signal), describePersonalReadingSelection(env)]);
+      return json({ ...catalog, ...preference });
     }
     if (providerId && request.method === 'PUT') {
       const body = await input(request, ['action', 'baseRevision', 'values']);
@@ -106,6 +116,7 @@ async function adminConfig({ request, env, params }) {
 
 export const overview = { onRequestGet: adminConfig };
 export const connection = { onRequestPut: adminConfig };
+export const subscriptionModels = { onRequestGet: adminConfig, onRequestPut: adminConfig };
 export const assignment = { onRequestPut: adminConfig };
 export const samples = { onRequestPost: adminConfig };
 export const receipt = { onRequestGet: adminConfig };

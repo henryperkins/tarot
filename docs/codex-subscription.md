@@ -14,7 +14,7 @@ For the local web portal, start the dev server and use **Provider connections �
 
 ## Local reading beta
 
-With Node 24 and a qualified Codex CLI (**0.167.2** or **0.170.0**) installed, run `codex login` on the service host.
+With Node 24 and a qualified Codex CLI (**0.167.2**, **0.170.0**, or **0.171.0**) installed, run `codex login` on the service host.
 `codex login status` must report a ChatGPT login. Then, from this worktree:
 
 ```bash
@@ -61,10 +61,27 @@ name is a configuration error. Gateway failure never falls back to a paid API.
 Buffered reading/summary fallback and follow-up retry behavior remain; an already
 started live reading fails explicitly instead of appending a replacement reading.
 
-The gateway defaults to `127.0.0.1:8789`. Both `GET /healthz` and
-`POST /v1/generate` require its bearer token. Health reports service/queue state,
+The gateway defaults to `127.0.0.1:8789`. Its health, subscription status,
+model catalog (`GET /v1/models`), and generation routes require its bearer token. Health reports service/queue state,
 not an inference or subscription-availability guarantee. Do not reuse a ChatGPT
 credential as the gateway token or expose the gateway as a public shared service.
+
+### Fetch the subscription's models
+
+In **AI configuration → Provider connections → ChatGPT subscription models**, choose
+**Fetch models**. The dashboard requests model names and IDs from the signed-in
+Codex gateway. Refresh the list after switching accounts or changing plans.
+Fetching models uses no reading or generation request. Choose a **Personal Readings model**
+and save it to apply the model to your next initial or regenerated reading through
+this subscription. Choose **Subscription default** to restore the host's configured model.
+The preference belongs to the linked reader and gateway. Public Readings, follow-ups,
+and journal summaries use their own settings.
+
+A hosted dashboard uses its configured `CODEX_SUBSCRIPTION_GATEWAY_URL` and
+`CODEX_SUBSCRIPTION_GATEWAY_TOKEN`. Deploy the gateway with `GET /v1/models`
+support, then apply migration `0044_personal_reading_models.sql` and update the Worker.
+On the local portal, sign in as the reader
+linked to **Codex / ChatGPT** to fetch that host's list.
 
 ## Owner routing on a shared deployment
 

@@ -1,6 +1,7 @@
 import { configEnabled, ConfigError } from './aiConfigCatalog.js';
 import { getPersonalTextProvider, resolvePersonalTextProviderEnv } from './personalTextProvider.js';
 import { getOwnerHostStatus, withOwnerHostGateway } from './ownerSubscriptionHost.js';
+import { LOCAL_CODEX_LINK_REVISION } from './personalReadingModel.js';
 
 const providers = [
   { id: 'codex-subscription', label: 'Codex / ChatGPT' },
@@ -29,7 +30,8 @@ export function ownerRestriction(env) {
 export async function linkedGatewayEnv(env, row) {
   const gateway = await withOwnerHostGateway(env, row.provider_id);
   const ownerField = row.provider_id === 'claude-code' ? 'CLAUDE_CODE_OWNER_USER_ID' : 'CODEX_SUBSCRIPTION_OWNER_USER_ID';
-  return { ...gateway, TEXT_PROVIDER: row.provider_id, [ownerField]: row.owner_id };
+  return { ...gateway, TEXT_PROVIDER: row.provider_id, [ownerField]: row.owner_id,
+    ...(row.provider_id === 'codex-subscription' && { [LOCAL_CODEX_LINK_REVISION]: row.revision }) };
 }
 
 /** Preserve legacy deployments and leave unlinked readers on their usual route. */

@@ -2,8 +2,10 @@ import { checkFields, ConfigError } from '../../lib/aiConfigCatalog.js';
 import { validateSession, getSessionFromCookie } from '../../lib/auth.js';
 import { timingSafeEqual } from '../../lib/crypto.js';
 import { readFeatureJsonBody } from '../../lib/featureUsage.js';
-import { assertOwner, assertRevision, changeOwnerLink, describeOwnerLink, ownerLinkDatabase, ownerRestriction, readOwnerLink } from '../../lib/ownerSubscription.js';
+import { assertOwner, assertRevision, changeOwnerLink, describeOwnerLink, linkedGatewayEnv, ownerLinkDatabase, ownerRestriction, readOwnerLink } from '../../lib/ownerSubscription.js';
 import { isLocalAdminOrigin, isLocalAdminSession } from './local-access.js';
+import { fetchCodexSubscriptionModels } from '../../lib/codexSubscriptionModels.js';
+import { describePersonalReadingSelection, PERSONAL_MODEL_FIELDS, savePersonalReadingModel } from '../../lib/personalReadingModel.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const runPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -59,6 +61,21 @@ async function handle({ request, env, params = {} }, action) {
 
     const row = await readOwnerLink(db);
     assertOwner(row, reader.id);
+    if (action === 'models') {
+      if (row.provider_id !== 'codex-subscription') {
+        throw new ConfigError(409, 'subscription_provider_changed', 'Link the ChatGPT subscription to fetch its models.');
+      }
+      let gateway;
+      try { gateway = await linkedGatewayEnv(env, row); } catch {
+        throw new ConfigError(503, 'owner_gateway_unavailable', 'The local ChatGPT subscription gateway is unavailable. Start the Tableu dev server.');
+      }
+      if (request.method === 'PUT') return json(await savePersonalReadingModel(gateway, await body(request, PERSONAL_MODEL_FIELDS), request.signal));
+      const [catalog, preference] = await Promise.all([fetchCodexSubscriptionModels(gateway, request.signal), describePersonalReadingSelection(gateway)]);
+      const current = await readOwnerLink(db);
+      assertOwner(current, reader.id);
+      assertRevision(current, row.revision);
+      return json({ ...catalog, ...preference });
+    }
     if (action === 'sample') {
       const data = await body(request, ['baseRevision', 'runId']);
       assertRevision(row, data.baseRevision);
@@ -77,5 +94,6 @@ async function handle({ request, env, params = {} }, action) {
 }
 
 export const ownerSubscription = { onRequestGet: ctx => handle(ctx, 'status'), onRequestPut: ctx => handle(ctx, 'change') };
+export const ownerModels = { onRequestGet: ctx => handle(ctx, 'models'), onRequestPut: ctx => handle(ctx, 'models') };
 export const ownerSample = { onRequestPost: ctx => handle(ctx, 'sample') };
 export const ownerReceipt = { onRequestGet: ctx => handle(ctx, 'receipt') };

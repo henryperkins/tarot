@@ -1617,6 +1617,7 @@ export async function runNarrativeBackend(backendId, env, payload, requestId) {
           budgetTarget: backendId === 'claude-code' ? 'claude' : 'openai'
         });
         const completion = await callPersonalTextProvider(env, {
+          ...(backendId === 'codex-subscription' && payload.personalReadingModel && { model: payload.personalReadingModel }),
           task: 'reading', systemPrompt, messages: [{ role: 'user', content: userPrompt }], signal: payload.signal
         });
         const modelProvenance = completion.modelSource ? { modelSource: completion.modelSource } : {};

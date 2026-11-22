@@ -10,6 +10,7 @@ import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession, seedEntry, jsonRequest } from './helpers/journalFixtures.mjs';
 import { SPREADS } from '../src/data/spreads.js';
 import { changeOwnerLink } from '../functions/lib/ownerSubscription.js';
+import { describePersonalReadingSelection } from '../functions/lib/personalReadingModel.js';
 
 const env = {
   TEXT_PROVIDER: 'codex-subscription', CODEX_SUBSCRIPTION_OWNER_USER_ID: 'owner',
@@ -39,6 +40,11 @@ async function setup() {
   }
   await seedEntry(DB, { userId: 'owner', requestId: 'reading-1', narrative: 'The Star invites a gentle creative practice.', cards: [{ name: 'The Star', position: 'Theme', orientation: 'Upright' }] });
   return { ...env, DB };
+}
+async function seedPersonalReadingModel(configured, model) {
+  const { selection } = await describePersonalReadingSelection(configured);
+  await configured.DB.prepare('INSERT INTO personal_reading_models (scope_key, model_id, revision) VALUES (?, ?, 1)')
+    .bind(selection.baseToken, model).run();
 }
 const request = (route, body, user = 'owner') => jsonRequest(`https://tableu.test/api/${route}`, { body, headers: { Cookie: `session=session-${user}` } });
 function responses(t, values) {
@@ -164,20 +170,25 @@ const liveReading = ['### Opening', 'There is room to begin with what you have.'
   '### Guidance', 'Set aside ten minutes for one color study and notice whether the practice gives you room to breathe.',
   '### Closing', 'You can begin gently and decide what to keep after trying it.'].join('\n\n');
 
-test('live owner routing uses Codex for readings, follow-ups and summaries while other users keep the API', async t => {
+test('owner Readings use the saved Codex model while follow-ups, summaries and public readings keep their models', async t => {
   const configured = { ...await setup(), TEXT_PROVIDER: 'legacy',
+    AI_CONFIG_ENVIRONMENT: 'production', AI_CONFIG_ENABLED: 'true',
     CODEX_SUBSCRIPTION_OWNER_ROUTING_ENABLED: 'true', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
-  const tasks = [];
+  const model = 'gpt-6.2-sol';
+  await seedPersonalReadingModel(configured, model);
+  const requests = [];
   const apiCalls = [];
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     if (url === 'https://codex.example.test/v1/generate') {
       const input = JSON.parse(options.body);
-      tasks.push(input.task);
-      return Response.json(input.task === 'followup'
+      requests.push([input.task, input.model]);
+      const result = input.task === 'followup'
         ? completion('', { response: answer, memory: null })
-        : completion(input.task === 'reading' ? liveReading : 'Your journal invites a gentler pace.'));
+        : completion(input.task === 'reading' ? liveReading : 'Your journal invites a gentler pace.');
+      return Response.json(input.model ? { ...result, model: input.model } : result);
     }
     assert.equal(url, 'https://openai.test/v1/responses');
+    assert.notEqual(JSON.parse(options.body).model, model);
     apiCalls.push(url);
     return Response.json({ model: 'api-test', output: [{ type: 'message', role: 'assistant',
       content: [{ type: 'output_text', text: liveReading }] }], usage: { input_tokens: 20, output_tokens: 40 } });
@@ -193,13 +204,24 @@ test('live owner routing uses Codex for readings, follow-ups and summaries while
     request: jsonRequest('https://tableu.test/api/tarot-reading', { body: readingInput }), principal: { userId: 'owner' } });
   assert.equal(principalReading.status, 200);
   assert.equal((await principalReading.json()).provider, 'codex-subscription');
-  assert.deepEqual(tasks, ['reading', 'followup', 'journal-summary', 'reading']);
+  assert.deepEqual(requests, [['reading', model], ['followup', undefined], ['journal-summary', undefined], ['reading', model]]);
   assert.equal(apiCalls.length, 0);
   const other = await readingRoute({ env: configured, request: request('tarot-reading', readingInput, 'other') });
   assert.equal(other.status, 200);
   assert.equal((await other.json()).provider, 'openai-native');
   assert.equal(apiCalls.length, 1);
-  assert.equal(tasks.length, 4, 'other users never reach the owner gateway');
+  assert.equal(requests.length, 4, 'other users never reach the owner gateway');
+});
+
+test('unavailable personal Readings settings reject the owner request before generation or quota reservation', async t => {
+  const configured = { ...await setup(), AI_CONFIG_ENVIRONMENT: 'production', AI_CONFIG_ENABLED: 'true' };
+  await configured.DB.prepare('DROP TABLE personal_reading_models').run();
+  const inputs = responses(t, []);
+  const response = await readingRoute({ env: configured, request: request('tarot-reading', readingInput) });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'reading_configuration_unavailable');
+  assert.equal(inputs.length, 0);
+  assert.equal(configured.DB.rows('SELECT * FROM usage_tracking').length, 0);
 });
 
 test('the portal link selects both subscriptions for signed-in owner routes only', async t => {
@@ -274,6 +296,7 @@ const parseEvent = bytes => {
 async function liveSetup(t, overrides = {}) {
   const configured = { ...await setup(), CODEX_SUBSCRIPTION_STREAMING_ENABLED: 'true', EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false', ...overrides };
   let upstream;
+  let input;
   let upstreamSignal;
   let calls = 0;
   let cancelled = false;
@@ -281,6 +304,7 @@ async function liveSetup(t, overrides = {}) {
     calls++;
     assert.equal(url, 'https://codex.example.test/v1/generate');
     assert.equal(options.headers.Accept, 'text/event-stream');
+    input = JSON.parse(options.body);
     upstreamSignal = options.signal;
     return new Response(new ReadableStream({ start(controller) { upstream = controller; }, cancel() { cancelled = true; } }), { headers: { 'Content-Type': 'text/event-stream' } });
   });
@@ -298,12 +322,17 @@ async function liveSetup(t, overrides = {}) {
   };
   assert.equal((await next()).type, 'meta');
   return { configured, reader, received, next, waits,
+    get input() { return input; },
     get calls() { return calls; }, get cancelled() { return cancelled; }, get signal() { return upstreamSignal; },
     send: (type, data) => upstream.enqueue(encodeEvent(type, data)) };
 }
 
 test('live Codex route delivers accepted prose before generation completes and preserves the exact source once', async t => {
-  const live = await liveSetup(t);
+  const configured = { ...await setup(), AI_CONFIG_ENVIRONMENT: 'production', AI_CONFIG_ENABLED: 'true' };
+  const model = 'gpt-6.2-astra';
+  await seedPersonalReadingModel(configured, model);
+  const live = await liveSetup(t, configured);
+  assert.equal(live.input.model, model);
   const prefix = liveReading.slice(0, liveReading.indexOf('### The Star'));
   live.send('delta', { text: prefix });
   const first = await live.next();
@@ -312,7 +341,7 @@ test('live Codex route delivers accepted prose before generation completes and p
   assert.equal(live.received.some(event => event.type === 'done'), false);
   assert.equal(live.configured.DB.rows('SELECT * FROM inference_attempts').length, 0);
   live.send('delta', { text: liveReading.slice(prefix.length) });
-  live.send('done', completion(liveReading));
+  live.send('done', { ...completion(liveReading), model });
   while (await live.next()) { /* drain */ }
   await Promise.all(live.waits);
   const deltas = live.received.filter(event => event.type === 'delta').map(event => event.data.text).join('');
@@ -321,6 +350,7 @@ test('live Codex route delivers accepted prose before generation completes and p
   assert.equal(done.length, 1);
   assert.equal(done[0].data.fullText, deltas);
   assert.equal(done[0].data.modelSource, 'configured');
+  assert.equal(done[0].data.model, model);
   assert.equal(live.calls, 1);
   assert.equal(live.configured.DB.rows('SELECT state FROM inference_attempts')[0].state, 'accepted');
   assert.equal(live.cancelled, true);

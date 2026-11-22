@@ -87,6 +87,11 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
     ownerGatewayStub: async (request, provider) => {
       const bearer = await ownerGatewayToken(hostBindings.LOCAL_OWNER_HOST_SECRET, hostBindings.OWNER_HOST_INSTANCE, provider);
       assert.equal(request.headers.get('Authorization'), 'Bearer ' + bearer);
+      if (new URL(request.url).pathname === '/v1/models') {
+        assert.equal(request.method, 'GET');
+        assert.equal(provider, codex);
+        return Response.json({ provider, models: [{ id: 'gpt-fixture', label: 'Fixture model' }] });
+      }
       if (request.method === 'GET') return Response.json({ provider, ready, reason: 'login_required' });
       calls.push({ provider, body: await request.json() });
       if (failed) return new Response('internal diagnostics must stay private', { status: 500 });
@@ -119,6 +124,9 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
     assert.fail('Owner sample did not finish within the fixture deadline');
   }
   assert.equal((await request('', 'GET', undefined, { Authorization: '' })).status, 401);
+  assert.equal((await request('/models', 'GET', undefined, { Authorization: '' })).status, 401);
+  assert.equal((await request('/models', 'GET', undefined, { Cookie: '' })).data.code, 'reader_sign_in_required');
+  assert.equal((await request('/models')).data.code, 'owner_required');
   for (const Cookie of ['', 'session=invalid', 'session=service-session', 'session=session-a; session=session-b']) {
     assert.equal((await request('', 'GET', undefined, { Cookie })).data.code, 'reader_sign_in_required');
   }
@@ -130,8 +138,16 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
   assert.equal(saved.status, 200, JSON.stringify(saved));
   assert.deepEqual(saved.data.link, { revision: 1, providerId: codex, ownedByReader: true });
   assert.ok(saved.data.providers.every(p => p.configured));
+  const { selection, editable, ...catalog } = (await request('/models')).data;
+  assert.deepEqual(catalog, { provider: codex, models: [{ id: 'gpt-fixture', label: 'Fixture model' }] });
+  assert.equal(editable, true);
+  const choice = { modelId: 'gpt-fixture', baseRevision: selection.revision, baseToken: selection.baseToken };
+  assert.equal((await request('/models', 'PUT', choice, { Cookie: 'session=' + bob.sessionId })).status, 403);
+  const savedModel = (await request('/models', 'PUT', choice)).data.selection;
+  assert.deepEqual(savedModel, { ...selection, revision: 1, modelId: choice.modelId });
   assert.equal((await put(claude, 0)).status, 409);
   const other = { Cookie: 'session=' + bob.sessionId };
+  assert.equal((await request('/models', 'GET', undefined, other)).data.code, 'owner_required');
   const foreign = await request('', 'GET', undefined, other);
   assert.equal(foreign.data.editable, false);
   assert.equal(foreign.data.link.providerId, null);
@@ -153,6 +169,7 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
   for (const expected of [READING_CONFIG_FIXTURE.question, ...READING_CONFIG_FIXTURE.cards]) assert.ok(message.includes(expected));
   assert.deepEqual(Object.keys(calls[0].body).sort(), ['messages', 'systemPrompt', 'task']);
   assert.equal((await put(claude, 1)).data.link.revision, 2);
+  assert.equal((await request('/models')).data.code, 'subscription_provider_changed');
   assert.equal((await request('/samples/' + codexRun)).status, 404);
   const claudeRun = crypto.randomUUID();
   assert.equal((await start(claudeRun, 2)).status, 202);
@@ -172,5 +189,10 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
   assert.equal(calls.length, 3);
   assert.equal((await put(null, 2)).data.link.revision, 3);
   assert.equal((await request('/samples/' + claudeRun)).status, 403);
+  assert.equal((await put(codex, 3)).data.link.revision, 4);
+  const relinked = (await request('/models')).data.selection;
+  assert.equal(relinked.modelId, null);
+  assert.notEqual(relinked.baseToken, savedModel.baseToken);
+  assert.equal((await request('/models', 'PUT', choice)).status, 409);
   assert.deepEqual(worker.outboundOrigins, []);
 });
