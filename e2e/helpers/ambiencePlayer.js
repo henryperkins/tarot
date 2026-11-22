@@ -30,16 +30,22 @@ export async function canPlayMp3(page) {
  * page. Chromium enforces that itself, in automation too, and tests rely on
  * it there as long as nothing evaluates in the page before the app's first
  * start attempt. Other engines' automation builds may be more permissive, so
- * for them the same rule is applied from the page's own activation state: a
+ * for them the same rule is applied from trusted clicks, taps and keys: a
  * start before any interaction is refused, and one after a real click, tap or
  * keypress plays the real element. Accepts a page or a context.
  */
 export async function requireInteractionForPlayback(target, browserName) {
   if (browserName === 'chromium') return;
   await target.addInitScript(() => {
+    // WebKit automation can grant activation while Playwright reads the DOM.
+    // Only a real input in this document satisfies this test's autoplay gate.
+    let interacted = false;
+    for (const type of ['click', 'touchend', 'keydown']) {
+      window.addEventListener(type, event => { if (event.isTrusted) interacted = true; }, { capture: true });
+    }
     const nativePlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function play() {
-      if (!this.muted && !navigator.userActivation.hasBeenActive) {
+      if (!this.muted && !interacted) {
         return Promise.reject(new DOMException("play() failed because the user didn't interact with the document first.", 'NotAllowedError'));
       }
       return nativePlay.call(this);
@@ -58,6 +64,9 @@ export function trackPlayers(target) {
     window.__players = [];
     window.Audio = function Audio(src) {
       const player = new NativeAudio(src);
+      const play = player.play;
+      player.playCalls = 0;
+      player.play = function (...args) { player.playCalls++; return play.apply(this, args); };
       window.__players.push(player);
       return player;
     };
@@ -75,4 +84,48 @@ export function ambiencePlayers(page) {
 /** The page's ambience loop, or null before it has created one. */
 export async function ambiencePlayer(page) {
   return (await ambiencePlayers(page)).at(-1) ?? null;
+}
+
+/** Whether the page's latest ambience loop failed to load its file. */
+export function ambienceLoadFailed(page) {
+  return page.evaluate(() => Boolean((window.__players || [])
+    .filter(player => player.src.includes('/sounds/ambience.mp3')).at(-1)?.error));
+}
+
+/**
+ * Observe the sprite sources and the synthesized fallback. A one-shot has a
+ * duration or a scheduled stop. A loop needs an explicit stop.
+ */
+export function trackTones(target) {
+  return target.addInitScript(() => {
+    window.__tones = [];
+    window.__decodedAudioBuffers = 0;
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return;
+    const decode = Context.prototype.decodeAudioData;
+    Context.prototype.decodeAudioData = function (...args) {
+      const result = decode.apply(this, args);
+      result.then(() => { window.__decodedAudioBuffers++; }, () => {});
+      return result;
+    };
+    for (const method of ['createBufferSource', 'createOscillator']) {
+      const create = Context.prototype[method];
+      Context.prototype[method] = function (...args) {
+        const source = create.apply(this, args);
+        const { start, stop } = source;
+        source.start = function (...args) {
+          const tone = { method, offset: args[1], ending: method === 'createBufferSource' && !source.loop };
+          window.__tones.push(tone);
+          source.stop = function (...times) { tone.ending = true; return stop.apply(this, times); };
+          return start.apply(this, args);
+        };
+        return source;
+      };
+    }
+  });
+}
+
+/** How many looping tones the page has started and not stopped. */
+export function loopingTones(page) {
+  return page.evaluate(() => (window.__tones || []).filter(tone => !tone.ending).length);
 }

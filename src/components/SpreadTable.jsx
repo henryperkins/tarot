@@ -819,12 +819,9 @@ export function SpreadTable({
 
     if (!newlyRevealed.length) return;
     const timerId = window.setTimeout(() => vibrate(12), prefersReducedMotion ? 0 : 180);
-    const soundTimers = newlyRevealed.map((_, sequenceIndex) => {
-      const soundDelay = prefersReducedMotion ? 0 : sequenceIndex * 90;
-      return window.setTimeout(() => {
-        void sounds.play('deal', { essential: true });
-      }, soundDelay);
-    });
+    const cancelDealSounds = newlyRevealed.map((_, index) =>
+      sounds.schedule('deal', prefersReducedMotion ? 0 : index * 90, { essential: true })
+    );
     const burstTimers = readingTable ? [] : newlyRevealed.map((slotIndex, sequenceIndex) => {
       const burstDelay = prefersReducedMotion ? 0 : sequenceIndex * 90;
       return window.setTimeout(() => {
@@ -842,7 +839,7 @@ export function SpreadTable({
     revealBurstTimersRef.current.push(...burstTimers);
     return () => {
       window.clearTimeout(timerId);
-      soundTimers.forEach((id) => window.clearTimeout(id));
+      cancelDealSounds.forEach(cancel => cancel());
       burstTimers.forEach((id) => window.clearTimeout(id));
       revealBurstTimersRef.current = revealBurstTimersRef.current.filter(
         (timer) => !burstTimers.includes(timer)

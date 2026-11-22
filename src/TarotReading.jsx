@@ -16,7 +16,6 @@ import { AppBottomRegion } from './components/AppBottomRegion';
 import { StepProgress } from './components/StepProgress';
 import { Gear, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { InstallFooter } from './components/InstallFooter';
-import { OnboardingWizard } from './components/onboarding';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { LazyLoadBoundary } from './components/LazyLoadBoundary';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -57,6 +56,7 @@ const loadReadingDisplay = () => import('./components/ReadingDisplay');
 const ReadingDisplay = lazy(() => loadReadingDisplay().then(module => ({ default: module.ReadingDisplay })));
 const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
 const GuidedIntentionCoach = lazy(() => import('./components/GuidedIntentionCoach').then(module => ({ default: module.GuidedIntentionCoach })));
+const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard').then(module => ({ default: module.OnboardingWizard })));
 
 function ReadingSkipLinks({ showSetupSection }) {
   const narrativeTarget = useSyncExternalStore(
@@ -98,6 +98,7 @@ export default function TarotReading() {
     togglePrepareSection,
     // Onboarding
     onboardingComplete,
+    onboardingReplayId,
     setOnboardingComplete,
     setOnboardingSpreadKey,
     showPersonalizationBanner,
@@ -191,8 +192,10 @@ export default function TarotReading() {
   const [followUpIntent, setFollowUpIntent] = useState('continue');
   const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
-  const [onboardingDeferred, setOnboardingDeferred] = useState(false);
-  const onboardingDue = !onboardingComplete && !showPersonalizationBanner && !onboardingDeferred;
+  // Closing the loader or saving for later defers this opening. An explicit
+  // replay can open the wizard again without leaving the reading page.
+  const [deferredReplayId, setDeferredReplayId] = useState(null);
+  const onboardingDue = !onboardingComplete && !showPersonalizationBanner && deferredReplayId !== onboardingReplayId;
   // A signed-in reader may have finished onboarding on another device: wait for
   // the account (PreferencesContext) before choosing between welcome and setup.
   const onboardingDecisionPending = onboardingDue
@@ -827,17 +830,17 @@ export default function TarotReading() {
     safeStorage.removeItem('tarot-personalization-banner');
     setShowPersonalizationBanner(false);
     setOnboardingComplete(false);
-    setOnboardingDeferred(false);
-  }, [setShowPersonalizationBanner, setOnboardingComplete, setOnboardingDeferred]);
+    setDeferredReplayId(null);
+  }, [setShowPersonalizationBanner, setOnboardingComplete]);
 
   // --- Onboarding Handler ---
 
   const handleOnboardingComplete = useCallback((selections) => {
     if (selections?.resumeLater) {
-      setOnboardingDeferred(true);
+      setDeferredReplayId(onboardingReplayId);
     } else {
       setOnboardingComplete(true);
-      setOnboardingDeferred(false);
+      setDeferredReplayId(null);
     }
     if (selections?.selectedSpread) {
       setOnboardingSpreadKey(selections.selectedSpread);
@@ -846,7 +849,7 @@ export default function TarotReading() {
     if (selections?.question) {
       setUserQuestion(selections.question);
     }
-  }, [selectSpread, setOnboardingComplete, setOnboardingDeferred, setOnboardingSpreadKey, setUserQuestion]);
+  }, [onboardingReplayId, selectSpread, setOnboardingComplete, setOnboardingSpreadKey, setUserQuestion]);
 
   const handleOnboardingSpreadSelect = useCallback((spreadKey) => {
     setOnboardingSpreadKey(spreadKey);
@@ -1425,14 +1428,19 @@ export default function TarotReading() {
         />
       )}
 
-      {/* Onboarding wizard for first-time visitors */}
-      <OnboardingWizard
-        isOpen={isOnboardingOpen}
-        onComplete={handleOnboardingComplete}
-        onSelectSpread={handleOnboardingSpreadSelect}
-        initialSpread={selectedSpread}
-        initialQuestion={userQuestion}
-      />
+      {isOnboardingOpen && (
+        <DeferredDialog
+          component={OnboardingWizard}
+          title="tutorial"
+          isOpen
+          onClose={() => setDeferredReplayId(onboardingReplayId)}
+          fallbackFocusRef={spreadSectionRef}
+          onComplete={handleOnboardingComplete}
+          onSelectSpread={handleOnboardingSpreadSelect}
+          initialSpread={selectedSpread}
+          initialQuestion={userQuestion}
+        />
+      )}
 
       </div>
     </div>

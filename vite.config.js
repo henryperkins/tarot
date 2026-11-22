@@ -39,13 +39,16 @@ export default defineConfig({
   },
   build: {
     modulePreload: {
-      // Dynamic route dependencies can point back to the already-running entry.
-      // WebKit otherwise fetches it again as a modulepreload. Failed validation
-      // preloads also remain negatively cached across reloads in WebKit; import
-      // that small chunk directly so a real HTTP failure can recover on reload.
-      resolveDependencies: (_filename, dependencies, { hostType }) => hostType === 'js'
-        ? dependencies.filter(dependency => !dependency.startsWith('assets/app-') && !dependency.startsWith('assets/readingSchema-'))
-        : dependencies
+      resolveDependencies: (filename, dependencies, { hostType }) => {
+        if (hostType !== 'js') return dependencies;
+        // WebKit remembers failed modulepreloads across reloads. Let the tutorial
+        // import its JavaScript dependencies directly so any of them can retry.
+        if (/^assets\/Onboarding(?:Wizard|ControlStep)-/.test(filename)) {
+          return dependencies.filter(dependency => !dependency.endsWith('.js'));
+        }
+        // Avoid refetching the running entry and keep validation retryable too.
+        return dependencies.filter(dependency => !dependency.startsWith('assets/app-') && !dependency.startsWith('assets/readingSchema-'));
+      }
     },
     rolldownOptions: {
       external: [

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { cleanupAudio, initAudio, playFlip, toggleAmbience } from '../src/lib/audio.js';
+import { cleanupAudio, getAmbienceError, initAudio, playFlip, subscribeToAmbience, swellAmbience, toggleAmbience } from '../src/lib/audio.js';
 import { decodeMp3, measureLoop } from '../scripts/lib/audioLevels.mjs';
 
 // Interaction listeners attach to window. This one also reports how many are
@@ -21,7 +21,13 @@ class ListeningWindow extends EventTarget {
 
 const originalAudio = globalThis.Audio;
 const originalWindow = globalThis.window;
+const originalRequestFrame = globalThis.requestAnimationFrame;
+const originalCancelFrame = globalThis.cancelAnimationFrame;
 let players;
+// Animation frames run only when a test asks: a hidden tab gets none, while
+// its timers keep firing.
+let frames;
+let frameId = 0;
 // Returns the error a browser refuses a start with, or nothing to accept it.
 let refusePlayback;
 // Returns the promise of an accepted start for the test to settle, or nothing.
@@ -31,6 +37,9 @@ beforeEach(() => {
   players = [];
   refusePlayback = null;
   delayPlayback = null;
+  frames = new Map();
+  globalThis.requestAnimationFrame = callback => { frames.set(++frameId, callback); return frameId; };
+  globalThis.cancelAnimationFrame = id => { frames.delete(id); };
   globalThis.window = new ListeningWindow();
   globalThis.Audio = class {
     constructor(src) {
@@ -59,6 +68,10 @@ afterEach(() => {
   else globalThis.Audio = originalAudio;
   if (originalWindow === undefined) delete globalThis.window;
   else globalThis.window = originalWindow;
+  if (originalRequestFrame === undefined) delete globalThis.requestAnimationFrame;
+  else globalThis.requestAnimationFrame = originalRequestFrame;
+  if (originalCancelFrame === undefined) delete globalThis.cancelAnimationFrame;
+  else globalThis.cancelAnimationFrame = originalCancelFrame;
 });
 
 test('initialization and disabled ambience do not create or fetch sound players', () => {
@@ -68,16 +81,23 @@ test('initialization and disabled ambience do not create or fetch sound players'
   assert.deepEqual(players, []);
 });
 
-test('the first flip creates its sound on demand and subsequent flips reuse it', () => {
+test('flips follow Table Ambience, load on demand, and stop on mute', () => {
   initAudio();
   playFlip();
-  assert.equal(players.length, 1);
-  assert.equal(players[0].src, '/sounds/flip.mp3');
-  players[0].currentTime = 0.5;
+  assert.deepEqual(players, []);
+  toggleAmbience(true);
   playFlip();
-  assert.equal(players.length, 1);
-  assert.equal(players[0].playCount, 2);
-  assert.equal(players[0].currentTime, 0);
+  const flip = players[1];
+  assert.equal(flip.src, '/sounds/flip.mp3');
+  flip.currentTime = 0.5;
+  playFlip();
+  assert.equal(players.length, 2);
+  assert.equal(flip.playCount, 2);
+  assert.equal(flip.currentTime, 0);
+  toggleAmbience(false);
+  assert.equal(flip.paused, true);
+  playFlip();
+  assert.equal(flip.playCount, 2);
 });
 
 test('ambience can start before initialization, pause, and resume the same loop', () => {
@@ -98,22 +118,22 @@ test('ambience can start before initialization, pause, and resume the same loop'
 });
 
 test('cleanup releases sound players and later interactions can recreate them', () => {
-  playFlip();
   toggleAmbience(true);
+  playFlip();
   const firstPlayers = [...players];
   cleanupAudio();
   assert.equal(firstPlayers.length, 2);
   assert.ok(firstPlayers.every(player => player.paused));
-  playFlip();
   toggleAmbience(true);
+  playFlip();
   assert.equal(players.length, 4);
   assert.ok(players.slice(2).every(player => !player.paused));
 });
 
 test('interrupted playback is handled without an unhandled promise rejection', async () => {
   delayPlayback = () => Promise.reject(new Error('Playback interrupted'));
-  playFlip();
   toggleAmbience(true);
+  playFlip();
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(players.length, 2);
 });
@@ -348,6 +368,235 @@ test('a loop that is already playing does not wait for an interaction', async ()
   assert.deepEqual(waitingFor(), [0, 0, 0]);
   gesture();
   assert.equal(players[0].playCount, 1);
+});
+
+// --- A loop whose file failed to load -----------------------------------------
+
+// What a browser leaves behind when the file cannot be fetched: the element
+// keeps an error, and every later play() on it is rejected.
+const loadFailure = player => {
+  player.error = { code: 4 };
+  return new DOMException('The element has no supported sources.', 'NotSupportedError');
+};
+// The network is back: only an element that already failed is still refused.
+const onlyBrokenLoopsFail = player => (player.error ? loadFailure(player) : null);
+
+test('a failed loop reports its state and retries once when the connection returns', async () => {
+  const changes = [];
+  const unsubscribe = subscribeToAmbience(() => changes.push(getAmbienceError()));
+  try {
+    refusePlayback = loadFailure;
+    toggleAmbience(true);
+    await settle();
+    assert.match(getAmbienceError(), /background loop/i);
+    assert.equal(globalThis.window.listening('online'), 1);
+    gesture();
+    assert.equal(players.length, 1);
+    refusePlayback = onlyBrokenLoopsFail;
+    gesture('online');
+    await settle();
+    assert.equal(players.length, 2);
+    assert.equal(players[1].paused, false);
+    assert.equal(getAmbienceError(), null);
+    assert.equal(changes.at(-1), null);
+    assert.equal(globalThis.window.listening('online'), 1, 'keep observing reconnects during playback');
+    gesture('online');
+    assert.equal(players[1].playCount, 1);
+  } finally {
+    unsubscribe();
+  }
+});
+
+test('a mid-playback error can recover and late media events cannot revive a muted or released loop', async () => {
+  toggleAmbience(true);
+  await settle();
+  const [first] = players;
+  const staleError = first.onerror;
+  first.error = { code: 2 };
+  first.onerror();
+  assert.ok(getAmbienceError());
+  gesture('online');
+  await settle();
+  staleError();
+  assert.equal(getAmbienceError(), null);
+  const secondError = players[1].onerror;
+  secondError();
+  toggleAmbience(false);
+  secondError();
+  gesture('online');
+  assert.equal(getAmbienceError(), null);
+  assert.equal(players.length, 2);
+  toggleAmbience(true);
+  await settle();
+  const lateError = players.at(-1).onerror;
+  cleanupAudio();
+  lateError();
+  assert.equal(globalThis.window.listening('online'), 0);
+  assert.equal(getAmbienceError(), null);
+});
+
+test('a reconnect that arrives before the outstanding play promise rejects still retries once', async () => {
+  const first = Promise.withResolvers();
+  delayPlayback = player => player === players[0] ? first.promise : null;
+  toggleAmbience(true);
+  gesture('online');
+  first.reject(loadFailure(players[0]));
+  await settle();
+  assert.equal(players.length, 2);
+  assert.equal(players[0].paused, true);
+  assert.equal(players[1].playCount, 1);
+  assert.equal(getAmbienceError(), null);
+});
+
+test('a delayed mid-playback error consumes a reconnect once and keeps the alert until recovery', async () => {
+  toggleAmbience(true);
+  await settle();
+  const first = players[0];
+  const retry = Promise.withResolvers();
+  delayPlayback = () => retry.promise;
+  gesture('online');
+  assert.equal(players.length, 1, 'a healthy loop keeps playing on reconnect');
+  first.error = { code: 2 };
+  const staleError = first.onerror;
+  staleError();
+  assert.equal(players.length, 2, 'the delayed error reuses the observed reconnect');
+  assert.ok(getAmbienceError(), 'a pending replacement has yet to recover playback');
+  gesture('online');
+  staleError();
+  assert.equal(players.length, 2, 'a pending retry is shared');
+  retry.resolve();
+  await settle();
+  assert.equal(getAmbienceError(), null);
+  toggleAmbience(false);
+  assert.equal(globalThis.window.listening('online'), 0);
+  gesture('online');
+  assert.equal(players.length, 2);
+});
+
+test('a remote On in a quiet tab waits for a local gesture even if the network returns', async () => {
+  toggleAmbience(true, { waitForInteraction: true });
+  gesture('online');
+  playFlip();
+  assert.deepEqual(players, []);
+  gesture('keydown');
+  playFlip();
+  assert.equal(players.length, 2);
+  assert.equal(players[1].src, '/sounds/flip.mp3');
+});
+
+test('a loop whose file failed to load is replaced the next time ambience is switched on', async () => {
+  refusePlayback = loadFailure;
+  toggleAmbience(true);
+  await settle();
+  const [broken] = players;
+  toggleAmbience(false);
+  refusePlayback = onlyBrokenLoopsFail;
+  toggleAmbience(true);
+  assert.equal(players.length, 2, 'a loop that cannot play must not be reused');
+  assert.equal(broken.playCount, 1);
+  const loop = players[1];
+  assert.equal(loop.src, '/sounds/ambience.mp3?v=2');
+  assert.equal(loop.loop, true);
+  assert.equal(loop.volume, 0.2);
+  assert.equal(loop.paused, false);
+});
+
+test('a saved preference whose file failed to load starts a new loop on the next interaction', async () => {
+  // The start was refused for lack of an interaction; then the file failed to load.
+  const broken = await blockedStart();
+  broken.error = { code: 4 };
+  refusePlayback = onlyBrokenLoopsFail;
+  gesture();
+  assert.equal(players.length, 2);
+  assert.equal(broken.playCount, 1, 'the broken loop is not tried again');
+  assert.equal(players[1].paused, false);
+  await settle();
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+});
+
+test('a restored On gets one gesture retry when the network error arrives before an autoplay refusal', async () => {
+  refusePlayback = loadFailure;
+  toggleAmbience(true, { restored: true });
+  await settle();
+  gesture('keydown');
+  await settle();
+  assert.equal(players.length, 2);
+  assert.deepEqual(waitingFor(), [0, 0, 0]);
+  gesture();
+  assert.equal(players.length, 2);
+  refusePlayback = onlyBrokenLoopsFail;
+  gesture('online');
+  await settle();
+  assert.equal(players[2].paused, false);
+});
+
+test('ambience turned on from another tab waits for an interaction when the loop here failed to load', async () => {
+  refusePlayback = loadFailure;
+  toggleAmbience(true);
+  await settle();
+  // A browser reports a loop that failed this way as not paused.
+  players[0].paused = false;
+  refusePlayback = onlyBrokenLoopsFail;
+  toggleAmbience(true, { waitForInteraction: true });
+  assert.deepEqual(waitingFor(), [1, 1, 1]);
+  gesture();
+  assert.equal(players.length, 2);
+  assert.equal(players[1].paused, false);
+});
+
+// --- Swells under a reading ---------------------------------------------------
+
+// Runs the waiting animation frame as it would be `ms` from now.
+const runFrame = ms => {
+  const waiting = [...frames.values()];
+  frames.clear();
+  for (const callback of waiting) callback(performance.now() + ms);
+};
+const near = (actual, expected) => Math.abs(actual - expected) < 1e-9;
+
+test('muting a failed loop mid-swell cancels its frames and releases its timer', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  toggleAmbience(true);
+  await settle();
+  const [first] = players;
+  swellAmbience({ peak: 0.36 });
+  runFrame(90);
+  first.error = { code: 2 };
+  first.onerror();
+  toggleAmbience(false);
+  t.mock.timers.tick(200);
+  assert.equal(frames.size, 0);
+  assert.equal(first.volume, 0.2);
+  toggleAmbience(true);
+  assert.equal(players[1].volume, 0.2);
+});
+
+test('a swell raises the loop and brings it back to its base volume', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  toggleAmbience(true);
+  const [player] = players;
+  swellAmbience({ peak: 0.36 });
+  runFrame(1000);
+  assert.ok(near(player.volume, 0.36), `the swell peaked at ${player.volume}`);
+  t.mock.timers.tick(200);
+  runFrame(1000);
+  assert.ok(near(player.volume, 0.2), `the loop settled at ${player.volume}`);
+});
+
+test('a swell cut short while the tab is hidden still settles on the base volume', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  toggleAmbience(true);
+  const [player] = players;
+  swellAmbience({ peak: 0.36 });
+  runFrame(90);
+  assert.ok(player.volume > 0.25 && player.volume < 0.36, `the swell is part-way up at ${player.volume}`);
+  // The tab is hidden: frames stop and timers keep firing. The reading reaches
+  // another beat before the reader comes back.
+  t.mock.timers.tick(200);
+  swellAmbience({ peak: 0.3 });
+  t.mock.timers.tick(200);
+  runFrame(5000);
+  assert.ok(near(player.volume, 0.2), `the loop settled at ${player.volume}`);
 });
 
 // The mix plays at about -44 dBFS RMS (20 Hz-20 kHz) once the player applies

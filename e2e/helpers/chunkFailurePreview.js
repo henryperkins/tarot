@@ -2,14 +2,14 @@ import http from 'node:http';
 
 // A local HTTP proxy preserves real browser module-cache behavior while the
 // strict built-preview server remains the authoritative source of all assets.
-export async function createChunkFailurePreview(baseURL) {
+export async function createChunkFailurePreview(baseURL, chunkPattern = /^\/assets\/readingSchema-[^/]+\.js(?:\?|$)/) {
   const upstream = new URL(baseURL);
   if (upstream.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(upstream.hostname)) {
     throw new Error('Chunk failure preview requires a local HTTP built preview');
   }
   let failed = 0;
   const server = http.createServer((request, response) => {
-    if (!failed && /^\/assets\/readingSchema-[^/]+\.js(?:\?|$)/.test(request.url)) {
+    if (!failed && chunkPattern.test(request.url)) {
       failed += 1;
       response.writeHead(503, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
       response.end('Temporarily unavailable');

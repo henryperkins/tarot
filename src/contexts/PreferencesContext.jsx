@@ -1,8 +1,8 @@
-import { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, useSyncExternalStore } from 'react';
 import { PERSONALIZATION_REQUEST_FIELDS } from '../../shared/contracts/personalizationConstants.js';
 import { MAJOR_ARCANA } from '../data/majorArcana';
 import { getDeckPool } from '../lib/deck';
-import { initAudio, cleanupAudio, stopTTS, toggleAmbience, normalizeTtsProvider } from '../lib/audio';
+import { initAudio, cleanupAudio, stopTTS, toggleAmbience, normalizeTtsProvider, subscribeToAmbience, getAmbienceError } from '../lib/audio';
 import { safeStorage } from '../lib/safeStorage';
 import { migrateLegacyPersonalization, REVERSAL_FRAMEWORK_KEYS, safeSessionStorage } from '../lib/preferenceStorage';
 import { useAuth } from './AuthContext';
@@ -172,6 +172,7 @@ export function PreferencesProvider({ children }) {
   // --- Audio: Ambience ---
   const [ambienceOn, setAmbienceOnState] = useState(() => safeStorage.getItem(AMBIENCE_STORAGE_KEY) === 'true');
   const ambienceOnRef = useRef(ambienceOn);
+  const ambienceError = useSyncExternalStore(subscribeToAmbience, getAmbienceError, getAmbienceError);
 
   // A choice made in this tab. The player starts or stops here, inside the
   // interaction: browsers only allow audible playback that begins with one,
@@ -188,7 +189,7 @@ export function PreferencesProvider({ children }) {
   // if the browser refuses it, the player starts on the next interaction.
   useEffect(() => {
     initAudio();
-    if (ambienceOnRef.current) toggleAmbience(true);
+    if (ambienceOnRef.current) toggleAmbience(true, { restored: true });
     return () => {
       cleanupAudio();
     };
@@ -435,6 +436,7 @@ export function PreferencesProvider({ children }) {
 
   // --- Onboarding State ---
   const [onboardingComplete, setOnboardingCompleteState] = useState(() => safeStorage.getItem(ONBOARDING_STORAGE_KEY) === 'true');
+  const [onboardingReplayId, setOnboardingReplayId] = useState(0);
   const onboardingMutationEpochRef = useRef(0);
 
   const [onboardingSpreadKey, setOnboardingSpreadKey] = useState(null);
@@ -456,9 +458,10 @@ export function PreferencesProvider({ children }) {
   };
 
   const resetOnboarding = () => {
-    // Variant is memoized per wizard mount; reset here just clears progress/state.
     setOnboardingComplete(false);
     setOnboardingSpreadKey(null);
+    setShowPersonalizationBanner(false);
+    setOnboardingReplayId(id => id + 1);
   };
 
   // --- Account continuity (signed-in readers) ---
@@ -721,6 +724,7 @@ export function PreferencesProvider({ children }) {
     setVoiceOn,
     ambienceOn,
     setAmbienceOn,
+    ambienceError,
     autoNarrate,
     setAutoNarrate,
     ttsProvider,
@@ -751,6 +755,7 @@ export function PreferencesProvider({ children }) {
     toggleFocusArea,
     // Onboarding
     onboardingComplete,
+    onboardingReplayId,
     setOnboardingComplete,
     accountPreferencesStatus,
     onboardingSpreadKey,

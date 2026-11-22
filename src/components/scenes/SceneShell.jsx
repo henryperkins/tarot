@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { animate } from '../../lib/motionAdapter';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSounds } from '../../hooks/useSounds';
+import { canPlayTableSounds, subscribeToAmbience } from '../../lib/audio';
 import { applyColorScript, resetColorScript } from '../../lib/colorScript';
 import { ParticleLayer } from '../ParticleLayer';
 import { SceneContext } from './SceneContext';
@@ -85,6 +86,7 @@ export function SceneShell({
 }) {
   const prefersReducedMotion = useReducedMotion();
   const sounds = useSounds();
+  const tableSoundsEnabled = useSyncExternalStore(subscribeToAmbience, canPlayTableSounds, canPlayTableSounds);
   const activeScene = orchestrator?.activeScene || 'idle';
   const transitionMeta = orchestrator?.transitionMeta || null;
   const overlayRef = useRef(null);
@@ -153,26 +155,23 @@ export function SceneShell({
   }, [activeScene, prefersReducedMotion, sounds]);
 
   useEffect(() => {
-    const shouldPlayAmbient = activeScene === 'interlude' || activeScene === 'narrative';
+    // The bed under a reading is part of Table Ambience and follows its switch.
+    const shouldPlayAmbient = tableSoundsEnabled && !prefersReducedMotion && (activeScene === 'interlude' || activeScene === 'narrative');
     if (shouldPlayAmbient) {
       void sounds.play('narrative-ambient', {
         essential: false,
         loop: true,
-        restart: false,
-        volume: 0.32
+        restart: false
       });
       return undefined;
     }
 
     sounds.stop('narrative-ambient');
     return undefined;
-  }, [activeScene, sounds]);
+  }, [activeScene, tableSoundsEnabled, prefersReducedMotion, sounds]);
 
-  useEffect(() => {
-    return () => {
-      sounds.stop('narrative-ambient');
-    };
-  }, [sounds]);
+  // Leaving the reading also invalidates cues still waiting for their first download.
+  useLayoutEffect(() => () => sounds.stopAll(), [sounds]);
 
   const ActiveScene = scenes[activeScene] || scenes.idle || null;
   const particlePreset = transitionMeta?.particlePreset

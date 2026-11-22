@@ -18,6 +18,10 @@ const AMBIENCE_RETRY_EVENTS = ['click', 'touchend', 'keydown'];
 // can settle afterwards and must not change what the later one decided.
 let ambienceAttempt = 0;
 let ambienceRetryListener = null;
+let ambienceReconnectListener = null;
+let ambienceLoadFailed = false;
+let tableCuesEnabled = false;
+const ambienceListeners = new Set();
 let ambienceSwellTimer = null;
 let ambienceVolumeRaf = null;
 let ttsAudio = null;
@@ -155,7 +159,7 @@ export function initAudio() {
 }
 
 export function playFlip() {
-  if (typeof Audio === 'undefined') return;
+  if (typeof Audio === 'undefined' || !canPlayTableSounds()) return;
   try {
     ensureGlobalCleanupListeners();
     if (!flipAudio) flipAudio = new Audio('/sounds/flip.mp3');
@@ -166,7 +170,36 @@ export function playFlip() {
   }
 }
 
-function clearAmbienceRetry() {
+export function stopFlip() {
+  flipAudio?.pause();
+}
+
+export function canPlayTableSounds() {
+  return tableCuesEnabled;
+}
+
+export function getAmbienceError() {
+  return ambienceLoadFailed ? 'The background loop couldn’t play. Reconnect or turn Table Ambience off and on to retry.' : null;
+}
+
+export function subscribeToAmbience(listener) {
+  ambienceListeners.add(listener);
+  return () => ambienceListeners.delete(listener);
+}
+
+// The switch stores the reader's preference. In a tab waiting for a gesture,
+// cues must stay silent even though that preference is On.
+function setAmbienceState({ cuesEnabled = tableCuesEnabled, loadFailed = false }) {
+  if (cuesEnabled === tableCuesEnabled && loadFailed === ambienceLoadFailed) return;
+  if (cuesEnabled !== tableCuesEnabled) {
+    tableCuesEnabled = cuesEnabled;
+    if (!cuesEnabled) stopFlip();
+  }
+  ambienceLoadFailed = loadFailed;
+  for (const listener of ambienceListeners) listener();
+}
+
+function clearAmbienceInteraction() {
   if (!ambienceRetryListener) return;
   if (typeof window !== 'undefined') {
     AMBIENCE_RETRY_EVENTS.forEach(type => {
@@ -174,6 +207,14 @@ function clearAmbienceRetry() {
     });
   }
   ambienceRetryListener = null;
+}
+
+function clearAmbienceRetry() {
+  clearAmbienceInteraction();
+  if (ambienceReconnectListener) {
+    window.removeEventListener('online', ambienceReconnectListener);
+    ambienceReconnectListener = null;
+  }
 }
 
 // Start the loop inside the reader's next interaction: after the browser
@@ -190,8 +231,15 @@ function awaitAmbienceInteraction() {
 }
 
 // The loop is created on first use, so the file is not requested while
-// ambience is off or still waiting for an interaction.
-function ambienceLoop() {
+// ambience is off or still waiting for an interaction. A loop whose file
+// failed to load never plays again, so the next start replaces it.
+function ambienceLoop(retryFailedLoad) {
+  if (ambienceAudio && (ambienceAudio.error || retryFailedLoad)) {
+    resetAmbienceSwell();
+    ambienceAudio.onerror = null;
+    ambienceAudio.pause();
+    ambienceAudio = null;
+  }
   if (!ambienceAudio) {
     ambienceAudio = new Audio(AMBIENCE_URL);
     ambienceAudio.loop = true;
@@ -200,25 +248,56 @@ function ambienceLoop() {
   return ambienceAudio;
 }
 
-function startAmbiencePlayback() {
+function startAmbiencePlayback({ retryOnInteraction = false } = {}) {
+  clearAmbienceRetry();
   const attempt = ++ambienceAttempt;
+  let reconnected = false;
+  let failedThisAttempt = false;
   let audio = null;
   let started;
+  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
+  const failed = () => {
+    if (!isCurrent()) return;
+    failedThisAttempt = true;
+    setAmbienceState({ loadFailed: true });
+    // A saved On can receive the media error before the autoplay decision.
+    // Give this restore one gesture retry even when no NotAllowedError arrives.
+    if (retryOnInteraction) awaitAmbienceInteraction();
+    if (reconnected && tableCuesEnabled) startAmbiencePlayback();
+  };
+  // Keep observing after play() resolves: a playing loop can report a media
+  // error after the network has already come back. Each retry gets a fresh listener.
+  if (typeof window !== 'undefined') {
+    ambienceReconnectListener = () => {
+      reconnected = true;
+      if (failedThisAttempt && tableCuesEnabled) startAmbiencePlayback();
+    };
+    window.addEventListener('online', ambienceReconnectListener);
+  }
+  const retryFailedLoad = ambienceLoadFailed;
+  setAmbienceState({ cuesEnabled: true, loadFailed: retryFailedLoad });
   try {
-    audio = ambienceLoop();
+    audio = ambienceLoop(retryFailedLoad);
+    audio.onerror = failed;
     started = audio.play();
   } catch (error) {
     started = Promise.reject(error);
   }
-  const isCurrent = () => attempt === ambienceAttempt && audio === ambienceAudio;
   Promise.resolve(started).then(() => {
-    if (isCurrent()) clearAmbienceRetry();
+    if (isCurrent() && !audio?.error) {
+      retryOnInteraction = false;
+      failedThisAttempt = false;
+      clearAmbienceInteraction();
+      setAmbienceState({ cuesEnabled: true });
+    }
   }, error => {
     if (!isCurrent()) return;
-    // Only a refusal for lack of interaction is worth another try. An
-    // interrupted or unplayable loop would fail again on every tap.
-    if (error?.name === 'NotAllowedError') awaitAmbienceInteraction();
-    else clearAmbienceRetry();
+    if (error?.name === 'NotAllowedError') {
+      setAmbienceState({ cuesEnabled: false, loadFailed: ambienceLoadFailed || Boolean(audio?.error) });
+      awaitAmbienceInteraction();
+    } else {
+      failed();
+    }
   });
 }
 
@@ -231,18 +310,29 @@ function startAmbiencePlayback() {
  * for, such as a choice made in another tab. Nothing is loaded or played
  * until the reader's next click, tap or keypress here.
  */
-export function toggleAmbience(on, { waitForInteraction = false } = {}) {
+export function toggleAmbience(on, { waitForInteraction = false, restored = false } = {}) {
   if (typeof Audio === 'undefined') return;
   try {
     if (!on) {
       ambienceAttempt++;
       clearAmbienceRetry();
+      resetAmbienceSwell();
       ambienceAudio?.pause();
+      if (ambienceLoadFailed && ambienceAudio) {
+        ambienceAudio.onerror = null;
+        ambienceAudio = null;
+      }
+      setAmbienceState({ cuesEnabled: false });
       return;
     }
     ensureGlobalCleanupListeners();
-    if (!waitForInteraction) startAmbiencePlayback();
-    else if (!ambienceAudio || ambienceAudio.paused) awaitAmbienceInteraction();
+    if (!waitForInteraction) startAmbiencePlayback({ retryOnInteraction: restored });
+    else if (!ambienceAudio || ambienceAudio.paused || ambienceAudio.error) {
+      ambienceAttempt++;
+      clearAmbienceRetry();
+      setAmbienceState({ cuesEnabled: false });
+      awaitAmbienceInteraction();
+    }
   } catch {
     // ignore autoplay / interruption errors
   }
@@ -251,6 +341,14 @@ export function toggleAmbience(on, { waitForInteraction = false } = {}) {
 function clampVolume(value) {
   if (!Number.isFinite(value)) return AMBIENCE_BASE_VOLUME;
   return Math.min(1, Math.max(0, value));
+}
+
+function resetAmbienceSwell() {
+  if (ambienceSwellTimer !== null) clearTimeout(ambienceSwellTimer);
+  if (ambienceVolumeRaf !== null) cancelAnimationFrame(ambienceVolumeRaf);
+  ambienceSwellTimer = null;
+  ambienceVolumeRaf = null;
+  if (ambienceAudio) ambienceAudio.volume = AMBIENCE_BASE_VOLUME;
 }
 
 function rampAmbienceVolume(from, to, durationMs) {
@@ -286,17 +384,21 @@ export function swellAmbience({ peak = 0.32, attackMs = 180, releaseMs = 700 } =
   if (!ambienceAudio) return;
   if (ambienceAudio.paused) return;
 
-  const baseVolume = clampVolume(ambienceAudio.volume || AMBIENCE_BASE_VOLUME);
-  const targetVolume = Math.min(1, Math.max(baseVolume, peak));
+  // Rise from wherever the volume is now, so a swell that interrupts another
+  // does not jump, and always fall back to the base level. The volume read
+  // here can be part-way through an earlier swell (its frames stop while the
+  // tab is hidden), and returning to that would leave the loop loud.
+  const fromVolume = clampVolume(ambienceAudio.volume || AMBIENCE_BASE_VOLUME);
+  const targetVolume = Math.min(1, Math.max(AMBIENCE_BASE_VOLUME, peak));
 
-  rampAmbienceVolume(baseVolume, targetVolume, attackMs);
+  rampAmbienceVolume(fromVolume, targetVolume, attackMs);
 
   if (ambienceSwellTimer) {
     clearTimeout(ambienceSwellTimer);
   }
 
   ambienceSwellTimer = setTimeout(() => {
-    rampAmbienceVolume(targetVolume, baseVolume, releaseMs);
+    rampAmbienceVolume(targetVolume, AMBIENCE_BASE_VOLUME, releaseMs);
     ambienceSwellTimer = null;
   }, Math.max(120, attackMs));
 }
@@ -1135,20 +1237,14 @@ export function stopTTS() {
 export function cleanupAudio() {
   try {
     resetTTSStream();
-    if (ambienceSwellTimer) {
-      clearTimeout(ambienceSwellTimer);
-      ambienceSwellTimer = null;
-    }
-    if (ambienceVolumeRaf) {
-      cancelAnimationFrame(ambienceVolumeRaf);
-      ambienceVolumeRaf = null;
-    }
+    resetAmbienceSwell();
     if (flipAudio) {
       flipAudio.pause();
       flipAudio = null;
     }
     ambienceAttempt++;
     clearAmbienceRetry();
+    setAmbienceState({ cuesEnabled: false });
     if (ambienceAudio) {
       ambienceAudio.pause();
       ambienceAudio = null;
