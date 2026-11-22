@@ -42,3 +42,16 @@ Source tree `371bfca254c45ee82ff6d5974a6398cfbe4a6649` passed 6,627 Node tests w
 ## PR review on November 22
 
 On commit `b07f476d877c71fcfebeb699cc494a1f89d0915a`, the reviewer reported 103 passing tests across 18 targeted files, zero scoped ESLint errors, 271 documentation files with valid local links and a successful frontend build.
+
+## Verification after review cleanup
+
+The checks below used commit `426a6122831ac835136d2262f12e1792057fb97c`, which includes the audit actor and quality-stats fixes.
+
+| Check | Result |
+| --- | --- |
+| Full Node suite | `npm test` on Ubuntu 26.04 (WSL), Node 24.18.1 and LF sources passed 6,658 tests with zero failures. The three skips were two installed-CLI integration checks and a Windows-only process cleanup test. |
+| Admin browser suite | All 23 cases passed in one run (22 Chromium, one mobile WebKit) using the Playwright 1.62.1 Noble image and `npx playwright test 'e2e/admin-.*' --workers=1`. The mobile case also passed on Windows. |
+| Frontend build | `npm run build` passed. |
+| Lint and documentation | `npm run lint` reported zero errors and 49 warnings. `npm run docs:check` validated links in all 243 maintained Markdown files in the clean checkout. |
+
+The Ubuntu Node run used a private loader cache for WebKit's native dependencies. An earlier two-worker admin browser run hit a connection reset while loading a Vite asset. The single-worker run passed all cases without retries.
