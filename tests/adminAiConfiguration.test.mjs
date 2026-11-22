@@ -148,6 +148,29 @@ describe('admin AI configuration', () => {
     assert.match(actual.fingerprint, /^[a-f0-9]{64}$/);
   });
 
+  it('publishes production Readings edits only while enabled and exposes the saved model to release QA', async () => {
+    const env = { ...await environment(), AI_CONFIG_ENVIRONMENT: 'production' };
+    const releaseSettings = async () => (await request(overview.onRequestGet, env, { path: '/release-settings' })).json();
+    const initial = await getReading(env);
+    assert.equal(initial.writable, true);
+    const baseline = await releaseSettings();
+    const edit = mutation(initial, 'high');
+    edit.policy.primary.modelId = 'gpt-5.6-sol';
+    assert.equal((await save(env, edit)).status, 200);
+    const saved = await releaseSettings();
+    assert.equal(saved.revision, 1);
+    assert.equal(saved.modelId, edit.policy.primary.modelId);
+    assert.notEqual(saved.fingerprint, baseline.fingerprint);
+    assert.equal((await resolveFeatureConfig(env, 'readings')).policy.primary.modelId, saved.modelId);
+
+    env.AI_CONFIG_ENABLED = 'false';
+    assert.equal((await getReading(env)).writable, false);
+    assert.equal((await save(env, edit)).status, 403);
+    assert.deepEqual(await releaseSettings(), baseline);
+    env.AI_CONFIG_ENABLED = 'true';
+    assert.deepEqual(await releaseSettings(), saved);
+  });
+
   for (const slot of [0, 1]) {
     it('isolates and repairs a retired deployment model in slot ' + slot, async () => {
       const env = { ...await environment(), OPENAI_MODEL: 'retiring-openai-model', ANTHROPIC_API_KEY: 'fixture' };

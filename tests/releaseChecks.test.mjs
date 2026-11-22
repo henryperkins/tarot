@@ -13,13 +13,16 @@ function release(env = {}) {
   const result = spawnSync(process.execPath, ['--import', './tests/helpers/releaseCheckCommandStub.mjs', 'scripts/evaluation/runReleaseChecks.js'], {
     encoding: 'utf8',
     env: { ...process.env, VISION_EVAL_MANIFEST_DIR: '', NARRATIVE_EVAL_BACKEND: '', TEST_RELEASE_CHECK_FAIL: '',
-      TEST_RELEASE_LOGIN_FAIL: '', CLAUDE_CODE_GATEWAY_URL: '', CLAUDE_CODE_GATEWAY_TOKEN: '', ANTHROPIC_API_KEY: 'offline-test-key',
+      ADMIN_API_KEY: 'offline-admin-test-key', TEST_RELEASE_SETTINGS_DRIFT: '', TEST_RELEASE_PRIMARY: '',
+      TEST_RELEASE_LOGIN_FAIL: '', CLAUDE_CODE_OAUTH_TOKEN: '', CLAUDE_CODE_GATEWAY_URL: '', CLAUDE_CODE_GATEWAY_TOKEN: '', ANTHROPIC_API_KEY: 'offline-test-key',
       ANTHROPIC_AUTH_TOKEN: 'offline-test-token', MODAL_PROXY_TOKEN: 'offline-test-token', WANDB_API_KEY: 'offline-test-key',
       AZURE_OPENAI_API_KEY: 'offline-test-key',
       OPENAI_API_KEY: 'offline-openai-test-key', NARRATIVE_EVAL_OPENAI_API_KEY: '', ...env }
   });
-  const checks = result.stdout.split('\n').filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
-  return { ...result, checks, scripts: checks.map(check => check.script) };
+  const lines = result.stdout.split(/\r?\n/);
+  const checks = lines.filter(line => line.startsWith('CHECK:')).map(line => JSON.parse(line.slice(6)));
+  const settingsReads = lines.filter(line => line.startsWith('SETTINGS_READ:')).map(line => line.slice('SETTINGS_READ:'.length));
+  return { ...result, checks, settingsReads, scripts: checks.map(check => check.script) };
 }
 
 async function corpus(t, { complete = true, kind = 'held-out-photos' } = {}) {
@@ -57,20 +60,63 @@ it('grades production OpenAI readings with the key passed only to the narrative 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /grading openai-native readings through the paid OpenAI Responses API/);
   assert.doesNotMatch(result.stdout, /LOGIN_CHECK/, 'the OpenAI gate needs no subscription login');
+  assert.doesNotMatch(result.stdout + result.stderr, /offline-admin-test-key|offline-openai-test-key/);
+  assert.equal(result.settingsReads.length, 2);
+  assert.equal(result.settingsReads[1], result.settingsReads[0]);
+  assert.match(result.settingsReads[0], /^[a-f0-9]{64}$/);
+  assert.ok(result.stdout.indexOf('SETTINGS_READ:') < result.stdout.indexOf('CHECK:'));
+  assert.ok(result.stdout.lastIndexOf('SETTINGS_READ:') > result.stdout.lastIndexOf('CHECK:'));
   for (const check of result.checks) {
+    assert.equal(check.adminKey, false, `${check.script} must not receive ADMIN_API_KEY`);
     assert.equal(check.openaiKey, false, `${check.script} must not receive OPENAI_API_KEY`);
     assert.equal(check.evalOpenaiKey, check.script === 'ci:narrative-check', `${check.script} evaluation key`);
-    assert.equal(check.openaiTimeoutMs, check.script === 'ci:narrative-check' ? '120000' : null, `${check.script} OpenAI deadline`);
+    assert.equal(check.openaiTimeoutMs, check.script === 'ci:narrative-check' ? '75000' : null, `${check.script} OpenAI deadline`);
     assert.deepEqual(check.credentialKeys, [], `${check.script} must not receive provider credentials`);
   }
-  assert.match(result.stdout, /production's 120 s deadline/);
+  const narrative = result.checks.at(-1);
+  assert.equal(narrative.model, 'gpt-6.1-sol');
+  assert.equal(narrative.effort, 'medium');
+  assert.equal(narrative.revision, '7');
+  assert.equal(narrative.fingerprint, result.settingsReads[0]);
+  assert.match(result.stdout, /production's 75 s deadline/);
+});
+
+it('requires the production admin key before contacting the Worker or running a check', () => {
+  const result = release({ ADMIN_API_KEY: '' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /requires the production ADMIN_API_KEY/);
+  assert.deepEqual(result.settingsReads, []);
+  assert.deepEqual(result.checks, []);
+});
+
+it('refuses a release when the live assignment changes during qualification', () => {
+  const result = release({ TEST_RELEASE_SETTINGS_DRIFT: '1' });
+  assert.equal(result.status, 1);
+  assert.equal(result.scripts.at(-1), 'ci:narrative-check');
+  assert.equal(result.settingsReads.length, 2);
+  assert.notEqual(result.settingsReads[1], result.settingsReads[0]);
+  assert.equal(result.checks.at(-1).fingerprint, result.settingsReads[0]);
+  assert.match(result.stderr, /Production reading settings changed during qualification/);
+});
+
+it('qualifies a production Claude assignment through the subscription with its live settings', () => {
+  const result = release({ TEST_RELEASE_PRIMARY: 'claude-api', OPENAI_API_KEY: '' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /LOGIN_CHECK/);
+  const narrative = result.checks.at(-1);
+  assert.equal(narrative.backend, 'claude-code');
+  assert.equal(narrative.model, 'claude-opus-5-5');
+  assert.equal(narrative.effort, 'medium');
+  assert.equal(narrative.anthropicTimeoutMs, '75000');
+  assert.equal(narrative.fingerprint, result.settingsReads[0]);
+  assert.ok(result.checks.every(check => !check.adminKey && !check.evalOpenaiKey && !check.credentialKeys.length));
 });
 
 it('gives gate samples the production reading deadline, which a shell value cannot loosen', () => {
   const result = release({ OPENAI_TIMEOUT_MS: '600000', READING_TASK_TIMEOUT_MS: '600000' });
   assert.equal(result.status, 0, result.stderr);
   const narrative = result.checks.find(check => check.script === 'ci:narrative-check');
-  assert.equal(narrative.openaiTimeoutMs, '120000');
+  assert.equal(narrative.openaiTimeoutMs, '75000');
 });
 
 it('derives the production OpenAI reading deadline from the Worker variables', () => {
