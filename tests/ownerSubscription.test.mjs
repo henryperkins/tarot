@@ -93,9 +93,10 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
         return Response.json({ provider, models: [{ id: 'gpt-fixture', label: 'Fixture model' }] });
       }
       if (request.method === 'GET') return Response.json({ provider, ready, reason: 'login_required' });
-      calls.push({ provider, body: await request.json() });
+      const body = await request.json();
+      calls.push({ provider, body });
       if (failed) return new Response('internal diagnostics must stay private', { status: 500 });
-      return Response.json({ provider, model: provider + '-fixture', modelSource: provider === codex ? 'configured' : 'reported',
+      return Response.json({ provider, model: body.model || provider + '-fixture', modelSource: provider === codex ? 'configured' : 'reported',
         text: 'A synthetic reading using the three drawn cards.', usage: {} });
     }
   });
@@ -160,14 +161,15 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
   assert.equal((await start(codexRun, 1)).status, 202);
   assert.equal((await start(codexRun, 1)).status, 202);
   const result = await receipt(codexRun);
-  assert.deepEqual(result, { runId: codexRun, providerId: codex, status: 'completed', model: codex + '-fixture',
+  assert.deepEqual(result, { runId: codexRun, providerId: codex, status: 'completed', model: choice.modelId,
     modelSource: 'configured', excerpt: 'A synthetic reading using the three drawn cards.' });
   assert.equal((await request('/samples/' + codexRun, 'GET', undefined, other)).status, 403);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].provider, codex);
   const message = calls[0].body.messages[0].content;
   for (const expected of [READING_CONFIG_FIXTURE.question, ...READING_CONFIG_FIXTURE.cards]) assert.ok(message.includes(expected));
-  assert.deepEqual(Object.keys(calls[0].body).sort(), ['messages', 'systemPrompt', 'task']);
+  assert.equal(calls[0].body.model, choice.modelId);
+  assert.deepEqual(Object.keys(calls[0].body).sort(), ['messages', 'model', 'systemPrompt', 'task']);
   assert.equal((await put(claude, 1)).data.link.revision, 2);
   assert.equal((await request('/models')).data.code, 'subscription_provider_changed');
   assert.equal((await request('/samples/' + codexRun)).status, 404);
@@ -175,6 +177,7 @@ test('local owner API authenticates both identities, runs a fixed sample and iso
   assert.equal((await start(claudeRun, 2)).status, 202);
   assert.equal((await receipt(claudeRun)).modelSource, 'reported');
   assert.equal(calls.at(-1).provider, claude);
+  assert.deepEqual(Object.keys(calls.at(-1).body).sort(), ['messages', 'systemPrompt', 'task']);
   failed = true;
   const failedRun = crypto.randomUUID();
   assert.equal((await start(failedRun, 2)).status, 202);

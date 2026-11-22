@@ -12,7 +12,7 @@ test('links a reader and shows owner sample provenance for each subscription', a
     bindings: { AI_CONFIG_ENVIRONMENT: 'local', LOCAL_OWNER_HOST_SECRET: 'x'.repeat(32), OWNER_HOST_INSTANCE: crypto.randomUUID(),
       AUTH0_DOMAIN: 'https://fixture-identity.invalid', AUTH0_CLIENT_ID: 'synthetic-client', APP_URL: 'https://fixture-hosted.invalid',
       OWNER_HOST_CODEX_URL: 'http://127.0.0.1:12345', OWNER_HOST_CLAUDE_URL: 'http://127.0.0.1:12346' },
-    ownerGatewayStub: (request, provider) => {
+    ownerGatewayStub: async (request, provider) => {
       const codex = provider === 'codex-subscription';
       if (new URL(request.url).pathname === '/v1/subscription-status') {
         return Response.json({ provider, ready: !codex || codexReady, ...(!codexReady && codex && { reason: 'login_required' }) });
@@ -23,8 +23,10 @@ test('links a reader and shows owner sample provenance for each subscription', a
         return Response.json({ provider, models: [{ id: 'owner-model', label: 'Owner model' }] });
       }
       calls.push(provider);
+      const { model } = await request.json();
+      expect(model).toBe(codex ? 'owner-model' : undefined);
       return Response.json({ provider, text: 'A fixed ' + provider + ' fixture reading reflects on each card.',
-        model: codex ? 'gpt-6.1-sol' : 'claude-opus-5-5', modelSource: codex ? 'configured' : 'reported', structured: null, usage: {} });
+        model: codex ? model : 'claude-opus-5-5', modelSource: codex ? 'configured' : 'reported', structured: null, usage: {} });
     }
   });
   try {
@@ -74,12 +76,12 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await expect(panel.getByText('Personal Readings model saved.')).toBeVisible();
     await button('Refresh models').click();
     await expect(personalModel).toHaveValue('owner-model');
+    await button('Run owner sample').click();
+    await expect(panel.getByText('Codex / ChatGPT answered')).toBeVisible();
+    await expect(panel.getByText(/did not report the answering model/)).toContainText('Configured model · owner-model');
     await personalModel.selectOption('');
     await button('Save personal model').click();
     await expect(panel.getByText('Personal Readings will use the subscription default.')).toBeVisible();
-    await button('Run owner sample').click();
-    await expect(panel.getByText('Codex / ChatGPT answered')).toBeVisible();
-    await expect(panel.getByText(/did not report the answering model/)).toContainText('Configured model · gpt-6.1-sol');
     await page.getByRole('tab', { name: 'Feature models' }).click();
     await expect(page.getByLabel('Reasoning effort')).toHaveValue('low');
     await expect(page.getByRole('button', { name: 'Save changes to Readings' })).toBeEnabled();

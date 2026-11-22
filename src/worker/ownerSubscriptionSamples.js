@@ -2,6 +2,7 @@ import { READING_CONFIG_FIXTURE } from '../../shared/contracts/aiConfigSample.js
 import { callPersonalTextProvider } from '../../functions/lib/personalTextProvider.js';
 import { linkedGatewayEnv, ownerLinkDatabase, ownerRestriction, readOwnerLink } from '../../functions/lib/ownerSubscription.js';
 import { getOwnerHostStatus } from '../../functions/lib/ownerSubscriptionHost.js';
+import { resolvePersonalReadingModel } from '../../functions/lib/personalReadingModel.js';
 
 const retention = 15 * 60 * 1000;
 const maxRun = 5 * 60 * 1000;
@@ -10,9 +11,9 @@ const unavailable = () => json({ code: 'sample_unavailable', error: 'This owner 
 
 // Keep prompts, gateway secrets, reader session tokens and private reader data
 // out of the job. The only input sent to either CLI is this fixed fixture.
-function sampleInput(signal) {
+function sampleInput(signal, model) {
   const { question, cards } = READING_CONFIG_FIXTURE;
-  return { task: 'reading', signal,
+  return { task: 'reading', signal, ...(model && { model }),
     systemPrompt: 'Write a brief reflective tarot reading. Address the question using each drawn card in order. Offer one practical next step. Frame interpretations as possibilities and preserve the reader’s agency.',
     messages: [{ role: 'user', content: question + '\nThree-Card Story, all upright.\n' + cards.join(' · ') }] };
 }
@@ -68,7 +69,8 @@ export class OwnerSubscriptionSamples {
       else if (!host.ready) details = { reason: host.reason || 'Sign in to the selected subscription on the local host.' };
       else {
         const env = await linkedGatewayEnv(this.env, link);
-        const result = await callPersonalTextProvider(env, sampleInput(AbortSignal.timeout(maxRun)));
+        const model = run.provider === 'codex-subscription' ? await resolvePersonalReadingModel(env, run.owner) : null;
+        const result = await callPersonalTextProvider(env, sampleInput(AbortSignal.timeout(maxRun), model));
         if (await this.currentLink(run)) {
           const sourceKnown = ['configured', 'reported'].includes(result.modelSource);
           details = { ...(sourceKnown && { model: result.model, modelSource: result.modelSource }),
