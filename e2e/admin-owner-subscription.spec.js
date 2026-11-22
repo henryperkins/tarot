@@ -47,6 +47,14 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await connections.click();
     const panel = page.getByRole('region', { name: 'Owner subscription', exact: true });
     const button = (name) => panel.getByRole('button', { name, exact: true });
+    // The panel rechecks the reader whenever its browser tab becomes visible.
+    const statusUrl = worker.url + '/api/admin/ai-configuration/owner-subscription';
+    const becomeVisible = () => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    const returnToTab = async () => {
+      const rechecked = page.waitForResponse(response => response.url() === statusUrl && response.request().method() === 'GET');
+      await becomeVisible();
+      await (await rechecked).finished();
+    };
     await expect(page.getByRole('button', { name: 'Fetch models' })).toHaveCount(0);
     await button('Create reader account').click();
     const dialog = page.getByRole('dialog');
@@ -72,6 +80,9 @@ test('links a reader and shows owner sample provenance for each subscription', a
     const personalModel = panel.getByLabel('Personal Readings model');
     await expect(personalModel.getByRole('option', { name: 'Owner model · owner-model' })).toHaveCount(1);
     await personalModel.selectOption('owner-model');
+    // Leaving and returning to the tab keeps the fetched list and the unsaved choice.
+    await returnToTab();
+    await expect(personalModel).toHaveValue('owner-model');
     await button('Save personal model').click();
     await expect(panel.getByText('Personal Readings model saved.')).toBeVisible();
     await button('Refresh models').click();
@@ -87,14 +98,47 @@ test('links a reader and shows owner sample provenance for each subscription', a
     await expect(page.getByRole('button', { name: 'Save changes to Readings' })).toBeEnabled();
     await connections.click();
     await expect(panel.getByText('Codex / ChatGPT answered')).toBeVisible();
-    await panel.getByRole('radio', { name: /Claude Code/ }).check();
+    const claudeChoice = panel.getByRole('radio', { name: /Claude Code/ });
+    await claudeChoice.check();
     await expect(button('Fetch models')).toHaveCount(0);
     await expect(button('Run owner sample')).toBeDisabled();
+    await returnToTab();
+    await expect(claudeChoice).toBeChecked();
+
+    // A recheck that read the link before a save must not replace the saved view.
+    const staleRead = Promise.withResolvers();
+    const saved = Promise.withResolvers();
+    const delivered = Promise.withResolvers();
+    await page.route(statusUrl, async route => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      const response = await route.fetch();
+      staleRead.resolve();
+      await saved.promise;
+      // The page may already have cancelled the recheck that the save superseded.
+      await route.fulfill({ response }).catch(() => {});
+      delivered.resolve();
+    });
+    await becomeVisible();
+    await staleRead.promise;
     await button('Save provider').click();
+    await expect(panel.getByText('Owner subscription saved.')).toBeVisible();
+    saved.resolve();
+    await delivered.promise;
+    await page.unroute(statusUrl);
+    await expect(claudeChoice).toBeChecked();
+    await expect(button('Save provider')).toHaveCount(0);
     await expect(panel.getByText('Codex / ChatGPT answered')).toHaveCount(0);
     await button('Run owner sample').click();
     await expect(panel.getByText('Reported model · claude-opus-5-5')).toBeVisible();
     await expect(panel.getByText(/A fixed claude-code fixture reading/)).toBeVisible();
+
+    // The reader can sign out or change in another tab. Returning to this one
+    // must replace the owner's settings and sample without a page load.
+    await page.context().clearCookies();
+    await returnToTab();
+    await expect(button('Sign in as reader')).toBeVisible();
+    await expect(button('Unlink account')).toHaveCount(0);
+    await expect(panel.getByText(/fixture reading/)).toHaveCount(0);
 
     // Reopen through the same return URL as social sign-in, with an unrelated
     // reader's cookie. Their view must not disclose the owner's sample.
@@ -102,6 +146,11 @@ test('links a reader and shows owner sample provenance for each subscription', a
       data: { email: 'other@example.test', username: 'fixture_other', password }
     });
     expect(other.status()).toBe(201);
+    await returnToTab();
+    await expect(panel.getByText(/A different reader is linked/)).toBeVisible();
+    await expect(button('Sign in as reader')).toHaveCount(0);
+    await expect(button('Unlink account')).toHaveCount(0);
+    await expect(panel.getByText(email)).toHaveCount(0);
     await page.goto(dashboard + '?tab=connections');
     await expect(connections).toHaveAttribute('aria-selected', 'true');
     await expect(panel.getByText(/A different reader is linked/)).toBeVisible();

@@ -164,6 +164,7 @@ function OwnerConnection({ request, fixture, openAuth, headingRef }) {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState('');
   const [version, setVersion] = useState(0);
+  const pending = useRef(null);
   const reload = useCallback(() => {
     setStatus(null);
     setError(null);
@@ -175,15 +176,18 @@ function OwnerConnection({ request, fixture, openAuth, headingRef }) {
   }, [reload]);
   useEffect(() => {
     // Reader cookies can change in another tab without a React auth update.
-    const recheck = () => { if (document.visibilityState === 'visible') reload(); };
+    // Recheck behind the current view: Settings is keyed by reader and link
+    // revision, so unsaved choices are dropped only when one of those changed.
+    const recheck = () => { if (document.visibilityState === 'visible') setVersion(value => value + 1); };
     document.addEventListener('visibilitychange', recheck);
     return () => document.removeEventListener('visibilitychange', recheck);
-  }, [reload]);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
+    pending.current = controller;
     request(endpoint, { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) setStatus(result); })
-      .catch(err => { if (!controller.signal.aborted) setError(err); });
+      .then(result => { if (!controller.signal.aborted) { setError(null); setStatus(result); } })
+      .catch(err => { if (!controller.signal.aborted) { setStatus(null); setError(err); } });
     return () => controller.abort();
   }, [request, version]);
   const guest = error?.code === 'reader_sign_in_required';
@@ -200,7 +204,12 @@ function OwnerConnection({ request, fixture, openAuth, headingRef }) {
     {status && <>
       <p className="ai-reader-identity"><strong>{status.link.ownedByReader ? 'Linked reader' : 'Signed-in reader'}</strong> · {status.reader.label}</p>
       {status.editable ? <Settings key={status.reader.id + '/' + status.link.revision} request={request} status={status} fixture={fixture}
-        onChange={(updated, message) => { setStatus(updated); setNotice(message); }} onAccessChange={accessChanged}
+        onChange={(updated, message) => {
+          // A recheck still in flight may have read the link before this save.
+          pending.current?.abort();
+          setStatus(updated);
+          setNotice(message);
+        }} onAccessChange={accessChanged}
         onRefresh={() => { setNotice(''); reload(); }} />
         : <><p>{status.readOnlyReason || 'Only the linked reader can manage this subscription.'}</p>
           <button type="button" className="ai-button" onClick={() => openAuth('login')}>Sign in with another reader account</button></>}
