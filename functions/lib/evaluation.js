@@ -1,3 +1,5 @@
+import { loadTextPolicy } from './textFeaturePolicy.js';
+import { effectiveWorkersEffort } from './workersAiReasoning.js';
 import { resolveDecisionPathContext, decisionPathRoleCards } from './decisionPathContext.js';
 import { observeInferenceAttempt } from './inferenceAttempts.js';
 import { createDeadline } from './requestDeadline.js';
@@ -8,7 +10,7 @@ import { createDeadline } from './requestDeadline.js';
  * Designed for async execution via waitUntil to avoid blocking user responses.
  */
 
-import { isProductionEnvironment } from './environment.js';
+import { getEvalGateFailureMode } from './evalGatePolicy.js';
 import { getQualityGateThresholds } from './readingQuality.js';
 import { detectUndrawnCardAssertions } from './readingCardAssertions.js';
 import { sanitizeText } from './utils.js';
@@ -70,7 +72,6 @@ const DEFAULT_METRICS_STORAGE_MODE = 'redact';
 // - 'closed' (default in production): Block readings whenever AI evaluation is unavailable,
 //   even if heuristic passes. Use this for maximum safety at the cost of availability
 //   during AI outages.
-const DEFAULT_EVAL_GATE_FAILURE_MODE = 'open';
 const RESPONSES_MODEL_HINTS = ['@cf/openai/gpt-oss', '@cf/openai/gpt-4o', '@cf/openai/gpt-4.1'];
 
 // PII redaction patterns
@@ -1123,31 +1124,6 @@ function isDeterministicSafetyEnabled(env) {
   return normalizeBooleanFlag(raw);
 }
 
-function getEvalGateFailureMode(env) {
-  const rawMode = env?.EVAL_GATE_FAILURE_MODE;
-  const defaultMode = isProductionEnvironment(env) ? 'closed' : DEFAULT_EVAL_GATE_FAILURE_MODE;
-
-  // Log deprecation warnings for legacy variables without honoring them
-  if (env?.EVAL_GATE_FAIL_MODE !== undefined) {
-    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_MODE is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
-  }
-  if (env?.EVAL_GATE_FAIL_OPEN !== undefined) {
-    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_OPEN is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
-  }
-  if (env?.EVAL_GATE_FAIL_CLOSED !== undefined) {
-    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_CLOSED is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
-  }
-
-  if (typeof rawMode === 'string') {
-    const normalized = rawMode.trim().toLowerCase();
-    if (normalized === 'open') return 'open';
-    if (normalized === 'closed') return 'closed';
-    console.warn(`[eval] Invalid EVAL_GATE_FAILURE_MODE value: "${rawMode}". Valid values: open, closed. Defaulting to ${defaultMode}.`);
-  }
-
-  return defaultMode;
-}
-
 function collectJsonCandidates(text) {
   const candidates = [];
   if (!text || typeof text !== 'string') return candidates;
@@ -1579,7 +1555,10 @@ function resolveEvalReasoningEffort(configuredEffort, model) {
   const configured = typeof configuredEffort === 'string'
     ? configuredEffort.trim().toLowerCase()
     : '';
-  if (configured) return EVAL_REASONING_EFFORTS.has(configured) ? configured : null;
+  if (configured) {
+    const effective = effectiveWorkersEffort(model, configured);
+    return EVAL_REASONING_EFFORTS.has(effective) ? effective : null;
+  }
   return GLM_REASONING_MODELS.has(model) ? DEFAULT_REASONING_EFFORT : null;
 }
 
@@ -1684,6 +1663,11 @@ export async function runEvaluation(env, params = {}) {
   }
 
   const startTime = Date.now();
+  try {
+    env = await loadTextPolicy(env, gate ? 'quality-gate' : 'reading-evaluation');
+  } catch {
+    return { error: 'feature_config_unavailable', promptVersion: EVAL_PROMPT_VERSION };
+  }
   const settings = resolveEvaluatorSettings(env, { gate });
   const requestedModel = settings.model;
   let model = requestedModel;
@@ -1800,6 +1784,8 @@ export async function runEvaluation(env, params = {}) {
     return {
       scores: normalizedScores,
       model,
+      modelSource: response?.model ? 'reported' : 'configured',
+      effortSent: evalPayload.reasoning_effort || null,
       latencyMs,
       gatewayLogId,
       promptVersion: EVAL_PROMPT_VERSION,
@@ -1996,6 +1982,60 @@ function applyDeterministicOverrides(evalResult, readingText, env, params = {}) 
   };
 }
 
+/** Finalize the grade independently of journal or analytics persistence. */
+export function finishReadingEvaluation(env, evalParams, evalResult, evaluationNarrativeMetrics, spreadKey = evalParams?.spreadKey) {
+  const missingFields = (!evalResult || evalResult.error)
+    ? []
+    : findMissingScoreFields(evalResult?.scores);
+  const hasIncompleteScores = missingFields.length > 0;
+
+  const shouldFallback = (!evalResult || evalResult.error || hasIncompleteScores) && evaluationNarrativeMetrics;
+  const heuristic = shouldFallback
+    ? buildHeuristicScores(
+      evaluationNarrativeMetrics,
+      spreadKey,
+      { readingText: evalParams?.reading }
+    )
+    : null;
+
+  const fallbackReason = (() => {
+    if (hasIncompleteScores) {
+      return `incomplete_scores_${missingFields.join('_')}`;
+    }
+    if (evalResult?.error) {
+      return `eval_error_${String(evalResult.error).replace(/\s+/g, '_').slice(0, 120)}`;
+    }
+    return 'eval_unavailable';
+  })();
+
+  let evalPayload = evalResult || heuristic;
+  if (heuristic && (hasIncompleteScores || evalResult?.error || !evalResult)) {
+    evalPayload = {
+      ...heuristic,
+      mode: 'heuristic',
+      fallbackReason,
+      missingFields: hasIncompleteScores ? missingFields : undefined,
+      originalEval: evalResult && !evalResult?.error ? evalResult : null,
+      attemptedModel: evalResult?.model || null,
+      originalError: evalResult?.error || null,
+      // Capture raw response snippet for debugging JSON parse failures
+      rawResponseSnippet: evalResult?.rawResponse?.slice(0, 300) || null
+    };
+  } else if (hasIncompleteScores && evalResult && !heuristic) {
+    evalPayload = {
+      ...evalResult,
+      error: `incomplete_scores_${missingFields.join('_')}`,
+      missingFields
+    };
+  }
+
+  if (evalPayload && evalPayload.scores) {
+    const overrideResult = applyDeterministicOverrides(evalPayload, evalParams?.reading, env, evalParams);
+    evalPayload = overrideResult.evalResult;
+  }
+  return evalPayload;
+}
+
 /**
  * Schedule async evaluation that runs after response is sent.
  *
@@ -2048,55 +2088,8 @@ export function scheduleEvaluation(env, evalParams = {}, metricsPayload = {}, op
         evalResult = await runEvaluation(env, evalParams);
       }
 
-      const missingFields = (!evalResult || evalResult.error)
-        ? []
-        : findMissingScoreFields(evalResult?.scores);
-      const hasIncompleteScores = missingFields.length > 0;
-
-      const shouldFallback = (!evalResult || evalResult.error || hasIncompleteScores) && evaluationNarrativeMetrics;
-      const heuristic = shouldFallback
-        ? buildHeuristicScores(
-          evaluationNarrativeMetrics,
-          metricsPayload.spreadKey || evalParams?.spreadKey,
-          { readingText: evalParams?.reading }
-        )
-        : null;
-
-      const fallbackReason = (() => {
-        if (hasIncompleteScores) {
-          return `incomplete_scores_${missingFields.join('_')}`;
-        }
-        if (evalResult?.error) {
-          return `eval_error_${String(evalResult.error).replace(/\s+/g, '_').slice(0, 120)}`;
-        }
-        return 'eval_unavailable';
-      })();
-
-      let evalPayload = evalResult || heuristic;
-      if (heuristic && (hasIncompleteScores || evalResult?.error || !evalResult)) {
-        evalPayload = {
-          ...heuristic,
-          mode: 'heuristic',
-          fallbackReason,
-          missingFields: hasIncompleteScores ? missingFields : undefined,
-          originalEval: evalResult && !evalResult?.error ? evalResult : null,
-          attemptedModel: evalResult?.model || null,
-          originalError: evalResult?.error || null,
-          // Capture raw response snippet for debugging JSON parse failures
-          rawResponseSnippet: evalResult?.rawResponse?.slice(0, 300) || null
-        };
-      } else if (hasIncompleteScores && evalResult && !heuristic) {
-        evalPayload = {
-          ...evalResult,
-          error: `incomplete_scores_${missingFields.join('_')}`,
-          missingFields
-        };
-      }
-
-      if (evalPayload && evalPayload.scores) {
-        const overrideResult = applyDeterministicOverrides(evalPayload, evalParams?.reading, env, evalParams);
-        evalPayload = overrideResult.evalResult;
-      }
+      const evalPayload = finishReadingEvaluation(env, evalParams, evalResult, evaluationNarrativeMetrics,
+        metricsPayload.spreadKey || evalParams?.spreadKey);
 
       if (!evalPayload) {
         return;

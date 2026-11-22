@@ -14,7 +14,7 @@ export function buildSubscriptionEnv(source = process.env) {
 function runProcess(executable, args, { env, cwd, input = '', signal }) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new Error('Claude request was cancelled.')); return; }
-    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
+    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32', windowsHide: true });
     let stdout = '';
     let size = 0;
     let failure;
@@ -44,7 +44,7 @@ function runProcess(executable, args, { env, cwd, input = '', signal }) {
     // Upstream stderr can contain prompts, account details, and credentials.
     child.stderr.resume();
     child.stdin.on('error', () => stop(new Error('Claude input could not be delivered.')));
-    child.on('error', () => { failure = new Error('Claude Code could not be started. Check the CLI installation.'); });
+    child.on('error', () => { failure = Object.assign(new Error('Claude Code could not be started. Check the CLI installation.'), { code: 'cli_unavailable' }); });
     child.on('close', code => {
       // The CLI can exit on SIGTERM while a descendant keeps running with its
       // own stdio. Kill any remaining group members before releasing the slot.
@@ -92,7 +92,7 @@ export function parseClaudeOutput(output, responseSchema) {
     provider: 'claude-code',
     text: typeof result.result === 'string' ? result.result.trim() : '',
     structured: result.structured_output ?? null,
-    model, usage: result.usage || {}
+    model, modelSource: actualModels.size ? 'reported' : 'configured', usage: result.usage || {}
   }, responseSchema);
 }
 
@@ -102,7 +102,7 @@ const COMMON_ARGS = ['--safe-mode', '--setting-sources', ''];
 // setup-token credentials cannot report a verifiable plan, so they are refused.
 export async function verifySubscriptionLogin({ signal, hostEnv = process.env, cwd } = {}) {
   if (hostEnv.CLAUDE_CODE_OAUTH_TOKEN) {
-    throw new Error('CLAUDE_CODE_OAUTH_TOKEN is unsupported. Unset it and run claude auth login on the service host.');
+    throw Object.assign(new Error('CLAUDE_CODE_OAUTH_TOKEN is unsupported. Unset it and run claude auth login on the service host.'), { code: 'login_required' });
   }
   const directory = cwd || await mkdtemp(path.join(tmpdir(), 'tableu-claude-'));
   try {
@@ -110,10 +110,13 @@ export async function verifySubscriptionLogin({ signal, hostEnv = process.env, c
     try {
       status = JSON.parse(await runProcess(hostEnv.CLAUDE_CODE_EXECUTABLE || 'claude', [...COMMON_ARGS, 'auth', 'status', '--json'],
         { env: buildSubscriptionEnv(hostEnv), cwd: directory, signal }));
-    } catch { throw new Error('Claude subscription login is unavailable. Run claude auth login on the service host.'); }
+    } catch (error) {
+      if (signal?.aborted || error.code === 'cli_unavailable') throw error;
+      throw Object.assign(new Error('Claude subscription login is unavailable. Run claude auth login on the service host.'), { code: 'login_required' });
+    }
     if (!status.loggedIn || status.authMethod !== 'claude.ai' || status.apiProvider !== 'firstParty'
       || !['pro', 'max', 'team', 'enterprise'].includes(String(status.subscriptionType).toLowerCase())) {
-      throw new Error('Claude requires a personal subscription login; API billing is disabled.');
+      throw Object.assign(new Error('Claude requires a personal subscription login; API billing is disabled.'), { code: 'login_required' });
     }
   } finally {
     if (!cwd) await rm(directory, { recursive: true, force: true });

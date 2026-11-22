@@ -21,6 +21,7 @@ import { getVisualInitialReadiness, prepareVisualInitialAdmission } from './read
 import { hasWebVisualCapability } from './readingVisualWebAdmission.js';
 
 import { ReadingCardResolutionError, resolveReadingCards } from './readingCardResolution.js';
+import { snapshotReadingPolicies } from './readingConfigPolicy.js';
 
 const DO_ORIGIN = 'https://reading-jobs';
 
@@ -65,6 +66,7 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
     return { ok: false, status: 400, error: error.message, code: error.code };
   }
 
+  const readingPolicies = await snapshotReadingPolicies(env);
   const jobId = crypto.randomUUID();
   const jobToken = crypto.randomUUID();
   const readingResultId = crypto.randomUUID();
@@ -116,6 +118,7 @@ export async function startReadingJob({ env, payload, principal = null, snapshot
 
   const body = {
     payload: schemaResult.data,
+    readingPolicies,
     jobId,
     readingResultId,
     visualBinding,

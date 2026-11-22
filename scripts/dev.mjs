@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import http from 'node:http';
+import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 
 function projectRoot() {
@@ -93,91 +94,46 @@ async function waitForAny(urls, { label, timeoutMs = 30_000, intervalMs = 1000 }
     throw new Error(`Timed out waiting for ${label ?? 'service'} (${urls.join(', ')})`);
 }
 
-function spawnNpm(args, { rootDir } = {}) {
+function spawnNpm(args, { rootDir, separateGroup = false } = {}) {
     // On Windows, `npm` is a .cmd shim. Node's `spawn()` cannot execute .cmd
     // directly (CreateProcess limitation), so run it via cmd.exe.
     if (process.platform === 'win32') {
+        // Studio may ship node.exe without npm. Keep the npm installation's
+        // matching Node and npx together when starting migrations and builds.
+        const npmPath = spawnSync('where.exe', ['npm.cmd'], { encoding: 'utf8' }).stdout?.trim().split(/\r?\n/)[0];
+        const env = { ...process.env };
+        const pathKey = Object.keys(env).find(name => name.toLowerCase() === 'path') || 'Path';
+        if (npmPath) env[pathKey] = path.dirname(npmPath) + path.delimiter + (env[pathKey] || '');
         return spawn('cmd.exe', ['/d', '/s', '/c', 'npm', ...args], {
             cwd: rootDir,
             stdio: 'inherit',
-            env: process.env,
+            env, windowsHide: true,
         });
     }
 
     return spawn('npm', args, {
         cwd: rootDir,
         stdio: 'inherit',
-        env: process.env,
+        env: process.env, detached: separateGroup,
     });
 }
 
-function parsePortFromAddress(address) {
-    const match = String(address).match(/:(\d+)$/);
-    return match ? match[1] : null;
-}
-
-function findWindowsPidsOnPorts(ports) {
-    const portSet = new Set(ports.map((port) => String(port)));
-    const result = spawnSync('netstat', ['-ano', '-p', 'tcp'], { encoding: 'utf8' });
-    if (result.status !== 0 || !result.stdout) return [];
-
-    const pids = new Set();
-    for (const line of result.stdout.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('TCP')) continue;
-        const parts = trimmed.split(/\s+/);
-        if (parts.length < 5) continue;
-        const port = parsePortFromAddress(parts[1]);
-        if (!port || !portSet.has(port)) continue;
-        if (parts[4]) pids.add(parts[4]);
-    }
-
-    return Array.from(pids);
-}
-
-function findUnixPidsOnPorts(ports) {
-    const portList = ports.join(',');
-    const result = spawnSync('lsof', [`-ti:${portList}`], { encoding: 'utf8' });
-    if (result.status !== 0 || !result.stdout) return [];
-
-    return Array.from(
-        new Set(
-            result.stdout
-                .split(/\r?\n/)
-                .map((line) => line.trim())
-                .filter(Boolean)
-        )
-    );
-}
-
-async function cleanupPorts(ports) {
-    if (!ports.length) return;
-    console.log(`Cleaning up any existing processes on ports: ${ports.join(', ')}`);
-    const pids = process.platform === 'win32'
-        ? findWindowsPidsOnPorts(ports)
-        : findUnixPidsOnPorts(ports);
-
-    if (!pids.length) return;
-
-    for (const pid of pids) {
-        try {
-            if (process.platform === 'win32') {
-                spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
-            } else {
-                spawnSync('kill', ['-9', String(pid)], { stdio: 'ignore' });
-            }
-        } catch {
-            // best-effort
-        }
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
+async function requireAvailablePort(port) {
+    const server = createServer();
+    await new Promise((resolve, reject) => {
+        server.once('error', error => {
+            reject(error.code === 'EADDRINUSE'
+                ? new Error(`Port ${port} is in use. Stop the existing server before starting Tableu.`)
+                : error);
+        });
+        server.listen(port, () => server.close(resolve));
+    });
 }
 
 function taskkillTree(pid) {
     return new Promise((resolve) => {
         const child = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
-            stdio: 'ignore',
+            stdio: 'ignore', windowsHide: true,
         });
         child.on('exit', () => resolve());
         child.on('error', () => resolve());
@@ -185,13 +141,13 @@ function taskkillTree(pid) {
 }
 
 async function killProcessTree(child) {
-    if (!child || child.killed) return;
+    if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
     try {
         if (process.platform === 'win32') {
             await taskkillTree(child.pid);
             return;
         }
-        child.kill('SIGTERM');
+        process.kill(-child.pid, 'SIGTERM');
     } catch {
         // best-effort
     }
@@ -240,6 +196,8 @@ async function main() {
         return;
     }
 
+    await Promise.all([5173, 8787].map(requireAvailablePort));
+
     // Keep local D1 in a usable state for auth/journal endpoints.
     // This is a no-op after the first run once migrations are tracked.
     if (!hasFlag('--skip-migrations') && pkg.scripts?.['migrations:apply:local']) {
@@ -256,8 +214,6 @@ async function main() {
 
     console.log('🔮 Starting Tableau development environment (Workers mode)...');
     console.log('');
-
-    await cleanupPorts([5000, 5173, 5174, 8787]);
 
     let viteChild;
     let wranglerChild;
@@ -283,7 +239,7 @@ async function main() {
     try {
         // 1) Start Vite
         console.log('📦 Starting Vite frontend server...');
-        viteChild = spawnNpm(['run', 'dev:frontend'], { rootDir });
+        viteChild = spawnNpm(['run', 'dev:frontend'], { rootDir, separateGroup: true });
         viteChild.on('error', async (err) => {
             if (shuttingDown) return;
             console.error(`Vite failed to start: ${err?.message ?? String(err)}`);
@@ -298,7 +254,7 @@ async function main() {
         });
 
         console.log('⏳ Waiting for Vite to start...');
-        const viteUrl = await waitForAny(['http://localhost:5000', 'http://localhost:5173', 'http://localhost:5174'], {
+        const viteUrl = await waitForAny(['http://localhost:5173'], {
             label: 'Vite',
             timeoutMs: 30_000,
         });
@@ -318,7 +274,7 @@ async function main() {
 
         // 3) Start Wrangler worker dev
         console.log('⚡ Starting Wrangler Workers dev server...');
-        wranglerChild = spawnNpm(['run', 'dev:workers'], { rootDir });
+        wranglerChild = spawnNpm(['run', 'dev:workers'], { rootDir, separateGroup: true });
         wranglerChild.on('error', async (err) => {
             if (shuttingDown) return;
             console.error(`Wrangler failed to start: ${err?.message ?? String(err)}`);
@@ -352,6 +308,7 @@ async function main() {
         console.log('📝 Notes:');
         console.log(`  - Frontend HMR (Vite): ${viteUrl} (USE THIS!)`);
         console.log('  - Full app with API: http://localhost:8787 (API backend)');
+        console.log('  - Set up or open the admin dashboard: npm run admin:open');
         console.log('  - Workers serve static assets from dist/');
         console.log('  - API routes handled by src/worker/index.js');
         console.log('  - Press Ctrl+C to stop all servers');

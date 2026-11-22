@@ -463,6 +463,7 @@ export async function main() {
       envProfile: options.envProfile,
       backend: backendId,
       ...describeBackendConfig(backendId, env),
+      ...(env.NARRATIVE_CONFIG_FINGERPRINT && { configFingerprint: env.NARRATIVE_CONFIG_FINGERPRINT, configRevision: Number(env.NARRATIVE_CONFIG_REVISION) }),
       graphRAGEnabled: isGraphRAGEnabled(env),
       semanticScoring: {
         // true/false from ENABLE_SEMANTIC_SCORING or GRAPHRAG_SEMANTIC_SCORING; null means auto-detect

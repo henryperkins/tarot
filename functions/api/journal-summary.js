@@ -17,7 +17,9 @@ import { computeJournalStats } from '../../shared/journal/stats.js';
 import { buildHeuristicJourneySummary } from '../../shared/journal/summary.js';
 import { callOpenAIResponses } from '../lib/openaiResponses.js';
 import { callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
-import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
+import { resolveOwnerSubscriptionEnv } from '../lib/ownerSubscription.js';
+import { generateClaudeText } from '../lib/anthropicMessages.js';
+import { loadTextPolicy, policyStep, runRemoteTextChain } from '../lib/textFeaturePolicy.js';
 import { readFeatureJsonBody, reserveFeatureUsage, settleFeatureUsage } from '../lib/featureUsage.js';
 
 const MAX_SUMMARY_ENTRIES = 10;
@@ -108,7 +110,7 @@ function buildEntrySummaryLines(entries) {
     .join('\n');
 }
 
-async function generateLLMSummary(env, entries, signal, requestId) {
+export async function generateLLMSummary(env, entries, signal, requestId, onAttempt) {
   if (!Array.isArray(entries) || entries.length === 0) {
     throw new Error('No entries to summarize');
   }
@@ -176,25 +178,26 @@ async function generateLLMSummary(env, entries, signal, requestId) {
     return callPersonalTextProvider(env, { task: 'journal-summary', systemPrompt: options.instructions,
       messages: [{ role: 'user', content: input }], signal });
   }
-  if (isAnthropicConfigured(env)) {
-    try {
-      const result = await generateClaudeText(env, {
+  env = await loadTextPolicy(env, 'journal-summaries');
+  return runRemoteTextChain(env, {
+    featureId: 'journal-summaries', signal, onAttempt,
+    adapters: {
+      'claude-api': () => generateClaudeText(env, {
         system: options.instructions,
         prompt: input,
         maxTokens: 16000,
-        effort: 'medium',
+        effort: policyStep(env, 'journal-summaries', 'claude-api')?.reasoningEffort || 'medium',
         signal,
         requestId,
         telemetry: { task: 'journal-summary', requestId }
-      });
-      return { text: result.text, provider: CLAUDE_API_PROVIDER, model: result.model };
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      console.warn('[journal] Claude API summary failed, trying the Responses API:', error.message);
+      }),
+      'openai-native': () => callOpenAIResponses(env, {
+        ...options,
+        reasoningEffort: policyStep(env, 'journal-summaries', 'openai-native')?.reasoningEffort || options.reasoningEffort,
+        returnFullResponse: true
+      })
     }
-  }
-  const result = await callOpenAIResponses(env, { ...options, returnFullResponse: true });
-  return { text: result.text, provider: 'openai-native', model: result.model };
+  });
 }
 
 export async function onRequestPost(context) {
@@ -288,6 +291,7 @@ export async function onRequestPost(context) {
 
     const entries = rows.map(mapRowToEntry);
     const stats = computeJournalStats(entries);
+    if (!isPersonalTextProviderEnabled(env)) env = await resolveOwnerSubscriptionEnv(env, user);
 
     const reservation = await reserveFeatureUsage({ env, request, user, feature: 'summary' });
     if (!reservation.allowed) return jsonResponse(reservation.payload, { status: reservation.status });

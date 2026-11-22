@@ -1,5 +1,7 @@
 import { createDeadline, getTaskTimeoutMs } from '../lib/requestDeadline.js';
 import { observeInferenceAttempt } from '../lib/inferenceAttempts.js';
+import { effectiveWorkersEffort } from '../lib/workersAiReasoning.js';
+import { loadTextPolicy } from '../lib/textFeaturePolicy.js';
 import {
   fetchEphemerisForecast,
   formatForecastHighlights
@@ -375,8 +377,8 @@ export function buildQuestionPrompt(prompt, metadata = {}) {
   return { instructions, input: inputLines };
 }
 
-function resolveQuestionReasoningEffort(value) {
-  const effort = typeof value === 'string' ? value.trim().toLowerCase() : '';
+function resolveQuestionReasoningEffort(value, model) {
+  const effort = effectiveWorkersEffort(model, typeof value === 'string' ? value.trim().toLowerCase() : '');
   return QUESTION_REASONING_EFFORTS.has(effort) ? effort : DEFAULT_QUESTION_REASONING_EFFORT;
 }
 
@@ -396,9 +398,10 @@ function readQuestionText(response) {
   return typeof text === 'string' ? text.trim() : '';
 }
 
-async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requestId) {
+export async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requestId) {
   if (!env?.AI) throw new Error('Workers AI binding is not available.');
   const model = env.QUESTION_MODEL || DEFAULT_QUESTION_MODEL;
+  const effortSent = resolveQuestionReasoningEffort(env.QUESTION_REASONING_EFFORT, model);
   const { instructions, input } = buildQuestionPrompt(prompt, metadata);
   const refinement = existingQuestion(metadata);
   // Aborts on the route deadline, a client abort or the question timeout.
@@ -414,7 +417,7 @@ async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requ
           { role: 'user', content: input }
         ],
         max_tokens: QUESTION_MAX_TOKENS,
-        reasoning_effort: resolveQuestionReasoningEffort(env.QUESTION_REASONING_EFFORT)
+        reasoning_effort: effortSent
       }, { signal: questionDeadline.signal });
       // Thrown here so the attempt is recorded as an empty response.
       const text = readQuestionText(result);
@@ -442,7 +445,7 @@ async function generateQuestionWithWorkersAI(env, prompt, metadata, signal, requ
       }
       return { ...result, question };
     }));
-    return { question: response.question, model: response?.model || model };
+    return { question: response.question, model: response?.model || model, reportedModel: response?.model, effortSent };
   } finally {
     questionDeadline.dispose();
   }
@@ -539,6 +542,7 @@ export async function onRequestPost({ request, env }) {
     let inferenceModel = null;
 
     try {
+      env = await loadTextPolicy(env, 'guided-questions');
       const result = await generateQuestionWithWorkersAI(env, prompt, metadata, deadline.signal, requestId);
       question = result.question;
       inferenceModel = result.model;

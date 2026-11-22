@@ -23,6 +23,7 @@ import {
 } from '../lib/mediaTelemetry.js';
 import {
   buildStoryArtPrompt,
+  STORY_ART_MODEL as IMAGE_MODEL,
   STYLE_PROMPTS
 } from '../lib/storyArtPrompts.js';
 import { getStoryArtLimits } from '../../shared/monetization/media.js';
@@ -37,7 +38,6 @@ import {
   resolveMediaPromptBudgets
 } from '../lib/mediaPromptBudget.js';
 
-const IMAGE_MODEL = '@cf/black-forest-labs/flux-2-dev';
 // The binding cannot reliably cancel an outstanding inference. A deadline
 // ends this request; retrying it here could run two paid generations at once.
 const IMAGE_ATTEMPT_TIMEOUT_MS = 35000;

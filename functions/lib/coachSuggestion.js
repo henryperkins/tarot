@@ -1,5 +1,6 @@
 import { observeInferenceAttempt } from './inferenceAttempts.js';
 import { createDeadline } from './requestDeadline.js';
+import { loadTextPolicy, policyStep } from './textFeaturePolicy.js';
 /**
  * AI-Enhanced Coach Suggestion System
  *
@@ -78,7 +79,7 @@ Return ONLY a valid JSON array of 0-5 strings. No explanation, no markdown, just
  * @param {string} requestId - Request ID for logging
  * @returns {Promise<{steps: string[], status: string, error?: string}>}
  */
-export async function extractNextStepsWithAI(env, narrative, requestId = 'unknown') {
+export async function extractNextStepsWithAI(env, narrative, requestId = 'unknown', signal) {
   if (!env?.AI) {
     console.log(`[${requestId}] [coach] AI binding not available`);
     return { steps: [], status: 'missing_ai' };
@@ -90,9 +91,12 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
   }
 
   const startTime = Date.now();
-  const deadline = createDeadline({ timeoutMs: EXTRACTION_TIMEOUT_MS });
+  const deadline = createDeadline({ signal, timeoutMs: EXTRACTION_TIMEOUT_MS });
 
   try {
+    env = await loadTextPolicy(env, 'coach-action-extraction');
+    const step = policyStep(env, 'coach-action-extraction', 'workers-ai');
+    const model = step?.modelId || EXTRACTION_MODEL;
     // Truncate narrative if needed
     const truncatedNarrative = narrative.length > MAX_NARRATIVE_LENGTH
       ? narrative.slice(0, MAX_NARRATIVE_LENGTH) + '...[truncated]'
@@ -100,8 +104,8 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
 
     const prompt = EXTRACT_STEPS_USER.replace('{{narrative}}', truncatedNarrative);
 
-    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-extraction', provider: 'workers-ai', requestedModel: EXTRACTION_MODEL, signal: deadline.signal }, () => deadline.run(() => env.AI.run(
-      EXTRACTION_MODEL,
+    const response = await observeInferenceAttempt(env, { requestId, task: 'coach-extraction', provider: 'workers-ai', requestedModel: model, signal: deadline.signal }, () => deadline.run(() => env.AI.run(
+      model,
       {
         messages: [
           { role: 'system', content: EXTRACT_STEPS_SYSTEM },
@@ -109,12 +113,12 @@ export async function extractNextStepsWithAI(env, narrative, requestId = 'unknow
         ],
         max_tokens: EXTRACTION_MAX_TOKENS,
         temperature: 0.1,
-        reasoning_effort: EXTRACTION_REASONING_EFFORT
+        reasoning_effort: step?.reasoningEffort || EXTRACTION_REASONING_EFFORT
       },
       { signal: deadline.signal }
     )));
 
-    const provenance = { model: typeof response?.model === 'string' ? response.model : null, requestedModel: EXTRACTION_MODEL };
+    const provenance = { model: typeof response?.model === 'string' ? response.model : null, requestedModel: model };
     const latencyMs = Date.now() - startTime;
     // Workers AI returns JSON output already parsed in `response` (an array
     // here), plain text as a string, and OpenAI-style models only in `choices`.

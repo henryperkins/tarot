@@ -5,7 +5,7 @@ import { parse } from '@babel/parser';
 
 // Execute the real hook with lifecycle and browser-history boundaries. The
 // listener registered first represents BrowserRouter reading location on POP.
-async function historyDriver() {
+async function historyDriver(onOuterBack = () => {}) {
   const source = await readFile(new URL('../src/hooks/useAndroidBackGuard.js', import.meta.url), 'utf8');
   const ast = parse(source, { sourceType: 'module' });
   const edits = ast.program.body.flatMap(node => node.type === 'ImportDeclaration'
@@ -21,6 +21,7 @@ async function historyDriver() {
   const timers = new Map();
   const frames = [];
   const listeners = [];
+  const traversals = [];
   const cleanups = [];
   const routerPops = [];
   const document = { title: 'Account', body: { id: 'body', isConnected: true } };
@@ -31,6 +32,10 @@ async function historyDriver() {
   let scrollY = 800;
   const history = {
     get state() { return entries[position].state; },
+    get length() { return entries.length; },
+    go(delta) {
+      traversals.push(() => { position += delta; window.dispatchEvent(); });
+    },
     pushState(state, unused, url) {
       const next = url == null ? entries[position].url : new URL(url, entries[position].url).href;
       entries.splice(position + 1, entries.length, { url: next, state });
@@ -54,6 +59,7 @@ async function historyDriver() {
     get scrollY() { return scrollY; },
     scrollTo(x, y) { scrollX = x; scrollY = y; },
     addEventListener(type, callback) { if (type === 'popstate') listeners.push({ callback }); },
+    removeEventListener() {},
     dispatchEvent() { for (const { callback } of [...listeners]) callback(); }
   };
   window.addEventListener('popstate', () => routerPops.push({ href: window.location.href, state: history.state }));
@@ -66,18 +72,24 @@ async function historyDriver() {
     requestAnimationFrame: callback => frames.push(callback),
     PopStateEvent: class { constructor(type, options) { this.type = type; this.state = options.state; } }
   };
-  const useGuard = new Function(...Object.keys(dependencies), `${program}; return useAndroidBackGuard;`)(...Object.values(dependencies));
-  useGuard(true, { enabled: true, guardId: 'account-profile', onBack() {} });
+  const { useGuard, confirmBack } = new Function(...Object.keys(dependencies),
+    `${program}; return { useGuard: useAndroidBackGuard, confirmBack: leaveAfterGuardedBack };`)(...Object.values(dependencies));
+  useGuard(true, { enabled: true, guardId: 'account-profile', onBack: onOuterBack });
+  function flush() {
+    while (timers.size) {
+      const pending = [...timers.values()];
+      timers.clear();
+      pending.forEach(callback => callback());
+    }
+    frames.splice(0).forEach(callback => callback());
+  }
   return {
-    window, history, routerPops, document,
+    window, history, routerPops, document, useGuard, confirmBack, flush,
+    closeInner() { cleanups.pop()(); },
+    completeTraversal() { traversals.shift()(); },
     close() {
       cleanups.reverse().forEach(cleanup => cleanup());
-      while (timers.size) {
-        const pending = [...timers.values()];
-        timers.clear();
-        pending.forEach(callback => callback());
-      }
-      frames.splice(0).forEach(callback => callback());
+      flush();
     }
   };
 }
@@ -112,4 +124,24 @@ test('closing an unchanged overlay removes its entry without leaving an extra Ba
   assert.deepEqual(driver.history.state, { idx: 1, key: 'account' });
   driver.history.back();
   assert.equal(driver.window.location.pathname, '/pricing');
+});
+
+test('a confirmed Back reaches its destination while an outer guard stays open', async () => {
+  let outerBacks = 0;
+  let innerBacks = 0;
+  const driver = await historyDriver(() => { outerBacks++; });
+  driver.useGuard(true, { enabled: true, guardId: 'inner', onBack() { innerBacks++; } });
+  driver.history.back();
+  driver.flush();
+  assert.equal(innerBacks, 1);
+  driver.confirmBack();
+  driver.closeInner();
+  driver.completeTraversal();
+  driver.flush();
+  assert.equal(driver.window.location.pathname, '/pricing');
+  assert.equal(outerBacks, 0);
+  assert.match(driver.history.state.tableuOverlayGuard, /^account-profile-/);
+  driver.history.back();
+  assert.equal(outerBacks, 1);
+  driver.close();
 });

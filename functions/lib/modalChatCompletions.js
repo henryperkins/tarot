@@ -362,6 +362,7 @@ async function callModalChatCompletionsInternal(env, {
       try {
         response = await lifetime.wait(fetch(config.url, {
           method: 'POST',
+          redirect: 'error',
           headers: {
             Authorization: `Bearer ${config.proxyToken}`,
             'content-type': 'application/json',
@@ -386,6 +387,7 @@ async function callModalChatCompletionsInternal(env, {
       throw Object.assign(error, { model: completion.model, usage: normalizeUsage(completion.usage) });
     }
     result.model = completion.model;
+    result.effortSent = body.reasoning_effort;
     console.log('[modalChatCompletions] Completion received', {
       model: config.model,
       finishReason: result.finishReason,

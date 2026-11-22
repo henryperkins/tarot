@@ -382,6 +382,7 @@ async function callOpenAIResponsesImpl(env, {
       reasoningSummary: reasoningSummaryText,
       responseShape,
       model: data.model || null,
+      effortSent: body.reasoning?.effort ?? null,
       usage: data.usage || null
     };
   }

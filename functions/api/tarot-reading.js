@@ -1,4 +1,5 @@
 import { prepareReadingContextSources } from '../lib/readingContextSources.js';
+import { resolveProviderEnvironment } from '../lib/providerConnections.js';
 import { selectMemoriesForReading } from '../lib/readingMemorySelection.js';
 import { persistReadingMemoryAccess } from '../lib/userMemory.js';
 import { decisionPathRoleCards, resolveDecisionPathContext } from '../lib/decisionPathContext.js';
@@ -90,6 +91,7 @@ import {
   runNarrativeBackend
 } from '../lib/narrativeBackends.js';
 import { getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
+import { resolveOwnerSubscriptionEnv } from '../lib/ownerSubscription.js';
 import { streamCodexSubscription } from '../lib/codexSubscription.js';
 import { createCodexReadingStream } from '../lib/codexReadingStream.js';
 import { getCanonicalSceneFacts, renderCanonicalSceneReading } from '../lib/canonicalSceneEvidence.js';
@@ -113,6 +115,8 @@ import {
 } from '../lib/spreadAnalysisOrchestrator.js';
 import { buildReadingReasoning } from '../lib/narrative/reasoning.js';
 import { buildSelectiveEvalGatePolicy } from '../lib/evalGatePolicy.js';
+import { snapshotFeature, snapshotReadingPolicies, withReadingPolicy } from '../lib/readingConfigPolicy.js';
+import { withGradingPolicies } from '../lib/textFeaturePolicy.js';
 import { getReadingPromptVersion } from '../lib/promptVersioning.js';
 import { STREAMING_QUALITY_NOTICE_REASON } from '../lib/mcp/readingOutcome.js';
 
@@ -605,6 +609,12 @@ async function finalizeReading({
     }
   }
 
+  // The admin fixture shares all delivery checks. It stops before user-facing
+  // metrics, prompt archives, memory access, and background grading.
+  if (narrativePayload.isAdminSample) {
+    return { responsePayload: { reading: finalReading, provider: finalProvider } };
+  }
+
   // Build clean narrative metrics (spine + coverage only, no duplicated fields)
   const narrativeMetrics = {
     ...finalNarrativeMetrics
@@ -779,7 +789,14 @@ async function finalizeReading({
 }
 
 export const onRequestGet = async ({ env }) => {
-  const primaryBackend = getAvailableNarrativeBackends(env)[0] || NARRATIVE_BACKENDS['local-composer'];
+  try {
+    env = await resolveProviderEnvironment(env);
+  } catch {
+    return jsonResponse({ error: 'Reading configuration unavailable.' }, { status: 503 });
+  }
+  const readings = isPersonalTextProviderEnabled(env) ? null : await snapshotFeature(env, 'readings');
+  if (readings?.unavailable) return jsonResponse({ error: 'Reading configuration unavailable.' }, { status: 503 });
+  const primaryBackend = getAvailableNarrativeBackends(env, readings?.policy)[0] || NARRATIVE_BACKENDS['local-composer'];
   const provider = primaryBackend.id === 'local-composer'
     ? 'local'
     : primaryBackend.id;
@@ -817,7 +834,12 @@ export async function resolveReadingUser({ request, env, principal }) {
   return { user: await getUserFromRequest(request, env), unauthorized: false };
 }
 
-export const onRequestPost = async ({ request, env, waitUntil, principal = null, onReadingMemoryUsage = null }) => {
+export const onRequestPost = ({ request, env, waitUntil, principal, onReadingMemoryUsage, readingPolicies }) =>
+  executeReading({ request, env, waitUntil, principal, onReadingMemoryUsage, readingPolicies });
+
+// The sample runner supplies a fixed internal Request and isolated bindings.
+// The public entry point never accepts fixture mode from a body or header.
+export async function executeReading({ request, env, waitUntil, principal = null, onReadingMemoryUsage = null, readingPolicies, sampleRun = null }) {
   const startTime = Date.now();
   const taskDeadline = createDeadline({ signal: request.signal, timeoutMs: getTaskTimeoutMs(env, 'reading') });
   const taskSignal = taskDeadline.signal;
@@ -1163,8 +1185,29 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     }
 
 
-    // Enforce reading limits before expensive processing
-    const readingLimitResult = await enforceReadingLimit(env, request, user, subscription, requestId);
+    // The sample runner has already resolved the connections before isolating storage.
+    // Keep crisis responses independent of configuration storage.
+    if (!sampleRun && !isPersonalTextProviderEnabled(env)) {
+      try {
+        env = await resolveOwnerSubscriptionEnv(env, user);
+        if (!isPersonalTextProviderEnabled(env)) env = await resolveProviderEnvironment(env);
+      } catch {
+        return jsonResponse({ error: 'Reading configuration unavailable.', code: 'reading_configuration_unavailable' }, { status: 503 });
+      }
+    }
+    const policies = readingPolicies === undefined ? await snapshotReadingPolicies(env) : readingPolicies;
+    const readings = isPersonalTextProviderEnabled(env) ? null : policies?.readings;
+    if (readings?.unavailable || policies?.['reading-evaluation']?.unavailable || policies?.['quality-gate']?.unavailable) {
+      return jsonResponse({ error: 'Reading configuration unavailable.', code: 'reading_configuration_unavailable' }, { status: 503 });
+    }
+    env = withGradingPolicies(withReadingPolicy(env, readings?.policy, policies?.defaults), {
+      'reading-evaluation': policies?.['reading-evaluation'] ?? null,
+      'quality-gate': policies?.['quality-gate'] ?? null
+    });
+    const availableBackends = getAvailableNarrativeBackends(env, readings?.policy);
+
+    // Admin samples have no reader or usage reservation.
+    const readingLimitResult = sampleRun ? { allowed: true } : await enforceReadingLimit(env, request, user, subscription, requestId);
     if (!readingLimitResult.allowed) {
       console.log(`[${requestId}] Reading limit exceeded: ${readingLimitResult.used}/${readingLimitResult.limit}`);
       return jsonResponse({
@@ -1211,6 +1254,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     const analysisStart = Date.now();
     const analysis = await performSpreadAnalysis(spreadInfo, cardsInfo, {
       signal: taskSignal,
+      referenceTime: sampleRun?.referenceTime,
       reversalFrameworkOverride,
       deckStyle,
       userQuestion,
@@ -1272,6 +1316,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       deckStyle
     );
     const narrativePayload = {
+      isAdminSample: Boolean(sampleRun),
       userContextInputStats: { ...decisionPathContext.inputStats, ...Object.fromEntries([
         ['question', { originalLength: userQuestion?.length || 0 }],
         ['reflections', { originalLength: reflectionsText?.length || 0 }],
@@ -1306,7 +1351,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
 
     narrativePayload.signal = taskSignal;
     const codexLiveEnabled = useStreaming
-      && getAvailableNarrativeBackends(env)[0]?.id === 'codex-subscription'
+      && availableBackends[0]?.id === 'codex-subscription'
       && normalizeBooleanFlag(env?.CODEX_SUBSCRIPTION_STREAMING_ENABLED)
       && getCanonicalSceneFacts(cardsInfo, deckStyle).length === 0
       && !evalGatePolicy.effectiveEvalGateEnabled;
@@ -1416,7 +1461,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       ? normalizeBooleanFlag(env?.STREAMING_QUALITY_GATE_ENABLED)
       : true;
     // Only the Responses API streams tokens, so stream only when it is the primary provider.
-    const openaiStreamingAvailable = getAvailableNarrativeBackends(env)[0]?.id === 'openai-native';
+    const openaiStreamingAvailable = availableBackends[0]?.id === 'openai-native';
     const wantsOpenAIStreaming = useStreaming && tokenStreamingEnabled && openaiStreamingAvailable;
     const canUseOpenAIStreaming = wantsOpenAIStreaming && allowStreamingGateBypass;
     let qualityGateStreamingEnabled = configuredQualityGateStreamingEnabled;
@@ -1483,6 +1528,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
         console.warn(`[${requestId}] Streaming prompt build failed: ${promptError.message}`);
         promptError.code = 'prompt_build_failed';
         backendErrors.push(buildPublicBackendError(streamProvider, promptError));
+        sampleRun?.record({ provider: streamProvider, state: 'failed', reason: 'prompt_build_failed' });
         streamingFallback = true;
       }
 
@@ -1633,6 +1679,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               }
             }
 
+            if (sampleRun) return jsonResponse(responsePayload);
             return createSSEResponse(createReadingStream(responsePayload));
           }
         }
@@ -1741,6 +1788,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           // providers; only release it if the entire fallback chain fails.
           streamingFallback = true;
         } finally {
+          sampleRun?.record({ provider: streamProvider, state: streamState, reason: streamReason, model: streamModel, effortSent: reasoningEffort });
           await recordInferenceAttempt(env, { requestId, task: 'reading', provider: streamProvider, requestedModel: effectiveModel, model: streamModel, usage: streamUsage, state: streamState, reason: streamReason, startedAtMs: streamStartedAt, finishedAtMs: Date.now() });
         }
       }
@@ -1749,7 +1797,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     let reading = null;
     let provider = 'local-composer';
     let acceptedQualityMetrics = null; // Store metrics from successful backend to avoid recomputation
-    const candidateBackends = getAvailableNarrativeBackends(env)
+    const candidateBackends = availableBackends
       .filter((backend) => !streamingFallback || backend.id !== 'openai-native');
     const backendsToTry = candidateBackends.length ? candidateBackends : [NARRATIVE_BACKENDS['local-composer']];
 
@@ -1880,6 +1928,10 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       } finally {
         attemptDeadline.dispose();
         narrativePayload.signal = taskSignal;
+        sampleRun?.record({
+          provider: backendProvider, state: attemptState, reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
+          model: backendResult?.model || attemptError?.model || null, effortSent: backendResult?.effortSent
+        });
         await recordInferenceAttempt(env, {
           requestId, task: 'reading', provider: backendProvider, state: attemptState,
           reason: attemptError ? inferAttemptReason(attemptError, taskSignal) : null,
@@ -1968,7 +2020,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       promptDebugAllowed: promptDebugAccess.allowed
     }));
 
-    if (useStreaming) {
+    if (useStreaming && !sampleRun) {
       return createSSEResponse(createReadingStream(responsePayload));
     }
 
@@ -2025,7 +2077,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
   } finally {
     if (!streamOwnsDeadline) taskDeadline.dispose();
   }
-};
+}
 
 /**
  * Validates the baseline structure expected by the tarot-reading endpoint.

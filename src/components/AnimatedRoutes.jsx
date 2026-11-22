@@ -11,6 +11,7 @@ const ShareReading = lazy(() => import('../pages/ShareReading.jsx'));
 const PricingPage = lazy(() => import('../pages/PricingPage.jsx'));
 const AccountPage = lazy(() => import('../pages/AccountPage.jsx'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard.jsx'));
+const AdminAiConfiguration = lazy(() => import('../pages/AdminAiConfiguration.jsx'));
 const DesignSystemPage = lazy(() => import('../pages/DesignSystemPage.jsx'));
 const GovernanceCritiquePage = lazy(() => import('../pages/GovernanceCritiquePage.jsx'));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage.jsx'));
@@ -43,6 +44,7 @@ const STATIC_NON_TAROT_PATHS = new Set([
   '/pricing',
   '/account',
   '/admin',
+  '/admin/ai-configuration',
   '/design',
   '/governance-critique',
   '/reset-password',
@@ -82,6 +84,7 @@ export function AnimatedRoutes() {
           <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
           <Route path="/account" element={<PageTransition><AccountPage /></PageTransition>} />
           <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
+          <Route path="/admin/ai-configuration" element={<PageTransition><AdminAiConfiguration /></PageTransition>} />
           <Route path="/design" element={<PageTransition><DesignSystemPage /></PageTransition>} />
           <Route path="/governance-critique" element={<PageTransition><GovernanceCritiquePage /></PageTransition>} />
           <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />

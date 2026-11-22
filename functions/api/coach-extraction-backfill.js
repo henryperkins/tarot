@@ -24,6 +24,7 @@
  * Example: while true; do curl -X POST ... && sleep 5; done
  */
 
+import { loadTextPolicy } from '../lib/textFeaturePolicy.js';
 import {
   COACH_EXTRACTION_BUDGET_MS,
   EMPTY_EXTRACTION_VERSION,
@@ -126,6 +127,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     // Process entries
+    const taskEnv = entries.length ? await loadTextPolicy(env, 'coach-action-extraction') : env;
     let processed = 0;
     let skipped = 0;
     let failed = 0;
@@ -141,7 +143,7 @@ export async function onRequestPost({ request, env }) {
 
       attempted++;
       try {
-        const result = await extractAndEmbed(env, entry.narrative, `${requestId}:${entry.id}`);
+        const result = await extractAndEmbed(taskEnv, entry.narrative, `${requestId}:${entry.id}`);
 
         if (!result || !result.status) {
           failed++;

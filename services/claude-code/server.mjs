@@ -2,7 +2,8 @@ import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { CLAUDE_CODE_MAX_BODY_BYTES, validateClaudeRequest } from '../../shared/inference/claudeCode.js';
-import { runClaudeCode } from './runner.mjs';
+import { runClaudeCode, verifySubscriptionLogin } from './runner.mjs';
+import { createSubscriptionStatus } from '../subscription-status.mjs';
 
 function authorized(header, token) {
   const received = Buffer.from(header || '');
@@ -16,12 +17,13 @@ function reply(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-export function createClaudeCodeServer({ token, run = runClaudeCode, concurrency = 1, maxQueue = 8, timeoutMs = 300000, queueTimeoutMs = 60000, maxBodyBytes = CLAUDE_CODE_MAX_BODY_BYTES } = {}) {
+export function createClaudeCodeServer({ token, run = runClaudeCode, checkLogin = verifySubscriptionLogin, concurrency = 1, maxQueue = 8, timeoutMs = 300000, queueTimeoutMs = 60000, maxBodyBytes = CLAUDE_CODE_MAX_BODY_BYTES } = {}) {
   if (typeof token !== 'string' || token.length < 32 || /\s/.test(token)) throw new Error('Set a random CLAUDE_CODE_GATEWAY_TOKEN of at least 32 characters.');
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4 || !Number.isInteger(maxQueue) || maxQueue < 0 || maxQueue > 100) throw new Error('Invalid Claude concurrency or queue limit.');
   let active = 0;
   const queue = [];
   const requests = new Map();
+  const subscription = createSubscriptionStatus('claude-code', checkLogin);
   let shuttingDown = false;
   let shutdownPromise;
   const take = signal => new Promise((resolve, reject) => {
@@ -42,6 +44,7 @@ export function createClaudeCodeServer({ token, run = runClaudeCode, concurrency
     if (shuttingDown) { reply(response, 503, { error: 'Claude service is stopping.' }); return; }
     if (!authorized(request.headers.authorization, token)) { reply(response, 401, { error: 'Unauthorized' }); return; }
     if (request.method === 'GET' && request.url === '/healthz') { reply(response, 200, { status: 'ok', provider: 'claude-code', active, queued: queue.length }); return; }
+    if (request.method === 'GET' && request.url === '/v1/subscription-status') { reply(response, 200, await subscription.read()); return; }
     if (request.method !== 'POST' || request.url !== '/v1/generate') { reply(response, 404, { error: 'Not found' }); return; }
     const controller = new AbortController();
     let finish;
@@ -89,7 +92,7 @@ export function createClaudeCodeServer({ token, run = runClaudeCode, concurrency
     const drained = Promise.all([...requests.values()]);
     for (const controller of requests.keys()) controller.abort();
     server.closeAllConnections();
-    shutdownPromise = Promise.all([closed, drained]).then(() => {});
+    shutdownPromise = Promise.all([closed, drained, subscription.stop()]).then(() => {});
     return shutdownPromise;
   };
   server.requestTimeout = Math.min(timeoutMs, 30000);

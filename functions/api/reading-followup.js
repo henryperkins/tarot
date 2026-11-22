@@ -17,7 +17,8 @@ import { findSimilarJournalEntries, getRecurringCardPatterns } from '../lib/jour
 import { insertFollowUps, loadFollowUpsByEntry } from '../lib/journalFollowups.js';
 import { callOpenAIResponses } from '../lib/openaiResponses.js';
 import { callModalChatCompletions } from '../lib/modalChatCompletions.js';
-import { NARRATIVE_BACKENDS } from '../lib/narrativeBackends.js';
+import { loadTextPolicy, policyStep, runRemoteTextChain } from '../lib/textFeaturePolicy.js';
+import { inferAttemptReason } from '../lib/inferenceAttempts.js';
 import {
   callOpenAIResponsesStream,
   callOpenAIResponsesStreamWithConversation,
@@ -33,8 +34,9 @@ import { detectCrisisSignals } from '../lib/safetyChecks.js';
 import { checkFollowUpSafety, generateSafeFollowUpFallback } from '../lib/evaluation.js';
 import { detectHallucinatedCards } from '../lib/readingQuality.js';
 import { getPersonalTextProvider, callPersonalTextProvider, getPersonalTextAccessError, isPersonalTextProviderEnabled, resolvePersonalTextProviderEnv } from '../lib/personalTextProvider.js';
+import { resolveOwnerSubscriptionEnv } from '../lib/ownerSubscription.js';
 import { generatePersonalFollowUp } from '../lib/personalFollowUp.js';
-import { CLAUDE_API_PROVIDER, generateClaudeText, isAnthropicConfigured } from '../lib/anthropicMessages.js';
+import { CLAUDE_API_PROVIDER, generateClaudeText } from '../lib/anthropicMessages.js';
 import { generateClaudeApiFollowUp } from '../lib/claudeApiFollowUp.js';
 
 // Rate limits by tier
@@ -126,12 +128,12 @@ async function repairHallucinatedFollowUp(env, {
     // Repair with the provider that wrote the answer. After a fallback, the
     // providers ahead of it have already failed for this request.
     const revised = isPersonalTextProviderEnabled(env)
-      ? (await callPersonalTextProvider(env, {
+      ? await callPersonalTextProvider(env, {
           task: 'followup-repair', systemPrompt: instructions,
           messages: [{ role: 'user', content: repairInstructions }], signal
-        })).text
+        })
       : provider === CLAUDE_API_PROVIDER
-      ? (await generateClaudeText(env, {
+      ? await generateClaudeText(env, {
           system: instructions,
           prompt: repairInstructions,
           maxTokens: 4000,
@@ -139,32 +141,35 @@ async function repairHallucinatedFollowUp(env, {
           signal,
           telemetry: { task: 'followup-repair', requestId },
           requestId: `${requestId}:repair`
-        })).text
+        })
       : provider === FALLBACK_PROVIDER
-      ? (await callModalChatCompletions(env, {
+      ? await callModalChatCompletions(env, {
           systemPrompt: instructions,
           userPrompt: repairInstructions,
           telemetry: { task: 'followup-repair', requestId },
           requestId: `${requestId}:repair`,
           signal,
           maxTokens: 4000
-        })).text
+        })
       : await callOpenAIResponses(env, {
           instructions,
           input: repairInstructions,
           maxTokens: 4096,
           signal,
           reasoningEffort: 'low',
+          returnFullResponse: true,
           verbosity: 'low',
           telemetry: { task: 'followup-repair', requestId },
           requestId: `${requestId}:repair`
         });
 
-    const revisedText = typeof revised === 'string' ? revised.trim() : '';
+    const revisedText = revised.text?.trim();
+    const attempt = { reportedModel: revised.model, effortSent: revised.effortSent ?? null };
     if (!revisedText) {
       return {
         repaired: false,
         response: responseText,
+        attempt: { ...attempt, outcome: 'rejected', reason: 'empty_response' },
         remainingHallucinations: hallucinations
       };
     }
@@ -174,6 +179,7 @@ async function repairHallucinatedFollowUp(env, {
       return {
         repaired: false,
         response: responseText,
+        attempt: { ...attempt, outcome: 'rejected', reason: 'quality_rejected' },
         remainingHallucinations: remaining
       };
     }
@@ -181,6 +187,7 @@ async function repairHallucinatedFollowUp(env, {
     return {
       repaired: true,
       response: revisedText,
+      attempt: { ...attempt, outcome: 'accepted' },
       remainingHallucinations: []
     };
   } catch (error) {
@@ -189,64 +196,61 @@ async function repairHallucinatedFollowUp(env, {
     return {
       repaired: false,
       response: responseText,
+      attempt: { outcome: 'failed', reportedModel: error?.model, effortSent: null, reason: inferAttemptReason(error, signal) },
       remainingHallucinations: hallucinations
     };
   }
 }
 
-/**
- * Answer with Claude through the Anthropic API when it is configured, then
- * with the Responses API, then with Modal when both fail or return no text.
- * Modal gets no tools, so it takes prompts built without the memory tool
- * instructions.
- *
- * @returns {Promise<{ text: string, provider: string }>}
- */
-async function generateFollowUpText(env, {
-  requestId,
-  primaryProvider,
-  generatePrimary,
-  buildFallbackPrompts,
-  generatePersonal,
-  generateClaudeApi,
-  signal
+/** Owner routing is exclusive. Public callbacks cover buffered and streaming transports. */
+export async function generateFollowUpText(env, {
+  requestId, generatePrimary, buildFallbackPrompts, generatePersonal, generateClaudeApi, signal, onAttempt
 }) {
   const personalProvider = getPersonalTextProvider(env);
   if (personalProvider) return { text: await generatePersonal(), provider: personalProvider };
-  if (isAnthropicConfigured(env)) {
-    try {
-      const claudeText = await generateClaudeApi();
-      if (typeof claudeText === 'string' && claudeText.trim()) {
-        return { text: claudeText, provider: CLAUDE_API_PROVIDER };
-      }
-      console.warn(`[${requestId}] Claude API follow-up returned no text; falling back to the Responses API`);
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      console.warn(`[${requestId}] Claude API follow-up failed: ${error.message}; falling back to the Responses API`);
+  // Keep a fallback's selected model for repairs, but its answer effort is
+  // specific to generation. Repairs keep their existing adapter effort.
+  const modalEffort = policyStep(env, 'reading-followups', FALLBACK_PROVIDER)?.reasoningEffort;
+  const modalEnv = modalEffort ? { ...env, MODAL_REASONING_EFFORT: modalEffort } : env;
+  return runRemoteTextChain(env, {
+    featureId: 'reading-followups', signal, onAttempt,
+    adapters: {
+      'claude-api': generateClaudeApi,
+      'openai-native': generatePrimary,
+      'modal-qwen': () => callModalChatCompletions(modalEnv, {
+        ...buildFallbackPrompts(), requestId, signal, maxTokens: 4000,
+        telemetry: { task: 'followup', requestId }
+      })
+    }
+  });
+}
+
+/** Validate the JSON-path delivery after generation, including provider-matched repairs. */
+export async function checkBufferedFollowUp(env, {
+  responseText, originalReading, provider, followUpQuestion, requestId, signal
+}) {
+  const safety = checkFollowUpSafety(responseText);
+  if (!safety.safe) return { text: generateSafeFollowUpFallback(safety.issues[0]), safetyReplaced: true };
+  const cardsInfo = originalReading?.cardsInfo || [];
+  const deckStyle = originalReading?.deckStyle || 'rws-1909';
+  const hallucinations = detectHallucinatedCards(responseText, cardsInfo, deckStyle);
+  let repairAttempt;
+  if (hallucinations.length) {
+    const repair = await repairHallucinatedFollowUp(env, {
+      responseText, originalReading, provider, followUpQuestion, requestId, signal, cardsInfo, deckStyle, hallucinations
+    });
+    repairAttempt = repair.attempt;
+    if (repair.repaired) {
+      const checked = checkFollowUpSafety(repair.response);
+      if (!checked.safe) return { text: generateSafeFollowUpFallback(checked.issues[0]), safetyReplaced: true,
+        repairAttempt: { ...repairAttempt, outcome: 'rejected', reason: 'safety_blocked' } };
+      return { text: repair.response, safetyReplaced: false, repairAttempt };
+    }
+    if (hallucinations.length > 1) {
+      responseText += '\n\n*Please note: Focus on the cards actually drawn in your spread for the most grounded guidance.*';
     }
   }
-  let primaryText = '';
-  let primaryError = null;
-  try {
-    primaryText = await generatePrimary();
-    if (typeof primaryText === 'string' && primaryText.trim()) {
-      return { text: primaryText, provider: primaryProvider };
-    }
-  } catch (error) {
-    signal?.throwIfAborted();
-    primaryError = error;
-  }
-
-  if (!NARRATIVE_BACKENDS[FALLBACK_PROVIDER].isAvailable(env)) {
-    if (primaryError) throw primaryError;
-    return { text: primaryText, provider: primaryProvider };
-  }
-
-  const reason = primaryError ? `failed: ${primaryError.message}` : 'returned no text';
-  console.warn(`[${requestId}] Responses API follow-up ${reason}; falling back to ${FALLBACK_PROVIDER}`);
-  const { systemPrompt, userPrompt } = buildFallbackPrompts();
-  const result = await callModalChatCompletions(env, { systemPrompt, userPrompt, requestId, signal, maxTokens: 4000, telemetry: { task: 'followup', requestId } });
-  return { text: result.text, provider: FALLBACK_PROVIDER };
+  return { text: responseText, safetyReplaced: false, repairAttempt };
 }
 
 /**
@@ -635,6 +639,15 @@ Your cards will be here when you're ready. Right now, please take care of yourse
     
     console.log(`[${requestId}] Prompt built: system=${systemPrompt.length}chars, user=${userPrompt.length}chars`);
 
+    if (!isPersonalTextProviderEnabled(env)) {
+      try {
+        env = await resolveOwnerSubscriptionEnv(env, user);
+      } catch {
+        return jsonResponse({ code: 'owner_subscription_unavailable', error: 'Owner subscription settings are unavailable.' }, { status: 503 });
+      }
+      if (!isPersonalTextProviderEnabled(env)) env = await loadTextPolicy(env, 'reading-followups');
+    }
+    const openaiEffort = policyStep(env, 'reading-followups', 'openai-native')?.reasoningEffort;
     const reservation = await reserveFollowUpSlot(env.DB, {
       userId: user.id,
       requestId,
@@ -755,11 +768,12 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       enableMemoryTool, signal: taskSignal,
       onToolCall: runClaudeMemoryTool
     });
-    const generateClaudeApiAnswer = async () => (await generateClaudeApiFollowUp(env, {
+    const generateClaudeApiAnswer = () => generateClaudeApiFollowUp(env, {
+      effort: policyStep(env, 'reading-followups', 'claude-api')?.reasoningEffort,
       systemPrompt: effectiveSystemPrompt, userPrompt: effectiveUserPrompt,
       enableMemoryTool, signal: taskSignal, requestId,
       onToolCall: runClaudeMemoryTool
-    })).text;
+    });
 
     if (useStreaming) {
       // === STREAMING PATH ===
@@ -776,7 +790,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       try {
         const { text: fullText, provider } = await generateFollowUpText(env, {
           requestId,
-          primaryProvider: 'openai-native',
           buildFallbackPrompts,
           generatePersonal: generatePersonalAnswer,
           generateClaudeApi: generateClaudeApiAnswer,
@@ -801,6 +814,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 telemetry: { task: 'followup', requestId },
                 signal: taskSignal,
                 maxTokens: 4096,
+                reasoningEffort: openaiEffort,
                 verbosity: 'medium',
                 requestId,
                 onToolCall: async (callId, name, args) => {
@@ -826,6 +840,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 telemetry: { task: 'followup', requestId },
                 signal: taskSignal,
                 maxTokens: 4096,
+                reasoningEffort: openaiEffort,
                 verbosity: 'medium',
                 tools: null
               });
@@ -971,7 +986,6 @@ Your cards will be here when you're ready. Right now, please take care of yourse
       try {
         ({ text: responseText, provider } = await generateFollowUpText(env, {
           requestId,
-          primaryProvider: 'openai-native',
           buildFallbackPrompts,
           generatePersonal: generatePersonalAnswer,
           generateClaudeApi: generateClaudeApiAnswer,
@@ -986,6 +1000,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
                 telemetry: { task: 'followup', requestId },
                 signal: taskSignal,
                 maxTokens: 4096,
+                reasoningEffort: openaiEffort,
                 verbosity: 'medium',
                 requestId,
                 onToolCall: async (callId, name, args) => {
@@ -1014,7 +1029,7 @@ Your cards will be here when you're ready. Right now, please take care of yourse
               telemetry: { task: 'followup', requestId },
               signal: taskSignal,
               maxTokens: 4096,  // Includes reasoning; prompt still requests a concise answer
-              reasoningEffort: 'low',
+              reasoningEffort: openaiEffort || 'low',
               verbosity: 'medium'
             });
           }
@@ -1031,49 +1046,9 @@ Your cards will be here when you're ready. Right now, please take care of yourse
           );
         }
 
-        // Safety gate: check response for critical safety issues
-        const safetyCheck = checkFollowUpSafety(responseText);
-        if (!safetyCheck.safe) {
-          console.warn(`[${requestId}] Follow-up safety gate triggered: ${safetyCheck.issues.join(', ')}`);
-          responseText = generateSafeFollowUpFallback(safetyCheck.issues[0]);
-        } else if (safetyCheck.issues.length > 0) {
-          // Log warnings but allow response through
-          console.log(`[${requestId}] Follow-up safety warnings (allowed): ${safetyCheck.issues.join(', ')}`);
-        }
-
-        // Hallucination check: detect cards mentioned that weren't in the spread
-        let hallucinations = detectHallucinatedCards(
-          responseText,
-          effectiveContext?.cardsInfo || [],
-          effectiveContext?.deckStyle || 'rws-1909'
-        );
-        if (hallucinations.length > 0) {
-          console.warn(`[${requestId}] Follow-up hallucinated cards: ${hallucinations.join(', ')}`);
-          const repair = await repairHallucinatedFollowUp(env, {
-            requestId,
-            followUpQuestion,
-            responseText,
-            hallucinations,
-            cardsInfo: effectiveContext?.cardsInfo || [],
-            deckStyle: effectiveContext?.deckStyle || 'rws-1909',
-            originalReading: effectiveContext,
-            provider,
-            signal: taskSignal
-          });
-          if (repair.repaired) {
-            responseText = repair.response;
-            hallucinations = [];
-            console.log(`[${requestId}] Follow-up response repaired after hallucination detection.`);
-            const repairedSafetyCheck = checkFollowUpSafety(responseText);
-            if (!repairedSafetyCheck.safe) {
-              console.warn(`[${requestId}] Repaired follow-up failed safety gate: ${repairedSafetyCheck.issues.join(', ')}`);
-              responseText = generateSafeFollowUpFallback(repairedSafetyCheck.issues[0]);
-            }
-          } else if (hallucinations.length > 1) {
-            // Fallback reminder when repair fails and multiple out-of-set cards remain.
-            responseText += '\n\n*Please note: Focus on the cards actually drawn in your spread for the most grounded guidance.*';
-          }
-        }
+        ({ text: responseText } = await checkBufferedFollowUp(env, {
+          responseText, originalReading: effectiveContext, provider, followUpQuestion, requestId, signal: taskSignal
+        }));
       } catch (llmError) {
         console.error(`[${requestId}] LLM error: ${llmError.message}`);
         await releaseReservation('llm_error');
@@ -1620,6 +1595,7 @@ function createToolRoundTripStream(env, {
   userInput,
   tools,
   maxTokens,
+  reasoningEffort,
   verbosity,
   requestId,
   onToolCall,
@@ -1764,6 +1740,7 @@ function createToolRoundTripStream(env, {
           signal,
           telemetry,
           maxTokens,
+          reasoningEffort,
           verbosity,
           tools
         });
@@ -1854,6 +1831,7 @@ function createToolRoundTripStream(env, {
           signal,
           telemetry,
           maxTokens,
+          reasoningEffort,
           verbosity
         });
       } catch (err) {

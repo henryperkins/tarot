@@ -788,6 +788,7 @@ export async function callOpenAIResponsesStreamWithConversation(env, {
   conversation,
   maxTokens = 400,
   verbosity = 'medium',
+  reasoningEffort = null,
   user = null,
   signal,
   timeoutMs = null,
@@ -803,6 +804,7 @@ export async function callOpenAIResponsesStreamWithConversation(env, {
     store: false,
     instructions,
     input: conversation,
+    ...(reasoningEffort && { reasoning: { effort: reasoningEffort } }),
     text: { verbosity },
     stream: true
   };

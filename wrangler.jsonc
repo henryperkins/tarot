@@ -66,6 +66,9 @@
   // Environment Variables (Non-Secret)
   // ============================================================================
   "vars": {
+    // Enable after the feature config migration. Local dev supplies its own identity.
+    "AI_CONFIG_ENVIRONMENT": "production",
+    "AI_CONFIG_ENABLED": "false",
     // Set claude-code or codex-subscription in .dev.vars for personal inference.
     // Configure CLAUDE_CODE_GATEWAY_URL, CLAUDE_CODE_GATEWAY_TOKEN (secret), and
     // CLAUDE_CODE_OWNER_USER_ID together. See docs/claude-subscription.md.
@@ -294,6 +297,18 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "PROVIDER_CREDENTIAL_KEYS",
+        "class_name": "ProviderCredentialKeys"
+      },
+      {
+        "name": "OWNER_SUBSCRIPTION_SAMPLES",
+        "class_name": "OwnerSubscriptionSamples"
+      },
+      {
+        "name": "ADMIN_AI_SAMPLES",
+        "class_name": "AdminAiSamples"
+      },
+      {
         "name": "READING_JOBS",
         "class_name": "ReadingJob"
       },
@@ -315,6 +330,18 @@
       "new_sqlite_classes": [
         "ReadingVisualJob"
       ]
+    },
+    {
+      "tag": "admin-ai-samples-v1",
+      "new_sqlite_classes": ["AdminAiSamples"]
+    },
+    {
+      "tag": "provider-credential-keys-v1",
+      "new_sqlite_classes": ["ProviderCredentialKeys"]
+    },
+    {
+      "tag": "owner-subscription-samples-v1",
+      "new_sqlite_classes": ["OwnerSubscriptionSamples"]
     }
   ],
   // ============================================================================

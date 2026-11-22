@@ -8,6 +8,7 @@
  */
 
 import { timingSafeEqual } from '../../lib/crypto.js';
+import { isLocalAdminOrigin, isLocalAdminSession } from './local-access.js';
 import {
   getRecentStats,
   getUnacknowledgedAlerts,
@@ -22,19 +23,17 @@ import {
 /**
  * Verify admin authentication.
  */
-function verifyAdmin(request, env) {
+async function verifyAdmin(request, env) {
   const authHeader = request.headers.get('Authorization') || '';
   const adminKey = env.ADMIN_API_KEY;
 
-  if (!adminKey) {
+  if (adminKey && timingSafeEqual(authHeader, `Bearer ${adminKey}`)) return { valid: true };
+  if (await isLocalAdminSession(request, env)) return { valid: true };
+  if (!adminKey && !isLocalAdminOrigin(request, env)) {
     return { valid: false, error: 'Admin API not configured' };
   }
 
-  if (!timingSafeEqual(authHeader, `Bearer ${adminKey}`)) {
-    return { valid: false, error: 'Unauthorized' };
-  }
-
-  return { valid: true };
+  return { valid: false, error: 'Unauthorized' };
 }
 
 /**
@@ -45,7 +44,7 @@ function verifyAdmin(request, env) {
 export async function onRequestGet(context) {
   const { request, env } = context;
 
-  const auth = verifyAdmin(request, env);
+  const auth = await verifyAdmin(request, env);
   if (!auth.valid) {
     return new Response(JSON.stringify({ error: auth.error }), {
       status: auth.error === 'Unauthorized' ? 401 : 500,
@@ -119,7 +118,7 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  const auth = verifyAdmin(request, env);
+  const auth = await verifyAdmin(request, env);
   if (!auth.valid) {
     return new Response(JSON.stringify({ error: auth.error }), {
       status: auth.error === 'Unauthorized' ? 401 : 500,

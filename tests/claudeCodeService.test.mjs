@@ -65,7 +65,7 @@ test('CLI parser accepts only complete successful output and captures actual mod
   const init = { type: 'system', subtype: 'init', model: 'claude-test' };
   const done = { type: 'result', subtype: 'success', is_error: false, result: 'An answer.', stop_reason: 'end_turn', usage: { input_tokens: 5, output_tokens: 3 } };
   const output = [init, done].map(value => JSON.stringify(value)).join('\n');
-  assert.deepEqual(parseClaudeOutput(output), { ...result, text: 'An answer.', usage: done.usage });
+  assert.deepEqual(parseClaudeOutput(output), { ...result, text: 'An answer.', modelSource: 'configured', usage: done.usage });
   for (const value of [{ ...done, stop_reason: 'max_tokens' }, { ...done, is_error: true }, { ...done, subtype: 'error_max_turns' }, init]) {
     assert.throws(() => parseClaudeOutput(JSON.stringify(value)), /complete|failed/i);
   }
@@ -83,7 +83,9 @@ test('CLI parser rejects mixed actual models and reports the assistant model wit
   assert.throws(() => parseClaudeOutput(encode([init, assistant, {
     ...done, modelUsage: { 'claude-opus-5-5': {} }
   }])), /multiple models/i);
-  assert.equal(parseClaudeOutput(encode([init, assistant, done])).model, 'claude-other-model');
+  const response = parseClaudeOutput(encode([init, assistant, done]));
+  assert.equal(response.model, 'claude-other-model');
+  assert.equal(response.modelSource, 'reported');
 });
 
 test('queued requests expire and disconnected queued work never starts', async t => {

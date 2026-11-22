@@ -13,6 +13,8 @@ vision, speech and story art retain their existing integrations.
 Question suggestions always use Workers AI, independently of `TEXT_PROVIDER`,
 and fall back to the coach's local templates when generation fails.
 
+Use **Provider connections → Owner subscription** to link Claude Code to your reader account in the local web portal. The portal uses the host's existing subscription login. [Portal instructions](provider-reference.md#link-your-local-reader-subscription)
+
 The service is for the subscription owner's personal use. Subscription-backed endpoints require
 the configured owner's authenticated account; anonymous callers, other users and
 shared service accounts cannot spend the subscription. See Anthropic's

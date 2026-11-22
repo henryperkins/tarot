@@ -1,15 +1,13 @@
 import { jsonResponse, sanitizeText } from '../lib/utils.js';
+import { resolveProviderEnvironment } from '../lib/providerConnections.js';
 import { getUserFromRequest } from '../lib/auth.js';
 import { enforceApiCallLimit } from '../lib/apiUsage.js';
 import { getSubscriptionContext } from '../lib/entitlements.js';
 import { getTtsLimits, reserveNarration, settleNarration, releaseNarration, MAX_NARRATION_CHARS, NARRATION_DEADLINE_MS } from '../lib/ttsLimits.js';
-import { DEFAULT_NARRATION_PROVIDER, NARRATION_PROVIDERS, isServerNarrationProvider } from '../../shared/narrationProviders.js';
+import { NARRATION_PROVIDERS, isServerNarrationProvider } from '../../shared/narrationProviders.js';
+import { AURA_MODEL, AURA_VOICE, getNarrationConfiguration } from '../lib/narrationConfig.js';
 
-const TTS_MODEL = '@cf/deepgram/aura-2-en';
 const TTS_PROVIDER = 'workers-ai-aura-2';
-const TTS_SPEAKER = 'cora';
-const ELEVENLABS_MODEL = 'eleven_v4';
-const ELEVENLABS_VOICE = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
 const MAX_PIECE_CHARS = 1900;
 const MAX_REQUEST_BYTES = 512 * 1024;
 // Diagnostic heuristics for normally completed MP3 pieces that may be truncated.
@@ -18,12 +16,10 @@ const MIN_BYTES_PER_CHAR = 250;
 const MIN_CHECKED_CHARS = 100;
 
 function getNarrationProvider(env, requestedProvider) {
-  const apiKey = typeof env?.ELEVENLABS_API_KEY === 'string' ? env.ELEVENLABS_API_KEY.trim() : '';
-  const providerId = requestedProvider || DEFAULT_NARRATION_PROVIDER;
-  if (providerId === 'elevenlabs') {
-    if (!apiKey) return null;
-    const model = env.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL;
-    const voice = env.ELEVENLABS_VOICE_ID?.trim() || ELEVENLABS_VOICE;
+  const { id, available, model, voice } = getNarrationConfiguration(env, requestedProvider);
+  if (!available) return null;
+  if (id === 'elevenlabs') {
+    const apiKey = env.ELEVENLABS_API_KEY.trim();
     return {
       id: 'elevenlabs', model, voice,
       async synthesize(text, { signal, previousText, nextText }) {
@@ -54,10 +50,7 @@ function getNarrationProvider(env, requestedProvider) {
       }
     };
   }
-  return env?.AI?.run ? {
-    id: TTS_PROVIDER, model: TTS_MODEL, voice: TTS_SPEAKER,
-    synthesize: text => env.AI.run(TTS_MODEL, { text, speaker: TTS_SPEAKER })
-  } : null;
+  return { id: TTS_PROVIDER, model, voice, synthesize: text => env.AI.run(model, { text, speaker: voice }) };
 }
 
 /** One request is one narration, up to 64,000 characters, never silently cut.
@@ -65,18 +58,12 @@ function getNarrationProvider(env, requestedProvider) {
  * interruptions still consume one monthly unit. No local tone replaces speech.
  */
 export const onRequestGet = async ({ env }) => {
+  env = await resolveProviderEnvironment(env);
   const provider = getNarrationProvider(env);
   return jsonResponse({
     status: 'ok', provider: provider?.id || 'unavailable',
-    model: provider?.model || TTS_MODEL, voice: provider?.voice || TTS_SPEAKER,
-    providers: NARRATION_PROVIDERS.map(({ id }) => {
-      const configured = getNarrationProvider(env, id);
-      return {
-        id, available: Boolean(configured),
-        model: configured?.model || (id === 'elevenlabs' ? env?.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL : TTS_MODEL),
-        voice: configured?.voice || (id === 'elevenlabs' ? env?.ELEVENLABS_VOICE_ID?.trim() || ELEVENLABS_VOICE : TTS_SPEAKER)
-      };
-    }),
+    model: provider?.model || AURA_MODEL, voice: provider?.voice || AURA_VOICE,
+    providers: NARRATION_PROVIDERS.map(({ id }) => getNarrationConfiguration(env, id)),
     format: 'mp3', maxCharacters: MAX_NARRATION_CHARS,
     timestamp: new Date().toISOString()
   });
@@ -168,6 +155,7 @@ export const onRequestPost = async ({ request, env, waitUntil }) => {
     if (Object.hasOwn(body, 'provider') && !isServerNarrationProvider(body.provider)) {
       return jsonResponse({ error: 'Choose ElevenLabs or Deepgram for narration.', errorCode: 'INVALID_NARRATION_PROVIDER' }, { status: 400 });
     }
+    env = await resolveProviderEnvironment(env);
     const provider = getNarrationProvider(env, body.provider);
     if (!provider) return jsonResponse({ error: 'Narration is temporarily unavailable. Please try again.', errorCode: 'SERVICE_UNAVAILABLE', retryable: true }, { status: 503 });
     providerId = provider.id;
