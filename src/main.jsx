@@ -10,6 +10,9 @@ import { ToastProvider } from './contexts/ToastContext.jsx';
 import { AnimatedRoutes } from './components/AnimatedRoutes.jsx';
 import { SkipLink } from './components/SkipLink.jsx';
 import { initializePwaInstall } from './lib/pwaInstall';
+import { captureLocalAdminLaunch } from './lib/localAdminAccess.js';
+
+captureLocalAdminLaunch();
 
 // Observe install state from startup; routes without a host keep native offers.
 initializePwaInstall();

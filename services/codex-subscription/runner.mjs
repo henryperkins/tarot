@@ -12,6 +12,7 @@ import {
 // Tool suppression is qualified against this CLI version. New versions must pass
 // the installed-CLI isolation check before joining this allowlist.
 export const CODEX_SUBSCRIPTION_CLI_VERSION = '0.167.2';
+const QUALIFIED_VERSIONS = [CODEX_SUBSCRIPTION_CLI_VERSION, '0.170.0'];
 const DISABLED_FEATURES = Object.freeze([
   'shell_tool', 'unified_exec', 'apps', 'plugins', 'remote_plugin', 'hooks', 'memories',
   'multi_agent', 'multi_agent_v2', 'shell_snapshot', 'browser_use', 'browser_use_external',
@@ -29,7 +30,7 @@ export function buildCodexSubscriptionEnv(source = process.env) {
 function runProcess(executable, args, { env, cwd, input = '', signal, captureStatus = false }) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new Error('Codex request was cancelled.')); return; }
-    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
+    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32', windowsHide: true });
     let stdout = '';
     let stderr = '';
     let bytes = 0;
@@ -63,7 +64,7 @@ function runProcess(executable, args, { env, cwd, input = '', signal, captureSta
       if (captureStatus && stderr.length < 8192) stderr += chunk.slice(0, 8192 - stderr.length);
     });
     child.stdin.on('error', () => stop(new Error('Codex input could not be delivered.')));
-    child.on('error', () => { failure = new Error('Codex could not be started. Check the CLI installation.'); });
+    child.on('error', () => { failure = Object.assign(new Error('Codex could not be started. Check the CLI installation.'), { code: 'cli_unavailable' }); });
     child.on('close', code => {
       if (failure) kill('SIGKILL');
       clearTimeout(killTimer);
@@ -108,9 +109,16 @@ export async function verifyCodexSubscriptionLogin({ signal, hostEnv = process.e
     const executable = hostEnv.CODEX_SUBSCRIPTION_EXECUTABLE || 'codex';
     const env = buildCodexSubscriptionEnv(hostEnv);
     const version = (await runProcess(executable, ['--version'], { env, cwd: directory, signal })).trim();
-    if (version !== `codex-cli ${CODEX_SUBSCRIPTION_CLI_VERSION}`) throw new Error(`Codex subscription requires CLI ${CODEX_SUBSCRIPTION_CLI_VERSION}; revalidate tool isolation before upgrading.`);
-    const status = await runProcess(executable, ['login', 'status'], { env, cwd: directory, signal, captureStatus: true });
-    if (status.trim() !== 'Logged in using ChatGPT') throw new Error('Codex requires a ChatGPT subscription login; API billing is disabled. Run codex login on the service host.');
+    if (!QUALIFIED_VERSIONS.some(entry => version === 'codex-cli ' + entry)) {
+      throw Object.assign(new Error('Codex subscription requires CLI ' + QUALIFIED_VERSIONS.join(' or ') + '; revalidate tool isolation before upgrading.'), { code: 'unsupported_version' });
+    }
+    let status;
+    try {
+      status = await runProcess(executable, ['login', 'status'], { env, cwd: directory, signal, captureStatus: true });
+    } catch (error) {
+      if (signal?.aborted || error.code) throw error;
+    }
+    if (status?.trim() !== 'Logged in using ChatGPT') throw Object.assign(new Error('Codex requires a ChatGPT subscription login; API billing is disabled. Run codex login on the service host.'), { code: 'login_required' });
   } finally {
     if (!cwd) await rm(directory, { recursive: true, force: true });
   }

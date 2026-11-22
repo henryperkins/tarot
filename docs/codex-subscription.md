@@ -6,14 +6,15 @@ Last reviewed: 2026-11-12
 
 Tableu can use the host's signed-in Codex CLI for personal reading generation,
 follow-ups (including their structured memory decisions and repairs), and journal
-summaries. Select `TEXT_PROVIDER=codex-subscription`. The existing Claude option
-and legacy API routing remain separate choices. Suggested questions and visual
-cues keep their existing Workers AI integration; they do not enter the narrative
-prompt or consume this provider.
+summaries. Use the local portal for a reader-specific link. Dedicated deployments
+can select `TEXT_PROVIDER=codex-subscription`. Suggested questions and visual
+cues use their existing Workers AI integration.
+
+For the local web portal, start the dev server and use **Provider connections → Owner subscription** to link your reader account and run a sample. [Portal instructions](provider-reference.md#link-your-local-reader-subscription)
 
 ## Local reading beta
 
-With Node 24 and Codex CLI **0.167.2** installed, run `codex login` on the service host.
+With Node 24 and a qualified Codex CLI (**0.167.2** or **0.170.0**) installed, run `codex login` on the service host.
 `codex login status` must report a ChatGPT login. Then, from this worktree:
 
 ```bash
@@ -122,7 +123,7 @@ with local fixtures independently of live model generation. Structured responses
 are validated against the application's schema before use. Errors omit prompts,
 credentials and raw upstream diagnostics.
 
-The runner accepts only the validated CLI version. An upgrade needs the installed
+The runner accepts only qualified CLI versions. An upgrade needs the installed
 CLI isolation check repeated before changing that allowlist. Codex's JSON event
 output does not identify the response model authoritatively, so metadata marks
 the pinned model as `modelSource: configured`, rather than claiming it was reported

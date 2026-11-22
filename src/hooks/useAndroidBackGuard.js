@@ -34,6 +34,7 @@ let sequence = 0;
 let installed = false;
 let pushState = null;
 let syncingLocation = false;
+let confirmedTraversal = 0;
 
 function entryIsCurrent() {
   return overlayEntry.live && window.history.state?.tableuOverlayGuard === overlayEntry.id;
@@ -80,6 +81,16 @@ function restoreEntrySoon() {
 function handlePopState() {
   if (syncingLocation) return;
   const now = Date.now();
+  if (confirmedTraversal) {
+    const expected = now - confirmedTraversal <= SELF_POP_WINDOW_MS;
+    clearConfirmedTraversal();
+    if (expected) {
+      // The user already confirmed this traversal. An outer overlay surviving
+      // the route change keeps its guard and does not consume a second Back.
+      restoreEntrySoon();
+      return;
+    }
+  }
   while (selfPops.length && now - selfPops[0].at > SELF_POP_WINDOW_MS) selfPops.shift();
   if (selfPops.length) {
     const closing = selfPops.shift();
@@ -145,6 +156,26 @@ function install() {
 export function leavePage(url) {
   if (window.history.state?.tableuOverlayGuard) window.location.replace(url);
   else window.location.assign(url);
+}
+
+function clearConfirmedTraversal() {
+  confirmedTraversal = 0;
+  window.removeEventListener('pagehide', clearConfirmedTraversal);
+}
+
+/**
+ * Finish a confirmed Back gesture. Teardown must not pop the temporary
+ * entry again while the browser is traversing to the previous page.
+ */
+export function leaveAfterGuardedBack() {
+  const distance = entryIsCurrent() ? 2 : 1;
+  if (window.history.length <= distance) return;
+  clearTimeout(overlayEntry.release);
+  overlayEntry.release = null;
+  overlayEntry.live = false;
+  confirmedTraversal = Date.now();
+  window.addEventListener('pagehide', clearConfirmedTraversal, { once: true });
+  window.history.go(-distance);
 }
 
 export function useAndroidBackGuard(isActive, { onBack, enabled, guardId = 'overlay' } = {}) {

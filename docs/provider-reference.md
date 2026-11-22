@@ -8,6 +8,41 @@ This guide maps the selected providers by capability. The integrated master cand
 
 Use [developer onboarding](DEVELOPER_ONBOARDING.md) for local setup, [narration safeguards](narration-safeguards.md) for audio accounting, [Claude subscription setup](claude-subscription.md) for owner inference and release QA, and [system diagrams](architecture/full-system-diagrams.md) for the wider architecture.
 
+## Admin AI configuration
+
+Start `npm run dev`. For first-time local access, run `npm run admin:open` and choose your password in the browser. The launcher opens the local Worker at `http://localhost:8787/admin/ai-configuration` with a setup code that the page immediately removes from the address bar. After setup, bookmark the dashboard and sign in with your password. An admin already signed in with a local API key can use **Local admin access** to create or reset the password. Changing it expires prior password sessions.
+
+Use **Feature models** to assign a model, set its reasoning effort, arrange reading fallbacks and test a draft. Use **Provider connections** to enter or replace credentials for OpenAI, Anthropic, Modal and ElevenLabs. Supply the endpoint and credentials together for Modal. **Disconnect** turns off that provider even if deployment credentials exist. **Restore deployment settings** returns it to the deployment’s configuration. Workers AI uses its deployment binding and the local providers run in-process. A configured connection indicates that settings are present. **Run sample** can exercise a text provider. **Change history** shows saved feature assignments. [Dashboard specification](superpowers/specs/2026-11-19-ai-configuration-dashboard-design.md)
+
+Credential changes take effect for new provider requests. D1 stores encrypted connection values per environment, and the private `PROVIDER_CREDENTIAL_KEYS` Durable Object supplies the encryption key automatically. Preserve this namespace alongside D1 when moving or restoring an environment. An installation already using a dedicated `AI_CONNECTIONS_ENCRYPTION_KEY` keeps using that key.
+
+`npm run dev` applies local D1 migrations. For a standalone Worker, apply any pending migrations with `npm run migrations:apply:local` before starting `npm run dev:workers` or `npm run dev:wrangler`. Both commands start the local owner-subscription hosts and reject `--remote`. The launcher writes missing `ADMIN_API_KEY`, `LOCAL_ADMIN_SETUP_TOKEN` and `LOCAL_OWNER_HOST_SECRET` values to the local secrets file (`.dev.vars` by default, or `.env.local` for a checkout using dotenv files without `.dev.vars`).
+
+### Enable a hosted environment
+
+1. Keep the target Worker’s effective `AI_CONFIG_ENABLED` value at `false`. Set `AI_CONFIG_ENVIRONMENT` to `preview` or `production` as appropriate. An isolated preview needs its own D1 database, Durable Object namespaces (including reading jobs), provider credentials and admin authentication.
+2. Deploy the schema and Worker to that environment. The production `npm run deploy` applies D1 migrations before uploading the Worker. Verify migrations `0040` through `0043` are applied to the target database (`npm run migrations:status` for production). Check the active Worker version for all three new bindings and confirm the corresponding Durable Object migrations were deployed.
+
+   | Worker binding | Durable Object class | Migration tag |
+   | --- | --- | --- |
+   | `ADMIN_AI_SAMPLES` | `AdminAiSamples` | `admin-ai-samples-v1` |
+   | `PROVIDER_CREDENTIAL_KEYS` | `ProviderCredentialKeys` | `provider-credential-keys-v1` |
+   | `OWNER_SUBSCRIPTION_SAMPLES` | `OwnerSubscriptionSamples` | `owner-subscription-samples-v1` |
+
+3. Once those checks pass, set `AI_CONFIG_ENABLED=true` in the target Worker’s settings. Production deploys preserve existing dashboard variables. Setting the flag back to `false` returns new requests to deployed defaults and retains revision history. [Deployment variable precedence](../README.md#deployment)
+
+Production starts with overrides disabled. The first deployment makes the authenticated production release-settings endpoint available. The shared [production Readings rollout switch](../shared/contracts/aiConfigRelease.js) opens production Readings edits and activates the matching release preflight together. For that rollout the release runner needs the production admin credential in `ADMIN_API_KEY`, in addition to the normal evaluation credentials. The runner reads the effective assignment from the production Worker, records its fingerprint with the samples, and checks it again after qualification. The admin key stays out of the subprocesses.
+
+A retired model appears in its saved slot in **Feature models**. Choose a supported replacement in each affected slot and save the assignment to create a new revision. The other feature editors and history remain available during repair. For GLM-5.3 and Flash, the dashboard shows the effective reasoning level when an older revision or a deployment default uses an alias such as Medium. **Change history** preserves the originally recorded value.
+
+### Link your local reader subscription
+
+1. Open **Provider connections → Owner subscription** in the [local dashboard](http://localhost:8787/admin/ai-configuration?tab=connections). Sign in as admin, then choose **Sign in as reader** or **Create reader account**. Check the displayed reader identity.
+2. Select **Codex / ChatGPT** or **Claude Code** and click **Link reader account**. Tableu uses that CLI's existing subscription login on this computer. If the portal requests a login, sign in to the corresponding CLI on this computer and click **Refresh subscription status**. The normal local dev server supplies the gateway connections automatically.
+3. Click **Run owner sample**. Each run uses the same question and three cards. The receipt identifies the subscription that handled the request and shows its response. **Reported model** comes from the provider's output. **Configured model** identifies the requested model when the CLI omits the answering model ID.
+
+The link applies to new readings, reading follow-ups and journal summaries made with that reader's signed-in web session on this local instance. Ordinary feature samples continue to test their feature assignments. One reader can be linked at a time. To switch, select the other provider and click **Save provider**. To release the link, sign in as the linked reader and choose **Unlink account**. Owner sample receipts expire after 15 minutes and require the same reader, admin access and link revision.
+
 ## Historical branch coverage and status
 
 The following inventory is the historical 2026-10-11 snapshot, before the 2026-10-17 integration. Its branch differences are not the current runtime boundary. That audit inspected all 20 local branches and 16 cached remote-tracking branches, excluding the duplicate `origin/HEAD` alias: 25 distinct tips, 774 source paths and 1,319 distinct committed source blobs. It also checked source changes in all 31 existing registered worktrees, including 203 distinct changed source variants. Remote refs are local snapshots; this audit did not refresh them or call providers.

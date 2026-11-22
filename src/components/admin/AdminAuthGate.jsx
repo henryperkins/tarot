@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, Eye, EyeSlash } from '@phosphor-icons/react';
+import { clearLocalAdminLaunch, getLocalAdminLaunch, LocalAdminAccessContext, localAdminAction, localAdminEndpoint } from '../../lib/localAdminAccess.js';
+import { LocalPasswordDialog, LocalPasswordForm } from './LocalAdminAccess.jsx';
 
 const STORAGE_KEY = 'admin_api_key';
 
@@ -7,12 +9,12 @@ const STORAGE_KEY = 'admin_api_key';
  * AdminAuthGate - Protects admin content with API key authentication
  *
  * Uses sessionStorage to persist the key within a browser session.
- * Verifies the key against /api/admin/quality-stats before granting access.
+ * Verifies the key against a same-origin admin endpoint before granting access.
  *
  * @param {Object} props
  * @param {Function} props.children - Render prop: (apiKey) => ReactNode
  */
-export default function AdminAuthGate({ children }) {
+export default function AdminAuthGate({ children, description = 'Quality monitoring & analytics', verificationPath = '/api/admin/quality-stats?days=1' }) {
   const [storedKey] = useState(() => sessionStorage.getItem(STORAGE_KEY) || '');
   const [apiKey, setApiKey] = useState(storedKey);
   const [isChecking, setIsChecking] = useState(false);
@@ -20,21 +22,46 @@ export default function AdminAuthGate({ children }) {
   const [error, setError] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(!storedKey);
+  const [local, setLocal] = useState(null);
+  const [launch, setLaunch] = useState(getLocalAdminLaunch);
+  const [useKey, setUseKey] = useState(false);
+  const [managePassword, setManagePassword] = useState(false);
+  const [localNotice, setLocalNotice] = useState('');
 
-  const verifyKey = useCallback(async (key) => {
+  useEffect(() => {
+    clearLocalAdminLaunch();
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) return;
+    const controller = new AbortController();
+    fetch(localAdminEndpoint, { cache: 'no-store', redirect: 'error', signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Local sign-in storage is unavailable. Check the local migrations and reload.');
+        const result = await response.json();
+        if (!controller.signal.aborted) setLocal(result);
+      })
+      .catch(err => {
+        if (!controller.signal.aborted) setLocal({ error: err.message });
+      });
+    return () => controller.abort();
+  }, []);
+
+  const verifyKey = useCallback(async (key, fromSession = false) => {
     if (!key) return false;
 
     setIsChecking(true);
     setError('');
 
     try {
-      const res = await fetch('/api/admin/quality-stats?days=1', {
-        headers: { 'Authorization': `Bearer ${key}` }
+      const res = await fetch(verificationPath, {
+        headers: { 'Authorization': `Bearer ${key}` }, cache: 'no-store', redirect: 'error'
       });
 
       if (res.status === 401) {
         setError('Invalid API key');
         sessionStorage.removeItem(STORAGE_KEY);
+        if (fromSession) {
+          setApiKey('');
+          setShowKey(false);
+        }
         return false;
       }
 
@@ -52,14 +79,14 @@ export default function AdminAuthGate({ children }) {
     } finally {
       setIsChecking(false);
     }
-  }, []);
+  }, [verificationPath]);
 
   // Auto-verify stored key on mount
   useEffect(() => {
     if (!storedKey) return;
     let cancelled = false;
     queueMicrotask(() => {
-      if (!cancelled) verifyKey(storedKey).finally(() => {
+      if (!cancelled) verifyKey(storedKey, true).finally(() => {
         if (!cancelled) setInitialCheckDone(true);
       });
     });
@@ -78,30 +105,62 @@ export default function AdminAuthGate({ children }) {
     await verifyKey(normalizedKey);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    const token = sessionStorage.getItem(STORAGE_KEY);
+    if (token?.startsWith('local_admin_')) localAdminAction({ action: 'logout' }, token).catch(() => {});
     sessionStorage.removeItem(STORAGE_KEY);
     setIsAuthenticated(false);
     setApiKey('');
+    setShowKey(false);
     setError('');
-  };
+    setUseKey(false);
+    setManagePassword(false);
+    setLocalNotice('');
+  }, []);
+
+  function acceptPasswordSession(token) {
+    sessionStorage.setItem(STORAGE_KEY, token);
+    setApiKey(token);
+    setLocal({ available: true, passwordConfigured: true });
+    setLaunch('');
+    setIsAuthenticated(true);
+    setManagePassword(false);
+    setUseKey(false);
+    setShowKey(false);
+    setError('');
+    setLocalNotice('Signed in with your local admin password.');
+  }
 
   // Show nothing until initial check completes
   if (!initialCheckDone) {
     return (
-      <div className="min-h-screen bg-main flex items-center justify-center">
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-main flex items-center justify-center">
         <div className="text-muted animate-pulse">Verifying access...</div>
-      </div>
+      </main>
     );
   }
 
   // Authenticated - render children with apiKey and logout handler
   if (isAuthenticated) {
-    return children({ apiKey, onLogout: handleLogout });
+    return <LocalAdminAccessContext.Provider value={local?.available ? () => setManagePassword(true) : null}>
+      {children({ apiKey, onLogout: handleLogout })}
+      <span className="sr-only" role="status">{localNotice}</span>
+      {managePassword && <LocalPasswordDialog mode={local.passwordConfigured ? 'change' : 'setup'} credential={apiKey}
+        onCancel={() => setManagePassword(false)} onSignedIn={acceptPasswordSession} />}
+    </LocalAdminAccessContext.Provider>;
   }
+
+  const passwordMode = local?.available && (local.passwordConfigured ? 'login' : launch ? 'setup' : null);
+  if (passwordMode && !useKey) return <main id="main-content" tabIndex={-1} className="min-h-screen bg-main flex items-center justify-center p-4">
+    <div className="w-full max-w-sm rounded-2xl border border-secondary/30 bg-surface p-6 shadow-xl">
+      <LocalPasswordForm mode={passwordMode} setupToken={passwordMode === 'setup' ? launch : undefined} onSignedIn={acceptPasswordSession} />
+      <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => { setApiKey(''); setUseKey(true); }}>Use admin API key</button>
+    </div>
+  </main>;
 
   // Login form
   return (
-    <div className="min-h-screen bg-main flex items-center justify-center p-4">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-main flex items-center justify-center p-4">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-sm rounded-2xl border border-secondary/30 bg-surface p-6 shadow-xl"
@@ -112,7 +171,7 @@ export default function AdminAuthGate({ children }) {
           </div>
           <div>
             <h1 className="font-serif text-xl text-main">Admin Dashboard</h1>
-            <p className="text-xs text-muted">Quality monitoring & analytics</p>
+            <p className="text-xs text-muted">{description}</p>
           </div>
         </div>
 
@@ -161,10 +220,15 @@ export default function AdminAuthGate({ children }) {
           </button>
         </div>
 
-        <p className="mt-4 text-xs text-muted text-center">
-          Contact your administrator if you need access
-        </p>
+        {passwordMode && <button type="button" className="mt-4 text-sm text-muted underline" onClick={() => setUseKey(false)}>
+          {passwordMode === 'setup' ? 'Create local admin password' : 'Use local admin password'}
+        </button>}
+        {local?.available && !local.passwordConfigured && !launch && <p className="mt-4 text-sm text-muted">
+          To create your first local admin password, run <code>npm run admin:open</code> on this computer.
+        </p>}
+        {!local?.available && !launch && <p className="mt-4 text-xs text-muted text-center">Contact your administrator if you need access</p>}
+        {local?.error && launch && <p className="mt-4 text-sm text-error" role="alert">Local sign-in setup is unavailable. Check the local migrations and reload.</p>}
       </form>
-    </div>
+    </main>
   );
 }

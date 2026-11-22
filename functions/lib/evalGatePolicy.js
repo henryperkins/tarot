@@ -1,4 +1,5 @@
-import { normalizeBooleanFlag } from './readingTelemetry.js';
+import { isEvalGateEnabled } from './readingTelemetry.js';
+import { isProductionEnvironment } from './environment.js';
 
 const RESTRICTED_INPUT_PATTERNS = Object.freeze([
   {
@@ -31,6 +32,31 @@ function collectRestrictedInputReasons(inputText) {
   return reasons;
 }
 
+export function getEvalGateFailureMode(env) {
+  const rawMode = env?.EVAL_GATE_FAILURE_MODE;
+  const defaultMode = isProductionEnvironment(env) ? 'closed' : 'open';
+
+  // Log deprecation warnings for legacy variables without honoring them
+  if (env?.EVAL_GATE_FAIL_MODE !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_MODE is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+  if (env?.EVAL_GATE_FAIL_OPEN !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_OPEN is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+  if (env?.EVAL_GATE_FAIL_CLOSED !== undefined) {
+    console.warn('[eval] DEPRECATED: EVAL_GATE_FAIL_CLOSED is deprecated. Use EVAL_GATE_FAILURE_MODE=open|closed');
+  }
+
+  if (typeof rawMode === 'string') {
+    const normalized = rawMode.trim().toLowerCase();
+    if (normalized === 'open') return 'open';
+    if (normalized === 'closed') return 'closed';
+    console.warn(`[eval] Invalid EVAL_GATE_FAILURE_MODE value: "${rawMode}". Valid values: open, closed. Defaulting to ${defaultMode}.`);
+  }
+
+  return defaultMode;
+}
+
 export function buildSelectiveEvalGatePolicy({
   env,
   languageSupport,
@@ -51,8 +77,7 @@ export function buildSelectiveEvalGatePolicy({
 
   const uniqueReasons = Array.from(new Set(reasons));
   const requested = uniqueReasons.length > 0;
-  const evalEnabled = normalizeBooleanFlag(env?.EVAL_ENABLED);
-  const globalGateEnabled = evalEnabled && normalizeBooleanFlag(env?.EVAL_GATE_ENABLED);
+  const globalGateEnabled = isEvalGateEnabled(env);
   const forced = requested && !globalGateEnabled;
 
   // A wellbeing topic alone is not medical intent. Restricted input and languages

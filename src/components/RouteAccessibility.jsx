@@ -8,6 +8,7 @@ const PAGE_NAMES = {
   '/pricing': 'Plans & Pricing',
   '/account': 'Account & Settings',
   '/admin': 'Quality Dashboard',
+  '/admin/ai-configuration': 'AI configuration',
   '/design': 'Design System',
   '/governance-critique': 'Governance Critique',
   '/reset-password': 'Reset Password',

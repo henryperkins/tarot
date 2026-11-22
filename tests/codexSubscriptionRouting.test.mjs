@@ -9,6 +9,7 @@ import { onRequestPost as questionRoute } from '../functions/api/generate-questi
 import { createD1 } from './helpers/d1Sqlite.mjs';
 import { seedUser, seedSession, seedEntry, jsonRequest } from './helpers/journalFixtures.mjs';
 import { SPREADS } from '../src/data/spreads.js';
+import { changeOwnerLink } from '../functions/lib/ownerSubscription.js';
 
 const env = {
   TEXT_PROVIDER: 'codex-subscription', CODEX_SUBSCRIPTION_OWNER_USER_ID: 'owner',
@@ -199,6 +200,58 @@ test('live owner routing uses Codex for readings, follow-ups and summaries while
   assert.equal((await other.json()).provider, 'openai-native');
   assert.equal(apiCalls.length, 1);
   assert.equal(tasks.length, 4, 'other users never reach the owner gateway');
+});
+
+test('the portal link selects both subscriptions for signed-in owner routes only', async t => {
+  const configured = { ...await setup(), TEXT_PROVIDER: 'legacy', AI_CONFIG_ENVIRONMENT: 'local', AI_CONFIG_ENABLED: 'true',
+    OWNER_HOST_INSTANCE: crypto.randomUUID(), LOCAL_OWNER_HOST_SECRET: 'local-test-owner-key'.repeat(2),
+    OWNER_HOST_CODEX_URL: 'http://127.0.0.1:12345', OWNER_HOST_CLAUDE_URL: 'http://127.0.0.1:12346',
+    EVAL_ENABLED: 'false', EVAL_GATE_ENABLED: 'false' };
+  const owner = { id: 'owner' };
+  const tasks = [];
+  let publicCalls = 0;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === 'https://openai.test/v1/responses') {
+      publicCalls++;
+      return Response.json({ model: 'api-test', output: [{ type: 'message', role: 'assistant',
+        content: [{ type: 'output_text', text: liveReading }] }], usage: {} });
+    }
+    const provider = new Map([
+      [configured.OWNER_HOST_CODEX_URL + '/v1/generate', 'codex-subscription'],
+      [configured.OWNER_HOST_CLAUDE_URL + '/v1/generate', 'claude-code']
+    ]).get(url);
+    assert.ok(provider, 'only the selected private gateway may handle owner inference');
+    const { task } = JSON.parse(options.body);
+    tasks.push([provider, task]);
+    return Response.json({ ...completion(task === 'reading' ? liveReading : answer,
+      task === 'followup' ? { response: answer, memory: null } : null), provider });
+  });
+  let revision = 0;
+  for (const providerId of ['codex-subscription', 'claude-code']) {
+    ({ revision } = await changeOwnerLink(configured.DB, owner, { baseRevision: revision, providerId }));
+    for (const [route, name, body] of [[readingRoute, 'tarot-reading', readingInput],
+      [followupRoute, 'reading-followup', followupInput], [summaryRoute, 'journal-summary', {}]]) {
+      const result = await route({ env: configured, request: request(name, body) });
+      assert.equal(result.status, 200, name);
+      assert.match(await result.text(), new RegExp(providerId), name);
+    }
+    assert.deepEqual(tasks.splice(0), ['reading', 'followup', 'journal-summary'].map(task => [providerId, task]));
+  }
+  assert.equal(publicCalls, 0);
+  const principalRequest = jsonRequest('https://tableu.test/api/tarot-reading', { body: readingInput });
+  for (const options of [{ request: request('tarot-reading', readingInput, 'other') },
+    { request: principalRequest, principal: { userId: owner.id } }]) {
+    const result = await readingRoute({ env: configured, ...options });
+    assert.equal((await result.json()).provider, 'openai-native');
+  }
+  delete configured.OWNER_HOST_CLAUDE_URL;
+  const missingHost = await summaryRoute({ env: configured, request: request('journal-summary', {}) });
+  assert.equal(missingHost.status, 503);
+  await changeOwnerLink(configured.DB, owner, { baseRevision: revision, providerId: null });
+  const unlinked = await readingRoute({ env: configured, request: request('tarot-reading', readingInput) });
+  assert.equal((await unlinked.json()).provider, 'openai-native');
+  assert.equal(publicCalls, 3);
+  assert.deepEqual(tasks, []);
 });
 
 test('owner-specific subscription failure never falls through to a paid API', async t => {

@@ -156,6 +156,7 @@ describe('createToolRoundTripStream', () => {
       callCount += 1;
       const body = JSON.parse(init?.body || '{}');
 
+      assert.equal(body.reasoning.effort, 'high', 'every turn keeps the submitted effort');
       if (callCount === 1) {
         assert.equal(typeof body.input, 'string');
         return new Response(createMockOpenAIStream(initialOpenAIEvents), { status: 200 });
@@ -174,6 +175,7 @@ describe('createToolRoundTripStream', () => {
       userInput: 'q',
       tools,
       maxTokens: 50,
+      reasoningEffort: 'high',
       verbosity: 'medium',
       requestId: 'req-test',
       onToolCall: async (callId, name, args) => {

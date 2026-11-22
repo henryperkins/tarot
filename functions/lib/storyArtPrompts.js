@@ -13,6 +13,8 @@ import {
   detectQuestionCategory
 } from './generativeVisuals.js';
 
+export const STORY_ART_MODEL = '@cf/black-forest-labs/flux-2-dev';
+
 /**
  * Style presets for consistent visual language
  * Each style includes visual medium, materials, lighting, and palette

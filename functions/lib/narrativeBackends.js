@@ -32,7 +32,7 @@ import { enhanceSection } from './narrativeSpine.js';
 import { callOpenAIResponses, getReasoningEffort, getTextVerbosity, OPENAI_DEFAULT_MODEL } from './openaiResponses.js';
 import { callModalChatCompletions, ensureModalConfig, isModalConfigured } from './modalChatCompletions.js';
 import { callPersonalTextProvider, getPersonalTextProvider } from './personalTextProvider.js';
-import { callClaudeMessages, isAnthropicConfigured } from './anthropicMessages.js';
+import { callClaudeMessages, isAnthropicConfigured, resolveAnthropicSettings } from './anthropicMessages.js';
 import {
   buildReasoningAwareOpening,
   buildReasoningSynthesis,
@@ -150,12 +150,13 @@ export const NARRATIVE_BACKENDS = Object.freeze({
  * @param {Object} env - Cloudflare environment bindings
  * @returns {Array} Array of available backend objects
  */
-export function getAvailableNarrativeBackends(env) {
+export function getAvailableNarrativeBackends(env, policy = null) {
   // A missing gateway must surface as a failed subscription attempt, never select a
   // configured paid provider merely because it is available.
   const personalProvider = getPersonalTextProvider(env);
   if (personalProvider) return [NARRATIVE_BACKENDS[personalProvider], NARRATIVE_BACKENDS['local-composer']];
-  return NARRATIVE_BACKEND_ORDER
+  const order = policy ? [policy.primary, ...policy.fallbacks].map(step => step.providerId) : NARRATIVE_BACKEND_ORDER;
+  return order
     .map((id) => {
       const backend = NARRATIVE_BACKENDS[id];
       if (!backend) return null;
@@ -900,6 +901,7 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
   return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: null,
+    effortSent: reasoningEffort,
     prompts: {
       system: systemPrompt,
       user: userPrompt
@@ -964,6 +966,7 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
   return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: result.reasoningSummary || null,
+    effortSent: reasoningEffort,
     prompts: {
       system: systemPrompt,
       user: userPrompt
@@ -1021,6 +1024,7 @@ export async function generateWithClaudeApi(env, payload, requestId = 'unknown',
   return finalizeCanonicalScenes({
     reading: result.text,
     reasoningSummary: null,
+    effortSent: resolveAnthropicSettings(env).effort,
     prompts: {
       system: systemPrompt,
       user: userPrompt

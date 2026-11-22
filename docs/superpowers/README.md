@@ -10,6 +10,7 @@ Dated specs, implementation plans, and reviews for active and recently closed wo
 
 | Workstream | Spec | Plan | Review |
 | --- | --- | --- | --- |
+| Admin AI configuration | [Dashboard design and runtime contract](specs/2026-11-19-ai-configuration-dashboard-design.md) | [Dashboard remediation](plans/2026-11-19-ai-configuration-remediation-plan.md) | [Local acceptance](../evidence/ai-configuration-2026-11-19/README.md) |
 | Reading UI and aligner | [Imagery and motion](specs/2026-10-08-reading-imagery-motion.md) | [Intent closure](plans/2026-10-11-reading-intent-closure.md), [aligner release](plans/2026-10-11-reading-aligner-release.md), [post-reading model](plans/2026-10-11-reading-post-reading-model.md) | [Local acceptance](reviews/2026-10-11-reading-ui-acceptance.md), [aligner execution](reviews/2026-10-11-reading-aligner-release.md) |
 | Header navigation | [Shared app navigation](specs/2026-10-21-shared-app-navigation-design.md) | [Final remediation](plans/2026-10-21-header-navigation-final-remediation.md), [Gate 2](plans/2026-10-21-header-navigation-gate2.md) | [Gate 1](reviews/2026-10-21-header-navigation-gate1-review.md), [Gate 2](reviews/2026-10-21-header-navigation-gate2-review.md), [Production acceptance](reviews/2026-10-21-header-navigation-production-acceptance.md) |
 | Coach refinement | [Design](specs/2026-10-23-coach-refinement-design.md) | [Plan](plans/2026-10-23-coach-refinement.md) | [Review](reviews/2026-10-23-coach-refinement.md) |

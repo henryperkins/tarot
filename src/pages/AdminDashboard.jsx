@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
-  House,
-  SignOut,
   ArrowClockwise,
   ChartLine,
   Rows,
@@ -12,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { useToast } from '../contexts/ToastContext.jsx';
 import AdminAuthGate from '../components/admin/AdminAuthGate.jsx';
+import AdminShell from '../components/admin/AdminShell.jsx';
 import SummaryCards from '../components/admin/SummaryCards.jsx';
 import DaysFilter from '../components/admin/DaysFilter.jsx';
 import ScoreTrendsChart from '../components/admin/ScoreTrendsChart.jsx';
@@ -24,9 +23,9 @@ import HumanReviewPanel from '../components/admin/HumanReviewPanel.jsx';
 /**
  * Section wrapper component
  */
-function Section({ title, icon: Icon, children, action }) {
+function Section({ title, icon: Icon, children, action, id }) {
   return (
-    <div className="rounded-2xl border border-secondary/30 bg-surface overflow-hidden">
+    <div id={id} className="scroll-mt-24 rounded-2xl border border-secondary/30 bg-surface overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3 border-b border-secondary/20 bg-surface-muted/50">
         <div className="flex items-center gap-2">
           {Icon && <Icon className="h-4 w-4 text-accent" weight="duotone" />}
@@ -53,11 +52,16 @@ export default function AdminDashboard() {
 }
 
 function DashboardContent({ apiKey, onLogout }) {
+  const { hash } = useLocation();
   const { publish } = useToast();
   const [days, setDays] = useState(30);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (hash === '#review-queue' && data) document.getElementById('review-queue')?.scrollIntoView();
+  }, [hash, data]);
 
   const fetchData = useCallback(async (signal) => {
     setLoading(true);
@@ -126,19 +130,11 @@ function DashboardContent({ apiKey, onLogout }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-main text-main">
+    <AdminShell onLogout={onLogout}>
       {/* Header */}
       <header className="sticky top-0 z-sticky-elevated border-b border-secondary/20 bg-main/95 backdrop-blur-sm pt-[max(var(--safe-pad-top),0.75rem)]">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="flex items-center gap-2 text-muted hover:text-main transition-colors"
-            >
-              <House className="h-5 w-5" />
-              <span className="text-sm hidden sm:inline">Back to App</span>
-            </Link>
-            <div className="h-4 w-px bg-secondary/30" />
             <h1 className="font-serif text-lg sm:text-xl text-main">
               Quality Dashboard
             </h1>
@@ -151,19 +147,12 @@ function DashboardContent({ apiKey, onLogout }) {
               disabled={loading}
             />
             <button
-              onClick={fetchData}
+              onClick={() => fetchData()}
               disabled={loading}
               className="p-2 rounded-lg text-muted hover:text-main hover:bg-secondary/20 transition-colors disabled:opacity-50"
               aria-label="Refresh data"
             >
               <ArrowClockwise className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-lg text-muted hover:text-error hover:bg-error/10 transition-colors"
-              aria-label="Sign out"
-            >
-              <SignOut className="h-5 w-5" />
             </button>
           </div>
         </div>
@@ -176,7 +165,7 @@ function DashboardContent({ apiKey, onLogout }) {
           <div className="rounded-2xl border border-error/30 bg-error/10 p-6 text-center">
             <p className="text-error font-medium">{error}</p>
             <button
-              onClick={fetchData}
+              onClick={() => fetchData()}
               className="mt-3 text-sm text-accent hover:underline"
             >
               Try again
@@ -236,7 +225,7 @@ function DashboardContent({ apiKey, onLogout }) {
               onLogout={onLogout}
             />
 
-            <Section title="Human Review Assistant" icon={ClipboardText}>
+            <Section id="review-queue" title="Human Review Assistant" icon={ClipboardText}>
               <HumanReviewPanel reviewQueue={data.reviewQueue} />
             </Section>
 
@@ -262,6 +251,6 @@ function DashboardContent({ apiKey, onLogout }) {
           </>
         )}
       </main>
-    </div>
+    </AdminShell>
   );
 }

@@ -25,7 +25,7 @@ export function buildCodexAppServerArgs(execArgs) {
 export function runCodexAppServer(executable, args, { env, cwd, input, prompt, model, effort, signal, onDelta }) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new Error('Codex request was cancelled.')); return; }
-    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32' });
+    const child = spawn(executable, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32', windowsHide: true });
     let buffer = '';
     let outputBytes = 0;
     let text = '';

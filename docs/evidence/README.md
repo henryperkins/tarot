@@ -10,6 +10,7 @@ Canonical root for dated screenshots, JSON checks, and review evidence. Use one 
 
 | Folder | Contents |
 | --- | --- |
+| [AI configuration dashboard](ai-configuration-2026-11-19/README.md) | Local browser and Worker verification, including retired-model recovery, pending saves and short-viewport focus. |
 | [codex-narrative-qualification-2026-10-23](codex-narrative-qualification-2026-10-23/README.md) | Fresh 11-case Codex qualification for deployed commit 98106dd8, runner repair, and portable validation evidence. |
 | [pwa-install-2026-10-08](pwa-install-2026-10-08/README.md) | PWA install control captures, remediation checks, and the PR #102 dock clearance review. |
 

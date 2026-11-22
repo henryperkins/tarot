@@ -64,27 +64,16 @@ if (!IS_BROWSER) {
   };
 }
 
-function resolveBackendDescriptor(backendId, options = {}) {
-  const requested = backendId && VISION_BACKENDS[backendId]
-    ? VISION_BACKENDS[backendId]
-    : VISION_BACKENDS['clip-default'];
-
-  if (requested.serverOnly && IS_BROWSER) {
-    return VISION_BACKENDS['clip-default'];
-  }
-
-  if (requested.requiresEnv && requested.requiresEnv.length > 0) {
-    const missing = requested.requiresEnv.filter((key) => !options?.env?.[key]);
-    if (missing.length > 0) {
-      throw new Error(`Vision backend "${requested.id}" missing env: ${missing.join(', ')}`);
-    }
-  }
-
-  return requested;
+export function getVisionBackendConfiguration(backendId, env) {
+  const descriptor = Object.hasOwn(VISION_BACKENDS, backendId) ? VISION_BACKENDS[backendId] : VISION_BACKENDS['clip-default'];
+  const missing = (descriptor.requiresEnv || []).filter(key => key === 'AI' ? typeof env?.AI?.run !== 'function' : !env?.[key]);
+  return { id: descriptor.id, missing };
 }
 
 export async function createVisionBackend(options = {}) {
-  const descriptor = resolveBackendDescriptor(options.backendId, options);
+  const { id, missing } = getVisionBackendConfiguration(options.backendId, options.env);
+  if (missing.length) throw new Error(`Vision backend "${id}" missing env: ${missing.join(', ')}`);
+  const descriptor = VISION_BACKENDS[id];
   const instance = await descriptor.create(options);
   return {
     id: descriptor.id,

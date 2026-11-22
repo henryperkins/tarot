@@ -4,10 +4,11 @@
  * GET /api/admin/quality-stats - Get quality statistics and alerts
  * POST /api/admin/quality-stats/acknowledge - Acknowledge an alert
  *
- * Requires ADMIN_API_KEY authentication.
+ * Requires the shared admin credential or a valid local password session.
  */
 
 import { timingSafeEqual } from '../../lib/crypto.js';
+import { isLocalAdminOrigin, isLocalAdminSession } from './local-access.js';
 import {
   getRecentStats,
   getUnacknowledgedAlerts,
@@ -22,19 +23,17 @@ import {
 /**
  * Verify admin authentication.
  */
-function verifyAdmin(request, env) {
+async function verifyAdmin(request, env) {
   const authHeader = request.headers.get('Authorization') || '';
   const adminKey = env.ADMIN_API_KEY;
 
-  if (!adminKey) {
+  if (adminKey && timingSafeEqual(authHeader, `Bearer ${adminKey}`)) return { valid: true };
+  if (await isLocalAdminSession(request, env)) return { valid: true };
+  if (!adminKey && !isLocalAdminOrigin(request, env)) {
     return { valid: false, error: 'Admin API not configured' };
   }
 
-  if (!timingSafeEqual(authHeader, `Bearer ${adminKey}`)) {
-    return { valid: false, error: 'Unauthorized' };
-  }
-
-  return { valid: true };
+  return { valid: false, error: 'Unauthorized' };
 }
 
 /**
@@ -45,22 +44,15 @@ function verifyAdmin(request, env) {
 export async function onRequestGet(context) {
   const { request, env } = context;
 
-  const auth = verifyAdmin(request, env);
-  if (!auth.valid) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: auth.error === 'Unauthorized' ? 401 : 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   try {
+    const auth = await verifyAdmin(request, env);
+    if (!auth.valid) {
+      return Response.json({ error: auth.error }, { status: auth.error === 'Unauthorized' ? 401 : 500 });
+    }
+    if (!env.DB) {
+      return Response.json({ error: 'Database not configured' }, { status: 500 });
+    }
+
     const url = new URL(request.url);
     const days = parseInt(url.searchParams.get('days') || '30', 10);
     const reviewDays = parseInt(url.searchParams.get('reviewDays') || String(days), 10);
@@ -119,22 +111,15 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  const auth = verifyAdmin(request, env);
-  if (!auth.valid) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: auth.error === 'Unauthorized' ? 401 : 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
   try {
+    const auth = await verifyAdmin(request, env);
+    if (!auth.valid) {
+      return Response.json({ error: auth.error }, { status: auth.error === 'Unauthorized' ? 401 : 500 });
+    }
+    if (!env.DB) {
+      return Response.json({ error: 'Database not configured' }, { status: 500 });
+    }
+
     const body = await request.json();
     const { action } = body;
 

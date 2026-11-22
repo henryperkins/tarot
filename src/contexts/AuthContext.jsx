@@ -317,7 +317,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const startOAuth = async (redirectTo = '/account', connection = '') => {
+  const startOAuth = async (redirectTo = '/account', connection = '', { requireSameOriginCallback = false } = {}) => {
     setError(null);
     try {
       const response = await fetch('/api/auth/oauth-start', {
@@ -344,6 +344,11 @@ export function AuthProvider({ children }) {
         const errorMessage = 'OAuth authorize URL missing';
         setError(errorMessage);
         return { success: false, error: errorMessage };
+      }
+
+      // A hosted callback cannot issue a reader cookie for the local portal.
+      if (requireSameOriginCallback && new URL(authorizeUrl).searchParams.get('redirect_uri') !== window.location.origin + '/auth/callback') {
+        return { success: false, error: 'Social sign-in is configured for a different site. Use your local Tableu email and password or register here.' };
       }
 
       // Usually started from the sign-in dialog: the provider replaces its

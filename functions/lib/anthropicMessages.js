@@ -167,7 +167,7 @@ async function callClaudeMessagesInternal(env, {
       .map((block) => block.text)
       .join('')
       .trim();
-    return { text, message, model: message.model, usage, stopReason: message.stop_reason };
+    return { text, message, model: message.model, effortSent: selectedEffort, usage, stopReason: message.stop_reason };
   } catch (error) {
     if (signal?.aborted) throw new ClaudeApiError('Claude request was cancelled.');
     if (controller.signal.aborted) throw new ClaudeApiError('Claude request timed out.');

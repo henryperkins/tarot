@@ -28,7 +28,7 @@ function normalizeMode(mode) {
   return ['login', 'register', 'forgot'].includes(mode) ? mode : 'login';
 }
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login', returnFocusRef, emailDraft, onEmailDraftChange }) {
+export default function AuthModal({ isOpen, onClose, initialMode = 'login', returnFocusRef, emailDraft, onEmailDraftChange, localOAuthReturnPath }) {
   const { register, login, requestPasswordReset, resendVerification, startOAuth } = useAuth();
   const isSmallScreen = useSmallScreen();
   const [mode, setMode] = useState(() => normalizeMode(initialMode));
@@ -126,7 +126,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login', retu
     const session = sessionRef.current;
     setLoading(true);
     try {
-      const result = await startOAuth(getReturnPath(), provider);
+      const result = localOAuthReturnPath
+        ? await startOAuth(new URL(localOAuthReturnPath, window.location.origin).href, provider, { requireSameOriginCallback: true })
+        : await startOAuth(getReturnPath(), provider);
       if (session !== sessionRef.current) return;
       if (!result.success) {
         setError(result.error || 'Unable to start social login');

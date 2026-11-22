@@ -84,6 +84,7 @@ function emptyJob() {
     // Set only for jobs started by the MCP tools (in-Worker callers).
     principalUserId: null,
     snapshot: null,
+    readingPolicies: null,
     retentionMs: null
   };
 }
@@ -243,6 +244,7 @@ export class ReadingJob {
       result: null,
       principalUserId,
       snapshot: principalUserId ? (body.snapshot ?? null) : null,
+      readingPolicies: this.job.jobId === jobId ? this.job.readingPolicies ?? null : body.readingPolicies ?? null,
       retentionMs: principalUserId ? MCP_JOB_TTL_MS : JOB_TTL_MS
     };
     this.cancelled = false;
@@ -483,6 +485,8 @@ export class ReadingJob {
       const response = await this.runReading({
         request,
         env: this.env,
+        // Null also pins legacy jobs started before policy snapshots existed.
+        readingPolicies: this.job.readingPolicies ?? null,
         waitUntil: this.state.waitUntil.bind(this.state),
         onReadingMemoryUsage: usage => {
           if (!this.cancelled && this.job.status === 'running' && runId === this.runId) this.pendingMemoryUsage = normalizeMemoryUsage(usage);

@@ -11,7 +11,7 @@ const responseSchema = z.toJSONSchema(z.object({
 }).strict(), { target: 'draft-7' });
 
 const configString = value => typeof value === 'string' ? value.trim() : '';
-const readinessErrors = {
+export const visualCueReadinessErrors = {
   missing_provider: 'Visual model is not configured.',
   missing_model: 'Visual model is not configured.',
   unsupported_provider: 'Unsupported visual model provider.',
@@ -43,7 +43,7 @@ export async function runVisualCueAnnotation({ env, prompt, signal }) {
 /** Private provider provenance stays outside the strict model proposal envelope. */
 export async function runVisualCueAnnotationWithMetadata({ env, prompt, signal, beforeDispatch = null }) {
   const readiness = getVisualCueReadiness(env);
-  if (!readiness.ready) throw new Error(readinessErrors[readiness.reason]);
+  if (!readiness.ready) throw new Error(visualCueReadinessErrors[readiness.reason]);
   const model = configString(env.VISUAL_CUE_MODEL);
   const glm = model.startsWith('@cf/zai-org/glm-5.');
   const reasoningEffort = configString(env.VISUAL_CUE_REASONING_EFFORT) || 'low';

@@ -21,6 +21,7 @@ export async function generateClaudeApiFollowUp(env, {
   userPrompt,
   enableMemoryTool,
   onToolCall,
+  effort = FOLLOW_UP_EFFORT,
   signal,
   requestId
 }) {
@@ -34,7 +35,7 @@ export async function generateClaudeApiFollowUp(env, {
       messages,
       tools,
       maxTokens: FOLLOW_UP_MAX_TOKENS,
-      effort: FOLLOW_UP_EFFORT,
+      effort,
       signal,
       requestId,
       telemetry: { task: 'followup', requestId }
@@ -44,7 +45,7 @@ export async function generateClaudeApiFollowUp(env, {
     if (result.stopReason !== 'tool_use') {
       const text = textParts.join('\n\n').trim();
       if (!text) throw new ClaudeApiError('Claude returned no follow-up text.');
-      return { text, model: result.model };
+      return { text, model: result.model, effortSent: result.effortSent };
     }
     if (round >= MAX_MEMORY_ROUNDS) {
       throw new ClaudeApiError('Claude memory tool round-trip limit reached.');
