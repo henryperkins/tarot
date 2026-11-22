@@ -72,6 +72,7 @@ describe('admin AI configuration', () => {
     assert.equal((await save(env, mutation(initial, 'low'))).status, 409);
     const history = await (await request(overview.onRequestGet, env, { path: '/history?feature=readings' })).json();
     assert.deepEqual(history.entries.map(item => item.revision), [2, 1]);
+    assert.equal(history.entries[0].actor, 'Shared admin credential');
     assert.deepEqual(history.entries[0].diff, [{ field: 'primary.reasoningEffort', before: 'medium', after: 'low' }]);
     assert.equal((await resolveFeatureConfig(env, 'readings')).policy.primary.reasoningEffort, 'low');
     assert.equal(await resolveFeatureConfig(env, 'reading-followups'), null);

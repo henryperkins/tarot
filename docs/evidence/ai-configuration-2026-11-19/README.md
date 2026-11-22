@@ -2,9 +2,11 @@
 
 Type: evidence
 Status: historical snapshot
-Last reviewed: 2026-11-19
+Last reviewed: 2026-11-22
 
-The local implementation was verified against source tree `a46ff7bfaa14072dd696244ab93fa2b7f36e0c01`, based on `b1e9ce9f`. The two screenshots use controlled browser fixtures. A separate Chromium run used the built React app, the actual Worker, migrated local D1 and a SQLite sample Durable Object. Synthetic OpenAI and Workers AI responses made the requested effort, delivered output and failure cases reproducible.
+## Original dashboard acceptance
+
+The first dashboard verification used source tree `a46ff7bfaa14072dd696244ab93fa2b7f36e0c01`, based on `b1e9ce9f`. The two screenshots use controlled browser fixtures. A separate Chromium run used the built React app, the actual Worker, migrated local D1 and a SQLite sample Durable Object. Synthetic OpenAI and Workers AI responses made the requested effort, delivered output and failure cases reproducible.
 
 | Behavior | Observed result |
 | --- | --- |
@@ -17,7 +19,7 @@ The local implementation was verified against source tree `a46ff7bfaa14072dd6962
 
 The integrated walkthrough recorded zero reader, quota and evaluation writes and zero external provider requests. Hosted deployment and live dashboard-provider health require separate evidence. [Browser regressions](../../../e2e/admin-ai-configuration.spec.js) · [Stored assignment recovery](../../../e2e/admin-ai-configuration-recovery.spec.js) · [Built dashboard workflow](../../../e2e/admin-ai-configuration-workflow.spec.js) · [Readiness tests](../../../tests/aiConfigReadiness.test.mjs)
 
-The full Node suite ran on the final source snapshot in an isolated checkout with LF line endings. It passed 6,605 tests, skipped 32 and recorded zero failures. The combined browser suite passed 19 cases across Chromium and mobile WebKit. The production frontend built successfully. The accessibility checks reported zero errors and 1,028 warnings. Repository lint reported zero errors and 49 warnings. The narrative gate completed 11 subscription-generated samples with zero flags and passed 874 prompt assembly fixtures.
+The full Node suite ran on tree `a46ff7bf` in an isolated checkout with LF line endings. It passed 6,605 tests, skipped 32 and recorded zero failures. The combined browser suite passed 19 cases across Chromium and mobile WebKit. The production frontend built successfully. The accessibility checks reported zero errors and 1,028 warnings. Repository lint reported zero errors and 49 warnings. The narrative gate completed 11 subscription-generated samples with zero flags and passed 874 prompt assembly fixtures.
 
 The separate vision release gate requires an independently labeled, held-out three-deck photo corpus and matching source evidence. This checkout had reference art only. The gate rejected the available evidence and the reference-art diagnostic run was stopped. [Vision qualification requirements](../../vision-evaluation-integrity.md)
 
@@ -27,7 +29,7 @@ The extended Chromium and mobile WebKit suite passed all 22 cases. The local pas
 
 The provider editor replaced credentials for all four editable providers, exercised both Modal authentication modes, recovered from concurrent edits and an interrupted acknowledgement, and retained an unsaved feature draft. A separate Worker test observed the active key on a synthetic OpenAI transport, verified fallback after disconnect and restored the inherited connection. The same test exercised narration availability and used the private key-storage binding without a preconfigured encryption key. [Provider editor](../../../e2e/admin-provider-connections.spec.js) · [Provider runtime](../../../tests/providerConnectionWorker.test.mjs)
 
-The final source snapshot passed 6,619 Node tests with 32 skipped and zero failures. Source lint reported zero errors and 49 warnings. Accessibility checks reported zero errors and 1,031 warnings. The narrative evaluation produced 11 samples with zero flags. Its frozen-byte assembly check required the canonical LF checkout, where all 874 fixtures and 2,541 provider builds passed.
+Source tree `398ffd2e77a5afccddedb004d4b8cedc4709dbd8` passed 6,619 Node tests with 32 skipped and zero failures. Source lint reported zero errors and 49 warnings. Accessibility checks reported zero errors and 1,031 warnings. The narrative evaluation produced 11 samples with zero flags. Its frozen-byte assembly check required the canonical LF checkout, where all 874 fixtures and 2,541 provider builds passed.
 
 ## Local owner subscriptions
 
@@ -35,4 +37,8 @@ The running local development server reported ready subscription logins for both
 
 The browser tests cover registration, sign-in, linking, provider switching, sample receipts, access by a different reader and unlinking. Worker tests exercise both provider adapters with controlled responses, including a reported Claude model. Claude's live check verified its login only. [Browser workflow](../../../e2e/admin-owner-subscription.spec.js) · [Owner endpoint and job tests](../../../tests/ownerSubscription.test.mjs) · [Reader routing](../../../tests/codexSubscriptionRouting.test.mjs)
 
-The Node regression run passed 6,627 tests with 32 skipped. All 23 admin browser cases passed, including the final local social-login callback handling. The owner workflow also passed on a 390-pixel phone viewport. The production frontend built, and the running local Worker served the rebuilt assets. The offline narrative prompt assembly check passed all 874 fixtures and 2,541 provider builds.
+Source tree `371bfca254c45ee82ff6d5974a6398cfbe4a6649` passed 6,627 Node tests with 32 skipped and zero failures. All 23 admin browser cases passed in the development checkout on November 19. The browser log did not record a Git revision. The owner workflow also passed on a 390-pixel phone viewport. The production frontend built, and the running local Worker served the rebuilt assets. The offline narrative prompt assembly check passed all 874 fixtures and 2,541 provider builds.
+
+## PR review on November 22
+
+On commit `b07f476d877c71fcfebeb699cc494a1f89d0915a`, the reviewer reported 103 passing tests across 18 targeted files, zero scoped ESLint errors, 271 documentation files with valid local links and a successful frontend build.

@@ -81,7 +81,8 @@ async function adminConfig({ request, env, params }) {
     if (request.method === 'PUT') {
       const body = await input(request, ['baseRevision', 'baseToken', 'mutationId', 'policy']);
       identifier(body.mutationId, 'mutationId');
-      return json(await savePolicy(env, id, body));
+      const actor = sharedAccess ? 'Shared admin credential' : 'Local password session';
+      return json(await savePolicy(env, id, body, actor));
     }
     const body = await input(request, ['catalogVersion', 'runId', 'policy']);
     identifier(body.runId, 'runId');

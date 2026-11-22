@@ -35,7 +35,7 @@ async function publish(env, id, update) {
   update(feature.policy);
   return savePolicy(env, id, {
     policy: feature.policy, baseRevision: feature.revision, baseToken: feature.baseToken, mutationId: crypto.randomUUID()
-  });
+  }, 'Test publisher');
 }
 
 test('published Workers assignments reach guided questions, extraction and independently pinned graders', async t => {

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
 import { isLocalAdminOrigin, isLocalAdminSession, onRequestGet, onRequestPost } from '../functions/api/admin/local-access.js';
+import { onRequestGet as getStats, onRequestPost as postStats } from '../functions/api/admin/quality-stats.js';
 import { ADMIN_FIXTURE_KEY, createAiConfigWorker } from './helpers/aiConfigWorker.mjs';
+import { createD1 } from './helpers/d1Sqlite.mjs';
 
 const proof = 'fixture-only-setup-proof';
 const password = 'fixture admin password';
@@ -27,6 +29,23 @@ test('local admin setup rejects hosted, forwarded and cross-origin requests befo
   }
   const unrelated = new Request('http://localhost/api/admin/archive', { headers: { Authorization: 'Bearer local_admin_' + '0'.repeat(64) } });
   assert.equal(await isLocalAdminSession(unrelated, bindings), false);
+});
+
+test('quality stats returns JSON when local session storage has not been migrated', async t => {
+  const DB = await createD1({ throughMigration: '0041_ai_provider_connections.sql' });
+  t.after(() => DB.sqlite.close());
+  const env = { ...bindings, DB };
+  for (const [method, handler, error] of [['GET', getStats, 'Failed to fetch quality stats'], ['POST', postStats, 'Action failed']]) {
+    const request = new Request('http://localhost/api/admin/quality-stats', {
+      method, headers: { Authorization: 'Bearer local_admin_' + '0'.repeat(64) }
+    });
+    const response = await handler({ request, env });
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get('Content-Type'), 'application/json');
+    const body = await response.json();
+    assert.equal(body.error, error);
+    assert.match(body.message, /no such table: local_admin_sessions/);
+  }
 });
 
 test('local password enrollment, login, rotation and logout use scoped, hashed sessions in D1', { timeout: 90000 }, async t => {
@@ -65,7 +84,21 @@ test('local password enrollment, login, rotation and logout use scoped, hashed s
   const signedIn = await (await post({ action: 'login', password })).json();
   assert.ok(signedIn.expiresAt > Date.now());
   assert.notEqual(signedIn.token, token);
-  assert.equal((await overview(signedIn.token)).status, 200);
+  const catalog = await overview(signedIn.token);
+  assert.equal(catalog.status, 200);
+  const { features } = await catalog.json();
+  const { policy, baseToken, revision } = features.find(feature => feature.id === 'readings');
+  policy.primary.reasoningEffort = 'medium';
+  const configUrl = worker.url + '/api/admin/ai-configuration';
+  const save = credential => fetch(configUrl + '/features/readings', {
+    method: 'PUT', headers: { ...auth(credential), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ policy, baseToken, baseRevision: revision, mutationId: 'local-password-save' })
+  });
+  assert.equal((await save(signedIn.token)).status, 200);
+  assert.equal((await save(ADMIN_FIXTURE_KEY)).status, 200);
+  const history = await fetch(configUrl + '/history?feature=readings', { headers: auth(signedIn.token) });
+  assert.deepEqual((await history.json()).entries.map(entry => entry.actor), ['Local password session']);
+  assert.equal((await fetch(configUrl + '/release-settings', { headers: auth(signedIn.token) })).status, 401);
   assert.equal((await fetch(worker.url + '/api/admin/quality-stats', { headers: auth(token) })).status, 200);
   const account = await worker.db.prepare('SELECT * FROM local_admin_access').first();
   assert.equal(account.password_hash.length, 64);

@@ -1,7 +1,7 @@
 # Tableu admin AI configuration
 
-Type: spec  
-Status: implemented locally  
+Type: spec
+Status: implemented locally
 Last reviewed: 2026-11-19
 
 An admin can change the model for one Tableu feature, try the draft on a fixed sample, see which provider actually answered, and save the change for new requests in the selected environment. Editing Readings covers both initial and regenerated readings. The implementation target is the final supplied desktop frame. Its sample result and environment are illustrative.
@@ -84,7 +84,7 @@ For example, the completed result below stays identical when the admin subsequen
 
 ## Worker API and persistence
 
-Register the following routes in the existing Worker router. Require server-side admin bearer verification on every endpoint, including sample polling. Return `Cache-Control: no-store`. Hosted access uses the deployment admin credential. Local browser access also accepts an expiring, revocable session issued after local password setup. Record a shared admin actor and attach a request ID. Named attribution requires a future authenticated admin identity. [Admin auth gate](../../../src/components/admin/AdminAuthGate.jsx) · [Worker authentication convention](../../../functions/api/admin/quality-stats.js) · [Worker routes](../../../src/worker/index.js)
+Register the following routes in the existing Worker router. Require server-side admin bearer verification on every endpoint, including sample polling. Return `Cache-Control: no-store`. Hosted access uses the deployment admin credential. Local browser access also accepts an expiring, revocable session issued after local password setup. For each saved revision, record the verified authentication method (`Shared admin credential` or `Local password session`) and a request ID. Named attribution requires a future authenticated admin identity. [Admin auth gate](../../../src/components/admin/AdminAuthGate.jsx) · [Worker authentication convention](../../../functions/api/admin/quality-stats.js) · [Worker routes](../../../src/worker/index.js)
 
 All paths below are relative to `/api/admin/ai-configuration`. The deployment supplies the environment identity and bindings. Local owner endpoints also verify the signed-in Tableu reader. The server derives the reader identity from the session cookie.
 

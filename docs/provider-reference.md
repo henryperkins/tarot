@@ -14,9 +14,22 @@ Start `npm run dev`. For first-time local access, run `npm run admin:open` and c
 
 Use **Feature models** to assign a model, set its reasoning effort, arrange reading fallbacks and test a draft. Use **Provider connections** to enter or replace credentials for OpenAI, Anthropic, Modal and ElevenLabs. Supply the endpoint and credentials together for Modal. **Disconnect** turns off that provider even if deployment credentials exist. **Restore deployment settings** returns it to the deployment’s configuration. Workers AI uses its deployment binding and the local providers run in-process. A configured connection indicates that settings are present. **Run sample** can exercise a text provider. **Change history** shows saved feature assignments. [Dashboard specification](superpowers/specs/2026-11-19-ai-configuration-dashboard-design.md)
 
-Credential changes take effect for new provider requests. D1 stores encrypted connection values per environment, and the private `PROVIDER_CREDENTIAL_KEYS` Durable Object supplies the encryption key automatically. Preserve this namespace alongside D1 when moving or restoring an environment. An installation already using a dedicated `AI_CONNECTIONS_ENCRYPTION_KEY` keeps using that key. The local startup applies the database migrations and initializes browser setup automatically. Hosted environments require their own bindings, migrations and existing admin authentication.
+Credential changes take effect for new provider requests. D1 stores encrypted connection values per environment, and the private `PROVIDER_CREDENTIAL_KEYS` Durable Object supplies the encryption key automatically. Preserve this namespace alongside D1 when moving or restoring an environment. An installation already using a dedicated `AI_CONNECTIONS_ENCRYPTION_KEY` keeps using that key.
 
-The Worker uses `AI_CONFIG_ENVIRONMENT` (`local`, `preview`, or `production`) and `AI_CONFIG_ENABLED`. To enable an isolated Preview deployment, bind its own migrated D1 database and its own `ADMIN_AI_SAMPLES` and reading job namespaces, provide its intended credentials, and set the two variables to `preview` and `true`. Each origin edits its own environment. Disabling the resolver returns new requests to deployed defaults and retains revision history.
+`npm run dev` applies local D1 migrations. For a standalone Worker, apply any pending migrations with `npm run migrations:apply:local` before starting `npm run dev:workers` or `npm run dev:wrangler`. Both commands start the local owner-subscription hosts and reject `--remote`. The launcher writes missing `ADMIN_API_KEY`, `LOCAL_ADMIN_SETUP_TOKEN` and `LOCAL_OWNER_HOST_SECRET` values to the local secrets file (`.dev.vars` by default, or `.env.local` for a checkout using dotenv files without `.dev.vars`).
+
+### Enable a hosted environment
+
+1. Keep the target Worker’s effective `AI_CONFIG_ENABLED` value at `false`. Set `AI_CONFIG_ENVIRONMENT` to `preview` or `production` as appropriate. An isolated preview needs its own D1 database, Durable Object namespaces (including reading jobs), provider credentials and admin authentication.
+2. Deploy the schema and Worker to that environment. The production `npm run deploy` applies D1 migrations before uploading the Worker. Verify migrations `0040` through `0043` are applied to the target database (`npm run migrations:status` for production). Check the active Worker version for all three new bindings and confirm the corresponding Durable Object migrations were deployed.
+
+   | Worker binding | Durable Object class | Migration tag |
+   | --- | --- | --- |
+   | `ADMIN_AI_SAMPLES` | `AdminAiSamples` | `admin-ai-samples-v1` |
+   | `PROVIDER_CREDENTIAL_KEYS` | `ProviderCredentialKeys` | `provider-credential-keys-v1` |
+   | `OWNER_SUBSCRIPTION_SAMPLES` | `OwnerSubscriptionSamples` | `owner-subscription-samples-v1` |
+
+3. Once those checks pass, set `AI_CONFIG_ENABLED=true` in the target Worker’s settings. Production deploys preserve existing dashboard variables. Setting the flag back to `false` returns new requests to deployed defaults and retains revision history. [Deployment variable precedence](../README.md#deployment)
 
 Production starts with overrides disabled. The first deployment makes the authenticated production release-settings endpoint available. The shared [production Readings rollout switch](../shared/contracts/aiConfigRelease.js) opens production Readings edits and activates the matching release preflight together. For that rollout the release runner needs the production admin credential in `ADMIN_API_KEY`, in addition to the normal evaluation credentials. The runner reads the effective assignment from the production Worker, records its fingerprint with the samples, and checks it again after qualification. The admin key stays out of the subprocesses.
 

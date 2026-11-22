@@ -97,7 +97,7 @@ async function replay(row, { baseRevision, baseToken, policy }) {
   return receipt(saved, row.revision, row.issued_token);
 }
 
-export async function savePolicy(env, id, body) {
+export async function savePolicy(env, id, body, actor) {
   const feature = getFeature(env, id);
   if (!feature.writable) throw new ConfigError(403, 'read_only', 'This assignment is read-only in this environment.');
   const { baseRevision, baseToken, mutationId } = body;
@@ -130,10 +130,10 @@ export async function savePolicy(env, id, body) {
   const issued = await token(env, feature, next);
   const inserted = await db.prepare(`INSERT INTO ai_feature_config_revisions
     (environment, feature_id, revision, catalog_version, policy_json, diff_json, issued_token, mutation_id, request_digest, request_id, actor, created_at)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Shared admin credential', ?
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     WHERE COALESCE((SELECT MAX(revision) FROM ai_feature_config_revisions WHERE environment = ? AND feature_id = ?), 0) = ?
     ON CONFLICT DO NOTHING`).bind(environment, id, next, CATALOG_VERSION, JSON.stringify(policy), JSON.stringify(diff), issued,
-    mutationId, digest, crypto.randomUUID(), new Date().toISOString(), environment, id, revision).run();
+    mutationId, digest, crypto.randomUUID(), actor, new Date().toISOString(), environment, id, revision).run();
   if (inserted.meta.changes === 1) return receipt(policy, next, issued);
   const raced = await lookup();
   if (raced) return replay(raced, body);
