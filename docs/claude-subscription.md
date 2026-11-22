@@ -32,7 +32,14 @@ with `npm ci`. The service uses the installed CLI and needs no extra SDK package
    `services/claude-code/.env.local`. Generate a gateway token with
    `openssl rand -hex 32` and replace the example value. Use a distinct secret,
    never a Claude credential, for this token.
-3. Run `npm run dev:claude`. The service listens on `127.0.0.1:8789` by default.
+3. Run `npm run dev:claude`. The service listens on `127.0.0.1:8790` by default.
+   The [Codex gateway](codex-subscription.md) defaults to port 8789, so both
+   can run on one host.
+
+The default port was 8789 before 2026-11-22. An existing `.env.local` that sets
+`CLAUDE_CODE_PORT` keeps its port. If yours has no `CLAUDE_CODE_PORT` line, add
+`CLAUDE_CODE_PORT=8789` to keep the old port, or point `CLAUDE_CODE_GATEWAY_URL`
+and any tunnel for this service at port 8790.
 
 The CLI inherits only basic OS variables and uses the host's stored login.
 Each inference verifies subscription authentication. API keys, bearer overrides,
@@ -55,7 +62,7 @@ Add these settings to this checkout's untracked `.dev.vars`:
 
 ```dotenv
 TEXT_PROVIDER=claude-code
-CLAUDE_CODE_GATEWAY_URL=http://127.0.0.1:8789
+CLAUDE_CODE_GATEWAY_URL=http://127.0.0.1:8790
 CLAUDE_CODE_GATEWAY_TOKEN=the-same-random-gateway-token
 CLAUDE_CODE_OWNER_USER_ID=your-existing-tableu-user-id
 CLAUDE_CODE_TIMEOUT_MS=300000

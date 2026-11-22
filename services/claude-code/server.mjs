@@ -5,6 +5,9 @@ import { CLAUDE_CODE_MAX_BODY_BYTES, validateClaudeRequest } from '../../shared/
 import { runClaudeCode, verifySubscriptionLogin } from './runner.mjs';
 import { createSubscriptionStatus } from '../subscription-status.mjs';
 
+// The Codex gateway defaults to 8789. Keep these apart so both can run on one host.
+export const CLAUDE_CODE_DEFAULT_PORT = 8790;
+
 function authorized(header, token) {
   const received = Buffer.from(header || '');
   const expected = Buffer.from(`Bearer ${token}`);
@@ -107,7 +110,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     timeoutMs: Number(process.env.CLAUDE_CODE_TIMEOUT_MS || 300000)
   });
   const host = process.env.CLAUDE_CODE_BIND_HOST || '127.0.0.1';
-  const port = Number(process.env.CLAUDE_CODE_PORT || 8789);
+  const port = Number(process.env.CLAUDE_CODE_PORT || CLAUDE_CODE_DEFAULT_PORT);
   const shutdown = () => { server.shutdown().catch(() => { process.exitCode = 1; }); };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

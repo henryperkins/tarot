@@ -5,6 +5,9 @@ import { CODEX_SUBSCRIPTION_MAX_BODY_BYTES, CODEX_SUBSCRIPTION_MAX_OUTPUT_BYTES,
 import { listCodexSubscriptionModels, runCodexSubscription, verifyCodexSubscriptionLogin } from './runner.mjs';
 import { createSubscriptionStatus } from '../subscription-status.mjs';
 
+// The Claude gateway defaults to 8790. Keep these apart so both can run on one host.
+export const CODEX_SUBSCRIPTION_DEFAULT_PORT = 8789;
+
 function authorized(header, token) {
   const received = Buffer.from(header || '');
   const expected = Buffer.from(`Bearer ${token}`);
@@ -145,7 +148,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     timeoutMs: Number(process.env.CODEX_SUBSCRIPTION_TIMEOUT_MS || 300000)
   });
   const host = process.env.CODEX_SUBSCRIPTION_BIND_HOST || '127.0.0.1';
-  const port = Number(process.env.CODEX_SUBSCRIPTION_PORT || 8789);
+  const port = Number(process.env.CODEX_SUBSCRIPTION_PORT || CODEX_SUBSCRIPTION_DEFAULT_PORT);
   const shutdown = () => { server.shutdown().catch(() => { process.exitCode = 1; }); };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

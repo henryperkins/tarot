@@ -114,20 +114,27 @@ function Settings({ status, request, fixture, onChange, onAccessChange, onRefres
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const saveRequest = useRef(null);
+  useEffect(() => () => saveRequest.current?.abort(), []);
   const selected = providers.find(item => item.id === selection);
   const saved = providers.find(item => item.id === link.providerId);
   const dirty = selection !== (link.providerId || '');
 
   async function save(providerId) {
+    const controller = new AbortController();
+    saveRequest.current = controller;
     setSaving(true);
     setError('');
     try {
-      const updated = await request(endpoint, { method: 'PUT', body: { baseRevision: link.revision, providerId } });
-      onChange(updated, providerId ? 'Owner subscription saved.' : 'Reader account unlinked.');
+      const updated = await request(endpoint, { method: 'PUT', body: { baseRevision: link.revision, providerId }, signal: controller.signal });
+      if (!controller.signal.aborted) onChange(updated, providerId ? 'Owner subscription saved.' : 'Reader account unlinked.');
     } catch (err) {
+      if (controller.signal.aborted) return;
       if (err.status === 403 || err.status === 409 || !err.status || err.status >= 500) onAccessChange(err);
       else setError(err.message);
-    } finally { setSaving(false); }
+    } finally {
+      if (!controller.signal.aborted) setSaving(false);
+    }
   }
 
   return <>
@@ -160,32 +167,57 @@ function Settings({ status, request, fixture, onChange, onAccessChange, onRefres
 }
 
 function OwnerConnection({ request, fixture, openAuth, headingRef }) {
-  const [status, setStatus] = useState(null);
-  const [error, setError] = useState(null);
-  const [notice, setNotice] = useState('');
-  const [version, setVersion] = useState(0);
-  const reload = useCallback(() => {
-    setStatus(null);
-    setError(null);
-    setVersion(value => value + 1);
-  }, []);
-  const accessChanged = useCallback(err => {
-    setNotice(err.message);
-    reload();
-  }, [reload]);
-  useEffect(() => {
-    // Reader cookies can change in another tab without a React auth update.
-    const recheck = () => { if (document.visibilityState === 'visible') reload(); };
-    document.addEventListener('visibilitychange', recheck);
-    return () => document.removeEventListener('visibilitychange', recheck);
-  }, [reload]);
-  useEffect(() => {
+  const [{ status, error, notice }, setView] = useState({});
+  const [checking, setChecking] = useState(false);
+  const pending = useRef(null);
+  const checkReader = useCallback(() => {
+    pending.current?.abort();
     const controller = new AbortController();
-    request(endpoint, { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) setStatus(result); })
-      .catch(err => { if (!controller.signal.aborted) setError(err); });
-    return () => controller.abort();
-  }, [request, version]);
+    pending.current = controller;
+    request(endpoint, { signal: controller.signal }).then(result => {
+      if (controller.signal.aborted) return;
+      setView(current => {
+        const previous = current.status;
+        if (previous?.reader.id === result.reader.id) {
+          // A save can advance this reader's link while the status read is in flight.
+          if (previous.link.revision > result.link.revision) return current;
+          if (previous.link.revision === result.link.revision) return { ...current, status: result };
+        }
+        return { status: result, notice: current.noticeReaderId === result.reader.id ? current.notice : '' };
+      });
+    }).catch(err => {
+      if (!controller.signal.aborted) setView({ error: err });
+    }).finally(() => {
+      if (!controller.signal.aborted) setChecking(false);
+    });
+  }, [request]);
+  const reload = useCallback(() => { setView({}); checkReader(); }, [checkReader]);
+  const readerId = status?.reader.id;
+  const accessChanged = useCallback(err => {
+    setView({ notice: err.message, noticeReaderId: readerId });
+    checkReader();
+  }, [checkReader, readerId]);
+  useEffect(() => {
+    checkReader();
+    const recheck = () => {
+      if (document.visibilityState !== 'visible') return;
+      setChecking(true);
+      checkReader();
+    };
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      pending.current?.abort();
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  }, [checkReader]);
+  function saved(updated, message) {
+    // Only a status read can switch readers. A late save belongs to its original reader.
+    setView(current => {
+      const previous = current.status;
+      if (previous?.reader.id !== updated.reader.id || previous.link.revision > updated.link.revision) return current;
+      return { status: updated, notice: message };
+    });
+  }
   const guest = error?.code === 'reader_sign_in_required';
   return <>
     <h3 id="owner-heading" ref={headingRef} tabIndex={-1}>Owner subscription</h3>
@@ -199,9 +231,10 @@ function OwnerConnection({ request, fixture, openAuth, headingRef }) {
       <button type="button" className="ai-button" onClick={reload}>Retry owner access</button></div>}
     {status && <>
       <p className="ai-reader-identity"><strong>{status.link.ownedByReader ? 'Linked reader' : 'Signed-in reader'}</strong> · {status.reader.label}</p>
-      {status.editable ? <Settings key={status.reader.id + '/' + status.link.revision} request={request} status={status} fixture={fixture}
-        onChange={(updated, message) => { setStatus(updated); setNotice(message); }} onAccessChange={accessChanged}
-        onRefresh={() => { setNotice(''); reload(); }} />
+      {status.editable ? <fieldset disabled={checking} aria-busy={checking} aria-label="Owner subscription settings">
+        <Settings key={status.reader.id + '/' + status.link.revision} request={request} status={status} fixture={fixture}
+          onChange={saved} onAccessChange={accessChanged} onRefresh={reload} />
+      </fieldset>
         : <><p>{status.readOnlyReason || 'Only the linked reader can manage this subscription.'}</p>
           <button type="button" className="ai-button" onClick={() => openAuth('login')}>Sign in with another reader account</button></>}
     </>}
