@@ -1,5 +1,5 @@
 {
-  "version": "reading-local-acceptance-v11",
+  "version": "reading-local-acceptance-v12",
   "scope": "frontend-build-and-controlled-fixtures; Worker execution is disabled",
   "paths": [
     "functions/lib/canonicalSceneEvidence.js",
@@ -870,6 +870,7 @@
     "src/components/admin/LocalAdminAccess.jsx",
     "src/components/admin/OwnerSubscription.jsx",
     "src/components/admin/ProviderConnections.jsx",
+    "src/components/admin/SubscriptionModels.jsx",
     "src/components/admin/AlertCard.jsx",
     "src/components/admin/AlertsList.jsx",
     "src/components/admin/DaysFilter.jsx",
