@@ -4452,11 +4452,14 @@ input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.5),
     0 8px 20px -8px rgba(0, 0, 0, 0.3);
   color: var(--text-on-brand);
+  min-width: 0;
+  max-width: 100%;
   overflow: visible;
 }
 
 .coach-note-shell {
   position: relative;
+  min-width: 0;
 }
 
 /* Faint ruled lines */
@@ -4553,25 +4556,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
   padding: 28px 20px 20px;
 }
 
-/* Label at top - plain text style, no pill */
-.coach-note__label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: rgba(90, 80, 65, 0.85);
-}
-
-.coach-note__label svg {
-  width: 12px;
-  height: 12px;
-  color: rgba(180, 155, 100, 0.9);
-}
-
 /* Main question/title text */
 .coach-note__title {
   font-family: var(--font-serif);
@@ -4580,7 +4564,9 @@ input[type="range"]:focus::-webkit-slider-thumb {
   line-height: 1.45;
   color: rgba(28, 24, 20, 0.92);
   margin: 0 0 16px 0;
+  min-width: 0;
   padding-right: 24px; /* space for curl */
+  overflow-wrap: anywhere;
 }
 
 /* Date at bottom left */

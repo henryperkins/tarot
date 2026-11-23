@@ -3,7 +3,7 @@ import { test, expect } from './helpers/frontendTest.js';
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 test.describe('Saved intentions modal', () => {
-  test('confirms before using or deleting an intention', async ({ page }) => {
+  test('uses an intention in one tap and confirms before deleting', async ({ page }) => {
     const question = 'E2E saved intention for nested modal focus';
 
     // Match the anonymous storage fixture without relying on a running Worker
@@ -39,43 +39,22 @@ test.describe('Saved intentions modal', () => {
     await expect(intentionsDialog).toBeVisible();
     await expect(closeIntentions).toBeFocused();
 
-    const cardButton = page.getByRole('button', {
-      name: new RegExp(`Use suggestion: ${escapeRegExp(question)}`, 'i')
-    });
-    await cardButton.click();
-
-    const useDialog = page.getByRole('dialog', { name: 'Use this intention?' });
-    await expect(useDialog).toBeVisible();
-    await expect(useDialog).toContainText(question);
-    await expect(useDialog.getByRole('button', { name: 'Not yet' })).toBeFocused();
-    await expect(intentionsDialog).toHaveCount(0);
-    const nestedButtons = useDialog.getByRole('button');
-    await nestedButtons.last().focus();
-    await page.keyboard.press('Tab');
-    await expect(nestedButtons.first()).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    await expect(nestedButtons.last()).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(useDialog).toBeHidden();
-    await expect(intentionsDialog).toBeVisible();
-    await expect(cardButton).toBeFocused();
-
-    // The parent trap resumes after the nested dialog returns focus.
+    // The parent trap still wraps while the sheet is the top dialog.
     await closeIntentions.focus();
     await page.keyboard.press('Shift+Tab');
     await expect(intentionsDialog.getByRole('button').last()).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(closeIntentions).toBeFocused();
 
-    await cardButton.click();
-    await expect(useDialog).toBeVisible();
-    await useDialog.getByRole('button', { name: 'Not yet' }).click();
-    await expect(useDialog).toBeHidden();
-    await expect(cardButton).toBeFocused();
+    const cardButton = page.getByRole('button', {
+      name: new RegExp(`Use intention: ${escapeRegExp(question)}`, 'i')
+    });
 
     const cardShell = page.locator('.coach-note-shell').first();
     await cardShell.hover();
-    const deleteButton = intentionsDialog.getByRole('button', { name: 'Delete this suggestion' }).first();
+    const deleteButton = intentionsDialog.getByRole('button', {
+      name: new RegExp(`Delete intention: ${escapeRegExp(question)}`, 'i')
+    });
     await deleteButton.click();
 
     const deleteDialog = page.getByRole('dialog', { name: 'Delete saved intention?' });
@@ -89,10 +68,27 @@ test.describe('Saved intentions modal', () => {
 
     await deleteButton.click();
     await expect(deleteDialog).toBeVisible();
+    await deleteDialog.getByRole('button', { name: 'Keep it' }).click();
+    await expect(deleteDialog).toBeHidden();
+    await expect(deleteButton).toBeFocused();
+
+    await cardButton.click();
+    await expect(page.getByRole('dialog', { name: 'Use this intention?' })).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: /What would you like to understand/ })).toHaveValue(question);
+
+    await page.goto('/journal');
+    await expect(page.getByRole('heading', { name: 'Your Tarot Journal', level: 1 })).toBeVisible();
+    await openButton.click();
+    await expect(intentionsDialog).toBeVisible();
+    await cardShell.hover();
+    await deleteButton.click();
+    await expect(deleteDialog).toBeVisible();
     await deleteDialog.getByRole('button', { name: 'Delete' }).click();
     await expect(deleteDialog).toBeHidden();
 
     await expect(page.getByText('No saved intentions yet.')).toBeVisible();
+    await expect(intentionsDialog.getByRole('link', { name: 'Save one from your question' })).toBeVisible();
     await expect.poll(() => intentionsDialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(intentionsDialog).toBeHidden();

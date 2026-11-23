@@ -6,7 +6,7 @@ export const HISTORY_STORAGE_KEY = 'tarot_coach_history';
 const LEGACY_TEMPLATE_STORAGE_KEY = TEMPLATE_STORAGE_KEY;
 const LEGACY_HISTORY_STORAGE_KEY = HISTORY_STORAGE_KEY;
 export const MAX_TEMPLATES = 8;
-const MAX_HISTORY_ITEMS = 10;
+export const MAX_HISTORY_ITEMS = 10;
 export const COACH_STORAGE_SYNC_EVENT = 'coach-storage-sync';
 // Undo belongs to the current session and the owner who made the replacement.
 // Keep canonical snapshots private so a changed or copied token cannot restore

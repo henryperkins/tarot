@@ -55,7 +55,7 @@ export function SavedIntentionsModal({ isOpen, onClose }) {
           className="absolute top-3 right-3 z-20"
         />
 
-        <div className="relative z-10 flex-1 overflow-y-auto p-5 sm:p-6 pr-14 sm:pr-16">
+        <div className="relative z-10 min-w-0 flex-1 overflow-y-auto p-5 sm:p-6 pr-14 sm:pr-16">
           <SavedIntentionsList
             titleId={titleId}
             variant="modal"

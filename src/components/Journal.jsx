@@ -46,7 +46,7 @@ import {
   AMBER_CARD_MOBILE_CLASS
 } from '../lib/journal/constants';
 import { buildJournalMonthSections, describeHistoryResults } from '../lib/journal/utils';
-import { JournalCardsAddIcon, JournalRefreshIcon, JournalSearchIcon } from './JournalIcons';
+import { JournalBookmarkIcon, JournalCardsAddIcon, JournalSearchIcon } from './JournalIcons';
 
 // Comfortable or Compact, remembered on this device.
 const LIST_DENSITY_KEY = 'journal_list_density_v1';
@@ -968,7 +968,7 @@ export default function Journal() {
                 onClick={() => setShowSavedIntentionsModal(true)}
                 className="inline-flex min-h-touch items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-main shadow-[0_12px_30px_-18px_rgb(var(--brand-primary-rgb)/0.35)] transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <JournalRefreshIcon className="h-4 w-4 text-accent" aria-hidden="true" />
+                <JournalBookmarkIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 Saved Intentions
               </button>
               <button

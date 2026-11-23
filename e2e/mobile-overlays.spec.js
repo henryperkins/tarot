@@ -177,10 +177,9 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       const journal = page.getByRole('heading', { name: 'Your Tarot Journal', level: 1 });
       await expect(journal).toBeVisible();
 
-      // Saved Intentions, then its confirmation, then a new reading.
+      // Saved Intentions, then the note itself, then a new reading.
       await page.getByRole('button', { name: 'Saved Intentions', exact: true }).click();
-      await page.getByRole('button', { name: `Use suggestion: ${question}` }).click();
-      await page.getByRole('dialog', { name: 'Use this intention?' }).getByRole('button', { name: 'Start Reading' }).click();
+      await page.getByRole('button', { name: `Use intention: ${question}` }).click();
       await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
 
       await page.goBack();

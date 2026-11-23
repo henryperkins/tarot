@@ -140,7 +140,7 @@ export function CoachSuggestion({
                 <button
                     type="button"
                     className={`coach-note coach-note--interactive ${className}`}
-                    aria-label={`Use suggestion: ${headlineText}`}
+                    aria-label={`Use intention: ${headlineText}`}
                     onClick={handleCardClick}
                 >
                     {/* Tape decoration at top */}
@@ -150,31 +150,22 @@ export function CoachSuggestion({
                     <span className="coach-note__curl" aria-hidden="true" />
 
                     <div className="coach-note__inner">
-                        {/* Label */}
-                        <div className="coach-note__label">
-                            <Sparkle weight="fill" aria-hidden="true" />
-                            <span>Guided Coach</span>
-                        </div>
-
-                        {/* Question/title */}
                         {headlineText && (
                             <p className="coach-note__title">{headlineText}</p>
                         )}
 
-                        {/* Date at bottom */}
                         {noteDate && (
                             <div className="coach-note__date">{noteDate}</div>
                         )}
                     </div>
                 </button>
 
-                {/* Delete button (shows on hover) */}
                 {onDismiss && (
                     <button
                         type="button"
                         className="coach-note__delete"
                         onClick={handleDelete}
-                        aria-label="Delete this suggestion"
+                        aria-label={`Delete intention: ${headlineText}`}
                     >
                         <Trash aria-hidden="true" />
                     </button>
