@@ -1,132 +1,55 @@
-# Impeccable audit: expanded saved journal entries
+# Impeccable audit of expanded saved journal entries
 
-Recorded November 22, 2026 (America/Chicago). This is the audit of open saved journal entries. It documents findings and does not change the application.
+**17/20 · Good**, up from 15/20 on November 22. The November 23, 2026 pass exercised the merged journal on `/journal` as a guest and as an active Pro reader. Two P2 issues remain on the open entry. The pattern web clips long names at enlarged text, and the guest copy action can open the system share sheet. [Audited merge of #164](https://github.com/henryperkins/tarot/commit/5753a32c64b372999807b64cf6c7fea5c5077a46)
 
-An open saved journal entry is in good technical shape: **15/20, Good**. Guest Chrome covered dark and light, 320px through 1440px, 200% text, and reduced motion. Signed-in Pro was not available in this environment, so the share composer and cloud follow-up limits were reviewed from the component only.
+## Score
 
-Audit performed with Impeccable v4.5.1. v4.10.0 was available at the time of this audit.
+| Dimension | Score | Browser and source evidence |
+| --- | ---: | --- |
+| Accessibility | 3/4 | The follow-up heading hierarchy, copy/share status, and note-confirmation focus now work. The guest action name describes only its clipboard behavior. |
+| Performance | 3/4 | The open fan loaded all ten images, four eager and six lazy. Markdown loads on demand. Graph placement uses bounded layout measurements. This pass covered interaction and loading on a local desktop browser. |
+| Theming | 4/4 | The icon buttons, menu, reversed badge, and thumbnails resolved to the theme shadows. The three sampled text roles cleared 4.5:1 in both themes. |
+| Responsive design | 3/4 | Touch picks a covered card and still allows scrolling. The page fits at 320px, including at 200% text, where two graph labels run past the card edge. |
+| Implementation integrity | 4/4 | **Pass.** The expanded question keeps its context, saved prose shares one heading hierarchy, and the relationship list names every connection in the drawing. The scoped Impeccable detector returned zero findings. |
 
-## Audit Health Score
+**Open-entry findings by severity** · 0 P0, 0 P1, 2 P2, 0 P3. The local validation failures are recorded separately below.
 
-| # | Dimension | Score | Key Finding |
-|---|-----------|-------|-------------|
-| 1 | Accessibility | 3 | Action status is announced twice, and a follow-up heading can become a page-level `h1` |
-| 2 | Performance | 3 | Narrative markdown and later card images load on demand; no layout loop |
-| 3 | Theming | 3 | Dark and light text meet WCAG AA; a few shadows stay black in both themes |
-| 4 | Responsive Design | 3 | No horizontal overflow, including at 320px and 200% text; a 10-card fan leaves some cards almost untappable |
-| 5 | Implementation Integrity | 3 | The detector is clean; context disappears on open, and pattern-web names collide |
-| **Total** | | **15/20** | **Good** |
+## What changed after #164
 
-## Implementation Integrity Verdict
+| Original finding | Result on the merged entry |
+| --- | --- |
+| Covered cards in the fan | All ten center taps selected the intended card on the 320px guest entry at 200% text and the 390px Pro entry. Chrome hit-tested The Fool above The Magician’s center, but tapping there selected and focused **The Magician**. Right Arrow moved focus to The World. A vertical swipe scrolled the page and kept the selection. A desktop mouse click selected the hovered card. [Selected card on a phone viewport](expanded-journal-entry-evidence/covered-card-selected.png) |
+| Pattern-web names | The Fool, The Magician, and The World had **zero pairwise text overlap** in every tested layout. The list retained both the three-card pattern and the Fool–Magician pair. The enlarged-text clipping is described below. |
+| Follow-up headings and links | The question was an `h3`. Both the narrative and the latest answer rendered Markdown `#` and `##` as Source Serif `h4` and `h5`. The follow-up link had `target="_blank"` and `rel="noopener noreferrer"`. |
+| Context | “Career” was visible on the collapsed row and beside “Celtic Cross” in the open header for both readers. |
+| Copy and share announcements | Guest clipboard success and Pro link creation each produced one matching `role="status"` with `aria-live="polite"` and no enclosing live region. This verifies the accessibility tree. Screen-reader speech was outside this pass. |
+| Note removal | In both sessions, choosing **Edit** and then **Remove note** put focus on **Keep note**. Escape returned focus to the edit action and preserved the note. |
+| Shadows | The icon button and menu used `--ui-elevated-shadow`. The thumbnail and reversed badge used `--ui-card-shadow-soft`. In light mode the computed colors were `rgba(77, 59, 42, 0.2)` and `rgba(125, 98, 59, 0.2)` respectively. |
 
-**Pass, with isolated gaps.** The open entry is one Tableu surface: a serif question, tracked section labels, hairline sections, deck art, and the reading’s own “What resonates for you now?” prompt. It is not a generic card list.
+## Signed-in Pro
 
-The mechanical detector reported **zero findings** across `src/components/journal/entry-card/`, `src/components/charts/CardRelationshipGraph.jsx`, and `src/components/Journal.jsx`. The same detector does report issues on other files, so this empty result is a real scan. Rendered checks found problems the regex scan cannot see.
+**Share composer.** Opening **Create share link** focused the selected **7 days** radio. All four expiry choices were available. Left Arrow selected **24 hours**. Escape and Cancel each returned focus to the trigger. Choosing or canceling sent zero create requests. In a separate clipboard run, confirming the 24-hour option returned HTTP 201 and one “Share link copied” message. The local shared response contained the question and omitted the saved narrative and reflection. Revoking the test link changed its response from 200 to 404. [Share composer with 24 hours selected](expanded-journal-entry-evidence/pro-share-composer.png)
 
-## Executive Summary
+**Cloud follow-up limit.** With nine saved turns, the entry showed **9/10** and **Ask a follow-up** opened an editable chat with “1 question left.” A second entry had ten actual saved turns in local D1. It showed **10/10**, disabled **Limit reached**, and kept **Open full chat** available. The chat displayed the first and tenth questions, explained the limit, and exposed neither a question field nor a Send button. Opening these states made zero generation requests. [Capped entry](expanded-journal-entry-evidence/pro-follow-up-limit.png) · [Notice inside the open chat](expanded-journal-entry-evidence/pro-chat-limit.png)
 
-- Audit Health Score: **15/20** (Good)
-- Issues: **0 P0, 0 P1, 6 P2, 1 P3**
-- Top issues:
-  1. On a phone, several cards in a 10-card fan have almost no tappable face.
-  2. “The Fool” and “The Magician” overlap on the pattern web at 390px and at 1440px.
-  3. A markdown heading in a follow-up becomes a 36px `h1`, above the entry’s own question.
-  4. “Career” is on the collapsed row and gone once the entry is open.
-  5. Copying a summary is announced twice.
-- Next step: `/impeccable adapt` for the fan and the pattern-web names, then `/impeccable typeset` for follow-up headings.
+## Remaining findings
 
-Coverage: guest session, real `/journal` on Vite, local saved entries, Chrome headless (not a physical device). Viewports 320×720, 390×844, 1280×800, and 1440×900. Dark and light. Root text at 100% and 200%. `prefers-reduced-motion: reduce` on the desktop pass. Touch emulation below 700px wide. The reviewer credential file and local account database are not on this machine, and the Worker was not running, so signed-in Pro was not opened in the browser.
+### P2 · Enlarged pattern names clip at the entry edge
 
-## Detailed Findings
+At 320px with a 32px root font, the label boxes fit inside the plot, but the words overflow those boxes. In light mode the article’s right edge was at 274px. “The Magician” extended to 310px and “The World” to 290px. The article clipped about 35px and 16px of their text. Both accounts and both themes showed the same problem. The list below spells out all three names, so readers can still recover the relationship. [320px capture at 200% text](expanded-journal-entry-evidence/pattern-web-320-200.png)
 
-### [P2] Buried cards in the open fan are barely tappable
+Use `/impeccable adapt` to give these words enough room or move the names to the list when the plot is too narrow. Verify the painted text against the article edge as well as against neighboring labels. The placement code measures the constrained span boxes. [CardRelationshipGraph.jsx](../../../src/components/charts/CardRelationshipGraph.jsx)
 
-- **Location**: `src/components/journal/entry-card/EntrySections/CardsDrawnSection/CardFan.jsx`, `fanGeometry.js`
-- **Category**: Responsive
-- **Impact**: On a Celtic Cross at 390px, sampling the Magician’s button hit the card on about 4% of points. The Knight’s visible face was about 20px wide; at 320px it was about 15px, and about 12px at 320px with 200% text. A tap lands on whichever card is painted on top. Arrow keys still move the selection and bring that card forward.
-- **WCAG/Standard**: Misses Tableu’s 44px target. WCAG 2.5.8 (24px) is a 2.2 criterion; the product target is 2.1 AA, where this is not an automatic failure. Overlap is an intentional fan, and the full card box stays at least 44px on its long side.
-- **Recommendation**: Keep the overlap. Make a tap select the covered card from its full box, which already stays at least 44px on its long side, instead of the card painted on top. A visible 24px strip would meet only the WCAG 2.5.8 floor and would remain an exception to Tableu’s 44px target, because a 10-card fan at 320px cannot give every card a non-overlapping 44px face.
-- **Suggested command**: `/impeccable adapt`
+### P2 · The guest “Copy summary” action invokes native sharing
 
-### [P2] Pattern-web names sit on top of each other
+With Web Share enabled, activating **Copy summary** called Chrome’s native share API and left the button pending while it waited for the system picker. With Web Share disabled, the same action copied immediately and produced “Summary copied (single reading).” A reader choosing Copy can reasonably expect to paste the result without selecting a destination. The browser run ended before any native share destination was chosen.
 
-- **Location**: `src/components/charts/CardRelationshipGraph.jsx` (`labelStyle`), used by `KnowledgeGraphSection.jsx`
-- **Category**: Responsive
-- **Impact**: With The Fool, The Magician, and The World, “The Fool” and “The Magician” occupy the same pixels: about 15×6px of overlap at 390px and about 8×4px at 1440px. The names are `aria-hidden` and the list underneath is readable, so screen readers get the relationships. The drawing itself is hard to scan.
-- **WCAG/Standard**: Visual overlap of text. Not a contrast failure.
-- **Recommendation**: Place each name in a lane that cannot intersect another name, or drop the drawing labels when the circle is crowded and keep the list.
-- **Suggested command**: `/impeccable adapt`
+Use `/impeccable clarify` to align the action and its feedback. **Copy summary** should write directly to the clipboard, or the native-sharing path should say **Share summary** and report sharing or cancellation accurately. After both P2 fixes, use `/impeccable polish` to recheck the phone layout and both feedback paths. [Guest action label](../../../src/components/journal/entry-card/EntryHeader/ComfortableHeader.jsx) · [Summary delivery](../../../src/lib/journalInsights.js) · [Status text](../../../src/components/journal/entry-card/hooks/useEntryActions.js)
 
-### [P2] Follow-up markdown can insert a page-level heading
+## Coverage and verification
 
-- **Location**: `EntrySections/FollowUpSection.jsx` renders `JournalMarkdown` without `journalHeadings`. `JournalMarkdown.jsx` only remaps headings, and only the saved narrative opts in.
-- **Category**: Accessibility
-- **Impact**: A follow-up that starts with `# Start over from the top` renders a real `h1` at 36px in Inter, larger than the entry’s serif question and ahead of it in the heading list. The saved narrative correctly becomes `h4` “Opening” and `h5` “The story”. On a phone only the latest turn is shown, so an older heading stays hidden until that turn is in the preview. The follow-up link is brass and underlined, but it opens in the same tab; narrative links open in a new tab.
-- **WCAG/Standard**: 1.3.1 Info and Relationships, 2.4.6 Headings and Labels. Also the Two Voices rule: serif for headings.
-- **Recommendation**: Run follow-up answers through the same heading remap and link treatment as the saved narrative.
-- **Suggested command**: `/impeccable typeset`
-
-### [P2] Opening an entry drops its context
-
-- **Location**: `EntryHeader/ComfortableHeader.jsx` expanded branch; `hooks/useEntryMetadata.js` (`buildThemeInsights`)
-- **Category**: Implementation Integrity
-- **Impact**: Collapsed, the sample row reads “Career”. Expanded, that word is gone. Key themes are written not to repeat context because the header is supposed to name it. The open header names the time, the deck, the question, and the full spread, and not the context.
-- **WCAG/Standard**: None. The reader has to collapse the entry to see why it was tagged.
-- **Recommendation**: Keep the context in the open header beside the spread and time.
-- **Suggested command**: `/impeccable clarify`
-
-### [P2] “Summary copied” is announced twice
-
-- **Location**: `JournalEntryCard.jsx` wraps `InlineStatus` in `aria-live="polite"`. `InlineStatus.jsx` is already `role="status"` with its own `aria-live`.
-- **Category**: Accessibility
-- **Impact**: After Copy summary, both nodes contained “Summary copied (single reading).” Screen readers can speak it twice. Errors are worse: the inner region is `assertive` and the outer one is `polite`.
-- **WCAG/Standard**: 4.1.3 Status Messages.
-- **Recommendation**: Keep a single live region. Let `InlineStatus` own it.
-- **Suggested command**: `/impeccable harden`
-
-### [P2] Removing a note focuses “Remove note”
-
-- **Location**: `EntrySections/ReflectionsSection.jsx` (`confirmRef` on the Remove note button)
-- **Category**: Accessibility
-- **Impact**: After Edit, then Remove, focus lands on “Remove note”. Enter deletes the note. The share-link confirmation in the same entry focuses “Keep link” instead. Escape does cancel the note removal.
-- **WCAG/Standard**: 2.4.3 Focus Order. The safer control should take focus.
-- **Recommendation**: Focus “Keep note” when the confirmation opens, matching the share-link confirm.
-- **Suggested command**: `/impeccable harden`
-
-### [P3] Open-entry shadows stay black in the light theme
-
-- **Location**: `EntryCard.primitives.js` (`iconButton`, `menu`, `reversedBadgeSolid`); `CardThumbnail.jsx`
-- **Category**: Theming
-- **Impact**: These shadows are fixed `rgba(0,0,0,…)` values. Light mode is specified to use the warm, low-opacity elevation tokens. Text contrast is unaffected: muted text measured 10.04:1 on the dark card and 7.46:1 on white; brass links measured 9.09:1 and 5.70:1.
-- **WCAG/Standard**: None.
-- **Recommendation**: Use `--ui-elevated-shadow` and `--ui-card-shadow-soft`.
-- **Suggested command**: `/impeccable polish`
-
-## Patterns
-
-- Section labels such as “READING NARRATIVE” are 11px with 0.3em tracking. That is the journal label floor, contrast is strong, and it did not overflow. Leave it.
-- Phone entries open with the narrative and the card fan collapsed. That is the existing phone behavior, and both controls expose `aria-expanded`.
-- The action menu’s `aria-controls` target is absent while the menu is closed, and present while it is open.
-
-## Positive Findings
-
-- No horizontal page overflow at 320, 390, or 1440px, including 200% text in dark and light.
-- All 10 card images loaded. Focus rings on the fan stayed inside the entry; the ring extent was smaller than the space reserved around the cards.
-- Card buttons are named with the card, the position, and “Reversed” or “Upright”. The “Rev” badge is extra, not the only cue.
-- Reduced motion sets the open-entry slide to `animation: none` and leaves the reading visible.
-- Escape on the entry menu returns focus to “Open entry actions…”. At 320px and 200% text the menu stayed inside the viewport.
-- The destination bar did not cover “Sign in to ask” after scrolling. That button is 44px tall, and the page’s bottom padding is 57px.
-- An entry with no notes shows “What resonates for you now?” and a 44px “Add a reflection” action.
-- Saved narrative headings stay under the entry’s `h3`.
-
-## Recommended Actions
-
-1. **[P2] `/impeccable adapt`**: Let a tap select a covered card from its full box, which already meets the 44px target on its long side, and separate The Fool from The Magician on the pattern web.
-2. **[P2] `/impeccable typeset`**: Demote follow-up headings the same way the saved narrative already does, and keep them in the serif reading voice.
-3. **[P2] `/impeccable clarify`**: Keep the context label in the open header.
-4. **[P2] `/impeccable harden`**: Use one live region for copy and share status, focus “Keep note” when confirming removal, and open follow-up links in a new tab as the narrative links do.
-5. **[P3] `/impeccable polish`**: Switch the open entry’s black shadows to the theme elevation tokens.
-
-You can ask me to run these one at a time, all at once, or in any order you prefer.
-
-Re-run `/impeccable audit` after fixes to see your score improve.
+- **Browser.** Headless Chrome 158.0.8127.37 on Windows, served by a local Wrangler Worker built from the merge commit. Both accounts covered 320×720 dark, 390×844 dark, 1280×800 dark, and 1440×900 light. Both also covered 320×720 at 200% root text in light and dark. The two desktop sizes used reduced motion and the entry’s slide animation computed to `none`. Phone input used synthesized touch. Physical devices, native share completion, spoken output, and other subscription tiers remain untested.
+- **Data and authentication.** The guest used a synthetic ten-card Celtic Cross in local storage. The reusable credential file was absent on this host. The Pro pass used the documented reviewer identity provisioned in a disposable local D1 database. Each authenticated browser context performed a real password login, confirmed `pro` and `active` at `/api/auth/me`, and loaded the cloud journal from the Worker. Logout returned 200 and the subsequent identity check returned 401. [Local reviewer procedure](../../local-reviewer-account.md)
+- **Accessibility and contrast.** Impeccable 4.8.0 scanned the entry-card directory, journal, graph, label placement helper, and inline status. Rendered axe-core 4.14.0 flagged the visible **Rev** badges on two buttons whose accessible names say **Reversed**. This is a voice-control follow-up, with no confirmed speech-input failure. The proposed W3C test excludes abbreviated labels. Painted-background samples for the context text, follow-up link, and share privacy copy respectively measured **10.04:1, 9.09:1, 12.03:1** in dark mode and **7.46:1, 5.70:1, 12.63:1** in light mode. [W3C test applicability](https://www.w3.org/WAI/standards-guidelines/act/rules/2ee8b8/proposed/)
+- **Local checks.** The app built successfully and all **18** focused fan, graph, label-separation, and heading tests passed. The full `npm test` run had **6,657 passed, 8 failed, 32 skipped**. Five reading-cue validation tests failed because their source manifest omits the merged `labelSeparation.js` and `journalHeadings.js` imports. The cold-start test passed on the pre-merge parent. Add both paths to that manifest and rerun the runtime tests. The three locked plugin ZIP checks also failed on the pre-merge parent. [Validation source manifest](../../../scripts/lib/readingCueValidationSource.json)
+- **Hosted checks.** Vercel reported a blocked account and supplied no preview. GitHub’s build and test jobs stopped before execution because of its billing lock. All browser evidence above is local. [Merged PR and checks](https://github.com/henryperkins/tarot/pull/164)
