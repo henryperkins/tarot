@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openInstallOnlyPage } from './helpers/frontendTest.js';
 
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1';
 const INSTALL_PREFERENCES_KEY = 'tableu-pwa-install-preferences';
@@ -36,14 +36,14 @@ test.describe('Install guidance lifecycle', () => {
       const started = Date.UTC(2026, 9, 8, 12);
       // Playwright's clock controls the whole context, including the other tab.
       await page.clock.install({ time: started });
-      await page.goto('/governance-critique');
+      await openInstallOnlyPage(page);
       const install = page.locator('[data-pwa-footer] [data-pwa-install]');
       const dialog = page.getByRole('dialog', { name: 'Add Tableu to your Home Screen', exact: true });
       await openGuidance(page);
       await expect(dialog).toBeVisible();
 
       const other = await context.newPage();
-      await other.goto('/governance-critique');
+      await openInstallOnlyPage(other);
       await openGuidance(other);
       await other.getByRole('dialog').getByRole('button', { name: choice, exact: true }).click();
       await expect(dialog).toHaveCount(0);

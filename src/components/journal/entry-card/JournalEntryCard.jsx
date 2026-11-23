@@ -237,8 +237,8 @@ export const JournalEntryCard = memo(function JournalEntryCard({
           so it shows even when a long open reading runs past the screen. The live
           region stays mounted, but takes no space until it speaks. */}
       {(inlineStatus.message || !useCompactStyle) && (
-        <div className={inlineStatus.message ? (useCompactStyle ? 'relative z-10 px-3 pb-2' : 'relative z-10 px-[min(1rem,4vw)] pb-1 pt-3 sm:px-5') : undefined} aria-live="polite">
-          <InlineStatus tone={inlineStatus.tone} message={inlineStatus.message} />
+        <div className={inlineStatus.message ? (useCompactStyle ? 'relative z-10 px-3 pb-2' : 'relative z-10 px-[min(1rem,4vw)] pb-1 pt-3 sm:px-5') : undefined}>
+          <InlineStatus reserve={!useCompactStyle} tone={inlineStatus.tone} message={inlineStatus.message} />
         </div>
       )}
 

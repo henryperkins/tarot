@@ -13,10 +13,14 @@ const AccountPage = lazy(() => import('../pages/AccountPage.jsx'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard.jsx'));
 const AdminAiConfiguration = lazy(() => import('../pages/AdminAiConfiguration.jsx'));
 const DesignSystemPage = lazy(() => import('../pages/DesignSystemPage.jsx'));
-const GovernanceCritiquePage = lazy(() => import('../pages/GovernanceCritiquePage.jsx'));
 const ResetPasswordPage = lazy(() => import('../pages/ResetPasswordPage.jsx'));
 const VerifyEmailPage = lazy(() => import('../pages/VerifyEmailPage.jsx'));
 const OAuthCallbackPage = lazy(() => import('../pages/OAuthCallbackPage.jsx'));
+// Historical critique for internal review.
+const GovernanceCritiquePage = import.meta.env.DEV
+  ? lazy(() => import('../pages/GovernanceCritiquePage.jsx'))
+  : null;
+
 const SpreadLayoutFixture = import.meta.env.DEV
   ? lazy(() => import('./SpreadLayoutFixture.jsx'))
   : null;
@@ -46,7 +50,7 @@ const STATIC_NON_TAROT_PATHS = new Set([
   '/admin',
   '/admin/ai-configuration',
   '/design',
-  '/governance-critique',
+  ...(GovernanceCritiquePage ? ['/governance-critique'] : []),
   '/reset-password',
   '/verify-email',
   '/auth/callback'
@@ -86,7 +90,9 @@ export function AnimatedRoutes() {
           <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
           <Route path="/admin/ai-configuration" element={<PageTransition><AdminAiConfiguration /></PageTransition>} />
           <Route path="/design" element={<PageTransition><DesignSystemPage /></PageTransition>} />
-          <Route path="/governance-critique" element={<PageTransition><GovernanceCritiquePage /></PageTransition>} />
+          {GovernanceCritiquePage && (
+            <Route path="/governance-critique" element={<PageTransition><GovernanceCritiquePage /></PageTransition>} />
+          )}
           <Route path="/share/:token" element={<PageTransition><ShareReading /></PageTransition>} />
           <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
           <Route path="/verify-email" element={<PageTransition><VerifyEmailPage /></PageTransition>} />

@@ -8,34 +8,12 @@ import { JournalNarrativeIcon } from '../../../JournalIcons';
 import { styles, cn } from '../EntryCard.primitives';
 import { SavedVisualRecovery } from '../SavedVisualRecovery';
 import { DeferredReadingContent } from '../DeferredReadingContent';
+import { buildNarrativeExcerpt } from '../../../../lib/journal/entryExcerpt';
 import { readingVisualRequestsEnabled } from '../../../../lib/readingGestureSettings';
 
 const JournalMarkdown = lazy(() => import('../JournalMarkdown'));
 const RestoredReadingGestures = lazy(() => import('../RestoredReadingGestures')
   .then(module => ({ default: module.RestoredReadingGestures })));
-
-function getNarrativePreviewText(text, maxChars = 260) {
-  if (!text || typeof text !== 'string') return '';
-
-  const cleaned = text
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`[^`]*`/g, ' ')
-    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^>\s?/gm, '')
-    .replace(/[*_~]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleaned) return '';
-
-  const truncated = cleaned.length > maxChars
-    ? `${cleaned.slice(0, maxChars).replace(/\s+\S*$/, '')}…`
-    : cleaned;
-
-  return truncated;
-}
 
 export const NarrativeSection = memo(function NarrativeSection({
   narrativeText,
@@ -105,8 +83,8 @@ export const NarrativeSection = memo(function NarrativeSection({
             {showNarrative ? (
               <>{recovery}{reading}</>
             ) : (
-              <p className="text-sm leading-relaxed text-(--text-muted) line-clamp-4">
-                {getNarrativePreviewText(narrativeText) || 'Tap to read the full narrative.'}
+              <p className="text-sm leading-relaxed text-(--text-muted) line-clamp-4 wrap-anywhere">
+                {buildNarrativeExcerpt(narrativeText, entry?.question) || 'Expand to read the full narrative.'}
               </p>
             )}
           </div>

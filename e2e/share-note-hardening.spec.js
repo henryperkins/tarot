@@ -75,6 +75,20 @@ test.describe('Shared note hardening', () => {
         await page.evaluate(() => { document.documentElement.style.setProperty('--safe-pad-top', '44px'); });
       }
 
+      const spreadCards = page.getByRole('list', { name: 'Cards in this spread', exact: true });
+      const past = spreadCards.getByRole('button', { name: /^Past Queen of Cups Upright$/i });
+      const present = spreadCards.getByRole('button', { name: /^Present Five of Wands Reversed$/i });
+      await expect(past).toHaveAccessibleDescription(/\b1 note\b.*Select this card as the target for a note\./);
+      await expect(past).toHaveAttribute('aria-pressed', 'true');
+      await present.press('Enter');
+      await expect(present).toHaveAttribute('aria-pressed', 'true');
+      await expect(past).toHaveAttribute('aria-pressed', 'false');
+      const { violations: spreadViolations } = await new AxeBuilder({ page })
+        .include('[aria-label="Cards in this spread"]')
+        .withRules(['label-content-name-mismatch'])
+        .analyze();
+      expect(spreadViolations).toEqual([]);
+
       const headerAccount = page.locator('[data-app-header]').getByRole('link', { name: 'Settings', exact: true });
       await headerAccount.focus();
       await expectUsableControl(headerAccount);
@@ -97,6 +111,7 @@ test.describe('Shared note hardening', () => {
       }
 
       const notes = page.locator('[aria-labelledby="collab-notes-title"]').filter({ visible: true });
+      await expect(notes.getByRole('combobox', { name: 'Select which card position to comment on' })).toHaveValue('Present');
       for (const name of ['Refresh shared notes', 'Report this note']) {
         const bounds = await notes.getByRole('button', { name, exact: true }).boundingBox();
         expect(Math.min(bounds.width, bounds.height)).toBeGreaterThanOrEqual(43.99);

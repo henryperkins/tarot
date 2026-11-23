@@ -73,7 +73,7 @@ export function OnboardingProgress({
               {isCompleted ? (
                 <Check className="w-3.5 h-3.5 xs:w-4 xs:h-4" weight="bold" aria-hidden="true" />
               ) : (
-                <span className="text-2xs xxs:text-2xs xs:text-2xs font-semibold">{step}</span>
+                <span className="text-xs font-semibold">{step}</span>
               )}
             </button>
           );
@@ -111,7 +111,7 @@ export function OnboardingProgress({
                 <span
                   className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
                     isCurrent
-                      ? 'bg-surface/20 text-main'
+                      ? 'border border-current'
                       : isCompleted
                       ? 'bg-accent/20 text-accent'
                       : 'bg-surface-muted/50 text-muted'
@@ -124,7 +124,7 @@ export function OnboardingProgress({
                   )}
                 </span>
                 {' '}
-                <span className="text-2xs sm:text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
+                <span className="text-xs lg:text-sm font-medium">{stepLabels[i]}</span>
               </button>
 
               {/* Connector line */}

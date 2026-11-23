@@ -34,6 +34,11 @@ for (const width of [320, 390, 1440]) {
         await expect(steps.nth(index)).toHaveAccessibleName(`${index + 1} ${label}${index === 0 ? ' (current)' : ''}`);
         if (index > 0) await expect(steps.nth(index)).toBeDisabled();
       }
+      const currentStep = steps.nth(0);
+      const numeral = currentStep.getByText('1', { exact: true });
+      await expect(numeral).toHaveCSS('font-size', '12px');
+      const labelColor = await currentStep.evaluate(element => getComputedStyle(element).color);
+      await expect(numeral).toHaveCSS('color', labelColor);
       await expectLabelInName(page);
       await dialog.getByRole('button', { name: 'Continue', exact: true }).press('Enter');
       await expect(steps.nth(0)).toHaveAccessibleName('1 Welcome (completed)');
@@ -256,6 +261,30 @@ test('Gallery tracking-disabled state does not claim that an empty collection is
   await expect(page.getByRole('heading', { name: 'Your collection starts with a saved reading', exact: true })).toHaveCount(0);
 });
 
+test('the Journal rail keeps its stat and suggestion labels readable as text grows', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepareNavigation(page, { populated: true });
+  await page.goto('/journal');
+  const emerging = page.getByText('Emerging', { exact: true });
+  await expect(emerging).toBeVisible();
+  const suggestions = page.getByText('Try another angle', { exact: true }).locator('..').getByRole('button');
+  const alternateSuggestion = suggestions.nth(1);
+  await expect(alternateSuggestion).toHaveCSS('font-size', '12px');
+  await alternateSuggestion.press('Enter');
+  await expect(alternateSuggestion).toHaveAttribute('aria-pressed', 'true');
+  for (const fontSize of ['100%', '200%']) {
+    await page.evaluate(value => { document.documentElement.style.fontSize = value; }, fontSize);
+    await settleNavigation(page);
+    await expect.poll(() => emerging.evaluate(element => {
+      const label = document.createRange();
+      label.selectNodeContents(element);
+      const { left, right } = element.getBoundingClientRect();
+      return Array.from(label.getClientRects()).every(line => line.left >= left - 1 && line.right <= right + 1);
+    })).toBe(true);
+    await emerging.locator('..').screenshot({ path: testInfo.outputPath(`journal-stat-${fontSize}.png`) });
+  }
+});
+
 for (const width of [390, 1440]) {
   test(`collapsed Journal entries defer narrative modules until they open at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -273,7 +302,15 @@ for (const width of [390, 1440]) {
     await toggle.press('Enter');
     const narrative = card.getByRole('button', { name: 'Reading narrative', exact: true });
     await expect(narrative).toBeVisible();
-    if (await narrative.getAttribute('aria-expanded') === 'false') await narrative.press('Enter');
+    if (width === 390) {
+      await expect(narrative).toHaveAttribute('aria-expanded', 'false');
+      const previewId = await narrative.getAttribute('aria-controls');
+      await expect(card.locator(`[id="${previewId}"]`)).toHaveText(
+        'The Star invites a gentler pace. Make space for what restores your attention.'
+      );
+      expect(richRequests).toEqual([]);
+      await narrative.press('Enter');
+    }
     await expect(card.getByRole('heading', { name: 'Opening', level: 4 })).toBeVisible();
     expect(richRequests.length).toBeGreaterThan(0);
     await expect(card).toContainText('The Star invites a gentler pace.');

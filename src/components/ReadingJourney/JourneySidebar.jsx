@@ -143,6 +143,7 @@ export default function JourneySidebar({
   const streakInfoButtonClass =
     // Negative margins keep the 44px target from pushing "streak" below the other stat labels.
     'text-muted hover:text-main focus-visible:ring-(--focus-ring-color) -mx-2 -my-3.5';
+  const statTileClass = 'min-w-0 wrap-anywhere rounded-lg bg-(--border-warm-subtle) px-3 py-2';
   // Section open/close state
   const [openSections, setOpenSections] = useState({
     cards: true,
@@ -461,18 +462,18 @@ export default function JourneySidebar({
           seasonWindow={seasonWindow}
         />
 
-        {/* Stats row */}
-        <div className="flex flex-wrap gap-3 text-center">
-          <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
+        {/* The rail can be narrow even on desktop. Size columns from the available space. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-3 text-center">
+          <div className={statTileClass}>
             <p className="text-lg font-medium text-main">{totalReadings}</p>
             <p className="text-xs text-muted">readings</p>
           </div>
-          <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
+          <div className={statTileClass}>
             <p className="text-lg font-medium text-main">{totalCards}</p>
             <p className="text-xs text-muted">cards</p>
           </div>
           {currentStreak > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
+            <div className={statTileClass}>
               <p className="text-lg font-medium text-main flex items-center justify-center gap-1">
                 <Fire className="h-3.5 w-3.5 text-(--brand-primary)" />
                 {currentStreak}
@@ -491,7 +492,7 @@ export default function JourneySidebar({
             </div>
           )}
           {reversalRateSample > 0 && (
-            <div className="flex-1 min-w-[60px] rounded-lg bg-(--border-warm-subtle) px-3 py-2">
+            <div className={statTileClass}>
               <p className="text-lg font-medium text-main">
                 {reversalRateReliable ? `${reversalRate}%` : 'Emerging'}
               </p>

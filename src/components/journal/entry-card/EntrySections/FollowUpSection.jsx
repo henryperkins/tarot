@@ -49,9 +49,9 @@ const FollowUpTurn = memo(function FollowUpTurn({ turn, fallbackTurnNumber }) {
         </div>
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-label text-muted">Reader</p>
-          <div className="journal-narrative-prose prose prose-base max-w-none wrap-anywhere text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
+          <div className="journal-narrative-prose journal-reading prose prose-base max-w-none wrap-anywhere text-(--text-main) prose-a:text-(--brand-primary) prose-strong:text-(--text-main)">
             <DeferredReadingContent fallback={<p className="whitespace-pre-wrap">{turn.answer || ''}</p>}>
-              <JournalMarkdown>{turn.answer || ''}</JournalMarkdown>
+              <JournalMarkdown journalHeadings>{turn.answer || ''}</JournalMarkdown>
             </DeferredReadingContent>
           </div>
         </div>

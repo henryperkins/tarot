@@ -1,24 +1,36 @@
-import { useState, useEffect, useLayoutEffect } from 'react';
-import { CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { useEffect, useLayoutEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   loadCoachHistory,
   deleteCoachHistoryItem,
   COACH_STORAGE_SYNC_EVENT,
-  HISTORY_STORAGE_KEY
+  HISTORY_STORAGE_KEY,
+  MAX_HISTORY_ITEMS
 } from '../lib/coachStorage';
-import { useNavigate } from 'react-router-dom';
 import { CoachSuggestion } from './CoachSuggestion';
 import { ConfirmModal } from './ConfirmModal';
-import { JournalPlusCircleIcon, JournalRefreshIcon } from './JournalIcons';
+import { JournalBookmarkIcon } from './JournalIcons';
 import { useAuth } from '../contexts/AuthContext';
-
-const PAGE_SIZE = 6;
 
 function getIntentionLabel(item) {
   return item?.question
     ?? item?.customFocus
     ?? item?.spreadName
     ?? 'this intention';
+}
+
+function IntentionsHeading({ titleId }) {
+  return (
+    <div className="mb-4 min-w-0">
+      <div className="flex items-center gap-2">
+        <JournalBookmarkIcon className="h-5 w-5 shrink-0 text-accent/80" aria-hidden="true" />
+        <h2 id={titleId} className="text-xl font-serif text-accent">Saved Intentions</h2>
+      </div>
+      <p className="mt-2 text-xs text-muted-high">
+        On this device · {MAX_HISTORY_ITEMS} most recent
+      </p>
+    </div>
+  );
 }
 
 export function SavedIntentionsList({
@@ -31,16 +43,14 @@ export function SavedIntentionsList({
   const userId = user?.id || null;
   const [prevUserId, setPrevUserId] = useState(userId);
   const [intentions, setIntentions] = useState(() => loadCoachHistory(undefined, userId));
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pendingAction, setPendingAction] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const navigate = useNavigate();
 
   // Reset state when userId changes (React's render-time update pattern)
   if (prevUserId !== userId) {
     setPrevUserId(userId);
     setIntentions(loadCoachHistory(undefined, userId));
-    setPageIndex(0);
-    setPendingAction(null);
+    setPendingDelete(null);
   }
 
   useEffect(() => {
@@ -80,13 +90,9 @@ export function SavedIntentionsList({
   // deferred focus restoration. A passive effect can run after that timer.
   useLayoutEffect(() => {
     if (onConfirmOpenChange) {
-      onConfirmOpenChange(Boolean(pendingAction));
+      onConfirmOpenChange(Boolean(pendingDelete));
     }
-  }, [pendingAction, onConfirmOpenChange]);
-
-  // Compute the effective page, clamped to valid range
-  const maxPage = Math.max(0, Math.ceil(intentions.length / PAGE_SIZE) - 1);
-  const page = Math.min(pageIndex, maxPage);
+  }, [pendingDelete, onConfirmOpenChange]);
 
   const handleDelete = (id) => {
     const result = deleteCoachHistoryItem(id, userId);
@@ -99,47 +105,21 @@ export function SavedIntentionsList({
     navigate('/', { state: { initialQuestion: question } });
   };
 
-  const handleConfirmClose = () => {
-    setPendingAction(null);
-  };
-
-  const handleConfirmAction = () => {
-    if (!pendingAction) return;
-    if (pendingAction.type === 'use') {
-      handleUseIntention(pendingAction.item?.question);
-      return;
-    }
-    if (pendingAction.type === 'delete') {
-      handleDelete(pendingAction.item?.id);
-    }
-  };
-
-  const totalPages = Math.max(1, Math.ceil(intentions.length / PAGE_SIZE));
-  const visibleIntentions = intentions.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
   const containerClassName = variant === 'modal'
-    ? 'animate-fade-in'
-    : 'mb-8 animate-fade-in';
+    ? 'min-w-0 animate-fade-in'
+    : 'mb-8 min-w-0 animate-fade-in';
 
-  const confirmLabel = pendingAction ? getIntentionLabel(pendingAction.item) : 'this intention';
-  const isDeleteConfirm = pendingAction?.type === 'delete';
-  const confirmTitle = isDeleteConfirm ? 'Delete saved intention?' : 'Use this intention?';
-  const confirmMessage = isDeleteConfirm
-    ? `Remove this saved intention: ${confirmLabel}. This cannot be undone.`
-    : `Start a new reading with: ${confirmLabel}`;
-  const confirmText = isDeleteConfirm ? 'Delete' : 'Start Reading';
-  const cancelText = isDeleteConfirm ? 'Keep it' : 'Not yet';
-  const confirmVariant = isDeleteConfirm ? 'danger' : 'warning';
+  const confirmLabel = pendingDelete ? getIntentionLabel(pendingDelete) : 'this intention';
   const confirmModal = (
     <ConfirmModal
-      isOpen={Boolean(pendingAction)}
-      onClose={handleConfirmClose}
-      onConfirm={handleConfirmAction}
-      title={confirmTitle}
-      message={confirmMessage}
-      confirmText={confirmText}
-      cancelText={cancelText}
-      variant={confirmVariant}
+      isOpen={Boolean(pendingDelete)}
+      onClose={() => setPendingDelete(null)}
+      onConfirm={() => handleDelete(pendingDelete?.id)}
+      title="Delete saved intention?"
+      message={`Remove this saved intention: ${confirmLabel}. This cannot be undone.`}
+      confirmText="Delete"
+      cancelText="Keep it"
+      variant="danger"
       renderInPortal={variant === 'modal'}
     />
   );
@@ -152,18 +132,16 @@ export function SavedIntentionsList({
     return (
       <>
         <div className={containerClassName}>
-          <div className="mb-1 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <JournalRefreshIcon className="w-5 h-5 text-accent/80" aria-hidden="true" />
-              <h2 id={titleId} className="text-xl font-serif text-accent">Saved Intentions</h2>
-            </div>
-          </div>
-          <p className="text-xs text-muted-high mb-3 flex items-center gap-1">
-            <JournalPlusCircleIcon className="w-4 h-4 text-accent/70" aria-hidden="true" /> From Guided Intention Coach
-          </p>
+          <IntentionsHeading titleId={titleId} />
           <p className="text-sm text-muted">
             No saved intentions yet.
           </p>
+          <Link
+            to="/"
+            className="mt-3 inline-flex min-h-touch items-center text-sm font-semibold text-accent underline decoration-accent/40 underline-offset-4 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            Save one from your question
+          </Link>
         </div>
         {confirmModal}
       </>
@@ -173,53 +151,16 @@ export function SavedIntentionsList({
   return (
     <>
       <div className={containerClassName}>
-        <div className="mb-1 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <JournalRefreshIcon className="w-5 h-5 text-accent/80" aria-hidden="true" />
-            <h2 id={titleId} className="text-xl font-serif text-accent">Saved Intentions</h2>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1 text-[0.78rem] text-muted">
-              <button
-                type="button"
-                onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
-                disabled={page === 0}
-                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-                aria-label="Previous intentions page"
-              >
-                <CaretLeft className="h-4 w-4" />
-                Prev
-              </button>
-              <span className="px-2 text-[0.78rem] font-semibold text-muted-high">
-                {page + 1} / {totalPages}
-              </span>
-              <button
-                type="button"
-                onClick={() => setPageIndex((prev) => Math.min(prev + 1, totalPages - 1))}
-                disabled={page === totalPages - 1}
-                className="flex items-center gap-1 rounded-full px-2 py-1 transition-colors duration-150 disabled:opacity-40 hover:text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-main"
-                aria-label="Next intentions page"
-              >
-                Next
-                <CaretRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </div>
-      <p className="text-xs text-muted-high mb-3 flex items-center gap-1">
-        <JournalPlusCircleIcon className="w-4 h-4 text-accent/70" aria-hidden="true" /> From Guided Intention Coach
-      </p>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleIntentions.map((item) => (
+        <IntentionsHeading titleId={titleId} />
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {intentions.map((item) => (
             <CoachSuggestion
               key={item.id}
               recommendation={item}
               variant="note"
               showTitle={false}
-              onApply={() => setPendingAction({ type: 'use', item })}
-              onDismiss={() => setPendingAction({ type: 'delete', item })}
+              onApply={() => handleUseIntention(item.question)}
+              onDismiss={() => setPendingDelete(item)}
             />
           ))}
         </div>

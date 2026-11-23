@@ -2,7 +2,7 @@ import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '../../EntryCard.primitives';
 import { META_LABEL_CLASS } from '../../../../../styles/labelClasses';
 import { CardThumbnail } from './CardThumbnail';
-import { computeFanLayout, FAN_ACTIVE_LIFT } from './fanGeometry';
+import { chooseFanCardAtPoint, computeFanLayout, FAN_ACTIVE_LIFT } from './fanGeometry';
 import {
   EAGER_LOAD_COUNT,
   getCardAriaLabel,
@@ -59,10 +59,76 @@ export const CardFan = memo(function CardFan({
   const selected = cards[activeIndex] || cards[0];
   const selectedIsReversed = getOrientationState(selected).isReversed;
   const motion = reduceMotion ? 'none' : `transform 320ms ${FAN_EASE}`;
+  const redirectedFrom = useRef(null);
+  const pendingRedirect = useRef(null);
+
+  const redirectHit = (event) => {
+    const container = containerRef.current;
+    if (!container || frame.width <= 0 || layout.height <= 0) return null;
+    const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const chosen = chooseFanCardAtPoint({
+      layout,
+      width: frame.width,
+      x: ((event.clientX - rect.left) / rect.width) * frame.width,
+      y: ((event.clientY - rect.top) / rect.height) * layout.height,
+      activeIndex
+    });
+    if (chosen == null) return null;
+    const buttons = [...container.querySelectorAll('button')];
+    const target = event.target instanceof Element ? event.target.closest('button') : null;
+    const targetIndex = target ? buttons.indexOf(target) : -1;
+    return { chosen, targetIndex, buttons };
+  };
+
+  // Touch has no hover, so a buried card is chosen from its full face when the
+  // press ends without turning into a scroll. A mouse click keeps the card
+  // raised by hover, which is already the event target.
+  const handleFanPointerDown = (event) => {
+    redirectedFrom.current = null;
+    pendingRedirect.current = null;
+    if (event.pointerType !== 'touch') return;
+    if (event.button != null && event.button !== 0) return;
+    const hit = redirectHit(event);
+    if (!hit || hit.chosen === hit.targetIndex) return;
+    pendingRedirect.current = {
+      pointerId: event.pointerId,
+      chosen: hit.chosen,
+      targetIndex: hit.targetIndex,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false
+    };
+  };
+
+  const handleFanPointerMove = (event) => {
+    const pending = pendingRedirect.current;
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) > 10) pending.moved = true;
+  };
+
+  const finishRedirect = (event, commit) => {
+    const pending = pendingRedirect.current;
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    pendingRedirect.current = null;
+    if (!commit || pending.moved) return;
+    const buttons = [...(containerRef.current?.querySelectorAll('button') || [])];
+    redirectedFrom.current = pending.targetIndex;
+    onCardSelect(pending.chosen);
+    buttons[pending.chosen]?.focus({ preventScroll: true });
+  };
 
   return (
     <div className="pt-1 pb-1">
-      <div ref={containerRef} className="relative w-full" style={{ height: layout.height }}>
+      <div
+        ref={containerRef}
+        className="relative w-full"
+        style={{ height: layout.height }}
+        onPointerDown={handleFanPointerDown}
+        onPointerMove={handleFanPointerMove}
+        onPointerUp={(event) => finishRedirect(event, true)}
+        onPointerCancel={(event) => finishRedirect(event, false)}
+      >
         <span
           ref={emRef}
           aria-hidden="true"
@@ -93,7 +159,13 @@ export const CardFan = memo(function CardFan({
                   aria-current={isActive ? 'true' : undefined}
                   tabIndex={index === activeIndex ? 0 : -1}
                   onKeyDown={(event) => onCardKeyDown(event, index)}
-                  onClick={() => onCardSelect(index)}
+                  onClick={() => {
+                    if (redirectedFrom.current === index) {
+                      redirectedFrom.current = null;
+                      return;
+                    }
+                    onCardSelect(index);
+                  }}
                   className="block rounded-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-(--panel-dark-1)"
                 >
                   <CardThumbnail

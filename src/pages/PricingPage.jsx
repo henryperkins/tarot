@@ -28,7 +28,7 @@ import { useSubscription, SUBSCRIPTION_TIERS } from '../contexts/SubscriptionCon
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { FOCUS_RING_DEFAULT } from '../styles/focusClasses';
-import { BADGE_LABEL_CLASS, LABEL_CLASS } from '../styles/labelClasses';
+import { LABEL_CLASS } from '../styles/labelClasses';
 import { AppHeader } from '../components/AppHeader';
 import { AppBottomRegion } from '../components/AppBottomRegion';
 import { CloseButton } from '../components/CloseButton';
@@ -141,7 +141,7 @@ function TierCard({ tierKey, config, isCurrent, actionLabel, onSelect, isLoading
             </p>
           )}
           {isPaid && (
-            <div className="mt-1 text-2xs text-muted space-y-0.5">
+            <div className="mt-1 space-y-0.5 text-xs-plus text-muted wrap-anywhere">
               <p>{primaryBillingLine}</p>
               <p>{secondaryBillingLine}</p>
               <p>{policyLine}</p>
@@ -888,18 +888,18 @@ export default function PricingPage() {
                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-secondary/30 bg-main/70 px-4 py-3"
                   >
                     <div className="min-w-0 flex-[1_1_10rem] space-y-0.5 wrap-anywhere">
-                      <p className={`${BADGE_LABEL_CLASS} text-muted`}>
+                      <p className={`${LABEL_CLASS} text-muted`}>
                         {config.name}
                       </p>
                       <p className="text-sm text-main">
                         {displayPrice} · {formatCount(config.monthlyReadings)} readings
                       </p>
                       {monthlyEquiv && (
-                        <p className="text-2xs text-accent">
+                        <p className="text-xs-plus text-accent">
                           {monthlyEquiv} · Save ${annualPricing.savings}
                         </p>
                       )}
-                      <p className="text-2xs text-muted">
+                      <p className="text-xs-plus text-muted">
                         {formatPerMonth(config.monthlyTTS)} voice narrations
                       </p>
                     </div>
@@ -965,7 +965,7 @@ export default function PricingPage() {
                 <CalendarBlank className="h-4 w-4" />
                 Annual
                 {plusAnnualPricing && (
-                  <span className="rounded-full bg-success-subtle px-2 py-0.5 text-2xs font-semibold text-success">
+                  <span className="rounded-full bg-success-subtle px-2 py-0.5 text-xs font-semibold text-success">
                     {annualDiscountLabel}
                   </span>
                 )}

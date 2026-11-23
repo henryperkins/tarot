@@ -13,42 +13,23 @@ export function shortSpreadName(name) {
 
 function stripInlineMarkdown(line) {
   return line
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(\*|_)(.*?)\1/g, '$2')
+    .replace(/~~(.*?)~~/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/**
- * Build a plain-text preview for Comfortable archive cards.
- * Personal reflections lead so the reader's own voice surfaces first;
- * otherwise the opening prose of the saved reading is summarized without
- * Markdown syntax or repeating the entry question.
- */
-export function buildEntryExcerpt(reflections, narrativeText, question = '') {
+/** Preview the opening prose without headings or a repeated question. */
+export function buildNarrativeExcerpt(narrativeText, question = '') {
+  if (typeof narrativeText !== 'string') return '';
+
   const normalizedQuestion = typeof question === 'string'
     ? question.replace(/\s+/g, ' ').trim().toLowerCase()
     : '';
-
-  if (Array.isArray(reflections) && reflections.length > 0) {
-    const [label, rawNote] = reflections[0];
-    const cleanNote = typeof rawNote === 'string' ? rawNote.replace(/\s+/g, ' ').trim() : '';
-    if (cleanNote) {
-      return {
-        kind: 'reflection',
-        label: label || 'Reflection',
-        text: cleanNote.length > EXCERPT_CHAR_LIMIT
-          ? `${cleanNote.slice(0, EXCERPT_CHAR_LIMIT).trimEnd()}…`
-          : cleanNote
-      };
-    }
-  }
-
-  if (typeof narrativeText !== 'string' || !narrativeText.trim()) {
-    return null;
-  }
 
   // Inspect only a bounded prefix so long readings stay O(1) while scrolling or filtering.
   const lines = narrativeText.slice(0, 1600).split(/\r?\n/);
@@ -56,8 +37,8 @@ export function buildEntryExcerpt(reflections, narrativeText, question = '') {
   let collectedLength = 0;
   let inFence = false;
 
-  for (const rawLine of lines) {
-    const trimmed = rawLine.trim();
+  for (let index = 0; index < lines.length; index++) {
+    const trimmed = lines[index].trim();
     if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
       inFence = !inFence;
       continue;
@@ -66,8 +47,15 @@ export function buildEntryExcerpt(reflections, narrativeText, question = '') {
       if (proseParts.length > 0) break;
       continue;
     }
-    if (/^#{1,6}\s+/.test(trimmed) || /^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+    if (/^#{1,6}(?:\s|$)/.test(trimmed) || /^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       if (proseParts.length > 0) break;
+      continue;
+    }
+    // An underline makes the current paragraph a Markdown heading.
+    if (/^(?:=+|-+)$/.test(lines[index + 1]?.trim())) {
+      proseParts.length = 0;
+      collectedLength = 0;
+      index += 1;
       continue;
     }
     const unwrapped = trimmed
@@ -84,12 +72,27 @@ export function buildEntryExcerpt(reflections, narrativeText, question = '') {
   }
 
   const combined = proseParts.join(' ').trim();
-  if (!combined) return null;
+  return combined.length > EXCERPT_CHAR_LIMIT
+    ? `${combined.slice(0, EXCERPT_CHAR_LIMIT).trimEnd()}…`
+    : combined;
+}
 
-  return {
-    kind: 'narrative',
-    text: combined.length > EXCERPT_CHAR_LIMIT
-      ? `${combined.slice(0, EXCERPT_CHAR_LIMIT).trimEnd()}…`
-      : combined
-  };
+/** Build a plain-text archive preview, prioritizing the reader's own note. */
+export function buildEntryExcerpt(reflections, narrativeText, question = '') {
+  if (Array.isArray(reflections) && reflections.length > 0) {
+    const [label, rawNote] = reflections[0];
+    const cleanNote = typeof rawNote === 'string' ? rawNote.replace(/\s+/g, ' ').trim() : '';
+    if (cleanNote) {
+      return {
+        kind: 'reflection',
+        label: label || 'Reflection',
+        text: cleanNote.length > EXCERPT_CHAR_LIMIT
+          ? `${cleanNote.slice(0, EXCERPT_CHAR_LIMIT).trimEnd()}…`
+          : cleanNote
+      };
+    }
+  }
+
+  const text = buildNarrativeExcerpt(narrativeText, question);
+  return text ? { kind: 'narrative', text } : null;
 }
