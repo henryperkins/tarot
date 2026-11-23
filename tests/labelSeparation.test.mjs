@@ -25,3 +25,20 @@ test('overlapping names are moved until their boxes no longer intersect', () => 
   assert.equal(overlaps(placed[1], placed[2]), false);
   assert.deepEqual(shifts[2], { x: 0, y: 0 });
 });
+
+test('names pushed apart stay inside the plot', () => {
+  const bounds = { x: 0, y: 0, w: 120, h: 40 };
+  const boxes = [
+    { x: 50, y: 0, w: 60, h: 18 },
+    { x: 70, y: 2, w: 60, h: 18 }
+  ];
+  const shifts = separateLabelBoxes(boxes, { bounds });
+  boxes.forEach((box, index) => {
+    const x = box.x + shifts[index].x;
+    const y = box.y + shifts[index].y;
+    assert.ok(x >= bounds.x - 0.01, `left ${x}`);
+    assert.ok(y >= bounds.y - 0.01, `top ${y}`);
+    assert.ok(x + box.w <= bounds.x + bounds.w + 0.01, `right ${x + box.w}`);
+    assert.ok(y + box.h <= bounds.y + bounds.h + 0.01, `bottom ${y + box.h}`);
+  });
+});

@@ -60,26 +60,13 @@ export const CardFan = memo(function CardFan({
   const selectedIsReversed = getOrientationState(selected).isReversed;
   const motion = reduceMotion ? 'none' : `transform 320ms ${FAN_EASE}`;
   const redirectedFrom = useRef(null);
+  const pendingRedirect = useRef(null);
 
-  // Click is dispatched after pointerup. If that click never arrives, drop the
-  // suppression once this turn ends so the next press on the original card works.
-  const releaseRedirect = () => {
-    const suppressed = redirectedFrom.current;
-    if (suppressed == null) return;
-    setTimeout(() => {
-      if (redirectedFrom.current === suppressed) redirectedFrom.current = null;
-    }, 0);
-  };
-
-  // A covered card keeps its full face as the target. The nearest centre wins,
-  // so the card painted on top does not take a tap meant for the one beneath it.
-  const handleFanPointerDown = (event) => {
-    redirectedFrom.current = null;
-    if (event.button != null && event.button !== 0) return;
+  const redirectHit = (event) => {
     const container = containerRef.current;
-    if (!container || frame.width <= 0 || layout.height <= 0) return;
+    if (!container || frame.width <= 0 || layout.height <= 0) return null;
     const rect = container.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+    if (rect.width <= 0 || rect.height <= 0) return null;
     const chosen = chooseFanCardAtPoint({
       layout,
       width: frame.width,
@@ -87,16 +74,46 @@ export const CardFan = memo(function CardFan({
       y: ((event.clientY - rect.top) / rect.height) * layout.height,
       activeIndex
     });
-    if (chosen == null) return;
+    if (chosen == null) return null;
     const buttons = [...container.querySelectorAll('button')];
     const target = event.target instanceof Element ? event.target.closest('button') : null;
     const targetIndex = target ? buttons.indexOf(target) : -1;
-    if (chosen === targetIndex) return;
-    redirectedFrom.current = targetIndex;
-    event.preventDefault();
-    event.stopPropagation();
-    onCardSelect(chosen);
-    buttons[chosen]?.focus({ preventScroll: true });
+    return { chosen, targetIndex, buttons };
+  };
+
+  // A covered card is chosen when the press ends without turning into a scroll.
+  // The click that follows still lands on the card painted on top, so that click is ignored.
+  const handleFanPointerDown = (event) => {
+    redirectedFrom.current = null;
+    pendingRedirect.current = null;
+    if (event.button != null && event.button !== 0) return;
+    const hit = redirectHit(event);
+    if (!hit || hit.chosen === hit.targetIndex) return;
+    pendingRedirect.current = {
+      pointerId: event.pointerId,
+      chosen: hit.chosen,
+      targetIndex: hit.targetIndex,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false
+    };
+  };
+
+  const handleFanPointerMove = (event) => {
+    const pending = pendingRedirect.current;
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) > 10) pending.moved = true;
+  };
+
+  const finishRedirect = (event, commit) => {
+    const pending = pendingRedirect.current;
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    pendingRedirect.current = null;
+    if (!commit || pending.moved) return;
+    const buttons = [...(containerRef.current?.querySelectorAll('button') || [])];
+    redirectedFrom.current = pending.targetIndex;
+    onCardSelect(pending.chosen);
+    buttons[pending.chosen]?.focus({ preventScroll: true });
   };
 
   return (
@@ -106,8 +123,9 @@ export const CardFan = memo(function CardFan({
         className="relative w-full"
         style={{ height: layout.height }}
         onPointerDown={handleFanPointerDown}
-        onPointerUp={releaseRedirect}
-        onPointerCancel={releaseRedirect}
+        onPointerMove={handleFanPointerMove}
+        onPointerUp={(event) => finishRedirect(event, true)}
+        onPointerCancel={(event) => finishRedirect(event, false)}
       >
         <span
           ref={emRef}

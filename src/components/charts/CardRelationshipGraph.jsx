@@ -133,11 +133,14 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
     if (passes.current.count > 8) return undefined;
     const elements = labelRefs.current.slice(0, labelCount);
     if (elements.length < 2 || elements.some((element) => !element)) return undefined;
+    const plotRect = plotRef.current?.getBoundingClientRect();
     const boxes = elements.map((element) => {
       const rect = element.getBoundingClientRect();
       return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
     });
-    const shifts = separateLabelBoxes(boxes);
+    const shifts = separateLabelBoxes(boxes, plotRect ? {
+      bounds: { x: plotRect.left, y: plotRect.top, w: plotRect.width, h: plotRect.height }
+    } : undefined);
     if (shifts.every((shift) => Math.hypot(shift.x, shift.y) < 0.5)) return undefined;
     passes.current.count += 1;
     setOffsetState({
