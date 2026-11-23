@@ -4,7 +4,7 @@ Recorded November 22, 2026 (America/Chicago). This is the audit of open saved jo
 
 An open saved journal entry is in good technical shape: **15/20, Good**. Guest Chrome covered dark and light, 320px through 1440px, 200% text, and reduced motion. Signed-in Pro was not available in this environment, so the share composer and cloud follow-up limits were reviewed from the component only.
 
-A newer Impeccable (v4.10.0) is available. Update now? It runs `npx impeccable update`.
+Audit performed with Impeccable v4.5.1. v4.10.0 was available at the time of this audit.
 
 ## Audit Health Score
 
