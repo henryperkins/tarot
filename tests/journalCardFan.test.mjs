@@ -116,6 +116,21 @@ function cardCenter(layout, width, index) {
   };
 }
 
+test('labels mode keeps the hit target on the rendered card', () => {
+  const width = 200;
+  const layout = computeFanLayout({ count: 1, width, rootFontPx: 16 });
+  assert.equal(layout.mode, 'labels');
+  const top = layout.height - layout.baseline - layout.cardHeight;
+  assert.equal(chooseFanCardAtPoint({ layout, width, x: width / 2, y: top - 2, activeIndex: 0 }), null);
+  assert.equal(chooseFanCardAtPoint({
+    layout,
+    width,
+    x: width / 2,
+    y: top + layout.cardHeight / 2,
+    activeIndex: 0
+  }), 0);
+});
+
 test('a tap on a covered card selects that card, not the one painted above it', () => {
   const width = 280;
   const layout = computeFanLayout({ count: 10, width });

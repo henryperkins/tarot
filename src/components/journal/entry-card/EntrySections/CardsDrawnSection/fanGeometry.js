@@ -132,7 +132,8 @@ export function computeFanLayout({ count, width, rootFontPx = 16 }) {
 
 function cardPivot(layout, width, index, activeIndex) {
   const card = layout.cards[index];
-  const lift = card.lift + (index === activeIndex ? FAN_ACTIVE_LIFT : 0);
+  const raised = layout.mode === 'caption' && index === activeIndex;
+  const lift = card.lift + (raised ? FAN_ACTIVE_LIFT : 0);
   return {
     card,
     x: width / 2 + card.x,

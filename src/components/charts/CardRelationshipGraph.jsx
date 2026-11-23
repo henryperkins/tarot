@@ -95,13 +95,13 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
     : cards.length <= MAX_LABELLED
       ? cards.map((_, index) => index)
       : [...linked].sort((a, b) => a - b);
-  const labelSignature = labelled.join(',');
+  const labelSignature = labelled.map((index) => `${index}:${cardName(cards[index])}`).join('|');
   const labelCount = labelled.length;
   const labelRefs = useRef([]);
   const plotRef = useRef(null);
   const passes = useRef({ key: '', count: 0 });
-  const [plotWidth, setPlotWidth] = useState(0);
-  const layoutKey = `${labelSignature}@${plotWidth}`;
+  const [layoutMeasure, setLayoutMeasure] = useState('');
+  const layoutKey = `${labelSignature}@${layoutMeasure}`;
   const [offsetState, setOffsetState] = useState({ key: '', offsets: EMPTY_OFFSETS });
   const offsets = offsetState.key === layoutKey ? offsetState.offsets : EMPTY_OFFSETS;
 
@@ -109,18 +109,24 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
     const plot = plotRef.current;
     if (!plot || labelCount < 2) return undefined;
     const measure = () => {
-      const next = Math.round(plot.clientWidth);
-      setPlotWidth((current) => (current === next ? current : next));
+      const sizes = labelRefs.current.slice(0, labelCount).map((element) => (
+        element ? `${element.offsetWidth}x${element.offsetHeight}` : '0'
+      )).join(',');
+      const next = `${Math.round(plot.clientWidth)}|${sizes}`;
+      setLayoutMeasure((current) => (current === next ? current : next));
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver(measure);
     observer.observe(plot);
+    labelRefs.current.slice(0, labelCount).forEach((element) => {
+      if (element) observer.observe(element);
+    });
     return () => observer.disconnect();
-  }, [labelCount]);
+  }, [labelCount, labelSignature]);
 
   useLayoutEffect(() => {
-    if (!plotWidth) return undefined;
+    if (!layoutMeasure) return undefined;
     if (passes.current.key !== layoutKey) {
       passes.current = { key: layoutKey, count: 0 };
     }
@@ -142,7 +148,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
       }))
     });
     return undefined;
-  }, [layoutKey, labelCount, offsets, plotWidth]);
+  }, [layoutKey, labelCount, offsets, layoutMeasure]);
 
   if (!cards.length || (!triads.length && !dyads.length)) return null;
   const relationships = [
