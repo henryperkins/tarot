@@ -81,11 +81,13 @@ export const CardFan = memo(function CardFan({
     return { chosen, targetIndex, buttons };
   };
 
-  // A covered card is chosen when the press ends without turning into a scroll.
-  // The click that follows still lands on the card painted on top, so that click is ignored.
+  // Touch has no hover, so a buried card is chosen from its full face when the
+  // press ends without turning into a scroll. A mouse click keeps the card
+  // raised by hover, which is already the event target.
   const handleFanPointerDown = (event) => {
     redirectedFrom.current = null;
     pendingRedirect.current = null;
+    if (event.pointerType !== 'touch') return;
     if (event.button != null && event.button !== 0) return;
     const hit = redirectHit(event);
     if (!hit || hit.chosen === hit.targetIndex) return;
