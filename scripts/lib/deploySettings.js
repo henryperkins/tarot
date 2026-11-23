@@ -1,10 +1,19 @@
 import { randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 
 const VARIABLE_TYPES = new Set(['plain_text', 'json', 'secret_text', 'secret_key']);
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+// Use the project's pinned CLI. Shell shims can lose SQL arguments or live
+// in a different directory from the Node executable on Windows.
+export function runProjectWrangler(args, options) {
+  const entry = fileURLToPath(new URL('./bin/wrangler.js', import.meta.resolve('wrangler/package.json')));
+  return spawnSync(process.execPath, [entry, ...args], options);
+}
 
 export function getDeploymentEnvironment(config, env) {
   if (env.WRANGLER_CI_OVERRIDE_NAME && env.WRANGLER_CI_OVERRIDE_NAME !== config.name) {
@@ -137,7 +146,7 @@ export function buildDeploymentConfig(config, settings) {
   return next;
 }
 
-function variableValue(binding) {
+export function variableValue(binding) {
   if (binding.type === 'plain_text') return binding.text;
   if (binding.type === 'json') {
     try {

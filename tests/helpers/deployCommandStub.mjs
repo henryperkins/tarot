@@ -59,6 +59,10 @@ childProcess.spawnSync = (command, args, options = {}) => {
   if (basename(command).toLowerCase() === 'cmd.exe' && args.slice(0, 3).join(' ') === '/d /s /c') {
     [command, ...args] = args.slice(3);
   }
+  if (command === process.execPath && basename(args[0]) === 'wrangler.js') {
+    command = 'wrangler';
+    args = ['wrangler', ...args.slice(1)];
+  }
   const isSmoke = args.includes('test:e2e:browserbase');
   const call = { command: basename(command), args };
   if (isSmoke) call.targetUrl = options.env?.BROWSERBASE_SMOKE_URL;

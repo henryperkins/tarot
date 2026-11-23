@@ -81,11 +81,23 @@ it('grades production OpenAI readings with the key passed only to the narrative 
   assert.match(result.stdout, /production's 75 s deadline/);
 });
 
-it('requires the production admin key before contacting the Worker or running a check', () => {
-  const result = release({ ADMIN_API_KEY: '' });
+for (const key of ['', 'stale-test-key']) {
+  it(`qualifies through the deployment login with a ${key ? 'stale' : 'missing'} application admin key`, () => {
+    const result = release({ ADMIN_API_KEY: key, CLOUDFLARE_API_TOKEN: 'test-deploy-token' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.split('HEALTH_READ').length - 1, 2);
+    assert.ok(result.checks.every(check => !check.adminKey && !check.cloudflareToken));
+    assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
+    assert.equal(result.checks.at(-1).model, 'gpt-6.1-sol');
+    assert.equal(result.checks.at(-1).revision, '0');
+  });
+}
+
+it('stops before QA if the deployment login cannot read active settings', () => {
+  const result = release({ ADMIN_API_KEY: '', TEST_DEPLOY_LOGIN_FAIL: '1' });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /requires the production ADMIN_API_KEY/);
-  assert.deepEqual(result.settingsReads, []);
+  assert.match(result.stderr, /Cloudflare deployment login/);
+  assert.doesNotMatch(result.stderr + result.stdout, /private-token-canary/);
   assert.deepEqual(result.checks, []);
 });
 

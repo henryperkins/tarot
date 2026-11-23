@@ -37,7 +37,11 @@ function inspectSaved(feature, row) {
 export async function resolveFeatureConfig(env, id) {
   const row = await activeRow(env, id);
   if (!row) return null;
-  const saved = inspectSaved(getFeature(env, id), row);
+  return resolveFeatureRevision(getFeature(env, id), row);
+}
+
+export function resolveFeatureRevision(feature, row) {
+  const saved = inspectSaved(feature, row);
   if (saved.retiredModels.length) throw new ConfigError(503, 'retired_model', 'Replace the retired model in this assignment.');
   return { revision: row.revision, policy: saved.policy };
 }

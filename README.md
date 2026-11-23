@@ -101,6 +101,8 @@ npm run deploy
 
 The deploy flow is managed by `scripts/deploy.js` and supports migrations, dry runs, and local migration application via the npm scripts in `package.json`.
 
+Release QA uses your Wrangler login to read the active production Readings assignment and verifies the provider on the live site before and after testing. [Production reading settings](docs/provider-reference.md)
+
 Application deployments validate Browserbase configuration before release QA and
 run the [guest UI smoke checks](docs/browserbase-smoke.md) after publication.
 Use `npm run test:e2e:browserbase -- --url <public-https-origin>` to check an

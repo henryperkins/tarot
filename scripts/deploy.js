@@ -29,7 +29,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join, resolve } from 'path';
 import { parseSmokeArgs, resolveSmokeApiKey } from './browserbase/smoke.js';
 import { isDeepStrictEqual } from 'node:util';
-import { buildDeploymentConfig, createWorkerSettingsReader, getDeploymentEnvironment, verifyPreservedSettings, writeDeploymentConfig } from './lib/deploySettings.js';
+import { buildDeploymentConfig, createWorkerSettingsReader, getDeploymentEnvironment, runProjectWrangler, verifyPreservedSettings, writeDeploymentConfig } from './lib/deploySettings.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -386,16 +386,13 @@ let runtime = null;
 /**
  * Execute a wrangler command and return the result.
  *
- * IMPORTANT (Windows):
- * - Avoid shell-quoting problems by passing argv arrays.
- * - Invoke `npx` via cmd.exe to avoid Node spawn() EINVAL on .cmd shims.
  */
 function wrangler(args, options = {}) {
   const remoteFlag = runtime.local ? '--local' : '--remote';
-  const fullArgs = ['wrangler', ...args, '--config', runtime.wranglerConfigPath, remoteFlag];
+  const fullArgs = [...args, '--config', runtime.wranglerConfigPath, remoteFlag];
 
   if (runtime.verbose) {
-    const printable = ['npx', ...fullArgs]
+    const printable = ['wrangler', ...fullArgs]
       .map((part) => (String(part).includes(' ') ? `"${part}"` : String(part)))
       .join(' ');
     log(`  $ ${printable}`, 'dim');
@@ -415,13 +412,7 @@ function wrangler(args, options = {}) {
   const capture = !!options.capture;
   const stdio = capture ? ['ignore', 'pipe', 'pipe'] : 'inherit';
 
-  // Use absolute path for npx via Node's directory to avoid PATH injection
-  const npxPath = join(dirname(process.execPath), process.platform === 'win32' ? 'npx.cmd' : 'npx');
-
-  // On Windows, .cmd shims need shell execution
-  const result = process.platform === 'win32'
-    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', npxPath, ...fullArgs], { ...spawnOptions, stdio })
-    : spawnSync(npxPath, fullArgs, { ...spawnOptions, stdio });
+  const result = runProjectWrangler(fullArgs, { ...spawnOptions, stdio });
 
   if (result.status === 0) {
     return { success: true, output: capture ? (result.stdout || '') : '' };
@@ -436,18 +427,7 @@ function wrangler(args, options = {}) {
   };
 }
 
-// Use object lookup to ensure only predefined commands can be resolved
-const ALLOWED_COMMANDS = {
-  npm: 'npm',
-  npx: 'npx'
-};
-
-function spawnCommand(commandKey, args, options = {}) {
-  const command = ALLOWED_COMMANDS[commandKey];
-  if (!command) {
-    throw new Error(`Command not allowed: ${commandKey}`);
-  }
-
+function runNpm(args, options = {}) {
   const spawnOptions = {
     cwd: runtime.rootDir,
     stdio: 'inherit',
@@ -455,32 +435,17 @@ function spawnCommand(commandKey, args, options = {}) {
   };
 
   return process.platform === 'win32'
-    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
-    : spawnSync(command, args, spawnOptions);
+    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', 'npm', ...args], spawnOptions)
+    : spawnSync('npm', args, spawnOptions);
 }
 
-function spawnCommandCapture(commandKey, args, options = {}) {
-  const command = ALLOWED_COMMANDS[commandKey];
-  if (!command) {
-    throw new Error(`Command not allowed: ${commandKey}`);
-  }
-
-  const spawnOptions = {
+function captureWrangler(args, options = {}) {
+  return runProjectWrangler(args, {
     cwd: runtime.rootDir,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf-8',
     ...options
-  };
-
-  const result = process.platform === 'win32'
-    ? spawnSync(process.env.COMSPEC || 'C:\\Windows\\System32\\cmd.exe', ['/d', '/s', '/c', command, ...args], spawnOptions)
-    : spawnSync(command, args, spawnOptions);
-
-  return {
-    status: result.status ?? 1,
-    stdout: result.stdout || '',
-    stderr: result.stderr || ''
-  };
+  });
 }
 
 export function isRetriableDeployError(output) {
@@ -777,7 +742,7 @@ async function deployWorker(readSettings) {
   }
 
   log('  Building frontend...', 'dim');
-  const buildResult = spawnCommand('npm', ['run', 'build'], {
+  const buildResult = runNpm(['run', 'build'], {
     env: process.env
   });
 
@@ -798,7 +763,7 @@ async function deployWorker(readSettings) {
     log(`  Deploying to Cloudflare Workers... (attempt ${attempt}/${maxAttempts})`, 'dim');
     let deployResult;
     try {
-      deployResult = spawnCommandCapture('npx', ['wrangler', 'deploy', '--config', temporaryConfig.path], {
+      deployResult = captureWrangler(['deploy', '--config', temporaryConfig.path], {
         env: runtime.deployEnv
       });
     } finally {
@@ -882,7 +847,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return;
     }
     log('Running fresh release QA before remote changes...', 'cyan');
-    const qa = spawnCommand('npm', ['run', 'ci:release-check'], { env });
+    const qa = runNpm(['run', 'ci:release-check'], { env });
     if (qa.status !== 0) {
       logError('Release QA failed or is unavailable. No migrations or deployment were started.');
       process.exitCode = 1;
@@ -898,7 +863,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     readSettings = createWorkerSettingsReader({
       config,
       env: runtime.deployEnv,
-      runWrangler: (args, options) => spawnCommandCapture('npx', ['wrangler', ...args, '--config', runtime.wranglerConfigPath], options)
+      runWrangler: (args, options) => captureWrangler([...args, '--config', runtime.wranglerConfigPath], options)
     });
     buildDeploymentConfig(config, await readSettings());
   }
@@ -922,7 +887,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       log('  [DRY RUN] Would verify the deployed guest UI with Browserbase', 'yellow');
     } else {
       log('\nChecking the deployed guest UI with Browserbase...', 'cyan');
-      const smoke = spawnCommand('npm', ['run', 'test:e2e:browserbase'], {
+      const smoke = runNpm(['run', 'test:e2e:browserbase'], {
         // Keep the target in the child environment, outside shell command arguments.
         env: { ...env, BROWSERBASE_SMOKE_URL: smokeTarget }
       });
