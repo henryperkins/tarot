@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
+import { separateLabelBoxes } from './labelSeparation.js';
 
 /**
  * CardRelationshipGraph - the archetypal triads and dyads among a reading's
@@ -12,6 +13,7 @@ import { memo } from 'react';
  * @param {Array} props.cards - The reading's cards, in spread order
  * @param {{ triads: Array, dyads: Array }} props.web - From resolvePatternWeb()
  */
+const EMPTY_OFFSETS = [];
 const VIEW_WIDTH = 300;
 const VIEW_HEIGHT = 200;
 const CENTER_X = VIEW_WIDTH / 2;
@@ -86,13 +88,72 @@ function RelationshipGlyph({ kind }) {
 const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], web }) {
   const triads = web?.triads || [];
   const dyads = web?.dyads || [];
-  if (!cards.length || (!triads.length && !dyads.length)) return null;
-
   const nodes = nodePositions(cards.length);
   const linked = new Set([...triads, ...dyads].flatMap((relationship) => relationship.indices));
-  const labelled = cards.length <= MAX_LABELLED
-    ? cards.map((_, index) => index)
-    : [...linked].sort((a, b) => a - b);
+  const labelled = !cards.length || (!triads.length && !dyads.length)
+    ? []
+    : cards.length <= MAX_LABELLED
+      ? cards.map((_, index) => index)
+      : [...linked].sort((a, b) => a - b);
+  const labelSignature = labelled.map((index) => `${index}:${cardName(cards[index])}`).join('|');
+  const labelCount = labelled.length;
+  const labelRefs = useRef([]);
+  const plotRef = useRef(null);
+  const passes = useRef({ key: '', count: 0 });
+  const [layoutMeasure, setLayoutMeasure] = useState('');
+  const layoutKey = `${labelSignature}@${layoutMeasure}`;
+  const [offsetState, setOffsetState] = useState({ key: '', offsets: EMPTY_OFFSETS });
+  const offsets = offsetState.key === layoutKey ? offsetState.offsets : EMPTY_OFFSETS;
+
+  useLayoutEffect(() => {
+    const plot = plotRef.current;
+    if (!plot || labelCount < 2) return undefined;
+    const measure = () => {
+      const sizes = labelRefs.current.slice(0, labelCount).map((element) => (
+        element ? `${element.offsetWidth}x${element.offsetHeight}` : '0'
+      )).join(',');
+      const next = `${Math.round(plot.clientWidth)}|${sizes}`;
+      setLayoutMeasure((current) => (current === next ? current : next));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(plot);
+    labelRefs.current.slice(0, labelCount).forEach((element) => {
+      if (element) observer.observe(element);
+    });
+    return () => observer.disconnect();
+  }, [labelCount, labelSignature]);
+
+  useLayoutEffect(() => {
+    if (!layoutMeasure) return undefined;
+    if (passes.current.key !== layoutKey) {
+      passes.current = { key: layoutKey, count: 0 };
+    }
+    if (passes.current.count > 8) return undefined;
+    const elements = labelRefs.current.slice(0, labelCount);
+    if (elements.length < 2 || elements.some((element) => !element)) return undefined;
+    const plotRect = plotRef.current?.getBoundingClientRect();
+    const boxes = elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left, y: rect.top, w: rect.width, h: rect.height };
+    });
+    const shifts = separateLabelBoxes(boxes, plotRect ? {
+      bounds: { x: plotRect.left, y: plotRect.top, w: plotRect.width, h: plotRect.height }
+    } : undefined);
+    if (shifts.every((shift) => Math.hypot(shift.x, shift.y) < 0.5)) return undefined;
+    passes.current.count += 1;
+    setOffsetState({
+      key: layoutKey,
+      offsets: elements.map((_, index) => ({
+        x: (offsets[index]?.x || 0) + shifts[index].x,
+        y: (offsets[index]?.y || 0) + shifts[index].y
+      }))
+    });
+    return undefined;
+  }, [layoutKey, labelCount, offsets, layoutMeasure]);
+
+  if (!cards.length || (!triads.length && !dyads.length)) return null;
   const relationships = [
     ...triads.map((triad) => ({ kind: 'triad', key: `triad-${triad.id}`, indices: triad.indices, detail: triad.theme })),
     ...dyads.map((dyad) => ({ kind: 'dyad', key: `dyad-${dyad.key}`, indices: dyad.indices, detail: sentenceCase(dyad.theme || dyad.category) }))
@@ -100,7 +161,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
 
   return (
     <figure className="m-0">
-      <div className="relative mx-auto w-full max-w-[22rem]" style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}>
+      <div ref={plotRef} className="relative mx-auto w-full max-w-[22rem]" style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}>
         <svg
           viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
           className="absolute inset-0 h-full w-full overflow-visible"
@@ -146,18 +207,26 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
             />
           ))}
         </svg>
-        {labelled.map((index) => (
-          <span
-            key={`label-${index}`}
-            aria-hidden="true"
-            className={`pointer-events-none absolute text-xs leading-snug ${
-              linked.has(index) ? 'font-medium text-(--text-main)' : 'text-(--text-muted)'
-            }`}
-            style={labelStyle(nodes[index])}
-          >
-            {cardName(cards[index])}
-          </span>
-        ))}
+        {labelled.map((index, labelIndex) => {
+          const placement = labelStyle(nodes[index]);
+          const offset = offsets[labelIndex] || { x: 0, y: 0 };
+          return (
+            <span
+              key={`label-${index}`}
+              ref={(node) => { labelRefs.current[labelIndex] = node; }}
+              aria-hidden="true"
+              className={`pointer-events-none absolute text-xs leading-snug ${
+                linked.has(index) ? 'font-medium text-(--text-main)' : 'text-(--text-muted)'
+              }`}
+              style={{
+                ...placement,
+                transform: `${placement.transform} translate(${offset.x}px, ${offset.y}px)`
+              }}
+            >
+              {cardName(cards[index])}
+            </span>
+          );
+        })}
       </div>
 
       <figcaption className="mt-4">

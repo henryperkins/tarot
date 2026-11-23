@@ -129,3 +129,50 @@ export function computeFanLayout({ count, width, rootFontPx = 16 }) {
   const step = total > 1 ? (2 * room) / (total - 1) : 0;
   return place(total, { mode: 'caption', cardWidth, arc, step, rise: total > 1 ? 8 : 0, activeLift: FAN_ACTIVE_LIFT });
 }
+
+function cardPivot(layout, width, index, activeIndex) {
+  const card = layout.cards[index];
+  const raised = layout.mode === 'caption' && index === activeIndex;
+  const lift = card.lift + (raised ? FAN_ACTIVE_LIFT : 0);
+  return {
+    card,
+    x: width / 2 + card.x,
+    y: layout.height - layout.baseline - lift
+  };
+}
+
+/** True when a section-local point lands on this card's rotated face. */
+export function fanCardContains(layout, width, index, x, y, activeIndex = 0) {
+  const { card, x: pivotX, y: pivotY } = cardPivot(layout, width, index, activeIndex);
+  const angle = (card.rotation * Math.PI) / 180;
+  const dx = x - pivotX;
+  const dy = y - pivotY;
+  const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+  const half = layout.cardWidth / 2;
+  return localX >= -half && localX <= half && localY <= 0 && localY >= -layout.cardHeight;
+}
+
+/**
+ * The card whose face contains the point and whose centre is nearest.
+ * Paint order does not decide: a covered card stays selectable across its full face.
+ * @returns {number|null}
+ */
+export function chooseFanCardAtPoint({ layout, width, x, y, activeIndex = 0 }) {
+  let chosen = null;
+  let best = Infinity;
+  for (let index = 0; index < layout.cards.length; index += 1) {
+    if (!fanCardContains(layout, width, index, x, y, activeIndex)) continue;
+    const { card, x: pivotX, y: pivotY } = cardPivot(layout, width, index, activeIndex);
+    const angle = (card.rotation * Math.PI) / 180;
+    const centerY = -layout.cardHeight / 2;
+    const cx = pivotX - centerY * Math.sin(angle);
+    const cy = pivotY + centerY * Math.cos(angle);
+    const distance = (cx - x) ** 2 + (cy - y) ** 2;
+    if (distance < best) {
+      best = distance;
+      chosen = index;
+    }
+  }
+  return chosen;
+}

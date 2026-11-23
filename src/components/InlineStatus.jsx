@@ -32,13 +32,15 @@ function getDefaultLive(tone) {
   return tone === 'error' || tone === 'warning' ? 'assertive' : 'polite';
 }
 
-export function InlineStatus({ tone = 'info', message, live, className = '' }) {
-  if (!message) return null;
-
+export function InlineStatus({ tone = 'info', message, live, className = '', reserve = false }) {
   const toneConfig = TONE_STYLES[tone] || TONE_STYLES.info;
   const Icon = toneConfig.icon || Info;
-  // Use provided live prop, or auto-select based on tone
+  // Use provided live prop, or auto-select based on tone. A reserved region
+  // stays mounted while empty so the next message is announced once.
   const ariaLive = live ?? getDefaultLive(tone);
+  if (!message) {
+    return reserve ? <div role="status" aria-live={ariaLive} className="sr-only" /> : null;
+  }
 
   return (
     <div

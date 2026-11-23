@@ -26,7 +26,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div
       className={cn(
         'relative overflow-hidden rounded-md border border-(--border-warm-light) bg-(--panel-dark-2)',
-        'shadow-[0_8px_18px_-10px_rgba(0,0,0,0.55)]',
+        'shadow-(--ui-card-shadow-soft)',
         active && 'ring-2 ring-(--brand-primary)',
         className
       )}
