@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  chooseFanCardAtPoint,
   computeFanLayout,
+  fanCardContains,
   FAN_ACTIVE_LIFT,
   FAN_EDGE_PADDING,
   FAN_MAX_CARD_WIDTH,
@@ -100,4 +102,36 @@ test('an empty spread lays out nothing', () => {
   const layout = computeFanLayout({ count: 0, width: 500 });
   assert.deepEqual(layout.cards, []);
   assert.equal(layout.height, 0);
+});
+
+function cardCenter(layout, width, index) {
+  const card = layout.cards[index];
+  const pivotX = width / 2 + card.x;
+  const pivotY = layout.height - layout.baseline - card.lift;
+  const angle = (card.rotation * Math.PI) / 180;
+  const centerY = -layout.cardHeight / 2;
+  return {
+    x: pivotX - centerY * Math.sin(angle),
+    y: pivotY + centerY * Math.cos(angle)
+  };
+}
+
+test('a tap on a covered card selects that card, not the one painted above it', () => {
+  const width = 280;
+  const layout = computeFanLayout({ count: 10, width });
+  assert.equal(layout.mode, 'caption');
+  let covered = null;
+  for (let index = 0; index < layout.cards.length; index += 1) {
+    const center = cardCenter(layout, width, index);
+    const others = layout.cards
+      .map((_, other) => other)
+      .filter((other) => other !== index && fanCardContains(layout, width, other, center.x, center.y));
+    if (others.length > 0) {
+      covered = { index, center, others };
+      break;
+    }
+  }
+  assert.ok(covered, 'a ten-card phone fan covers at least one card centre');
+  assert.equal(chooseFanCardAtPoint({ layout, width, x: covered.center.x, y: covered.center.y }), covered.index);
+  assert.equal(chooseFanCardAtPoint({ layout, width, x: -20, y: -20 }), null);
 });

@@ -2,21 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { cn } from './EntryCard.primitives';
-
-// Saved narratives nest beneath the entry's H3. Parsed headings preserve
-// fenced code and setext syntax; follow-up answers retain their original levels.
-function remarkJournalHeadings() {
-  return (tree) => {
-    const headings = [];
-    const collect = (node) => {
-      if (node.type === 'heading') headings.push(node);
-      node.children?.forEach(collect);
-    };
-    collect(tree);
-    const sourceBase = Math.min(6, ...headings.map(heading => heading.depth));
-    headings.forEach(heading => { heading.depth = Math.min(6, 4 + heading.depth - sourceBase); });
-  };
-}
+import { remarkJournalHeadings } from './journalHeadings.js';
 
 const MARKDOWN_COMPONENTS = {
   a: ({ node: _node, ...props }) => (

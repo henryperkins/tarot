@@ -2,7 +2,7 @@ import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '../../EntryCard.primitives';
 import { META_LABEL_CLASS } from '../../../../../styles/labelClasses';
 import { CardThumbnail } from './CardThumbnail';
-import { computeFanLayout, FAN_ACTIVE_LIFT } from './fanGeometry';
+import { chooseFanCardAtPoint, computeFanLayout, FAN_ACTIVE_LIFT } from './fanGeometry';
 import {
   EAGER_LOAD_COUNT,
   getCardAriaLabel,
@@ -59,10 +59,38 @@ export const CardFan = memo(function CardFan({
   const selected = cards[activeIndex] || cards[0];
   const selectedIsReversed = getOrientationState(selected).isReversed;
   const motion = reduceMotion ? 'none' : `transform 320ms ${FAN_EASE}`;
+  const redirectedFrom = useRef(null);
+
+  // A covered card keeps its full face as the target. The nearest centre wins,
+  // so the card painted on top does not take a tap meant for the one beneath it.
+  const handleFanPointerDown = (event) => {
+    if (event.button != null && event.button !== 0) return;
+    const container = containerRef.current;
+    if (!container || frame.width <= 0 || layout.height <= 0) return;
+    const rect = container.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const chosen = chooseFanCardAtPoint({
+      layout,
+      width: frame.width,
+      x: ((event.clientX - rect.left) / rect.width) * frame.width,
+      y: ((event.clientY - rect.top) / rect.height) * layout.height,
+      activeIndex
+    });
+    if (chosen == null) return;
+    const buttons = [...container.querySelectorAll('button')];
+    const target = event.target instanceof Element ? event.target.closest('button') : null;
+    const targetIndex = target ? buttons.indexOf(target) : -1;
+    if (chosen === targetIndex) return;
+    redirectedFrom.current = targetIndex;
+    event.preventDefault();
+    event.stopPropagation();
+    onCardSelect(chosen);
+    buttons[chosen]?.focus({ preventScroll: true });
+  };
 
   return (
     <div className="pt-1 pb-1">
-      <div ref={containerRef} className="relative w-full" style={{ height: layout.height }}>
+      <div ref={containerRef} className="relative w-full" style={{ height: layout.height }} onPointerDown={handleFanPointerDown}>
         <span
           ref={emRef}
           aria-hidden="true"
@@ -93,7 +121,13 @@ export const CardFan = memo(function CardFan({
                   aria-current={isActive ? 'true' : undefined}
                   tabIndex={index === activeIndex ? 0 : -1}
                   onKeyDown={(event) => onCardKeyDown(event, index)}
-                  onClick={() => onCardSelect(index)}
+                  onClick={() => {
+                    if (redirectedFrom.current === index) {
+                      redirectedFrom.current = null;
+                      return;
+                    }
+                    onCardSelect(index);
+                  }}
                   className="block rounded-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) focus-visible:ring-offset-2 focus-visible:ring-offset-(--panel-dark-1)"
                 >
                   <CardThumbnail

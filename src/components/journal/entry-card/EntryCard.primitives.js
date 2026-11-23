@@ -93,7 +93,7 @@ export const styles = {
   reversedBadgeSolid:
     'shrink-0 rounded-full border border-(--border-warm) ' +
     'bg-(--bg-surface) px-1.5 py-0.5 text-2xs font-semibold leading-none text-(--text-main) ' +
-    'shadow-[0_2px_6px_-2px_rgba(0,0,0,0.5)]',
+    'shadow-(--ui-card-shadow-soft)',
 
   uprightBadge:
     'shrink-0 rounded-full border border-(--border-warm-light) px-1.5 py-0.5 text-2xs ' +
@@ -103,7 +103,7 @@ export const styles = {
   iconButton:
     'inline-flex min-h-touch min-w-touch h-11 w-11 items-center justify-center rounded-2xl ' +
     'border border-(--border-warm-light) bg-[linear-gradient(135deg,var(--bg-surface-muted),var(--bg-surface))] ' +
-    'text-(--text-muted) shadow-[0_12px_24px_-16px_rgba(0,0,0,0.75)] ' +
+    'text-(--text-muted) shadow-(--ui-elevated-shadow) ' +
     'hover:border-(--border-warm) hover:text-(--brand-accent) hover:-translate-y-px ' +
     'transition-all duration-200 active:translate-y-0 focus-visible:outline-hidden focus-visible:ring-2 ' +
     'focus-visible:ring-(--focus-ring-color)',
@@ -146,7 +146,7 @@ export const styles = {
   menu:
     'fixed z-toast w-72 max-w-[calc(100vw-16px)] max-h-[75vh] overflow-y-auto rounded-2xl ' +
     'border border-(--border-warm) bg-(--bg-main) p-2 ' +
-    'shadow-[0_18px_60px_-34px_rgba(0,0,0,0.95)]',
+    'shadow-(--ui-elevated-shadow)',
 
   menuItem:
     'flex min-h-touch w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm ' +

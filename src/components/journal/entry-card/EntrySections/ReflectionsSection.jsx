@@ -96,11 +96,11 @@ function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, 
         <div className="space-y-2" role="group" aria-label={`Remove the note on ${label}`}>
           <p className="text-xs text-muted-high">Remove this note? This can&apos;t be undone.</p>
           <div className="flex flex-wrap gap-2">
-            <button ref={confirmRef} type="button" disabled={saving} onClick={onRemove} className={DANGER_BUTTON_CLASS}>
+            <button type="button" disabled={saving} onClick={onRemove} className={DANGER_BUTTON_CLASS}>
               {saving && <CircleNotch className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
               Remove note
             </button>
-            <button type="button" disabled={saving} onClick={() => setConfirmingRemove(false)} className={cn(styles.actionButton, styles.actionButtonEnabled)}>
+            <button ref={confirmRef} type="button" disabled={saving} onClick={() => setConfirmingRemove(false)} className={cn(styles.actionButton, styles.actionButtonEnabled)}>
               Keep note
             </button>
           </div>

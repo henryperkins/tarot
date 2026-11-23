@@ -248,8 +248,13 @@ export const ComfortableHeader = memo(function ComfortableHeader({
               </h3>
             </div>
 
-            {questionTitle && (
-              <p className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">{spreadTitle}</p>
+            {(questionTitle || contextLabel) && (
+              <p className="mt-1 text-sm text-(--text-muted) text-pretty wrap-anywhere">
+                {questionTitle ? spreadTitle : null}
+                {questionTitle && contextLabel && <span aria-hidden="true"> · </span>}
+                {questionTitle && contextLabel && <span className="sr-only">, </span>}
+                {contextLabel}
+              </p>
             )}
           </div>
 
