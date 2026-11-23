@@ -61,9 +61,20 @@ export const CardFan = memo(function CardFan({
   const motion = reduceMotion ? 'none' : `transform 320ms ${FAN_EASE}`;
   const redirectedFrom = useRef(null);
 
+  // Click is dispatched after pointerup. If that click never arrives, drop the
+  // suppression once this turn ends so the next press on the original card works.
+  const releaseRedirect = () => {
+    const suppressed = redirectedFrom.current;
+    if (suppressed == null) return;
+    setTimeout(() => {
+      if (redirectedFrom.current === suppressed) redirectedFrom.current = null;
+    }, 0);
+  };
+
   // A covered card keeps its full face as the target. The nearest centre wins,
   // so the card painted on top does not take a tap meant for the one beneath it.
   const handleFanPointerDown = (event) => {
+    redirectedFrom.current = null;
     if (event.button != null && event.button !== 0) return;
     const container = containerRef.current;
     if (!container || frame.width <= 0 || layout.height <= 0) return;
@@ -90,7 +101,14 @@ export const CardFan = memo(function CardFan({
 
   return (
     <div className="pt-1 pb-1">
-      <div ref={containerRef} className="relative w-full" style={{ height: layout.height }} onPointerDown={handleFanPointerDown}>
+      <div
+        ref={containerRef}
+        className="relative w-full"
+        style={{ height: layout.height }}
+        onPointerDown={handleFanPointerDown}
+        onPointerUp={releaseRedirect}
+        onPointerCancel={releaseRedirect}
+      >
         <span
           ref={emRef}
           aria-hidden="true"

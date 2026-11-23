@@ -98,13 +98,31 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
   const labelSignature = labelled.join(',');
   const labelCount = labelled.length;
   const labelRefs = useRef([]);
-  const passes = useRef({ signature: '', count: 0 });
-  const [offsetState, setOffsetState] = useState({ signature: '', offsets: [] });
-  const offsets = offsetState.signature === labelSignature ? offsetState.offsets : EMPTY_OFFSETS;
+  const plotRef = useRef(null);
+  const passes = useRef({ key: '', count: 0 });
+  const [plotWidth, setPlotWidth] = useState(0);
+  const layoutKey = `${labelSignature}@${plotWidth}`;
+  const [offsetState, setOffsetState] = useState({ key: '', offsets: EMPTY_OFFSETS });
+  const offsets = offsetState.key === layoutKey ? offsetState.offsets : EMPTY_OFFSETS;
 
   useLayoutEffect(() => {
-    if (passes.current.signature !== labelSignature) {
-      passes.current = { signature: labelSignature, count: 0 };
+    const plot = plotRef.current;
+    if (!plot || labelCount < 2) return undefined;
+    const measure = () => {
+      const next = Math.round(plot.clientWidth);
+      setPlotWidth((current) => (current === next ? current : next));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(plot);
+    return () => observer.disconnect();
+  }, [labelCount]);
+
+  useLayoutEffect(() => {
+    if (!plotWidth) return undefined;
+    if (passes.current.key !== layoutKey) {
+      passes.current = { key: layoutKey, count: 0 };
     }
     if (passes.current.count > 8) return undefined;
     const elements = labelRefs.current.slice(0, labelCount);
@@ -117,14 +135,14 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
     if (shifts.every((shift) => Math.hypot(shift.x, shift.y) < 0.5)) return undefined;
     passes.current.count += 1;
     setOffsetState({
-      signature: labelSignature,
+      key: layoutKey,
       offsets: elements.map((_, index) => ({
         x: (offsets[index]?.x || 0) + shifts[index].x,
         y: (offsets[index]?.y || 0) + shifts[index].y
       }))
     });
     return undefined;
-  }, [labelSignature, labelCount, offsets]);
+  }, [layoutKey, labelCount, offsets, plotWidth]);
 
   if (!cards.length || (!triads.length && !dyads.length)) return null;
   const relationships = [
@@ -134,7 +152,7 @@ const CardRelationshipGraph = memo(function CardRelationshipGraph({ cards = [], 
 
   return (
     <figure className="m-0">
-      <div className="relative mx-auto w-full max-w-[22rem]" style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}>
+      <div ref={plotRef} className="relative mx-auto w-full max-w-[22rem]" style={{ aspectRatio: `${VIEW_WIDTH} / ${VIEW_HEIGHT}` }}>
         <svg
           viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
           className="absolute inset-0 h-full w-full overflow-visible"
