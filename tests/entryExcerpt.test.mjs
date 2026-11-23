@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   buildEntryExcerpt,
+  buildNarrativeExcerpt,
   shortSpreadName
 } from '../src/lib/journal/entryExcerpt.js';
 
@@ -72,5 +73,13 @@ describe('journal entry metadata helpers', () => {
       assert.ok(excerpt.text.endsWith('…'));
       assert.ok(excerpt.text.length <= 221);
     });
+  });
+
+  it('skips legacy underlined headings and keeps the opening paragraph as readable text', () => {
+    const narrative = 'Opening\r\n=======\r\n\r\n![Art](image.jpg) The **Star** invites a gentler pace.\r\n\r\n## Reflection\r\nChoose one commitment.';
+    const preview = 'The Star invites a gentler pace.';
+    assert.equal(buildNarrativeExcerpt(narrative), preview);
+    assert.deepEqual(buildEntryExcerpt([], narrative), { kind: 'narrative', text: preview });
+    assert.equal(buildNarrativeExcerpt('Opening\n-------\n\n## Reflection'), '');
   });
 });

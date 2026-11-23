@@ -1,5 +1,6 @@
 import { test, expect } from './helpers/frontendTest.js';
 import { createNarrativeFixture, openSetup, QUESTION, startReading } from './helpers/narrativeFixtures.js';
+import { prepareNavigation } from './helpers/navigationFixtures.js';
 import {
   ambienceLoadFailed, ambiencePlayer, ambiencePlayers, canPlayMp3, loopingTones, requireInteractionForPlayback, trackPlayers, trackTones
 } from './helpers/ambiencePlayer.js';
@@ -53,6 +54,24 @@ async function expectSilent(page) {
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Initial loading — ${platform}`, () => {
     test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+
+    test('the internal governance critique is available only in development', async ({ page }) => {
+      await prepareNavigation(page, { pro: true });
+      await page.goto('/governance-critique');
+
+      const critique = page.locator('main.governance-critique-page');
+      const production = await page.locator('script[type="module"][src^="/assets/"]').count() > 0;
+      if (production) {
+        await expect(page).toHaveURL('/');
+        await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Account menu for Avery', exact: true })).toBeVisible();
+        await expect(page).toHaveTitle('Tarot Reading — Tableu');
+        await expect(critique).toHaveCount(0);
+      } else {
+        await expect(critique).toBeVisible();
+        await expect(page).toHaveTitle('Governance Critique — Tableu');
+      }
+    });
 
     test('onboarding defers sound and hidden spread artwork until the reading setup is needed', async ({ page }) => {
       const fixture = await createNarrativeFixture(page, { signedOut: true });

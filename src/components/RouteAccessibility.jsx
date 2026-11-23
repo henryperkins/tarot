@@ -10,7 +10,7 @@ const PAGE_NAMES = {
   '/admin': 'Quality Dashboard',
   '/admin/ai-configuration': 'AI configuration',
   '/design': 'Design System',
-  '/governance-critique': 'Governance Critique',
+  ...(import.meta.env.DEV ? { '/governance-critique': 'Governance Critique' } : {}),
   '/reset-password': 'Reset Password',
   '/verify-email': 'Verify Email',
   '/auth/callback': 'Signing In',

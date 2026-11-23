@@ -2,6 +2,17 @@ import { test as base, expect } from '@playwright/test';
 
 export { expect };
 
+/** Use the design reference to exercise the install footer's main fallback. */
+export async function openInstallOnlyPage(page) {
+  await page.goto('/design');
+  const main = page.getByRole('main');
+  await main.locator('[data-pwa-footer]').waitFor({ state: 'attached' });
+  await main.locator(':scope > :not([data-pwa-footer])').evaluateAll(sections => {
+    sections.forEach(section => { section.inert = true; });
+  });
+  return main;
+}
+
 /** Open the shared guest disclosure without toggling an already-open panel. */
 export async function openAccountOptions(page) {
   await page.locator('[data-app-header] .guest-signin-button, summary[aria-label="Account options"]').first().waitFor();

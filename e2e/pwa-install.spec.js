@@ -1,4 +1,4 @@
-import { test, expect } from './helpers/frontendTest.js';
+import { test, expect, openInstallOnlyPage } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, settleReadingLayout, startReading } from './helpers/narrativeFixtures.js';
 
@@ -899,8 +899,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       });
 
       test('a page without other actions keeps keyboard focus at its page end', async ({ page }) => {
-        await page.goto('/governance-critique');
-        await expect(page.locator('main.governance-critique-page')).toBeVisible();
+        const main = await openInstallOnlyPage(page);
         await offerInstall(page);
         const install = page.locator('main [data-pwa-footer]').getByRole('button', { name: 'Install Tableu', exact: true });
         await expect(install).toBeVisible();
@@ -910,7 +909,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         const scrollY = await page.evaluate(() => window.scrollY);
         await install.press('Enter');
         await expect(install).toHaveCount(0);
-        await expect(page.locator('main.governance-critique-page')).toBeFocused();
+        await expect(main).toBeFocused();
         const remainingScroll = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight - scrollY);
         expect(remainingScroll).toBeLessThanOrEqual(1);
         expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(scrollY / 2);

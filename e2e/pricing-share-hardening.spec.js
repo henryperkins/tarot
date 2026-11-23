@@ -45,6 +45,27 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Pricing and shared-link hardening — ${platform}`, () => {
     test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
 
+    test('billing details stay readable at a phone width and at desktop size', async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 844 });
+      await prepare(page);
+      await page.goto('/pricing');
+      const plans = page.locator('#plans');
+      const monthly = plans.getByText(/^Billed monthly · Total due today/);
+      await expect(monthly).toHaveCount(2);
+      for (const detail of await monthly.all()) await expect(detail).toHaveCSS('font-size', '14px');
+      await plans.getByRole('button', { name: /^Annual/ }).press('Enter');
+      const annual = plans.getByText(/^Billed annually · Total due today/);
+      await expect(annual).toHaveCount(2);
+      for (const detail of await annual.all()) await expect(detail).toHaveCSS('font-size', '14px');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const glance = page.getByText('Plans at a glance', { exact: true }).locator('../../..');
+      const limits = glance.getByText(/voice narrations$/);
+      await expect(limits).toHaveCount(2);
+      for (const limit of await limits.all()) await expect(limit).toHaveCSS('font-size', '14px');
+    });
+
     test('comparison owns focus, isolates the page, and restores its opener on dismissal', async ({ page }) => {
       await prepare(page);
       const { dialog, opener } = await openComparison(page);

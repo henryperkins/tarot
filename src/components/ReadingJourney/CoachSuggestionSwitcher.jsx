@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { META_LABEL_CLASS } from '../../styles/labelClasses';
+import { LABEL_CLASS } from '../../styles/labelClasses';
 
 function CoachSuggestionSwitcher({
   suggestions = [],
@@ -13,14 +13,14 @@ function CoachSuggestionSwitcher({
 
   const styles = tone === 'amber'
     ? {
-      label: `${META_LABEL_CLASS} text-muted`,
-      buttonBase: `${META_LABEL_CLASS} min-h-touch rounded-full border border-primary/25 px-2.5 py-1 text-accent transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
+      label: `${LABEL_CLASS} text-muted`,
+      buttonBase: `${LABEL_CLASS} min-h-touch max-w-full wrap-anywhere rounded-full border border-primary/25 px-2.5 py-1 text-accent transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
       buttonActive: 'bg-primary/20 text-main border-primary/40',
       buttonInactive: 'hover:border-primary/40 hover:text-main',
     }
     : {
-      label: `${META_LABEL_CLASS} text-muted`,
-      buttonBase: `${META_LABEL_CLASS} min-h-touch rounded-full border border-(--border-warm-light) px-2.5 py-1 text-muted-high transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
+      label: `${LABEL_CLASS} text-muted`,
+      buttonBase: `${LABEL_CLASS} min-h-touch max-w-full wrap-anywhere rounded-full border border-(--border-warm-light) px-2.5 py-1 text-muted-high transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)`,
       buttonActive: 'bg-(--border-warm-subtle) text-main border-(--border-warm)',
       buttonInactive: 'hover:text-main hover:border-(--border-warm)',
     };

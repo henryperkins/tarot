@@ -1,6 +1,6 @@
 const AUTH_OPTIONAL_PATHS = new Set([
   '/design',
-  '/governance-critique'
+  ...(import.meta.env?.DEV ? ['/governance-critique'] : [])
 ]);
 
 export function normalizeRoutePath(pathname = '/') {
