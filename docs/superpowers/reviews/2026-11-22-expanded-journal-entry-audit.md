@@ -45,7 +45,7 @@ Coverage: guest session, real `/journal` on Vite, local saved entries, Chrome he
 - **Category**: Responsive
 - **Impact**: On a Celtic Cross at 390px, sampling the Magician’s button hit the card on about 4% of points. The Knight’s visible face was about 20px wide; at 320px it was about 15px, and about 12px at 320px with 200% text. A tap lands on whichever card is painted on top. Arrow keys still move the selection and bring that card forward.
 - **WCAG/Standard**: Misses Tableu’s 44px target. WCAG 2.5.8 (24px) is a 2.2 criterion; the product target is 2.1 AA, where this is not an automatic failure. Overlap is an intentional fan, and the full card box stays at least 44px on its long side.
-- **Recommendation**: Keep the overlap, but reserve a visible hit strip of at least 24px, or make a tap on a covered card select that card instead of the one above it.
+- **Recommendation**: Keep the overlap. Make a tap select the covered card from its full box, which already stays at least 44px on its long side, instead of the card painted on top. A visible 24px strip would meet only the WCAG 2.5.8 floor and would remain an exception to Tableu’s 44px target, because a 10-card fan at 320px cannot give every card a non-overlapping 44px face.
 - **Suggested command**: `/impeccable adapt`
 
 ### [P2] Pattern-web names sit on top of each other
@@ -121,7 +121,7 @@ Coverage: guest session, real `/journal` on Vite, local saved entries, Chrome he
 
 ## Recommended Actions
 
-1. **[P2] `/impeccable adapt`**: Give covered cards in the phone fan a real hit area, and separate The Fool from The Magician on the pattern web.
+1. **[P2] `/impeccable adapt`**: Let a tap select a covered card from its full box, which already meets the 44px target on its long side, and separate The Fool from The Magician on the pattern web.
 2. **[P2] `/impeccable typeset`**: Demote follow-up headings the same way the saved narrative already does, and keep them in the serif reading voice.
 3. **[P2] `/impeccable clarify`**: Keep the context label in the open header.
 4. **[P2] `/impeccable harden`**: Use one live region for copy and share status, focus “Keep note” when confirming removal, and open follow-up links in a new tab as the narrative links do.
