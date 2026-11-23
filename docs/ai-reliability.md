@@ -58,31 +58,26 @@ executing its CLI is required to generate samples. Never use an import as a way
 to run a benchmark. Unit tests stub inference and verify import behavior with
 invalid dummy credentials.
 
-`npm run ci:release-check` and `npm run ci:narrative-check` generate through the
-owner's Claude subscription, defaulting to Opus 5.5 at `xhigh`. Local runs use the
-existing Claude Code login automatically. Hosted runners require the private
-subscription gateway described in [subscription setup](claude-subscription.md#run-narrative-evals).
-No paid API key is required or used by these gates. The deployment step runs
-fresh subscription QA before any remote migration or rollout.
-Subscription QA reuses the production Claude reading request with per-request
-model/effort pins and the same 32,000-token ceiling. The CLI advisor tool is
-disabled, unexpected response models fail qualification, and local release
-checks verify subscription login before running the code checks.
+When OpenAI serves production readings, run `npm run deploy:codex` to qualify
+the release with the existing ChatGPT login. The samples use the production
+OpenAI prompts, model, effort, text verbosity and reading deadline. Codex checks
+the model selection at thread startup and rejects rerouting. Evidence records
+`codex-subscription` and `modelSource: configured`. The default release check
+uses the paid OpenAI Responses API. Standalone `npm run ci:narrative-check` uses
+Claude Code by default. See [subscription setup](claude-subscription.md#run-narrative-evals).
 Saved narrative samples can be checked offline; those samples do not qualify
 the current provider. Each deployment runs one fresh narrative batch and preserves
 its samples, metrics and review queue under `data/evaluations/runs/`.
-Missing subscription access fails release QA. Paid backend overrides are rejected;
-there is no paid API or local-composer fallback for qualification.
+Missing subscription access fails subscription QA before publication.
 
 GitHub Actions billing is permanently unavailable. Production releases run
-`npm run deploy` locally with the existing subscription login; GitHub checks and
+`npm run deploy:codex` locally with the existing ChatGPT login; GitHub checks and
 billing recovery are not prerequisites. The GitHub deployment workflow is
 manual-only. Cloudflare Workers Builds runs independently of Actions and needs
-private gateway access before it can qualify a release. Verify deployment through
+an evaluation credential for the selected provider. Verify deployment through
 the active Worker version, live health and built asset bytes.
 
-Live narrative QA generates synthetic samples and consumes the owner's subscription
-allowance. Offline provider/route tests are not live model-quality evidence.
+Subscription QA generates synthetic samples against the owner's subscription allowance.
 A vision photo gate additionally needs the independent
 held-out corpus described in [vision evaluation integrity](vision-evaluation-integrity.md).
 Neither a mock run nor generated card art substitutes for that corpus.

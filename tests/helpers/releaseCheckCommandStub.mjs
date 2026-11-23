@@ -34,15 +34,23 @@ globalThis.fetch = async (url, options) => {
 
 // Exercise the real preflight and subscription validation without a host login.
 childProcess.spawn = (_command, args) => {
-  if (!args.includes('auth') || !args.includes('status')) throw new Error('Unexpected inference during preflight');
+  const codexVersion = args[0] === '--version';
+  const codexLogin = args[0] === 'login' && args[1] === 'status';
+  if (!codexVersion && !codexLogin && !(args.includes('auth') && args.includes('status'))) throw new Error('Unexpected inference during preflight');
   const child = new EventEmitter();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   child.stdin = new PassThrough();
   queueMicrotask(() => {
-    process.stdout.write('LOGIN_CHECK\n');
-    child.stdout.end(JSON.stringify({ loggedIn: !process.env.TEST_RELEASE_LOGIN_FAIL,
-      authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' }));
+    if (codexVersion) child.stdout.end('codex-cli 0.171.0');
+    else if (codexLogin) {
+      process.stdout.write('CODEX_LOGIN_CHECK\n');
+      child.stderr.end(process.env.TEST_RELEASE_LOGIN_FAIL ? 'Logged in using an API key' : 'Logged in using ChatGPT');
+    } else {
+      process.stdout.write('LOGIN_CHECK\n');
+      child.stdout.end(JSON.stringify({ loggedIn: !process.env.TEST_RELEASE_LOGIN_FAIL,
+        authMethod: 'claude.ai', apiProvider: 'firstParty', subscriptionType: 'max' }));
+    }
     child.emit('close', 0);
   });
   return child;

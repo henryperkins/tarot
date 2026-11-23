@@ -23,6 +23,7 @@
     "chrome:debug": "node scripts/chrome-debug.mjs",
     "chrome:debug:headed": "node scripts/chrome-debug.mjs --headed",
     "deploy": "node scripts/deploy.js",
+    "deploy:codex": "node scripts/deploy.js --codex-qa",
     "deploy:dry-run": "node scripts/deploy.js --dry-run",
     "deploy:migrations-only": "node scripts/deploy.js --migrations-only",
     "deploy:skip-migrations": "node scripts/deploy.js --skip-migrations",

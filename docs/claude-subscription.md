@@ -117,12 +117,12 @@ Error responses omit upstream prompts, account details and credentials.
 qualification grades the production primary provider instead: while `openai-native`
 leads, `npm run ci:release-check` generates its samples through the paid OpenAI
 Responses API (owner-authorized on 2026-11-06) with `OPENAI_API_KEY` or
-`NARRATIVE_EVAL_OPENAI_API_KEY`, and needs no subscription login. With the existing
-Claude Code subscription login on this host, run directly:
+`NARRATIVE_EVAL_OPENAI_API_KEY`. For a local release using the existing ChatGPT
+login and the production OpenAI model, run `npm run deploy:codex`. For a
+standalone evaluation with the existing Claude Code subscription, run
 
 ```bash
 npm run ci:narrative-check
-npm run ci:release-check
 ```
 
 No gateway, API key, `TEXT_PROVIDER` export or additional login is needed when the

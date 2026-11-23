@@ -145,6 +145,29 @@ it('accepts an explicit evaluation key without OPENAI_API_KEY', () => {
   assert.ok(result.checks.every(check => !check.openaiKey && check.evalOpenaiKey === (check.script === 'ci:narrative-check')));
 });
 
+it('qualifies through a ChatGPT login with live OpenAI settings and no API credential in any check', () => {
+  for (const key of ['', 'present-but-unused']) {
+    const result = release({ NARRATIVE_EVAL_BACKEND: 'codex-subscription', OPENAI_API_KEY: key, NARRATIVE_EVAL_OPENAI_API_KEY: key, OPENAI_TIMEOUT_MS: '600000' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /CODEX_LOGIN_CHECK/);
+    assert.equal(result.settingsReads.length, 2);
+    assert.deepEqual(result.scripts, ['test', 'test:deploy', 'lint:cloudflare', 'docs:check', 'ci:narrative-check']);
+    assert.ok(result.checks.every(check => check.backend === 'codex-subscription' && !check.openaiKey && !check.evalOpenaiKey && check.credentialKeys.length === 0));
+    const narrative = result.checks.at(-1);
+    assert.equal(narrative.model, 'gpt-6.1-sol');
+    assert.equal(narrative.effort, 'medium');
+    assert.equal(narrative.openaiTimeoutMs, '75000');
+    assert.equal(narrative.fingerprint, result.settingsReads[0]);
+  }
+});
+
+it('stops subscription QA when ChatGPT login is unavailable, even with an API key', () => {
+  const result = release({ NARRATIVE_EVAL_BACKEND: 'codex-subscription', TEST_RELEASE_LOGIN_FAIL: '1' });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /ChatGPT subscription login/);
+  assert.deepEqual(result.checks, []);
+});
+
 it('refuses a missing OpenAI key before starting any release check', () => {
   const result = release({ OPENAI_API_KEY: '', NARRATIVE_EVAL_OPENAI_API_KEY: '' });
   assert.equal(result.status, 1);

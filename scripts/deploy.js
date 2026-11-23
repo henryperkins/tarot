@@ -847,7 +847,8 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
       return;
     }
     log('Running fresh release QA before remote changes...', 'cyan');
-    const qa = runNpm(['run', 'ci:release-check'], { env });
+    const qaEnv = argv.includes('--codex-qa') ? { ...env, NARRATIVE_EVAL_BACKEND: 'codex-subscription' } : env;
+    const qa = runNpm(['run', 'ci:release-check'], { env: qaEnv });
     if (qa.status !== 0) {
       logError('Release QA failed or is unavailable. No migrations or deployment were started.');
       process.exitCode = 1;

@@ -37,6 +37,15 @@ it('runs fresh QA before migrations and deployment', () => {
   assert.ok(result.commands.some(call => call.args.includes('deploy')));
 });
 
+it('deploy:codex selects subscription QA and still stops before publication if it fails', () => {
+  const { scripts } = JSON.parse(readFileSync('package.json', 'utf8'));
+  assert.equal(scripts['deploy:codex'], 'node scripts/deploy.js --codex-qa');
+  const result = deploy(['--codex-qa'], 7, { NARRATIVE_EVAL_BACKEND: 'openai-native' });
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /QA_BACKEND:codex-subscription/);
+  assert.deepEqual(result.commands, [{ command: 'npm', args: ['run', 'ci:release-check'] }]);
+});
+
 it('keeps explicit migration-only operations separate from application QA', () => {
   const result = deploy(['--migrations-only']);
   assert.equal(result.status, 0, result.stderr);

@@ -36,6 +36,7 @@
 - `npm run build` → `dist/`
 - `npm run preview` — serves built bundle locally.
 - `npm run deploy` — builds and publishes Worker (`tableau`) via Wrangler with migrations.
+- `npm run deploy:codex` — runs the same release using the local ChatGPT subscription for OpenAI narrative QA.
 - `npm run deploy:dry-run` — preview deployment without applying.
 - `npm run deploy:skip-migrations` — deploy without running migrations.
 
@@ -107,8 +108,8 @@
 - For interactive authenticated UI review, use the local Pro reviewer account described in [docs/local-reviewer-account.md](docs/local-reviewer-account.md). Read its private credential file directly in the login script; never print credentials or commit browser session state.
 - For Impeccable `audit`, `critique`, `polish`, `harden`, and `adapt`, follow the [review workflow](docs/local-reviewer-account.md#impeccable-review-workflows): check relevant guest and real signed-in Pro states, record authentication and tier coverage, and log out afterward. Cover other subscription states separately when affected.
 - Run `npm test` before pushing; for vision/narrative changes, also run `npm run ci:vision-check` or `npm run ci:narrative-check` and record results.
-- The release gate grades readings from the production primary provider. With `openai-native` first, `npm run ci:release-check` generates its samples through the paid OpenAI Responses API (owner-authorized on 2026-11-06), reading `OPENAI_API_KEY` or `NARRATIVE_EVAL_OPENAI_API_KEY`; only the narrative check receives the key, and a missing key fails without provider fallback. `npm run ci:narrative-check` alone defaults to the existing Claude Code login (Opus 5.5, `xhigh`); no gateway setup is needed locally, hosted runners use a private subscription gateway, and missing login or gateway access fails without paid API fallback. Other paid backends stay disabled for gates. Workers AI integrations keep their configured providers.
-- GitHub Actions billing is permanently unavailable. Use local verification and `npm run deploy` on this host, with `OPENAI_API_KEY` exported, for releases; GitHub Actions success is not a release prerequisite. Do not ask the user to remove the billing lock. Cloudflare Workers Builds is independent of Actions but needs the OpenAI evaluation key as a build secret for live QA. Record local checks and verify the active Worker version and live assets after deployment.
+- Grade the production primary's readings. With OpenAI primary, use `npm run deploy:codex` on this host. It uses the signed-in ChatGPT CLI, production OpenAI prompts, selected model, reasoning effort and reading deadline. The evidence identifies the subscription transport. The default `ci:release-check` retains the paid Responses API path authorized on 2026-11-06. Only its narrative check receives `OPENAI_API_KEY` or `NARRATIVE_EVAL_OPENAI_API_KEY`. Standalone `npm run ci:narrative-check` defaults to Claude Code. Each transport fails on missing access.
+- GitHub Actions billing is permanently unavailable. Run release checks and deploy locally. Cloudflare Workers Builds runs independently and uses a build secret for its paid OpenAI evaluation. Verify the active Worker version and live assets after deployment.
 
 ## Commit & Pull Request Guidelines
 

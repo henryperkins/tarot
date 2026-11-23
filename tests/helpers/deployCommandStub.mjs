@@ -104,6 +104,7 @@ childProcess.spawnSync = (command, args, options = {}) => {
     }
   }
   const isQualityCheck = args.includes('ci:release-check');
+  if (isQualityCheck) process.stdout.write(`QA_BACKEND:${options.env?.NARRATIVE_EVAL_BACKEND || 'auto'}\n`);
   return { status: isQualityCheck ? Number(process.env.TEST_RELEASE_QA_EXIT || 0) : 0, stdout: args.includes('deploy') ? '' : '[]', stderr: '' };
 };
 syncBuiltinESMExports();

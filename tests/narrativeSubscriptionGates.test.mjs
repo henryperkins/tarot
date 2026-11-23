@@ -11,6 +11,7 @@ import { resolveBackendId } from '../scripts/evaluation/runNarrativeSamples.js';
 import {
   applyOpenAIEvalCredentials,
   resolveReleaseNarrativeBackend,
+  runCodexSubscriptionNarrative,
   runSubscriptionNarrative
 } from '../scripts/evaluation/lib/subscriptionNarrative.js';
 import { analyzeSpreadThemes } from '../functions/lib/spreadAnalysis.js';
@@ -49,6 +50,8 @@ test('the release gate grades the production primary provider', () => {
   assert.throws(() => resolveReleaseNarrativeBackend('claude-api'), /paid API backends are disabled/);
   assert.throws(() => resolveReleaseNarrativeBackend('local-composer'), /local-composer is diagnostic only/);
   const claudeFirst = ['claude-api', 'modal-qwen', 'openai-native', 'local-composer'];
+  assert.equal(resolveReleaseNarrativeBackend('codex-subscription'), 'codex-subscription');
+  assert.throws(() => resolveReleaseNarrativeBackend('codex-subscription', claudeFirst), /would not qualify it/);
   assert.equal(resolveReleaseNarrativeBackend('', claudeFirst), 'claude-code');
   assert.throws(() => resolveReleaseNarrativeBackend('openai-native', claudeFirst), /would not qualify it/);
   assert.throws(() => resolveReleaseNarrativeBackend('', ['modal-qwen', 'local-composer']), /No release narrative gate/);
@@ -229,6 +232,27 @@ async function narrativePayload() {
     analysis: { themes: await analyzeSpreadThemes(cardsInfo), spreadKey: 'single', spreadAnalysis: null }, context: 'creative'
   };
 }
+
+test('Codex qualification sends the production OpenAI prompts and output settings and records subscription provenance', async () => {
+  const env = { OPENAI_MODEL: 'gpt-6.1-sol', OPENAI_REASONING_EFFORT: 'high', OPENAI_VERBOSITY: 'low' };
+  const payload = await narrativePayload();
+  const expected = buildOpenAIResponsesPrompts(env, payload, 'expected');
+  const completion = { provider: 'codex-subscription', model: env.OPENAI_MODEL, modelSource: 'configured', text: 'The Star invites renewal.', usage: {} };
+  const result = await runCodexSubscriptionNarrative(env, payload, 'test', async (input, options) => {
+    assert.equal(input.systemPrompt, expected.systemPrompt);
+    assert.deepEqual(input.messages, [{ role: 'user', content: expected.userPrompt }]);
+    assert.equal(input.effort, 'high');
+    assert.equal(input.model, env.OPENAI_MODEL);
+    assert.equal(options.verbosity, 'low');
+    assert.equal(typeof options.onDelta, 'function');
+    return completion;
+  });
+  assert.equal(result.reading, completion.text);
+  assert.equal(result.promptMeta.inference.provider, completion.provider);
+  assert.equal(result.modelSource, 'configured');
+  await assert.rejects(runCodexSubscriptionNarrative(env, payload, 'test',
+    async () => ({ ...completion, model: 'different-model' })), /selected production model/);
+});
 
 test('cancellation during CLI cleanup cannot qualify a completed response', async t => {
   const fixture = await cliFixture(t);

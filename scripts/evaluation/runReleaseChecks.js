@@ -73,24 +73,26 @@ export async function main() {
   const shellOpenAIKey = hostEnv.OPENAI_API_KEY;
   for (const name of ['ADMIN_API_KEY', 'BROWSERBASE_API_KEY', 'CLOUDFLARE_API_TOKEN', 'CF_API_TOKEN',
     'CLOUDFLARE_API_KEY', 'CF_API_KEY', ...UNIT_SUITE_CREDENTIAL_ENV_KEYS]) delete hostEnv[name];
-  let narrativeCredentials = {};
-  if (backend === 'openai-native') {
-    const key = String(evalOpenAIKey || shellOpenAIKey || '').trim();
-    if (!key) {
-      throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider.`);
-    }
+  const narrativeCredentials = {};
+  if (backend !== 'claude-code') {
     // Samples are buffered, but each gets the deadline a production reading
     // gets, so the gate cannot pass a reading that production would cut off.
     // A shell OPENAI_TIMEOUT_MS cannot loosen it; change wrangler.jsonc and the
     // live variable together instead.
     const deadlineMs = live?.deadlineMs ?? resolveProductionOpenAIReadingDeadlineMs((await readProductionConfig()).vars);
-    narrativeCredentials = { [OPENAI_EVAL_KEY_VARIABLE]: key, OPENAI_TIMEOUT_MS: String(deadlineMs) };
-    console.log(`Release narrative gate: grading openai-native readings through the paid OpenAI Responses API, with production's ${deadlineMs / 1000} s deadline for each.`);
-  } else {
-    await verifyNarrativeSubscription(process.env);
+    narrativeCredentials.OPENAI_TIMEOUT_MS = String(deadlineMs);
+    if (backend === 'openai-native') {
+      const key = String(evalOpenAIKey || shellOpenAIKey || '').trim();
+      if (!key) throw new Error(`The release gate grades OpenAI readings and needs OPENAI_API_KEY or ${OPENAI_EVAL_KEY_VARIABLE}; it never falls back to another provider. Use npm run deploy:codex for local subscription QA.`);
+      narrativeCredentials[OPENAI_EVAL_KEY_VARIABLE] = key;
+      console.log(`Release narrative gate: grading openai-native readings through the paid OpenAI Responses API, with production's ${deadlineMs / 1000} s deadline for each.`);
+    } else {
+      console.log(`Release narrative gate: grading OpenAI readings through the local ChatGPT subscription with a ${deadlineMs / 1000} s production deadline.`);
+    }
   }
+  if (backend !== 'openai-native') await verifyNarrativeSubscription(hostEnv, backend);
   if (live) {
-    const settings = backend === 'openai-native'
+    const settings = backend !== 'claude-code'
       ? { OPENAI_MODEL: live.modelId, OPENAI_REASONING_EFFORT: live.reasoningEffort }
       : { ANTHROPIC_MODEL: live.modelId, ANTHROPIC_EFFORT: live.reasoningEffort, ANTHROPIC_TIMEOUT_MS: String(live.deadlineMs) };
     Object.assign(narrativeCredentials, settings, { NARRATIVE_CONFIG_FINGERPRINT: live.fingerprint, NARRATIVE_CONFIG_REVISION: String(live.revision) });

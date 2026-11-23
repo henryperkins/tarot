@@ -102,11 +102,13 @@ test('an explicitly selected Readings model uses the visible subscription catalo
   const { runCodexSubscription } = await import('../services/codex-subscription/runner.mjs');
   const f = await fixture(t, { version: '0.171.0' });
   const model = 'chatgpt-test';
-  const result = await runCodexSubscription({ ...input, model }, { hostEnv: f.hostEnv });
+  await assert.rejects(runCodexSubscription({ ...input, model, effort: 'high' }, { hostEnv: f.hostEnv }), /reasoning effort is unavailable/);
+  const result = await runCodexSubscription({ ...input, model }, { hostEnv: f.hostEnv, verbosity: 'low' });
   assert.equal(result.model, model);
   const seen = JSON.parse(await readFile(f.record));
   assert.equal(seen.args[seen.args.indexOf('--model') + 1], model);
   assert.ok(seen.args.includes('model_reasoning_effort="medium"'));
+  assert.ok(seen.args.includes('model_verbosity="low"'));
   assert.equal(seen.catalog.models.length, 1);
   assert.equal(seen.catalog.models[0].slug, model);
   assert.equal(seen.catalog.models[0].shell_type, 'disabled');

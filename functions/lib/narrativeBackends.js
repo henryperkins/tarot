@@ -919,9 +919,13 @@ export async function generateWithModalQwen(env, payload, requestId = 'unknown')
  * @param {Object} env - Environment bindings
  * @param {Object} payload - Reading payload
  * @param {string} requestId - Request ID for logging
+ * @param {Object} [options] - Release QA can supply the OpenAI subscription transport.
  * @returns {Promise<Object>} { reading, prompts, usage }
  */
-export async function generateWithOpenAIResponses(env, payload, requestId = 'unknown') {
+export async function generateWithOpenAIResponses(env, payload, requestId = 'unknown', {
+  send = callOpenAIResponses,
+  provider = 'openai-native'
+} = {}) {
   const effectiveModel = env.OPENAI_MODEL || OPENAI_DEFAULT_MODEL;
   const { systemPrompt, userPrompt, promptMeta } = buildOpenAIResponsesPrompts(env, payload, requestId);
 
@@ -929,15 +933,14 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
   const verbosity = getTextVerbosity(env, effectiveModel);
 
   console.log(`[${requestId}] Request config:`, {
-    provider: 'openai-native',
+    provider,
     model: effectiveModel,
     max_output_tokens: 'unlimited',
     reasoning_effort: reasoningEffort,
     verbosity
   });
 
-  // Call OpenAI Responses API using consolidated helper
-  const result = await callOpenAIResponses(env, {
+  const result = await send(env, {
     instructions: systemPrompt,
     input: userPrompt,
     maxTokens: null,          // No limit for full readings
@@ -950,7 +953,8 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
   });
 
   console.log(`[${requestId}] Generated reading length: ${result.text.length} characters`);
-  promptMeta.inference = { provider: 'openai-native', model: result.model, responseShape: result.responseShape };
+  const provenance = result.modelSource ? { modelSource: result.modelSource } : {};
+  promptMeta.inference = { provider, model: result.model, responseShape: result.responseShape, ...provenance };
   if (result.usage) {
     console.log(`[${requestId}] Token usage:`, {
       input_tokens: result.usage.input_tokens,
@@ -974,6 +978,7 @@ export async function generateWithOpenAIResponses(env, payload, requestId = 'unk
     },
     usage: result.usage,
     model: result.model,
+    ...provenance,
     promptMeta
   }, payload);
 }

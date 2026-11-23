@@ -25,6 +25,7 @@ import {
   describeOpenAINarrativeConfig,
   describeSubscriptionNarrativeConfig,
   resolveNarrativeEvalBackend,
+  runCodexSubscriptionNarrative,
   runSubscriptionNarrative
 } from './lib/subscriptionNarrative.js';
 import { isGraphRAGEnabled, isSemanticScoringAvailable } from '../../functions/lib/graphRAG.js';
@@ -198,7 +199,7 @@ const SAMPLE_DEFINITIONS = [
 ];
 
 function usage() {
-  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--fixtures file.json] [--sample sample-id] [--backend auto|claude-code|openai-native|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
+  console.log(`Usage: node scripts/evaluation/runNarrativeSamples.js [--out ${DEFAULT_OUTPUT}] [--fixtures file.json] [--sample sample-id] [--backend auto|claude-code|codex-subscription|openai-native|local-composer] [--reference-time ISO|now] [--env-profile production|shell] [--trace]`);
   console.log(`\nOptions:`);
   console.log(`  --reference-time  Instant for astrological context (default ${DEFAULT_REFERENCE_TIME}; "now" for the live sky)`);
   console.log(`  --env-profile      "production" (default) layers the shell env over wrangler.jsonc vars; "shell" uses the shell env only`);
@@ -278,8 +279,8 @@ function describeBackendConfig(backendId, env) {
   if (backendId === 'claude-code') {
     return describeSubscriptionNarrativeConfig(env);
   }
-  if (backendId === 'openai-native') {
-    return describeOpenAINarrativeConfig(env);
+  if (backendId === 'openai-native' || backendId === 'codex-subscription') {
+    return describeOpenAINarrativeConfig(env, backendId);
   }
   return { provider: 'local', model: null, reasoningEffort: null, verbosity: null };
 }
@@ -369,9 +370,11 @@ export async function generateSampleImpl(sample, { env, backendId, referenceTime
   const narrativePayload = await prepareNarrativeSamplePayload(sample, { env, referenceTime: actualReferenceTime });
   const { spreadInfo, cardsInfo, analysis, context, deckStyle } = narrativePayload;
 
-  const { reading, rawReading, canonicalSceneRendering, model, usage } = backendId === 'claude-code'
-    ? await runSubscriptionNarrative(env, narrativePayload, `eval-${sample.id}`)
-    : await runNarrativeBackend(backendId, env, narrativePayload, `eval-${sample.id}`);
+  const requestId = `eval-${sample.id}`;
+  const subscription = { 'claude-code': runSubscriptionNarrative, 'codex-subscription': runCodexSubscriptionNarrative }[backendId];
+  const { reading, rawReading, canonicalSceneRendering, model, modelSource, usage } = subscription
+    ? await subscription(env, narrativePayload, requestId)
+    : await runNarrativeBackend(backendId, env, narrativePayload, requestId);
 
   if (!reading || !reading.trim()) {
     throw new Error(`Reading generation failed for sample ${sample.id}`);
@@ -390,7 +393,7 @@ export async function generateSampleImpl(sample, { env, backendId, referenceTime
     reading,
     rawReading: rawReading ?? reading,
     ...(canonicalSceneRendering ? { canonicalSceneRendering } : {}),
-    ...(model && { inference: { provider: backendId, model, usage } }),
+    ...(model && { inference: { provider: backendId, model, ...(modelSource && { modelSource }), usage } }),
     // What retrieval did for this sample, not what the env asked for
     semanticScoring: buildGraphRAGTelemetry(analysis.graphRAGPayload?.retrievalSummary)?.semanticScoring || null,
     sourceUsage: narrativePayload.promptMeta?.sourceUsage || null,
@@ -476,7 +479,7 @@ export async function main() {
       personalizedSampleCount: selectedSamples.filter((sample) => sample.personalization).length,
       visionSampleCount: 0,
       // Samples call one backend directly: no fallback chain, quality gate, or safety scan.
-      servingPath: 'direct-backend'
+      servingPath: backendId === 'codex-subscription' ? 'subscription-cli' : 'direct-backend'
     },
     sampleCount: generated.length,
     samples: generated
