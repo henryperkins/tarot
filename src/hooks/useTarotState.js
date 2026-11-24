@@ -121,6 +121,18 @@ export function useTarotState(speak) {
     && knockTimes.every((time, index) => time === SKIP_RITUAL_DEFAULTS.knockTimes[index]);
   const ritualWasPerformed = !syntheticKnocks && (knockCount >= 3 || hasCut);
 
+  // A hidden ritual supplies readiness values for the draw. If the reader
+  // restores the ritual before Deal, let them knock and cut the deck themselves.
+  useLayoutEffect(() => {
+    if (shouldSkipRitual || isShuffling || isSpreadDealt || !syntheticKnocks) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reconcile a restored or newly enabled ritual before painting the deck
+    setHasKnocked(false);
+    setKnockCount(0);
+    setHasCut(false);
+    updateKnockTimes([]);
+    setSessionSeed(null);
+  }, [shouldSkipRitual, isShuffling, isSpreadDealt, syntheticKnocks, updateKnockTimes]);
+
   // Invalidate before timers can run after a committed owner/spread change,
   // including automatic spread selection that does not use the public setter.
   useLayoutEffect(() => {

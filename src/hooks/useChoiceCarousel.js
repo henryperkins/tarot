@@ -5,6 +5,38 @@ function itemLeft(scroller, item) {
   return item.getBoundingClientRect().left - scroller.getBoundingClientRect().left + scroller.scrollLeft;
 }
 
+// Browsers with native overscroll containment use the carousel's CSS. On
+// older touch engines, stop a one-finger horizontal drag from leaving an edge.
+function containEdgeSwipes(scroller) {
+  if (window.CSS?.supports('overscroll-behavior-x', 'contain')) return undefined;
+  let start = null;
+  let previousX = 0;
+
+  const onStart = event => {
+    start = event.touches.length === 1 ? event.touches[0] : null;
+    previousX = start?.clientX ?? 0;
+  };
+  const onMove = event => {
+    if (!start || event.touches.length !== 1 || !event.cancelable) return;
+    const { clientX, clientY } = event.touches[0];
+    const movement = clientX - previousX;
+    previousX = clientX;
+    const distance = Math.abs(clientX - start.clientX);
+    if (distance < 6 || distance <= Math.abs(clientY - start.clientY)) return;
+    const limit = scroller.scrollWidth - scroller.clientWidth;
+    if (limit <= 1) return;
+    if ((movement > 0 && scroller.scrollLeft <= 1) || (movement < 0 && scroller.scrollLeft >= limit - 1)) {
+      event.preventDefault();
+    }
+  };
+  scroller.addEventListener('touchstart', onStart, { passive: true });
+  scroller.addEventListener('touchmove', onMove, { passive: false });
+  return () => {
+    scroller.removeEventListener('touchstart', onStart);
+    scroller.removeEventListener('touchmove', onMove);
+  };
+}
+
 /**
  * Shared behaviour of the handset choice carousels (spreads and decks). From
  * the `sm` breakpoint the same markup is a grid that no longer overflows, so
@@ -101,6 +133,7 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
 
     measure();
     el.addEventListener('scroll', measure, { passive: true });
+    const releaseEdgeSwipes = containEdgeSwipes(el);
     let lastWidth = el.clientWidth;
     const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
       if (lastWidth === 0 && el.clientWidth > 0) centerChosenRef.current();
@@ -110,6 +143,7 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
     resizeObserver?.observe(el);
     return () => {
       el.removeEventListener('scroll', measure);
+      releaseEdgeSwipes?.();
       resizeObserver?.disconnect();
     };
   }, [keys, alignArrows, updateEdges]);

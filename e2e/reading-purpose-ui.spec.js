@@ -96,9 +96,9 @@ test('optional tools follow completion and installation stays in app chrome', as
     await expect(page.getByRole('button', { name: 'Open visual studio', exact: true })).toBeVisible();
     if (page.viewportSize().width < 768) {
       await expect(page.locator('main [data-pwa-footer]')).toHaveCount(0);
-      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+      await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
       await expect(page.locator('[data-reading-settings-drawer]')).toBeVisible();
-      await page.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await page.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
     } else {
       await expect(page.locator('main [data-pwa-footer]')).toBeAttached();
     }

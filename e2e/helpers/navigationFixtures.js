@@ -51,8 +51,9 @@ export async function settleNavigation(page) {
 }
 
 // Page overflow alone misses text that paints outside an undersized target.
-// Inspect the labels and annotation separately, including the text spans that
-// can overflow an inline-flex label, and the neighboring Settings control.
+// Inspect the labels and the step's note separately, including the text spans
+// that can overflow an inline-flex label, and the neighboring Settings control.
+// A note is drawn over its step's button from beside it in the list item.
 export async function expectCanvasProgressGeometry(page) {
   const canvas = page.locator('.canvas-progress');
   await canvas.scrollIntoViewIfNeeded();
@@ -62,8 +63,10 @@ export async function expectCanvasProgressGeometry(page) {
   const geometry = await targets.evaluateAll(buttons => buttons.map(button => ({
     name: button.getAttribute('aria-label'),
     box: button.getBoundingClientRect().toJSON(),
-    labels: [...button.querySelectorAll('.step-progress-canvas__label, .step-progress-canvas__label > span, .step-progress-canvas__skipped')]
-      .map(label => ({ text: label.textContent, box: label.getBoundingClientRect().toJSON() }))
+    labels: [
+      ...button.querySelectorAll(':scope > span, .step-progress-canvas__label > span'),
+      ...button.parentElement.querySelectorAll(':scope > .step-progress-canvas__note')
+    ].map(label => ({ text: label.textContent, box: label.getBoundingClientRect().toJSON() }))
   })));
   for (const target of geometry) {
     expect(target.box.width, target.name).toBeGreaterThanOrEqual(43.99);

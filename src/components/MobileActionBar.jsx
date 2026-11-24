@@ -1,13 +1,10 @@
 import { ReadingCompletionActions } from './reading/complete/ReadingCompletionActions';
 import { useMemo, useEffect, useRef } from 'react';
-import { Gear, ArrowsClockwise } from '@phosphor-icons/react';
+import { ArrowsClockwise } from '@phosphor-icons/react';
 import { useLandscape } from '../hooks/useLandscape';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { getReadingTableAction } from './readingBoardUtils';
-import {
-  MOBILE_SETTINGS_DIALOG_ID,
-  MOBILE_FOLLOWUP_DIALOG_ID
-} from './mobileActionBarConstants';
+import { MOBILE_FOLLOWUP_DIALOG_ID } from './mobileActionBarConstants';
 
 // Shared button styles - reduced height in landscape while maintaining touch target
 const BTN_BASE = 'inline-flex items-center justify-center rounded-xl font-semibold transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)';
@@ -122,7 +119,6 @@ function MobileActionContents({
   showFollowUp = false,
   isFollowUpOpen = false,
   stepIndicatorLabel,
-  onOpenSettings,
   onOpenFollowUp,
   onShuffle,
   onDealNext,
@@ -135,10 +131,7 @@ function MobileActionContents({
   onCancelGeneration,
   onNewReading,
   onUpgrade,
-  variant = 'fixed',
-  showUtilityButtons = true,
-  isSettingsOpen = false,
-  settingsDialogId = MOBILE_SETTINGS_DIALOG_ID
+  variant = 'fixed'
 }) {
   const isLandscape = useLandscape();
   const actionGroupRef = useRef(null);
@@ -191,16 +184,12 @@ function MobileActionContents({
 
   const actions = renderActions(mode, {
     variant,
-    showUtilityButtons,
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
     showFollowUp,
     isFollowUpOpen,
     onOpenFollowUp,
-    isSettingsOpen,
-    settingsDialogId,
-    onOpenSettings,
     onShuffle,
     onDealNext,
     onDealSpread,
@@ -230,16 +219,12 @@ function withStepContext(label, stepIndicatorLabel) {
 function renderActions(mode, options) {
   const {
     variant,
-    showUtilityButtons,
     stepIndicatorLabel,
     hasNarrative,
     isLandscape,
     showFollowUp,
     isFollowUpOpen,
     onOpenFollowUp,
-    isSettingsOpen,
-    settingsDialogId,
-    onOpenSettings,
     onShuffle,
     onDealNext,
     onDealSpread,
@@ -259,10 +244,8 @@ function renderActions(mode, options) {
   // Landscape keeps labels on one line and scrolls actions that do not fit.
   const widthClasses = {
     primary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
-    prepPrimary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6rem)]',
     secondary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,7.5rem)]',
-    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6.5rem)]',
-    icon: variant === 'inline' ? 'w-full' : 'flex-none min-w-touch'
+    tertiary: variant === 'inline' ? 'w-full' : isLandscape ? 'flex-[1_0_auto] min-w-touch' : 'flex-1 min-w-[min(100%,6.5rem)]'
   };
 
   // Padding classes: smaller in landscape
@@ -290,32 +273,16 @@ function renderActions(mode, options) {
     case 'preparation': {
       const drawLabel = 'Draw cards';
       return (
-        <>
-          {showUtilityButtons && (
-            <ActionButton
-              variant="secondary"
-              onClick={onOpenSettings}
-              ariaLabel="Prepare reading"
-              ariaControls={settingsDialogId}
-              ariaExpanded={isSettingsOpen}
-              icon={Gear}
-              className={`${widthClasses.icon} ${px}`}
-              isLandscape={isLandscape}
-            >
-              Prepare
-            </ActionButton>
-          )}
-          <ActionButton
-            variant="primary"
-            onClick={onShuffle}
-            ariaLabel={drawLabel}
-            className={`${widthClasses.prepPrimary} ${px}`}
-            isLandscape={isLandscape}
-            chromeAction="draw"
-          >
-            {drawLabel}
-          </ActionButton>
-        </>
+        <ActionButton
+          variant="primary"
+          onClick={onShuffle}
+          ariaLabel={drawLabel}
+          className={`${widthClasses.primary} ${px}`}
+          isLandscape={isLandscape}
+          chromeAction="draw"
+        >
+          {drawLabel}
+        </ActionButton>
       );
     }
 
@@ -545,10 +512,10 @@ export function MobileActionBar({ isOverlayActive = false, embedded = false, ...
   );
 }
 
-export function MobileActionGroup({ showUtilityButtons = false, ...props }) {
+export function MobileActionGroup(props) {
   return (
     <div className="mobile-action-group" aria-label="Inline mobile actions">
-      <MobileActionContents variant="inline" showUtilityButtons={showUtilityButtons} {...props} />
+      <MobileActionContents variant="inline" {...props} />
     </div>
   );
 }

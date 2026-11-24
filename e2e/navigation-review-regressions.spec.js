@@ -22,8 +22,9 @@ for (const width of [320, 390]) for (const completed of [false, true]) for (cons
         await expect(buttons.nth(0)).toHaveAccessibleName('Step 1: Spread, completed');
         await expect(buttons.nth(1)).toHaveAccessibleName('Step 2: Intent (question), completed');
         await expect(buttons.nth(2)).toHaveAccessibleName('Step 3: Ritual (optional), skipped');
-        await expect(buttons.nth(2).locator('.step-progress-canvas__skipped')).toBeVisible();
+        await expect(progress.locator('.step-progress-canvas__item').nth(2).locator('.step-progress-canvas__note')).toHaveText('Skipped');
         await expect(buttons.nth(3)).toHaveAttribute('aria-current', 'step');
+        await expect(buttons.nth(3)).toHaveAccessibleDescription('Ready');
       } else {
         await expect(progress.locator('[data-step-state="upcoming"]')).not.toHaveCount(0);
         await expect(progress.locator('[data-step-state="completed"]')).toHaveCount(0);
@@ -41,7 +42,8 @@ for (const width of [320, 390]) for (const completed of [false, true]) for (cons
     }
     const normal = sizes[0].geometry.slice(0, 4).map(target => target.box);
     expect(Math.min(...normal.map(box => box.bottom)) - Math.max(...normal.map(box => box.top)),
-      'All four normal targets must share one horizontal row, including the taller skipped annotation').toBeGreaterThan(0);
+      'All four normal targets must share one horizontal row, with or without a note').toBeGreaterThan(0);
+    expect(new Set(normal.map(box => Math.round(box.height))).size, 'Every step reserves the note line, so all four are as tall').toBe(1);
     // Browser scroll anchoring may move the whole canvas as text shrinks.
     // Compare its layout and label offsets independently of document scrolling.
     const relativeGeometry = targets => targets.map(target => ({
@@ -75,7 +77,8 @@ async function expectPreparationReleased(page) {
 }
 
 // The drawer holds the deck only: the ritual waits at the reading table, on
-// the deck itself, so the Ritual step never opens preparation.
+// the deck itself, so the Ritual step never opens preparation. Once the ritual
+// has been skipped, its step opens a note in the canvas instead.
 test.describe('drawer preparation lifetime @mobile', () => {
   for (const close of ['Escape', 'close button', 'Done', 'backdrop', 'Back', 'desktop transition']) {
     test(`closing preparation releases its guard and keeps the page: ${close}`, async ({ page }) => {
@@ -86,13 +89,13 @@ test.describe('drawer preparation lifetime @mobile', () => {
       await expect(page).toHaveURL(/\/$/);
       await expect(page.locator('.narrative-stream')).toContainText('The Star invites a gentler pace.');
       const entry = await page.evaluate(() => ({ idx: history.state.idx, key: history.state.key }));
-      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+      await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
       const drawer = page.locator('[data-reading-settings-drawer]');
       await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
       await expect(drawer.getByRole('tab')).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => Boolean(history.state?.tableuOverlayGuard))).toBe(true);
       if (close === 'Escape') await page.keyboard.press('Escape');
-      else if (close === 'close button') await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      else if (close === 'close button') await drawer.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
       else if (close === 'Done') await drawer.getByRole('button', { name: 'Done', exact: true }).click();
       else if (close === 'backdrop') await drawer.locator('[data-modal-backdrop]').click({ position: { x: 4, y: 4 } });
       else if (close === 'desktop transition') await page.setViewportSize({ width: 1440, height: 1000 });
@@ -108,7 +111,7 @@ test.describe('drawer preparation lifetime @mobile', () => {
   }
 
   for (const phase of ['setup', 'pending', 'completed']) {
-    test(`Ritual progress leads to Draw cards before a draw and to the reading after: ${phase}`, async ({ page }) => {
+    test(`Ritual progress leads to Draw cards before a draw and opens its note once skipped: ${phase}`, async ({ page }) => {
       await prepareNavigation(page, { completed: phase === 'completed', rituals: true });
       const fixture = phase === 'pending' ? await createNarrativeFixture(page, { signedOut: true }) : null;
       const cancellations = [];
@@ -126,7 +129,14 @@ test.describe('drawer preparation lifetime @mobile', () => {
             await expect(page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Draw cards', exact: true })).toBeFocused();
             await expectVisiblePageFocus(page);
           } else {
-            await expect(page.locator('#step-reading')).toBeFocused();
+            const note = page.locator('#ritual-skipped-note');
+            await expect(note).toBeFocused();
+            await expect(note).toHaveAccessibleName('Ritual skipped for this reading');
+            await expect(ritual).toHaveAttribute('aria-expanded', 'true');
+            await page.keyboard.press('Escape');
+            await expect(note).toHaveCount(0);
+            await expect(ritual).toBeFocused();
+            await expectVisiblePageFocus(page);
           }
         }
         // Change deck opens preparation on the deck. Revisit Intent to expose
@@ -157,7 +167,7 @@ test.describe('drawer preparation lifetime @mobile', () => {
     await page.goto('/');
     await settleNavigation(page);
     await page.locator('#quick-intention').fill('How can I protect a quiet morning?');
-    await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
     const drawer = page.locator('[data-reading-settings-drawer]');
     const deck = drawer.getByRole('radio', { name: /Thoth/ });
     await deck.click();
@@ -166,19 +176,24 @@ test.describe('drawer preparation lifetime @mobile', () => {
     await drawer.getByRole('button', { name: 'Done', exact: true }).click();
     await expectPreparationReleased(page);
     await expect(page.locator('#quick-intention')).toHaveValue('How can I protect a quiet morning?');
-    await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
     await expect(deck).toHaveAttribute('aria-checked', 'true');
     await drawer.getByRole('button', { name: 'Done', exact: true }).click();
     await expectPreparationReleased(page);
   });
 
-  test('Ritual progress stays with the reading when ritual steps are hidden', async ({ page }) => {
+  test('Ritual progress opens its note, not preparation, when ritual steps are hidden', async ({ page }) => {
     await prepareNavigation(page, { completed: true });
     await page.goto('/');
     await settleNavigation(page);
     await page.getByRole('button', { name: /^Step 3: Ritual/ }).click();
     await expect(page.locator('[data-reading-settings-drawer]')).toBeHidden();
-    await expect(page.locator('#step-reading')).toBeFocused();
+    const note = page.locator('#ritual-skipped-note');
+    await expect(note).toBeFocused();
+    await expect(note).toHaveAccessibleName('Ritual skipped for this reading');
+    await expect(note.getByRole('button', { name: 'Use ritual next time', exact: true })).toBeVisible();
+    // The reading stays where it was, under the note.
+    await expect(page.locator('.narrative-stream')).toContainText('The Star invites a gentler pace.');
   });
 });
 
@@ -190,9 +205,9 @@ test.describe('landscape chrome measurement', () => {
     await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
     const actions = page.locator('[data-app-bottom-actions]');
     const draw = actions.getByRole('button', { name: 'Draw cards', exact: true });
-    await draw.locator('span').evaluate(element => { element.textContent = 'Draw cards for your daily reflection'; });
-    await actions.getByRole('button', { name: 'Prepare reading', exact: true }).locator('span')
-      .evaluate(element => { element.textContent = 'Reading preparation and ritual options'; });
+    await draw.locator('span').evaluate(element => {
+      element.textContent = 'Draw cards for your daily reflection with the spread and deck you have selected';
+    });
     await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('data-actions-in-flow', 'true');
     await settleNavigation(page); await draw.focus(); await settleNavigation(page);
     const before = await draw.evaluate(button => {
@@ -277,7 +292,7 @@ test('a dock resize preserves deliberate scrolling away from a focused page inpu
   await expect(search).toBeFocused();
 });
 
-test('reading wayfinding stays stable at the final section and canvas Settings remains clickable', async ({ page }) => {
+test('the canvas Deck button opens the chooser from the final section and returns to the reading', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   const fixture = await createNarrativeFixture(page);
   try {
@@ -288,9 +303,12 @@ test('reading wayfinding stays stable at the final section and canvas Settings r
     if (await insights.count() && await insights.getAttribute('aria-expanded') === 'false') await insights.click();
     const details = panel.getByRole('button', { name: /^More spread details/ });
     if (await details.count() && await details.getAttribute('aria-expanded') === 'false') await details.click();
-    await page.getByRole('button', { name: 'Reading settings', exact: true }).click({ timeout: 10000 });
-    await expect(page).toHaveURL(/\/account$/);
-    await expect(page.getByRole('heading', { name: 'Account & Settings', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Choose deck', exact: true }).click({ timeout: 10000 });
+    const chooser = page.getByRole('dialog', { name: 'Choose your deck' });
+    await expect(chooser.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
+    await chooser.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Choose deck', exact: true })).toBeFocused();
+    await expect(page).toHaveURL(/\/$/);
   } finally { await fixture.close(); }
 });
 
@@ -336,17 +354,23 @@ test('shared-reading contextual links hand keyboard focus over in both responsiv
   }
 });
 
-for (const completed of [false, true]) test(`a ${completed ? 'completed' : 'setup'} reading action without a desktop copy hands focus to the canvas`, async ({ page }) => {
+for (const completed of [false, true]) test(`a ${completed ? 'completed' : 'setup'} action keeps a visible focus destination across the desktop breakpoint`, async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1000 }); await prepareNavigation(page, { completed, pro: true });
   await page.goto('/'); await settleNavigation(page);
-  const settings = page.locator('[data-app-bottom-actions]').getByRole('button', { name: completed ? 'Ask about this reading' : 'Prepare reading', exact: true });
-  await settings.focus(); await expect(settings).toBeFocused();
+  const action = page.locator('[data-app-bottom-actions]').getByRole('button', { name: completed ? 'Ask about this reading' : 'Draw cards', exact: true });
+  await action.focus(); await expect(action).toBeFocused();
   await page.setViewportSize({ width: 769, height: 1000 });
-  await expect.poll(() => page.evaluate(() => {
+  await expect.poll(() => page.evaluate(completed => {
     const active = document.activeElement;
     const bounds = active?.getBoundingClientRect();
-    return Boolean(active?.matches('main h1, main h2, #main-content') && !active.closest('[hidden], [inert]')
+    const destination = completed ? 'main h1, main h2, #main-content' : '[data-app-desktop-actions] [data-chrome-action="draw"]';
+    return Boolean(active?.matches(destination) && !active.closest('[hidden], [inert]')
       && bounds.height > 0 && bounds.top >= 0 && bounds.top < innerHeight && bounds.bottom > 0);
-  })).toBe(true);
+  }, completed)).toBe(true);
   await expect(page.locator('[data-app-bottom-region]')).toBeHidden();
+  if (!completed) {
+    await page.setViewportSize({ width: 768, height: 1000 });
+    await expect(action).toBeFocused();
+    await expect(action).toBeInViewport();
+  }
 });

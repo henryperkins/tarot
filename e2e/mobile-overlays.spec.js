@@ -205,9 +205,34 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await expect(page).not.toHaveURL(/from=back-test/);
     });
 
-    test('spread carousel contains swipes and progress steps wrap within the viewport', async ({ page }) => {
+    test('the spread carousel contains edge swipes and the progress row fits the viewport', async ({ page }) => {
       await openSetup(page);
-      await expect(page.getByRole('radiogroup', { name: 'Spread selection' })).toHaveCSS('overscroll-behavior-x', 'contain');
+      const carousel = page.getByRole('radiogroup', { name: 'Spread selection' });
+      const position = () => carousel.evaluate(element => element.scrollLeft);
+      const before = await position();
+      await page.getByRole('button', { name: 'Next spread', exact: true }).click();
+      await expect.poll(position).toBeGreaterThan(before);
+      if (await page.evaluate(() => CSS.supports('overscroll-behavior-x', 'contain'))) {
+        await expect(carousel).toHaveCSS('overscroll-behavior-x', 'contain');
+      } else {
+        const gestures = await carousel.evaluate(element => {
+          const touch = (type, x, y, fingers) => {
+            const event = new Event(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'touches', { value: Array.from({ length: fingers }, () => ({ clientX: x, clientY: y })) });
+            element.dispatchEvent(event);
+            return event.defaultPrevented;
+          };
+          const drag = (x, y, fingers = 1) => {
+            touch('touchstart', 80, 60, fingers);
+            return touch('touchmove', x, y, fingers);
+          };
+          element.scrollTo({ left: 0, behavior: 'instant' });
+          const first = { outward: drag(115, 60), inward: drag(45, 60), vertical: drag(82, 110), pinch: drag(115, 60, 2) };
+          element.scrollTo({ left: element.scrollWidth, behavior: 'instant' });
+          return { first, last: { outward: drag(45, 60), inward: drag(115, 60) } };
+        });
+        expect(gestures).toEqual({ first: { outward: true, inward: false, vertical: false, pinch: false }, last: { outward: true, inward: false } });
+      }
       const steps = page.getByRole('navigation', { name: 'Tarot reading progress' }).getByRole('list');
       await expect(steps).toHaveCSS('flex-wrap', 'wrap');
       expect(await steps.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);

@@ -1260,7 +1260,7 @@ test.describe('Quick intention card @mobile', () => {
     await seedApp(page);
     await gotoReading(page);
 
-    await expect(page.getByRole('button', { name: 'More reading settings' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Change deck' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change deck' })).toBeVisible();
     await expect(page.locator('#quick-intention')).toHaveAttribute('maxlength', '2000');
 

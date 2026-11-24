@@ -52,12 +52,12 @@ test.describe('bottom navigation remediation', () => {
     await page.goto('/'); await settleNavigation(page);
     const bottom = page.locator('[data-app-bottom-actions]');
     await expect(bottom.getByRole('button', { name: /coach/i })).toHaveCount(0);
-    const prepare = bottom.getByRole('button', { name: 'Prepare reading', exact: true });
-    await expect(prepare).toContainText('Prepare');
+    const prepare = page.getByRole('button', { name: 'Choose deck', exact: true });
+    await expect(prepare).toContainText('Deck');
     await expect(page.getByRole('region', { name: 'Reading setup', exact: true })
       .getByRole('button', { name: 'Open guided intention coach', exact: true })).toBeVisible();
     await prepare.click();
-    await expect(page.getByRole('button', { name: 'Close reading preparation', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Close deck chooser', exact: true })).toBeVisible();
   });
 
   test('enlarged reading actions keep their labels within the controls and remain reachable by keyboard', async ({ page }) => {

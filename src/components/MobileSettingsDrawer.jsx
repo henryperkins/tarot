@@ -5,7 +5,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useKeyboardOffset } from '../hooks/useKeyboardOffset';
 import { MOBILE_SETTINGS_DIALOG_ID } from './mobileActionBarConstants';
 
-export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null, keepMounted = false }) {
+export function MobileSettingsDrawer({ layout, isOpen, onClose, getReturnFocus, children, footer = null, keepMounted = false }) {
   const drawerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const viewportOffset = useKeyboardOffset();
@@ -16,14 +16,14 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null,
     : { paddingBottom: 'calc(1rem + var(--safe-pad-bottom))' };
   const prefersReducedMotion = useReducedMotion();
 
-  // Shared modal accessibility: scroll lock, escape key, focus trap, focus
-  // restoration, and Back (mobile-only component, so always enabled)
   useModalA11y(isOpen, {
     onClose,
     containerRef: drawerRef,
     initialFocusRef: closeButtonRef,
+    getReturnFocus,
     isolateBackground: true,
     fallbackFocusSelector: '.reading-settings',
+    fallbackFocusPreventScroll: false,
     scrollLockStrategy: 'simple', // Simple strategy for drawers
     closeOnBack: true,
     backGuardId: 'settingsDrawer',
@@ -131,7 +131,7 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null,
 
   return (
     <div
-      data-reading-settings-drawer
+      data-reading-settings-drawer={layout}
       hidden={!isOpen}
       inert={!isOpen || undefined}
       className="fixed inset-0 z-70 flex items-end justify-center pt-[max(16px,var(--safe-pad-top))]"
@@ -167,18 +167,13 @@ export function MobileSettingsDrawer({ isOpen, onClose, children, footer = null,
 
         <div className="mobile-drawer__header px-4 pt-3 pb-3">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Prepare your reading</h2>
-              <p className="text-xs text-muted leading-relaxed max-w-88">
-                Choose the deck for your next draw.
-              </p>
-            </div>
+            <h2 id="mobile-drawer-title" className="text-lg font-serif text-accent">Choose your deck</h2>
 
             <button
               ref={closeButtonRef}
               onClick={onClose}
               className="mobile-drawer__close"
-              aria-label="Close reading preparation"
+              aria-label="Close deck chooser"
             >
               <X className="w-5 h-5" />
             </button>

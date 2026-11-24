@@ -73,8 +73,8 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
     test('closing a sheet leaves no extra Back press behind', async ({ page }) => {
       await openSetup(page);
       await page.goto('/?from=back-test');
-      const opener = page.getByRole('button', { name: 'Prepare reading', exact: true });
-      const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
+      const opener = page.getByRole('button', { name: 'Choose deck', exact: true });
+      const drawer = page.getByRole('dialog', { name: 'Choose your deck', exact: true });
 
       await opener.click();
       await expect(drawer).toBeVisible();
@@ -84,7 +84,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
 
       await opener.click();
       await expect(drawer).toBeVisible();
-      await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await drawer.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
       await expect(drawer).toBeHidden();
       await page.goBack();
       await expect(page).not.toHaveURL(/from=back-test/);

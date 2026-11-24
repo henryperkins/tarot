@@ -104,6 +104,7 @@ export function useModalA11y(isOpen, {
   restoreFocus = true,
   initialFocusRef = null,
   returnFocusRef = null,
+  getReturnFocus = null,
   initialFocusSelector = null,
   fallbackFocusSelector = null,
   fallbackFocusRef = null,
@@ -126,7 +127,7 @@ export function useModalA11y(isOpen, {
   useAndroidBackGuard(isOpen, { onBack: onBack || onClose, enabled: closeOnBack, guardId: backGuardId });
 
   useClientLayoutEffect(() => {
-    optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, fallbackFocusSelector, fallbackFocusRef, getFallbackFocus, fallbackFocusPreventScroll };
+    optionsRef.current = { onClose, trapFocus, closeOnEscape, initialFocusSelector, getReturnFocus, fallbackFocusSelector, fallbackFocusRef, getFallbackFocus, fallbackFocusPreventScroll };
   });
 
   useClientLayoutEffect(() => {
@@ -206,6 +207,14 @@ export function useModalA11y(isOpen, {
         restoreTimerRef.current = setTimeout(() => {
           if (modalRevision !== closeRevision) return;
           const options = optionsRef.current;
+          // A workflow action may create its focus destination as the dialog
+          // closes. Resolve that control after the page is interactive again.
+          const destination = options.getReturnFocus?.();
+          if (isAvailable(destination)) {
+            restoreFocusTarget(destination, { preventScroll: false });
+            previousFocusRef.current = null;
+            return;
+          }
           const fallback = options.getFallbackFocus?.() || options.fallbackFocusRef?.current
             || (options.fallbackFocusSelector ? document.querySelector(options.fallbackFocusSelector) : null);
           // A closing confirmation can leave body as the activation target of

@@ -47,7 +47,7 @@ test('regression: completed guest header fits at 320px and retains installation 
     event.userChoice = Promise.resolve({ outcome: 'dismissed' });
     window.dispatchEvent(event);
   });
-  await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Install Tableu', exact: true })).toBeVisible();
 });
 
@@ -103,13 +103,13 @@ test('completed reading revisits show the selected step without losing completio
 test('reading settings isolates chrome and returns focus when handset layout ends', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await prepareNavigation(page);
   await page.goto('/'); await settleNavigation(page);
-  await page.locator('[data-app-bottom-region]').getByRole('button', { name: 'Prepare reading', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.locator('[data-app-header]')).toHaveAttribute('inert', '');
   await expect(page.locator('[data-app-bottom-region]')).toHaveAttribute('inert', '');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Reading settings', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Choose deck', exact: true })).toBeFocused();
   await expect(page.locator('[data-app-header]')).not.toHaveAttribute('inert', '');
 });
 
@@ -176,7 +176,11 @@ for (const width of [1440, 390]) for (const theme of ['dark', 'light']) for (con
       if (state === 'completed') await expect(page.getByRole('heading', { name: 'Your reading', exact: true })).toBeVisible();
       if (state === 'journal-populated') {
         await expect(page.getByRole('article').first()).toBeAttached();
-        await page.locator('section[aria-labelledby^="reading-journey"]').first().waitFor({ state: 'attached' });
+        if (width === 390) {
+          await expect(page.locator('summary').filter({ hasText: 'Your reading journey' })).toBeVisible();
+        } else {
+          await page.locator('section[aria-labelledby^="reading-journey"]').first().waitFor({ state: 'attached' });
+        }
       }
       if (state === 'journal-empty') await expect(page.getByText('Journal entry preview', { exact: true })).toBeVisible();
       await expect.poll(() => page.evaluate(() => [...document.images].filter(image => {

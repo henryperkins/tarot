@@ -138,10 +138,10 @@ test('saving exposes the returned entry and asking opens the contextual conversa
     releaseSave();
     await expect(page.getByRole('button', { name: 'View saved entry', exact: true }).filter({ visible: true })).toBeVisible();
     if (page.viewportSize().width < 769) {
-      await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
-      const settings = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
+      await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
+      const settings = page.getByRole('dialog', { name: 'Choose your deck', exact: true });
       await expect(settings.getByRole('button', { name: 'View saved entry', exact: true })).toBeEnabled();
-      await settings.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await settings.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
       await expect(settings).toBeHidden();
     }
     const ask = page.getByRole('button', { name: 'Ask about this reading', exact: true }).filter({ visible: true });

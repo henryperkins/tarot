@@ -5,6 +5,12 @@ test.setTimeout(60000);
 test.use({ serviceWorkers: 'block' });
 const snapshot = page => page.evaluate(() => JSON.parse(sessionStorage.getItem('tarot:reading-snapshot') || 'null'));
 
+async function startAnotherReading(page) {
+  await page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: 'Start a new reading?' });
+  if (await confirmation.isVisible()) await confirmation.getByRole('button', { name: 'Start new reading', exact: true }).click();
+}
+
 for (const deck of ['thoth-a1', 'marseille-classic']) {
   test(`${deck} artwork and journal identity survive a different stored preference and resume`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -38,7 +44,7 @@ for (const deck of ['thoth-a1', 'marseille-classic']) {
       await expect(images.first()).toBeVisible();
       await expect.poll(async () => (await snapshot(page))?.drawDeckStyleId).toBe(deck);
       await openReadingSupport(page);
-      await page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true }).click();
+      await startAnotherReading(page);
       await page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true }).click();
       await expect.poll(async () => (await snapshot(page))?.drawDeckStyleId).toBe('rws-1909');
     } finally { await fixture.close(); }
@@ -132,7 +138,8 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     await expect(panel).toContainText('Major Arcana focus');
     await expect.poll(async () => (await snapshot(page))?.drawIncludeMinors).toBe(false);
 
-    await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
+    await page.getByRole('dialog').getByRole('link', { name: 'Open Settings', exact: true }).click();
     await expect(fullDeck).toHaveAttribute('aria-checked', 'false');
     await fullDeck.click();
     await page.locator('main').getByRole('link', { name: 'Back to reading', exact: true }).first().click();
@@ -153,7 +160,7 @@ test('Major-only scope survives preference changes, reload and journal resume; a
     await page.getByRole('button', { name: 'Close follow-up chat', exact: true }).click();
     panel = await openDetails(page);
     await expect(panel).toContainText('Major Arcana focus');
-    await page.getByRole('button', { name: 'Start a new reading and reset this spread', exact: true }).click();
+    await startAnotherReading(page);
     await page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true }).click();
     await expect.poll(async () => (await snapshot(page))?.drawIncludeMinors).toBe(true);
   } finally { await fixture.close(); }

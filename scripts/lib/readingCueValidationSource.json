@@ -1,5 +1,5 @@
 {
-  "version": "reading-local-acceptance-v12",
+  "version": "reading-local-acceptance-v13",
   "scope": "frontend-build-and-controlled-fixtures; Worker execution is disabled",
   "paths": [
     "functions/lib/canonicalSceneEvidence.js",
@@ -841,6 +841,7 @@
     "src/components/ReadingJourney/sections/ShareLinksManager.jsx",
     "src/components/ReadingPreparation.jsx",
     "src/components/ResponsiveSpreadArt.jsx",
+    "src/components/RitualSkippedNote.jsx",
     "src/components/RouteAccessibility.jsx",
     "src/components/SaveIntentionButton.jsx",
     "src/components/SavedIntentionsList.jsx",

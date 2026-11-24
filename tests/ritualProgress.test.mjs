@@ -43,6 +43,49 @@ test('an actual cut counts even when ritual preferences are disabled', async t =
   assert.equal(h.render().ritualWasPerformed, true);
 });
 
+for (const timing of ['during Draw', 'after Draw', 'after Deal']) {
+  test(`restoring ritual steps ${timing} respects the cards on the table`, async t => {
+    const h = await tarotStateHarness();
+    t.after(() => h.unmount());
+    h.render().shuffle();
+    h.render();
+    if (timing === 'during Draw') h.preferences.personalization.showRitualSteps = true;
+    h.pendingShuffle()();
+    if (timing === 'after Deal') h.render().dealSpread();
+    const cards = h.render().reading;
+    h.preferences.personalization.showRitualSteps = true;
+    const state = h.render();
+    assert.equal(state.reading, cards);
+    assert.equal(state.ritualWasPerformed, false);
+    assert.equal(state.isSpreadDealt, timing === 'after Deal');
+    assert.equal(state.hasCut, timing === 'after Deal');
+    assert.equal(state.knockCount, timing === 'after Deal' ? 3 : 0);
+    if (timing !== 'after Deal') {
+      state.handleKnock();
+      assert.equal(h.render().knockCount, 1);
+      h.render().applyCut();
+      assert.equal(h.render().ritualWasPerformed, true);
+    }
+  });
+}
+
+test('a saved undealt deck opens with real ritual controls when steps are enabled', async t => {
+  const h = await tarotStateHarness({
+    preferences: { personalization: { showRitualSteps: true } },
+    snapshot: {
+      owner: 'user:owner-a', spreadKey: 'single', reading: [{ name: 'The Star' }],
+      ritual: { hasKnocked: true, knockCount: 3, hasCut: true, knockTimes: [100, 200, 300] }
+    }
+  });
+  t.after(() => h.unmount());
+  const state = h.render();
+  assert.equal(state.knockCount, 0);
+  assert.equal(state.hasCut, false);
+  assert.equal(state.reading[0].name, 'The Star');
+  state.handleKnock();
+  assert.equal(h.render().knockCount, 1);
+});
+
 test('New reading does not reuse the previous reading ritual or its seed', async t => {
   const h = await tarotStateHarness({ preferences: { personalization: { showRitualSteps: true } } });
   t.after(() => h.unmount());

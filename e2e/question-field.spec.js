@@ -204,8 +204,8 @@ test.describe('Question card hardening @mobile', () => {
     await expect(draw).toHaveAccessibleName('Draw cards');
     await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).getByRole('button')).toHaveCount(4);
 
-    await page.getByRole('button', { name: 'More reading settings' }).click();
-    const drawer = page.getByRole('dialog', { name: 'Prepare your reading' });
+    await page.getByRole('button', { name: 'Change deck' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Choose your deck' });
     const drawerDraw = drawer.getByRole('button', { name: /^Draw cards/ });
     await expect(drawerDraw).toHaveText('Draw cards');
     await expect(drawerDraw).toHaveAccessibleName('Draw cards');
@@ -235,12 +235,12 @@ test.describe('Question card hardening @mobile', () => {
       .toBe('How can I prepare for the interview this week?');
   });
 
-  test('More opens the deck, not a second question field or a ritual', async ({ page }) => {
+  test('Change deck opens the deck chooser and leaves the question on the page', async ({ page }) => {
     await seedApp(page);
     await gotoReading(page);
 
-    await page.getByRole('button', { name: 'More reading settings' }).click();
-    const drawer = page.getByRole('dialog', { name: 'Prepare your reading' });
+    await page.getByRole('button', { name: 'Change deck' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Choose your deck' });
     await expect(drawer).toBeVisible();
     // The ritual waits at the reading table, so the drawer needs no tabs.
     await expect(drawer.getByRole('tab')).toHaveCount(0);

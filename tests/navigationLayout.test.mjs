@@ -63,7 +63,30 @@ describe('Direction A navigation contract', () => {
       assert.equal(declarationsAt('.site-nav__link:focus-visible', width).outline, '2px solid var(--focus-ring-color)');
       assert.equal(declarationsAt('.step-progress-canvas__button:focus-visible', width).outline, '2px solid var(--focus-ring-color)');
     }
-    assert.equal(declarationsAt('.canvas-progress__settings', 1440).width, '44px');
+    assert.equal(declarationsAt('.canvas-progress__settings', 1440)['min-width'], '44px');
+  });
+
+  it('draws reading progress as one thread with a reserved note line and motion only as feedback', () => {
+    // No gap between steps: each carries its own stretch of one continuous hairline.
+    assert.equal(declarationsAt('.step-progress-canvas__list', 1440).gap, '0');
+    assert.equal(declarationsAt('.step-progress-canvas__item::before', 1440)['border-bottom'], '1px solid var(--border-warm)');
+    assert.equal(declarationsAt(".step-progress-canvas__item[data-step-state='current']::after", 1440)['border-bottom'], '2px solid var(--brand-primary)');
+    // The button's bottom padding holds the note line whether or not a note is shown.
+    assert.match(declarationsAt('.step-progress-canvas__button', 1440).padding, /var\(--step-note-size\)/);
+    assert.equal(declarationsAt('.step-progress-canvas__marker', 1440).width, 'var(--step-marker)');
+    assert.equal(declarationsAt('.step-progress-canvas__note', 1440)['pointer-events'], 'none');
+
+    // Notes never drop below the 11px floor, including on handsets.
+    const noteSizes = [];
+    stylesheet.walkDecls('--step-note-size', declaration => { noteSizes.push(parseFloat(declaration.value) * 16); });
+    assert.ok(noteSizes.length >= 2 && noteSizes.every(size => size >= 11), `note sizes ${noteSizes}`);
+
+    // Every progress and ritual-note animation or transition sits behind the motion query.
+    stylesheet.walkDecls(/^(animation|transition)$/, declaration => {
+      if (!/step-progress-canvas|ritual-note/.test(declaration.parent.selector || '')) return;
+      const media = declaration.parent.parent;
+      assert.equal(media.type === 'atrule' && media.params, '(prefers-reduced-motion: no-preference)', declaration.parent.selector);
+    });
   });
 
   it('wires the shared header, dock, quiet variant, and guest settings in source', () => {

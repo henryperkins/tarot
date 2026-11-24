@@ -45,14 +45,14 @@ async function expectInstallHitTarget(install, { scrollToEnd = true } = {}) {
 }
 
 async function readingInstall(page, name) {
-  await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
   const install = page.locator('[data-reading-settings-drawer]').getByRole('button', { name, exact: true });
   await install.scrollIntoViewIfNeeded();
   return install;
 }
 
 async function expectAppOptionsFocus(page) {
-  const close = page.getByRole('button', { name: 'Close reading preparation', exact: true });
+  const close = page.getByRole('button', { name: 'Close deck chooser', exact: true });
   await expect(close).toBeFocused();
   await expect(close).toBeInViewport();
   await close.click();
@@ -729,12 +729,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await page.goto('/');
         const dock = page.locator('[data-app-bottom-actions]');
         const draw = dock.getByRole('button', { name: 'Draw cards', exact: true });
-        const coach = dock.getByRole('button', { name: 'Open guided intention coach', exact: true });
+        const coach = page.getByRole('region', { name: 'Reading setup', exact: true })
+          .getByRole('button', { name: 'Open guided intention coach', exact: true });
         await page.evaluate(async () => {
           await document.fonts.ready;
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         });
         await expect.poll(() => page.locator('.page-transition').evaluate(element => getComputedStyle(element).transform)).toBe('none');
+        await coach.scrollIntoViewIfNeeded();
         await expect(draw).toBeInViewport();
         await expect(coach).toBeInViewport();
         await page.evaluate(() => document.fonts.ready);
@@ -807,7 +809,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await install.press('Enter');
         await expect(install).toHaveCount(0);
         await expectPageFocusInView(page);
-        await page.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+        await page.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
         await expect(cancel).toBeEnabled();
         await expect(page.getByRole('heading', { name: 'Preparing your reading', exact: true })).toBeVisible();
         expect(fixture.requests.reading).toHaveLength(1);
@@ -833,14 +835,14 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
           await install.press('Enter');
           await expect.poll(() => page.evaluate(() => window.installPromptCalls)).toBe(1);
           await expect(install).toHaveAttribute('aria-busy', 'true');
-          await page.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+          await page.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
           await expect(page.locator('[data-reading-settings-drawer]')).toBeHidden();
           // The preparation controls are gone; the same install host must still
           // consume the native result and publish its focus/state effects.
           expect(await page.evaluate(() => window.retainedInstallHost.isConnected)).toBe(true);
           await page.evaluate(() => window.resolveInstallChoice());
           await expect(install).toHaveCount(0);
-          await expect(page.getByRole('button', { name: 'Reading settings', exact: true })).toBeFocused();
+          await expect(page.getByRole('button', { name: 'Choose deck', exact: true })).toBeFocused();
           await expectPageFocusInView(page);
           expect(fixture.requests.reading).toHaveLength(1);
           expect(cancellations).toEqual([]);
@@ -850,10 +852,10 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
             await expect(page.getByRole('button', { name: 'Cancel generation', exact: true })).toBeEnabled();
             await fixture.completeReading();
           }
-          await page.getByRole('button', { name: 'Reading settings', exact: true }).click();
+          await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
           expect(await page.locator('[data-reading-settings-drawer] .mobile-drawer__body').evaluate(body => body.contains(window.retainedInstallHost))).toBe(true);
           await expect(install).toHaveCount(0);
-          await page.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+          await page.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
           expect(await page.evaluate(() => window.installPromptCalls)).toBe(1);
           expect(failures).toEqual([]);
           await page.screenshot({ path: testInfo.outputPath('deferred-install-focus.png'), animations: 'disabled' });

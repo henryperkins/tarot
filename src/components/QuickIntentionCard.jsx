@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useId, useLayoutEffect, useRef, useState } from 'react';
-import { Sparkle, GearSix } from '@phosphor-icons/react';
+import { Sparkle } from '@phosphor-icons/react';
 import { DECK_OPTIONS } from './deckOptions';
 import { QuestionExamples } from './QuestionExamples';
 import { QuestionNudge } from './QuestionNudge';
@@ -32,7 +32,6 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
   onInputFocus,
   onInputBlur,
   onCoachOpen,
-  onMoreOpen,
   deckStyleId,
   selectedSpread,
   onDeckChange
@@ -247,18 +246,6 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           className="min-h-touch min-w-touch px-3 py-2 text-xs font-semibold text-secondary underline underline-offset-4 rounded-lg hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         >
           Change
-        </button>
-        <button
-          type="button"
-          onClick={onMoreOpen}
-          aria-haspopup="dialog"
-          className="shrink-0 min-h-touch min-w-touch rounded-xl border border-secondary/40 px-4 py-2 text-xs font-semibold text-secondary hover:bg-secondary/10 active:bg-secondary/20 transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
-          aria-label="More reading settings"
-        >
-          <span className="flex items-center gap-1">
-            <GearSix className="w-4 h-4" weight="duotone" aria-hidden="true" />
-            <span className="hidden xxs:inline">More</span>
-          </span>
         </button>
       </div>
       {selectedSpread && trimmedQuestion.length > 0 && (

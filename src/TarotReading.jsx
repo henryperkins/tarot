@@ -5,6 +5,7 @@ import { ReadingStart } from './components/reading/ReadingStart';
 import { DeferredDialog } from './components/DeferredDialog';
 import { ConfirmModal } from './components/ConfirmModal';
 import { MobileSettingsDrawer } from './components/MobileSettingsDrawer';
+import { MOBILE_SETTINGS_DIALOG_ID } from './components/mobileActionBarConstants';
 import { MobileActionBar, MobileActionGroup } from './components/MobileActionBar';
 import { formatReading } from './lib/formatting';
 import { readingMetadataFromEntry } from './lib/readingMetadata';
@@ -14,7 +15,8 @@ import { InstallControl } from './components/InstallControl';
 import { Header } from './components/Header';
 import { AppBottomRegion } from './components/AppBottomRegion';
 import { StepProgress } from './components/StepProgress';
-import { Gear, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { RitualSkippedNote, RITUAL_NOTE_ID } from './components/RitualSkippedNote';
+import { Cards, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { InstallFooter } from './components/InstallFooter';
 import { PersonalizationBanner } from './components/PersonalizationBanner';
 import { LazyLoadBoundary } from './components/LazyLoadBoundary';
@@ -58,7 +60,7 @@ const FollowUpModal = lazy(() => import('./components/FollowUpModal'));
 const GuidedIntentionCoach = lazy(() => import('./components/GuidedIntentionCoach').then(module => ({ default: module.GuidedIntentionCoach })));
 const OnboardingWizard = lazy(() => import('./components/onboarding/OnboardingWizard').then(module => ({ default: module.OnboardingWizard })));
 
-function ReadingSkipLinks({ showSetupSection }) {
+function ReadingSkipLinks({ showSetupSection, onStepSelect }) {
   const narrativeTarget = useSyncExternalStore(
     subscribeNarrativeFocusTarget,
     getNarrativeFocusTarget,
@@ -67,7 +69,12 @@ function ReadingSkipLinks({ showSetupSection }) {
 
   const handleSkip = (event) => {
     event.preventDefault();
-    const target = document.getElementById(event.currentTarget.hash.slice(1));
+    const id = event.currentTarget.hash.slice(1);
+    if (id === 'step-spread' || id === 'step-reading') {
+      onStepSelect(id === 'step-spread' ? 'spread' : 'reading');
+      return;
+    }
+    const target = document.getElementById(id);
     if (!target) return;
     target.focus({ preventScroll: true });
     target.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -103,6 +110,7 @@ export default function TarotReading() {
     setOnboardingSpreadKey,
     showPersonalizationBanner,
     setShowPersonalizationBanner,
+    setShowRitualSteps,
     accountPreferencesStatus
   } = usePreferences();
 
@@ -190,7 +198,18 @@ export default function TarotReading() {
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [followUpIntent, setFollowUpIntent] = useState('continue');
-  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+  const deckLayout = isHandset ? 'handset' : 'desktop';
+  const [openDeckLayout, setOpenDeckLayout] = useState(null);
+  const isDeckOpen = openDeckLayout === deckLayout;
+  if (openDeckLayout && !isDeckOpen) setOpenDeckLayout(null);
+  const deckOpenerRef = useRef(null);
+  const returnToTableRef = useRef(false);
+  const openDeck = (event) => {
+    deckOpenerRef.current = event.currentTarget;
+    returnToTableRef.current = false;
+    setOpenDeckLayout(deckLayout);
+  };
+  const closeDeck = useCallback(() => setOpenDeckLayout(null), []);
   const [highlightQuickIntention, setHighlightQuickIntention] = useState(false);
   // Closing the loader or saving for later defers this opening. An explicit
   // replay can open the wizard again without leaving the reading page.
@@ -208,6 +227,12 @@ export default function TarotReading() {
   );
   const [showSetupInFocusMode, setShowSetupInFocusMode] = useState(false);
   const [viewedProgressStep, setViewedProgressStep] = useState(null);
+  // The ritual counts as skipped once the cards are dealt without a knock or a
+  // cut, or while ritual steps are hidden. Its step then opens a short note
+  // instead of leading to a ritual that is no longer there.
+  const isRitualSkipped = !ritualWasPerformed && (shouldSkipRitual || isSpreadDealt);
+  const [isRitualNoteOpen, setIsRitualNoteOpen] = useState(false);
+  if (isRitualNoteOpen && !isRitualSkipped) setIsRitualNoteOpen(false);
   const showSetupSection = !isOnboardingOpen && !onboardingDecisionPending && (!shouldFocusCinematicFlow || showSetupInFocusMode);
   const memoryPresence = useSavedMemoryPresence(userId, showSetupSection && !isFollowUpOpen);
   const suppressFocusInterruptions = shouldFocusCinematicFlow;
@@ -221,6 +246,18 @@ export default function TarotReading() {
   const spreadSectionRef = useRef(null);
   const prepareSectionRef = useRef(null);
   const readingSectionRef = useRef(null);
+  const runDeckTableAction = action => {
+    returnToTableRef.current = true;
+    closeDeck();
+    action();
+  };
+  const getDeckReturnFocus = () => {
+    if (!returnToTableRef.current) {
+      return deckOpenerRef.current?.isConnected ? deckOpenerRef.current : document.querySelector('.reading-settings');
+    }
+    const table = readingSectionRef.current;
+    return table?.querySelector('[data-reading-focus-target]') || table;
+  };
   const followUpOpenerRef = useRef(null);
   const quickIntentionCardRef = useRef(null);
   const quickIntentionInputRef = useRef(null);
@@ -255,6 +292,7 @@ export default function TarotReading() {
   // (Handled in ReadingContext now, but we might need to clear local UI state if any)
   const handleShuffle = useCallback(() => {
     setViewedProgressStep(null);
+    setIsRitualNoteOpen(false);
     setIsFollowUpOpen(false);
     setShowSetupInFocusMode(false);
     shuffle(); // Context handles the resets
@@ -556,7 +594,11 @@ export default function TarotReading() {
     const target = quickIntentionInputRef.current;
     if (!target) return;
     const header = document.querySelector('.header-sticky');
-    const dock = document.querySelector('[data-app-bottom-region][data-has-fixed="true"]');
+    const region = document.querySelector('[data-app-bottom-region][data-has-fixed="true"]');
+    // When Draw moves into page flow, only the destination links cover the field.
+    const dock = region?.dataset.actionsInFlow === 'true'
+      ? region.querySelector('[data-destination-group="dock"]:not([hidden])')
+      : region;
     const viewport = window.visualViewport;
     const viewportTop = viewport?.offsetTop || 0;
     const viewportBottom = viewportTop + (viewport?.height || window.innerHeight);
@@ -608,7 +650,7 @@ export default function TarotReading() {
       if (document.activeElement === field) focus();
     };
     const observer = new ResizeObserver(schedule);
-    [field, document.querySelector('.header-sticky'), document.querySelector('[data-app-bottom-region][data-has-fixed="true"]')]
+    [field, document.querySelector('.header-sticky'), document.querySelector('[data-app-bottom-region]'), document.querySelector('[data-destination-group="dock"]')]
       .filter(Boolean).forEach(element => observer.observe(element));
     field.addEventListener('focus', focus);
     field.addEventListener('blur', stop);
@@ -642,12 +684,14 @@ export default function TarotReading() {
   }, [scrollQuickIntentionIntoView]);
 
   const handleQuestionFocus = useCallback(() => {
+    setViewedProgressStep('intention');
   }, []);
 
   const handleQuestionBlur = useCallback(() => {
   }, []);
 
   const handleQuickIntentionFocus = useCallback(() => {
+    setViewedProgressStep('intention');
     scrollQuickIntentionIntoView();
   }, [scrollQuickIntentionIntoView]);
 
@@ -657,6 +701,7 @@ export default function TarotReading() {
     // The reader's tap (useTarotState.chooseSpread): the spread already in use
     // keeps its cards, ritual and reading.
     chooseSpread(key);
+    if (!reading?.length || !keepsCurrentSpread) setViewedProgressStep(null);
     if (!keepsCurrentSpread) {
       // Reset narrative/analysis state
       setPersonalReading(null);
@@ -667,7 +712,7 @@ export default function TarotReading() {
     if (shouldPromptQuickIntention) {
       promptQuickIntention();
     }
-  }, [chooseSpread, hasConfirmedSpread, isHandset, promptQuickIntention, selectedSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
+  }, [chooseSpread, hasConfirmedSpread, isHandset, promptQuickIntention, reading, selectedSpread, setIsGenerating, setJournalStatus, setPersonalReading, setReflections]);
 
   // A different spread puts drawn cards away, so a tap on the revisited setup
   // asks first instead of clearing the table and its reading at once. Returns
@@ -712,9 +757,7 @@ export default function TarotReading() {
     control.scrollIntoView({ block: 'center', behavior: prefersReducedMotion ? 'instant' : 'smooth' });
   }, [prefersReducedMotion]);
 
-  // The ritual happens at the table, after Draw cards. Until then its progress
-  // step points at Draw cards, wherever it sits: the bottom bar on handsets,
-  // the pinned row (or the page, when released) on wider screens.
+  // Before a draw, Reading and Ritual point to the visible Draw cards action.
   const focusDrawCards = useCallback(() => {
     const control = isHandset
       ? document.querySelector('[data-app-bottom-actions] [data-chrome-action="draw"]')
@@ -724,16 +767,27 @@ export default function TarotReading() {
     control.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion ? 'instant' : 'smooth' });
   }, [isHandset, prefersReducedMotion]);
 
+  const closeRitualNote = useCallback(() => {
+    setIsRitualNoteOpen(false);
+    document.querySelector('.step-progress-canvas__item[data-step="ritual"] button')?.focus({ preventScroll: true });
+  }, []);
+
   const handleStepNav = useCallback((stepId) => {
+    if (stepId === 'ritual' && isRitualSkipped) {
+      if (isRitualNoteOpen) closeRitualNote();
+      else setIsRitualNoteOpen(true);
+      return;
+    }
+    setIsRitualNoteOpen(false);
     const hasCards = Boolean(reading?.length);
     // Spread and Intent revisit the setup and show as current while viewed.
     // Ritual and Reading lead to the table, whose own state names the step.
     setViewedProgressStep(stepId === 'spread' || stepId === 'intention' ? stepId : null);
-    if (stepId === 'ritual' && !hasCards) {
+    const toTable = stepId === 'ritual' || stepId === 'reading';
+    if (toTable && !hasCards && !isShuffling) {
       focusDrawCards();
       return;
     }
-    const toTable = stepId === 'ritual' || stepId === 'reading';
     const isQuickIntentionStep = isHandset && stepId === 'intention';
     const refs = {
       spread: spreadSectionRef,
@@ -774,7 +828,14 @@ export default function TarotReading() {
     }
 
     scrollToStep();
-  }, [focusDrawCards, isHandset, prefersReducedMotion, promptQuickIntention, reading, shouldFocusCinematicFlow, showSetupInFocusMode]);
+  }, [closeRitualNote, focusDrawCards, isHandset, isRitualNoteOpen, isRitualSkipped, isShuffling, prefersReducedMotion, promptQuickIntention, reading, shouldFocusCinematicFlow, showSetupInFocusMode]);
+
+  // Before Deal this brings the ritual back for the reading on the table, so
+  // the note has nothing left to say. After Deal it applies from the next one.
+  const handleUseRitual = useCallback(() => {
+    setShowRitualSteps(true);
+    if (!isSpreadDealt) closeRitualNote();
+  }, [closeRitualNote, isSpreadDealt, setShowRitualSteps]);
 
   // Handle navigation requests passed via router state (e.g., from Journal empty state)
   useEffect(() => {
@@ -877,7 +938,7 @@ export default function TarotReading() {
   const showFollowUpButton = canShowFollowUp;
   const isFollowUpVisible = canShowFollowUp && isFollowUpOpen;
   // Only true overlays (modals/drawers) should hide the action bar - not the small personalization banner
-  const isMobileOverlayActive = isIntentionCoachOpen || isMobileSettingsOpen || isOnboardingOpen || onboardingDecisionPending || isFollowUpVisible || isCardModalOpen;
+  const isMobileOverlayActive = isIntentionCoachOpen || isDeckOpen || isOnboardingOpen || onboardingDecisionPending || isFollowUpVisible || isCardModalOpen;
   const isCinematicFocusMode = shouldFocusCinematicFlow && !showSetupInFocusMode;
   const revealFocus = isHandset && newDeckInterface && reading && revealedCards.size < visibleCount
     ? (revealedCards.size === 0 ? 'deck' : 'spread')
@@ -1002,9 +1063,22 @@ export default function TarotReading() {
     ...(hasReading || activeStep === 'ritual' || activeStep === 'reading' ? ['intention'] : []),
     ...(ritualWasPerformed ? ['ritual'] : []),
   ];
-  const progressSkippedIds = [
-    ...(!ritualWasPerformed && (shouldSkipRitual || isSpreadDealt) ? ['ritual'] : []),
-  ];
+  const progressSkippedIds = isRitualSkipped ? ['ritual'] : [];
+  const shownProgressStep = (showSetupSection && viewedProgressStep) || activeStep;
+  // One short note for the step in view. Narrow phones show the revealed count alone.
+  const spreadCardCount = hasReading
+    ? visibleCount
+    : typeof spreadInfo?.drawCount === 'number' ? spreadInfo.drawCount : spreadInfo?.count;
+  const progressStatuses = {
+    spread: spreadCardCount ? `${spreadCardCount} card${spreadCardCount === 1 ? '' : 's'}` : null,
+    intention: hasQuestion ? 'Ready' : hasReading ? 'No question' : 'Optional',
+    ritual: 'Optional',
+    reading: !hasReading ? null
+      : !isSpreadDealt ? 'Cards drawn'
+        : hasNarrative ? 'Ready'
+          : narrativeInProgress ? 'Preparing…'
+            : { text: `${revealedCards.size} of ${visibleCount}`, more: ' revealed' }
+  };
 
 
   // --- Render Helper Wrappers ---
@@ -1039,7 +1113,7 @@ export default function TarotReading() {
     <div data-app-chrome className={`app-shell relative isolate min-h-screen bg-main text-main ${hasReading && !showSetupSection ? 'app-shell--reading' : ''} ${shouldEnableMobileStableMode ? 'mobile-stable-mode' : ''}`}>
       <div id="app-bg" className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true" />
       <div className="relative z-1">
-      {!isOnboardingOpen && <ReadingSkipLinks showSetupSection={showSetupSection} />}
+      {!isOnboardingOpen && <ReadingSkipLinks showSetupSection={showSetupSection} onStepSelect={handleStepNav} />}
       <Header installInMenu={Boolean(personalReading) || isGenerating} />
       <main
         id="main-content"
@@ -1050,31 +1124,52 @@ export default function TarotReading() {
           {[ttsAnnouncement, srAnnouncement, journalStatus?.message].filter(Boolean).join(' · ')}
         </div>
 
-        <div className="canvas-progress">
+        <div
+          className="canvas-progress"
+          onKeyDown={event => {
+            if (event.key !== 'Escape' || !isRitualNoteOpen || event.defaultPrevented) return;
+            event.preventDefault();
+            closeRitualNote();
+          }}
+        >
           <StepProgress
             canvas
             steps={STEP_PROGRESS_STEPS}
-            activeStep={hasReading && viewedProgressStep ? viewedProgressStep : activeStep}
+            activeStep={shownProgressStep}
+            reachedStep={activeStep}
             onSelect={handleStepNav}
             completedIds={progressCompletedIds}
             skippedIds={progressSkippedIds}
+            statuses={progressStatuses}
+            detailStep={isRitualSkipped ? 'ritual' : null}
+            detailOpen={isRitualNoteOpen}
+            detailId={RITUAL_NOTE_ID}
           />
           <button
             type="button"
             className="canvas-progress__settings reading-settings"
-            aria-label="Reading settings"
-            onClick={() => {
-              if (isHandset) setIsMobileSettingsOpen(true);
-              else navigate('/account');
-            }}
+            aria-label="Choose deck"
+            aria-haspopup="dialog"
+            aria-expanded={isDeckOpen}
+            aria-controls={isDeckOpen ? MOBILE_SETTINGS_DIALOG_ID : undefined}
+            onClick={openDeck}
           >
-            <Gear size={21} aria-hidden="true" />
+            <Cards size={21} aria-hidden="true" />
+            <span>Deck</span>
           </button>
           {isShuffling && (
             <div className="canvas-progress__status" role="status" aria-live="polite">
               <ArrowCounterClockwise className="w-4 h-4 motion-safe:animate-spin" aria-hidden="true" />
               <span>Shuffling the deck...</span>
             </div>
+          )}
+          {isRitualNoteOpen && isRitualSkipped && (
+            <RitualSkippedNote
+              ritualHidden={shouldSkipRitual}
+              isDealt={isSpreadDealt}
+              onUseRitual={handleUseRitual}
+              onClose={closeRitualNote}
+            />
           )}
         </div>
 
@@ -1179,10 +1274,9 @@ export default function TarotReading() {
                   onInputFocus={handleQuickIntentionFocus}
                   onInputBlur={handleQuestionBlur}
                   onCoachOpen={openIntentionCoach}
-                  onMoreOpen={() => setIsMobileSettingsOpen(true)}
                   deckStyleId={deckStyleId}
                   selectedSpread={selectedSpread}
-                  onDeckChange={() => setIsMobileSettingsOpen(true)}
+                  onDeckChange={openDeck}
                 />
               ) : (
                 <ReadingPreparation
@@ -1295,7 +1389,6 @@ export default function TarotReading() {
           <MobileActionBar
               embedded
               isOverlayActive={isMobileOverlayActive}
-              isSettingsOpen={isMobileSettingsOpen}
               showFollowUp={showFollowUpButton}
               isFollowUpOpen={isFollowUpVisible}
               isShuffling={isShuffling}
@@ -1310,7 +1403,6 @@ export default function TarotReading() {
               needsNarrativeGeneration={needsNarrativeGeneration}
               stepIndicatorLabel={stepIndicatorLabel}
               revealFocus={revealFocus}
-              onOpenSettings={() => setIsMobileSettingsOpen(true)}
               onOpenFollowUp={handleOpenFollowUp}
               onShuffle={handleShuffle}
               onDealNext={dealNext}
@@ -1342,78 +1434,65 @@ export default function TarotReading() {
         </Suspense>
       )}
 
-      {isHandset && (
-        <>
-
-          {connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
-            <div
-              className="fixed left-0 right-0 z-60 flex justify-center pl-safe pr-safe bottom-safe-action"
-              aria-live="polite"
+      {isHandset && connectionBanner && showSetupSection && !suppressFocusInterruptions && !isMobileOverlayActive && (
+        <div
+          className="fixed left-0 right-0 z-60 flex justify-center pl-safe pr-safe bottom-safe-action"
+          aria-live="polite"
+        >
+          <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
+            <span className={`${BADGE_LABEL_CLASS} ${connectionText}`}>Connection</span>
+            <span className="text-main/90">{connectionBanner.message}</span>
+            <button
+              type="button"
+              onClick={checkApiHealth}
+              className={`${BADGE_LABEL_CLASS} ml-auto inline-flex min-h-touch items-center rounded-full border px-2.5 py-1 ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
             >
-              <div className={`pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border ${connectionBg} ${connectionTone} px-3 py-2 text-xs shadow-lg backdrop-blur`}>
-                <span className={`${BADGE_LABEL_CLASS} ${connectionText}`}>Connection</span>
-                <span className="text-main/90">{connectionBanner.message}</span>
-                <button
-                  type="button"
-                  onClick={checkApiHealth}
-                  className={`${BADGE_LABEL_CLASS} ml-auto inline-flex min-h-touch items-center rounded-full border px-2.5 py-1 ${connectionTone} ${connectionText} hover:text-main hover:border-secondary/60 transition`}
-                >
-                  {connectionBanner.actionLabel || 'Retry'}
-                </button>
-              </div>
-            </div>
-          )}
-          <MobileSettingsDrawer
-            keepMounted={Boolean(personalReading) || isGenerating}
-            isOpen={isMobileSettingsOpen}
-            onClose={() => setIsMobileSettingsOpen(false)}
-            footer={(
-              <MobileActionGroup
-                isShuffling={isShuffling}
-                reading={reading}
-                isSpreadDealt={isSpreadDealt}
-                spreadPositions={spreadInfo?.positions}
-                onDealSpread={dealSpread}
-                revealedCards={revealedCards}
-                dealIndex={dealIndex}
-                isGenerating={isGenerating}
-                personalReading={personalReading}
-                needsNarrativeGeneration={needsNarrativeGeneration}
-                stepIndicatorLabel={stepIndicatorLabel}
-                revealFocus={revealFocus}
-                showUtilityButtons={false}
-                onOpenSettings={() => setIsMobileSettingsOpen(false)}
-                onOpenCoach={() => {
-                  setIsMobileSettingsOpen(false);
-                  openIntentionCoach();
-                }}
-                onShuffle={handleShuffle}
-                onDealNext={dealNext}
-                onRevealAll={handleRevealAll}
-                onGenerateNarrative={handleGeneratePersonalReading}
-                saveController={saveController}
-                onSaveReading={saveReading}
-                isSaving={isSaving}
-                savedEntryId={savedEntryId}
-                onViewSavedEntry={() => navigate('/journal', { state: { highlightEntryId: savedEntryId, fromReading: true } })}
-                onCancelGeneration={() => {
-                  setIsMobileSettingsOpen(false);
-                  cancelPersonalReading();
-                }}
-                onNewReading={handleShuffle}
-              />
-            )}
-          >
-            {isMobileSettingsOpen && <ReadingPreparation
-              variant="mobile"
-              deckStyleId={deckStyleId}
-              onDeckChange={handleDeckChange}
-              hasDrawnCards={Boolean(reading?.length)}
-            />}
-            {(personalReading || isGenerating) && <InstallControl key="reading-settings-install" getFallbackFocus={() => document.querySelector('[data-reading-settings-drawer]:not([hidden]) .mobile-drawer__close') || document.querySelector('.reading-settings')} />}
-          </MobileSettingsDrawer>
-        </>
+              {connectionBanner.actionLabel || 'Retry'}
+            </button>
+          </div>
+        </div>
       )}
+      <MobileSettingsDrawer
+        layout={deckLayout}
+        keepMounted={isHandset && (Boolean(personalReading) || isGenerating)}
+        isOpen={isDeckOpen}
+        onClose={closeDeck}
+        getReturnFocus={getDeckReturnFocus}
+        footer={isHandset && (
+          <MobileActionGroup
+            isShuffling={isShuffling}
+            reading={reading}
+            isSpreadDealt={isSpreadDealt}
+            spreadPositions={spreadInfo?.positions}
+            onDealSpread={() => runDeckTableAction(dealSpread)}
+            revealedCards={revealedCards}
+            dealIndex={dealIndex}
+            isGenerating={isGenerating}
+            personalReading={personalReading}
+            needsNarrativeGeneration={needsNarrativeGeneration}
+            stepIndicatorLabel={stepIndicatorLabel}
+            revealFocus={revealFocus}
+            onShuffle={() => runDeckTableAction(handleShuffle)}
+            onDealNext={() => runDeckTableAction(dealNext)}
+            onGenerateNarrative={() => runDeckTableAction(handleGeneratePersonalReading)}
+            saveController={saveController}
+            onSaveReading={saveReading}
+            isSaving={isSaving}
+            savedEntryId={savedEntryId}
+            onViewSavedEntry={() => navigate('/journal', { state: { highlightEntryId: savedEntryId, fromReading: true } })}
+            onCancelGeneration={() => runDeckTableAction(cancelPersonalReading)}
+            onNewReading={() => runDeckTableAction(handleShuffle)}
+          />
+        )}
+      >
+        {isDeckOpen && <ReadingPreparation
+          variant="mobile"
+          deckStyleId={deckStyleId}
+          onDeckChange={handleDeckChange}
+          hasDrawnCards={Boolean(reading?.length)}
+        />}
+        {isHandset && (personalReading || isGenerating) && <InstallControl key="reading-settings-install" getFallbackFocus={() => document.querySelector('[data-reading-settings-drawer]:not([hidden]) .mobile-drawer__close') || document.querySelector('.reading-settings')} />}
+      </MobileSettingsDrawer>
 
       {isIntentionCoachOpen && (
         <DeferredDialog

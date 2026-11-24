@@ -2,6 +2,21 @@ import { test, expect } from './helpers/frontendTest.js';
 import AxeBuilder from '@axe-core/playwright';
 import { createNarrativeFixture, openSetup, startReading, openChat, installSimulatedVisualViewport } from './helpers/narrativeFixtures.js';
 
+function focusedFieldIsVisible(field) {
+  const bounds = field.getBoundingClientRect();
+  const header = document.querySelector('.header-sticky');
+  const region = document.querySelector('[data-app-bottom-region]');
+  const fixed = [region, ...region.children].find(element =>
+    !element.hidden && element.getClientRects().length && getComputedStyle(element).position === 'fixed');
+  const bottom = fixed?.getBoundingClientRect();
+  const viewportTop = visualViewport?.offsetTop || 0;
+  const viewportBottom = viewportTop + (visualViewport?.height || innerHeight);
+  const headerBottom = getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().bottom : 0;
+  return document.activeElement === field && bounds.top >= Math.max(viewportTop, headerBottom)
+    && bounds.bottom <= Math.min(innerHeight, viewportBottom, bottom?.top ?? innerHeight)
+    && (!bottom || bottom.bottom <= innerHeight + 1);
+}
+
 for (const platform of ['Chromium', 'WebKit @mobile']) {
   test.describe(`Intention polish — ${platform}`, () => {
     test.use({ serviceWorkers: 'block' });
@@ -44,7 +59,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await field.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
         await expect(field).toBeFocused();
         await expect(field).toHaveAccessibleDescription(/This reads as a yes-or-no question/);
-        await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).locator('[aria-current="step"]')).toHaveAccessibleName(/Question/);
+        await expect(page.getByRole('navigation', { name: 'Tarot reading progress' }).locator('[aria-current="step"]')).toHaveAccessibleName('Step 2: Intent (question)');
         const guidance = page.getByRole('status').filter({ hasText: /This reads as a yes-or-no question/ });
         await expect(guidance).toHaveText(/This reads as a yes-or-no question/);
         await field.press('Shift+Enter');
@@ -62,16 +77,16 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await openSetup(page);
       const field = page.locator('#quick-intention');
       await field.fill('How can I balance work and rest this week?');
-      const draw = page.locator('.mobile-action-bar').getByRole('button', { name: 'Draw cards', exact: true });
+      const draw = page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Draw cards', exact: true });
       await expect(draw).not.toContainText(/Step \d/);
-      await page.getByRole('button', { name: 'Prepare reading', exact: true }).click();
-      const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
+      await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
+      const drawer = page.getByRole('dialog', { name: 'Choose your deck', exact: true });
       await expect(drawer.getByRole('textbox')).toHaveCount(0);
       await expect(drawer.getByRole('tab')).toHaveCount(0);
       await expect(drawer.getByRole('radiogroup', { name: 'Choose your deck style' })).toBeVisible();
-      await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await drawer.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
       await expect(field).toHaveValue('How can I balance work and rest this week?');
-      await expect(page.getByRole('button', { name: 'Prepare reading', exact: true })).toBeFocused();
+      await expect(page.getByRole('button', { name: 'Choose deck', exact: true })).toBeFocused();
       await field.fill('أمان 🌿 安心 — What can I learn today?');
       await field.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, keyCode: 229, bubbles: true, cancelable: true });
       await expect(field).toBeFocused();
@@ -89,16 +104,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         });
       }
       await field.focus();
-      await expect.poll(() => field.evaluate(el => {
-        const fieldBox = el.getBoundingClientRect();
-        const header = document.querySelector('.header-sticky');
-        const headerBottom = getComputedStyle(header).position === 'sticky' ? header.getBoundingClientRect().bottom : 0;
-        const dockTop = document.querySelector('.mobile-action-bar').getBoundingClientRect().top;
-        const dock = document.querySelector('.mobile-action-bar').getBoundingClientRect();
-        return document.activeElement === el && fieldBox.top >= Math.max(0, headerBottom)
-          && fieldBox.bottom <= Math.min(innerHeight, dockTop)
-          && dock.top >= 0 && dock.bottom <= innerHeight + 1;
-      })).toBe(true);
+      await expect.poll(() => field.evaluate(focusedFieldIsVisible)).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     });
 
@@ -107,13 +113,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
       await installSimulatedVisualViewport(page);
       await openSetup(page);
       const field = page.locator('#quick-intention');
-      const visible = () => field.evaluate(el => {
-        const box = el.getBoundingClientRect();
-        const header = document.querySelector('.header-sticky').getBoundingClientRect();
-        const dock = document.querySelector('.mobile-action-bar').getBoundingClientRect();
-        return document.activeElement === el && box.top >= Math.max(0, header.bottom)
-          && box.bottom <= Math.min(innerHeight, dock.top, (visualViewport?.offsetTop || 0) + (visualViewport?.height || innerHeight)) && dock.bottom <= innerHeight + 1;
-      });
+      const visible = () => field.evaluate(focusedFieldIsVisible);
       await field.focus();
       await expect.poll(visible).toBe(true);
       await field.blur();

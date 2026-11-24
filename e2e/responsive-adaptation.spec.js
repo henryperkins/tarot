@@ -220,7 +220,7 @@ for (const platform of ['Chromium', 'WebKit @mobile']) {
         await expect(page.locator('[data-app-header] .step-progress-canvas')).toHaveCount(0);
         expect((await readingProgress.boundingBox()).width).toBeLessThanOrEqual((await page.locator('main').boundingBox()).width);
         for (const button of await readingProgress.getByRole('button').all()) await expectTouchTarget(button);
-        const settings = page.getByRole('button', { name: 'Reading settings', exact: true });
+        const settings = page.getByRole('button', { name: 'Choose deck', exact: true });
         await expectTouchTarget(settings);
         expect((await settings.locator('svg').boundingBox()).width).toBeGreaterThanOrEqual(21);
       } finally {

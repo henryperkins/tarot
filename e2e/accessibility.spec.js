@@ -243,9 +243,9 @@ test.describe('Accessibility - Interactive Components', () => {
       await page.goto('/');
       await waitForAppReady(page);
 
-      const prepareBtn = page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Prepare reading', exact: true });
+      const prepareBtn = page.getByRole('button', { name: 'Choose deck', exact: true });
       await expect(prepareBtn).toBeVisible();
-      await expect(prepareBtn).toContainText('Prepare');
+      await expect(prepareBtn).toContainText('Deck');
       await expect(prepareBtn).toHaveAttribute('aria-expanded', 'false');
 
       await checkProgressAndDock(true);
@@ -270,12 +270,12 @@ test.describe('Accessibility - Interactive Components', () => {
       expect(layoutCheck).toEqual({ hasHorizontalOverflow: false, clippedCount: 0 });
 
       // Verify drawer open, aria-controls/aria-expanded, and focus restoration
-      await expect(prepareBtn).toHaveAttribute('aria-controls', 'mobile-settings-drawer');
       await prepareBtn.click();
-      const drawer = page.getByRole('dialog', { name: 'Prepare your reading', exact: true });
+      const drawer = page.getByRole('dialog', { name: 'Choose your deck', exact: true });
       await expect(drawer).toBeVisible();
-      await expect(page.locator('[data-app-bottom-actions] button[aria-controls="mobile-settings-drawer"]')).toHaveAttribute('aria-expanded', 'true');
-      await drawer.getByRole('button', { name: 'Close reading preparation', exact: true }).click();
+      await expect(page.locator('.reading-settings')).toHaveAttribute('aria-controls', await drawer.getAttribute('id'));
+      await expect(page.locator('.reading-settings')).toHaveAttribute('aria-expanded', 'true');
+      await drawer.getByRole('button', { name: 'Close deck chooser', exact: true }).click();
       await expect(drawer).toBeHidden();
       await expect(prepareBtn).toHaveAttribute('aria-expanded', 'false');
       await expect(prepareBtn).toBeFocused();
@@ -740,9 +740,9 @@ test.describe('Accessibility - Mobile @mobile', () => {
     const violations = await analyzeAccessibility(page);
     expectNoViolations(violations, 'mobile');
 
-    const prepareBtn = page.locator('[data-app-bottom-actions]').getByRole('button', { name: 'Prepare reading', exact: true });
+    const prepareBtn = page.getByRole('button', { name: 'Choose deck', exact: true });
     await expect(prepareBtn).toBeVisible();
-    await expect(prepareBtn).toContainText('Prepare');
+    await expect(prepareBtn).toContainText('Deck');
   });
 
   test('no horizontal scroll on mobile', async ({ page }) => {
