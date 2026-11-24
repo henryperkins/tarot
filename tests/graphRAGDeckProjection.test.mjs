@@ -99,8 +99,8 @@ test('a supported summary of unverified legacy references reports summary-only i
     themes: { knowledgeGraph: { graphKeys: { completeTriadIds: ['death-temperance-star'] } } },
     graphRAGPayload: { formattedBlock: 'Unverified opaque quotation.', retrievalSummary: { patternsDetected: { completeTriads: 1 } } }
   });
-  assert.match(built.userPrompt, /GraphRAG Summary/);
-  assert.equal(built.promptMeta.graphRAG.includedInPrompt, true);
+  assert.match(built.userPrompt, /TABLEU TAROT PATTERN SUMMARY/);
+  assert.equal(built.promptMeta.graphRAG.includedInPrompt, false);
   assert.equal(built.promptMeta.graphRAG.injectionMode, 'summary');
   assert.equal(built.promptMeta.graphRAG.passagesUsedInPrompt, 0);
 });

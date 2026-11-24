@@ -1,5 +1,6 @@
 import { prepareReadingContextSources } from './readingContextSources.js';
 import { buildReadingRetrievalQuery } from './readingRetrievalQuery.js';
+import { resolveReadingSensitiveContext } from './readingSensitiveContext.js';
 import { CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_KEYWORDS, GRAPH_RAG_CONTEXT_PRIORITY, countMatches, positiveContextPhrases, contextPhraseMatches } from './readingContextVocabulary.js';
 import { normalizeContext } from './narrative/helpers.js';
 import { sanitizeText } from './utils.js';
@@ -185,8 +186,11 @@ export function resolveContextSelection(input = {}, spreadKey, options = {}) {
   };
   result.selectedSourceIds = [...new Set([...(selected?.entries || []), ...contributors])].filter((entry) => positiveContextPhrases(entry.text,
     [...(CONTEXT_KEYWORDS[result.context] || []), ...(GRAPH_RAG_CONTEXT_KEYWORDS[result.graphRAGContext] || [])]).length > 0).map((entry) => entry.id);
+  // Legacy aggregate context can include saved focus labels as reflections.
+  // Sensitive eligibility uses only separately supplied reader text.
+  const sensitiveContext = resolveReadingSensitiveContext({ sources: hasStructured ? sources : question.entries, contextSelection: result });
   const query = buildReadingRetrievalQuery(sources, result, options);
-  return { ...result, retrievalQuery: query.text, retrievalContentText: query.contentText, queryCoverage: query.coverage };
+  return { ...result, sensitiveContext, retrievalQuery: query.text, retrievalContentText: query.contentText, queryCoverage: query.coverage };
 }
 
 export function inferContext(userQuestion, spreadKey, options = {}) {

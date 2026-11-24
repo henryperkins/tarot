@@ -34,14 +34,9 @@ export function shouldIncludeAstroInsights(cardsInfo = [], themes = {}, userQues
     'medium'
   ].includes(timingType);
 
-  // User intent: explicit astro/time keywords force opt-in
-  const intent = (userQuestion || '').toLowerCase();
-  const astroKeywords = [
-    'astrology', 'planet', 'planets', 'transit', 'transits', 'retrograde', 'mercury retrograde',
-    'eclipse', 'moon', 'full moon', 'new moon', 'lunar', 'solar return', 'horoscope',
-    'zodiac', 'sign', 'season', 'equinox', 'solstice'
-  ];
-  const intentAstro = astroKeywords.some((kw) => intent.includes(kw));
+  // Unqualified sign and season have ordinary meanings unrelated to astrology.
+  const intentAstro = /\b(?:astrology|astrological|planets?|planetary|transits?|retrogrades?|eclipses?|moon|lunar|solar\s+return|horoscopes?|zodiac|equinox(?:es)?|solstices?)\b/iu
+    .test(userQuestion || '');
 
   // Moon phase weighting: New Moon and Full Moon are pivotal moments that
   // amplify archetypal themes in readings. These phases have strong traditional

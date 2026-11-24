@@ -6,6 +6,7 @@ import { collectPassageCandidates } from '../functions/lib/graphRAGCandidates.js
 import { projectPassageForDeck } from '../functions/lib/graphRAGProjection.js';
 import { getPassagesForPattern } from '../functions/lib/knowledgeBase.js';
 import { buildEnhancedClaudePrompt } from '../functions/lib/narrative/prompts.js';
+import { buildGraphRAGReferenceBlock } from '../functions/lib/narrative/prompts/graphRAGReferenceBlock.js';
 import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 import { getDeckAlias } from '../shared/vision/deckAssets.js';
 import { getTraditionalPassages } from '../src/hooks/narrativeReadingModelUtils.js';
@@ -31,8 +32,10 @@ const reference = built => {
   return match[1];
 };
 
+const highlights = built => built.userPrompt.match(/<pattern_highlights>([\s\S]*?)<\/pattern_highlights>/)?.[1] || '';
+
 for (const deck of decks) {
-  test(`${deck}: partial retrieved families cannot supply an absent role`, () => {
+  test(`${deck}: supplied references and highlights cannot supply an absent role`, () => {
     for (const [type, patternId, names, forbidden] of [
       ['suit-progression', 'Cups:challenge', ['Four of Cups', 'Six of Cups', 'Seven of Cups'], /grief|mourning/],
       ['suit-progression', 'Swords:mastery', ['Eight of Swords', 'Nine of Swords'], /rock bottom|then release|Crisis & Release|an ending|Ten of Swords/],
@@ -45,10 +48,12 @@ for (const deck of decks) {
       assert.ok(candidate);
       assert.deepEqual(new Set(candidate.matchedCardKeys), new Set(names.map(name => name.toLowerCase())));
       assert.doesNotMatch(candidate.promptText, forbidden);
-      const block = reference(build(cards, deck, [candidate]));
+      const built = build(cards, deck, [candidate]);
+      const block = type === 'suit-progression' ? highlights(built) : reference(built);
       assert.doesNotMatch(block, forbidden);
       for (const card of cards) assert.ok(block.includes(card.card));
-      assert.match(block, /partial symbolic grouping/i);
+      if (type === 'suit-progression') assert.equal(built.promptMeta.graphRAG.passagesUsedInPrompt, 0);
+      if (candidate.isPartialPattern) assert.match(block, /partial symbolic grouping/i);
     }
   });
 }
@@ -59,9 +64,14 @@ test('final prompt rebinds raw and stale full-family payloads to actual drawn ca
   const full = cardsFor(['Eight of Swords', 'Nine of Swords', 'Ten of Swords'], 'rws-1909');
   const stale = collectPassageCandidates(buildGraphContext(full).graphKeys).find(row => row.patternId === 'Swords:mastery');
   for (const supplied of [raw, stale, { ...stale, matchedCardKeys: ['king of cups'], isPartialPattern: false }]) {
-    const block = reference(build(partial, 'rws-1909', [supplied]));
-    assert.doesNotMatch(block, /rock bottom|then release|Ten of Swords|King of Cups/);
-    assert.match(block, /partial symbolic grouping/i);
+    const built = build(partial, 'rws-1909', [supplied]);
+    assert.equal(built.promptMeta.graphRAG.passagesUsedInPrompt, 0, 'Rebound partial duplicates a visible highlight');
+    assert.doesNotMatch(highlights(built), /rock bottom|then release|Ten of Swords|King of Cups/);
+    const blockWithoutHighlight = buildGraphRAGReferenceBlock('general', {}, {
+      cardsInfo: partial, env: { GRAPHRAG_ENABLED: 'true' }, graphRAGPayload: { passages: [supplied] }
+    });
+    assert.match(blockWithoutHighlight, /partial symbolic grouping/i);
+    assert.doesNotMatch(blockWithoutHighlight, /rock bottom|then release|Ten of Swords|King of Cups/);
   }
   const absent = build(cardsFor(['Page of Cups', 'Queen of Cups'], 'rws-1909'), 'rws-1909', [raw]);
   assert.equal(absent.promptMeta.graphRAG.passagesUsedInPrompt, 0);
@@ -78,7 +88,8 @@ test('a rebound reference cannot disclose stale full-council prose as used, incl
   const sourceUsage = JSON.parse(JSON.stringify(sanitizeSourceUsage(built.promptMeta.sourceUsage)));
   assert.equal(sourceUsage.graphRAG.passagesUsedInPrompt, 1, 'Actual provider retention remains truthful');
   assert.deepEqual(getTraditionalPassages(themes, { sourceUsage }, 'rws-1909'), [], 'An original candidate with different final membership cannot be attributed as used');
-  assert.match(stale.promptText, /Knight of Cups/, 'Caller payload stays unchanged for fallback/history');
+  assert.ok(stale.matchedCardKeys.includes('knight of cups'), 'Caller payload stays unchanged for fallback/history');
+  assert.equal(stale.promptText, getPassagesForPattern('court-lineage', 'Cups:council').passages[0].text);
 
   const current = collectPassageCandidates(buildGraphContext(actual).graphKeys).find(row => row.type === 'court-lineage');
   themes.knowledgeGraph.graphRAGPayload.passages = [current];
@@ -96,7 +107,7 @@ test('explicit malformed or unknown membership never authorizes a full-family re
   assert.equal(collectPassageCandidates({ suitProgressions: [{ suit: 'Swords', stage: 'mastery', significance: 'emerging-progression' }] }).length, 0);
 });
 
-test('684 provider-target reference builds preserve every Minor subset and complete-group roles', () => {
+test('684 provider-target builds render each Minor subset once and retain authored complete references', () => {
   let count = 0;
   for (const stage of stages) for (let mask = 0; mask < 2 ** stage.members.length; mask++) {
     const selected = stage.members.filter((_, index) => mask & (1 << index));
@@ -105,18 +116,27 @@ test('684 provider-target reference builds preserve every Minor subset and compl
       const cards = cardsFor(selected.map(row => row.name).reverse(), deck);
       const candidate = collectPassageCandidates(buildGraphContext(cards, { deckStyle: deck }).graphKeys, { deckStyle: deck })
         .find(row => row.type === 'suit-progression' && row.patternId === `${stage.suit}:${stage.stage}`);
-      const block = reference(build(cards, deck, [candidate], target));
-      for (const member of stage.members) assert.equal(block.includes(member.role), selected.includes(member), member.name);
-      assert.match(block, selected.length === stage.members.length ? /Complete symbolic grouping/ : /Partial symbolic grouping/);
-      assert.match(block, /positions and orientations/);
-      assert.match(block, /without assuming chronological order/);
+      const built = build(cards, deck, [candidate], target);
+      const complete = selected.length === stage.members.length;
+      assert.equal(candidate.isPartialPattern, !complete);
+      assert.deepEqual(new Set(candidate.matchedCardKeys), new Set(selected.map(member => member.name.toLowerCase())));
+      if (complete) {
+        const block = reference(built);
+        assert.ok(block.includes(candidate.promptText));
+        assert.equal(candidate.text, getPassagesForPattern('suit-progression', candidate.patternId).passages[0].text);
+      } else {
+        assert.equal(built.promptMeta.graphRAG.passagesUsedInPrompt, 0);
+        const block = highlights(built);
+        assert.match(block, /Partial symbolic grouping/);
+        for (const card of cards) assert.ok(block.includes(card.card));
+      }
       count++;
     }
   }
   assert.equal(count, 684);
 });
 
-test('132 court subset/deck references include only drawn ranks and distinguish full councils', () => {
+test('132 court subset/deck references include only drawn ranks and use authored text for complete groupings', () => {
   const ranks = ['Page', 'Knight', 'Queen', 'King'];
   let count = 0;
   for (const suit of ['Wands', 'Cups', 'Swords', 'Pentacles']) for (let mask = 0; mask < 16; mask++) {
@@ -128,10 +148,16 @@ test('132 court subset/deck references include only drawn ranks and distinguish 
       const block = reference(build(cards, deck, [candidate]));
       for (const rank of ranks) {
         const label = getDeckAlias(MINOR_ARCANA.find(row => row.name === `${rank} of ${suit}`), deck);
-        assert.equal(block.includes(`${label}:`), selected.includes(rank), label);
+        assert.equal(block.includes(label), selected.includes(rank), label);
       }
-      assert.match(block, selected.length === 4 ? /Complete symbolic grouping/ : /Partial symbolic grouping/);
-      assert.match(block, /do not infer actual people, family history, or events/);
+      assert.equal(candidate.isPartialPattern, selected.length === 3);
+      if (candidate.isPartialPattern) {
+        assert.match(block, /Partial symbolic grouping/);
+        assert.match(block, /do not infer actual people, family history, or events/);
+      } else {
+        assert.ok(block.includes(candidate.promptText));
+        assert.equal(candidate.text, getPassagesForPattern('court-lineage', candidate.patternId).passages[0].text);
+      }
       count++;
     }
   }

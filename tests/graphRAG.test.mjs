@@ -395,7 +395,7 @@ describe('GraphRAG Formatting', () => {
   test('formatPassagesForPrompt: formats registered passages as markdown', () => {
     const passage = registered();
     const formatted = formatPassagesForPrompt([{ ...passage, source: 'Rachel Pollack, Seventy-Eight Degrees of Wisdom' }]);
-    assert.ok(formatted.includes('**Retrieved Wisdom from Tarot Tradition:**'));
+    assert.ok(formatted.includes('**Tableu Tarot Canon references:**'));
     assert.ok(formatted.includes('**The Healing Arc**'));
     assert.ok(formatted.includes(`"${passage.text}"`));
     assert.ok(formatted.includes('— Tableu Tarot Canon'));
@@ -403,7 +403,7 @@ describe('GraphRAG Formatting', () => {
   });
   test('formatPassagesForPrompt: plain text format', () => {
     const formatted = formatPassagesForPrompt([registered()], { markdown: false });
-    assert.ok(formatted.includes('Retrieved Wisdom from Tarot Tradition:'));
+    assert.ok(formatted.includes('Tableu Tarot Canon references:'));
     assert.ok(!formatted.includes('**'));
     assert.ok(formatted.includes('(Source: Tableu Tarot Canon)'));
   });
@@ -853,7 +853,7 @@ describe('GraphRAG Integration Test', () => {
     const formatted = formatPassagesForPrompt(passages);
 
     assert.ok(formatted.length > 0, 'Should produce formatted output');
-    assert.ok(formatted.includes('Retrieved Wisdom'), 'Should include header');
+    assert.ok(formatted.includes('Tableu Tarot Canon references'), 'Should include header');
     assert.ok(formatted.includes('Healing Arc'), 'Should include triad title');
 
     // Step 4: Build summary

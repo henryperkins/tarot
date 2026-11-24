@@ -329,7 +329,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       "Beginner's mind empowered by mastery. Fresh vision with the tools to manifest it.",
     narrative:
-      'You have both the fresh perspective of a beginner AND the tools to manifest your vision.',
+      'A beginner’s perspective and practiced skills could complement each other.',
     significance: 'high'
   },
   {
@@ -340,7 +340,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Necessary ending creating space for renewal. Grief making room for healing.',
     narrative:
-      "What you're releasing is making space for renewed hope and purpose.",
+      'An ending and the possibility of renewed hope can be considered together.',
     significance: 'high'
   },
   {
@@ -349,9 +349,9 @@ export const ARCHETYPAL_DYADS = [
     theme: 'Upheaval revealing clarity',
     category: 'transformation',
     description:
-      'Necessary destruction bringing authentic joy. Illusions shattered, truth shining through.',
+      'Disruption and clarity are two lenses on how a situation might be understood.',
     narrative:
-      "What's falling apart needed to fall apart so truth and joy could emerge.",
+      'If disruption is part of the situation, consider what feels clearer and what still needs care.',
     significance: 'high'
   },
   {
@@ -360,9 +360,9 @@ export const ARCHETYPAL_DYADS = [
     theme: 'Attachment patterns affecting choice',
     category: 'shadow-challenge',
     description:
-      'Shadow bondage influencing values-based decisions. Addiction affecting relationship choices.',
+      'Attachment and freedom of choice can be explored together.',
     narrative:
-      'Your attachment patterns are affecting your capacity to choose freely and align with true values.',
+      'Consider whether an attachment influences an available choice and which values might guide it.',
     significance: 'high'
   },
   {
@@ -373,7 +373,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Outer withdrawal revealing inner knowing. Solitude allowing the inner voice to be heard.',
     narrative:
-      'Solitude creates the quiet space where deep intuitive knowing can finally be heard.',
+      'Solitude could offer room to notice quieter impressions and weigh what they reveal.',
     significance: 'medium-high'
   },
 
@@ -386,7 +386,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Letting go making way for metamorphosis. Acceptance easing the transition.',
     narrative:
-      'Your willingness to release control determines how gracefully transformation unfolds.',
+      'A pause might offer another perspective on what can be influenced during change.',
     significance: 'medium-high'
   },
   {
@@ -397,7 +397,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       "Gentle power meeting fair judgment. Kindness that doesn't bypass accountability.",
     narrative:
-      "Be both kind AND fair. Compassion doesn't mean avoiding responsibility.",
+      'Consider how compassion and accountability might inform the same response.',
     significance: 'medium'
   },
   {
@@ -408,7 +408,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Personal intuition meeting traditional wisdom. Inner voice versus received teachings.',
     narrative:
-      'Navigate where your inner knowing and traditional wisdom align or diverge.',
+      'Personal intuition and learned guidance may agree in some areas and differ in others.',
     significance: 'medium'
   },
   {
@@ -419,7 +419,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Confusion clarifying into truth. Unconscious material becoming conscious.',
     narrative:
-      "What's confusing now is in the process of being revealed and clarified.",
+      'Uncertainty and moments of clarity can coexist while a situation is still being understood.',
     significance: 'medium-high'
   },
   {
@@ -428,9 +428,9 @@ export const ARCHETYPAL_DYADS = [
     theme: 'Bondage meeting disruption',
     category: 'shadow-challenge',
     description:
-      'Attachment being forcefully broken. Liberation through crisis.',
+      'Attachment and disruption invite reflection on what feels flexible or constrained.',
     narrative:
-      "The chains are breaking whether you're ready or not. Embrace the liberation.",
+      'Consider how an attachment and the possibility of change might interact, including what support might help.',
     significance: 'high'
   },
   {
@@ -441,7 +441,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Karmic cycle completing, calling for integration and conscious evolution.',
     narrative:
-      'A major cycle is completing; integrate the lesson and rise transformed.',
+      'A change in circumstances could prompt a fresh look at a recurring choice.',
     significance: 'high'
   },
   {
@@ -451,7 +451,7 @@ export const ARCHETYPAL_DYADS = [
     category: 'power-structure',
     description:
       'Masculine structure meeting feminine flow. Discipline supporting creativity.',
-    narrative: 'Honor both structure and flow, discipline and abundance.',
+    narrative: 'Structure and creative freedom might support one another.',
     significance: 'medium'
   },
   {
@@ -462,7 +462,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'When guidance becomes bondage, when tradition restricts rather than liberates.',
     narrative:
-      'Discern where traditional wisdom serves you and where it binds you.',
+      'Consider where established guidance offers support and where it may feel restrictive.',
     significance: 'medium'
   },
   {
@@ -472,7 +472,7 @@ export const ARCHETYPAL_DYADS = [
     category: 'hope-vision',
     description:
       'Hope inspiring transformation. Vision catalyzing conscious evolution.',
-    narrative: 'Renewed hope is calling you into a higher version of yourself.',
+    narrative: 'Hope and honest reflection may offer different ways to consider a possible next step.',
     significance: 'high'
   },
   {
@@ -481,9 +481,9 @@ export const ARCHETYPAL_DYADS = [
     theme: 'Determined action reaching completion',
     category: 'hope-vision',
     description:
-      'Victory approaching culmination. Sustained effort bearing full fruit.',
+      'Sustained effort and the meaning of completion considered together.',
     narrative:
-      'Your focused effort is leading to complete achievement and mastery.',
+      'Consider how sustained effort relates to the aim and what completion would require.',
     significance: 'high'
   },
   {
@@ -494,7 +494,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'The first step holds the final destination. Completion circles back to fresh potential.',
     narrative:
-      'Every ending is a new beginning. You stand at both the start and the finish of a great cycle.',
+      'A beginning can be explored alongside what has ended or remains unfinished.',
     significance: 'high'
   },
   {
@@ -505,7 +505,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Deep change followed by gentle blending. What has ended now seeks balanced integration.',
     narrative:
-      'After the clearing comes the healing. Let what has changed be gently integrated into your life.',
+      'If something has changed, a patient pace might help with adjusting to it.',
     significance: 'high'
   },
   {
@@ -516,7 +516,7 @@ export const ARCHETYPAL_DYADS = [
     description:
       'Honest assessment leading to necessary pause. Seeing clearly, then letting go.',
     narrative:
-      'Once you see the truth clearly, surrender to what it asks of you.',
+      'A fair assessment and a deliberate pause might each help clarify a choice.',
     significance: 'medium-high'
   }
 ];

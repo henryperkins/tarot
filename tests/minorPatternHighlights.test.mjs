@@ -18,13 +18,18 @@ function cardsFor(row, deck, reverse = false, orientation = 0) {
       orientation: orientation === 1 || (orientation === 2 && index % 2) ? 'Reversed' : 'Upright', position: `Slot ${index + 1}`, meaning: catalog.upright };
   });
 }
-function assertHighlight(row, text) {
+function assertHighlight(row, cards, text) {
   assert.match(text, /possible/i);
   assert.match(text, /positions and orientations/i);
   assert.doesNotMatch(text, /You're in|The dawn is coming|promises breakthrough|dawn is promised|daybreak coming/);
   for (const member of row.members) {
-    if (row.selected.includes(member)) assert.ok(text.includes(member.role), `Missing ${member.role}`);
-    else assert.ok(!text.includes(member.role), `Absent member ${member.name}: ${text}`);
+    const card = cards.find(card => card.canonicalName === member.name);
+    if (card) {
+      const role = card.orientation === 'Reversed' ? card.reversed : member.role;
+      assert.ok(text.includes(`${card.card} (${card.orientation}): ${role}`), `Missing ${role}`);
+    } else {
+      assert.ok(!text.includes(member.role), `Absent member ${member.name}: ${text}`);
+    }
   }
 }
 
@@ -35,7 +40,7 @@ test('all 1368 membership/deck/order/orientation highlights contain only drawn m
     const cards = cardsFor(row, deck, reverse, orientation);
     const progressions = detectSuitProgressions(cards, { deckStyle: deck });
     const highlight = getPriorityPatternNarratives({ suitProgressions: progressions }, deck)[0];
-    assertHighlight(row, highlight.text);
+    assertHighlight(row, cards, highlight.text);
     assert.deepEqual(highlight.matchedCardIndices, cards.map((_, index) => index));
     for (const card of cards) assert.ok(highlight.text.includes(card.card));
     count++;
@@ -52,7 +57,7 @@ test('684 provider-target prompts retain matched-only Minor highlights', () => {
       promptBudgetEnv: { GRAPHRAG_ENABLED: 'true' } });
     const match = built.userPrompt.match(/\*\*Archetypal Patterns\*\*[^\n]*\n([\s\S]*?)\n\n/);
     assert.ok(match, 'Actual final prompt contains the highlight section');
-    assertHighlight(row, match[1]);
+    assertHighlight(row, cardsInfo, match[1]);
     assert.equal(built.promptMeta.sourceUsage.patterns.used, true);
     count++;
   }

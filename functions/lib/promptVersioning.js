@@ -14,13 +14,23 @@
  * - PATCH: Bug fixes, minor tweaks
  */
 
-export const READING_PROMPT_VERSION = '1.6.14';
+export const READING_PROMPT_VERSION = '1.6.15';
 
 /**
  * Version history for documentation and debugging.
  * Add entry when incrementing version.
  */
 export const VERSION_HISTORY = [
+  {
+    version: '1.6.15',
+    date: '2026-11-24',
+    notes: 'Ground reading prompts in the drawn cards and the current question.',
+    changes: [
+      'Use consistent deck labels and drawn orientations in card imagery and pattern highlights.',
+      'Require current evidence for sensitive references and prospective wording for question-driven forecasts.',
+      'Use authored references for complete groups, filter duplicate or weak matches, and report which passages reach the prompt.'
+    ]
+  },
   {
     version: '1.6.14',
     date: '2026-11-05',

@@ -494,8 +494,10 @@ export const QABALAH_PATHS = {
   minors: RANK_TO_SEPHIROTH
 };
 
-export function getQabalahForCard(cardInfo = {}) {
+export function getQabalahForCard(cardInfo = {}, deckStyle = cardInfo.deckStyle) {
   if (typeof cardInfo.number === 'number' && cardInfo.number >= 0 && cardInfo.number <= 21) {
+    // This path table follows Golden Dawn Major attributions.
+    if (deckStyle === 'thoth-a1') return null;
     return MAJOR_PATHS[cardInfo.number] || null;
   }
 

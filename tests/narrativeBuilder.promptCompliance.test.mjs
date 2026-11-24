@@ -1274,10 +1274,10 @@ describe('Prompt budget telemetry', () => {
     assert.ok(!promptMeta.truncation, 'hard-cap trimming should avoid truncation when optional blocks can drop');
     assert.ok(promptMeta.estimatedTokens, 'estimatedTokens should exist when hard-cap adjustments occur');
     assert.equal(promptMeta.estimatedTokens.truncated, false);
-    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'Full GraphRAG passage block should be removed under hard cap');
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM SIGNALS (GraphRAG Summary)'), 'GraphRAG summary should remain under hard cap');
+    assert.ok(!userPrompt.includes('## TABLEU TAROT REFERENCES'), 'Full GraphRAG passage block should be removed under hard cap');
+    assert.ok(userPrompt.includes('## TABLEU TAROT PATTERN SUMMARY'), 'GraphRAG summary should remain under hard cap');
     assert.equal(promptMeta.graphRAG?.injectionMode, 'summary');
-    assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
+    assert.equal(promptMeta.graphRAG?.includedInPrompt, false);
     assert.equal(promptMeta.sourceUsage?.graphRAG?.mode, 'summary');
     assert.equal(promptMeta.sourceUsage?.graphRAG?.used, true);
     assert.equal(promptMeta.sourceUsage?.spreadCards?.used, true);
@@ -1325,7 +1325,7 @@ describe('Prompt budget telemetry', () => {
       promptBudgetEnv: { PROMPT_BUDGET_CLAUDE: '90', ENABLE_PROMPT_SLIMMING: 'false' }
     });
 
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be included when payload is provided');
+    assert.ok(userPrompt.includes('## TABLEU TAROT REFERENCES'), 'GraphRAG block should be included when payload is provided');
     assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
     assert.ok(userPrompt.includes(passage.promptText));
     assert.deepEqual(promptMeta.sourceUsage?.graphRAG?.passageIndices, [0]);
@@ -1461,7 +1461,7 @@ describe('Prompt budget telemetry', () => {
       promptBudgetEnv: { GRAPHRAG_ENABLED: 'false' }
     });
 
-    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'), 'GraphRAG block should be suppressed when disabled by env');
+    assert.ok(!userPrompt.includes('## TABLEU TAROT REFERENCES'), 'GraphRAG block should be suppressed when disabled by env');
     assert.equal(promptMeta.graphRAG?.disabledByEnv, true);
     assert.equal(promptMeta.graphRAG?.skippedReason, 'disabled_by_env');
     assert.equal(promptMeta.sourceUsage?.graphRAG?.requested, true);

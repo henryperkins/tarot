@@ -26,11 +26,12 @@ describe('collectGraphRAGAlerts', () => {
         assert.ok(alerts.some((msg) => msg.includes('heavily truncated')));
     });
 
-    it('flags semantic scoring fallback when requested and fell back', () => {
+    it('flags semantic scoring fallback after an attempted score', () => {
         const alerts = collectGraphRAGAlerts({
             graphRAG: {
                 includedInPrompt: true,
                 semanticScoringRequested: true,
+                semanticScoringAttempted: true,
                 semanticScoringFallback: true
             }
         });

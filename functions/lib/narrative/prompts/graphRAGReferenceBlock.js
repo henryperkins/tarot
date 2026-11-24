@@ -1,4 +1,6 @@
 import { projectPassageForDeck } from '../../graphRAGProjection.js';
+import { isPassageEligibleForSensitiveContext } from '../../readingSensitiveContext.js';
+import { repeatsSuitHighlight } from '../../minorPatternReferences.js';
 import { collectPassageCandidates } from '../../graphRAGCandidates.js';
 import { summarizeProjectedPatterns } from '../../graphRAGPatternSummary.js';
 import {
@@ -26,13 +28,13 @@ import {
 
 // Only registry-backed graph patterns can establish summary facts. Payload
 // retrieval summaries and nominal scores carry no authority to supply prose.
-function summarizeDetectedPatterns(graphKeys, deckStyle) {
-  const candidates = collectPassageCandidates(graphKeys, { deckStyle });
+function summarizeDetectedPatterns(graphKeys, deckStyle, sensitiveContext) {
+  const candidates = collectPassageCandidates(graphKeys, { deckStyle, sensitiveContext });
   return summarizeProjectedPatterns(candidates).segments;
 }
 
-function buildGraphRAGSummaryBlock(graphKeys, deckStyle) {
-  const patternSegments = summarizeDetectedPatterns(graphKeys, deckStyle);
+function buildGraphRAGSummaryBlock(graphKeys, deckStyle, sensitiveContext) {
+  const patternSegments = summarizeDetectedPatterns(graphKeys, deckStyle, sensitiveContext);
   if (!patternSegments.length) return '';
   return [
     GRAPHRAG_SUMMARY_START_MARKER,
@@ -72,15 +74,17 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
 
   try {
     if (includeGraphRAGSummaryOnly) {
-      return buildGraphRAGSummaryBlock(graphKeys, options.deckStyle || themes?.deckStyle || 'rws-1909');
+      return buildGraphRAGSummaryBlock(graphKeys, options.deckStyle || themes?.deckStyle || 'rws-1909', options.sensitiveContext);
     }
 
-    let retrievedPassages = Array.isArray(payload?.passages) && payload.passages.length
-      ? payload.passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || themes?.deckStyle || 'rws-1909', { cardsInfo: options.cardsInfo })).filter(Boolean)
-      : null;
+    const deckStyle = options.deckStyle || themes?.deckStyle || 'rws-1909';
+    let retrievedPassages = (Array.isArray(payload?.passages) ? payload.passages : [])
+      .map(passage => projectPassageForDeck(passage, deckStyle, { cardsInfo: options.cardsInfo }))
+      .filter(passage => passage && isPassageEligibleForSensitiveContext(passage, options.sensitiveContext)
+        && !repeatsSuitHighlight(passage, themes.knowledgeGraph?.narrativeHighlights));
     let formattedPassages = null;
 
-    if (retrievedPassages && retrievedPassages.length > 0) {
+    if (retrievedPassages.length > 0) {
       const effectiveSpreadKey = spreadKey || 'general';
       const maxPassages = payload?.maxPassages ?? getPassageCountForSpread(effectiveSpreadKey, options.subscriptionTier);
       if (!Number.isInteger(maxPassages) || maxPassages <= 0) return '';
@@ -96,13 +100,14 @@ export function buildGraphRAGReferenceBlock(spreadKey, themes, options = {}) {
       }
 
       formattedPassages = formatPassagesForPrompt(retrievedPassages, {
-        deckStyle: options.deckStyle || themes?.deckStyle || 'rws-1909',
+        deckStyle,
+        sensitiveContext: options.sensitiveContext,
         includeSource: true,
         markdown: true
       });
     } else if (typeof payload?.formattedBlock === 'string' && payload.formattedBlock.trim()) {
       // Opaque historical quotes remain displayable, but cannot establish prompt provenance.
-      return buildGraphRAGSummaryBlock(graphKeys, options.deckStyle || themes?.deckStyle || 'rws-1909');
+      return buildGraphRAGSummaryBlock(graphKeys, options.deckStyle || themes?.deckStyle || 'rws-1909', options.sensitiveContext);
     }
 
     formattedPassages = neutralizeReferenceDelimiters(formattedPassages);

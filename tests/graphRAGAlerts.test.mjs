@@ -53,6 +53,7 @@ describe('GraphRAG alert heuristics', () => {
                 includedInPrompt: true,
                 passagesProvided: 2,
                 semanticScoringRequested: true,
+                semanticScoringAttempted: true,
                 semanticScoringFallback: true,
                 semanticScoringFallbackReason: 'embeddings-failed'
             }
@@ -80,7 +81,7 @@ describe('GraphRAG alert heuristics', () => {
         );
     });
 
-    it('only warns about semantic scoring fallback when semantic scoring was requested', () => {
+    it('only warns about semantic scoring fallback when semantic scoring was requested and attempted', () => {
         const noRequestAlerts = collectGraphRAGAlerts({
             graphRAG: {
                 includedInPrompt: true,
@@ -88,6 +89,7 @@ describe('GraphRAG alert heuristics', () => {
                 passagesUsedInPrompt: 2,
                 truncatedPassages: 0,
                 semanticScoringRequested: false,
+                semanticScoringAttempted: true,
                 semanticScoringFallback: true
             }
         });
@@ -104,6 +106,7 @@ describe('GraphRAG alert heuristics', () => {
                 passagesUsedInPrompt: 2,
                 truncatedPassages: 0,
                 semanticScoringRequested: true,
+                semanticScoringAttempted: true,
                 semanticScoringFallback: true
             }
         });

@@ -509,6 +509,7 @@ export async function analyzeSpreadThemes(cardsInfo, options = {}) {
             maxPassages: 5,
             includeMetadata: true,
             deckStyle,
+            sensitiveContext: options.contextSelection?.sensitiveContext,
             questionContext: options.questionContext || options.contextSelection?.graphRAGContext || 'general'
           });
           themes.knowledgeGraph.retrievedPassages = passages;

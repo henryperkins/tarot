@@ -181,7 +181,7 @@ describe('GraphRAG fallback behavior', () => {
     });
 
     assert.ok(
-      userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'),
+      userPrompt.includes('## TABLEU TAROT REFERENCES'),
       'GraphRAG block should be included via keyword fallback'
     );
     assert.ok(
@@ -260,7 +260,7 @@ describe('GraphRAG fallback behavior', () => {
       graphRAGPayload
     });
 
-    assert.ok(userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(userPrompt.includes('## TABLEU TAROT REFERENCES'));
     assert.equal(promptMeta.graphRAG?.includedInPrompt, true);
     assert.equal(promptMeta.graphRAG?.passagesProvided, 1);
     assert.equal(promptMeta.graphRAG?.passagesUsedInPrompt, 1);
@@ -291,7 +291,7 @@ describe('GraphRAG fallback behavior', () => {
       graphRAGPayload
     });
 
-    assert.ok(!userPrompt.includes('TRADITIONAL WISDOM (GraphRAG)'));
+    assert.ok(!userPrompt.includes('## TABLEU TAROT REFERENCES'));
     assert.ok(!userPrompt.includes('Integration comes through steady blending of opposites.'));
     assert.equal(promptMeta.graphRAG?.includedInPrompt, false);
     assert.equal(promptMeta.graphRAG?.injectionMode, 'none');

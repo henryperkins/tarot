@@ -274,7 +274,7 @@ function buildCardWithImagery(cardInfo, position, options, prefix = '') {
       if (usesRwsImagery(safeOptions.deckStyle) && !controlledScene) {
         const owner = cardInfo.card || cardInfo.name;
         text += `*RWS image (${owner}): ${hook.visual}*\n`;
-        text += `*Metaphor: ${hook.sensory}*\n`;
+        if (hook.sensory) text += `*Metaphor: ${hook.sensory}*\n`;
       }
 
       // NEW: Add vision-detected tone if available

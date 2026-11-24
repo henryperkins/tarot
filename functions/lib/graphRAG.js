@@ -2,6 +2,7 @@ import { collectPassageCandidates, selectPassageCandidates, passageContextMatch,
 export { resolveRetrievalMode } from './graphRAGCandidates.js';
 import { composeRelevanceScore } from './graphRAGScoring.js';
 import { getPassageRankingScore } from './graphRAGRanking.js';
+import { isPassageEligibleForSensitiveContext } from './readingSensitiveContext.js';
 export { composeRelevanceScore } from './graphRAGScoring.js';
 import { summarizeProjectedPatterns } from './graphRAGPatternSummary.js';
 import { projectPassageForDeck } from './graphRAGProjection.js';
@@ -112,7 +113,7 @@ export function retrievePassages(graphKeys, options = {}) {
       _qualityFilteringDisabled: disabled,
       _semanticScoringAttempted: false,
       _semanticScoringSucceeded: false,
-      _contextMatch: passageContextMatch(passage, options.questionContext),
+      _contextMatch: passageContextMatch(passage, options.questionContext, options.sensitiveContext),
       _priorityOnly: mode !== 'keyword'
     };
   });
@@ -148,17 +149,12 @@ export function formatPassagesForPrompt(passages, options = {}) {
     return '';
   }
 
-  const projected = passages.map((passage) => projectPassageForDeck(passage, options.deckStyle || passage?.projectedDeck || 'rws-1909')).filter(Boolean);
+  const projected = passages
+    .map(passage => projectPassageForDeck(passage, options.deckStyle || passage?.projectedDeck || 'rws-1909'))
+    .filter(passage => passage && isPassageEligibleForSensitiveContext(passage, options.sensitiveContext));
   if (!projected.length) return '';
-  const lines = [];
-
-  if (markdown) {
-    lines.push('**Retrieved Wisdom from Tarot Tradition:**');
-    lines.push('');
-  } else {
-    lines.push('Retrieved Wisdom from Tarot Tradition:');
-    lines.push('');
-  }
+  const heading = 'Tableu Tarot Canon references:';
+  const lines = [markdown ? `**${heading}**` : heading, ''];
 
   projected.forEach((passage, index) => {
     const number = index + 1;
@@ -191,7 +187,6 @@ export function formatPassagesForPrompt(passages, options = {}) {
     const source = getPassageSource(passage);
     lines.push(`  Source tradition: ${source.label}.`);
     if (passage.cardNames?.length) lines.push(`  Matched cards: ${passage.cardNames.join(', ')}.`);
-    if (passage.projectionVersion) lines.push(`  Projection version: ${passage.projectionVersion}; human editorial status: ${passage.projectionReviewStatus || 'pending'}.`);
     if (passage.sourceUrls?.length) lines.push(`  Source provenance (background research, not quotations): ${passage.sourceUrls.join(', ')}.`);
     if (passage.crossDeckReference) {
       lines.push('  Cross-deck reference: archetypal meaning is background; its imagery is not evidence of the selected deck.');
@@ -691,7 +686,7 @@ export async function retrievePassagesWithQuality(graphKeys, options = {}) {
       _semanticScoringAttempted: attempted,
       _semanticScoringSucceeded: Boolean(valid),
       _semanticScore: semanticScore,
-      _contextMatch: passageContextMatch(passage, questionContext),
+      _contextMatch: passageContextMatch(passage, questionContext, options.sensitiveContext),
       _priorityOnly: scoringMethod === 'priority' || disabled
     };
   });

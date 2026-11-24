@@ -26,7 +26,7 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
         (typeof graphMeta.passagesRetrieved === 'number' ? graphMeta.passagesRetrieved : 0);
     const visibleInOutput = graphMeta.debugVisibleInOutput === true || graphMeta.visibleInOutput === true;
 
-    if (graphMeta.includedInPrompt === false && passagesProvided > 0 && !visibleInOutput) {
+    if (graphMeta.includedInPrompt === false && passagesProvided > (graphMeta.inapplicablePassageCount || 0) && !visibleInOutput) {
         alerts.push('GraphRAG passages were retrieved but omitted from prompt');
     }
 
@@ -37,7 +37,7 @@ export function collectGraphRAGAlerts(promptMeta = {}) {
     }
 
     const semanticRequested = graphMeta.semanticScoringRequested === true;
-    if (semanticRequested && graphMeta.semanticScoringFallback) {
+    if (semanticRequested && graphMeta.semanticScoringAttempted === true && graphMeta.semanticScoringFallback) {
         const reason = graphMeta.semanticScoringFallbackReason;
         alerts.push(`GraphRAG semantic scoring fell back to keyword ranking${reason ? ` (${reason})` : ''}`);
     }
