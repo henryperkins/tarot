@@ -107,7 +107,7 @@ export function CoachTemplatePanel({
                   autoComplete="off"
                   enterKeyHint="done"
                   data-initial-focus="save"
-                  className="flex-1 min-h-touch min-w-0 rounded-full border border-accent/20 bg-surface/70 px-3 py-2 text-base text-main caret-accent placeholder:text-muted focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
+                  className="flex-1 min-h-touch min-w-0 rounded-full border border-field bg-surface/70 px-3 py-2 text-base text-main caret-accent focus:outline-hidden focus:ring-1 focus:ring-secondary/60"
                 />
                 <button
                   type="submit"

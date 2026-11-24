@@ -488,7 +488,7 @@ export default function CardGalleryPage() {
               aria-label="Filter by suit"
               value={filterSuit}
               onChange={(e) => setFilterSuit(e.target.value)}
-              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-field rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
             >
               <option value="all">All Suits</option>
               <option value="major">Major Arcana</option>
@@ -530,7 +530,7 @@ export default function CardGalleryPage() {
               aria-label="Sort cards by"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-(--border-warm-light) rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
+              className="appearance-none min-h-touch max-w-full bg-(--border-warm-subtle) border border-field rounded-lg pl-3 pr-8 py-2 text-sm-mobile sm:text-sm text-main focus:ring-1 focus:ring-accent/50 outline-hidden cursor-pointer hover:bg-(--border-warm-light) touch-manipulation"
             >
               <option value="deck">Deck Order</option>
               <option value="count_desc">Most Frequent</option>

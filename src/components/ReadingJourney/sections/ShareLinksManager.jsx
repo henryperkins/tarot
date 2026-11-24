@@ -106,7 +106,7 @@ function ShareLinkRow({ link, now, busy, onCopy, onRename, onDelete }) {
               }
             }}
             placeholder={link.scope === 'entry' ? 'Shared reading' : 'Journal snapshot'}
-            className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+            className="w-full min-h-touch rounded border border-field bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
           />
           <div className="flex flex-wrap gap-2">
             <button type="submit" disabled={busy} className={ACTION_BUTTON_CLASS}>

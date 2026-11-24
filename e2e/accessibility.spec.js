@@ -59,6 +59,48 @@ async function waitForDesignPageReady(page) {
   await expect(page.getByRole('button', { name: 'Load full history' })).toBeVisible();
 }
 
+async function expectDrawerTextContrast(text) {
+  const color = await text.evaluate(node => {
+    node.setAttribute('data-contrast-sample', '');
+    return getComputedStyle(node).color;
+  });
+  const background = await text.screenshot({
+    animations: 'disabled',
+    scale: 'css',
+    style: '[data-contrast-sample] { color: transparent !important; text-shadow: none !important; }'
+  }).finally(() => text.evaluate(node => node.removeAttribute('data-contrast-sample')));
+
+  const contrast = await text.page().evaluate(async ({ color, png }) => {
+    const image = new Image();
+    image.src = 'data:image/png;base64,' + png;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const linear = value => {
+      const channel = value / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (red, green, blue) => 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue);
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle = color;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+    const foreground = luminance(red, green, blue);
+    let lowest = Infinity;
+    for (let offset = 0; offset < data.length; offset += 4) {
+      const backdrop = luminance(data[offset], data[offset + 1], data[offset + 2]);
+      lowest = Math.min(lowest, (Math.max(foreground, backdrop) + 0.05) / (Math.min(foreground, backdrop) + 0.05));
+    }
+    return lowest;
+  }, { color, png: background.toString('base64') });
+
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
+}
+
 /**
  * Run axe analysis and return violations
  * @param {import('@playwright/test').Page} page
@@ -310,6 +352,41 @@ test.describe('Accessibility - Interactive Components', () => {
     await expect(progress.getByRole('button', { name: 'Step 4: Reading', exact: true })).toHaveAttribute('aria-current', 'step');
     await expect(progress.getByRole('button', { name: 'Step 4: Reading', exact: true })).toContainText('Reading');
     await checkProgressAndDock(false);
+  });
+
+  test('primary actions and the current destination stay visible in forced colors', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Use Chromium forced-colors emulation.');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ forcedColors: 'active' });
+    await page.goto('/');
+    await waitForAppReady(page);
+
+    const currentDestination = page.locator('.destination-nav--dock [aria-current="page"]');
+    await expect(currentDestination).toBeVisible();
+    expect(await currentDestination.evaluate(link => getComputedStyle(link, '::after').borderBottomWidth)).toBe('2px');
+
+    const assertVisibleBorder = async (button) => {
+      await expect(button).toBeVisible();
+      const border = await button.evaluate(node => {
+        const style = getComputedStyle(node);
+        return { width: parseFloat(style.borderTopWidth), visible: style.borderTopColor !== style.backgroundColor };
+      });
+      expect(border.width).toBeGreaterThanOrEqual(1);
+      expect(border.visible).toBe(true);
+    };
+
+    const signIn = page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true });
+    await assertVisibleBorder(signIn);
+    await signIn.click();
+    const dialog = page.getByRole('dialog');
+    await assertVisibleBorder(dialog.locator('button[type="submit"]'));
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+
+    const draw = page.getByRole('button', { name: 'Draw cards', exact: true }).filter({ visible: true });
+    await assertVisibleBorder(draw);
+    await draw.click();
+    await assertVisibleBorder(page.getByRole('button', { name: 'Deal spread', exact: true }).filter({ visible: true }).first());
   });
 
   test('step progress presentations satisfy label-content-name-mismatch across viewports', async ({ page }, testInfo) => {
@@ -808,6 +885,35 @@ test.describe('Accessibility - Reduced Motion', () => {
   });
 });
 
+test.describe('Accessibility - Drawer contrast', () => {
+  test.use({ viewport: { width: 390, height: 844 }, contextOptions: { reducedMotion: 'no-preference' } });
+
+  for (const theme of ['dark', 'light']) {
+    test(`Coach and Prepare text meets AA over the rendered ${theme} drawer`, async ({ page }) => {
+      await page.addInitScript(getTestSetupScript());
+      await page.addInitScript(value => {
+        localStorage.setItem('tarot-theme', value);
+        Object.defineProperty(navigator, 'deviceMemory', { value: 8, configurable: true });
+        Object.defineProperty(navigator, 'hardwareConcurrency', { value: 8, configurable: true });
+      }, theme);
+      await page.goto('/');
+      await waitForAppReady(page);
+      await expect(page.locator('.mobile-stable-mode')).toHaveCount(0);
+
+      await page.getByRole('button', { name: /^Open guided (?:intention )?coach/ }).filter({ visible: true }).first().click();
+      const coach = page.getByRole('dialog', { name: 'Shape a question with clarity' });
+      await expectDrawerTextContrast(coach.getByText('Keep what matters. Shape the wording before you use it.', { exact: true }));
+      await page.keyboard.press('Escape');
+      await expect(coach).toBeHidden();
+
+      await page.getByRole('button', { name: 'Choose deck', exact: true }).click();
+      const prepare = page.getByRole('dialog', { name: 'Choose your deck' });
+      await expectDrawerTextContrast(prepare.getByRole('heading', { name: 'Choose your deck' }));
+      await expectDrawerTextContrast(prepare.locator('.deck-card--active .deck-card__title'));
+    });
+  }
+});
+
 // ============================================================================
 // FORM ACCESSIBILITY TESTS
 // ============================================================================
@@ -816,6 +922,34 @@ test.describe('Accessibility - Forms', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(getTestSetupScript());
   });
+
+  for (const theme of ['dark', 'light']) {
+    test(`sign-in fields use themed borders and placeholders in ${theme} mode`, async ({ page }) => {
+      await page.addInitScript(value => localStorage.setItem('tarot-theme', value), theme);
+      await page.goto('/');
+      await waitForAppReady(page);
+      await page.locator('[data-app-header]').getByRole('button', { name: 'Sign In', exact: true }).click();
+      await page.locator('#auth-email').focus();
+
+      const field = page.locator('#auth-password');
+      await expect(field).toBeVisible();
+      const { actual, expected } = await field.evaluate(node => {
+        const swatch = document.createElement('span');
+        swatch.style.borderColor = 'var(--field-border)';
+        swatch.style.color = 'var(--text-muted)';
+        node.parentElement.append(swatch);
+        const tokenStyles = getComputedStyle(swatch);
+        const placeholder = getComputedStyle(node, '::placeholder');
+        const result = {
+          actual: [getComputedStyle(node).borderTopColor, placeholder.color, placeholder.opacity],
+          expected: [tokenStyles.borderTopColor, tokenStyles.color, '1']
+        };
+        swatch.remove();
+        return result;
+      });
+      expect(actual).toEqual(expected);
+    });
+  }
 
   test('form inputs have associated labels', async ({ page }) => {
     await page.goto('/');

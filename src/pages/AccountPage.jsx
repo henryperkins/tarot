@@ -1588,7 +1588,7 @@ export default function AccountPage() {
                   aria-invalid={!isUsernameValid}
                   aria-describedby="profile-username-help"
                   className="
-                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    w-full rounded-xl border border-field bg-surface-muted/50
                     px-3 py-2.5 text-sm text-main
                     focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                     transition
@@ -1616,7 +1616,7 @@ export default function AccountPage() {
                   aria-invalid={!isEmailValid}
                   aria-describedby="profile-email-help"
                   className="
-                    w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                    w-full rounded-xl border border-field bg-surface-muted/50
                     px-3 py-2.5 text-sm text-main
                     focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                     transition
@@ -1680,7 +1680,7 @@ export default function AccountPage() {
                     onChange={(event) => setPasswordForm((prev) => ({ ...prev, current: event.target.value }))}
                     autoComplete="current-password"
                     className="
-                      w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                      w-full rounded-xl border border-field bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
@@ -1715,7 +1715,7 @@ export default function AccountPage() {
                     aria-invalid={!passwordLengthValid}
                     aria-describedby="password-next-help"
                     className="
-                      w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                      w-full rounded-xl border border-field bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
@@ -1756,7 +1756,7 @@ export default function AccountPage() {
                     aria-invalid={!passwordMatch}
                     aria-describedby="password-confirm-help"
                     className="
-                      w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                      w-full rounded-xl border border-field bg-surface-muted/50
                       px-3 py-2.5 pr-12 text-sm text-main
                       focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                       transition
@@ -2336,7 +2336,7 @@ export default function AccountPage() {
               value={reversalFramework || 'auto'}
               onChange={e => setReversalFramework(e.target.value === 'auto' ? null : e.target.value)}
               className="
-                min-h-touch min-w-touch w-full rounded-xl border border-secondary/30 bg-surface-muted/50
+                min-h-touch min-w-touch w-full rounded-xl border border-field bg-surface-muted/50
                 px-3 py-2.5 text-sm text-main
                 focus:outline-hidden focus:ring-2 focus:ring-accent/50 focus:border-accent
                 transition

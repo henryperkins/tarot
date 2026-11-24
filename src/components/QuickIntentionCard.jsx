@@ -134,7 +134,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
                 maxLength={USER_QUESTION_MAX_LENGTH}
                 enterKeyHint="done"
                 aria-describedby={describedBy}
-                className="min-w-0 flex-1 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
+                className="min-w-0 flex-1 min-h-touch rounded-xl border border-field bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
               />
               <button
                 type="button"
@@ -220,7 +220,7 @@ export const QuickIntentionCard = forwardRef(function QuickIntentionCard({
           maxLength={USER_QUESTION_MAX_LENGTH}
           enterKeyHint="done"
           aria-describedby={describedBy}
-          className="min-w-0 flex-1 basis-44 min-h-touch rounded-xl border border-secondary/30 bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic placeholder:text-secondary focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
+          className="min-w-0 flex-1 basis-44 min-h-touch rounded-xl border border-field bg-surface px-3 py-2 text-base text-main caret-accent placeholder:italic focus:border-secondary focus:outline-hidden focus:ring-1 focus:ring-secondary/50 resize-none"
         />
       </div>
       <QuestionNudge id={nudgeId} kind={nudgeKind} onOpenCoach={onCoachOpen} />

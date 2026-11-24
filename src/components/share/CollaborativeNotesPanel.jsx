@@ -432,7 +432,7 @@ function CollaborativeNotesContent({
                       id={`report-reason-${note.id}`}
                       value={reportReason}
                       onChange={(event) => setReportReason(event.target.value)}
-                      className="w-full min-h-touch rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
+                      className="w-full min-h-touch rounded-lg border border-field bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
                     >
                       {REPORT_REASONS.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -450,7 +450,7 @@ function CollaborativeNotesContent({
                       rows={2}
                       maxLength={600}
                       placeholder="Share a little more context"
-                      className="w-full rounded-lg border border-secondary/30 bg-surface-muted/70 px-3 py-2 text-xs text-main placeholder:text-muted focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
+                      className="w-full rounded-lg border border-field bg-surface-muted/70 px-3 py-2 text-xs text-main focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
                     />
                   </div>
                   {reportError && (
@@ -495,7 +495,7 @@ function CollaborativeNotesContent({
               onChange={(event) => setAuthorName(event.target.value)}
               placeholder="Display name"
               aria-label="Your display name for this note"
-              className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main placeholder:text-muted
+              className="min-w-0 w-full min-h-touch rounded-2xl border border-field bg-surface-muted/70 px-4 py-2.5 text-sm text-main
                 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
               maxLength={40}
             />
@@ -509,7 +509,7 @@ function CollaborativeNotesContent({
               value={cardPosition}
               onChange={(event) => handlePositionChange(event.target.value)}
               aria-label="Select which card position to comment on"
-              className="min-w-0 w-full min-h-touch rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-2.5 text-sm text-main
+              className="min-w-0 w-full min-h-touch rounded-2xl border border-field bg-surface-muted/70 px-4 py-2.5 text-sm text-main
                 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50"
             >
               <option value="">Whole spread</option>
@@ -537,7 +537,7 @@ function CollaborativeNotesContent({
             placeholder="Share what you're seeing..."
             aria-label="Your reflection on this spread"
             maxLength={600}
-            className="min-w-0 w-full rounded-2xl border border-secondary/30 bg-surface-muted/70 px-4 py-3 text-sm text-main placeholder:text-muted
+            className="min-w-0 w-full rounded-2xl border border-field bg-surface-muted/70 px-4 py-3 text-sm text-main
               focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/50 resize-none"
           />
         </div>

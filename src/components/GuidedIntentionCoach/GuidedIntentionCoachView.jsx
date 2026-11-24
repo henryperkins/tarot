@@ -254,7 +254,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
         maxLength={CUSTOM_FOCUS_MAX_LENGTH} autoComplete="off" enterKeyHint="done"
         onChange={event => { releasePrefill(); setCustomFocus(event.target.value); }}
         placeholder="e.g. a conversation, a creative launch, a potential move"
-        className="coach-detail w-full min-h-touch rounded-xl border border-secondary/40 bg-surface-muted/40 px-3 py-3 text-base text-main caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
+        className="coach-detail w-full min-h-touch rounded-xl border border-field bg-surface-muted/40 px-3 py-3 text-base text-main caret-accent focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
       />
     </div>
   );
@@ -269,7 +269,7 @@ export function GuidedIntentionCoachView({ returnFocusRef }) {
           onChange={event => editQuestion(event.target.value)}
           rows={isLandscape ? 2 : 3} maxLength={USER_QUESTION_MAX_LENGTH} dir="auto"
           aria-describedby={questionHelpId} placeholder="Write your question in your own words…"
-          className="coach-question block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-secondary/40 bg-surface-muted/40 font-serif text-main leading-relaxed caret-accent placeholder:text-muted focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
+          className="coach-question block w-full min-h-touch resize-none overflow-hidden rounded-xl border border-field bg-surface-muted/40 font-serif text-main leading-relaxed caret-accent focus:border-secondary focus:outline-hidden focus:ring-2 focus:ring-secondary/60"
         />
         <p id={questionHelpId} className="text-xs text-secondary">Edit the wording before using your question. Framing suggestions are optional.</p>
       </div>

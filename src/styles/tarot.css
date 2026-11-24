@@ -933,7 +933,6 @@ body {
   box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.5);
 }
 
-.mobile-stable-mode .mobile-drawer::before,
 .mobile-stable-mode .mobile-drawer::after,
 .mobile-stable-mode .prepare-card::before,
 .mobile-stable-mode .prepare-card::after,
@@ -1411,12 +1410,11 @@ body {
   translate: 0 -50%;
 }
 
-/* Daylight brass is 5.5:1 on bare paper, but the card glow and grain behind
-   unselected titles and badges brought it to 4.0–4.4:1. A deeper brass keeps
-   the hue and reaches AA. Selected spread titles already use the main text. */
+/* A deeper brass keeps titles and badges readable over the daylight card
+   glow and grain. Selected spread titles already use the main text. */
 :root.light .spread-card:not(.spread-card--active) .spread-card__title,
 :root.light .spread-card .spread-card__badge,
-:root.light .deck-card:not(.deck-card--active) .deck-card__title {
+:root.light .deck-card__title {
   color: color-mix(in srgb, var(--brand-primary) 78%, var(--text-main));
 }
 
@@ -2176,37 +2174,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.mobile-drawer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-      circle at 20% 14%,
-      var(--drawer-gold-38) 0%,
-      transparent 52%
-    ),
-    radial-gradient(
-      circle at 80% 0%,
-      var(--drawer-gold-18) 0%,
-      transparent 48%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
-  background: radial-gradient(
-      circle at 20% 14%,
-      color-mix(in srgb, var(--drawer-accent) 38%, transparent) 0%,
-      transparent 52%
-    ),
-    radial-gradient(
-      circle at 80% 0%,
-      color-mix(in srgb, var(--drawer-accent) 18%, transparent) 0%,
-      transparent 48%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
-  opacity: 0.9;
-  pointer-events: none;
-  z-index: 0;
-}
-
 .mobile-drawer::after {
   content: "";
   position: absolute;
@@ -2343,10 +2310,6 @@ input[type="range"]:focus::-webkit-slider-thumb {
   box-shadow: 0 -18px 42px -26px rgba(77, 59, 42, 0.35),
     0 -8px 24px -18px var(--drawer-glow),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-:root.light .mobile-drawer::before {
-  opacity: 0.35;
 }
 
 :root.light .mobile-drawer__header {

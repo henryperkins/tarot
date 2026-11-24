@@ -230,7 +230,7 @@ export function MemoryManager({ className = '', variant = 'panel' }) {
               value={newMemoryText}
               onChange={(e) => setNewMemoryText(e.target.value)}
               placeholder="e.g., User prefers concrete action steps over abstract symbolism"
-              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50 resize-none"
+              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-field rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50 resize-none"
               rows={2}
               maxLength={200}
             />
@@ -247,7 +247,7 @@ export function MemoryManager({ className = '', variant = 'panel' }) {
               disabled={busy}
               value={newMemoryCategory}
               onChange={(e) => setNewMemoryCategory(e.target.value)}
-              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-secondary/20 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50"
+              className="w-full min-h-touch px-3 py-2 text-base sm:text-sm bg-surface/70 border border-field rounded-lg focus:outline-hidden focus:ring-2 focus:ring-accent/50"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{categoryLabels[cat]}</option>

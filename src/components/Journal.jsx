@@ -1074,7 +1074,7 @@ export default function Journal() {
                               onChange={handleMonthJump}
                               disabled={historyPending}
                               aria-describedby={historyPending ? 'journal-history-progress' : undefined}
-                              className="min-h-touch max-w-full appearance-none rounded-full border border-secondary/20 bg-surface-muted/40 bg-none pl-3 pr-8 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
+                              className="min-h-touch max-w-full appearance-none rounded-full border border-field bg-surface-muted/40 bg-none pl-3 pr-8 text-sm-mobile sm:text-xs-plus text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
                             >
                               <option value="">Jump to month</option>
                               {monthSections.map((section) => (

@@ -191,6 +191,10 @@
 .follow-up-chat__send:not(:disabled):not([aria-disabled="true"]):active { transform: scale(0.95); }
 .follow-up-chat__send:is(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
 
+@media (forced-colors: active) {
+  .follow-up-chat__send { border: 1px solid ButtonText; }
+}
+
 /* Hover is an enhancement for pointers that have it; touch never sticks in it. */
 @media (hover: hover) {
   .follow-up-suggestions button:not(:disabled):hover {
@@ -245,7 +249,6 @@
 /* @tailwindcss/forms adds a blue ring on focus; the chat's own outline replaces it. */
 .follow-up-chat textarea:focus { border-color: var(--brand-primary); box-shadow: none; }
 .follow-up-chat textarea:is(:disabled, [aria-disabled="true"]) { opacity: 0.5; cursor: not-allowed; }
-.follow-up-chat textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .follow-up-chat__history-label {
   display: flex;
   flex: none;

@@ -77,9 +77,9 @@ export default function ResetPasswordPage() {
   };
 
   const inputClasses = `
-    min-w-0 w-full px-4 py-3 rounded-xl bg-surface-muted border border-primary/30
-    text-base text-main placeholder:text-muted focus:outline-hidden focus:ring-2 focus:ring-primary/60
-    focus:border-primary/50 transition disabled:opacity-60 disabled:cursor-not-allowed
+    min-w-0 w-full px-4 py-3 rounded-xl bg-surface-muted border border-field
+    text-base text-main focus:outline-hidden focus:ring-2 focus:ring-primary/60
+    focus:border-primary transition disabled:opacity-60 disabled:cursor-not-allowed
   `;
   const navigationClasses = 'min-h-touch min-w-touch inline-flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted hover:text-main transition touch-manipulation focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent';
 

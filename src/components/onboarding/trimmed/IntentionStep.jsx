@@ -73,7 +73,7 @@ export function IntentionStep({ question, onQuestionChange, onNext, onBack }) {
             onChange={(e) => onQuestionChange(e.target.value)}
             placeholder="e.g., What should I focus on this week?"
             rows={isLandscape ? 2 : 3}
-            className="w-full rounded-xl border border-secondary/30 bg-surface px-4 py-3 text-base text-main placeholder:text-muted/70 resize-none transition focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50"
+            className="w-full rounded-xl border border-field bg-surface px-4 py-3 text-base text-main resize-none transition focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50"
             autoFocus
             aria-label="Your question or intention"
           />

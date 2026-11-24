@@ -30,10 +30,27 @@ const DISPLAY_TOKENS = [
   'brand-primary',
   'brand-secondary',
   'brand-accent',
+  'field-border',
   'focus-ring-color'
 ];
 
 const TEST_CASES = [
+  {
+    name: 'field-border on bg-surface',
+    fgToken: 'field-border',
+    bgToken: 'bg-surface',
+    location: 'default field boundaries',
+    wcagLevel: 'AA',
+    isText: false
+  },
+  {
+    name: 'field-border on bg-surface-muted',
+    fgToken: 'field-border',
+    bgToken: 'bg-surface-muted',
+    location: 'field boundaries on raised surfaces',
+    wcagLevel: 'AA',
+    isText: false
+  },
   {
     name: 'text-muted on bg-surface',
     fgToken: 'text-muted',

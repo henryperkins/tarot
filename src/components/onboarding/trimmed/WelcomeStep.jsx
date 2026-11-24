@@ -88,7 +88,7 @@ export function WelcomeStep({ onNext }) {
             onChange={(e) => setName(e.target.value.slice(0, PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH))}
             maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
             placeholder="Your name or nickname"
-            className="w-full rounded-xl border border-secondary/30 bg-surface min-h-touch px-4 py-3 text-base text-main placeholder:text-muted focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50 transition"
+            className="w-full rounded-xl border border-field bg-surface min-h-touch px-4 py-3 text-base text-main focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent/50 transition"
             autoComplete="given-name"
           />
         </div>

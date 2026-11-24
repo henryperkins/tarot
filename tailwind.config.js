@@ -80,6 +80,9 @@ export default {
         warning: 'rgb(var(--status-warning-rgb) / <alpha-value>)',
         error: 'rgb(var(--status-error-rgb) / <alpha-value>)',
       },
+      borderColor: {
+        field: 'var(--field-border)',
+      },
       backgroundColor: {
         main: 'rgb(var(--bg-main-rgb) / <alpha-value>)',
         surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',

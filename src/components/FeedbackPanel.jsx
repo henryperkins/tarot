@@ -216,7 +216,7 @@ export function FeedbackPanel({
               rows={3}
               maxLength={750}
               disabled={hasSubmitted}
-              className="w-full rounded-lg border border-accent/20 bg-surface/70 p-3 text-sm text-main placeholder:text-muted/60 focus:border-secondary/60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full rounded-lg border border-field bg-surface/70 p-3 text-sm text-main focus:border-secondary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-secondary/70 disabled:opacity-60 disabled:cursor-not-allowed"
               placeholder="What resonated or felt off?"
             />
             <p className="mt-1 text-sm text-muted/70 text-right">

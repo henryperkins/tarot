@@ -115,8 +115,23 @@ for (const size of [
         await expectPainted(page.getByRole('heading', { name: 'Card Collection', exact: true }), 0.95);
         // Even a paused decorative effect must leave navigation usable.
         await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).click();
-        await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
+        await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }), 0.95);
         await expectSettled(page);
+      });
+    }
+
+    if (size.viewport.width === 390) {
+      test('the mobile dock stays at the viewport edge during the reading entrance', async ({ page }) => {
+        await page.goto('/journal');
+        await expectSettled(page);
+        const paused = await interruptNextPageEntrance(page, 'pause');
+        await page.getByRole('link', { name: 'Reading', exact: true }).click();
+        await paused();
+
+        const dock = page.locator('[data-destination-group="dock"]:not([hidden])');
+        await expect(dock).toBeVisible();
+        const bottom = await dock.evaluate(element => innerHeight - element.getBoundingClientRect().bottom);
+        expect(Math.abs(bottom)).toBeLessThan(1);
       });
     }
 
@@ -166,7 +181,8 @@ for (const size of [
         await expectPainted(page.getByRole('heading', { name: 'Your Tarot Journal', exact: true }), 0.95);
         await page.screenshot({ path: testInfo.outputPath('journal-resumed.png') });
         await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Reading', exact: true }).click();
-        await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }));
+        await expectPainted(page.getByRole('radiogroup', { name: 'Spread selection' }), 0.95);
+        await expectSettled(page);
       } finally {
         await session.send('Page.setWebLifecycleState', { state: 'active' });
         await session.detach();

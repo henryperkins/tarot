@@ -130,7 +130,7 @@ export function QuestionCrafting({ question, onQuestionChange, onNext, onBack })
             onChange={(e) => onQuestionChange(e.target.value)}
             placeholder="e.g., What energy should I focus on this week?"
             rows={isLandscape ? 2 : 4}
-            className={`w-full bg-surface border border-primary/40 rounded-xl px-3 xxs:px-4 py-3 text-base text-main placeholder:text-muted resize-none focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all ${isLandscape ? 'min-h-16 max-h-[30vh]' : 'min-h-24 xs:min-h-28 sm:min-h-32'}`}
+            className={`w-full bg-surface border border-field rounded-xl px-3 xxs:px-4 py-3 text-base text-main resize-none focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all ${isLandscape ? 'min-h-16 max-h-[30vh]' : 'min-h-24 xs:min-h-28 sm:min-h-32'}`}
           />
         </div>
 

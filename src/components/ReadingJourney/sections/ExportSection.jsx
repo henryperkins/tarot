@@ -658,7 +658,7 @@ function ExportSection({
                 max="10"
                 value={effectiveShareLimit}
                 onChange={(event) => setShareLimit(event.target.value)}
-                className="w-20 min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) text-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
+                className="w-20 min-h-touch rounded border border-field bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) text-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
               />
             </div>
 
@@ -675,7 +675,7 @@ function ExportSection({
                 maxLength={SHARE_TITLE_MAX_LENGTH}
                 onChange={(event) => setShareTitle(event.target.value)}
                 placeholder="Journal snapshot"
-                className="w-full min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
+                className="w-full min-h-touch rounded border border-field bg-(--border-warm-subtle) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color) touch-manipulation"
               />
             </div>
 
@@ -686,7 +686,7 @@ function ExportSection({
                 id="share-expiry"
                 value={expiresInHours}
                 onChange={(event) => setExpiresInHours(event.target.value)}
-                className="min-h-touch rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                className="min-h-touch rounded border border-field bg-(--border-warm-subtle) px-3 py-2 text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
               >
                 {SHARE_EXPIRY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -726,7 +726,7 @@ function ExportSection({
                 type="text"
                 value={linkCreated.url}
                 readOnly
-                className="w-full min-h-touch px-3 py-2 text-sm sm:text-xs bg-transparent text-(--text-main) rounded border border-[color-mix(in_srgb,var(--status-success)_25%,transparent)] touch-manipulation"
+                className="w-full min-h-touch px-3 py-2 text-sm sm:text-xs bg-transparent text-(--text-main) rounded border border-field touch-manipulation"
                 onClick={(e) => e.target.select()}
                 aria-label="Share link - tap to select and copy"
               />

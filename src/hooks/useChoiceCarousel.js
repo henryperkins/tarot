@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 // An item's position along the scroller's own scroll axis, whatever lies between.
 function itemLeft(scroller, item) {
@@ -75,23 +75,6 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
     onChooseRef.current = onChoose;
   });
 
-  const updateEdges = useCallback(el => {
-    const threshold = Math.max(10, el.clientWidth * 0.05);
-    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
-    setEdges(current => {
-      const next = { start: el.scrollLeft > threshold, end: maxScrollLeft - el.scrollLeft > threshold };
-      return current.start === next.start && current.end === next.end ? current : next;
-    });
-  }, []);
-
-  const alignArrows = useCallback(() => {
-    const frame = frameRef.current;
-    const art = carouselRef.current?.children[0]?.querySelector(artworkSelector);
-    if (!frame || !art) return;
-    const artRect = art.getBoundingClientRect();
-    frame.style.setProperty('--choice-arrow-y', `${artRect.top - frame.getBoundingClientRect().top + artRect.height / 2}px`);
-  }, [artworkSelector]);
-
   // Kept current so the observer below always centres today's choice.
   useLayoutEffect(() => {
     centerChosenRef.current = () => {
@@ -106,53 +89,82 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
   });
 
   useLayoutEffect(() => {
-    alignArrows();
-  }, [alignArrows]);
+    const chosenHere = chosenHereRef.current === selectedKey;
+    chosenHereRef.current = null;
+    if (!chosenHere) centerChosenRef.current();
+  }, [selectedKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = carouselRef.current;
     if (!el || keys.length <= 1) return undefined;
+    const frame = frameRef.current;
+    const artwork = el.children[0]?.querySelector(artworkSelector);
+    let scrollFrame = null;
+    let viewportWidth;
+    let maxScrollLeft = 0;
+    let itemCenters = [];
 
-    const measure = () => {
-      const items = Array.from(el.children);
-      if (!items.length) return;
-      alignArrows();
-      const viewportCenter = el.scrollLeft + el.clientWidth / 2;
+    const updatePosition = scrollLeft => {
+      const viewportCenter = scrollLeft + viewportWidth / 2;
       let closestIndex = 0;
       let closestDistance = Infinity;
-      items.forEach((item, index) => {
-        const distance = Math.abs(viewportCenter - (itemLeft(el, item) + item.offsetWidth / 2));
+      itemCenters.forEach((center, index) => {
+        const distance = Math.abs(viewportCenter - center);
         if (distance < closestDistance) {
           closestDistance = distance;
           closestIndex = index;
         }
       });
       setActiveIndex(closestIndex);
-      updateEdges(el);
+      const threshold = Math.max(10, viewportWidth * 0.05);
+      const start = scrollLeft > threshold;
+      const end = maxScrollLeft - scrollLeft > threshold;
+      setEdges(current => current.start === start && current.end === end ? current : { start, end });
     };
 
-    measure();
-    el.addEventListener('scroll', measure, { passive: true });
+    const onScroll = () => {
+      if (scrollFrame !== null) return;
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = null;
+        if (viewportWidth) updatePosition(el.scrollLeft);
+      });
+    };
+
+    const measure = () => {
+      const wasHidden = viewportWidth === 0;
+      viewportWidth = el.clientWidth;
+      if (!viewportWidth) return;
+      const scrollLeft = el.scrollLeft;
+      maxScrollLeft = Math.max(0, el.scrollWidth - viewportWidth);
+      const scrollerLeft = el.getBoundingClientRect().left;
+      itemCenters = Array.from(el.children, item =>
+        item.getBoundingClientRect().left - scrollerLeft + scrollLeft + item.offsetWidth / 2);
+      const artRect = artwork?.getBoundingClientRect();
+      const arrowY = frame && artRect ? `${artRect.top - frame.getBoundingClientRect().top + artRect.height / 2}px` : null;
+
+      // Finish reading geometry before changing the scroll position or styles.
+      if (wasHidden) centerChosenRef.current();
+      if (arrowY && frame.style.getPropertyValue('--choice-arrow-y') !== arrowY) {
+        frame.style.setProperty('--choice-arrow-y', arrowY);
+      }
+      updatePosition(scrollLeft);
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
     const releaseEdgeSwipes = containEdgeSwipes(el);
-    let lastWidth = el.clientWidth;
-    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
-      if (lastWidth === 0 && el.clientWidth > 0) centerChosenRef.current();
-      lastWidth = el.clientWidth;
-      measure();
-    }) : null;
+    measure();
+    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
     resizeObserver?.observe(el);
+    if (artwork) resizeObserver?.observe(artwork);
+    if (!resizeObserver) window.addEventListener('resize', measure);
     return () => {
-      el.removeEventListener('scroll', measure);
+      el.removeEventListener('scroll', onScroll);
       releaseEdgeSwipes?.();
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame);
       resizeObserver?.disconnect();
+      if (!resizeObserver) window.removeEventListener('resize', measure);
     };
-  }, [keys, alignArrows, updateEdges]);
-
-  useLayoutEffect(() => {
-    const chosenHere = chosenHereRef.current === selectedKey;
-    chosenHereRef.current = null;
-    if (!chosenHere) centerChosenRef.current();
-  }, [selectedKey]);
+  }, [keys, artworkSelector]);
 
   const scrollToIndex = useCallback(index => {
     const clamped = Math.min(keys.length - 1, Math.max(0, index));
@@ -164,8 +176,7 @@ export function useChoiceCarousel({ keys, selectedKey, onChoose, prefersReducedM
       left: Math.max(0, itemLeft(el, item) + item.offsetWidth / 2 - el.clientWidth / 2),
       behavior: prefersReducedMotion ? 'auto' : 'smooth'
     });
-    updateEdges(el);
-  }, [keys, prefersReducedMotion, updateEdges]);
+  }, [keys, prefersReducedMotion]);
 
   /** After the reader's own tap or key press has been accepted. */
   const markChosenHere = useCallback(key => {

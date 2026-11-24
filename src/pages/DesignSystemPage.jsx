@@ -210,7 +210,7 @@ export default function DesignSystemPage() {
                   id="ds-input"
                   type="text"
                   placeholder="Type here…"
-                  className={`w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main placeholder:text-muted/60 ${FOCUS_RING_PRIMARY_40}`}
+                  className={`w-full min-h-touch rounded-xl border border-field bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main ${FOCUS_RING_PRIMARY_40}`}
                 />
               </div>
               <div className="space-y-1.5">
@@ -219,7 +219,7 @@ export default function DesignSystemPage() {
                 </label>
                 <select
                   id="ds-select"
-                  className={`w-full min-h-touch rounded-xl border border-secondary/20 bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main ${FOCUS_RING_PRIMARY_40}`}
+                  className={`w-full min-h-touch rounded-xl border border-field bg-surface-muted/40 px-4 py-3 text-sm-mobile sm:text-sm text-main ${FOCUS_RING_PRIMARY_40}`}
                   defaultValue="one"
                 >
                   <option value="one">Option one</option>

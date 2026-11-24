@@ -135,7 +135,7 @@ function CardDetailContent({
           }}
           rows={isFocusLayout ? 4 : 3}
           maxLength={500}
-          className="w-full bg-surface/85 border border-secondary/40 rounded p-2 min-h-14 resize-y text-main text-base leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-secondary/55"
+          className="w-full bg-surface/85 border border-field rounded p-2 min-h-14 resize-y text-main text-base leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-secondary/55"
           placeholder="What resonates? (optional)"
           aria-describedby={`reflection-panel-count-${index}`}
         />

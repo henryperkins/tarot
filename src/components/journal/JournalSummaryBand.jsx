@@ -174,7 +174,7 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.start}
                   onChange={(event) => onCustomScopeChange('start', event.target.value)}
-                  className="rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className="rounded border border-field bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 />
               </label>
               <label className="flex items-center gap-1">
@@ -183,7 +183,7 @@ export function JournalSummaryBand({
                   type="date"
                   value={customScope.end}
                   onChange={(event) => onCustomScopeChange('end', event.target.value)}
-                  className="rounded border border-(--border-warm-light) bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className="rounded border border-field bg-(--border-warm-subtle) px-2 py-1 text-sm-mobile text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 />
               </label>
               {scopeError && (

@@ -280,13 +280,15 @@ test('a dock resize preserves deliberate scrolling away from a focused page inpu
   await settleNavigation(page);
   const search = page.locator('input[type="search"]');
   await search.focus(); await settleNavigation(page);
+  const dockClearance = () => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-bottom-height')));
+  const initialClearance = await dockClearance();
   const before = await page.evaluate(() => {
     scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
     return scrollY;
   });
   expect(before).toBeGreaterThan(500);
   await page.evaluate(() => document.documentElement.style.setProperty('--safe-pad-bottom', '34px'));
-  await expect.poll(() => page.locator('[data-destination-group="dock"]').evaluate(e => parseFloat(getComputedStyle(e).paddingBottom))).toBe(34);
+  await expect.poll(dockClearance).toBe(initialClearance + 34);
   await settleNavigation(page);
   expect(await page.evaluate(() => scrollY)).toBeGreaterThanOrEqual(before - 1);
   await expect(search).toBeFocused();

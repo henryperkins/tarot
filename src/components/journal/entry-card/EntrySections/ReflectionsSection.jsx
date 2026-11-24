@@ -27,7 +27,7 @@ const DANGER_BUTTON_CLASS =
   'text-(--status-error) focus-visible:outline-hidden focus-visible:ring-2 ' +
   'focus-visible:ring-[color-mix(in_srgb,var(--status-error)_45%,transparent)] disabled:cursor-not-allowed disabled:opacity-60 touch-manipulation';
 const TEXTAREA_CLASS =
-  'w-full min-h-28 rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm ' +
+  'w-full min-h-28 rounded-xl border border-field bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm ' +
   'leading-relaxed text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)';
 
 function ReflectionEditor({ id, label, initialText, saving, onSubmit, onCancel, onRemove, hint, children }) {
@@ -269,7 +269,7 @@ export const ReflectionsSection = memo(function ReflectionsSection({ reflections
                   value={addTarget}
                   disabled={saving}
                   onChange={(event) => setAddTarget(event.target.value)}
-                  className="w-full min-h-touch rounded-xl border border-(--border-warm-light) bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
+                  className="w-full min-h-touch rounded-xl border border-field bg-(--panel-dark-1) px-3 py-2 text-base sm:text-sm text-(--text-main) focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-(--focus-ring-color)"
                 >
                   {targets.map((target) => (
                     <option key={target.key} value={target.key}>{target.label}</option>

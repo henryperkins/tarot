@@ -157,7 +157,7 @@ export function WelcomeHero({ onNext, onSkip }) {
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={PERSONALIZATION_DISPLAY_NAME_MAX_LENGTH}
               placeholder="Used to personalize your readings"
-              className="w-full bg-surface border border-primary/40 rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main placeholder:text-muted/70 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
+              className="w-full bg-surface border border-field rounded-xl min-h-touch px-3 xxs:px-4 py-3 text-sm xxs:text-base text-main focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary/70 transition-all"
               autoComplete="given-name"
             />
           </div>

@@ -315,7 +315,7 @@ function JournalSummarySection({ isAuthenticated, allEntries = [], filteredEntri
           id="summary-limit"
           value={limit}
           onChange={(e) => setLimit(Number(e.target.value))}
-          className="min-h-touch rounded-lg border border-secondary/20 bg-surface-muted/40 px-3 py-2 text-sm-mobile sm:text-sm text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 touch-manipulation"
+          className="min-h-touch rounded-lg border border-field bg-surface-muted/40 px-3 py-2 text-sm-mobile sm:text-sm text-main focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/40 touch-manipulation"
           aria-describedby="summary-info"
         >
           {[3, 5, 7, 10].map((n) => (

@@ -344,7 +344,7 @@ export function JournalFilters({
           <input ref={searchInputRef} type="search" value={filters.query}
             onChange={event => onChange({ ...filters, query: event.target.value })}
             placeholder="Search readings..." aria-label="Search journal entries" aria-describedby={searchHelpId}
-            className={`w-full min-h-touch rounded-xl border border-(--border-warm) bg-(--bg-main) pl-9 pr-3 py-2 text-sm-mobile text-main placeholder:text-muted ${FOCUS_RING_DEFAULT}`} />
+            className={`w-full min-h-touch rounded-xl border border-field bg-(--bg-main) pl-9 pr-3 py-2 text-sm-mobile text-main ${FOCUS_RING_DEFAULT}`} />
           <span id={searchHelpId} className="sr-only">Search questions, card names and positions, reading narratives, reflections, spreads, and contexts.</span>
         </div>
         <div className={`flex min-w-0 flex-wrap items-center gap-2 ${isCompact ? 'basis-full' : ''}`}>
@@ -379,7 +379,7 @@ export function JournalFilters({
             <div className="flex basis-full flex-wrap items-center gap-2">
               <input ref={saveNameInputRef} value={current.name} onChange={event => updateViews({ name: event.target.value })}
                 placeholder="Name this view" aria-label="Name for saved filter view"
-                className={`min-h-touch min-w-0 flex-[1_1_12rem] rounded-xl border border-(--border-warm) bg-(--bg-main) px-3 py-2 text-sm-mobile text-main ${FOCUS_RING_DEFAULT}`} />
+                className={`min-h-touch min-w-0 flex-[1_1_12rem] rounded-xl border border-field bg-(--bg-main) px-3 py-2 text-sm-mobile text-main ${FOCUS_RING_DEFAULT}`} />
               <button type="button" disabled={!current.name.trim()} onClick={handleSaveCurrent} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_ACTIVE} disabled:opacity-50`}>Save current</button>
               <button type="button" onClick={() => { pendingSaveFocusRef.current = true; updateViews({ name: '', saveOpen: false }); }} className={`${OUTLINE_FILTER_BASE} ${OUTLINE_FILTER_IDLE}`}>Cancel</button>
             </div>

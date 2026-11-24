@@ -45,6 +45,22 @@
   }
 }
 
+@layer components {
+  /* The forms plugin supplies its own base placeholder color. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  @media (forced-colors: active) {
+    /* The system palette replaces the fills that identify these actions. */
+    :where(button, a):is(.bg-primary, .bg-accent) {
+      border: 1px solid ButtonText;
+    }
+  }
+}
+
 @layer base {
   @font-face {
     font-family: 'Inter Variable';
@@ -103,20 +119,26 @@
   opacity: 1;
 }
 
-/* Decorative entrance only: route visibility never depends on animation.
-   It moves the route's main landmark, not the whole route: a transformed
-   ancestor becomes the containing block for position: fixed, which laid the
-   mobile dock (rendered after main) out below the screen until the animation
-   ended and then jumped it into place, a layout shift on every page load. */
 @keyframes page-enter {
   from { transform: translateY(4px); }
   to { transform: translateY(0); }
+}
+
+/* The reading dock is a descendant of main. An opacity transition keeps
+   its fixed containing block at the viewport throughout the entrance. */
+@keyframes reading-page-enter {
+  from { opacity: 0.96; }
+  to { opacity: 1; }
 }
 
 /* Smooth scroll behavior - disabled for users who prefer reduced motion */
 @media (prefers-reduced-motion: no-preference) {
   .page-transition main {
     animation: page-enter 280ms ease-out;
+  }
+
+  .page-transition .app-shell main {
+    animation-name: reading-page-enter;
   }
 
   html {

@@ -66,7 +66,7 @@ export function ExperienceSettings({ className = '' }) {
     'inline-flex min-w-touch min-h-touch items-center justify-center rounded-full text-muted/60 transition hover:text-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 touch-manipulation -ml-2 -mr-3';
 
   const reversalSelectClass =
-    'w-full rounded-2xl border border-secondary/25 bg-surface/70 px-2 xs:px-3 py-2.5 min-h-touch text-sm-mobile sm:text-xs-plus uppercase tracking-[0.06em] xs:tracking-[0.08em] text-main transition focus:outline-hidden focus:ring-2 focus:ring-accent/50';
+    'w-full rounded-2xl border border-field bg-surface/70 px-2 xs:px-3 py-2.5 min-h-touch text-sm-mobile sm:text-xs-plus uppercase tracking-[0.06em] xs:tracking-[0.08em] text-main transition focus:outline-hidden focus:ring-2 focus:ring-accent/50';
 
   const LightIcon = theme === 'light' ? Sun : Moon;
 

@@ -120,9 +120,9 @@
   --border-warm: rgba(232, 218, 195, 0.22);
   --border-warm-light: rgba(232, 218, 195, 0.2);
   --border-warm-subtle: rgba(232, 218, 195, 0.06);
+  --field-border: var(--color-gray-light);
   --drawer-gold: #E5C48E;
   --drawer-gold-70: rgba(229, 196, 142, 0.7);
-  --drawer-gold-38: rgba(229, 196, 142, 0.38);
   --drawer-gold-32: rgba(229, 196, 142, 0.32);
   --drawer-gold-28: rgba(229, 196, 142, 0.28);
   --drawer-gold-18: rgba(229, 196, 142, 0.18);
@@ -193,6 +193,7 @@
   --border-warm: rgba(125, 98, 59, 0.18);
   --border-warm-light: rgba(125, 98, 59, 0.14);
   --border-warm-subtle: rgba(125, 98, 59, 0.06);
+  --field-border: var(--brand-accent);
   --halo-star-color: rgba(26, 26, 26, 0.08);
   --ui-selected-bg: rgba(125, 98, 59, 0.12);
   --ui-selected-bg-strong: rgba(125, 98, 59, 0.16);
@@ -244,6 +245,7 @@
     --color-pentacles: #A2B39B;
     --text-muted: var(--text-muted-high);
     --text-muted-high: var(--text-main);
+    --field-border: var(--text-muted);
     --border-warm: rgba(232, 218, 195, 0.32);
     --border-warm-light: rgba(232, 218, 195, 0.28);
     --border-warm-subtle: rgba(232, 218, 195, 0.14);
@@ -277,6 +279,7 @@
     --color-pentacles: #4E6147;
     --text-muted: var(--text-muted-high);
     --text-muted-high: var(--text-main);
+    --field-border: var(--text-muted);
     --border-warm: rgba(125, 98, 59, 0.26);
     --border-warm-light: rgba(125, 98, 59, 0.22);
     --border-warm-subtle: rgba(125, 98, 59, 0.14);
