@@ -6,10 +6,14 @@ const INFLECTION_ALIASES = new Map([
 ]);
 
 // Query values are supplied separately from semantic scaffolding. Strip only
-// explicit labels here as defense for legacy callers; ordinary prose survives.
+// explicit labels here as defense for legacy callers.
 const QUERY_STOP_WORDS = new Set(
-  'what when where which this that have from with about card cards reading does into your would could should their there them these those will been being were then than the and for are but not you all any can had her was our out who why how its may nor now off she too has his him did'.split(' ')
+  'what when where which this that have from with without about card cards reading does into your would could should their there them these those will been being were then than the and for are but not you all any can had her was our out who why how its may nor now off she too has his him did'.split(' ')
 );
+
+// Generic action words carry little topic evidence on their own. In particular
+// an option like "stay" or a title like "team lead" is not a match to card prose.
+const GENERIC_ACTION_WORDS = new Set(['become', 'feel', 'find', 'get', 'give', 'help', 'keep', 'lead', 'let', 'look', 'make', 'put', 'stay', 'take', 'want']);
 
 export function normalizeRetrievalTerms(text) {
   if (typeof text !== 'string' || !text.trim()) return [];
@@ -20,7 +24,8 @@ export function normalizeRetrievalTerms(text) {
 
 export function retrievalQueryTerms(query) {
   const content = typeof query === 'string' ? query.replace(/\b(?:question|reflections):/giu, '') : '';
-  return [...new Set(normalizeRetrievalTerms(content).filter(word => [...word].length >= 3 && !QUERY_STOP_WORDS.has(word)))];
+  return [...new Set(normalizeRetrievalTerms(content).filter(word =>
+    [...word].length >= 3 && !QUERY_STOP_WORDS.has(word) && !GENERIC_ACTION_WORDS.has(word)))];
 }
 
 export function scoreKeywordRelevance(text, query, precomputedQueryTerms = null) {

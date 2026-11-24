@@ -1140,9 +1140,9 @@ export const DYAD_PASSAGES = {
                 source: 'Tableu Tarot Canon',
                 context: 'addiction',
                 archetypalText:
-                    'Addiction affects relationship choices. The Devil shows the hook, and the Lovers asks you to choose what supports freedom and health. Seek support, create boundaries, reduce access, and choose the path that strengthens recovery—one honest decision at a time.',
+                    'For questions about addiction, recovery or sobriety, The Devil can invite reflection on what feels restrictive. The Lovers can suggest choosing in line with your values. If support would help, what is one choice you would like to make, and who could support you in it?',
                 text:
-                    'Addiction affects relationship choices. The Devil shows the hook, and the Lovers asks you to choose what supports freedom and health. Seek support, create boundaries, reduce access, and choose the path that strengthens recovery—one honest decision at a time.',
+                    'For questions about addiction, recovery or sobriety, The Devil can invite reflection on what feels restrictive. The Lovers can suggest choosing in line with your values. If support would help, what is one choice you would like to make, and who could support you in it?',
                 tags: ['addiction', 'recovery', 'choices', 'support', 'freedom']
             }
         ]

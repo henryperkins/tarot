@@ -43,20 +43,29 @@ export function projectMinorPatternReference(passage) {
   if (!family || !Array.isArray(keys) || keys.length < 2 || new Set(keys).size !== keys.length
     || !keys.every(key => family.members.some(member => member.key === key))) return null;
   if (passage.type === 'court-lineage' && (family.stage === 'alliance' ? keys.length !== 2 : keys.length < 3)) return null;
+  if (family.stage === 'alliance' || keys.length === family.members.length) {
+    return { ...passage, matchedCardKeys: [...keys], isPartialPattern: false };
+  }
+
   const members = keys.map(key => family.members.find(member => member.key === key));
-  const complete = members.length === family.members.length;
   const roles = members.map(member => `${member.name}: ${member.role}`).join('; ');
   const stage = passage.type === 'suit-progression' ? SUIT_PROGRESSIONS[family.suit][family.stage] : null;
   const summary = stage?.summary || `Consider the drawn ${family.suit} court figures as symbolic approaches.`;
-  const relationship = complete
-    ? `Complete symbolic grouping: ${stage?.completeTheme || 'all four court approaches are present; explore how they complement or challenge one another.'}`
-    : 'Partial symbolic grouping: relate only these drawn members; absent members supply no theme.';
+  const relationship = 'Partial symbolic grouping: relate only these drawn members; absent members supply no theme.';
   const text = `Possible themes — ${summary} ${roles}. ${relationship} Apply the drawn positions and orientations; interpret reversals through the selected framework, without assuming chronological order.${stage ? '' : ' These are symbolic roles; do not infer actual people, family history, or events.'}`;
   const label = family.stage[0].toUpperCase() + family.stage.slice(1);
   const title = `${family.suit} ${stage ? label : `Court ${label}`}`;
   return { ...passage, title, text, archetypalText: text, theme: summary,
-    matchedCardKeys: [...keys], isPartialPattern: !complete, visualAnchors: [],
+    matchedCardKeys: [...keys], isPartialPattern: true, visualAnchors: [],
     projectionVersion: 'minor-members-v1', projectionReviewStatus: 'pending' };
+}
+
+/** A partial suit projection repeats the member roles in its corresponding highlight. */
+export function repeatsSuitHighlight(passage, narrativeHighlights = []) {
+  return passage.type === 'suit-progression' && passage.isPartialPattern === true
+    && Array.isArray(narrativeHighlights) && narrativeHighlights.some(highlight =>
+      (highlight?.type === 'suit-progression' || highlight?.type === 'emerging-suit-progression')
+      && passage.patternId === `${highlight.suit}:${highlight.stage}`);
 }
 
 export function minorMemberNames(keys = []) {

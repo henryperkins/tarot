@@ -164,7 +164,7 @@ describe("Fool's Journey stage labels", () => {
   it('name the stage by its key for a single Major', () => {
     const patterns = detectAllPatterns([{ card: 'Death', number: 13, orientation: 'Upright' }]);
     const journey = getPriorityPatternNarratives(patterns).find((item) => item.type === 'fools-journey-minimal');
-    assert.match(journey.text, /appears in the integration stage/);
+    assert.match(journey.text, /the integration stage of the Fool's Journey/);
   });
 });
 

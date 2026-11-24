@@ -67,11 +67,11 @@ export function buildReadingPipelineEditorialReview({ previousReviews = [], agen
   const canon = buildCanonProjectionReview({ previousReviews });
   const rows = [...canon.rows];
   const counts = { ...canon.counts, directMajor: 0, directMinor: 0, directCourt: 0, referenceMinor: 0, referenceCourt: 0 };
-  const add = (kind, id, deckStyle, suppliedText) => {
+  const add = (kind, id, deckStyle, suppliedText, details = {}) => {
     counts[kind]++;
     rows.push({ kind, type: 'direct-highlight', patternId: id, context: 'general', sourceId: `direct:${id}`,
       deckStyle, sourceDeck: deckStyle, sourceUrls: [], projectionId: JSON.stringify([kind, id, deckStyle]), projectionVersion: `reading-${getReadingPromptVersion()}`,
-      title: id, theme: '', authoredText: suppliedText, suppliedText, anchors: [], runtimeStatus: 'available' });
+      title: id, theme: '', authoredText: suppliedText, suppliedText, anchors: [], runtimeStatus: 'available', ...details });
   };
   const addReference = (kind, id, deckStyle, cards, type) => {
     const graphKeys = buildGraphContext(cards, { deckStyle }).graphKeys;
@@ -99,7 +99,9 @@ export function buildReadingPipelineEditorialReview({ previousReviews = [], agen
         });
         const progression = detectSuitProgressions(cards, { deckStyle })[0];
         const rendered = renderSuitProgressionHighlight(progression, { deckStyle });
-        add('directMinor', `${suit}:${stage}:${matched.map(row => row.rank).join('-')}`, deckStyle, rendered.text);
+        add('directMinor', `${suit}:${stage}:${matched.map(row => row.rank).join('-')}`, deckStyle, rendered.text, {
+          orientations: cards.map(card => card.orientation)
+        });
         addReference('referenceMinor', `${suit}:${stage}:${matched.map(row => row.rank).join('-')}`, deckStyle, cards, 'suit-progression');
       }
     }

@@ -23,6 +23,7 @@
     "functions/lib/minorPatternHighlights.js",
     "functions/lib/minorPatternReferences.js",
     "functions/lib/readingContextVocabulary.js",
+    "functions/lib/readingSensitiveContext.js",
     "index.html",
     "jsconfig.json",
     "output/reading-motion/fixtures/generated-gesture-readings.json",

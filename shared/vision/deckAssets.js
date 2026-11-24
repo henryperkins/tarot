@@ -190,18 +190,20 @@ export function getThothImagePath(card) {
 }
 
 export function getMarseilleAlias(card) {
+  const displayName = typeof card?.name === 'string' ? card.name : '';
+  const name = card?.canonicalName || displayName.match(/ \(RWS: ([^()]+)\)$/u)?.[1] || displayName;
   if (typeof card?.number === 'number') {
-    const alias = MARSEILLE_MAJOR_ALIASES[getReorderedMajorNumber(card)];
+    const alias = MARSEILLE_MAJOR_ALIASES[getReorderedMajorNumber({ ...card, canonicalName: name })];
     if (alias) {
-      return card?.name && card.name !== alias ? `${alias} (RWS: ${card.name})` : alias;
+      return name && name !== alias ? `${alias} (RWS: ${name})` : alias;
     }
   }
   if (card?.suit && card?.rank) {
     const suitAlias = MARSEILLE_SUIT_ALIASES[card.suit] || card.suit;
     const rankAlias = MARSEILLE_COURT_ALIASES[card.rank] || card.rank;
     const label = `${rankAlias} of ${suitAlias}`;
-    if (card?.name && card.name !== label) {
-      return `${label} (RWS: ${card.name})`;
+    if (name && name !== label) {
+      return `${label} (RWS: ${name})`;
     }
     return label;
   }

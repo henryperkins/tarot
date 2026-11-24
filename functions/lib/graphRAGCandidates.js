@@ -2,6 +2,8 @@ import { getPassagesForPattern, listKnowledgeBasePassages } from './knowledgeBas
 import { projectPassageForDeck, projectPassageForPattern, getPassageProjectionRejectionReason } from './graphRAGProjection.js';
 import { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance } from './graphRAGLexical.js';
 import { rankQualifiedPatterns, getPassageRankingScore } from './graphRAGRanking.js';
+import { isPassageEligibleForSensitiveContext } from './readingSensitiveContext.js';
+import { repeatsSuitHighlight } from './minorPatternReferences.js';
 export { normalizeRetrievalTerms, retrievalQueryTerms, scoreKeywordRelevance };
 
 /** Priority of per-card Majors that only multi-Major spreads make eligible. */
@@ -32,10 +34,14 @@ const CONTEXT_ALIASES = {
   health: ['health', 'healing', 'wellbeing', 'wellness', 'therapy', 'recovery', 'self-care'],
   spiritual: ['spiritual', 'spirit', 'soul', 'intuition', 'mystic', 'divine', 'ritual', 'meditation'],
   transition: ['transition', 'change', 'shift', 'crossroads', 'ending', 'beginning', 'threshold'],
-  shadow: ['shadow', 'trauma', 'addiction', 'compulsion', 'habit', 'inner child', 'subconscious']
+  shadow: ['shadow', 'compulsion', 'habit', 'inner child', 'subconscious']
 };
 
-export function passageContextMatch(passage, questionContext = '') {
+export function passageContextMatch(passage, questionContext = '', sensitiveContext) {
+  // Sensitive material has its own admission evidence independent of topic labels.
+  if (passage.context === 'addiction' || passage.context === 'trauma') {
+    return isPassageEligibleForSensitiveContext(passage, sensitiveContext) ? 2 : 0;
+  }
   const context = typeof questionContext === 'string' ? questionContext.trim().toLowerCase() : '';
   const candidates = CONTEXT_ALIASES[context] || Object.values(CONTEXT_ALIASES).find((values) => values.includes(context)) || [context];
   const passageContext = passage.context || 'general';
@@ -52,9 +58,9 @@ function withStats(passages, stats) {
 }
 
 /** Enumerate all variants once; this is the single dispatch for pattern families. */
-export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', includeMetadata = false } = {}) {
+export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', includeMetadata = false, sensitiveContext, narrativeHighlights } = {}) {
   const candidates = [];
-  const stats = { registryPassageCount: listKnowledgeBasePassages().length, candidatesDiscovered: 0, candidatesProjected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
+  const stats = { registryPassageCount: listKnowledgeBasePassages().length, candidatesDiscovered: 0, candidatesProjected: 0, sensitiveContextRejected: 0, projectionRejected: 0, projectionRejectedReasons: {} };
   if (!graphKeys || typeof graphKeys !== 'object') return withStats(candidates, stats);
   const identities = new Set();
   const add = (type, patternId, priority, extra = {}, metadata = {}, entry = getPassagesForPattern(type, patternId)) => {
@@ -63,6 +69,10 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
       if (identities.has(identity)) continue;
       identities.add(identity);
       stats.candidatesDiscovered += 1;
+      if (!isPassageEligibleForSensitiveContext(passage, sensitiveContext)) {
+        stats.sensitiveContextRejected++;
+        continue;
+      }
       const patternInput = {
         ...passage, type, patternId: String(patternId), priority,
         title: entry.title, theme: entry.theme, ...extra,
@@ -76,6 +86,7 @@ export function collectPassageCandidates(graphKeys, { deckStyle = 'rws-1909', in
         stats.projectionRejectedReasons[reason] = (stats.projectionRejectedReasons[reason] || 0) + 1;
         continue;
       }
+      if (repeatsSuitHighlight(projected, narrativeHighlights)) continue;
       candidates.push(projected);
     }
   };
@@ -225,9 +236,14 @@ export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5
     eligible.push(candidate);
   }
   stats.patternsRepresented = patterns.size;
-  const corroboratedMajorId = qualityFilteringDisabled ? null : topicCorroboratedMajorId(eligible, minRelevanceScore);
+  const keywordOnly = stats.scoringMethod === 'keyword';
+  // The keyword score is the fraction of content terms matched. Two matches in
+  // a ten-term question can be useful without an embedding to raise the score.
+  const threshold = keywordOnly ? minRelevanceScore * (2 / 3) : minRelevanceScore;
+  const corroboratedMajorId = qualityFilteringDisabled || keywordOnly ? null : topicCorroboratedMajorId(eligible, threshold);
   let retained = qualityFilteringDisabled ? eligible : eligible.filter(candidate => candidate._priorityOnly
-    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= minRelevanceScore
+    || Number.isFinite(candidate.relevanceScore) && candidate.relevanceScore >= threshold
+    && (!keywordOnly || candidate.relevance > 0)
     && (!lacksLexicalSupport(candidate) || candidate.candidateId === corroboratedMajorId));
   stats.thresholdRejected = eligible.length - retained.length;
   // Rank only after every passage independently passes the existing gates.
@@ -237,8 +253,13 @@ export function selectPassageCandidates(scoredCandidates = [], { maxPassages = 5
     retained = rankQualifiedPatterns(retained, valid).sort((a, b) =>
       getPassageRankingScore(b) - getPassageRankingScore(a) || compareCandidates(a, b));
   }
-  // The weak floor keeps a pre-existing pattern ahead of an unsupported supplemental Major.
-  if (!retained.length && eligible.length) retained.push({ ...(eligible.find(candidate => !lacksLexicalSupport(candidate)) || eligible[0]), belowRelevanceThreshold: true });
+  if (!retained.length) {
+    // Keep one labeled background reference for an established pattern.
+    // In keyword mode, an unsupported supplemental Major cannot fill that slot.
+    const floor = eligible.find(candidate => !lacksLexicalSupport(candidate))
+      || (keywordOnly ? null : eligible[0]);
+    if (floor) retained.push({ ...floor, belowRelevanceThreshold: true });
+  }
   const selected = retained.slice(0, maxPassages);
   stats.finalSelectedCount = selected.length;
   return withStats(selected, stats);

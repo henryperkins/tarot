@@ -68,7 +68,7 @@
     {
       "id": "remediation-budget-summary",
       "sourceFixtureId": "boundary-summary-only",
-      "flags": { "ENABLE_PROMPT_SLIMMING": "true", "PROMPT_BUDGET_CLAUDE": "6200", "PROMPT_BUDGET_OPENAI": "6200" },
+      "flags": { "ENABLE_PROMPT_SLIMMING": "true", "PROMPT_BUDGET_CLAUDE": "6250", "PROMPT_BUDGET_OPENAI": "6250" },
       "expected": { "modes": { "claude": "summary", "openai": "summary", "modal": "full" }, "integrityRemovedBlocks": 0 }
     },
     {

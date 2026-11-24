@@ -4,7 +4,16 @@
     "mode": "frozen-real-workers-ai-cosines",
     "sourceVectorSha256": "ff6f4d2f1d3dd0e43ce886a5eecc22c13d4ad73f0ca636e6472a0871d20bafd4",
     "fixtureSha256": "ff7922c809fbe948d78714ce4adccf0f026673495b744585a23c2d9530fbda51",
-    "note": "Derived without rounding or relabeling from the preserved 2026-10-24 Workers AI capture. Seen regression evidence, not an independent holdout."
+    "note": "Original scores are from the preserved 2026-10-24 Workers AI capture. Two Minor reference scores were refreshed for changed passage text. Seen regression evidence, not an independent holdout.",
+    "minorReferenceRefresh": {
+      "capturedDate": "2026-11-23",
+      "model": "@cf/baai/bge-m3",
+      "caseIds": [
+        "REL06",
+        "REL10"
+      ],
+      "sourceVectorSha256": "12dc540ae3d6606920cde859aa23b983f4a3f6da4970ac893cccc0ce66ac1894"
+    }
   },
   "caseOrder": [
     "REL01",
@@ -264,8 +273,8 @@
           "cosine": 0.4782377453814811
         },
         "[\"suit-progression\",\"Pentacles:beginning\",\"general\",[\"ace of pentacles\",\"two of pentacles\",\"three of pentacles\"],\"tableu:suit-progression:Pentacles:beginning:general:0\"]": {
-          "promptTextHash": "3cdc79a3c3739183882203aef839369cbc7fb82da9fb78d1fb31de1d32fe37d8",
-          "cosine": 0.44054316621041084
+          "promptTextHash": "38fb46da40309af6b32661b77b92cb471321bf983a34c57db21eaf1422cd9c30",
+          "cosine": 0.3927050416801994
         }
       }
     },
@@ -372,8 +381,8 @@
           "cosine": 0.3573236478286717
         },
         "[\"court-lineage\",\"Cups:alliance\",\"general\",[\"queen of cups\",\"king of cups\"],\"tableu:court-lineage:Cups:alliance:general:0\"]": {
-          "promptTextHash": "48bcdbbe0d1d6e904cd6d51959b5eaf47b986cd329c5eede5258f0bda6df9711",
-          "cosine": 0.4138198646743185
+          "promptTextHash": "b4e869a0077747e9fee8c52fd49f049553a9c08eaaf8f915d7cd1bff7d7896c2",
+          "cosine": 0.3856257399857571
         }
       }
     }

@@ -385,16 +385,14 @@ export function detectArchetypalDyads(cards, options = {}) {
   ARCHETYPAL_DYADS.forEach((dyad) => {
     // Check if both cards of this dyad are present
     if (dyad.cards.every((num) => numbers.includes(num))) {
-      const names = dyad.cards.map((num, index) => {
-        const fallback = dyad.names[index];
-        const card = majorMembers.find(member => member.card.number === num)?.card;
-        return deckAwareName(card, fallback, deckStyle);
-      });
+      const members = dyad.cards.map(number => majorMembers.find(member => member.card.number === number));
+      const names = members.map(({ card }, index) => deckAwareName(card, dyad.names[index], deckStyle));
 
       detected.push({
         cards: dyad.cards,
-        matchedCardIndices: majorMembers.filter(member => dyad.cards.includes(member.card.number)).flatMap(member => member.indices).sort((a, b) => a - b),
+        matchedCardIndices: members.flatMap(member => member.indices).sort((a, b) => a - b),
         names,
+        orientations: members.map(({ card }) => card.orientation),
         theme: dyad.theme,
         category: dyad.category,
         description: dyad.description,
@@ -817,6 +815,11 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
   };
 
   const narratives = [];
+  const dyadText = (dyad) => {
+    const names = dyad.names.map((name, index) =>
+      dyad.orientations?.[index] === 'Reversed' ? `${name} (reversed)` : name);
+    return `**${names.join(' + ')}** ${dyad.narrative}`;
+  };
   const stageDisplay = {
     beginning: 'Beginning',
     challenge: 'Challenge',
@@ -881,7 +884,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
     narratives.push({
       priority: 6,
       type: 'fools-journey-minimal',
-      text: `**${journeyNames}** appears in the ${journeyStageLabel(journey)} stage of the Fool's Journey, touching on themes of ${journey.theme.toLowerCase()}.`,
+      text: `**${journeyNames}** is associated with the ${journeyStageLabel(journey)} stage of the Fool's Journey.`,
       cards: journey.cards.map((c) => c.number),
       matchedCardIndices: journey.matchedCardIndices || [],
       stage: journey.stage
@@ -971,7 +974,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
         narratives.push({
           priority: 4,
           type: 'high-dyad',
-          text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
+          text: dyadText(dyad),
           cards: dyad.cards,
           matchedCardIndices: dyad.matchedCardIndices || [],
           category: dyad.category
@@ -1048,7 +1051,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
         narratives.push({
           priority: 7,
           type: 'medium-high-dyad',
-          text: `**${dyad.names.join(' + ')}** ${dyad.narrative}`,
+          text: dyadText(dyad),
           cards: dyad.cards,
           matchedCardIndices: dyad.matchedCardIndices || [],
           category: dyad.category
@@ -1058,7 +1061,7 @@ export function getPriorityPatternNarratives(patterns, deckStyle = 'rws-1909') {
 
   // Sort by priority and limit to top 5
   return narratives.sort((a, b) => a.priority - b.priority).slice(0, 5).map((highlight) => {
-    if (highlight.type === 'complete-triad' || highlight.type === 'partial-triad') return highlight;
+    if (highlight.cards.length < 2 || /(?:triad|suit-progression|court-lineage)$/.test(highlight.type)) return highlight;
     return {
       ...highlight,
       text: `${highlight.text.replace(/^(\*\*.*?\*\*)\s*/, '$1 Possible shared theme: ')} Apply the drawn positions and orientations without assuming chronological order.`

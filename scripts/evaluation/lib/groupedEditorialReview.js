@@ -5,6 +5,8 @@ import { MAJOR_ARCANA } from '../../../src/data/majorArcana.js';
 import { DECK_ORDER } from '../../../shared/vision/deckCatalog.js';
 import { getDeckAlias } from '../../../shared/vision/deckAssets.js';
 import { COURT_MEMBER_ROLES } from '../../../functions/lib/minorPatternReferences.js';
+import { getPassagesForPattern } from '../../../functions/lib/knowledgeBase.js';
+import { projectPassageForDeck } from '../../../functions/lib/graphRAGProjection.js';
 
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const reviewStatuses = new Set(['accepted', 'correction_required', 'owner_decision']);
@@ -27,6 +29,15 @@ function reviewMaterial(row) {
   const { reviewerType: _reviewerType, humanStatus: _humanStatus, fidelityStatus: _fidelityStatus,
     absentStageStatus: _absentStageStatus, notes: _notes, ...material } = row;
   return material;
+}
+
+function matchesAuthoredReference(row, patternId, matchedCardKeys) {
+  const authored = getPassagesForPattern(row.type, patternId)?.passages.find(passage => passage.sourceId === row.sourceId);
+  if (!authored || !Array.isArray(row.matchedCardKeys) || row.matchedCardKeys.length !== matchedCardKeys.length
+    || !matchedCardKeys.every(key => row.matchedCardKeys.includes(key))) return false;
+  const projected = projectPassageForDeck({ ...authored, type: row.type, patternId, matchedCardKeys }, row.deckStyle);
+  return projected?.isPartialPattern === false && projected.promptText === row.suppliedText
+    && projected.title === row.title && projected.theme === row.theme;
 }
 
 export function checkEditorialMechanics(rows) {
@@ -67,16 +78,27 @@ export function checkEditorialMechanics(rows) {
         add(row, 'invalid_minor_membership', 'The grouping includes an unsupported or repeated member.');
         continue;
       }
-      for (const member of stage.cards) {
-        const drawn = ranks.includes(member.rank);
-        if (drawn && !row.suppliedText.includes(member.role)) add(row, 'missing_drawn_role', member.name);
-        if (!drawn && row.suppliedText.includes(member.role)) add(row, 'absent_member_role', member.name);
-        if (drawn) {
-          const label = getDeckAlias(MINOR_ARCANA.find(card => card.name === member.name), row.deckStyle);
-          if (!row.suppliedText.includes(`${label}${row.kind === 'directMinor' ? ' (' : ':'}`)) add(row, 'missing_deck_label', label);
-        }
-      }
       const complete = ranks.length === stage.cards.length;
+      if (complete && row.kind === 'referenceMinor') {
+        const keys = stage.cards.map(member => member.name.toLowerCase());
+        if (!matchesAuthoredReference(row, `${suit}:${stageName}`, keys)) add(row, 'authored_reference_mismatch', row.patternId);
+        continue;
+      }
+      const direct = row.kind === 'directMinor';
+      for (const member of stage.cards) {
+        const index = ranks.indexOf(member.rank);
+        if (index < 0) {
+          if (row.suppliedText.includes(member.role)) add(row, 'absent_member_role', member.name);
+          continue;
+        }
+        const card = MINOR_ARCANA.find(card => card.name === member.name);
+        const label = getDeckAlias(card, row.deckStyle);
+        const orientation = row.orientations?.[index] || 'Upright';
+        const role = direct && orientation === 'Reversed' ? card.reversed : member.role;
+        const prefix = direct ? `${label} (${orientation}):` : `${label}:`;
+        if (!row.suppliedText.includes(prefix)) add(row, 'missing_deck_label', label);
+        if (!row.suppliedText.includes(`${prefix} ${role}`)) add(row, 'missing_drawn_role', member.name);
+      }
       if (complete !== row.suppliedText.includes(`Complete symbolic grouping: ${stage.completeTheme}`)) add(row, 'stage_completion_mismatch', row.patternId);
       if (!complete && !row.suppliedText.includes('absent members supply no theme')) add(row, 'missing_partial_boundary', row.patternId);
       if (!row.suppliedText.includes('without assuming chronological order')) add(row, 'missing_order_boundary', row.patternId);
@@ -103,6 +125,12 @@ export function checkEditorialMechanics(rows) {
         add(row, 'invalid_court_membership', row.patternId);
         continue;
       }
+      if (ranks.length === 2 || ranks.length === 4) {
+        const kind = ranks.length === 2 ? 'alliance' : 'council';
+        const keys = ranks.map(rank => `${rank.toLowerCase()} of ${suit.toLowerCase()}`);
+        if (!matchesAuthoredReference(row, `${suit}:${kind}`, keys)) add(row, 'authored_reference_mismatch', row.patternId);
+        continue;
+      }
       for (const [rank, role] of Object.entries(COURT_MEMBER_ROLES[suit])) {
         const drawn = ranks.includes(rank);
         if (drawn && !row.suppliedText.includes(role)) add(row, 'missing_court_role', rank);
@@ -110,8 +138,8 @@ export function checkEditorialMechanics(rows) {
         const label = getDeckAlias(MINOR_ARCANA.find(card => card.name === `${rank} of ${suit}`), row.deckStyle);
         if (drawn && !row.suppliedText.includes(`${label}:`)) add(row, 'missing_court_label', label);
       }
-      if ((ranks.length === 4) !== row.suppliedText.includes('Complete symbolic grouping:')) add(row, 'court_completion_mismatch', row.patternId);
-      if (ranks.length < 4 && !row.suppliedText.includes('absent members supply no theme')) add(row, 'missing_partial_boundary', row.patternId);
+      if (row.suppliedText.includes('Complete symbolic grouping:')) add(row, 'court_completion_mismatch', row.patternId);
+      if (!row.suppliedText.includes('absent members supply no theme')) add(row, 'missing_partial_boundary', row.patternId);
       if (!row.suppliedText.includes('do not infer actual people, family history, or events')) add(row, 'missing_court_boundary', row.patternId);
     }
   }

@@ -67,7 +67,7 @@ for (const [entrypoint, build] of Object.entries(builders)) {
       const built = build({ env, themes });
       assert.equal(built.userPrompt.includes(patternsHeader), enabled);
       if (enabled) assert.match(built.userPrompt, /Healing Arc/);
-      else assert.doesNotMatch(built.userPrompt, /TRADITIONAL WISDOM \(GraphRAG\)/);
+      else assert.doesNotMatch(built.userPrompt, /TABLEU TAROT (?:REFERENCES|PATTERN SUMMARY)/);
       if (built.promptMeta) {
         assert.equal(built.promptMeta.sourceUsage.patterns.used, enabled);
         assert.equal(built.promptMeta.sourceUsage.patterns.patternsUsedInPrompt, enabled ? 4 : 0);
@@ -126,7 +126,7 @@ for (const flag of ['GRAPHRAG_ENABLED', 'KNOWLEDGE_GRAPH_ENABLED']) {
     }, 'graph-disable-test');
 
     assert.ok(built.promptMeta.slimmingSteps.length > 0, 'Exercise repeated prompt assembly');
-    assert.doesNotMatch(built.userPrompt, /Archetypal Patterns|TRADITIONAL WISDOM \(GraphRAG\)/);
+    assert.doesNotMatch(built.userPrompt, /Archetypal Patterns|TABLEU TAROT (?:REFERENCES|PATTERN SUMMARY)/);
     assert.equal(built.promptMeta.sourceUsage.patterns.used, false);
     assert.equal(built.promptMeta.sourceUsage.patterns.patternsUsedInPrompt, 0);
     assert.equal(built.promptMeta.sourceUsage.graphRAG.used, false);

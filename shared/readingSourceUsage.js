@@ -13,6 +13,7 @@ export const USAGE_REASON_COPY = Object.freeze({
   unverified_reference_provenance: 'Reference provenance could not be verified.',
   projection_rejected: 'References could not be verified for the selected deck.',
   explicit_topic_exclusion: 'This topic was explicitly excluded from reference matching.',
+  no_applicable_passages: 'The available references did not fit this reading.',
   topic_projection: 'Only relevant parts were used for reference matching.',
   query_budget: 'Excerpted for reference matching; the reading may include more of your note.',
   source_char_limit: 'Shortened for reference matching.',
@@ -54,7 +55,7 @@ const fieldCounts = ['originalLength', 'sanitizedLength', 'eligibleLength', 'inc
 const fieldFlags = ['representationTruncated', 'sanitizationChanged', 'sanitizationTruncated', 'limitApplied', 'budgetTruncated', 'omitted', 'representedByDuplicate'];
 
 export const GRAPH_RAG_FALLBACK_REASONS = Object.freeze(['embeddings-failed', 'embeddings-not-configured', 'embeddings-partial-failure', 'embeddings-timeout', 'embeddings-invalid-response', 'embeddings-cancelled', 'embeddings-registry-overflow', 'no-passages', 'no-query', 'quality-filtering-disabled', 'not-prefetched', 'graphrag-disabled', 'no-graph-patterns', 'retrieval-skipped', 'projection-rejected']);
-const GRAPH_RAG_COUNT_KEYS = ['registryPassageCount', 'candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'retainedPassageCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'embeddingCacheSizeBefore', 'embeddingCacheSizeAfter', 'embeddingCacheMaxSize', 'embeddingPeakConcurrency', 'retrievalElapsedMs', 'budgetTrimmedTo', 'intermediateBudgetPassageCount', 'integrityRemovedBlocks'];
+const GRAPH_RAG_COUNT_KEYS = ['registryPassageCount', 'candidatesDiscovered', 'candidatesProjected', 'projectionRejected', 'inapplicablePassageCount', 'candidatesScored', 'patternsRepresented', 'variantsRemoved', 'deduplicatedCandidates', 'thresholdRejected', 'finalSelectedCount', 'retainedPassageCount', 'embeddingBatchCount', 'embeddingCacheHits', 'embeddingInputCount', 'embeddingInputCharacters', 'embeddingCacheSizeBefore', 'embeddingCacheSizeAfter', 'embeddingCacheMaxSize', 'embeddingPeakConcurrency', 'retrievalElapsedMs', 'budgetTrimmedTo', 'intermediateBudgetPassageCount', 'integrityRemovedBlocks'];
 const DECK_STYLES = ['rws-1909', 'thoth-a1', 'marseille-classic'];
 
 /** Fixed diagnostics only; missing historical measurements remain absent. */

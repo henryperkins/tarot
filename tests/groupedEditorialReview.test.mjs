@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as editorial from '../scripts/evaluation/buildCanonProjectionReview.js';
+import { MINOR_ARCANA } from '../src/data/minorArcana.js';
 
 const rows = () => editorial.buildReadingPipelineEditorialReview().rows;
 function grouped(input = rows(), verdicts = []) {
@@ -84,7 +85,9 @@ test('mechanical checks reject duplicate identity and foreign-deck visual anchor
 test('mechanical checks reject missing drawn roles and injected absent Minor roles', () => {
   const source = rows();
   const row = source.find(row => row.kind === 'directMinor' && row.patternId === 'Cups:challenge:4-6-7' && row.deckStyle === 'rws-1909');
-  row.suppliedText = row.suppliedText.replace('Sweet memory', 'Mourning what is lost');
+  const reversed = MINOR_ARCANA.find(card => card.name === 'Six of Cups').reversed;
+  assert.ok(row.suppliedText.includes(reversed));
+  row.suppliedText = row.suppliedText.replace(reversed, 'Mourning what is lost');
   const codes = grouped(source).mechanical.issues.filter(issue => issue.rowId === row.reviewId).map(issue => issue.code);
   assert.ok(codes.includes('missing_drawn_role'));
   assert.ok(codes.includes('absent_member_role'));

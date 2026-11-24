@@ -175,7 +175,7 @@ it('enforces final token budget and atomic GraphRAG when truncating through the 
     }
     assert.ok(estimateTokenCount(truncated.text) <= budget, `Expected <= ${budget} tokens, got ${estimateTokenCount(truncated.text)}`);
     assert.equal(JSON.parse(truncated.text.match(/<user_context source="question">([^\n]*?)<\/user_context>/)[1]), question);
-    if (truncated.text.includes('TRADITIONAL WISDOM')) {
+    if (truncated.text.includes('## TABLEU TAROT REFERENCES')) {
       assert.ok(truncated.text.includes('<!-- graphrag:full:start -->') || truncated.text.includes('<!-- graphrag:summary:start -->'));
       assert.ok(truncated.text.includes('<!-- graphrag:full:end -->') || truncated.text.includes('<!-- graphrag:summary:end -->'));
     } else {

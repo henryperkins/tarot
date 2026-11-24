@@ -78,7 +78,7 @@ for (const target of ['claude', 'openai', 'modal']) {
     for (const card of cardsInfo) assert.ok(built.userPrompt.includes(card.card));
     assert.doesNotMatch(built.userPrompt, /Picture Traveler climbs|lantern piercing darkness|focused beam in darkness|The light dims from isolation/);
     assert.match(built.userPrompt, /RWS image \(The Sun\):/);
-    assert.match(built.userPrompt, /\*Metaphor:/);
+    assert.doesNotMatch(built.userPrompt, /\*Metaphor:/, 'The uncovered Sun is reversed and has no upright sensory metaphor');
   });
 }
 

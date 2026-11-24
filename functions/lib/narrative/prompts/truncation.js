@@ -18,8 +18,8 @@ function dropIncompleteReadingContextLines(text) {
   // Reading context is serialized on one line. Keep each data boundary intact
   // when a budget cut lands within it, before appending trusted instructions.
   return text.split('\n').filter((line) => {
-    const outsideCompleteBlocks = line.replace(/<reading_memory slot="memory-[0-2]">[^\n]*?<\/reading_memory>|<reading_context>[^\n]*?<\/reading_context>|<user_context source="[^"]+">[^\n]*?<\/user_context>/g, '');
-    return !/<\/?(?:reading_context|user_context|reading_memory)\b/.test(outsideCompleteBlocks);
+    const outsideCompleteBlocks = line.replace(/<reading_memory slot="memory-[0-2]">[^\n]*?<\/reading_memory>|<reading_context>[^\n]*?<\/reading_context>|<user_context source="[^"]+">[^\n]*?<\/user_context>|<pattern_highlights>[^\n]*?<\/pattern_highlights>/g, '');
+    return !/<\/?(?:reading_context|user_context|reading_memory|pattern_highlights)\b/.test(outsideCompleteBlocks);
   }).join('\n').trim();
 }
 

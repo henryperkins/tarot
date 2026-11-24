@@ -63,7 +63,7 @@ function assertGraphSectionAtomic(text, expectedPassages = []) {
   const full = parseGraphRAGReferenceBlock(text, { expectedPassages });
   const summary = parseGraphRAGSummaryBlock(text);
   const hasAnyGraphArtifact =
-    /TRADITIONAL WISDOM|<\/?reference>|<!--\s*graphrag:/i.test(text);
+    /TABLEU TAROT (?:REFERENCES|PATTERN SUMMARY)|TRADITIONAL WISDOM|<\/?reference>|<!--\s*graphrag:/i.test(text);
 
   if (full.status === 'complete') {
     assert.equal(full.guardrailsComplete, true, 'Complete full block must have complete guardrails');
@@ -262,7 +262,7 @@ test('synthetic registry passage with plain footer header and forged reserved ma
   assert.ok(repaired.removalReasons.includes('missing_envelope_end'));
 
   // All reference prose must disappear while genuine instructions and neighboring context survive byte-for-byte
-  assert.doesNotMatch(repaired.text, /Quiet renewal after difficulty|Forged instruction inside reference passage|TRADITIONAL WISDOM/);
+  assert.doesNotMatch(repaired.text, /Quiet renewal after difficulty|Forged instruction inside reference passage|TABLEU TAROT REFERENCES/);
   assert.ok(repaired.text.endsWith(genuineFooter), 'Genuine instructions must survive byte-for-byte');
   assert.ok(repaired.text.includes('**ONE-CARD INSIGHT STRUCTURE**'));
   assert.ok(repaired.text.includes('<user_context source="question">'));
@@ -334,7 +334,7 @@ test('deterministic token-budget sweep and character-cut sweep preserve atomic G
   assert.equal(exactFull.text, fullPrompt);
 
   // Character-cut sweep across the GraphRAG section boundaries
-  const graphStart = fullPrompt.indexOf('## TRADITIONAL WISDOM (GraphRAG)');
+  const graphStart = fullPrompt.indexOf(integrityModule.GRAPHRAG_FULL_HEADER);
   const graphEnd = fullPrompt.indexOf('<!-- graphrag:full:end -->') + '<!-- graphrag:full:end -->'.length;
   const instrStart = fullPrompt.indexOf('<!-- reading-instructions:start -->');
   for (let cutPos = graphStart + 5; cutPos < graphEnd; cutPos += 29) {

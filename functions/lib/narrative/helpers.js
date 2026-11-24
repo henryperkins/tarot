@@ -225,28 +225,10 @@ const CARD_SPECIFIC_CONTEXT = {
 
 function deckAwareCardName(cardInfo, deckStyle = 'rws-1909') {
   const fallback = cardInfo?.card || cardInfo?.name || 'this card';
-  if (!deckStyle || deckStyle === 'rws-1909') {
-    return fallback;
-  }
+  if (!deckStyle || deckStyle === 'rws-1909') return fallback;
 
-  const aliasInput = {
-    number: cardInfo?.number,
-    name: cardInfo?.card || cardInfo?.name,
-    suit: cardInfo?.suit,
-    rank: cardInfo?.rank,
-    rankValue: cardInfo?.rankValue
-  };
-  const alias = getDeckAlias(aliasInput, deckStyle);
-  if (!alias || alias === fallback) {
-    return fallback || alias || 'this card';
-  }
-
-  if (fallback && alias) {
-    // Marseille and Thoth aliases may already name the RWS card ("Six of Coins (RWS: Six of Pentacles)").
-    return alias.includes(fallback) ? alias : `${alias} (RWS: ${fallback})`;
-  }
-
-  return alias || fallback;
+  const name = cardInfo?.canonicalName || cardInfo?.name || fallback;
+  return getDeckAlias({ ...cardInfo, name }, deckStyle) || fallback;
 }
 
 const MINOR_SUITS = ['Wands', 'Cups', 'Swords', 'Pentacles'];
@@ -972,7 +954,7 @@ function buildPositionCardText(cardInfo, position, options = {}) {
     normalizedContext === 'self' ||
     normalizedContext === 'general';
 
-  const esotericClause = allowEsoteric ? buildOccultFlavor(cardInfo) : '';
+  const esotericClause = allowEsoteric ? buildOccultFlavor(cardInfo, options.deckStyle) : '';
   const enrichedMeaning = [meaning, contextClause, esotericClause].filter(Boolean).join(' ');
 
   // Add imagery hook for Major Arcana if enabled (the hooks describe RWS scenes)
@@ -1411,7 +1393,7 @@ function buildReflectionsSection(reflectionsText) {
   return `### Your Reflections\n\n${intro}\n\n${safeReflection}\n\n${closing}`;
 }
 
-function buildOccultFlavor(cardInfo) {
+function buildOccultFlavor(cardInfo, deckStyle) {
   if (!cardInfo) return '';
 
   const bits = [];
@@ -1425,7 +1407,7 @@ function buildOccultFlavor(cardInfo) {
   }
 
   if (shouldSurfaceQabalahLens(cardInfo)) {
-    const qabalah = getQabalahForCard(cardInfo);
+    const qabalah = getQabalahForCard(cardInfo, deckStyle);
     if (qabalah?.label) {
       const detail = qabalah.focus ? `, ${qabalah.focus}` : '';
       bits.push(`${qabalah.label}${detail}`);

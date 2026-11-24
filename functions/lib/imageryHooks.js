@@ -523,7 +523,7 @@ export function getImageryHook(cardNumber, orientation = 'upright') {
   return {
     visual: imagery.visual,
     interpretation: isReversed ? imagery.reversed : imagery.upright,
-    sensory: imagery.sensory
+    sensory: isReversed ? null : imagery.sensory
   };
 }
 

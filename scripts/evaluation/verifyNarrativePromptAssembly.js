@@ -455,11 +455,12 @@ async function exerciseBoundary(fixture, originalPayload, summary) {
     // but create real pressure with verified references and a test soft budget.
     // Calibrated for complete envelopes and guardrails; retain the frozen input
     // and its required summary behavior without changing production budgets.
-    const softBudget = 6200;
+    const softBudget = 6250;
     built = buildEnhancedClaudePrompt(promptArguments(payload, config.budgetTarget, { promptBudgetEnv: { ...BASE_ENV, ENABLE_PROMPT_SLIMMING: 'true', PROMPT_BUDGET_CLAUDE: String(softBudget), PROMPT_BUDGET_OPENAI: String(softBudget) } }));
     assert.equal(built.promptMeta.sourceUsage.graphRAG.mode, 'summary');
     assert.ok(built, 'valid registry selections must reach summary mode under a test soft budget');
     assert.equal(built.promptMeta.sourceUsage.graphRAG.passagesUsedInPrompt, 0);
+    assert.equal(built.promptMeta.graphRAG.includedInPrompt, false);
     assert.match(built.userPrompt, /CARD GUARDRAIL/);
     summary.boundaries[boundary] = { mode: 'summary', passages: 0, softBudget, adapter: 'verified-registry-soft-budget-v3' };
   } else if (boundary === 'partial-path') {

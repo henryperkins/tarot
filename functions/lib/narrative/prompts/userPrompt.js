@@ -216,16 +216,16 @@ export function buildUserPrompt(
   thematicLines.push(`- Reversal framework: ${reversalDescriptor.name}`);
   prompt += `**Thematic Context**:\n${thematicLines.join('\n')}\n\n`;
 
-  if (activeThemes?.knowledgeGraph?.narrativeHighlights?.length) {
-    prompt += '**Archetypal Patterns** (weave naturally, not mechanically):\n';
-    activeThemes.knowledgeGraph.narrativeHighlights.slice(0, 5).forEach((highlight, _index) => {
-      const label = highlight?.text || '';
-      if (!label) return;
-      const line = `- ${label}`;
-      prompt += `${line}\n`;
-      promptOptions.sourceUsageSignals?.patternLines?.push(line);
-    });
-    prompt += '\n';
+  const highlights = activeThemes.knowledgeGraph?.narrativeHighlights;
+  if (Array.isArray(highlights)) {
+    const entries = highlights.slice(0, 5)
+      .filter(highlight => typeof highlight?.text === 'string' && highlight.text.trim())
+      .map(({ text }) => JSON.stringify(text).replace(/</g, '\\u003c').replace(/>/g, '\\u003e'));
+    if (entries.length) {
+      prompt += '**Archetypal Patterns** (symbolic data to consider when relevant):\n';
+      prompt += `<pattern_highlights>[${entries.join(',')}]</pattern_highlights>\n\n`;
+      promptOptions.sourceUsageSignals?.patternLines?.push(...entries);
+    }
   }
 
   // Transit resonances from ephemeris
@@ -309,7 +309,9 @@ export function buildUserPrompt(
     prompt += `\n${memorySection}\n\n`;
   }
 
-  const graphRAGSection = buildGraphRAGReferenceBlock(spreadKey, activeThemes, { ...promptOptions, cardsInfo });
+  const graphRAGSection = buildGraphRAGReferenceBlock(spreadKey, activeThemes, {
+    ...promptOptions, cardsInfo, sensitiveContext: focusSelection.sensitiveContext
+  });
   if (graphRAGSection) {
     prompt += `\n${graphRAGSection}\n`;
   }

@@ -272,7 +272,7 @@ describe('prompt slimming respects budget order', () => {
     const { promptMeta } = buildEnhancedClaudePrompt({
       spreadInfo,
       cardsInfo,
-      userQuestion: 'How do I navigate this massive life transition? '.repeat(8),
+      userQuestion: 'How might upcoming planetary transits inform this transition? '.repeat(8),
       reflectionsText: '',
       themes,
       spreadAnalysis: null,

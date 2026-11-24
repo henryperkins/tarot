@@ -15,7 +15,8 @@ export function renderSuitProgressionHighlight(progression, { deckStyle = 'rws-1
     const catalog = MINOR_ARCANA.find(card => card.name === authored.name);
     const label = getDeckAlias(catalog, deckStyle);
     const orientation = member.card.orientation === 'Reversed' ? 'Reversed' : 'Upright';
-    return `${label} (${orientation}): ${authored.role}`;
+    const role = orientation === 'Reversed' ? catalog.reversed : authored.role;
+    return `${label} (${orientation}): ${role}`;
   });
   const complete = members.length === stage.cards.length;
   const relationship = complete ? `Complete symbolic grouping: ${stage.completeTheme}`

@@ -3,6 +3,8 @@ import { prepareReadingContextSources } from '../../readingContextSources.js';
 import { extractPersonalDetailClaims, selectMemoriesForReading } from '../../readingMemorySelection.js';
 import { parseMemoryBlocks } from '../../userMemory.js';
 import { projectPassageForDeck } from '../../graphRAGProjection.js';
+import { isPassageEligibleForSensitiveContext } from '../../readingSensitiveContext.js';
+import { repeatsSuitHighlight } from '../../minorPatternReferences.js';
 import { decisionPathRoleCards, resolveDecisionPathContext } from '../../decisionPathContext.js';
 import { sanitizeReadingCard } from '../../readingCardContext.js';
 import { prepareUserContext, summarizeUserContext } from './userContext.js';
@@ -480,6 +482,8 @@ export function buildEnhancedClaudePrompt({
           env: promptBudgetEnv,
           userQuery: graphRAGContextInput || userQuestion || '',
           keywordQuery: selection.retrievalContentText,
+          sensitiveContext: selection.sensitiveContext,
+          narrativeHighlights: activeThemes.knowledgeGraph.narrativeHighlights,
           questionContext
         });
 
@@ -561,9 +565,15 @@ export function buildEnhancedClaudePrompt({
 
   if (effectiveGraphRAGPayload) {
     const provided = Array.isArray(effectiveGraphRAGPayload.passages) ? effectiveGraphRAGPayload.passages : [];
+    let inapplicable = 0;
     const projected = provided.map((passage, index) => {
       const candidate = projectPassageForDeck(passage, resolvedDeckStyle, { cardsInfo });
       if (!candidate) return null;
+      if (!isPassageEligibleForSensitiveContext(candidate, contextSelection.sensitiveContext)
+        || repeatsSuitHighlight(candidate, activeThemes.knowledgeGraph.narrativeHighlights)) {
+        inapplicable++;
+        return null;
+      }
       // A retained index authorizes display of the caller's original candidate.
       // Rebinding can change its membership or supplied prose without mutating
       // the shared fallback/history payload. In that case withhold the index;
@@ -572,16 +582,19 @@ export function buildEnhancedClaudePrompt({
       const unchangedDisplay = !passage.candidateId || displayFields.every(key => JSON.stringify(passage[key]) === JSON.stringify(candidate[key]));
       return { ...candidate, selectedPayloadIndex: unchangedDisplay ? index : null };
     }).filter(Boolean);
-    const unverified = (provided.length > 0 && !projected.length)
+    const unverified = (provided.length > inapplicable && !projected.length)
       || (!provided.length && Boolean(effectiveGraphRAGPayload.formattedBlock));
     effectiveGraphRAGPayload = {
       ...effectiveGraphRAGPayload,
       passages: projected,
+      formattedBlock: provided.length ? null : effectiveGraphRAGPayload.formattedBlock,
       initialPassageCount: provided.length,
       unverifiedReferenceProvenance: unverified,
       retrievalSummary: {
         ...effectiveGraphRAGPayload.retrievalSummary,
-        projectionRejected: (effectiveGraphRAGPayload.retrievalSummary?.projectionRejected || 0) + provided.length - projected.length,
+        projectionRejected: (effectiveGraphRAGPayload.retrievalSummary?.projectionRejected || 0) + provided.length - projected.length - inapplicable,
+        inapplicablePassageCount: inapplicable,
+        ...(inapplicable > 0 && !projected.length ? { skippedReason: 'no_applicable_passages' } : {}),
         ...(unverified ? { skippedReason: 'unverified_reference_provenance' } : {})
       }
     };
@@ -1099,7 +1112,7 @@ export function buildEnhancedClaudePrompt({
       ? Math.min(graphRAGParse.passageCount, passagesAfterSlimming)
       : 0;
     const trimmedCount = typeof passagesUsed === 'number'
-      ? Math.max(0, initialPassageCount - passagesUsed)
+      ? Math.max(0, initialPassageCount - (retrievalSummary.inapplicablePassageCount || 0) - passagesUsed)
       : null;
 
     const semanticScoringUsed = Boolean(
@@ -1118,6 +1131,7 @@ export function buildEnhancedClaudePrompt({
       (semanticScoringRequested && semanticScoringUsed === false);
     const semanticScoringAttempted = Boolean(
       retrievalSummary.qualityMetrics?.semanticScoringAttempted ||
+      retrievalSummary.semanticScoringAttempted ||
       controls.graphRAGPayload.semanticScoringAttempted ||
       semanticScoringUsed // If it was used, it was attempted
     );
@@ -1158,7 +1172,7 @@ export function buildEnhancedClaudePrompt({
     retrievalSummary.disabledByEnv = !graphragEnabled;
     if (!graphragEnabled) retrievalSummary.skippedReason = 'disabled_by_env';
     else if (graphRAGIntegrity.removedBlockCount > 0) retrievalSummary.skippedReason = 'reference_integrity_failed';
-    retrievalSummary.includedInPrompt = graphRAGInjectionMode !== 'none';
+    retrievalSummary.includedInPrompt = passagesUsed > 0;
     if (!retrievalSummary.skippedReason && graphRAGInjectionMode === 'none') {
       if (!graphragEnabled) {
         retrievalSummary.skippedReason = 'disabled_by_env';
@@ -1295,7 +1309,8 @@ export function buildEnhancedClaudePrompt({
     .filter(index => index >= 0);
 
   const patternLines = built.sourceUsageSignals?.patternLines || [];
-  const patternsUsedInPrompt = patternLines.filter(line => finalUser.includes(line)).length;
+  const patternData = finalUser.match(/<pattern_highlights>([^\n]*)<\/pattern_highlights>/)?.[1] || '';
+  const patternsUsedInPrompt = patternLines.filter(line => patternData.includes(line)).length;
   promptMeta.sourceUsage = {
     spreadCards: {
       requested: true,

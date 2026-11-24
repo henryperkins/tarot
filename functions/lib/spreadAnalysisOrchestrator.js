@@ -56,10 +56,21 @@ const FALLBACK_THEMES = {
 // Forecast Timeframe Detection
 // ============================================================================
 
+const FORECAST_UNIT_DAYS = { day: 1, week: 7, month: 30, season: 90, quarter: 90 };
+const FORECAST_WORD_COUNTS = { a: 1, an: 1, one: 1, two: 2, three: 3, few: 3, 'a few': 3, several: 3 };
+const FORECAST_START = [
+  /(?:next|coming|upcoming)(?:\s+(?<relative>\d+|one|two|three|few|several))?/u.source,
+  /(?:in|within)\s+(?<duration>\d+|an?|one|two|three|a few|several)/u.source,
+  /(?:can|could|should|will|might)\s+(?:i|we|you)\b(?!\s+have\b)[^.?!;,\n]*?\bthis/u.source
+].join('|');
+const FORECAST_INTERVAL = new RegExp(
+  `\\b(?:${FORECAST_START})\\s+(?<unit>(?:${Object.keys(FORECAST_UNIT_DAYS).join('|')})s?)\\b(?!\\s+(?:ago|of|so far|to date)\\b)`, 'giu'
+);
+
 /**
  * Detect if user question asks about a future timeframe.
  *
- * Returns the number of forecast days to fetch based on temporal keywords:
+ * Returns the number of forecast days to fetch for an upcoming interval:
  * - Season-level: 90 days
  * - Month-level: 30 days
  * - Week-level: 14 days
@@ -68,27 +79,20 @@ const FALLBACK_THEMES = {
  * @returns {number|null} Number of forecast days or null
  */
 export function detectForecastTimeframe(userQuestion) {
-  if (!userQuestion) return null;
-  const q = userQuestion.toLowerCase();
-
-  // Season-level (90 days)
-  if (q.includes('season') || q.includes('next few months') ||
-    q.includes('coming months') || q.includes('quarter')) {
-    return 90;
+  if (typeof userQuestion !== 'string') return null;
+  // A current period counts when it is in a prospective question, such as
+  // "What should I focus on this week?" A retrospective clause does not qualify.
+  let horizon = 0;
+  for (const { groups } of userQuestion.toLowerCase().matchAll(FORECAST_INTERVAL)) {
+    const amount = groups.relative || groups.duration;
+    const singular = groups.unit.replace(/s$/u, '');
+    const impliedCount = singular === groups.unit ? 1 : 3;
+    const count = amount ? FORECAST_WORD_COUNTS[amount] ?? Number(amount) : impliedCount;
+    const days = count * FORECAST_UNIT_DAYS[singular];
+    if (!days) continue;
+    horizon = Math.max(horizon, days <= 14 ? 14 : days <= 30 ? 30 : 90);
   }
-
-  // Month-level (30 days)
-  if (q.includes('month') || q.includes('30 days') ||
-    q.includes('next weeks') || q.includes('coming weeks')) {
-    return 30;
-  }
-
-  // Week-level (14 days)
-  if (q.includes('week') || q.includes('next few days')) {
-    return 14;
-  }
-
-  return null;
+  return horizon || null;
 }
 
 // ============================================================================
@@ -438,6 +442,8 @@ async function performSpreadAnalysisInner(
           userQuery: graphQuery,
           keywordQuery: selection.retrievalContentText,
           questionContext,
+          sensitiveContext: selection.sensitiveContext,
+          narrativeHighlights: themes.knowledgeGraph.narrativeHighlights,
           minRelevanceScore: 0.3,
           enableDeduplication: true,
           enableSemanticScoring: requestedSemanticScoring,
@@ -475,6 +481,7 @@ async function performSpreadAnalysisInner(
 
         const formattedBlock = graphRAG.formatPassagesForPrompt(passages, {
           deckStyle: options.deckStyle || 'rws-1909',
+          sensitiveContext: selection.sensitiveContext,
           includeSource: true,
           markdown: true
         });

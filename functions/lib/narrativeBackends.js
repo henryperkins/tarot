@@ -1516,6 +1516,7 @@ export async function composeReadingEnhanced(payload, env = null) {
     const formattedPassages = formatPassagesForPrompt(graphRAGPayload.passages, {
       includeSource: true,
       markdown: true,
+      sensitiveContext: contextSelection.sensitiveContext,
       deckStyle: payload.deckStyle || spreadInfo?.deckStyle || themes?.deckStyle || 'rws-1909'
     });
     const debugPassagesRendered = (formattedPassages.match(/^\d+\. /gm) || []).length;

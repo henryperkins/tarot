@@ -799,7 +799,7 @@ function stripCommonUserContent(text) {
     '- Focus areas (from onboarding): [FOCUS_AREAS_REDACTED]'
   );
   result = result.replace(
-    /\*\*Returning Querent Context\*\*:\s*[\s\S]*?(?=\n\n## TRADITIONAL WISDOM \(GraphRAG\)|\n\nPlease now write|\n\n\*\*Querent['’]s Reflections\*\*|\n\n\*\*Vision Validation\*\*:|\n\n\*\*VISION VALIDATION\*\*:|$)/gi,
+    /\*\*Returning Querent Context\*\*:\s*[\s\S]*?(?=\n\n(?:<!-- graphrag:(?:full|summary):start -->|## TABLEU TAROT (?:REFERENCES|PATTERN SUMMARY)|## TRADITIONAL WISDOM \(GraphRAG\)|Please now write|\*\*Querent['’]s Reflections\*\*|\*\*Vision Validation\*\*:|\*\*VISION VALIDATION\*\*:)|$)/gi,
     '**Returning Querent Context**: [MEMORY_REDACTED]'
   );
 

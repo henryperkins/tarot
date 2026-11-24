@@ -1,5 +1,5 @@
 import { enhanceSection, validateReadingNarrative } from '../../narrativeSpine.js';
-import { sortCardsByImportance, getPositionWeight } from '../../positionWeights.js';
+import { sortCardsByImportance } from '../../positionWeights.js';
 import {
   appendReversalReminder,
   buildPositionCardText,
@@ -66,16 +66,8 @@ class ThreeCardBuilder extends BaseSpreadBuilder {
     }
 
     const future = cardsInfo[2];
-    const futureWeight = getPositionWeight('threeCard', 2);
-    const presentWeight = getPositionWeight('threeCard', 1);
     section += `The Future position offers ${future.card} ${future.orientation} as a prospective symbolic lens.`;
     section += ' Consider how its theme might inform a next step you choose; it does not establish a current personal course or predict an event.';
-
-    if (futureWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
-      section += ` The Future position carries a weight of ${futureWeight.toFixed(2)}, so its voice leads the guidance.`;
-    } else if (presentWeight >= DEFAULT_WEIGHT_DETAIL_THRESHOLD) {
-      section += ` With the Present sitting at weight ${presentWeight.toFixed(2)}, your current stance remains the main lever for change.`;
-    }
 
     section += '\n\nAltogether, these threads suggest your next supportive step and point toward how to walk this path with agency.';
 

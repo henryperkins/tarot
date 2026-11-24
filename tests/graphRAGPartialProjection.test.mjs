@@ -22,7 +22,8 @@ for (const deckStyle of ['rws-1909', 'thoth-a1', 'marseille-classic']) {
       const block = built.userPrompt.match(/<reference>([\s\S]*?)<\/reference>/)?.[1];
       assert.ok(block);
       assert.doesNotMatch(block, /Death|clean ending|what is finished|after loss|grief/i);
-      assert.match(block, /human editorial status: pending/);
+      assert.doesNotMatch(block, /projection version|human editorial status/i);
+      assert.equal(pair.projectionReviewStatus, 'pending');
       assert.match(built.userPrompt, /These are internally authored Tableu Tarot Canon interpretive references/);
     }
   });
